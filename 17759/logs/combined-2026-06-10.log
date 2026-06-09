@@ -1,0 +1,6 @@
+{"level":"info","message":"Database initialized","module":"db","path":"./data/cpla.db","timestamp":"2026-06-10 07:14:58.822"}
+{"level":"info","message":"Loaded 5 accounts across 5 platforms","module":"authManager","timestamp":"2026-06-10 07:14:58.828"}
+{"level":"info","message":"Database connection closed","module":"db","timestamp":"2026-06-10 07:14:58.838"}
+{"level":"info","message":"Database initialized","module":"db","path":"./data/cpla.db","timestamp":"2026-06-10 07:23:43.200"}
+{"level":"info","message":"Database connection closed","module":"db","timestamp":"2026-06-10 07:23:43.201"}
+{"elapsed":195,"level":"info","message":"Image processed: /*** MASKED ***-images/TEST-SKU-001-amazon-test-input.jpg","module":"imageProcessor","platform":"amazon","size":2399,"sku":"TEST-SKU-001","timestamp":"2026-06-10 07:23:58.727"}

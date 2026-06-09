@@ -10,6 +10,8 @@ const logger = createLogger('db');
 
 const DB_PATH = process.env.DATABASE_PATH || './data/cpla.db';
 
+let instanceCache: DatabaseManager | null = null;
+
 export interface SKUMapping {
   sku: string;
   platform: PlatformType;
@@ -60,7 +62,6 @@ export interface ManualQueueItem {
 
 class DatabaseManager {
   private db: Database.Database;
-  private static instance: DatabaseManager;
 
   private constructor() {
     const dbDir = path.dirname(DB_PATH);
@@ -78,10 +79,10 @@ class DatabaseManager {
   }
 
   static getInstance(): DatabaseManager {
-    if (!DatabaseManager.instance) {
-      DatabaseManager.instance = new DatabaseManager();
+    if (!instanceCache) {
+      instanceCache = new DatabaseManager();
     }
-    return DatabaseManager.instance;
+    return instanceCache;
   }
 
   private initializeSchema(): void {
@@ -102,6 +103,7 @@ class DatabaseManager {
         PRIMARY KEY (sku, platform, site)
       );
       
+      CREATE INDEX IF NOT EXISTS idx_sku_mapping_sku_platform_site ON sku_mapping(sku, platform, site);
       CREATE INDEX IF NOT EXISTS idx_sku_mapping_status ON sku_mapping(status);
       CREATE INDEX IF NOT EXISTS idx_sku_mapping_platform ON sku_mapping(platform);
       CREATE INDEX IF NOT EXISTS idx_sku_mapping_last_synced ON sku_mapping(last_synced);

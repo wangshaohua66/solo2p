@@ -62,6 +62,9 @@ class AuthManager {
   private roundRobinIndex: Map<PlatformType, number> = new Map();
   private watcher: chokidar.FSWatcher | null = null;
   private lastLoadTime: number = 0;
+  private watcherRetryCount: number = 0;
+  private maxWatcherRetries: number = 5;
+  private watcherRebuildInProgress: boolean = false;
 
   constructor() {
     this.loadAccounts();
@@ -116,24 +119,122 @@ class AuthManager {
   private setupFileWatcher(): void {
     if (this.watcher) return;
 
-    this.watcher = chokidar.watch(ACCOUNTS_FILE, {
-      persistent: true,
-      ignoreInitial: true,
-      awaitWriteFinish: {
-        stabilityThreshold: 1000,
-        pollInterval: 100
+    if (!fs.existsSync(ACCOUNTS_FILE)) {
+      logger.warn(`Accounts file not found at ${ACCOUNTS_FILE}, watcher setup deferred`);
+      return;
+    }
+
+    this.tryCreateWatcher();
+  }
+
+  private tryCreateWatcher(attempt = 1): void {
+    if (this.watcherRebuildInProgress) {
+      logger.debug('Watcher rebuild already in progress, skipping');
+      return;
+    }
+
+    try {
+      this.watcherRebuildInProgress = true;
+
+      if (this.watcher) {
+        this.watcher.close().catch(() => {});
+        this.watcher = null;
       }
-    });
 
-    this.watcher.on('change', () => {
-      logger.info('Accounts file changed, hot reloading...');
-      this.backupCurrent();
-      this.loadAccounts();
-    });
+      const watcher = chokidar.watch(ACCOUNTS_FILE, {
+        persistent: true,
+        ignoreInitial: true,
+        awaitWriteFinish: {
+          stabilityThreshold: 1000,
+          pollInterval: 100
+        },
+        usePolling: attempt > 2
+      });
 
-    this.watcher.on('error', (error) => {
-      logger.error('Accounts file watcher error', error);
-    });
+      watcher.on('ready', () => {
+        this.watcher = watcher;
+        this.watcherRetryCount = 0;
+        this.watcherRebuildInProgress = false;
+        logger.info('Accounts file watcher initialized successfully');
+      });
+
+      watcher.on('change', () => {
+        const now = Date.now();
+        if (now - this.lastLoadTime < 2000) {
+          return;
+        }
+        this.lastLoadTime = now;
+        
+        logger.info('Accounts file changed, hot reloading...');
+        this.backupCurrent();
+        this.loadAccounts();
+      });
+
+      watcher.on('error', (error) => {
+        logger.error('Accounts file watcher error, will attempt to rebuild', error);
+        this.scheduleWatcherRebuild();
+      });
+
+      watcher.on('unlink', () => {
+        logger.warn('Accounts file was deleted, watcher will attempt to reattach');
+        this.scheduleWatcherRebuild();
+      });
+
+      setTimeout(() => {
+        if (!this.watcher && attempt < this.maxWatcherRetries) {
+          logger.warn(`Watcher not ready after 2s, retrying (attempt ${attempt}/${this.maxWatcherRetries})`);
+          this.watcherRebuildInProgress = false;
+          setTimeout(() => this.tryCreateWatcher(attempt + 1), attempt * 2000);
+        } else if (!this.watcher) {
+          this.watcherRebuildInProgress = false;
+          logger.error(`Failed to initialize watcher after ${this.maxWatcherRetries} attempts`);
+        }
+      }, 2000);
+
+    } catch (error) {
+      this.watcherRebuildInProgress = false;
+      logger.error(`Failed to create watcher (attempt ${attempt}/${this.maxWatcherRetries})`, error);
+      
+      if (attempt < this.maxWatcherRetries) {
+        const delay = Math.min(attempt * 2000, 30000);
+        logger.info(`Retrying watcher setup in ${delay}ms`);
+        setTimeout(() => this.tryCreateWatcher(attempt + 1), delay);
+      } else {
+        logger.error('Max watcher setup attempts exceeded, giving up');
+      }
+    }
+  }
+
+  private scheduleWatcherRebuild(): void {
+    if (this.watcherRebuildInProgress) {
+      return;
+    }
+
+    this.watcherRetryCount++;
+    
+    if (this.watcherRetryCount > this.maxWatcherRetries * 2) {
+      logger.error('Too many watcher failures, stopping automatic rebuild');
+      return;
+    }
+
+    const delay = Math.min(this.watcherRetryCount * 5000, 60000);
+    logger.info(`Scheduling watcher rebuild in ${delay}ms (retry ${this.watcherRetryCount})`);
+    
+    setTimeout(() => {
+      this.tryCreateWatcher(1);
+    }, delay);
+  }
+
+  async close(): Promise<void> {
+    if (this.watcher) {
+      try {
+        await this.watcher.close();
+      } catch (e) {
+        logger.warn('Error closing file watcher', e);
+      }
+      this.watcher = null;
+      logger.info('Auth manager watcher closed');
+    }
   }
 
   private backupCurrent(): void {
@@ -459,13 +560,6 @@ class AuthManager {
     };
   }
 
-  close(): void {
-    if (this.watcher) {
-      this.watcher.close();
-      this.watcher = null;
-    }
-    logger.info('Auth manager closed');
-  }
 }
 
 export const authManager = new AuthManager();

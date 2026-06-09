@@ -1,13 +1,13 @@
 {
   "version": "1.0",
-  "lastUpdated": 1717986918472,
+  "lastUpdated": 1781043323000,
   "accounts": [
     {
       "id": "amazon-main-001",
       "platform": "amazon",
       "email": "seller@example.com",
-      "encryptedPassword": "U2FsdGVkX1+base64-encrypted-password",
-      "encryptedTotpSeed": "U2FsdGVkX1+base64-encrypted-totp-seed",
+      "encryptedPassword": "U2FsdGVkX1/16ypzDNU7RDOp5ku+vY5Z9dP3/8Us8hg=",
+      "encryptedTotpSeed": "U2FsdGVkX188Ek5sm1ER5nl2Zm/oyAmUvR0qvSEw3p+KUOtc8yq0ytxiWY9nlTdPX/cxQxewOn12O5gM6UU8Ag==",
       "sites": ["US", "CA", "UK", "DE", "JP"],
       "status": "active"
     },
@@ -15,7 +15,7 @@
       "id": "ebay-main-001",
       "platform": "ebay",
       "email": "ebay-seller@example.com",
-      "encryptedPassword": "U2FsdGVkX1+base64-encrypted-password",
+      "encryptedPassword": "U2FsdGVkX1+crwPPR+k2pwR0OS2n9Kigcssfy4iZwfs=",
       "sites": ["US", "UK", "DE"],
       "status": "active"
     },
@@ -23,8 +23,8 @@
       "id": "shopee-main-001",
       "platform": "shopee",
       "email": "shopee-seller@example.com",
-      "encryptedPassword": "U2FsdGVkX1+base64-encrypted-password",
-      "encryptedTotpSeed": "U2FsdGVkX1+base64-encrypted-totp-seed",
+      "encryptedPassword": "U2FsdGVkX18Ij/r4iSQKR+1JtE6dnBXW/muoU2nr0t4=",
+      "encryptedTotpSeed": "U2FsdGVkX19ZlfoifkDi3WKgQy/rYo22tQr03VxR/2TXDZVgZquHpdlixB2wSGxZI8bt1O00szgI8miN8KVheg==",
       "sites": ["SG", "MY", "TH", "ID", "PH", "VN"],
       "status": "active"
     },
@@ -32,7 +32,7 @@
       "id": "lazada-main-001",
       "platform": "lazada",
       "email": "lazada-seller@example.com",
-      "encryptedPassword": "U2FsdGVkX1+base64-encrypted-password",
+      "encryptedPassword": "U2FsdGVkX1/ysZQosq2hGnEFI26giNeoV8aO6R1O86s=",
       "sites": ["SG", "MY", "TH", "ID", "PH", "VN"],
       "status": "active"
     },
@@ -40,8 +40,8 @@
       "id": "tiktok-main-001",
       "platform": "tiktok",
       "email": "tiktok-seller@example.com",
-      "encryptedPassword": "U2FsdGVkX1+base64-encrypted-password",
-      "encryptedTotpSeed": "U2FsdGVkX1+base64-encrypted-totp-seed",
+      "encryptedPassword": "U2FsdGVkX1/pfl9ptazGeCeYSFe+g0DHj5qVN5wLhpk=",
+      "encryptedTotpSeed": "U2FsdGVkX191cgkzNZQktciQ4opmJTvPlW2hm+H6OuTfygT4fbihxB580aFc3kfXYoF7GeRZ9pHVzfBDxowNMQ==",
       "sites": ["US", "UK", "SG", "MY"],
       "status": "active"
     }

@@ -1,6 +1,7 @@
 import { chromium, Browser, BrowserContext, Page, BrowserContextOptions } from 'playwright';
 import UserAgent from 'user-agents';
 import dotenv from 'dotenv';
+import axios from 'axios';
 import { createLogger } from '../utils/logger';
 import type { BrowserFingerprint, PlatformType } from '../../types';
 
@@ -573,18 +574,228 @@ class AntiDetectManager {
     }
   }
 
+  private async dragSlider(
+    page: Page,
+    sliderHandle: any,
+    fromX: number,
+    fromY: number,
+    toX: number,
+    toY: number
+  ): Promise<void> {
+    const path = generateMousePath(fromX, fromY, toX, toY, randomInt(30, 50));
+
+    await page.mouse.move(fromX, fromY);
+    await page.mouse.down();
+
+    for (let i = 0; i < path.length; i++) {
+      const point = path[i];
+      await page.mouse.move(point.x, point.y, { steps: 1 });
+      
+      if (i % 5 === 0) {
+        await page.waitForTimeout(randomInt(10, 30));
+      }
+    }
+
+    await page.waitForTimeout(randomInt(200, 500));
+    await page.mouse.up();
+  }
+
   private async solveClickCaptcha(page: Page): Promise<boolean> {
     logger.warn('Click captcha requires external API or manual intervention');
     return false;
   }
 
   private async solveWithApi(page: Page, type: string, apiKey: string): Promise<boolean> {
-    logger.info(`Using ${process.env.CAPTCHA_SERVICE || '2captcha'} API for ${type} captcha`);
+    const service = process.env.CAPTCHA_SERVICE || '2captcha';
+    const baseUrl = service === 'capmonster' 
+      ? 'https://api.capmonster.cloud' 
+      : 'https://2captcha.com';
     
-    const screenshot = await page.screenshot({ fullPage: true, type: 'png' });
-    logger.debug(`Captcha screenshot taken, size: ${screenshot.length} bytes`);
+    logger.info(`Using ${service} API for ${type} captcha`);
     
-    return false;
+    try {
+      let taskId: string | null = null;
+      
+      if (type === 'slider' || type === 'click') {
+        const captchaEl = await page.$('.captcha-container, .geetest_widget, iframe[src*="captcha"]');
+        if (!captchaEl) {
+          logger.warn('Captcha element not found for API solving');
+          return false;
+        }
+        
+        const screenshot = await captchaEl.screenshot({ type: 'png' });
+        const base64Image = screenshot.toString('base64');
+        logger.debug(`Captcha screenshot taken, size: ${screenshot.length} bytes`);
+        
+        taskId = await this.createCaptchaTask(baseUrl, apiKey, type, base64Image);
+      } else {
+        const screenshot = await page.screenshot({ fullPage: true, type: 'png' });
+        const base64Image = screenshot.toString('base64');
+        logger.debug(`Captcha screenshot taken, size: ${screenshot.length} bytes`);
+        
+        taskId = await this.createCaptchaTask(baseUrl, apiKey, type, base64Image);
+      }
+      
+      if (!taskId) {
+        logger.warn('Failed to create captcha task');
+        return false;
+      }
+      
+      logger.debug(`Captcha task created: ${taskId}`);
+      
+      const solution = await this.pollForResult(baseUrl, apiKey, taskId);
+      if (!solution) {
+        logger.warn('Failed to get captcha solution');
+        return false;
+      }
+      
+      logger.info(`Captcha solved successfully`);
+      
+      return await this.applyCaptchaSolution(page, type, solution);
+    } catch (error) {
+      logger.error('Captcha API solving failed', error);
+      return false;
+    }
+  }
+
+  private async createCaptchaTask(
+    baseUrl: string,
+    apiKey: string,
+    type: string,
+    base64Image: string
+  ): Promise<string | null> {
+    try {
+      const formData = new FormData();
+      formData.append('key', apiKey);
+      formData.append('method', 'base64');
+      formData.append('body', base64Image);
+      formData.append('json', '1');
+      
+      if (type === 'slider') {
+        formData.append('recaptcha', '1');
+      } else if (type === 'click') {
+        formData.append('click', '1');
+      }
+      
+      const response = await axios.post(`${baseUrl}/in.php`, formData, {
+        timeout: 30000,
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      const data = response.data;
+      if (data.status === 1) {
+        return data.request;
+      } else {
+        logger.warn(`Captcha API error: ${data.request}`);
+        return null;
+      }
+    } catch (error) {
+      logger.error('Failed to create captcha task', error);
+      return null;
+    }
+  }
+
+  private async pollForResult(
+    baseUrl: string,
+    apiKey: string,
+    taskId: string,
+    maxAttempts = 60,
+    intervalMs = 5000
+  ): Promise<string | null> {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, intervalMs));
+      
+      try {
+        const response = await axios.get(`${baseUrl}/res.php`, {
+          params: {
+            key: apiKey,
+            action: 'get',
+            id: taskId,
+            json: '1'
+          },
+          timeout: 15000
+        });
+        
+        const data = response.data;
+        
+        if (data.status === 1) {
+          return data.request;
+        } else if (data.request === 'CAPCHA_NOT_READY') {
+          logger.debug(`Captcha not ready yet, attempt ${attempt}/${maxAttempts}`);
+          continue;
+        } else {
+          logger.warn(`Captcha API error: ${data.request}`);
+          return null;
+        }
+      } catch (error) {
+        if (attempt === maxAttempts) {
+          logger.error('Failed to poll captcha result after max attempts', error);
+          return null;
+        }
+        logger.debug(`Poll attempt ${attempt} failed, retrying...`);
+      }
+    }
+    
+    logger.warn(`Captcha solving timed out after ${maxAttempts * intervalMs / 1000}s`);
+    return null;
+  }
+
+  private async applyCaptchaSolution(
+    page: Page,
+    type: string,
+    solution: string
+  ): Promise<boolean> {
+    try {
+      if (type === 'text') {
+        const inputSelector = 'input[type="text"][name*="captcha"], input[name*="captcha"], input[name*="verify"]';
+        const inputEl = await page.$(inputSelector);
+        if (inputEl) {
+          await inputEl.fill(solution);
+          const submitBtn = await page.$('button[type="submit"], input[type="submit"]');
+          if (submitBtn) {
+            await this.smartClick(page, 'button[type="submit"], input[type="submit"]');
+          }
+          await page.waitForNavigation({ timeout: 10000, waitUntil: 'domcontentloaded' }).catch(() => {});
+          return true;
+        }
+      } else if (type === 'slider') {
+        const sliderHandle = await page.$('div.slider-handle, .captcha-drag, .nc_iconfont.btn_slide, .Slider-Move-Container');
+        if (sliderHandle && solution.includes('|')) {
+          const [x, y] = solution.split('|').map(Number);
+          const handleBB = await sliderHandle.boundingBox();
+          if (handleBB) {
+            await this.dragSlider(page, sliderHandle, handleBB.x, handleBB.y, handleBB.x + x, handleBB.y);
+            return true;
+          }
+        }
+      } else if (type === 'click') {
+        const points = solution.split(';').map(p => {
+          const [x, y] = p.split(',').map(Number);
+          return { x, y };
+        });
+        
+        const captchaArea = await page.$('.captcha-container, .geetest_widget');
+        if (captchaArea) {
+          const areaBB = await captchaArea.boundingBox();
+          if (areaBB) {
+            for (const point of points) {
+              await page.mouse.click(areaBB.x + point.x, areaBB.y + point.y);
+              await new Promise(r => setTimeout(r, 300));
+            }
+            const confirmBtn = await page.$('button:has-text("Confirm"), button:has-text("Submit"), .geetest_commit');
+            if (confirmBtn) {
+              await this.smartClick(page, 'button:has-text("Confirm"), button:has-text("Submit"), .geetest_commit');
+            }
+            return true;
+          }
+        }
+      }
+      
+      return false;
+    } catch (error) {
+      logger.error('Failed to apply captcha solution', error);
+      return false;
+    }
   }
 
   async takeScreenshot(page: Page, name: string): Promise<string> {

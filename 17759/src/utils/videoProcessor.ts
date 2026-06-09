@@ -6,6 +6,19 @@ import type { PlatformType } from '../../types';
 
 const logger = createLogger('video-processor');
 
+try {
+  const ffmpegStatic = require('ffmpeg-static');
+  const ffprobeStatic = require('@ffprobe-installer/ffprobe');
+  if (ffmpegStatic?.path) {
+    ffmpeg.setFfmpegPath(ffmpegStatic.path);
+  }
+  if (ffprobeStatic?.path) {
+    ffmpeg.setFfprobePath(ffprobeStatic.path);
+  }
+} catch (e) {
+  logger.debug('ffmpeg-static or ffprobe not available, will use system ffmpeg');
+}
+
 export interface VideoConfig {
   maxWidth: number;
   maxHeight: number;
@@ -90,8 +103,16 @@ class VideoProcessor {
 
   private ensureFfmpegAvailable(): boolean {
     try {
-      const ffmpegPath = require('fluent-ffmpeg').FfmpegCommand.prototype._getFfmpegPath();
-      if (!ffmpegPath) return false;
+      const ffmpegPath = (ffmpeg as any).getFfmpegPath 
+        ? (ffmpeg as any).getFfmpegPath() 
+        : (ffmpeg as any)._getFfmpegPath?.();
+      
+      if (!ffmpegPath || !fs.existsSync(ffmpegPath)) {
+        logger.warn('ffmpeg binary not found, video processing will be skipped');
+        return false;
+      }
+      
+      logger.debug(`Using ffmpeg at: ${ffmpegPath}`);
       return true;
     } catch (e) {
       logger.warn('ffmpeg not available, video processing will be skipped', e);

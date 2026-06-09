@@ -98,7 +98,7 @@ class ImageProcessor {
       pipeline = pipeline.rotate();
 
       if (watermark) {
-        pipeline = await this.addWatermark(pipeline, metadata.width || 1000, watermark);
+        pipeline = await this.addWatermark(pipeline, metadata.width || 1000, metadata.height || 1000, watermark);
       }
 
       if (config.format === 'jpeg') {
@@ -174,16 +174,78 @@ class ImageProcessor {
   private async addWatermark(
     pipeline: sharp.Sharp,
     imageWidth: number,
+    imageHeight: number,
     watermark: WatermarkConfig
   ): Promise<sharp.Sharp> {
-    const fontSize = watermark.fontSize || Math.max(12, Math.round(imageWidth * 0.04));
-    const padding = Math.round(imageWidth * 0.02);
+    const fontSize = watermark.fontSize || Math.max(12, Math.round(Math.min(imageWidth, imageHeight) * 0.04));
+    const padding = Math.round(Math.min(imageWidth, imageHeight) * 0.02);
     const text = watermark.text;
     const opacity = watermark.opacity || 0.3;
     const color = watermark.color || 'white';
 
+    const position = watermark.position || 'center';
+    
+    let textX: string | number = '50%';
+    let textY: string | number = '50%';
+    let textAnchor = 'middle';
+    let dominantBaseline = 'middle';
+    let rotateX = imageWidth / 2;
+    let rotateY = imageHeight / 2;
+    
+    const maxTextWidth = imageWidth - 2 * padding;
+    const maxTextHeight = imageHeight - 2 * padding;
+    
+    const estimatedTextWidth = text.length * fontSize * 0.6;
+    if (estimatedTextWidth > maxTextWidth) {
+      logger.warn('Watermark text may exceed image bounds, consider reducing font size');
+    }
+    
+    switch (position) {
+      case 'top-left':
+        textX = padding;
+        textY = padding;
+        textAnchor = 'start';
+        dominantBaseline = 'hanging';
+        rotateX = padding;
+        rotateY = padding;
+        break;
+      case 'top-right':
+        textX = imageWidth - padding;
+        textY = padding;
+        textAnchor = 'end';
+        dominantBaseline = 'hanging';
+        rotateX = imageWidth - padding;
+        rotateY = padding;
+        break;
+      case 'bottom-left':
+        textX = padding;
+        textY = imageHeight - padding;
+        textAnchor = 'start';
+        dominantBaseline = 'baseline';
+        rotateX = padding;
+        rotateY = imageHeight - padding;
+        break;
+      case 'bottom-right':
+        textX = imageWidth - padding;
+        textY = imageHeight - padding;
+        textAnchor = 'end';
+        dominantBaseline = 'baseline';
+        rotateX = imageWidth - padding;
+        rotateY = imageHeight - padding;
+        break;
+      case 'center':
+      default:
+        textX = '50%';
+        textY = '50%';
+        textAnchor = 'middle';
+        dominantBaseline = 'middle';
+        rotateX = imageWidth / 2;
+        rotateY = imageHeight / 2;
+        break;
+    }
+
     const svgWatermark = `
-      <svg width="${imageWidth}" height="${imageWidth}" xmlns="http://www.w3.org/2000/svg">
+      <svg width="${imageWidth}" height="${imageHeight}" xmlns="http://www.w3.org/2000/svg">
         <style>
           .watermark {
             font-family: Arial, sans-serif;
@@ -193,7 +255,7 @@ class ImageProcessor {
             font-weight: bold;
           }
         </style>
-        <text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" class="watermark" transform="rotate(-45 ${imageWidth/2} ${imageWidth/2})">
+        <text x="${textX}" y="${textY}" text-anchor="${textAnchor}" dominant-baseline="${dominantBaseline}" class="watermark" transform="rotate(-45 ${rotateX} ${rotateY})">
           ${text}
         </text>
       </svg>
@@ -201,33 +263,8 @@ class ImageProcessor {
 
     const watermarkBuffer = Buffer.from(svgWatermark);
     
-    const position = watermark.position || 'center';
-    let left = 0;
-    let top = 0;
-    
-    switch (position) {
-      case 'top-left':
-        left = padding;
-        top = padding;
-        break;
-      case 'top-right':
-        left = imageWidth - imageWidth - padding;
-        top = padding;
-        break;
-      case 'bottom-left':
-        left = padding;
-        top = imageWidth - imageWidth - padding;
-        break;
-      case 'bottom-right':
-        left = imageWidth - imageWidth - padding;
-        top = imageWidth - imageWidth - padding;
-        break;
-      case 'center':
-      default:
-        left = 0;
-        top = 0;
-        break;
-    }
+    const left = 0;
+    const top = 0;
 
     return pipeline.composite([{
       input: watermarkBuffer,
