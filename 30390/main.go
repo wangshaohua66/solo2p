@@ -73,11 +73,15 @@ func main() {
 	}
 
 	for _, arg := range os.Args[1:] {
-		if arg == "--version" || arg == "-v" && len(os.Args) == 2 {
+		if arg == "--version" {
 			version.Print()
 			os.Exit(0)
 		}
-		if arg == "--help" || arg == "-h" && len(os.Args) == 2 {
+		if arg == "-v" && len(os.Args) == 2 {
+			version.Print()
+			os.Exit(0)
+		}
+		if arg == "--help" || (arg == "-h" && len(os.Args) == 2) {
 			printUsage()
 			os.Exit(0)
 		}
@@ -97,7 +101,18 @@ func main() {
 		os.Exit(runConfig(args))
 	case "notify":
 		os.Exit(runNotify(args))
+	case "-h", "--help":
+		printUsage()
+		os.Exit(0)
 	default:
+		if strings.HasPrefix(cmd, "-") {
+			for _, arg := range args {
+				if arg == "-h" || arg == "--help" {
+					printUsage()
+					os.Exit(0)
+				}
+			}
+		}
 		fmt.Printf("Unknown command: %s\n\n", cmd)
 		printUsage()
 		os.Exit(1)

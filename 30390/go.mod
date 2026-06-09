@@ -3,6 +3,7 @@ module github.com/gitmon/gitmon
 go 1.22
 
 require (
+	github.com/chromedp/chromedp v0.11.2
 	github.com/fatih/color v1.17.0
 	github.com/go-echarts/go-echarts/v2 v2.2.10
 	github.com/labstack/echo/v4 v4.12.0

@@ -72,6 +72,15 @@ func DefaultConfig() *Config {
 	home, _ := os.UserHomeDir()
 	dataDir := filepath.Join(home, ".gitmon")
 	return &Config{
+		Repos: []RepoConfig{
+			{
+				Name:   "example-service",
+				Path:   "~/projects/example-service",
+				Mode:   "worktree",
+				Branch: "main",
+				Owner:  "team-a",
+			},
+		},
 		Scan: ScanConfig{
 			Concurrency: 20,
 			WorkerCount: 4,

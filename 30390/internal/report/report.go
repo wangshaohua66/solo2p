@@ -2,6 +2,7 @@ package report
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -10,6 +11,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/chromedp/chromedp"
 	"github.com/gitmon/gitmon/internal/analyzer"
 	"github.com/gitmon/gitmon/internal/git"
 	"github.com/gitmon/gitmon/internal/storage"
@@ -40,13 +42,29 @@ type ReportData struct {
 type Generator struct {
 	analyzer *analyzer.Analyzer
 	store    *storage.Store
+	tmpl     *template.Template
 }
 
 func New(an *analyzer.Analyzer, store *storage.Store) *Generator {
-	return &Generator{
+	g := &Generator{
 		analyzer: an,
 		store:    store,
 	}
+	g.loadTemplates()
+	return g
+}
+
+func (g *Generator) loadTemplates() {
+	tmplDir := "templates"
+	if _, err := os.Stat(tmplDir); os.IsNotExist(err) {
+		return
+	}
+	tmpl, err := template.ParseGlob(filepath.Join(tmplDir, "*.html"))
+	if err != nil {
+		g.tmpl = nil
+		return
+	}
+	g.tmpl = tmpl
 }
 
 func (g *Generator) Generate(cfg ReportConfig) (string, error) {
@@ -177,14 +195,34 @@ func (g *Generator) generateHTML(data *ReportData, outputDir, templatePath strin
 	filename := fmt.Sprintf("gitmon_report_%s.html", data.GeneratedAt.Format("20060102_150405"))
 	path := filepath.Join(outputDir, filename)
 
-	page := g.buildReportPage(data)
+	var htmlContent string
 
-	var buf bytes.Buffer
-	if err := page.Render(&buf); err != nil {
-		return "", err
+	if templatePath != "" {
+		customTmpl, err := template.ParseFiles(templatePath)
+		if err != nil {
+			return "", fmt.Errorf("parse custom template: %w", err)
+		}
+		var buf bytes.Buffer
+		if err := customTmpl.Execute(&buf, data); err != nil {
+			return "", fmt.Errorf("execute custom template: %w", err)
+		}
+		htmlContent = buf.String()
+	} else if g.tmpl != nil && g.tmpl.Lookup("report.html") != nil {
+		var buf bytes.Buffer
+		if err := g.tmpl.ExecuteTemplate(&buf, "report.html", data); err != nil {
+			return "", fmt.Errorf("execute template: %w", err)
+		}
+		htmlContent = buf.String()
+	} else {
+		page := g.buildReportPage(data)
+		var buf bytes.Buffer
+		if err := page.Render(&buf); err != nil {
+			return "", err
+		}
+		htmlContent = buf.String()
 	}
 
-	if err := os.WriteFile(path, buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(htmlContent), 0644); err != nil {
 		return "", err
 	}
 
@@ -198,11 +236,44 @@ func (g *Generator) generatePDF(data *ReportData, outputDir string) (string, err
 	}
 
 	pdfPath := filepath.Join(outputDir, filepath.Base(htmlPath)+".pdf")
-	fmt.Printf("Note: PDF generation requires a headless browser.\n")
-	fmt.Printf("HTML report generated at: %s\n", htmlPath)
-	fmt.Printf("To convert to PDF, use: chrome --headless --print-to-pdf=%s %s\n", pdfPath, htmlPath)
 
-	return htmlPath, nil
+	absHTMLPath, err := filepath.Abs(htmlPath)
+	if err != nil {
+		return "", fmt.Errorf("get absolute path: %w", err)
+	}
+	fileURL := "file://" + absHTMLPath
+
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.Flag("headless", true),
+		chromedp.Flag("disable-gpu", true),
+		chromedp.Flag("no-sandbox", true),
+	)
+
+	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
+	defer cancel()
+
+	ctx, cancel := chromedp.NewContext(allocCtx)
+	defer cancel()
+
+	var pdfBuf []byte
+	if err := chromedp.Run(ctx,
+		chromedp.Navigate(fileURL),
+		chromedp.WaitReady("body", chromedp.ByQuery),
+		chromedp.Sleep(1*time.Second),
+		chromedp.PrintToPDF(&pdfBuf, chromedp.WithPrintToPDFParams(
+			chromedp.PaperSize(8.5, 11),
+			chromedp.Margin(0.4, 0.4, 0.4, 0.4),
+			chromedp.PrintBackground(true),
+		)),
+	); err != nil {
+		return "", fmt.Errorf("chromedp print to pdf: %w", err)
+	}
+
+	if err := os.WriteFile(pdfPath, pdfBuf, 0644); err != nil {
+		return "", fmt.Errorf("write pdf file: %w", err)
+	}
+
+	return pdfPath, nil
 }
 
 func (g *Generator) buildReportPage(data *ReportData) *components.Page {

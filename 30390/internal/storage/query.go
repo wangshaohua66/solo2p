@@ -57,7 +57,7 @@ func (s *Store) GetCommitsByRepo(repoName string, limit int) ([]CommitRecord, er
 		prefix := []byte(repoName + ":")
 		return tx.ForEachWithPrefix(BucketCommits, prefix, func(k, v []byte) error {
 			if limit > 0 && count >= limit {
-				return nil
+				return ErrStopIteration
 			}
 			var c CommitRecord
 			if err := fromBytes(v, &c); err == nil {
@@ -362,7 +362,7 @@ func (s *Store) SearchCommits(repoName, query string, limit int) ([]CommitRecord
 		count := 0
 		return tx.ForEachWithPrefix(BucketCommits, prefix, func(k, v []byte) error {
 			if limit > 0 && count >= limit {
-				return nil
+				return ErrStopIteration
 			}
 			var c CommitRecord
 			if err := fromBytes(v, &c); err == nil {

@@ -1,6 +1,9 @@
 package storage
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
+	"fmt"
 	"time"
 
 	"github.com/gitmon/gitmon/internal/git"
@@ -47,6 +50,9 @@ type CommitRecord struct {
 	TechDebtCount  int       `json:"tech_debt_count"`
 	ReviewDuration int64     `json:"review_duration_seconds,omitempty"`
 	PRNumber       string    `json:"pr_number,omitempty"`
+	Author         string    `json:"author"`
+	Message        string    `json:"message"`
+	Date           time.Time `json:"date"`
 }
 
 type FileRecord struct {
@@ -91,6 +97,9 @@ type TechDebtItem struct {
 	CreatedAt time.Time `json:"created_at"`
 	AgeDays   int       `json:"age_days"`
 	Severity  string    `json:"severity"`
+	Type      string    `json:"type"`
+	File      string    `json:"file"`
+	Message   string    `json:"message"`
 }
 
 type AlertRecord struct {
@@ -175,5 +184,31 @@ func NewCommitRecord(c *git.Commit) *CommitRecord {
 		Additions:      additions,
 		Deletions:      deletions,
 		FilesChanged:   len(c.Files),
+		Author:         c.AuthorName,
+		Message:        c.Subject,
+		Date:           c.AuthorDate,
 	}
+}
+
+func NewTechDebtItem(repoName, filePath string, lineNum int, pattern, content, author, email string) *TechDebtItem {
+	return &TechDebtItem{
+		ID:        generateTechDebtID(repoName, filePath, lineNum, pattern),
+		RepoName:  repoName,
+		FilePath:  filePath,
+		LineNum:   lineNum,
+		Pattern:   pattern,
+		Content:   content,
+		Author:    author,
+		Email:     email,
+		CreatedAt: time.Now(),
+		Type:      pattern,
+		File:      filePath,
+		Message:   content,
+	}
+}
+
+func generateTechDebtID(repo, path string, line int, pattern string) string {
+	h := sha1.New()
+	h.Write([]byte(fmt.Sprintf("%s:%s:%d:%s", repo, path, line, pattern)))
+	return hex.EncodeToString(h.Sum(nil))[:16]
 }

@@ -7,12 +7,14 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gitmon/gitmon/internal/analyzer"
 	"github.com/gitmon/gitmon/internal/config"
 	"github.com/gitmon/gitmon/internal/git"
 	"github.com/gitmon/gitmon/internal/storage"
+	"github.com/gitmon/gitmon/internal/version"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -24,6 +26,13 @@ type Server struct {
 	store    *storage.Store
 	analyzer *analyzer.Analyzer
 	addr     string
+
+	cacheMu           sync.RWMutex
+	cachedRepos       []storage.RepoRecord
+	cachedReposTime   time.Time
+	cachedContribs    map[string][]storage.ContributorRecord
+	cachedContribsTime time.Time
+	cacheTTL          time.Duration
 }
 
 type APIResponse struct {
@@ -55,6 +64,7 @@ func New(cfg *config.Config, store *storage.Store, an *analyzer.Analyzer) *Serve
 		store:    store,
 		analyzer: an,
 		addr:     addr,
+		cacheTTL: 30 * time.Second,
 	}
 
 	s.routes()
@@ -79,7 +89,6 @@ func (s *Server) routes() {
 
 	s.e.Static("/static", "web/static")
 	s.e.GET("/", s.handleDashboard)
-	s.e.GET("/repos/:name", s.handleDashboard)
 }
 
 func (s *Server) Start(ctx context.Context) error {
@@ -99,9 +108,13 @@ func (s *Server) GetAddr() string {
 
 func (s *Server) handleHealth(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"status":    "ok",
-		"timestamp": time.Now().UTC(),
-		"version":   "1.0.0",
+		"status":     "ok",
+		"timestamp":  time.Now().UTC(),
+		"version":    version.Version,
+		"build_time": version.BuildTime,
+		"git_commit": version.GitCommit,
+		"go_version": version.GoVersion,
+		"os_arch":    version.OsArch,
 	})
 }
 
@@ -115,8 +128,55 @@ func (s *Server) handleStats(c echo.Context) error {
 	return s.success(c, filtered)
 }
 
-func (s *Server) handleRepos(c echo.Context) error {
+func (s *Server) getCachedRepos() ([]storage.RepoRecord, error) {
+	s.cacheMu.RLock()
+	if time.Since(s.cachedReposTime) < s.cacheTTL && len(s.cachedRepos) > 0 {
+		defer s.cacheMu.RUnlock()
+		return s.cachedRepos, nil
+	}
+	s.cacheMu.RUnlock()
+
 	repos, err := s.store.GetAllRepos()
+	if err != nil {
+		return nil, err
+	}
+
+	s.cacheMu.Lock()
+	s.cachedRepos = repos
+	s.cachedReposTime = time.Now()
+	s.cacheMu.Unlock()
+
+	return repos, nil
+}
+
+func (s *Server) getCachedContributors(repoName string) ([]storage.ContributorRecord, error) {
+	s.cacheMu.RLock()
+	if time.Since(s.cachedContribsTime) < s.cacheTTL && s.cachedContribs != nil {
+		if contribs, ok := s.cachedContribs[repoName]; ok {
+			defer s.cacheMu.RUnlock()
+			return contribs, nil
+		}
+	}
+	s.cacheMu.RUnlock()
+
+	contribs, err := s.store.GetContributorsByRepo(repoName)
+	if err != nil {
+		return nil, err
+	}
+
+	s.cacheMu.Lock()
+	if s.cachedContribs == nil {
+		s.cachedContribs = make(map[string][]storage.ContributorRecord)
+	}
+	s.cachedContribs[repoName] = contribs
+	s.cachedContribsTime = time.Now()
+	s.cacheMu.Unlock()
+
+	return contribs, nil
+}
+
+func (s *Server) handleRepos(c echo.Context) error {
+	repos, err := s.getCachedRepos()
 	if err != nil {
 		return s.error(c, http.StatusInternalServerError, err)
 	}
@@ -170,7 +230,7 @@ func (s *Server) handleRepoCommits(c echo.Context) error {
 
 func (s *Server) handleRepoContributors(c echo.Context) error {
 	name := c.Param("name")
-	contributors, err := s.store.GetContributorsByRepo(name)
+	contributors, err := s.getCachedContributors(name)
 	if err != nil {
 		return s.error(c, http.StatusInternalServerError, err)
 	}

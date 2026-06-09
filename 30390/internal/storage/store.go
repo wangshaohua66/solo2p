@@ -19,6 +19,9 @@ var (
 	BucketAlerts       = []byte("alerts")
 	BucketIndex        = []byte("index")
 	BucketTechDebt     = []byte("techdebt")
+	BucketPRHealth     = []byte("prhealth")
+
+	ErrStopIteration = fmt.Errorf("stop iteration")
 )
 
 type Store struct {
@@ -74,6 +77,7 @@ func (s *Store) initBuckets() error {
 			BucketAlerts,
 			BucketIndex,
 			BucketTechDebt,
+			BucketPRHealth,
 		}
 		for _, b := range buckets {
 			if _, err := tx.CreateBucketIfNotExists(b); err != nil {
@@ -82,6 +86,33 @@ func (s *Store) initBuckets() error {
 		}
 		return nil
 	})
+}
+
+func (s *Store) SavePRHealth(repoName string, prs []PRHealth) error {
+	return s.Batch(func(tx *Tx) error {
+		for _, pr := range prs {
+			key := MakeKey(repoName, pr.PRNumber)
+			if err := tx.Put(BucketPRHealth, key, pr); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (s *Store) GetPRHealth(repoName string) ([]PRHealth, error) {
+	var prs []PRHealth
+	err := s.View(func(tx *Tx) error {
+		prefix := []byte(repoName + ":")
+		return tx.ForEachWithPrefix(BucketPRHealth, prefix, func(k, v []byte) error {
+			var pr PRHealth
+			if err := fromBytes(v, &pr); err == nil {
+				prs = append(prs, pr)
+			}
+			return nil
+		})
+	})
+	return prs, err
 }
 
 func (s *Store) Close() error {
@@ -194,6 +225,9 @@ func (t *Tx) ForEachWithPrefix(bucket []byte, prefix []byte, fn func(k, v []byte
 	c := b.Cursor()
 	for k, v := c.Seek(prefix); k != nil && hasPrefix(k, prefix); k, v = c.Next() {
 		if err := fn(k, v); err != nil {
+			if err == ErrStopIteration {
+				return nil
+			}
 			return err
 		}
 	}

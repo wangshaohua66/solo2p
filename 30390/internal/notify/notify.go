@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gitmon/gitmon/internal/config"
+	"github.com/gitmon/gitmon/internal/git"
 	"github.com/gitmon/gitmon/internal/storage"
 )
 
@@ -112,9 +113,9 @@ func (n *FeishuNotifier) SendAlert(alert *storage.AlertRecord) error {
 	sign := n.sign(timestamp)
 
 	levelEmoji := "⚠️"
-	if alert.Level == "critical" {
+	if alert.Level == string(git.HealthCritical) {
 		levelEmoji = "🔴"
-	} else if alert.Level == "warning" {
+	} else if alert.Level == string(git.HealthWarning) {
 		levelEmoji = "🟡"
 	}
 
@@ -173,9 +174,9 @@ func (n *FeishuNotifier) SendSummary(stats []storage.RepoStats, alerts []storage
 
 	for _, s := range stats {
 		switch s.HealthLevel {
-		case "critical":
+		case git.HealthCritical:
 			criticalCount++
-		case "warning":
+		case git.HealthWarning:
 			warningCount++
 		default:
 			goodCount++
@@ -192,7 +193,7 @@ func (n *FeishuNotifier) SendSummary(stats []storage.RepoStats, alerts []storage
 				break
 			}
 			emoji := "🟡"
-			if a.Level == "critical" {
+			if a.Level == string(git.HealthCritical) {
 				emoji = "🔴"
 			}
 			text += fmt.Sprintf("%s %s: %s - %s\n", emoji, a.RepoName, a.Type, a.Message)
@@ -264,9 +265,9 @@ func (n *FeishuNotifier) post(msg interface{}) error {
 
 func getFeishuTemplate(level string) string {
 	switch level {
-	case "critical":
+	case string(git.HealthCritical):
 		return "red"
-	case "warning":
+	case string(git.HealthWarning):
 		return "yellow"
 	default:
 		return "green"
@@ -288,9 +289,9 @@ func (n *DingtalkNotifier) SendAlert(alert *storage.AlertRecord) error {
 	sign := n.sign(timestamp)
 
 	levelEmoji := "⚠️"
-	if alert.Level == "critical" {
+	if alert.Level == string(git.HealthCritical) {
 		levelEmoji = "🔴"
-	} else if alert.Level == "warning" {
+	} else if alert.Level == string(git.HealthWarning) {
 		levelEmoji = "🟡"
 	}
 
@@ -338,9 +339,9 @@ func (n *DingtalkNotifier) SendSummary(stats []storage.RepoStats, alerts []stora
 
 	for _, s := range stats {
 		switch s.HealthLevel {
-		case "critical":
+		case git.HealthCritical:
 			criticalCount++
-		case "warning":
+		case git.HealthWarning:
 			warningCount++
 		default:
 			goodCount++
@@ -359,7 +360,7 @@ func (n *DingtalkNotifier) SendSummary(stats []storage.RepoStats, alerts []stora
 				break
 			}
 			emoji := "🟡"
-			if a.Level == "critical" {
+			if a.Level == string(git.HealthCritical) {
 				emoji = "🔴"
 			}
 			text += fmt.Sprintf("%s **%s**: %s - %s\n", emoji, a.RepoName, a.Type, a.Message)
@@ -416,9 +417,9 @@ func CheckSilentRepos(stats []storage.RepoStats, silentDays int) []storage.Alert
 
 	for _, s := range stats {
 		if s.SilentDays >= silentDays {
-			level := "warning"
+			level := string(git.HealthWarning)
 			if s.SilentDays >= 90 {
-				level = "critical"
+				level = string(git.HealthCritical)
 			}
 			alerts = append(alerts, storage.AlertRecord{
 				RepoName:  s.RepoName,

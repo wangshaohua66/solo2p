@@ -5,6 +5,9 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"log"
 	"math"
 	"os"
@@ -66,6 +69,7 @@ func (a *Analyzer) ScanAll(ctx context.Context, patterns []string) ([]ScanResult
 	taskChan := make(chan WorkerTask, len(repos))
 	resultChan := make(chan ScanResult, len(repos))
 	var wg sync.WaitGroup
+	var collectWg sync.WaitGroup
 
 	concurrency := a.cfg.Scan.Concurrency
 	if concurrency > len(repos) {
@@ -83,7 +87,9 @@ func (a *Analyzer) ScanAll(ctx context.Context, patterns []string) ([]ScanResult
 	var results []ScanResult
 	var mu sync.Mutex
 
+	collectWg.Add(1)
 	go func() {
+		defer collectWg.Done()
 		for r := range resultChan {
 			mu.Lock()
 			results = append(results, r)
@@ -94,8 +100,6 @@ func (a *Analyzer) ScanAll(ctx context.Context, patterns []string) ([]ScanResult
 	for _, repo := range repos {
 		var since time.Time
 		if a.cfg.Scan.Incremental {
-			status, _ := a.store.View(func(tx *storage.Tx) error { return nil })
-			_ = status
 			a.store.View(func(tx *storage.Tx) error {
 				scanStatus, _ := tx.GetScanStatus(repo.Name)
 				since = scanStatus.LastScanTime
@@ -112,6 +116,7 @@ func (a *Analyzer) ScanAll(ctx context.Context, patterns []string) ([]ScanResult
 	close(taskChan)
 	wg.Wait()
 	close(resultChan)
+	collectWg.Wait()
 
 	return results, nil
 }
@@ -195,7 +200,11 @@ func (a *Analyzer) scanRepo(ctx context.Context, task WorkerTask) ScanResult {
 	}
 
 	prHealth := a.analyzePRHealth(ctx, client, task.Repo.Name)
-	_ = prHealth
+	if len(prHealth) > 0 {
+		if err := a.store.SavePRHealth(task.Repo.Name, prHealth); err != nil {
+			log.Printf("save pr health failed for %s: %v", task.Repo.Name, err)
+		}
+	}
 
 	repoRecord := a.buildRepoRecord(repoInfo, &task.Repo, commits, files, contributors)
 	if err := a.store.SaveRepo(repoRecord); err != nil {
@@ -419,8 +428,16 @@ func (a *Analyzer) buildFileRecords(ctx context.Context, client *git.Client, chu
 
 func (a *Analyzer) estimateComplexity(path string, churnCount int, authorCount int) float64 {
 	ext := strings.ToLower(filepath.Ext(path))
-	baseComplexity := 1.0
 
+	if ext == ".go" {
+		if complexity, err := calculateGoCyclomaticComplexity(path); err == nil {
+			churnFactor := math.Log10(float64(churnCount)+1) * 0.3
+			authorFactor := math.Log10(float64(authorCount)+1) * 0.2
+			return float64(complexity) * (1.0 + churnFactor + authorFactor)
+		}
+	}
+
+	baseComplexity := 1.0
 	switch ext {
 	case ".go", ".java", ".cpp", ".c", ".h", ".cs", ".py", ".rb", ".js", ".ts", ".tsx", ".jsx":
 		baseComplexity = 3.0
@@ -438,6 +455,36 @@ func (a *Analyzer) estimateComplexity(path string, churnCount int, authorCount i
 	authorFactor := math.Log10(float64(authorCount)+1) * 0.3
 
 	return baseComplexity * (1.0 + churnFactor + authorFactor)
+}
+
+func calculateGoCyclomaticComplexity(filePath string) (int, error) {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return 0, err
+	}
+
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, filePath, content, parser.ParseComments)
+	if err != nil {
+		return 0, err
+	}
+
+	complexity := 1
+	ast.Inspect(node, func(n ast.Node) bool {
+		switch n.(type) {
+		case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt, *ast.SwitchStmt,
+			*ast.TypeSwitchStmt, *ast.SelectStmt, *ast.CaseClause, *ast.CommClause:
+			complexity++
+		case *ast.BinaryExpr:
+			be := n.(*ast.BinaryExpr)
+			if be.Op == token.LAND || be.Op == token.LOR {
+				complexity++
+			}
+		}
+		return true
+	})
+
+	return complexity, nil
 }
 
 func (a *Analyzer) calculateRiskScore(churnCount int, complexity float64, lines int) float64 {
