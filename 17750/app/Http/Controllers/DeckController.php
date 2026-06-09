@@ -242,9 +242,9 @@ class DeckController extends Controller
             ->findOrFail($id);
 
         $data = match ($format) {
-            'mtgo' => $this->exportMtgo($deck),
-            'mws' => $this->exportMws($deck),
-            'txt' => $this->exportTxt($deck),
+            'mtgo' => $this->formatMtgoExport($deck),
+            'mws' => $this->formatMwsExport($deck),
+            'txt' => $this->formatTxtExport($deck),
             default => $deck->toArray(),
         };
 
@@ -358,7 +358,7 @@ class DeckController extends Controller
         return response()->json(null, 204);
     }
 
-    private function exportMtgo(Deck $deck): string
+    private function formatMtgoExport(Deck $deck): string
     {
         $output = "// {$deck->name}\n";
         $output .= "// Format: {$deck->format}\n\n";
@@ -377,7 +377,7 @@ class DeckController extends Controller
         return $output;
     }
 
-    private function exportMws(Deck $deck): string
+    private function formatMwsExport(Deck $deck): string
     {
         $output = "[Deck]\n";
         $output .= "Name={$deck->name}\n";
@@ -407,7 +407,7 @@ class DeckController extends Controller
         return $output;
     }
 
-    private function exportTxt(Deck $deck): string
+    private function formatTxtExport(Deck $deck): string
     {
         $output = "{$deck->name}\n";
         $output .= str_repeat('=', strlen($deck->name)) . "\n\n";
@@ -424,5 +424,163 @@ class DeckController extends Controller
         }
 
         return $output;
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/decks/{deck}/export/mtgo",
+     *     summary="Export deck as MTGO format",
+     *     tags={"Decks"},
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(name="deck", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Response(response=200, description="Export successful")
+     * )
+     */
+    public function exportMtgo(Deck $deck): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $content = $this->formatMtgoExport($deck);
+
+        $headers = [
+            'Content-Type' => 'text/plain; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . strtolower(str_replace(' ', '_', $deck->name)) . '.txt"',
+        ];
+
+        return response()->stream(function () use ($content) {
+            echo $content;
+        }, 200, $headers);
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/decks/{deck}/export/mws",
+     *     summary="Export deck as MWS format",
+     *     tags={"Decks"},
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(name="deck", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Response(response=200, description="Export successful")
+     * )
+     */
+    public function exportMws(Deck $deck): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $content = $this->formatMwsExport($deck);
+
+        $headers = [
+            'Content-Type' => 'text/plain; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . strtolower(str_replace(' ', '_', $deck->name)) . '.mwDeck"',
+        ];
+
+        return response()->stream(function () use ($content) {
+            echo $content;
+        }, 200, $headers);
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/decks/{deck}/export/txt",
+     *     summary="Export deck as plain text",
+     *     tags={"Decks"},
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(name="deck", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Response(response=200, description="Export successful")
+     * )
+     */
+    public function exportTxt(Deck $deck): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $content = $this->formatTxtExport($deck);
+
+        $headers = [
+            'Content-Type' => 'text/plain; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . strtolower(str_replace(' ', '_', $deck->name)) . '.txt"',
+        ];
+
+        return response()->stream(function () use ($content) {
+            echo $content;
+        }, 200, $headers);
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/decks/{deck}/import/mws",
+     *     summary="Import deck from MWS format",
+     *     tags={"Decks"},
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(name="deck", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 @OA\Property(property="file", type="file")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=200, description="Import completed")
+     * )
+     */
+    public function importMws(Request $request, Deck $deck): JsonResponse
+    {
+        $request->validate([
+            'file' => ['required', 'file'],
+        ]);
+
+        $file = $request->file('file');
+        $content = file_get_contents($file->getRealPath());
+
+        $stats = [
+            'imported' => 0,
+            'skipped' => 0,
+            'errors' => [],
+        ];
+
+        $lines = explode("\n", $content);
+        $currentSection = 'main';
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+
+            if (empty($line) || str_starts_with($line, '//') || str_starts_with($line, '#')) {
+                continue;
+            }
+
+            if (preg_match('/^\[Sideboard\]$/i', $line)) {
+                $currentSection = 'side';
+                continue;
+            }
+
+            if (preg_match('/^\[Main\]$/i', $line) || preg_match('/^\[Deck\]$/i', $line)) {
+                $currentSection = 'main';
+                continue;
+            }
+
+            if (preg_match('/^(\d+)\s+(.+)$/', $line, $matches)) {
+                $quantity = (int) $matches[1];
+                $cardName = trim($matches[2]);
+
+                $card = \App\Models\Card::where('name_normalized', strtolower($cardName))->first();
+
+                if (! $card) {
+                    $stats['errors'][] = "Card not found: {$cardName}";
+                    $stats['skipped']++;
+                    continue;
+                }
+
+                try {
+                    $deck->deckCards()->create([
+                        'card_id' => $card->id,
+                        'quantity' => $quantity,
+                        'is_sideboard' => $currentSection === 'side',
+                    ]);
+                    $stats['imported']++;
+                } catch (\Exception $e) {
+                    $stats['errors'][] = $e->getMessage();
+                    $stats['skipped']++;
+                }
+            }
+        }
+
+        return response()->json([
+            'message' => 'MWS import completed',
+            'stats' => $stats,
+        ]);
     }
 }

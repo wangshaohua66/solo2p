@@ -80,8 +80,8 @@ class DatabaseSeeder extends Seeder
                 'user_id' => $user->id,
                 'deck_id' => rand(0, 1) ? $deck1->id : $deck2->id,
                 'opponent_archetype' => $archetypes[array_rand($archetypes)],
-                'is_win' => (bool) rand(0, 1),
-                'is_first' => (bool) rand(0, 1),
+                'is_winner' => (bool) rand(0, 1),
+                'on_play' => (bool) rand(0, 1),
             ]);
         }
 

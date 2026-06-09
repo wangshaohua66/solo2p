@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Card;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -15,8 +16,10 @@ class ScryfallSyncService
     private int $timeout;
     private ?string $apiKey;
 
-    private int $requestCount = 0;
-    private float $lastRequestTime = 0;
+    private const CACHE_KEY_REQUEST_COUNT = 'scryfall:request_count';
+    private const CACHE_KEY_LAST_REQUEST = 'scryfall:last_request_time';
+    private const CACHE_KEY_CHECKPOINT = 'scryfall:sync_checkpoint';
+    private const RATE_WINDOW = 1;
 
     public function __construct()
     {
@@ -358,8 +361,7 @@ class ScryfallSyncService
                 ->timeout($this->timeout)
                 ->{$method}($url, $params);
 
-            $this->requestCount++;
-            $this->lastRequestTime = microtime(true);
+            $this->incrementRequestCount();
 
             if ($response->successful()) {
                 return $response->json();
@@ -382,12 +384,43 @@ class ScryfallSyncService
 
     private function throttleRequest(): void
     {
-        if ($this->requestCount >= $this->rateLimit) {
-            $elapsed = microtime(true) - $this->lastRequestTime;
-            if ($elapsed < 1) {
-                usleep((int) ((1 - $elapsed) * 1000000));
+        $requestCount = Cache::get(self::CACHE_KEY_REQUEST_COUNT, 0);
+        $lastRequestTime = Cache::get(self::CACHE_KEY_LAST_REQUEST, 0);
+
+        if ($requestCount >= $this->rateLimit) {
+            $elapsed = microtime(true) - $lastRequestTime;
+            if ($elapsed < self::RATE_WINDOW) {
+                usleep((int) ((self::RATE_WINDOW - $elapsed) * 1000000));
             }
-            $this->requestCount = 0;
+            Cache::put(self::CACHE_KEY_REQUEST_COUNT, 0, self::RATE_WINDOW);
         }
+    }
+
+    private function incrementRequestCount(): void
+    {
+        $count = Cache::increment(self::CACHE_KEY_REQUEST_COUNT);
+        if ($count === 1) {
+            Cache::put(self::CACHE_KEY_REQUEST_COUNT, 1, self::RATE_WINDOW);
+        }
+        Cache::put(self::CACHE_KEY_LAST_REQUEST, microtime(true), self::RATE_WINDOW * 2);
+    }
+
+    public function setCheckpoint(int $processed, string $cursor = null): void
+    {
+        Cache::put(self::CACHE_KEY_CHECKPOINT, [
+            'processed' => $processed,
+            'cursor' => $cursor,
+            'timestamp' => now()->toISOString(),
+        ], 86400);
+    }
+
+    public function getCheckpoint(): ?array
+    {
+        return Cache::get(self::CACHE_KEY_CHECKPOINT);
+    }
+
+    public function clearCheckpoint(): void
+    {
+        Cache::forget(self::CACHE_KEY_CHECKPOINT);
     }
 }

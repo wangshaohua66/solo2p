@@ -306,9 +306,9 @@ class CollectionController extends Controller
         $content = file_get_contents($file->getRealPath());
 
         if ($format === 'csv') {
-            $this->importCsv($content, $stats);
+            $this->processCsvImport($content, $stats);
         } elseif ($format === 'json') {
-            $this->importJson($content, $stats);
+            $this->processJsonImport($content, $stats);
         }
 
         return response()->json([
@@ -352,7 +352,7 @@ class CollectionController extends Controller
         return $output;
     }
 
-    private function importCsv(string $content, array &$stats): void
+    private function processCsvImport(string $content, array &$stats): void
     {
         $lines = explode("\n", $content);
         $headers = str_getcsv(array_shift($lines));
@@ -394,7 +394,7 @@ class CollectionController extends Controller
         }
     }
 
-    private function importJson(string $content, array &$stats): void
+    private function processJsonImport(string $content, array &$stats): void
     {
         $data = json_decode($content, true);
 
@@ -428,5 +428,144 @@ class CollectionController extends Controller
                 $stats['skipped']++;
             }
         }
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/collection/import/csv",
+     *     summary="Import collection from CSV",
+     *     tags={"Collection"},
+     *     security={{"sanctum": {}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 @OA\Property(property="file", type="file")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=200, description="Import completed")
+     * )
+     */
+    public function importCsv(BulkImportRequest $request): JsonResponse
+    {
+        $stats = [
+            'imported' => 0,
+            'updated' => 0,
+            'skipped' => 0,
+            'errors' => [],
+        ];
+
+        $file = $request->file('file');
+        $content = file_get_contents($file->getRealPath());
+
+        $this->processCsvImport($content, $stats);
+
+        return response()->json([
+            'message' => 'CSV import completed',
+            'stats' => $stats,
+        ]);
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/collection/import/json",
+     *     summary="Import collection from JSON",
+     *     tags={"Collection"},
+     *     security={{"sanctum": {}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 @OA\Property(property="file", type="file")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=200, description="Import completed")
+     * )
+     */
+    public function importJson(BulkImportRequest $request): JsonResponse
+    {
+        $stats = [
+            'imported' => 0,
+            'updated' => 0,
+            'skipped' => 0,
+            'errors' => [],
+        ];
+
+        $file = $request->file('file');
+        $content = file_get_contents($file->getRealPath());
+
+        $this->processJsonImport($content, $stats);
+
+        return response()->json([
+            'message' => 'JSON import completed',
+            'stats' => $stats,
+        ]);
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/collection/export/csv",
+     *     summary="Export collection as CSV",
+     *     tags={"Collection"},
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Export successful")
+     * )
+     */
+    public function exportCsv(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $items = CollectionItem::where('user_id', Auth::id())
+            ->with('card')
+            ->get();
+
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="collection.csv"',
+        ];
+
+        return response()->stream(function () use ($items) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['Quantity', 'Name', 'Set', 'Condition', 'Foil', 'Language', 'Price USD']);
+
+            foreach ($items as $item) {
+                fputcsv($handle, [
+                    $item->quantity,
+                    $item->card?->name,
+                    $item->card?->set_code,
+                    $item->condition,
+                    $item->is_foil ? 'Yes' : 'No',
+                    $item->language,
+                    $item->card?->price_usd,
+                ]);
+            }
+
+            fclose($handle);
+        }, 200, $headers);
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/collection/export/json",
+     *     summary="Export collection as JSON",
+     *     tags={"Collection"},
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Export successful")
+     * )
+     */
+    public function exportJson(Request $request): JsonResponse
+    {
+        $items = CollectionItem::where('user_id', Auth::id())
+            ->with('card')
+            ->get();
+
+        return response()->json([
+            'format' => 'json',
+            'total_items' => $items->count(),
+            'exported_at' => now()->toISOString(),
+            'data' => $items->toArray(),
+        ]);
     }
 }

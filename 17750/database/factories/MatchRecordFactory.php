@@ -28,9 +28,10 @@ class MatchRecordFactory extends Factory
             'deck_id' => \App\Models\Deck::factory(),
             'opponent_archetype' => fake()->randomElement($archetypes),
             'opponent_name' => fake()->optional()->name(),
-            'is_first' => fake()->boolean(),
-            'is_win' => fake()->boolean(),
-            'game_count' => fake()->randomElement([2, 3]),
+            'on_play' => fake()->boolean(),
+            'is_winner' => fake()->boolean(),
+            'game_wins' => fake()->numberBetween(0, 2),
+            'game_losses' => fake()->numberBetween(0, 2),
             'notes' => fake()->optional()->paragraph(),
             'played_at' => fake()->dateTimeBetween('-6 months', 'now'),
             'event_name' => fake()->optional()->words(3, true),
@@ -40,28 +41,28 @@ class MatchRecordFactory extends Factory
     public function win(): static
     {
         return $this->state(fn (array $attributes) => [
-            'is_win' => true,
+            'is_winner' => true,
         ]);
     }
 
     public function loss(): static
     {
         return $this->state(fn (array $attributes) => [
-            'is_win' => false,
+            'is_winner' => false,
         ]);
     }
 
     public function onPlay(): static
     {
         return $this->state(fn (array $attributes) => [
-            'is_first' => true,
+            'on_play' => true,
         ]);
     }
 
     public function onDraw(): static
     {
         return $this->state(fn (array $attributes) => [
-            'is_first' => false,
+            'on_play' => false,
         ]);
     }
 }

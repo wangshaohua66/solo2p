@@ -350,4 +350,62 @@ class MatchController extends Controller
             'data' => $data,
         ]);
     }
+
+    /**
+     * @OA\Get(
+     *     path="/matches/stats",
+     *     summary="Get comprehensive match statistics",
+     *     tags={"Matches"},
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(name="deck_id", in="query", @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="format", in="query", @OA\Schema(type="string")),
+     *     @OA\Response(response=200, description="Successful operation")
+     * )
+     */
+    public function stats(Request $request): JsonResponse
+    {
+        $query = MatchRecord::where('user_id', Auth::id());
+
+        if ($request->has('deck_id')) {
+            $query->byDeck($request->input('deck_id'));
+        }
+        if ($request->has('format')) {
+            $query->byFormat($request->input('format'));
+        }
+
+        $matches = $query->get();
+
+        return response()->json([
+            'overview' => $this->analyzer->getOverview(Auth::id()),
+            'by_deck' => $this->analyzer->getByDeck(Auth::id()),
+            'by_opponent' => $this->analyzer->getByOpponentArchetype($matches),
+            'by_play_order' => $this->analyzer->getWinRateByPlayOrder($matches),
+            'by_format' => $this->analyzer->getByFormat($matches),
+            'by_turn_count' => $this->analyzer->getByTurnCount($matches),
+        ]);
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/matches/export/json",
+     *     summary="Export match history as JSON",
+     *     tags={"Matches"},
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Export successful")
+     * )
+     */
+    public function exportJson(Request $request): JsonResponse
+    {
+        $matches = MatchRecord::where('user_id', Auth::id())
+            ->with('deck')
+            ->orderBy('played_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'format' => 'json',
+            'total_matches' => $matches->count(),
+            'exported_at' => now()->toISOString(),
+            'data' => $matches->toArray(),
+        ]);
+    }
 }

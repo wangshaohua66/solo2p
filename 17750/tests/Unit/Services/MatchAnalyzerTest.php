@@ -27,13 +27,13 @@ class MatchAnalyzerTest extends TestCase
         MatchRecord::factory()->count(7)->create([
             'user_id' => 1,
             'deck_id' => $deck->id,
-            'is_win' => true,
+            'is_winner' => true,
         ]);
         
         MatchRecord::factory()->count(3)->create([
             'user_id' => 1,
             'deck_id' => $deck->id,
-            'is_win' => false,
+            'is_winner' => false,
         ]);
 
         $stats = $this->analyzer->getOverview(1);
@@ -52,23 +52,23 @@ class MatchAnalyzerTest extends TestCase
         MatchRecord::factory()->count(8)->create([
             'user_id' => 1,
             'deck_id' => $deck1->id,
-            'is_win' => true,
+            'is_winner' => true,
         ]);
         MatchRecord::factory()->count(2)->create([
             'user_id' => 1,
             'deck_id' => $deck1->id,
-            'is_win' => false,
+            'is_winner' => false,
         ]);
         
         MatchRecord::factory()->count(4)->create([
             'user_id' => 1,
             'deck_id' => $deck2->id,
-            'is_win' => true,
+            'is_winner' => true,
         ]);
         MatchRecord::factory()->count(6)->create([
             'user_id' => 1,
             'deck_id' => $deck2->id,
-            'is_win' => false,
+            'is_winner' => false,
         ]);
 
         $stats = $this->analyzer->getByDeck(1);
@@ -302,8 +302,8 @@ class MatchAnalyzerTest extends TestCase
         MatchRecord::factory()->count(15)->create([
             'user_id' => 1,
             'deck_id' => $deck->id,
-            'is_win' => true,
-            'is_first' => true,
+            'is_winner' => true,
+            'on_play' => true,
             'opponent_archetype' => 'Rakdos Midrange',
             'played_at' => now()->subDays(5),
         ]);
@@ -311,8 +311,8 @@ class MatchAnalyzerTest extends TestCase
         MatchRecord::factory()->count(5)->create([
             'user_id' => 1,
             'deck_id' => $deck->id,
-            'is_win' => false,
-            'is_first' => false,
+            'is_winner' => false,
+            'on_play' => false,
             'opponent_archetype' => 'Azorius Control',
             'played_at' => now()->subDays(10),
         ]);

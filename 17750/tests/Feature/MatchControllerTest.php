@@ -40,8 +40,8 @@ class MatchControllerTest extends TestCase
         $data = [
             'deck_id' => $deck->id,
             'opponent_archetype' => 'UW Control',
-            'is_first' => true,
-            'is_win' => true,
+            'on_play' => true,
+            'is_winner' => true,
             'game_count' => 3,
             'notes' => 'Opponent flooded out in game 3',
             'played_at' => now()->toISOString(),
@@ -52,13 +52,13 @@ class MatchControllerTest extends TestCase
         $response->assertStatus(201)
             ->assertJsonFragment([
                 'opponent_archetype' => 'UW Control',
-                'is_win' => true,
+                'is_winner' => true,
             ]);
         
         $this->assertDatabaseHas('match_records', [
             'deck_id' => $deck->id,
             'opponent_archetype' => 'UW Control',
-            'is_win' => true,
+            'is_winner' => true,
         ]);
     }
 
@@ -78,17 +78,17 @@ class MatchControllerTest extends TestCase
     {
         $match = MatchRecord::factory()->create([
             'user_id' => $this->auth['user']->id,
-            'is_win' => false,
+            'is_winner' => false,
             'notes' => 'Lost',
         ]);
 
         $response = $this->put("/api/v1/matches/{$match->id}", [
-            'is_win' => true,
+            'is_winner' => true,
             'notes' => 'Actually won, corrected record',
         ], $this->auth['headers']);
 
         $response->assertStatus(200)
-            ->assertJsonFragment(['is_win' => true]);
+            ->assertJsonFragment(['is_winner' => true]);
     }
 
     public function test_delete_match()
@@ -111,13 +111,13 @@ class MatchControllerTest extends TestCase
         MatchRecord::factory()->count(7)->create([
             'user_id' => $this->auth['user']->id,
             'deck_id' => $deck->id,
-            'is_win' => true,
+            'is_winner' => true,
         ]);
         
         MatchRecord::factory()->count(3)->create([
             'user_id' => $this->auth['user']->id,
             'deck_id' => $deck->id,
-            'is_win' => false,
+            'is_winner' => false,
         ]);
 
         $response = $this->get('/api/v1/matches/stats', $this->auth['headers']);
@@ -144,16 +144,16 @@ class MatchControllerTest extends TestCase
             'user_id' => $this->auth['user']->id,
             'deck_id' => $deck->id,
             'opponent_archetype' => 'RG Aggro',
-            'is_win' => true,
-            'is_first' => true,
+            'is_winner' => true,
+            'on_play' => true,
         ]);
         
         MatchRecord::factory()->count(5)->create([
             'user_id' => $this->auth['user']->id,
             'deck_id' => $deck->id,
             'opponent_archetype' => 'UW Control',
-            'is_win' => false,
-            'is_first' => false,
+            'is_winner' => false,
+            'on_play' => false,
         ]);
 
         $response = $this->get('/api/v1/matches/analysis?days=30', $this->auth['headers']);
@@ -180,14 +180,14 @@ class MatchControllerTest extends TestCase
         MatchRecord::factory()->create([
             'user_id' => $this->auth['user']->id,
             'deck_id' => $deck->id,
-            'is_win' => true,
+            'is_winner' => true,
             'played_at' => now()->subDays(10),
         ]);
         
         MatchRecord::factory()->create([
             'user_id' => $this->auth['user']->id,
             'deck_id' => $deck->id,
-            'is_win' => false,
+            'is_winner' => false,
             'played_at' => now()->subDays(40),
         ]);
 
@@ -215,7 +215,7 @@ class MatchControllerTest extends TestCase
     {
         $response = $this->post('/api/v1/matches', [
             'opponent_archetype' => '',
-            'is_win' => 'not_boolean',
+            'is_winner' => 'not_boolean',
         ], $this->auth['headers']);
 
         $this->assertRfc7807Error($response, 422);
@@ -228,15 +228,15 @@ class MatchControllerTest extends TestCase
         MatchRecord::factory()->count(8)->create([
             'user_id' => $this->auth['user']->id,
             'deck_id' => $deck->id,
-            'is_first' => true,
-            'is_win' => true,
+            'on_play' => true,
+            'is_winner' => true,
         ]);
         
         MatchRecord::factory()->count(2)->create([
             'user_id' => $this->auth['user']->id,
             'deck_id' => $deck->id,
-            'is_first' => true,
-            'is_win' => false,
+            'on_play' => true,
+            'is_winner' => false,
         ]);
 
         $response = $this->get('/api/v1/matches/analysis', $this->auth['headers']);

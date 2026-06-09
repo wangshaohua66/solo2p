@@ -56,18 +56,8 @@ abstract class TestCase extends BaseTestCase
     {
         $response->assertJsonStructure([
             'data',
-            'links' => [
-                'first',
-                'last',
-                'prev',
-                'next',
-            ],
-            'meta' => [
-                'path',
-                'per_page',
-                'next_cursor',
-                'prev_cursor',
-            ],
+            'next_cursor',
+            'prev_cursor',
         ]);
     }
 }

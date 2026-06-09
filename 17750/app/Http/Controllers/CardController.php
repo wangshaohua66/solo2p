@@ -276,4 +276,24 @@ class CardController extends Controller
             'stats' => $stats,
         ]);
     }
+
+    /**
+     * @OA\Post(
+     *     path="/cards/sync/full",
+     *     summary="Full sync all cards from Scryfall",
+     *     tags={"Cards"},
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Full sync initiated")
+     * )
+     */
+    public function syncFull(Request $request): JsonResponse
+    {
+        $fullSync = true;
+        $stats = $this->syncService->syncAllCards($fullSync);
+
+        return response()->json([
+            'message' => 'Full sync completed',
+            'stats' => $stats,
+        ]);
+    }
 }

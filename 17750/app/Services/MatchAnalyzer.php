@@ -335,4 +335,58 @@ class MatchAnalyzer
             'mulligan_analysis' => $this->getMulliganAnalysis($matches),
         ];
     }
+
+    public function getOverview(int $userId, array $filters = []): array
+    {
+        $query = MatchRecord::where('user_id', $userId);
+
+        if (! empty($filters['deck_id'])) {
+            $query->where('deck_id', $filters['deck_id']);
+        }
+        if (! empty($filters['format'])) {
+            $query->where('format', $filters['format']);
+        }
+
+        $matches = $query->get();
+
+        $stats = $this->getWinRate($matches);
+
+        return [
+            'total_matches' => $stats['total'],
+            'total_wins' => $stats['wins'],
+            'total_losses' => $stats['losses'],
+            'win_rate' => $stats['win_rate'],
+            'game_win_rate' => $stats['game_win_rate'],
+            'total_games' => $stats['total_games'],
+            'average_turns' => $this->getAverageTurnCount($matches),
+        ];
+    }
+
+    public function getByDeck(int $userId, array $filters = []): array
+    {
+        $query = MatchRecord::where('user_id', $userId);
+
+        if (! empty($filters['format'])) {
+            $query->where('format', $filters['format']);
+        }
+
+        $matches = $query->get();
+
+        return $this->getWinRateByDeck($matches);
+    }
+
+    public function getByOpponentArchetype(Collection $matches): array
+    {
+        return $this->getWinRateByOpponentArchetype($matches, 1);
+    }
+
+    public function getByFormat(Collection $matches): array
+    {
+        return $this->getWinRateByFormat($matches);
+    }
+
+    public function getByTurnCount(Collection $matches): array
+    {
+        return $this->getAverageTurnCount($matches);
+    }
 }

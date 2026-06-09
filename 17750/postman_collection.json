@@ -1,0 +1,1262 @@
+{
+  "info": {
+    "name": "MTG Collection Manager API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0",
+    "description": "Magic: The Gathering Collection Management API - Complete API Collection"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "api_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{api_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login / Get Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": ["{{base_url}}"],
+              "path": ["login"]
+            },
+            "description": "Authenticate user and get API token. Set the returned token as api_token variable."
+          }
+        },
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\",\n  \"password_confirmation\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/register",
+              "host": ["{{base_url}}"],
+              "path": ["register"]
+            },
+            "description": "Register a new user account"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/logout",
+              "host": ["{{base_url}}"],
+              "path": ["logout"]
+            },
+            "description": "Invalidate current token"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cards",
+      "item": [
+        {
+          "name": "List Cards",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/cards?per_page=20",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "cards"],
+              "query": [
+                {
+                  "key": "name",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "colors",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "type",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "rarity",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "set",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Search and list cards with filters"
+          }
+        },
+        {
+          "name": "Autocomplete Cards",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/cards/autocomplete?q=black",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "cards", "autocomplete"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "black"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Autocomplete card names"
+          }
+        },
+        {
+          "name": "Get Random Card",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/cards/random",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "cards", "random"],
+              "query": [
+                {
+                  "key": "rarity",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Get a random card"
+          }
+        },
+        {
+          "name": "Get Card by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/cards/1",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "cards", "1"]
+            },
+            "description": "Get card details by ID"
+          }
+        },
+        {
+          "name": "Get Card Price History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/cards/1/price-history?days=30",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "cards", "1", "price-history"],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "30"
+                }
+              ]
+            },
+            "description": "Get price history for a card"
+          }
+        },
+        {
+          "name": "Sync Card (Incremental)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scryfall_id\": \"some-scryfall-id\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/cards/sync",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "cards", "sync"]
+            },
+            "description": "Sync a single card from Scryfall"
+          }
+        },
+        {
+          "name": "Full Sync All Cards",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/cards/sync/full",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "cards", "sync", "full"]
+            },
+            "description": "Full sync all cards from Scryfall bulk data"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Collection",
+      "item": [
+        {
+          "name": "List Collection Items",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/collection?per_page=20",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "collection"],
+              "query": [
+                {
+                  "key": "condition",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "is_foil",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "language",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "List collection items with filters"
+          }
+        },
+        {
+          "name": "Add Card to Collection",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"card_id\": 1,\n  \"quantity\": 1,\n  \"condition\": \"NM\",\n  \"is_foil\": false,\n  \"language\": \"en\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/collection",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "collection"]
+            },
+            "description": "Add a card to collection"
+          }
+        },
+        {
+          "name": "Get Collection Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/collection/stats",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "collection", "stats"]
+            },
+            "description": "Get collection statistics"
+          }
+        },
+        {
+          "name": "Get Collection Item",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/collection/1",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "collection", "1"]
+            },
+            "description": "Get collection item details"
+          }
+        },
+        {
+          "name": "Update Collection Item",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 2,\n  \"condition\": \"SP\",\n  \"is_foil\": true,\n  \"language\": \"en\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/collection/1",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "collection", "1"]
+            },
+            "description": "Update collection item"
+          }
+        },
+        {
+          "name": "Delete Collection Item",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/collection/1",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "collection", "1"]
+            },
+            "description": "Delete collection item"
+          }
+        },
+        {
+          "name": "Import Collection (CSV)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/path/to/collection.csv"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/collection/import/csv",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "collection", "import", "csv"]
+            },
+            "description": "Import collection from CSV file"
+          }
+        },
+        {
+          "name": "Import Collection (JSON)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/path/to/collection.json"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/collection/import/json",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "collection", "import", "json"]
+            },
+            "description": "Import collection from JSON file"
+          }
+        },
+        {
+          "name": "Export Collection (CSV)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/csv"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/collection/export/csv",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "collection", "export", "csv"]
+            },
+            "description": "Export collection as CSV"
+          }
+        },
+        {
+          "name": "Export Collection (JSON)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/collection/export/json",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "collection", "export", "json"]
+            },
+            "description": "Export collection as JSON"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Decks",
+      "item": [
+        {
+          "name": "List Decks",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/decks?per_page=20",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "decks"],
+              "query": [
+                {
+                  "key": "format",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "is_legal",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "List user decks"
+          }
+        },
+        {
+          "name": "Create Deck",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My New Deck\",\n  \"format\": \"standard\",\n  \"archetype\": \"Aggro\",\n  \"description\": \"My first deck\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/decks",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "decks"]
+            },
+            "description": "Create new deck"
+          }
+        },
+        {
+          "name": "Get Deck Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/decks/1",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "decks", "1"]
+            },
+            "description": "Get deck details with cards"
+          }
+        },
+        {
+          "name": "Update Deck",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Deck Name\",\n  \"format\": \"standard\",\n  \"archetype\": \"Control\",\n  \"description\": \"Updated description\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/decks/1",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "decks", "1"]
+            },
+            "description": "Update deck information"
+          }
+        },
+        {
+          "name": "Delete Deck",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/decks/1",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "decks", "1"]
+            },
+            "description": "Delete deck"
+          }
+        },
+        {
+          "name": "Validate Deck",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/decks/1/validate",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "decks", "1", "validate"]
+            },
+            "description": "Validate deck legality"
+          }
+        },
+        {
+          "name": "Export Deck (MTGO)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/plain"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/decks/1/export/mtgo",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "decks", "1", "export", "mtgo"]
+            },
+            "description": "Export deck as MTGO format"
+          }
+        },
+        {
+          "name": "Export Deck (MWS)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/plain"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/decks/1/export/mws",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "decks", "1", "export", "mws"]
+            },
+            "description": "Export deck as Magic Workstation format"
+          }
+        },
+        {
+          "name": "Export Deck (TXT)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/plain"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/decks/1/export/txt",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "decks", "1", "export", "txt"]
+            },
+            "description": "Export deck as plain text"
+          }
+        },
+        {
+          "name": "Import Deck (MWS)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/path/to/deck.mwDeck"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/decks/1/import/mws",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "decks", "1", "import", "mws"]
+            },
+            "description": "Import deck from MWS format"
+          }
+        },
+        {
+          "name": "Get Deck Recommendations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/decks/recommendations?format=standard&limit=5",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "decks", "recommendations"],
+              "query": [
+                {
+                  "key": "format",
+                  "value": "standard"
+                },
+                {
+                  "key": "limit",
+                  "value": "5"
+                }
+              ]
+            },
+            "description": "Get deck recommendations based on collection and meta"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Matches",
+      "item": [
+        {
+          "name": "List Match Records",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/matches?per_page=20",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "matches"],
+              "query": [
+                {
+                  "key": "deck_id",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "format",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "is_winner",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "List match records"
+          }
+        },
+        {
+          "name": "Create Match Record",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deck_id\": 1,\n  \"opponent_archetype\": \"Rakdos Midrange\",\n  \"format\": \"standard\",\n  \"on_play\": true,\n  \"is_winner\": true,\n  \"game_wins\": 2,\n  \"game_losses\": 1,\n  \"turn_count\": 8,\n  \"notes\": \"Key turn 5 play\",\n  \"key_cards\": [\"Black Lotus\", \"Ancestral Recall\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/matches",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "matches"]
+            },
+            "description": "Create new match record"
+          }
+        },
+        {
+          "name": "Get Match Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/matches/stats",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "matches", "stats"],
+              "query": [
+                {
+                  "key": "deck_id",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "format",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Get comprehensive match statistics"
+          }
+        },
+        {
+          "name": "Get Match Analysis",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/matches/analysis",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "matches", "analysis"],
+              "query": [
+                {
+                  "key": "deck_id",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "format",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Get detailed match analysis"
+          }
+        },
+        {
+          "name": "Get Match Record",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/matches/1",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "matches", "1"]
+            },
+            "description": "Get match record details"
+          }
+        },
+        {
+          "name": "Update Match Record",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"opponent_archetype\": \"Rakdos Midrange\",\n  \"format\": \"standard\",\n  \"on_play\": true,\n  \"is_winner\": false,\n  \"game_wins\": 1,\n  \"game_losses\": 2,\n  \"notes\": \"Updated notes\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/matches/1",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "matches", "1"]
+            },
+            "description": "Update match record"
+          }
+        },
+        {
+          "name": "Delete Match Record",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/matches/1",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "matches", "1"]
+            },
+            "description": "Delete match record"
+          }
+        },
+        {
+          "name": "Export Matches (JSON)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/matches/export/json",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "matches", "export", "json"]
+            },
+            "description": "Export match history as JSON"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Meta",
+      "item": [
+        {
+          "name": "List Meta Snapshots",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/meta?per_page=20",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "meta"],
+              "query": [
+                {
+                  "key": "format",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "List meta snapshots"
+          }
+        },
+        {
+          "name": "Create Meta Snapshot",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"format\": \"standard\",\n  \"snapshot_date\": \"2024-01-15\",\n  \"total_decks\": 100,\n  \"source\": \"MTGO\",\n  \"archetypes\": [\n    {\n      \"name\": \"Rakdos Midrange\",\n      \"percentage\": 18.5,\n      \"win_rate\": 52.3,\n      \"sample_size\": 500\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/meta",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "meta"]
+            },
+            "description": "Create new meta snapshot"
+          }
+        },
+        {
+          "name": "Get Latest Meta Snapshot",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/meta/latest?format=standard",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "meta", "latest"],
+              "query": [
+                {
+                  "key": "format",
+                  "value": "standard"
+                }
+              ]
+            },
+            "description": "Get latest meta snapshot for a format"
+          }
+        },
+        {
+          "name": "Get Meta Trend Analysis",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/meta/trend?format=standard",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "meta", "trend"],
+              "query": [
+                {
+                  "key": "format",
+                  "value": "standard"
+                },
+                {
+                  "key": "start_date",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "end_date",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Get meta trend analysis"
+          }
+        },
+        {
+          "name": "Compare Meta Snapshots",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/meta/compare?snapshot1_id=1&snapshot2_id=2",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "meta", "compare"],
+              "query": [
+                {
+                  "key": "snapshot1_id",
+                  "value": "1"
+                },
+                {
+                  "key": "snapshot2_id",
+                  "value": "2"
+                }
+              ]
+            },
+            "description": "Compare two meta snapshots"
+          }
+        },
+        {
+          "name": "Import Meta Snapshot (CSV)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/path/to/meta_report.csv"
+                },
+                {
+                  "key": "format",
+                  "value": "standard"
+                },
+                {
+                  "key": "snapshot_date",
+                  "value": "2024-01-15"
+                },
+                {
+                  "key": "source",
+                  "value": "MTGO"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/meta/import",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "meta", "import"]
+            },
+            "description": "Import meta snapshot from CSV"
+          }
+        },
+        {
+          "name": "Get Meta Snapshot",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/meta/1",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "meta", "1"]
+            },
+            "description": "Get meta snapshot details"
+          }
+        },
+        {
+          "name": "Delete Meta Snapshot",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/meta/1",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "meta", "1"]
+            },
+            "description": "Delete meta snapshot"
+          }
+        },
+        {
+          "name": "Get Archetype History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/meta/archetype/Rakdos%20Midrange/history?format=standard",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "meta", "archetype", "Rakdos Midrange", "history"],
+              "query": [
+                {
+                  "key": "format",
+                  "value": "standard"
+                }
+              ]
+            },
+            "description": "Get historical data for a specific archetype"
+          }
+        }
+      ]
+    }
+  ]
+}
