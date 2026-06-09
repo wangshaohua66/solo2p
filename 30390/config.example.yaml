@@ -1,0 +1,59 @@
+# gitmon configuration file
+# 复制到 ~/.gitmon/config.yaml 并根据实际情况修改
+
+repos:
+  - name: example-service
+    path: ~/projects/example-service
+    mode: worktree
+    branch: main
+    owner: team-a
+
+  - name: api-gateway
+    path: ~/projects/api-gateway
+    mode: worktree
+    branch: main
+    owner: team-b
+
+  - name: auth-service
+    path: ~/projects/auth-service
+    mode: worktree
+    branch: develop
+    owner: team-a
+
+scan:
+  concurrency: 20
+  worker_count: 4
+  timeout: 5m
+  incremental: true
+  max_commits: 100000
+
+alert:
+  silent_days: 90
+  complexity_threshold: 15
+  notify_targets: []
+  notify_channels: []
+
+server:
+  host: localhost
+  port: 9876
+
+notify:
+  feishu:
+    webhook_url: ""
+    secret: ""
+  dingtalk:
+    webhook_url: ""
+    secret: ""
+
+analyzer:
+  tech_debt_patterns:
+    - TODO
+    - FIXME
+    - HACK
+    - XXX
+    - BUG
+    - OPTIMIZE
+  churn_window: 90
+
+database: ~/.gitmon/gitmon.db
+data_dir: ~/.gitmon

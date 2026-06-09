@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitMon - 代码仓库监控仪表盘</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <h1 class="logo">GitMon</h1>
+            <span class="subtitle">代码仓库监控与分析平台</span>
+        </div>
+        <div class="header-right">
+            <span id="lastUpdate" class="last-update">--</span>
+            <button id="refreshBtn" class="btn btn-refresh" title="刷新数据">↻</button>
+            <button id="themeToggle" class="btn btn-theme" title="切换主题">🌓</button>
+        </div>
+    </header>
+
+    <nav class="nav-tabs">
+        <button class="tab-btn active" data-tab="overview">概览</button>
+        <button class="tab-btn" data-tab="repos">仓库</button>
+        <button class="tab-btn" data-tab="contributors">贡献者</button>
+        <button class="tab-btn" data-tab="alerts">告警</button>
+    </nav>
+
+    <main class="main-content">
+        <section id="overview" class="tab-content active">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">📦</div>
+                    <div class="stat-info">
+                        <div class="stat-label">仓库总数</div>
+                        <div class="stat-value" id="totalRepos">0</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-info">
+                        <div class="stat-label">健康</div>
+                        <div class="stat-value text-good" id="goodRepos">0</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⚠️</div>
+                    <div class="stat-info">
+                        <div class="stat-label">警告</div>
+                        <div class="stat-value text-warning" id="warningRepos">0</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🔴</div>
+                    <div class="stat-info">
+                        <div class="stat-label">严重</div>
+                        <div class="stat-value text-critical" id="criticalRepos">0</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📝</div>
+                    <div class="stat-info">
+                        <div class="stat-label">总提交</div>
+                        <div class="stat-value" id="totalCommits">0</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🔔</div>
+                    <div class="stat-info">
+                        <div class="stat-label">活跃告警</div>
+                        <div class="stat-value text-critical" id="activeAlerts">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3>仓库健康度分布</h3>
+                    <div class="chart-container">
+                        <canvas id="healthChart" width="400" height="250"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>告警类型分布</h3>
+                    <div class="chart-container">
+                        <canvas id="alertsChart" width="400" height="250"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card full-width">
+                    <h3>贡献热力图 (近90天)</h3>
+                    <div class="chart-container">
+                        <div id="heatmapContainer" class="heatmap-container"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="repos" class="tab-content">
+            <div class="filter-bar">
+                <input type="text" id="repoSearch" class="search-input" placeholder="搜索仓库名称...">
+                <select id="healthFilter" class="filter-select">
+                    <option value="">全部健康度</option>
+                    <option value="good">健康</option>
+                    <option value="warning">警告</option>
+                    <option value="critical">严重</option>
+                </select>
+            </div>
+            <div id="reposGrid" class="repos-grid"></div>
+        </section>
+
+        <section id="contributors" class="tab-content">
+            <div class="filter-bar">
+                <input type="text" id="contributorSearch" class="search-input" placeholder="搜索贡献者...">
+                <select id="rankingLimit" class="filter-select">
+                    <option value="10">Top 10</option>
+                    <option value="20" selected>Top 20</option>
+                    <option value="50">Top 50</option>
+                    <option value="100">Top 100</option>
+                </select>
+            </div>
+            <div id="contributorsRanking" class="ranking-container"></div>
+        </section>
+
+        <section id="alerts" class="tab-content">
+            <div class="filter-bar">
+                <select id="alertLevelFilter" class="filter-select">
+                    <option value="">全部级别</option>
+                    <option value="critical">严重</option>
+                    <option value="warning">警告</option>
+                    <option value="info">信息</option>
+                </select>
+                <select id="alertTypeFilter" class="filter-select">
+                    <option value="">全部类型</option>
+                    <option value="silent_repo">静默仓库</option>
+                    <option value="high_complexity">高复杂度</option>
+                    <option value="tech_debt">技术债</option>
+                    <option value="low_contributors">贡献者不足</option>
+                </select>
+            </div>
+            <div id="alertsList" class="alerts-container"></div>
+        </section>
+    </main>
+
+    <div id="repoModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">仓库详情</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
