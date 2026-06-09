@@ -296,6 +296,8 @@ class ScryfallSyncService
         ];
 
         $cards = Card::whereNotNull('scryfall_id')->cursor();
+        $priceDate = now()->toDateString();
+        $tableName = sprintf('price_histories_%s', substr($priceDate, 0, 7));
 
         foreach ($cards as $card) {
             try {
@@ -318,13 +320,18 @@ class ScryfallSyncService
 
                     $card->update($newPrices);
 
-                    \App\Models\PriceHistory::create([
-                        'card_id' => $card->id,
-                        'price_usd' => $newPrices['price_usd'],
-                        'price_eur' => $newPrices['price_eur'],
-                        'price_tix' => $newPrices['price_tix'],
-                        'source' => 'scryfall',
-                        'price_date' => now()->toDateString(),
+                    DB::statement("
+                        INSERT INTO {$tableName} (card_id, price_usd, price_eur, price_tix, source, price_date, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ", [
+                        $card->id,
+                        $newPrices['price_usd'],
+                        $newPrices['price_eur'],
+                        $newPrices['price_tix'],
+                        'scryfall',
+                        $priceDate,
+                        now()->toDateTimeString(),
+                        now()->toDateTimeString(),
                     ]);
 
                     $stats['updated']++;

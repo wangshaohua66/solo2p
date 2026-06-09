@@ -8,7 +8,8 @@ use Illuminate\Support\Facades\Log;
 
 class ScryfallSyncCards extends Command
 {
-    protected $signature = 'scryfall:sync-cards {--full : Perform a full sync instead of incremental}';
+    protected $signature = 'scryfall:sync-cards {--full : Perform a full sync instead of incremental}
+                            {--incremental : Perform an incremental sync (default)}';
 
     protected $description = 'Sync cards from Scryfall (incremental by default)';
 
@@ -20,7 +21,7 @@ class ScryfallSyncCards extends Command
 
     public function handle(): int
     {
-        $fullSync = $this->option('full');
+        $fullSync = $this->option('full') && !$this->option('incremental');
         $syncType = $fullSync ? 'full' : 'incremental';
 
         $this->info("Starting {$syncType} card sync from Scryfall...");
