@@ -6,6 +6,8 @@ const state = {
     alerts: [],
     contributors: [],
     heatmapData: [],
+    heatmapRepo: '',
+    allHeatmapData: {},
     currentTab: 'overview',
     theme: localStorage.getItem('theme') || 'light'
 };
@@ -42,6 +44,14 @@ function setupEventListeners() {
 
     document.getElementById('alertLevelFilter').addEventListener('change', renderAlerts);
     document.getElementById('alertTypeFilter').addEventListener('change', renderAlerts);
+
+    const heatmapSelector = document.getElementById('heatmapRepoSelector');
+    if (heatmapSelector) {
+        heatmapSelector.addEventListener('change', (e) => {
+            state.heatmapRepo = e.target.value;
+            renderHeatmap();
+        });
+    }
 
     window.addEventListener('click', (e) => {
         if (e.target.classList.contains('modal')) {
@@ -89,6 +99,26 @@ async function loadAllData() {
         loadAlerts(),
         loadHeatmap()
     ]);
+    populateHeatmapSelector();
+}
+
+function populateHeatmapSelector() {
+    const selector = document.getElementById('heatmapRepoSelector');
+    if (!selector) return;
+
+    const currentValue = selector.value;
+    selector.innerHTML = '<option value="">全部仓库</option>';
+
+    state.repos.forEach(repo => {
+        const option = document.createElement('option');
+        option.value = repo.name;
+        option.textContent = repo.name;
+        selector.appendChild(option);
+    });
+
+    if (currentValue && state.repos.some(r => r.name === currentValue)) {
+        selector.value = currentValue;
+    }
 }
 
 function updateLastUpdate() {
@@ -109,7 +139,26 @@ async function loadStats() {
 async function loadRepos() {
     const data = await fetchJSON(`${API_BASE}/repos`);
     if (data) {
-        state.repos = Array.isArray(data) ? data : [];
+        state.repos = (Array.isArray(data) ? data : []).map(repo => ({
+            name: repo.name,
+            path: repo.path,
+            mode: repo.mode,
+            owner: repo.owner,
+            head_branch: repo.head_branch,
+            head_commit: repo.head_commit,
+            last_commit: repo.last_commit,
+            first_commit: repo.first_commit,
+            commit_count: repo.commit_count,
+            contributors: repo.contributors,
+            files_count: repo.files_count,
+            lines_of_code: repo.lines_of_code,
+            added_at: repo.added_at,
+            updated_at: repo.updated_at,
+            disabled: repo.disabled,
+            health_level: repo.health_level,
+            health_score: repo.health_score,
+            silent_days: repo.silent_days
+        }));
         renderRepos();
     }
 }
@@ -132,15 +181,45 @@ async function loadContributors() {
 }
 
 async function loadHeatmap() {
-    const data = await fetchJSON(`${API_BASE}/repos`);
-    if (data && Array.isArray(data) && data.length > 0) {
-        const firstRepo = data[0].Name || data[0].name;
-        const heatmap = await fetchJSON(`${API_BASE}/repos/${firstRepo}/heatmap?days=90`);
-        if (heatmap) {
-            state.heatmapData = heatmap;
-            renderHeatmap();
+    state.allHeatmapData = {};
+    state.heatmapData = [];
+
+    const reposToLoad = state.repos.length > 0 ? state.repos : await fetchJSON(`${API_BASE}/repos`);
+    if (!Array.isArray(reposToLoad) || reposToLoad.length === 0) {
+        return;
+    }
+
+    const combinedData = {};
+
+    for (const repo of reposToLoad) {
+        const repoName = repo.name || repo.Name;
+        if (!repoName) continue;
+
+        try {
+            const heatmap = await fetchJSON(`${API_BASE}/repos/${repoName}/heatmap?days=90`);
+            if (heatmap && Array.isArray(heatmap)) {
+                state.allHeatmapData[repoName] = heatmap;
+
+                heatmap.forEach(d => {
+                    const date = d.date || d.Date;
+                    const count = d.count || d.Count || 0;
+                    if (date) {
+                        const key = new Date(date).toISOString().split('T')[0];
+                        combinedData[key] = (combinedData[key] || 0) + count;
+                    }
+                });
+            }
+        } catch (e) {
+            console.error(`Failed to load heatmap for ${repoName}:`, e);
         }
     }
+
+    state.heatmapData = Object.entries(combinedData).map(([date, count]) => ({
+        date,
+        count
+    })).sort((a, b) => a.date.localeCompare(b.date));
+
+    renderHeatmap();
 }
 
 function updateStatsOverview() {
@@ -148,11 +227,11 @@ function updateStatsOverview() {
     let good = 0, warning = 0, critical = 0, totalCommits = 0;
 
     stats.forEach(s => {
-        const level = s.HealthLevel || s.healthLevel || 'good';
+        const level = s.health_level || s.HealthLevel || 'good';
         if (level === 'good') good++;
         else if (level === 'warning') warning++;
         else if (level === 'critical') critical++;
-        totalCommits += s.TotalCommits || s.totalCommits || 0;
+        totalCommits += s.total_commits || s.TotalCommits || 0;
     });
 
     document.getElementById('totalRepos').textContent = stats.length;
@@ -213,7 +292,7 @@ function renderHealthChart() {
 
     let good = 0, warning = 0, critical = 0;
     state.stats.forEach(s => {
-        const level = s.HealthLevel || s.healthLevel || 'good';
+        const level = s.health_level || s.HealthLevel || 'good';
         if (level === 'good') good++;
         else if (level === 'warning') warning++;
         else if (level === 'critical') critical++;
@@ -366,7 +445,22 @@ function renderHeatmap() {
     const container = document.getElementById('heatmapContainer');
     container.innerHTML = '';
 
-    const data = state.heatmapData;
+    let data = [];
+    let title = '';
+
+    if (state.heatmapRepo && state.allHeatmapData[state.heatmapRepo]) {
+        data = state.allHeatmapData[state.heatmapRepo];
+        title = ` - ${state.heatmapRepo}`;
+    } else {
+        data = state.heatmapData;
+        title = ' - 全部仓库';
+    }
+
+    const header = document.querySelector('#heatmapContainer ~ h3, h3');
+    if (header && header.textContent.includes('热力图')) {
+        header.textContent = `贡献热力图${title} (近90天)`;
+    }
+
     if (!data || (Array.isArray(data) && data.length === 0)) {
         container.innerHTML = `
             <div class="empty-state">
@@ -498,10 +592,10 @@ function renderRepos() {
     const healthFilter = document.getElementById('healthFilter').value;
 
     let repos = state.repos.filter(repo => {
-        const name = (repo.Name || repo.name || '').toLowerCase();
+        const name = (repo.name || '').toLowerCase();
         const matchesSearch = name.includes(search);
 
-        const health = repo.HealthLevel || repo.healthLevel || 'good';
+        const health = repo.health_level || 'good';
         const matchesHealth = !healthFilter || health === healthFilter;
 
         return matchesSearch && matchesHealth;
@@ -519,14 +613,14 @@ function renderRepos() {
     }
 
     grid.innerHTML = repos.map(repo => {
-        const name = repo.Name || repo.name || 'unknown';
-        const health = repo.HealthLevel || repo.healthLevel || 'good';
-        const path = repo.Path || repo.path || '';
-        const commits = repo.TotalCommits || repo.totalCommits || 0;
-        const contributors = repo.ContributorCount || repo.contributorCount || 0;
-        const files = repo.FileCount || repo.fileCount || 0;
-        const lastCommit = repo.LastCommitTime || repo.lastCommitTime;
-        const score = repo.HealthScore || repo.healthScore || 0;
+        const name = repo.name || 'unknown';
+        const health = repo.health_level || 'good';
+        const path = repo.path || '';
+        const commits = repo.commit_count || 0;
+        const contributors = repo.contributors || 0;
+        const files = repo.files_count || 0;
+        const lastCommit = repo.last_commit;
+        const score = repo.health_score || 0;
 
         const healthText = { good: '健康', warning: '警告', critical: '严重' }[health] || health;
 
@@ -573,19 +667,19 @@ async function openRepoDetail(repoName) {
     const body = document.getElementById('modalBody');
 
     const repoData = repo?.repo || repo;
-    const name = repoData?.Name || repoData?.name || repoName;
-    const health = repoData?.HealthLevel || repoData?.healthLevel || 'good';
+    const name = repoData?.name || repoName;
+    const health = repoData?.health_level || 'good';
     const healthText = { good: '健康', warning: '警告', critical: '严重' }[health] || health;
 
     title.textContent = `${name} - 仓库详情`;
 
     const repoStats = repo?.stats || {};
-    const totalCommits = repoStats?.TotalCommits || repoStats?.totalCommits || 0;
-    const contributorCount = repoStats?.ContributorCount || repoStats?.contributorCount || 0;
-    const fileCount = repoStats?.FileCount || repoStats?.fileCount || 0;
-    const healthScore = repoStats?.HealthScore || repoStats?.healthScore || 0;
-    const silentDays = repoStats?.SilentDays || repoStats?.silentDays || 0;
-    const lastCommit = repoStats?.LastCommitTime || repoStats?.lastCommitTime;
+    const totalCommits = repoStats?.total_commits || 0;
+    const contributorCount = repoStats?.contributors || 0;
+    const fileCount = repoStats?.total_files || 0;
+    const healthScore = repoStats?.health_score || 0;
+    const silentDays = repoStats?.silent_days || 0;
+    const lastCommit = repoStats?.last_commit;
 
     body.innerHTML = `
         <div class="detail-section">
@@ -621,7 +715,7 @@ async function openRepoDetail(repoName) {
         <div class="detail-section">
             <h3>路径</h3>
             <div style="font-family: monospace; padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.5rem;">
-                ${escapeHtml(repoData?.Path || repoData?.path || '')}
+                ${escapeHtml(repoData?.path || '')}
             </div>
         </div>
 

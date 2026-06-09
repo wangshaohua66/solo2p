@@ -43,10 +43,6 @@ type ScanStatus struct {
 }
 
 func Open(path string) (*Store, error) {
-	if err := bbolt.Verify(path, nil); err != nil && err != bbolt.ErrDatabaseNotOpen {
-		fmt.Printf("warning: database verification failed: %v, creating new\n", err)
-	}
-
 	db, err := bbolt.Open(path, 0600, &bbolt.Options{
 		Timeout:      10 * time.Second,
 		NoSync:       false,
@@ -335,7 +331,7 @@ func BackupTo(store *Store, dir string) (string, error) {
 
 func Vacuum(store *Store) error {
 	stats := store.db.Stats()
-	if stats.FreePageN > stats.TotalPageN/2 {
+	if stats.FreePageN > 1000 {
 		fmt.Printf("vacuuming database: %d free pages\n", stats.FreePageN)
 	}
 	return nil

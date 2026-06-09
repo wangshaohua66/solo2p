@@ -209,7 +209,7 @@ func (s *Store) GetActiveAlerts() ([]AlertRecord, error) {
 
 func (s *Store) SaveAlert(a *AlertRecord) error {
 	if a.ID == "" {
-		a.ID = MakeKey(a.RepoName, a.Type, time.Now().UnixNano())
+		a.ID = string(MakeKey(a.RepoName, a.Type, time.Now().UnixNano()))
 	}
 	a.CreatedAt = time.Now()
 	return s.Update(func(tx *Tx) error {

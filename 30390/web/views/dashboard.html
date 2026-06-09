@@ -87,7 +87,14 @@
                     </div>
                 </div>
                 <div class="chart-card full-width">
-                    <h3>贡献热力图 (近90天)</h3>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3>贡献热力图 (近90天)</h3>
+                        <div class="filter-bar" style="margin: 0;">
+                            <select id="heatmapRepoSelector" class="filter-select">
+                                <option value="">全部仓库</option>
+                            </select>
+                        </div>
+                    </div>
                     <div class="chart-container">
                         <div id="heatmapContainer" class="heatmap-container"></div>
                     </div>

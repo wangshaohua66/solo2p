@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -416,37 +417,308 @@ func (s *Server) applyJQFilter(c echo.Context, data interface{}) interface{} {
 }
 
 func applyFilter(data interface{}, filter string) interface{} {
-	parts := strings.Split(filter, ".")
+	tokens := tokenizeFilter(filter)
 	current := data
 
-	for _, part := range parts {
-		if part == "" {
-			continue
-		}
+	for i := 0; i < len(tokens); i++ {
+		token := tokens[i]
 
-		switch v := current.(type) {
-		case map[string]interface{}:
-			if val, ok := v[part]; ok {
-				current = val
+		switch token {
+		case ".[]":
+			if arr, ok := current.([]interface{}); ok {
+				var result []interface{}
+				for _, item := range arr {
+					result = append(result, item)
+				}
+				current = result
 			} else {
 				return nil
 			}
-		case []interface{}:
-			var filtered []interface{}
-			for _, item := range v {
-				if itemMap, ok := item.(map[string]interface{}); ok {
-					if val, ok := itemMap[part]; ok {
-						filtered = append(filtered, val)
-					}
-				}
+
+		case "length":
+			switch v := current.(type) {
+			case []interface{}:
+				current = len(v)
+			case map[string]interface{}:
+				current = len(v)
+			case string:
+				current = len(v)
+			default:
+				return nil
 			}
-			current = filtered
+
+		case "keys":
+			if m, ok := current.(map[string]interface{}); ok {
+				var keys []interface{}
+				for k := range m {
+					keys = append(keys, k)
+				}
+				sort.Slice(keys, func(i, j int) bool {
+					return keys[i].(string) < keys[j].(string)
+				})
+				current = keys
+			} else {
+				return nil
+			}
+
 		default:
+			if strings.HasPrefix(token, "select(") && strings.HasSuffix(token, ")") {
+				condition := token[7 : len(token)-1]
+				current = applySelect(current, condition)
+			} else if strings.HasPrefix(token, "map(") && strings.HasSuffix(token, ")") {
+				expr := token[4 : len(token)-1]
+				current = applyMap(current, expr)
+			} else if strings.HasPrefix(token, "group_by(") && strings.HasSuffix(token, ")") {
+				field := token[8 : len(token)-1]
+				current = applyGroupBy(current, field)
+			} else if strings.HasPrefix(token, ".") {
+				field := strings.TrimPrefix(token, ".")
+				current = getField(current, field)
+			} else if token != "" && !strings.HasPrefix(token, ".") {
+				current = getField(current, token)
+			}
+		}
+
+		if current == nil {
 			return nil
 		}
 	}
 
 	return current
+}
+
+func tokenizeFilter(filter string) []string {
+	var tokens []string
+	var current strings.Builder
+	inParens := 0
+
+	for i := 0; i < len(filter); i++ {
+		c := filter[i]
+
+		switch c {
+		case '.':
+			if inParens == 0 {
+				if current.Len() > 0 {
+					tokens = append(tokens, current.String())
+					current.Reset()
+				}
+				if i+1 < len(filter) && filter[i+1] == '[' {
+					tokens = append(tokens, ".[]")
+					i++
+				} else {
+					current.WriteByte('.')
+				}
+			} else {
+				current.WriteByte(c)
+			}
+
+		case '(':
+			inParens++
+			current.WriteByte(c)
+
+		case ')':
+			inParens--
+			current.WriteByte(c)
+			if inParens == 0 {
+				if current.Len() > 0 {
+					tokens = append(tokens, current.String())
+					current.Reset()
+				}
+			}
+
+		case '|':
+			if inParens == 0 {
+				if current.Len() > 0 {
+					tokens = append(tokens, current.String())
+					current.Reset()
+				}
+			} else {
+				current.WriteByte(c)
+			}
+
+		case ' ':
+			if inParens > 0 {
+				current.WriteByte(c)
+			}
+
+		default:
+			current.WriteByte(c)
+		}
+	}
+
+	if current.Len() > 0 {
+		tokens = append(tokens, current.String())
+	}
+
+	return tokens
+}
+
+func getField(data interface{}, field string) interface{} {
+	switch v := data.(type) {
+	case map[string]interface{}:
+		if val, ok := v[field]; ok {
+			return val
+		}
+		return nil
+
+	case []interface{}:
+		var result []interface{}
+		for _, item := range v {
+			if m, ok := item.(map[string]interface{}); ok {
+				if val, ok := m[field]; ok {
+					result = append(result, val)
+				}
+			}
+		}
+		return result
+
+	default:
+		return nil
+	}
+}
+
+func applySelect(data interface{}, condition string) interface{} {
+	arr, ok := data.([]interface{})
+	if !ok {
+		return data
+	}
+
+	cond := parseCondition(condition)
+
+	var result []interface{}
+	for _, item := range arr {
+		if evaluateCondition(item, cond) {
+			result = append(result, item)
+		}
+	}
+
+	return result
+}
+
+type condition struct {
+	field    string
+	operator string
+	value    interface{}
+}
+
+func parseCondition(expr string) condition {
+	expr = strings.TrimSpace(expr)
+
+	operators := []string{">=", "<=", "!=", "==", ">", "<"}
+	for _, op := range operators {
+		if idx := strings.Index(expr, op); idx > 0 {
+			field := strings.TrimSpace(expr[:idx])
+			field = strings.TrimPrefix(field, ".")
+			valStr := strings.TrimSpace(expr[idx+len(op):])
+
+			var val interface{}
+			if n, err := strconv.ParseFloat(valStr, 64); err == nil {
+				val = n
+			} else {
+				val = strings.Trim(valStr, "\"'")
+			}
+
+			return condition{field: field, operator: op, value: val}
+		}
+	}
+
+	return condition{field: expr, operator: "exists", value: nil}
+}
+
+func evaluateCondition(item interface{}, cond condition) bool {
+	m, ok := item.(map[string]interface{})
+	if !ok {
+		return false
+	}
+
+	val, exists := m[cond.field]
+	if cond.operator == "exists" {
+		return exists
+	}
+
+	if !exists {
+		return false
+	}
+
+	switch v := val.(type) {
+	case float64:
+		if cmp, ok := cond.value.(float64); ok {
+			switch cond.operator {
+			case ">":
+				return v > cmp
+			case ">=":
+				return v >= cmp
+			case "<":
+				return v < cmp
+			case "<=":
+				return v <= cmp
+			case "==":
+				return v == cmp
+			case "!=":
+				return v != cmp
+			}
+		}
+	case string:
+		if cmp, ok := cond.value.(string); ok {
+			switch cond.operator {
+			case "==":
+				return v == cmp
+			case "!=":
+				return v != cmp
+			}
+		}
+	}
+
+	return false
+}
+
+func applyMap(data interface{}, expr string) interface{} {
+	arr, ok := data.([]interface{})
+	if !ok {
+		return data
+	}
+
+	expr = strings.TrimSpace(expr)
+	expr = strings.TrimPrefix(expr, ".")
+
+	var result []interface{}
+	for _, item := range arr {
+		if m, ok := item.(map[string]interface{}); ok {
+			if val, ok := m[expr]; ok {
+				result = append(result, val)
+			}
+		}
+	}
+
+	return result
+}
+
+func applyGroupBy(data interface{}, field string) interface{} {
+	arr, ok := data.([]interface{})
+	if !ok {
+		return data
+	}
+
+	field = strings.TrimSpace(field)
+	field = strings.TrimPrefix(field, ".")
+
+	groups := make(map[string][]interface{})
+	for _, item := range arr {
+		if m, ok := item.(map[string]interface{}); ok {
+			key := ""
+			if val, ok := m[field]; ok {
+				key = fmt.Sprintf("%v", val)
+			}
+			groups[key] = append(groups[key], item)
+		}
+	}
+
+	result := make(map[string]interface{})
+	for k, v := range groups {
+		result[k] = v
+	}
+
+	return result
 }
 
 func BuildCharts(stats []storage.RepoStats, alerts []storage.AlertRecord) map[string]interface{} {

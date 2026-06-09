@@ -98,14 +98,18 @@ func (m *NotifierManager) SendSummary(stats []storage.RepoStats, alerts []storag
 	return nil
 }
 
-func (n *FeishuNotifier) sign(timestamp int64) string {
-	if n.Secret == "" {
+func signWebhook(secret string, timestamp int64) string {
+	if secret == "" {
 		return ""
 	}
-	stringToSign := fmt.Sprintf("%d\n%s", timestamp, n.Secret)
-	h := hmac.New(sha256.New, []byte(n.Secret))
+	stringToSign := fmt.Sprintf("%d\n%s", timestamp, secret)
+	h := hmac.New(sha256.New, []byte(secret))
 	h.Write([]byte(stringToSign))
 	return base64.StdEncoding.EncodeToString(h.Sum(nil))
+}
+
+func (n *FeishuNotifier) sign(timestamp int64) string {
+	return signWebhook(n.Secret, timestamp)
 }
 
 func (n *FeishuNotifier) SendAlert(alert *storage.AlertRecord) error {
@@ -275,13 +279,7 @@ func getFeishuTemplate(level string) string {
 }
 
 func (n *DingtalkNotifier) sign(timestamp int64) string {
-	if n.Secret == "" {
-		return ""
-	}
-	stringToSign := fmt.Sprintf("%d\n%s", timestamp, n.Secret)
-	h := hmac.New(sha256.New, []byte(n.Secret))
-	h.Write([]byte(stringToSign))
-	return base64.StdEncoding.EncodeToString(h.Sum(nil))
+	return signWebhook(n.Secret, timestamp)
 }
 
 func (n *DingtalkNotifier) SendAlert(alert *storage.AlertRecord) error {

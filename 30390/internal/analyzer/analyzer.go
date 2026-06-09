@@ -513,7 +513,16 @@ func (a *Analyzer) scanTechDebt(ctx context.Context, client *git.Client, commits
 			continue
 		}
 
-		for i, line := range strings.Split(content, "\n") {
+		blame, blameErr := client.Blame(ctx, filePath)
+		blameMap := make(map[int]git.BlameLine)
+		if blameErr == nil {
+			for _, bl := range blame.Lines {
+				blameMap[bl.LineNum] = bl
+			}
+		}
+
+		lines := strings.Split(content, "\n")
+		for i, line := range lines {
 			for _, pattern := range patterns {
 				if strings.Contains(line, pattern) {
 					severity := "low"
@@ -524,17 +533,37 @@ func (a *Analyzer) scanTechDebt(ctx context.Context, client *git.Client, commits
 						severity = "medium"
 					}
 
-					item := storage.TechDebtItem{
-						ID:        generateTechDebtID(repoName, filePath, i+1, pattern),
-						RepoName:  repoName,
-						FilePath:  filePath,
-						LineNum:   i + 1,
-						Pattern:   pattern,
-						Content:   strings.TrimSpace(line),
-						CreatedAt: time.Now(),
-						Severity:  severity,
-						AgeDays:   0,
+					lineNum := i + 1
+					author := ""
+					email := ""
+					hash := ""
+					ageDays := 0
+
+					if bl, ok := blameMap[lineNum]; ok {
+						author = bl.Author
+						email = bl.Email
+						hash = bl.Hash
+						if !bl.Date.IsZero() {
+							ageDays = int(time.Since(bl.Date).Hours() / 24)
+						}
 					}
+
+					item := storage.NewTechDebtItem(
+						repoName,
+						filePath,
+						lineNum,
+						pattern,
+						strings.TrimSpace(line),
+						author,
+						email,
+					)
+					item.Hash = hash
+					item.Severity = severity
+					item.AgeDays = ageDays
+					if ageDays > 0 && !blameMap[lineNum].Date.IsZero() {
+						item.CreatedAt = blameMap[lineNum].Date
+					}
+
 					items = append(items, item)
 					break
 				}
