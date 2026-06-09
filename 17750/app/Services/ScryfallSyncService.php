@@ -40,6 +40,18 @@ class ScryfallSyncService
             'total_processed' => 0,
         ];
 
+        $checkpoint = null;
+        if (! $fullSync) {
+            $checkpoint = $this->getCheckpoint();
+            if ($checkpoint) {
+                $stats['total_processed'] = $checkpoint['processed'] ?? 0;
+                Log::info("Resuming Scryfall sync from checkpoint", $checkpoint);
+            }
+        } else {
+            $this->clearCheckpoint();
+            Log::info('Starting full Scryfall sync, checkpoint cleared');
+        }
+
         try {
             $bulkData = $this->getBulkData();
             $defaultCardsUrl = $this->findDefaultCardsUrl($bulkData);
@@ -49,13 +61,21 @@ class ScryfallSyncService
             }
 
             $lastUpdatedAt = $fullSync ? null : Card::max('updated_at');
-            $this->streamAndProcessCards($defaultCardsUrl, $lastUpdatedAt, $stats);
+            $this->streamAndProcessCards($defaultCardsUrl, $lastUpdatedAt, $stats, $checkpoint);
+
+            $this->clearCheckpoint();
+            Log::info('Scryfall sync completed successfully, checkpoint cleared');
 
         } catch (\Exception $e) {
             Log::error('Scryfall sync failed: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
             ]);
             $stats['errors']++;
+            $this->setCheckpoint($stats['total_processed'], $stats['last_card_id'] ?? null);
+            Log::info("Checkpoint saved after failure", [
+                'processed' => $stats['total_processed'],
+                'last_card_id' => $stats['last_card_id'] ?? null,
+            ]);
         }
 
         return $stats;
