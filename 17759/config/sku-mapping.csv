@@ -1,0 +1,7 @@
+sku,platform,site,listing_id,listing_url,status,last_synced
+SKU-001,amazon,US,B08XYZ1234,https://amazon.com/dp/B08XYZ1234,active,1717986918
+SKU-001,ebay,US,1234567890,https://ebay.com/itm/1234567890,active,1717986918
+SKU-001,shopee,SG,123456789,https://shopee.sg/product/12345/123456789,under_review,1717986918
+SKU-002,amazon,UK,B09ABC5678,https://amazon.co.uk/dp/B09ABC5678,pending,1717986918
+SKU-002,lazada,MY,1234567,https://lazada.my/products/-i1234567.html,rejected,1717986918
+SKU-002,tiktok,US,7890123,https://tiktok.com/@shop/product/7890123,failed,1717986918

@@ -1,0 +1,49 @@
+{
+  "version": "1.0",
+  "lastUpdated": 1717986918472,
+  "accounts": [
+    {
+      "id": "amazon-main-001",
+      "platform": "amazon",
+      "email": "seller@example.com",
+      "encryptedPassword": "U2FsdGVkX1+base64-encrypted-password",
+      "encryptedTotpSeed": "U2FsdGVkX1+base64-encrypted-totp-seed",
+      "sites": ["US", "CA", "UK", "DE", "JP"],
+      "status": "active"
+    },
+    {
+      "id": "ebay-main-001",
+      "platform": "ebay",
+      "email": "ebay-seller@example.com",
+      "encryptedPassword": "U2FsdGVkX1+base64-encrypted-password",
+      "sites": ["US", "UK", "DE"],
+      "status": "active"
+    },
+    {
+      "id": "shopee-main-001",
+      "platform": "shopee",
+      "email": "shopee-seller@example.com",
+      "encryptedPassword": "U2FsdGVkX1+base64-encrypted-password",
+      "encryptedTotpSeed": "U2FsdGVkX1+base64-encrypted-totp-seed",
+      "sites": ["SG", "MY", "TH", "ID", "PH", "VN"],
+      "status": "active"
+    },
+    {
+      "id": "lazada-main-001",
+      "platform": "lazada",
+      "email": "lazada-seller@example.com",
+      "encryptedPassword": "U2FsdGVkX1+base64-encrypted-password",
+      "sites": ["SG", "MY", "TH", "ID", "PH", "VN"],
+      "status": "active"
+    },
+    {
+      "id": "tiktok-main-001",
+      "platform": "tiktok",
+      "email": "tiktok-seller@example.com",
+      "encryptedPassword": "U2FsdGVkX1+base64-encrypted-password",
+      "encryptedTotpSeed": "U2FsdGVkX1+base64-encrypted-totp-seed",
+      "sites": ["US", "UK", "SG", "MY"],
+      "status": "active"
+    }
+  ]
+}
