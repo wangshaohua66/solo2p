@@ -192,11 +192,23 @@ func (e *Engine) applyCookies(c *colly.Collector) {
 		return
 	}
 
+	cookieDisabled := make([]bool, cookieCount)
+
 	c.OnRequest(func(r *colly.Request) {
-		raw := e.cfg.Crawler.CookiePool[cookieIdx%cookieCount]
+		raw := ""
+		for tries := 0; tries < cookieCount; tries++ {
+			if !cookieDisabled[cookieIdx%cookieCount] {
+				raw = e.cfg.Crawler.CookiePool[cookieIdx%cookieCount]
+				break
+			}
+			cookieIdx++
+		}
+		if raw == "" {
+			return
+		}
+		r.Ctx.Put("cookie_index", cookieIdx%cookieCount)
 		cookieIdx++
 		pairs := strings.Split(raw, ";")
-		var cookies []string
 		for _, pair := range pairs {
 			pair = strings.TrimSpace(pair)
 			if pair == "" {
@@ -211,23 +223,36 @@ func (e *Engine) applyCookies(c *colly.Collector) {
 			if strings.HasPrefix(strings.ToLower(name), "domain") {
 				continue
 			}
-			cookies = append(cookies, fmt.Sprintf("%s=%s", name, val))
-		}
-		if len(cookies) > 0 {
-			r.Headers.Set("Cookie", strings.Join(cookies, "; "))
+			r.Headers.Add("Cookie", fmt.Sprintf("%s=%s", name, val))
 		}
 	})
 
 	c.OnResponse(func(r *colly.Response) {
-		cookieHdr := r.Request.Headers.Get("Cookie")
-		if cookieHdr == "" {
+		cookieIdxVal, _ := r.Request.Ctx.GetAny("cookie_index").(int)
+		if r.StatusCode == 401 || r.StatusCode == 403 {
+			if cookieIdxVal >= 0 && cookieIdxVal < cookieCount {
+				cookieDisabled[cookieIdxVal] = true
+				e.logger.Warn("cookie rejected by server, disabled",
+					zap.Int("cookie_index", cookieIdxVal),
+					zap.Int("status", r.StatusCode),
+					zap.String("url", r.Request.URL.String()),
+				)
+			}
+			return
+		}
+		cookieHdr := r.Request.Headers.Values("Cookie")
+		if len(cookieHdr) == 0 {
 			return
 		}
 		respCookies := r.Headers.Values("Set-Cookie")
+		injectedCount := 0
+		for _, h := range cookieHdr {
+			injectedCount += strings.Count(h, ";") + 1
+		}
 		e.logger.Debug("cookie injection verified",
 			zap.String("url", r.Request.URL.String()),
 			zap.Int("status", r.StatusCode),
-			zap.Int("request_cookie_count", strings.Count(cookieHdr, ";")+1),
+			zap.Int("request_cookie_count", injectedCount),
 			zap.Int("response_set_cookie_count", len(respCookies)),
 		)
 	})

@@ -35,6 +35,7 @@ type CaseQuery struct {
 	IsRead           *bool
 	HitSubscription  *bool
 	Withdrawn        *bool
+	NotNotifiedOnly  bool
 	Page             int
 	PageSize         int
 	SortBy           string
@@ -209,6 +210,9 @@ func (s *Store) QueryCases(q *CaseQuery) ([]model.Case, int64, error) {
 	}
 	if q.Withdrawn != nil {
 		query = query.Where("is_withdrawn = ?", *q.Withdrawn)
+	}
+	if q.NotNotifiedOnly {
+		query = query.Where("notified_at IS NULL")
 	}
 
 	var total int64

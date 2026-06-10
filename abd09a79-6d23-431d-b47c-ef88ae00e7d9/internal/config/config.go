@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -180,8 +181,13 @@ func (c *Config) setDefaults() {
 }
 
 func (c *Config) applyEnvOverrides() {
-	if v := os.Getenv("COURTS_LIST"); v != "" {
-		c.viper.Set("courts_list", v)
+	if v := os.Getenv("COURTS"); v != "" {
+		var courts []CourtConfig
+		if err := json.Unmarshal([]byte(v), &courts); err != nil {
+			fmt.Fprintf(os.Stderr, "COURTS env parse failed (expected JSON []CourtConfig): %v\n", err)
+		} else {
+			c.viper.Set("courts", courts)
+		}
 	}
 	if v := os.Getenv("PROXY_URL"); v != "" {
 		c.viper.Set("crawler.proxy_urls", strings.Split(v, ","))

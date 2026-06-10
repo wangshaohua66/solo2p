@@ -63,6 +63,31 @@ func RunCollect(configPath string, f *CollectFlags) error {
 		}
 	}
 
+	var collectFrom, collectTo *time.Time
+	if f.FromDate != "" {
+		collectFrom = parseDateFlag(f.FromDate)
+		if collectFrom == nil {
+			return fmt.Errorf("invalid -from date: %s (use YYYY-MM-DD)", f.FromDate)
+		}
+	}
+	if f.ToDate != "" {
+		collectTo = parseDateFlag(f.ToDate)
+		if collectTo == nil {
+			return fmt.Errorf("invalid -to date: %s (use YYYY-MM-DD)", f.ToDate)
+		}
+	}
+
+	if collectFrom != nil || collectTo != nil {
+		fmt.Fprintf(os.Stderr, "时间窗口过滤: ")
+		if collectFrom != nil {
+			fmt.Fprintf(os.Stderr, "from %s ", collectFrom.Format("2006-01-02"))
+		}
+		if collectTo != nil {
+			fmt.Fprintf(os.Stderr, "to %s ", collectTo.Format("2006-01-02"))
+		}
+		fmt.Fprintln(os.Stderr)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -107,6 +132,30 @@ func RunCollect(configPath string, f *CollectFlags) error {
 		total += s.ProcessedCount
 	}
 	fmt.Fprintf(os.Stderr, "总处理: %d 条公告\n", total)
+
+	if collectFrom != nil || collectTo != nil {
+		q := &store.CaseQuery{
+			Court:    f.Court,
+			FromDate: collectFrom,
+			ToDate:   collectTo,
+			PageSize: 100000,
+		}
+		cases, filteredTotal, qErr := db.QueryCases(q)
+		if qErr != nil {
+			fmt.Fprintf(os.Stderr, "时间窗口查询警告: %v\n", qErr)
+		} else {
+			fmt.Fprintf(os.Stderr, "时间窗口命中: %d 条 (from=%s to=%s, court=%q)\n",
+				filteredTotal,
+				collectFrom.Format("2006-01-02"),
+				collectTo.Format("2006-01-02"),
+				f.Court,
+			)
+			if len(cases) == 0 {
+				fmt.Fprintf(os.Stderr, "警告: 未命中任何案件，请检查时间范围或法院名称\n")
+			}
+			_ = cases
+		}
+	}
 	return nil
 }
 

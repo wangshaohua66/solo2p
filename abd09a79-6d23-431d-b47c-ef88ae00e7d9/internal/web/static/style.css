@@ -1,1 +1,88 @@
-/* static placeholder */
+body {
+  padding-top: 60px;
+  background: #f8f9fa;
+}
+
+.navbar-brand {
+  font-weight: 700;
+}
+
+mark {
+  background: #fff3cd;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+.hit-badge {
+  background: #dc3545;
+}
+
+.case-row {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.case-row:hover {
+  background: #e9ecef;
+}
+
+.case-row.unread {
+  font-weight: 600;
+  background: #fff;
+}
+
+.case-row.table-warning {
+  font-weight: 600;
+}
+
+.sidebar {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.main-panel {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card {
+  border-radius: 8px;
+  padding: 16px;
+  color: #fff;
+}
+
+.stat-card h4 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.stat-card small {
+  opacity: 0.9;
+}
+
+.tag-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #e9ecef;
+  font-size: 12px;
+  margin-right: 4px;
+}
+
+#detail-panel {
+  position: sticky;
+  top: 76px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+}
+
+.detail-placeholder {
+  color: #6c757d;
+  text-align: center;
+  padding: 60px 20px;
+}

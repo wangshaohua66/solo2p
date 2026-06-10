@@ -205,7 +205,7 @@ func (s *Scheduler) dispatchHits(ctx context.Context) {
 
 	q := &store.CaseQuery{
 		HitSubscription: boolPtr(true),
-		IsRead:          boolPtr(false),
+		NotNotifiedOnly: true,
 		PageSize:        500,
 	}
 	cases, _, err := s.store.QueryCases(q)
@@ -216,9 +216,6 @@ func (s *Scheduler) dispatchHits(ctx context.Context) {
 
 	for i := range cases {
 		c := &cases[i]
-		if c.NotifiedAt != nil {
-			continue
-		}
 		for _, sub := range subs {
 			if parser.MatchSubscription(&sub, c) {
 				if s.notifier == nil {
