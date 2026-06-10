@@ -1,0 +1,39 @@
+rules:
+  - component: mysql
+    min_cvss: 7.0
+    severity_filter: HIGH
+    version_range: ">=8.0.0"
+
+  - component: postgresql
+    min_cvss: 7.0
+    version_range: ">=14.0"
+
+  - component: redis
+    min_cvss: 6.0
+    severity_filter: HIGH
+
+  - component: kafka
+    min_cvss: 7.0
+
+  - component: spring
+    min_cvss: 7.0
+    severity_filter: CRITICAL
+
+  - component: vue
+    min_cvss: 5.0
+    version_range: ">=3.0.0"
+
+  - component: react
+    min_cvss: 5.0
+    version_range: ">=18.0.0"
+
+  - component: golang
+    min_cvss: 6.0
+
+  - component: java
+    min_cvss: 7.0
+    severity_filter: HIGH
+
+  - component: "*"
+    min_cvss: 9.0
+    severity_filter: CRITICAL

@@ -1,0 +1,149 @@
+logger:
+  level: info
+  output_path: data/logs/vulnmonitor.log
+  retention_days: 30
+  enable_json: true
+
+retry:
+  base_delay: 1s
+  max_delay: 30s
+  max_retries: 3
+  jitter: 0.1
+
+storage:
+  db_path: data/vulnmonitor.db
+  max_open_conns: 10
+  max_idle_conns: 5
+  max_lifetime_seconds: 3600
+
+matcher:
+  min_cvss_score: 4.0
+  component_aliases:
+    mysql:
+      - mysql-server
+      - mariadb
+      - percona-server
+    postgresql:
+      - postgres
+      - pgsql
+    redis:
+      - redis-server
+    kafka:
+      - apache-kafka
+      - kafka-broker
+    spring:
+      - spring-boot
+      - spring-framework
+      - spring-cloud
+
+crawler:
+  concurrency: 16
+  request_timeout_seconds: 30
+  request_delay_ms: 1000
+  random_delay_ms: 500
+  user_agent: "VulnMonitor/1.0 (Security Scanning Bot)"
+  cron_schedule: "*/5 * * * *"
+  sources:
+    - id: nvd
+      name: NVD CVE Database
+      type: nvd
+      enabled: true
+      url: https://services.nvd.nist.gov/rest/json/cves/2.0
+      api_token: ""
+      cron: "0 */6 * * *"
+      config:
+        timeout_seconds: 60
+        parallelism: 2
+
+    - id: github
+      name: GitHub Security Advisory
+      type: github
+      enabled: true
+      url: https://api.github.com/graphql
+      api_token: "your_github_token_here"
+      cron: "*/15 * * * *"
+      config:
+        timeout_seconds: 30
+
+    - id: apache
+      name: Apache Security Announce
+      type: apache
+      enabled: true
+      url: https://lists.apache.org/api/rss.rdf?unseen=true&count=50&list=security-announce
+      cron: "*/30 * * * *"
+
+    - id: ubuntu
+      name: Ubuntu Security Notices
+      type: ubuntu
+      enabled: true
+      url: https://ubuntu.com/security/cves.json?limit=50&order=desc&sortby=published
+      cron: "*/30 * * * *"
+
+    - id: mysql
+      name: MySQL Release Notes
+      type: mysql
+      enabled: true
+      url: https://dev.mysql.com/doc/relnotes/mysql/8.0/en/
+      cron: "0 */12 * * *"
+
+    - id: postgresql
+      name: PostgreSQL Security
+      type: postgresql
+      enabled: true
+      url: https://www.postgresql.org/support/security/
+      cron: "0 */12 * * *"
+
+    - id: redis
+      name: Redis Release Notes
+      type: redis
+      enabled: true
+      cron: "0 */12 * * *"
+
+    - id: kafka
+      name: Apache Kafka CVE
+      type: kafka
+      enabled: true
+      url: https://kafka.apache.org/cve-list
+      cron: "0 */12 * * *"
+
+notify:
+  smtp:
+    enabled: true
+    host: smtp.example.com
+    port: 587
+    username: alerts@example.com
+    password: "your_smtp_password"
+    from: "Security Monitor <alerts@example.com>"
+    to:
+      - security-team@example.com
+      - devops@example.com
+    use_tls: true
+
+  slack:
+    enabled: true
+    webhook_url: "https://hooks.slack.com/services/XXX/YYY/ZZZ"
+    channel: "#security-alerts"
+    username: "VulnMonitor"
+
+  serverchan:
+    enabled: true
+    send_key: "your_serverchan_send_key"
+    api_url: ""
+
+  routing:
+    critical:
+      - email
+      - slack
+      - serverchan
+    high:
+      - email
+      - slack
+    medium:
+      - serverchan
+    low:
+      - email
+
+  templates:
+    subject_template: "[{{.Severity}}] Security Alert: {{.CVEID}}"
+    email_template: ""
+    slack_template: ""
