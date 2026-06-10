@@ -697,50 +697,81 @@ func (a *Analyzer) calculateHealth(repo *storage.RepoRecord, contributors []stor
 	return score, level
 }
 
+func alertTitle(alertType string) string {
+	switch alertType {
+	case "silent_repo":
+		return "Silent Repository"
+	case "health_score":
+		return "Health Score Warning"
+	case "bus_factor":
+		return "Bus Factor Risk"
+	case "staleness":
+		return "Commit Staleness"
+	case "high_churn":
+		return "High Churn File"
+	case "complexity":
+		return "High Complexity"
+	case "tech_debt":
+		return "Technical Debt"
+	default:
+		return "Alert"
+	}
+}
+
 func (a *Analyzer) generateAlerts(repo *storage.RepoRecord, repoName string) []*storage.AlertRecord {
 	var alerts []*storage.AlertRecord
 
 	if repo.SilentDays >= 60 {
+		alertType := "silent_repo"
 		alerts = append(alerts, &storage.AlertRecord{
 			RepoName: repoName,
-			Type:     "silent_repo",
+			Type:     alertType,
 			Level:    "critical",
+			Title:    alertTitle(alertType),
 			Message:  fmt.Sprintf("Repository has been silent for %d days", repo.SilentDays),
 			Owner:    repo.Owner,
 		})
 	} else if repo.SilentDays >= 30 {
+		alertType := "silent_repo"
 		alerts = append(alerts, &storage.AlertRecord{
 			RepoName: repoName,
-			Type:     "silent_repo",
+			Type:     alertType,
 			Level:    "warning",
+			Title:    alertTitle(alertType),
 			Message:  fmt.Sprintf("Repository has been silent for %d days", repo.SilentDays),
 			Owner:    repo.Owner,
 		})
 	}
 
 	if repo.HealthScore < 50 {
+		alertType := "health_score"
 		alerts = append(alerts, &storage.AlertRecord{
 			RepoName: repoName,
-			Type:     "health_score",
+			Type:     alertType,
 			Level:    "critical",
+			Title:    alertTitle(alertType),
 			Message:  fmt.Sprintf("Repository health score is critically low: %.0f/100", repo.HealthScore),
 			Owner:    repo.Owner,
 		})
 	} else if repo.HealthScore < 75 {
+		alertType := "health_score"
 		alerts = append(alerts, &storage.AlertRecord{
 			RepoName: repoName,
-			Type:     "health_score",
+			Type:     alertType,
 			Level:    "warning",
+			Title:    alertTitle(alertType),
 			Message:  fmt.Sprintf("Repository health score is below average: %.0f/100", repo.HealthScore),
 			Owner:    repo.Owner,
 		})
 	}
 
 	if repo.Contributors < 2 {
+		alertType := "bus_factor"
 		alerts = append(alerts, &storage.AlertRecord{
 			RepoName: repoName,
-			Type:     "bus_factor",
+			Type:     alertType,
 			Level:    "warning",
+			Title:    alertTitle(alertType),
 			Message:  fmt.Sprintf("Low contributor count: %d", repo.Contributors),
 			Owner:    repo.Owner,
 		})

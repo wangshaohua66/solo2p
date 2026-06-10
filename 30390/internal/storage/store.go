@@ -115,6 +115,10 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
+func (s *Store) Sync() error {
+	return s.db.Sync()
+}
+
 func (s *Store) Begin(writable bool) (*Tx, error) {
 	tx, err := s.db.Begin(writable)
 	if err != nil {

@@ -12,12 +12,12 @@ import (
 	"sort"
 	"strings"
 	"syscall"
-	"text/tabwriter"
 	"time"
 
 	"github.com/fatih/color"
 
 	"github.com/gitmon/gitmon/internal/analyzer"
+	"github.com/gitmon/gitmon/internal/cli"
 	"github.com/gitmon/gitmon/internal/config"
 	"github.com/gitmon/gitmon/internal/git"
 	"github.com/gitmon/gitmon/internal/notify"
@@ -384,9 +384,9 @@ Examples:
 		return 4
 	}
 
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "REPOSITORY\tSTATUS\tCOMMITS\tTIME\tMESSAGE")
-	fmt.Fprintln(w, "──────────\t──────\t───────\t────\t───────")
+	t := cli.NewTableWriter()
+	t.Header("REPOSITORY", "STATUS", "COMMITS", "TIME", "MESSAGE")
+	t.Header("──────────", "──────", "───────", "────", "───────")
 
 	success := 0
 	failed := 0
@@ -402,7 +402,7 @@ Examples:
 			success++
 		}
 
-		fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\n",
+		t.Row(
 			r.RepoName,
 			status,
 			r.Commits,
@@ -410,7 +410,7 @@ Examples:
 			msg,
 		)
 	}
-	w.Flush()
+	t.Flush()
 
 	fmt.Println()
 	fmt.Println(color.CyanString("─────────────────────────────────────────────"))
@@ -808,13 +808,13 @@ Examples:
 }
 
 func printSummaryStats(stats []storage.RepoStats, alerts []storage.AlertRecord) {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	t := cli.NewTableWriter()
 
 	sort.Slice(stats, func(i, j int) bool {
 		return stats[i].HealthScore < stats[j].HealthScore
 	})
 
-	fmt.Fprintln(w, "\nREPOSITORY\tHEALTH\tSILENT DAYS\tALERTS")
+	t.Header("REPOSITORY", "HEALTH", "SILENT DAYS", "ALERTS")
 	for _, s := range stats {
 		level := git.HealthLevel(s.HealthLevel)
 		healthColor := color.New(color.FgGreen).SprintFunc()
@@ -838,15 +838,14 @@ func printSummaryStats(stats []storage.RepoStats, alerts []storage.AlertRecord) 
 			}
 		}
 
-		fmt.Fprintf(w, "%s\t%s (%.0f)\t%s\t%d\n",
+		t.Row(
 			s.RepoName,
-			healthColor(level.String()),
-			s.HealthScore,
+			fmt.Sprintf("%s (%.0f)", healthColor(level.String()), s.HealthScore),
 			silentColor(fmt.Sprintf("%d", s.SilentDays)),
 			alertCount,
 		)
 	}
-	w.Flush()
+	t.Flush()
 }
 
 func init() {

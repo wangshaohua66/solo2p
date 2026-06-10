@@ -45,9 +45,13 @@ func (s *Store) GetRepo(name string) (*RepoRecord, error) {
 
 func (s *Store) SaveRepo(repo *RepoRecord) error {
 	repo.UpdatedAt = time.Now()
-	return s.Update(func(tx *Tx) error {
+	err := s.Update(func(tx *Tx) error {
 		return tx.Put(BucketRepos, []byte(repo.Name), repo)
 	})
+	if err != nil {
+		return err
+	}
+	return s.Sync()
 }
 
 func (s *Store) GetCommitsByRepo(repoName string, limit int) ([]CommitRecord, error) {
@@ -208,13 +212,42 @@ func (s *Store) GetActiveAlerts() ([]AlertRecord, error) {
 }
 
 func (s *Store) SaveAlert(a *AlertRecord) error {
-	if a.ID == "" {
+	err := s.Update(func(tx *Tx) error {
+		var existing *AlertRecord
+		err := tx.ForEach(BucketAlerts, func(k, v []byte) error {
+			var rec AlertRecord
+			if err := fromBytes(v, &rec); err != nil {
+				return nil
+			}
+			if rec.RepoName == a.RepoName && rec.Type == a.Type && !rec.Resolved {
+				existing = &rec
+				return ErrStopIteration
+			}
+			return nil
+		})
+		if err != nil && err != ErrStopIteration {
+			return err
+		}
+
+		if existing != nil {
+			existing.Count++
+			existing.CreatedAt = time.Now()
+			existing.Message = a.Message
+			existing.Level = a.Level
+			existing.Title = a.Title
+			existing.Owner = a.Owner
+			return tx.Put(BucketAlerts, []byte(existing.ID), existing)
+		}
+
 		a.ID = string(MakeKey(a.RepoName, a.Type, time.Now().UnixNano()))
-	}
-	a.CreatedAt = time.Now()
-	return s.Update(func(tx *Tx) error {
+		a.Count = 1
+		a.CreatedAt = time.Now()
 		return tx.Put(BucketAlerts, []byte(a.ID), a)
 	})
+	if err != nil {
+		return err
+	}
+	return s.Sync()
 }
 
 func (s *Store) ResolveAlert(id string) error {

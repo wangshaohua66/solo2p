@@ -35,6 +35,30 @@
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
 }
 
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --bg-primary: #0f172a;
+        --bg-secondary: #1e293b;
+        --bg-tertiary: #334155;
+        --bg-card: #1e293b;
+        --text-primary: #f1f5f9;
+        --text-secondary: #cbd5e1;
+        --text-muted: #64748b;
+        --border-color: #334155;
+        --accent: #60a5fa;
+        --accent-hover: #93c5fd;
+        --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
+    }
+
+    :root:not([data-theme="light"]) .heatmap-cell[data-level="1"] { background-color: #14532d; }
+    :root:not([data-theme="light"]) .heatmap-cell[data-level="2"] { background-color: #166534; }
+    :root:not([data-theme="light"]) .heatmap-cell[data-level="3"] { background-color: #15803d; }
+    :root:not([data-theme="light"]) .heatmap-cell[data-level="4"] { background-color: #22c55e; }
+    :root:not([data-theme="light"]) .heatmap-cell[data-level="5"] { background-color: #4ade80; }
+}
+
 * {
     margin: 0;
     padding: 0;

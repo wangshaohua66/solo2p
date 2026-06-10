@@ -5,45 +5,143 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GitMon Repository Analysis Report</title>
     <style>
+        :root {
+            --bg-primary: #f9fafb;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f3f4f6;
+            --text-primary: #1f2937;
+            --text-secondary: #374151;
+            --text-muted: #6b7280;
+            --border-color: #e5e7eb;
+            --accent-color: #6366f1;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --heatmap-bg: #ebedf0;
+            --heatmap-1: #c6e48b;
+            --heatmap-2: #7bc96f;
+            --heatmap-3: #239a3b;
+            --heatmap-4: #196127;
+            --heatmap-5: #0a4019;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-primary: #111827;
+                --bg-secondary: #1f2937;
+                --bg-tertiary: #374151;
+                --text-primary: #f9fafb;
+                --text-secondary: #e5e7eb;
+                --text-muted: #9ca3af;
+                --border-color: #374151;
+                --accent-color: #818cf8;
+                --success-color: #34d399;
+                --warning-color: #fbbf24;
+                --danger-color: #f87171;
+                --shadow-color: rgba(0, 0, 0, 0.3);
+                --heatmap-bg: #1f2937;
+                --heatmap-1: #065f46;
+                --heatmap-2: #047857;
+                --heatmap-3: #10b981;
+                --heatmap-4: #34d399;
+                --heatmap-5: #6ee7b7;
+            }
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #111827;
+            --bg-secondary: #1f2937;
+            --bg-tertiary: #374151;
+            --text-primary: #f9fafb;
+            --text-secondary: #e5e7eb;
+            --text-muted: #9ca3af;
+            --border-color: #374151;
+            --accent-color: #818cf8;
+            --success-color: #34d399;
+            --warning-color: #fbbf24;
+            --danger-color: #f87171;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --heatmap-bg: #1f2937;
+            --heatmap-1: #065f46;
+            --heatmap-2: #047857;
+            --heatmap-3: #10b981;
+            --heatmap-4: #34d399;
+            --heatmap-5: #6ee7b7;
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #f9fafb;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f3f4f6;
+            --text-primary: #1f2937;
+            --text-secondary: #374151;
+            --text-muted: #6b7280;
+            --border-color: #e5e7eb;
+            --accent-color: #6366f1;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --heatmap-bg: #ebedf0;
+            --heatmap-1: #c6e48b;
+            --heatmap-2: #7bc96f;
+            --heatmap-3: #239a3b;
+            --heatmap-4: #196127;
+            --heatmap-5: #0a4019;
+        }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1f2937; background: #f9fafb; }
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; border-radius: 8px; margin: 1rem; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: var(--text-primary); background: var(--bg-primary); transition: background-color 0.3s, color 0.3s; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; border-radius: 8px; margin: 1rem; display: flex; justify-content: space-between; align-items: center; }
         .header h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
         .header p { opacity: 0.9; }
+        .theme-toggle { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.875rem; transition: background 0.2s; }
+        .theme-toggle:hover { background: rgba(255,255,255,0.3); }
         .content { padding: 1rem; max-width: 1400px; margin: 0 auto; }
-        .section { background: white; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .section h2 { color: #374151; margin-bottom: 1rem; font-size: 1.25rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; }
+        .section { background: var(--bg-secondary); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px var(--shadow-color); transition: background-color 0.3s; }
+        .section h2 { color: var(--text-secondary); margin-bottom: 1rem; font-size: 1.25rem; border-bottom: 2px solid var(--border-color); padding-bottom: 0.5rem; transition: color 0.3s, border-color 0.3s; }
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
-        .stat-card { background: #f3f4f6; padding: 1rem; border-radius: 8px; text-align: center; }
-        .stat-card .value { font-size: 1.75rem; font-weight: bold; color: #6366f1; }
-        .stat-card .label { font-size: 0.875rem; color: #6b7280; }
+        .stat-card { background: var(--bg-tertiary); padding: 1rem; border-radius: 8px; text-align: center; transition: background-color 0.3s; }
+        .stat-card .value { font-size: 1.75rem; font-weight: bold; color: var(--accent-color); transition: color 0.3s; }
+        .stat-card .label { font-size: 0.875rem; color: var(--text-muted); transition: color 0.3s; }
         table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-        th { background: #f3f4f6; text-align: left; padding: 0.75rem; font-weight: 600; border-bottom: 2px solid #e5e7eb; }
-        td { padding: 0.75rem; border-bottom: 1px solid #e5e7eb; }
-        tr:hover { background: #f9fafb; }
-        .health-good { color: #10b981; }
-        .health-warning { color: #f59e0b; }
-        .health-critical { color: #ef4444; }
+        th { background: var(--bg-tertiary); text-align: left; padding: 0.75rem; font-weight: 600; border-bottom: 2px solid var(--border-color); color: var(--text-secondary); transition: background-color 0.3s, color 0.3s, border-color 0.3s; }
+        td { padding: 0.75rem; border-bottom: 1px solid var(--border-color); color: var(--text-primary); transition: border-color 0.3s, color 0.3s; }
+        tr:hover { background: var(--bg-tertiary); transition: background-color 0.3s; }
+        .health-good { color: var(--success-color); }
+        .health-warning { color: var(--warning-color); }
+        .health-critical { color: var(--danger-color); }
         .badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; color: white; }
-        .badge-good { background: #10b981; }
-        .badge-warning { background: #f59e0b; }
-        .badge-critical { background: #ef4444; }
+        .badge-good { background: var(--success-color); }
+        .badge-warning { background: var(--warning-color); }
+        .badge-critical { background: var(--danger-color); }
         .mono { font-family: 'SF Mono', Monaco, monospace; font-size: 0.8125rem; }
-        .chart-container { width: 100%; height: 300px; margin-top: 1rem; }
+        .chart-container { width: 100%; overflow-x: auto; margin-top: 1rem; }
+        .chart-container svg { width: 100%; height: auto; min-height: 300px; }
         .heatmap-grid { display: grid; grid-template-columns: repeat(90, 1fr); gap: 2px; margin-top: 1rem; }
-        .heatmap-cell { width: 12px; height: 12px; border-radius: 2px; background: #ebedf0; }
-        .heatmap-cell[data-level="1"] { background: #c6e48b; }
-        .heatmap-cell[data-level="2"] { background: #7bc96f; }
-        .heatmap-cell[data-level="3"] { background: #239a3b; }
-        .heatmap-cell[data-level="4"] { background: #196127; }
-        .heatmap-cell[data-level="5"] { background: #0a4019; }
-        @media print { body { background: white; } .header { background: #4f46e5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } .section { page-break-inside: avoid; } }
+        .heatmap-cell { width: 12px; height: 12px; border-radius: 2px; background: var(--heatmap-bg); transition: background-color 0.3s; }
+        .heatmap-cell[data-level="1"] { background: var(--heatmap-1); }
+        .heatmap-cell[data-level="2"] { background: var(--heatmap-2); }
+        .heatmap-cell[data-level="3"] { background: var(--heatmap-3); }
+        .heatmap-cell[data-level="4"] { background: var(--heatmap-4); }
+        .heatmap-cell[data-level="5"] { background: var(--heatmap-5); }
+        @media print {
+            body { background: white; color: #1f2937; }
+            .header { background: #4f46e5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .section { page-break-inside: avoid; background: white; color: #1f2937; }
+            th, td { color: #1f2937; }
+            .theme-toggle { display: none; }
+        }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>GitMon Repository Analysis Report</h1>
-        <p>Generated: {{.GeneratedAt.Format "2006-01-02 15:04:05"}} | Repositories: {{len .Repos}} | Alerts: {{len .Alerts}}</p>
+        <div>
+            <h1>GitMon Repository Analysis Report</h1>
+            <p>Generated: {{.GeneratedAt.Format "2006-01-02 15:04:05"}} | Repositories: {{len .Repos}} | Alerts: {{len .Alerts}}</p>
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">🌙 Dark Mode</button>
     </div>
 
     <div class="content">
@@ -79,17 +177,20 @@
 
         <div class="section">
             <h2>Repository Health Scores</h2>
-            <div class="chart-container" id="healthChart"></div>
+            <div class="chart-container" id="healthChartLight">{{renderHealthBarSVG .Stats 900 300}}</div>
+            <div class="chart-container" id="healthChartDark" style="display:none;">{{renderHealthBarSVGDark .Stats 900 300}}</div>
         </div>
 
         <div class="section">
             <h2>Commit Activity</h2>
-            <div class="chart-container" id="commitsChart"></div>
+            <div class="chart-container" id="commitsChartLight">{{renderTrendSVG .Stats 900 300}}</div>
+            <div class="chart-container" id="commitsChartDark" style="display:none;">{{renderTrendSVGDark .Stats 900 300}}</div>
         </div>
 
         <div class="section">
             <h2>Alert Distribution</h2>
-            <div class="chart-container" id="alertsChart"></div>
+            <div class="chart-container" id="alertsChartLight">{{renderBusFactorBarSVG .Alerts 900 300}}</div>
+            <div class="chart-container" id="alertsChartDark" style="display:none;">{{renderBusFactorBarSVGDark .Alerts 900 300}}</div>
         </div>
 
         {{range $repoName, $data := .Heatmap}}
@@ -204,72 +305,38 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <script>
-        const statsData = JSON.parse({{json .Stats}});
-        const alertsData = JSON.parse({{json .Alerts}});
-        const reposData = JSON.parse({{json .Repos}});
-
-        function renderHealthChart() {
-            const chart = echarts.init(document.getElementById('healthChart'));
-            const sorted = [...statsData].sort((a, b) => b.health_score - a.health_score);
-            const colors = sorted.map(s => s.health_level === 'good' ? '#10b981' : s.health_level === 'warning' ? '#f59e0b' : '#ef4444');
-            chart.setOption({
-                title: { text: 'Health Scores by Repository', left: 'center' },
-                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-                xAxis: { type: 'category', data: sorted.map(s => s.repo_name), axisLabel: { rotate: 45 } },
-                yAxis: { type: 'value', max: 100 },
-                series: [{
-                    type: 'bar',
-                    data: sorted.map((s, i) => ({ value: s.health_score, itemStyle: { color: colors[i] } })),
-                    label: { show: true, position: 'top' }
-                }]
-            });
+        function getPreferredTheme() {
+            const saved = localStorage.getItem('gitmon-theme');
+            if (saved) return saved;
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         }
 
-        function renderCommitsChart() {
-            const chart = echarts.init(document.getElementById('commitsChart'));
-            const sorted = [...statsData].sort((a, b) => b.total_commits - a.total_commits);
-            chart.setOption({
-                title: { text: 'Total Commits by Repository', left: 'center' },
-                tooltip: { trigger: 'axis' },
-                xAxis: { type: 'category', data: sorted.map(s => s.repo_name), axisLabel: { rotate: 45 } },
-                yAxis: { type: 'value' },
-                series: [{
-                    type: 'line',
-                    data: sorted.map(s => s.total_commits),
-                    smooth: true,
-                    areaStyle: { opacity: 0.3 }
-                }]
-            });
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            const isDark = theme === 'dark';
+            document.getElementById('themeToggle').textContent = isDark ? '☀️ Light Mode' : '🌙 Dark Mode';
+            document.getElementById('healthChartLight').style.display = isDark ? 'none' : 'block';
+            document.getElementById('healthChartDark').style.display = isDark ? 'block' : 'none';
+            document.getElementById('commitsChartLight').style.display = isDark ? 'none' : 'block';
+            document.getElementById('commitsChartDark').style.display = isDark ? 'block' : 'none';
+            document.getElementById('alertsChartLight').style.display = isDark ? 'none' : 'block';
+            document.getElementById('alertsChartDark').style.display = isDark ? 'block' : 'none';
         }
 
-        function renderAlertsChart() {
-            const chart = echarts.init(document.getElementById('alertsChart'));
-            const typeMap = {};
-            alertsData.forEach(a => { if (!a.resolved) typeMap[a.type] = (typeMap[a.type] || 0) + 1; });
-            const data = Object.entries(typeMap).map(([name, value]) => ({ name, value }));
-            chart.setOption({
-                title: { text: 'Alert Type Distribution', left: 'center' },
-                tooltip: { trigger: 'item', formatter: '{b}: {c}' },
-                legend: { orient: 'vertical', left: 'left' },
-                series: [{
-                    type: 'pie',
-                    radius: ['40%', '70%'],
-                    data: data,
-                    label: { formatter: '{b}: {c}' }
-                }]
-            });
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme') || getPreferredTheme();
+            const next = current === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('gitmon-theme', next);
+            applyTheme(next);
         }
 
-        renderHealthChart();
-        renderCommitsChart();
-        renderAlertsChart();
+        applyTheme(getPreferredTheme());
 
-        window.addEventListener('resize', () => {
-            echarts.getInstanceByDom(document.getElementById('healthChart')).resize();
-            echarts.getInstanceByDom(document.getElementById('commitsChart')).resize();
-            echarts.getInstanceByDom(document.getElementById('alertsChart')).resize();
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            if (!localStorage.getItem('gitmon-theme')) {
+                applyTheme(e.matches ? 'dark' : 'light');
+            }
         });
     </script>
 </body>

@@ -111,6 +111,7 @@ type AlertRecord struct {
 	Message    string    `json:"message"`
 	Detail     string    `json:"detail,omitempty"`
 	Owner      string    `json:"owner,omitempty"`
+	Count      int       `json:"count"`
 	CreatedAt  time.Time `json:"created_at"`
 	Resolved   bool      `json:"resolved"`
 	ResolvedAt time.Time `json:"resolved_at,omitempty"`

@@ -9,8 +9,14 @@ const state = {
     heatmapRepo: '',
     allHeatmapData: {},
     currentTab: 'overview',
-    theme: localStorage.getItem('theme') || 'light'
+    theme: getPreferredTheme()
 };
+
+function getPreferredTheme() {
+    const saved = localStorage.getItem('theme');
+    if (saved) return saved;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
 
 function init() {
     applyTheme();
@@ -20,6 +26,11 @@ function init() {
 
 function applyTheme() {
     document.documentElement.setAttribute('data-theme', state.theme);
+    const toggleBtn = document.getElementById('themeToggle');
+    if (toggleBtn) {
+        toggleBtn.textContent = state.theme === 'dark' ? '☀️' : '🌓';
+        toggleBtn.title = state.theme === 'dark' ? '切换到浅色模式' : '切换到深色模式';
+    }
 }
 
 function toggleTheme() {
@@ -27,6 +38,13 @@ function toggleTheme() {
     localStorage.setItem('theme', state.theme);
     applyTheme();
 }
+
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+    if (!localStorage.getItem('theme')) {
+        state.theme = e.matches ? 'dark' : 'light';
+        applyTheme();
+    }
+});
 
 function setupEventListeners() {
     document.querySelectorAll('.tab-btn').forEach(btn => {

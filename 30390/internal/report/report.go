@@ -100,6 +100,24 @@ func (g *Generator) loadTemplates() error {
 			}
 			return level
 		},
+		"renderHealthBarSVG": func(stats []storage.RepoStats, width, height int) template.HTML {
+			return template.HTML(RenderHealthBarSVG(stats, width, height, false))
+		},
+		"renderTrendSVG": func(stats []storage.RepoStats, width, height int) template.HTML {
+			return template.HTML(RenderTrendSVG(stats, width, height, false))
+		},
+		"renderBusFactorBarSVG": func(alerts []storage.AlertRecord, width, height int) template.HTML {
+			return template.HTML(RenderBusFactorBar(alerts, width, height, false))
+		},
+		"renderHealthBarSVGDark": func(stats []storage.RepoStats, width, height int) template.HTML {
+			return template.HTML(RenderHealthBarSVG(stats, width, height, true))
+		},
+		"renderTrendSVGDark": func(stats []storage.RepoStats, width, height int) template.HTML {
+			return template.HTML(RenderTrendSVG(stats, width, height, true))
+		},
+		"renderBusFactorBarSVGDark": func(alerts []storage.AlertRecord, width, height int) template.HTML {
+			return template.HTML(RenderBusFactorBar(alerts, width, height, true))
+		},
 	}
 	tmpl, err := template.New("").Funcs(funcMap).ParseGlob(filepath.Join(tmplDir, "*.html"))
 	if err != nil {
