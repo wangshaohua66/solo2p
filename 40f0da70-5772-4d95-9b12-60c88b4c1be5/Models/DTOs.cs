@@ -88,6 +88,9 @@ public class GearUpdateDto
     public string? Description { get; set; }
     public string? Status { get; set; }
     public int? NextMaintenanceAfterUses { get; set; }
+    public int Version { get; set; }
+    public int? BaseVersion { get; set; }
+    public bool ForceLastWriteWins { get; set; }
 }
 
 public class GearLendDto
@@ -127,6 +130,8 @@ public class GearDto
     public UserDto? CurrentBorrower { get; set; }
     public DateTime? DueDate { get; set; }
     public bool NeedsMaintenance { get; set; }
+    public int Version { get; set; }
+    public DateTime UpdatedAt { get; set; }
 }
 #endregion
 
@@ -178,6 +183,8 @@ public class EventUpdateDto
     public string? Description { get; set; }
     public string? Status { get; set; }
     public int Version { get; set; }
+    public int? BaseVersion { get; set; }
+    public bool ForceLastWriteWins { get; set; }
 }
 
 public class EventRateDto
@@ -220,6 +227,7 @@ public class EventDto
     public List<PurchaseItemDto> PurchaseList { get; set; } = new();
     public int Version { get; set; }
     public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
 }
 
 public class ParticipantDto
@@ -232,6 +240,7 @@ public class ParticipantDto
 
 public class EventGearDto
 {
+    public string Key { get; set; } = Guid.NewGuid().ToString("N");
     public string? GearId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
@@ -243,6 +252,7 @@ public class EventGearDto
 
 public class PurchaseItemDto
 {
+    public string Key { get; set; } = Guid.NewGuid().ToString("N");
     public string Name { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
     public int Quantity { get; set; }

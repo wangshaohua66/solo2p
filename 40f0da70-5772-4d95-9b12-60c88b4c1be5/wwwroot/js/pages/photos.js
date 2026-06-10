@@ -56,7 +56,28 @@
     if (_map) { _map.remove(); _map = null; }
 
     $mapEl.css({ height: '320px', borderRadius: '12px', overflow: 'hidden' });
-    var center = [points[0].gpsLat || 31.23, points[0].gpsLng || 121.47];
+
+    var validPoints = points.filter(function (p) { return p.gpsLat && p.gpsLng; });
+    if (!validPoints.length) {
+      var $trackPts = $('#photoTrackPoints');
+      if ($trackPts.length) {
+        $trackPts.html(points.slice(0, 15).map(function (pt) {
+          var t = pt.takenAt ? CampHub.ui.formatLocalDateTime(pt.takenAt) : '';
+          return '<a href="' + pt.fileUrl + '" target="_blank" class="d-inline-block me-1 mb-1" title="' + t + '">' +
+            '<img src="' + (pt.thumbUrl || pt.fileUrl) + '" class="rounded" style="width:56px;height:56px;object-fit:cover;border:2px solid var(--ch-bg);" />' +
+          '</a>';
+        }).join('') + (points.length > 15 ? '<span class="small text-muted align-top ms-2">共 ' + points.length + ' 个GPS标记</span>' : ''));
+      }
+      return;
+    }
+
+    validPoints.sort(function (a, b) {
+      var ta = a.takenAt ? new Date(a.takenAt).getTime() : 0;
+      var tb = b.takenAt ? new Date(b.takenAt).getTime() : 0;
+      return ta - tb;
+    });
+
+    var center = [validPoints[0].gpsLat || 31.23, validPoints[0].gpsLng || 121.47];
     _map = L.map('photoTrackMap').setView(center, 12);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -64,9 +85,9 @@
       maxZoom: 19
     }).addTo(_map);
 
-    var latlngs = points.filter(p => p.gpsLat && p.gpsLng).map(p => [p.gpsLat, p.gpsLng]);
+    var latlngs = validPoints.map(function (p) { return [p.gpsLat, p.gpsLng]; });
+
     if (latlngs.length > 1) {
-      latlngs.sort(function (a, b) { return a[2] - b[2]; });
       var polyline = L.polyline(latlngs, {
         color: '#2D5A27',
         weight: 4,
@@ -74,37 +95,43 @@
       }).addTo(_map);
       _map.fitBounds(polyline.getBounds(), { padding: [30, 30] });
 
-      for (var i = 0; i < latlngs.length && i < 20; i++) {
-        var pt = points[i];
-        L.marker([pt.gpsLat, pt.gpsLng], {
+      for (var i = 0; i < validPoints.length && i < 30; i++) {
+        var pt = validPoints[i];
+        var latlng = latlngs[i];
+        L.marker(latlng, {
           icon: L.divIcon({
             className: 'ch-photo-map-marker',
-            html: `<div style="width:36px;height:36px;border-radius:6px;overflow:hidden;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);background:#fff;">
-                     <img src="${pt.thumbUrl || pt.fileUrl}" style="width:100%;height:100%;object-fit:cover;" />
-                   </div>`,
+            html: '<div style="width:36px;height:36px;border-radius:6px;overflow:hidden;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);background:#fff;">' +
+                     '<img src="' + (pt.thumbUrl || pt.fileUrl) + '" style="width:100%;height:100%;object-fit:cover;" />' +
+                   '</div>',
             iconSize: [36, 36],
             iconAnchor: [18, 36]
           })
-        }).addTo(_map).bindPopup(`
-          <div style="min-width:160px;">
-            <img src="${pt.fileUrl}" style="width:100%;border-radius:6px;" />
-            <div class="small mt-1 text-muted">${pt.takenAt ? CampHub.ui.formatLocalDateTime(pt.takenAt) : ''}</div>
-          </div>
-        `);
+        }).addTo(_map).bindPopup(
+          '<div style="min-width:160px;">' +
+            '<img src="' + pt.fileUrl + '" style="width:100%;border-radius:6px;" />' +
+            '<div class="small mt-1 text-muted">' + (pt.takenAt ? CampHub.ui.formatLocalDateTime(pt.takenAt) : '') + '</div>' +
+          '</div>'
+        );
       }
-    } else if (latlngs.length === 1) {
-      L.marker(latlngs[0]).addTo(_map);
+    } else {
+      var pt0 = validPoints[0];
+      L.marker(latlngs[0]).addTo(_map).bindPopup(
+        '<div style="min-width:160px;">' +
+          '<img src="' + pt0.fileUrl + '" style="width:100%;border-radius:6px;" />' +
+          '<div class="small mt-1 text-muted">' + (pt0.takenAt ? CampHub.ui.formatLocalDateTime(pt0.takenAt) : '') + '</div>' +
+        '</div>'
+      );
     }
 
-    var $trackPts = $('#photoTrackPoints');
-    if ($trackPts.length) {
-      $trackPts.html(points.slice(0, 15).map(function (pt, i) {
+    var $trackPts2 = $('#photoTrackPoints');
+    if ($trackPts2.length) {
+      $trackPts2.html(validPoints.slice(0, 15).map(function (pt) {
         var t = pt.takenAt ? CampHub.ui.formatLocalDateTime(pt.takenAt) : '';
-        return `<a href="${pt.fileUrl}" target="_blank" class="d-inline-block me-1 mb-1" title="${t}">
-          <img src="${pt.thumbUrl || pt.fileUrl}" class="rounded"
-               style="width:56px;height:56px;object-fit:cover;border:2px solid var(--ch-bg);" />
-        </a>`;
-      }).join('') + (points.length > 15 ? `<span class="small text-muted align-top ms-2">共 ${points.length} 个GPS标记</span>` : ''));
+        return '<a href="' + pt.fileUrl + '" target="_blank" class="d-inline-block me-1 mb-1" title="' + t + '">' +
+          '<img src="' + (pt.thumbUrl || pt.fileUrl) + '" class="rounded" style="width:56px;height:56px;object-fit:cover;border:2px solid var(--ch-bg);" />' +
+        '</a>';
+      }).join('') + (validPoints.length > 15 ? '<span class="small text-muted align-top ms-2">共 ' + validPoints.length + ' 个GPS标记</span>' : ''));
     }
   }
 

@@ -167,6 +167,10 @@ public class GearController : ControllerBase
         if (gear == null) return NotFound(ApiResponse<GearDto>.Fail("装备不存在"));
         if (gear.OwnerId != uid) return Forbid();
 
+        var forceLww = req.ForceLastWriteWins;
+        if (!forceLww && gear.Version != req.Version)
+            return StatusCode(409, ApiResponse<GearDto>.Fail("内容已被他人修改，请刷新重试"));
+
         var ub = Builders<Gear>.Update;
         var updates = new List<UpdateDefinition<Gear>>();
 
@@ -191,15 +195,25 @@ public class GearController : ControllerBase
         if (!updates.Any()) return Ok(ApiResponse<GearDto>.Ok(MapGearDto(gear, await BuildUserMap(new[] { uid }))));
 
         updates.Add(ub.Inc(g => g.Version, 1));
+        updates.Add(ub.Set(g => g.UpdatedAt, DateTime.UtcNow));
         var combined = ub.Combine(updates);
 
+        FilterDefinition<Gear> filter = forceLww
+            ? Builders<Gear>.Filter.Eq(g => g.Id, id)
+            : Builders<Gear>.Filter.Eq(g => g.Id, id) & Builders<Gear>.Filter.Eq(g => g.Version, req.Version);
+
         var updated = await _db.Gears.FindOneAndUpdateAsync(
-            g => g.Id == id, combined,
+            filter, combined,
             new FindOneAndUpdateOptions<Gear> { ReturnDocument = ReturnDocument.After });
+
+        if (updated == null)
+            return StatusCode(409, ApiResponse<GearDto>.Fail(forceLww
+                ? "保存失败，请重试" : "并发冲突，请刷新"));
 
         return Ok(ApiResponse<GearDto>.Ok(MapGearDto(updated!,
             await BuildUserMap(new[] { updated!.OwnerId, updated.CurrentBorrowerId ?? "" }
-                .Where(s => !string.IsNullOrEmpty(s)).ToList())), "更新成功"));
+                .Where(s => !string.IsNullOrEmpty(s)).ToList())),
+            forceLww ? "已保存（冲突已按最后写入胜出处理）" : "更新成功"));
     }
 
     [HttpPost("{id}/maintenance")]
@@ -213,6 +227,7 @@ public class GearController : ControllerBase
         var update = Builders<Gear>.Update
             .Set(g => g.LastMaintenanceDate, DateTime.UtcNow)
             .Set(g => g.LastMaintenanceUsageCount, gear.UsageCount)
+            .Set(g => g.UpdatedAt, DateTime.UtcNow)
             .Inc(g => g.Version, 1);
 
         var updated = await _db.Gears.FindOneAndUpdateAsync(
@@ -268,6 +283,7 @@ public class GearController : ControllerBase
                     .Set(g => g.Status, GearStatus.Lent)
                     .Set(g => g.CurrentBorrowerId, req.BorrowerId)
                     .Set(g => g.DueDate, dueDateUtc)
+                    .Set(g => g.UpdatedAt, DateTime.UtcNow)
                     .Inc(g => g.Version, 1));
 
             await session.CommitTransactionAsync();
@@ -347,6 +363,7 @@ public class GearController : ControllerBase
                 .Set(g => g.Status, req.Condition == "报废" ? GearStatus.Scrap : GearStatus.Available)
                 .Set(g => g.CurrentBorrowerId, (string?)null)
                 .Set(g => g.DueDate, (DateTime?)null)
+                .Set(g => g.UpdatedAt, now)
                 .Inc(g => g.UsageCount, 1)
                 .Inc(g => g.Version, 1);
             if (req.NewWearLevel.HasValue)
@@ -444,7 +461,9 @@ public class GearController : ControllerBase
             CurrentBorrower = borrower,
             DueDate = g.DueDate,
             NeedsMaintenance = g.NeedsMaintenance,
-            UsesSinceMaintenance = g.UsesSinceMaintenance
+            UsesSinceMaintenance = g.UsesSinceMaintenance,
+            Version = g.Version,
+            UpdatedAt = g.UpdatedAt
         };
     }
 

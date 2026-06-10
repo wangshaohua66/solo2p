@@ -30,20 +30,25 @@
     });
   }
 
-  function addOutbox(entityType, operation, data, endpoint, method) {
+  function addOutbox(entityType, operation, data, endpoint, method, baseVersion) {
     return new Promise(function (resolve, reject) {
       if (!db) { reject(new Error('DB not ready')); return; }
       var tx = db.transaction(STORE_OUTBOX, 'readwrite');
       var store = tx.objectStore(STORE_OUTBOX);
+      var resolvedVersion = typeof baseVersion === 'number' ? baseVersion :
+        (data && typeof data.version === 'number' ? data.version :
+         (data && typeof data.Version === 'number' ? data.Version : 1));
       var item = {
         entityType: entityType,
         operation: operation,
         data: data,
         endpoint: endpoint,
         method: method || 'POST',
+        baseVersion: resolvedVersion,
         createdAt: Date.now(),
         retries: 0,
-        status: 'pending'
+        status: 'pending',
+        conflictResolved: null
       };
       var req = store.add(item);
       req.onsuccess = function () { resolve(req.result); };
@@ -99,15 +104,39 @@
       for (var i = 0; i < items.length; i++) {
         var item = items[i];
         try {
-          await CampHub.ajax.request(item.method, item.endpoint, item.data, { skipOfflineQueue: true });
+          var payload = item.data;
+          if (item.baseVersion) {
+            payload = payload && typeof payload === 'object' ? Object.assign({}, payload) : {};
+            payload.baseVersion = item.baseVersion;
+            if (!payload.version) payload.version = item.baseVersion;
+          }
+          var serverResult = await CampHub.ajax.request(item.method, item.endpoint, payload, { skipOfflineQueue: true });
           await removeOutboxItem(item.id);
-          results.push({ id: item.id, success: true });
+          results.push({ id: item.id, success: true, serverResult: serverResult });
         } catch (err) {
+          var isConflict = (err && err.status === 409) ||
+            (err && err.message && err.message.indexOf('并发') >= 0) ||
+            (err && err.message && err.message.indexOf('冲突') >= 0);
+          if (isConflict && !item.conflictResolved) {
+            item.conflictResolved = 'lastWrite';
+            item.baseVersion = (item.baseVersion || 1) + 1;
+            if (item.data && typeof item.data === 'object') item.data._forceLww = true;
+            await updateOutboxItem(item.id, item);
+            try {
+              var payload2 = item.data && typeof item.data === 'object' ? Object.assign({}, item.data) : {};
+              payload2.baseVersion = item.baseVersion;
+              payload2._forceLww = true;
+              var retryResult = await CampHub.ajax.request(item.method, item.endpoint, payload2, { skipOfflineQueue: true });
+              await removeOutboxItem(item.id);
+              results.push({ id: item.id, success: true, conflict: true, serverResult: retryResult });
+              continue;
+            } catch (retryErr) { err = retryErr; }
+          }
           item.retries = (item.retries || 0) + 1;
           item.lastError = err.message || 'failed';
           if (item.retries >= 5) item.status = 'failed';
           await updateOutboxItem(item.id, item);
-          results.push({ id: item.id, success: false, error: err.message });
+          results.push({ id: item.id, success: false, error: err.message, isConflict: isConflict });
         }
       }
     } finally {
@@ -115,6 +144,8 @@
     }
 
     if (results.length > 0) {
+      var hasConflict = results.some(function (r) { return r.conflict; });
+      if (hasConflict) CampHub.ui.toast('离线同步完成，部分冲突已采用最后写入胜出策略', 'warning');
       $(document).trigger('campHub:syncComplete', [results]);
     }
     return results;

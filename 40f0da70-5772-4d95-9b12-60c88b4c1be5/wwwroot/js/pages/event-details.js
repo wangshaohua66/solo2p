@@ -98,11 +98,19 @@
 
       <div class="tab-content mt-3">
         <div class="tab-pane fade show active" id="tabInfo" role="tabpanel">
-          <div class="card p-4">
+          <div class="card p-4 mb-3">
             <h5 class="mb-3"><i class="bi bi-info-circle me-2 text-ch-primary"></i>活动简介</h5>
             <p class="text-muted mb-4">${CampHub.util.escapeHtml(ev.description || '暂无详细介绍') || '暂无详细介绍'}</p>
             <h6 class="fw-bold mb-2">活动分工</h6>
             <div class="ch-event-info-grid">${participantsHtml || '<div class="text-muted">暂无参与人员</div>'}</div>
+          </div>
+          <div class="card p-4">
+            <h5 class="mb-3"><i class="bi bi-chat-dots me-2 text-ch-accent"></i>协同聊天 <small class="text-muted fw-normal">· 实时同步给所有成员</small></h5>
+            <div id="collabChatBox" class="ch-collab-chat-box border rounded-3 p-3 bg-light mb-3 overflow-y-auto" style="height:240px;"></div>
+            <div class="d-flex gap-2">
+              <input id="collabChatInput" type="text" class="form-control form-control-sm" placeholder="输入消息，Enter发送..." maxlength="500" />
+              <button id="collabChatSend" class="btn btn-accent btn-sm"><i class="bi bi-send me-1"></i>发送</button>
+            </div>
           </div>
         </div>
 
@@ -113,7 +121,7 @@
               ${isOwner ? `<button class="btn btn-outline-primary btn-sm" id="addParticipantBtn2"><i class="bi bi-person-plus me-1"></i>邀请成员</button>` : ''}
             </div>
             <div class="table-responsive">
-              <table class="table table-hover">
+              <table class="table table-hover table-card-mobile">
                 <thead><tr><th>成员</th><th>角色</th><th>确认状态</th><th>加入时间</th></tr></thead>
                 <tbody id="participantsBody"></tbody>
               </table>

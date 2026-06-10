@@ -144,7 +144,9 @@ public class EventController : ControllerBase
         var ev = await _db.Events.Find(e => e.Id == id).FirstOrDefaultAsync();
         if (ev == null) return NotFound(ApiResponse<EventDto>.Fail("不存在"));
         if (ev.CreatorId != uid) return Forbid();
-        if (ev.Version != req.Version)
+
+        var forceLww = req.ForceLastWriteWins;
+        if (!forceLww && ev.Version != req.Version)
             return StatusCode(409, ApiResponse<EventDto>.Fail("内容已被他人修改，请刷新重试"));
 
         var ub = Builders<CampEvent>.Update;
@@ -180,17 +182,23 @@ public class EventController : ControllerBase
         }
 
         list.Add(ub.Inc(e => e.Version, 1));
+        list.Add(ub.Set(e => e.UpdatedAt, DateTime.UtcNow));
         var combined = ub.Combine(list);
 
+        FilterDefinition<CampEvent> filter = forceLww
+            ? Builders<CampEvent>.Filter.Eq(e => e.Id, id)
+            : Builders<CampEvent>.Filter.Eq(e => e.Id, id) & Builders<CampEvent>.Filter.Eq(e => e.Version, req.Version);
+
         var updated = await _db.Events.FindOneAndUpdateAsync(
-            e => e.Id == id && e.Version == req.Version, combined,
+            filter, combined,
             new FindOneAndUpdateOptions<CampEvent> { ReturnDocument = ReturnDocument.After });
 
         if (updated == null)
-            return StatusCode(409, ApiResponse<EventDto>.Fail("并发冲突，请刷新"));
+            return StatusCode(409, ApiResponse<EventDto>.Fail(forceLww
+                ? "保存失败，请重试" : "并发冲突，请刷新"));
 
         var dtos = await EnrichEventDtos(new[] { updated });
-        return Ok(ApiResponse<EventDto>.Ok(dtos[0], "已更新"));
+        return Ok(ApiResponse<EventDto>.Ok(dtos[0], forceLww ? "已保存（冲突已按最后写入胜出处理）" : "已更新"));
     }
 
     [HttpGet("{id}/recommend")]
@@ -219,14 +227,43 @@ public class EventController : ControllerBase
 
         var mapped = gearList.Select(g => new EventGear
         {
+            Key = string.IsNullOrEmpty(g.Key) ? Guid.NewGuid().ToString("N") : g.Key,
             GearId = g.GearId, Name = g.Name, Category = g.Category,
             Quantity = Math.Max(1, g.Quantity),
             BroughtByUserId = g.BroughtByUserId, Checked = g.Checked
         }).ToList();
 
         await _db.Events.UpdateOneAsync(e => e.Id == id,
-            Builders<CampEvent>.Update.Set(e => e.GearList, mapped));
+            Builders<CampEvent>.Update.Set(e => e.GearList, mapped)
+                .Set(e => e.UpdatedAt, DateTime.UtcNow)
+                .Inc(e => e.Version, 1));
         return Ok(ApiResponse.Ok("装备清单已更新"));
+    }
+
+    [HttpPut("{id}/purchaselist")]
+    public async Task<ActionResult<ApiResponse>> UpdatePurchaseList(
+        string id, [FromBody] List<PurchaseItemDto> purchaseList)
+    {
+        var uid = CurrentUserId;
+        var ev = await _db.Events.Find(e => e.Id == id).FirstOrDefaultAsync();
+        if (ev == null) return NotFound(ApiResponse.Fail("不存在"));
+        if (ev.CreatorId != uid &&
+            !ev.Participants.Any(p => p.UserId == uid && p.Confirmed))
+            return Forbid();
+
+        var mapped = purchaseList.Select(p => new PurchaseItem
+        {
+            Key = string.IsNullOrEmpty(p.Key) ? Guid.NewGuid().ToString("N") : p.Key,
+            Name = p.Name, Category = p.Category,
+            Quantity = Math.Max(1, p.Quantity), Unit = p.Unit,
+            AssignedToUserId = p.AssignedToUserId, Purchased = p.Purchased
+        }).ToList();
+
+        await _db.Events.UpdateOneAsync(e => e.Id == id,
+            Builders<CampEvent>.Update.Set(e => e.PurchaseList, mapped)
+                .Set(e => e.UpdatedAt, DateTime.UtcNow)
+                .Inc(e => e.Version, 1));
+        return Ok(ApiResponse.Ok("采购清单已更新"));
     }
 
     [HttpPost("{id}/join")]
@@ -367,6 +404,7 @@ public class EventController : ControllerBase
                 }).ToList(),
                 GearList = ev.GearList.Select(g => new EventGearDto
                 {
+                    Key = g.Key,
                     GearId = g.GearId,
                     Name = g.Name, Category = g.Category,
                     Quantity = g.Quantity,
@@ -377,13 +415,15 @@ public class EventController : ControllerBase
                 }).ToList(),
                 PurchaseList = ev.PurchaseList.Select(p => new PurchaseItemDto
                 {
+                    Key = p.Key,
                     Name = p.Name, Category = p.Category,
                     Quantity = p.Quantity, Unit = p.Unit,
                     AssignedToUserId = p.AssignedToUserId,
                     Purchased = p.Purchased
                 }).ToList(),
                 Version = ev.Version,
-                CreatedAt = ev.CreatedAt
+                CreatedAt = ev.CreatedAt,
+                UpdatedAt = ev.UpdatedAt
             });
         }
         return result;

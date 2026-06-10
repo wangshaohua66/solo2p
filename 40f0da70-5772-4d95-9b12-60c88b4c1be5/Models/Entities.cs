@@ -158,6 +158,10 @@ public class Gear
     [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    [BsonElement("updatedAt")]
+    [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
     [BsonElement("_version")]
     public int Version { get; set; } = 1;
 
@@ -285,6 +289,10 @@ public class CampEvent
     [BsonElement("createdAt")]
     [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    [BsonElement("updatedAt")]
+    [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
 
 public class Participant
@@ -309,6 +317,9 @@ public class Participant
 
 public class EventGear
 {
+    [BsonElement("key")]
+    public string Key { get; set; } = Guid.NewGuid().ToString("N");
+
     [BsonElement("gearId")]
     [BsonRepresentation(BsonType.ObjectId)]
     public string? GearId { get; set; }
@@ -335,6 +346,9 @@ public class EventGear
 
 public class PurchaseItem
 {
+    [BsonElement("key")]
+    public string Key { get; set; } = Guid.NewGuid().ToString("N");
+
     [BsonElement("name")]
     public string Name { get; set; } = string.Empty;
 
