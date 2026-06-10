@@ -1,0 +1,30 @@
+{{define "content"}}
+<div class="row">
+  <div class="col-md-3">
+    <div class="sidebar">
+      <h5 class="mb-3">快速统计</h5>
+      <div id="stats" hx-get="/api/stats" hx-trigger="load, every 30s" hx-swap="innerHTML">
+        <div class="text-muted">加载中...</div>
+      </div>
+      <hr>
+      <h6>快捷入口</h6>
+      <ul class="list-unstyled">
+        <li><a href="/cases?hit=1" class="text-decoration-none"><i class="bi bi-bell-fill text-danger"></i> 告警命中 (未读)</a></li>
+        <li><a href="/cases?read=0" class="text-decoration-none"><i class="bi bi-envelope"></i> 全部未读</a></li>
+        <li><a href="/cases?type=reorganization" class="text-decoration-none"><i class="bi bi-arrow-repeat"></i> 重整案件</a></li>
+        <li><a href="/cases?type=liquidation" class="text-decoration-none"><i class="bi bi-x-circle"></i> 清算案件</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="col-md-9">
+    <div class="main-panel">
+      <h4 class="mb-3">最近案件</h4>
+      <form class="d-flex mb-3" hx-get="/cases" hx-target="#case-list" hx-push-url="true">
+        <input class="form-control me-2" type="search" name="q" placeholder="按债务人/案号搜索..." aria-label="Search">
+        <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i> 搜索</button>
+      </form>
+      <div id="case-list" hx-get="/cases?size=10" hx-trigger="load" hx-swap="innerHTML"></div>
+    </div>
+  </div>
+</div>
+{{end}}

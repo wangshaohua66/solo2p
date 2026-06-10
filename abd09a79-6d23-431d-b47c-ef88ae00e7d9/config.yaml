@@ -1,0 +1,77 @@
+crawler:
+  worker_count: 60
+  request_delay:
+    - 1500
+    - 4000
+  user_agents:
+    - "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    - "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    - "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  proxy_urls: []
+  cookie_pool: []
+  timeout: 30
+  max_retry: 3
+  robots_enabled: true
+
+courts:
+  - name: "最高人民法院"
+    level: "supreme"
+    base_url: "https://www.court.gov.cn"
+    list_url: "https://www.court.gov.cn/fabu-gengduo-29.html"
+    detail_url: ""
+    parser: "supreme"
+    enabled: false
+  - name: "北京市高级人民法院"
+    level: "high"
+    base_url: "https://bjgy.chinacourt.gov.cn"
+    list_url: "https://bjgy.chinacourt.gov.cn/article/index2.shtml"
+    parser: "high"
+    enabled: false
+  - name: "上海市高级人民法院"
+    level: "high"
+    base_url: "https://hshfy.chinacourt.gov.cn"
+    list_url: "https://hshfy.chinacourt.gov.cn/article/index2.shtml"
+    parser: "high"
+    enabled: false
+  - name: "广东省高级人民法院"
+    level: "high"
+    base_url: "https://www.gdcourts.gov.cn"
+    list_url: "https://www.gdcourts.gov.cn/index.php?v=notice&m=index&c=index"
+    parser: "high"
+    enabled: false
+
+store:
+  db_path: "./data/bankrupt.db"
+
+notify:
+  webhook_urls: []
+  wechat_webhook: ""
+  smtp_host: ""
+  smtp_port: 465
+  smtp_user: ""
+  smtp_password: ""
+  email_from: ""
+  email_to: []
+  sms_api: ""
+  sms_api_key: ""
+  sms_phones: []
+
+scheduler:
+  incremental_cron: "*/30 * * * *"
+  full_cron: "0 2 * * 0"
+
+web:
+  port: 7890
+  host: "127.0.0.1"
+
+retry:
+  base_delay: "1s"
+  max_delay: "16s"
+  multiplier: 4.0
+  max_attempts: 3
+  dead_letter_path: "./data/dead_letter"
+
+log:
+  level: "info"
+  format: "json"
+  output: "stdout"

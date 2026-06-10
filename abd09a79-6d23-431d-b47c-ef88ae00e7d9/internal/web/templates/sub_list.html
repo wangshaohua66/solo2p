@@ -1,0 +1,21 @@
+<table class="table table-hover table-sm">
+  <thead class="table-light">
+    <tr><th>ID</th><th>关键词</th><th>匹配方式</th><th>分类</th><th>通道</th><th>状态</th><th>创建时间</th><th>操作</th></tr>
+  </thead>
+  <tbody>
+    {{range .Subscriptions}}
+    <tr>
+      <td>{{.ID}}</td>
+      <td><code>{{.Keyword}}</code></td>
+      <td>{{.MatchType}}</td>
+      <td>{{.Category}}</td>
+      <td>{{.Channels}}</td>
+      <td>{{if .Enabled}}<span class="badge bg-success">启用</span>{{else}}<span class="badge bg-secondary">禁用</span>{{end}}</td>
+      <td class="text-muted small">{{formatTimeFull .CreatedAt}}</td>
+      <td><button class="btn btn-sm btn-outline-danger" hx-delete="/subscriptions/{{.ID}}" hx-swap="none" hx-confirm="确定删除?" onclick="setTimeout(()=>location.reload(),300)">删除</button></td>
+    </tr>
+    {{else}}
+    <tr><td colspan="8" class="text-center text-muted py-4">暂无订阅，添加第一个关键词开始监控</td></tr>
+    {{end}}
+  </tbody>
+</table>

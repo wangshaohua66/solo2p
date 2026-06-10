@@ -1,0 +1,46 @@
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">{{.Case.Debtor}}</h5>
+    <div>
+      {{if not .Case.IsRead}}
+      <button class="btn btn-sm btn-outline-primary" hx-post="/cases/{{.Case.ID}}/read" hx-swap="none">标记已读</button>
+      {{end}}
+      <a href="{{indexAnnURL .Case}}" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-box-arrow-up-right"></i> 原文</a>
+    </div>
+  </div>
+  <div class="card-body">
+    <dl class="row mb-0">
+      <dt class="col-sm-2">案号</dt><dd class="col-sm-4 font-monospace">{{.Case.CaseNumber}}</dd>
+      <dt class="col-sm-2">标准化案号</dt><dd class="col-sm-4 font-monospace text-muted">{{.Case.CaseNumberNorm}}</dd>
+      <dt class="col-sm-2">法院</dt><dd class="col-sm-4">{{.Case.Court}} ({{courtLevelLabel .Case.CourtLevel}})</dd>
+      <dt class="col-sm-2">类型</dt><dd class="col-sm-4"><span class="badge {{typeBadge .Case.AnnouncementType}}">{{typeLabel .Case.AnnouncementType}}</span></dd>
+      <dt class="col-sm-2">裁定字号</dt><dd class="col-sm-4">{{.Case.RulingNumber}}</dd>
+      <dt class="col-sm-2">管理人</dt><dd class="col-sm-4">{{.Case.Administrator}}</dd>
+      <dt class="col-sm-2">债权人</dt><dd class="col-sm-4">{{.Case.Creditors}}</dd>
+      <dt class="col-sm-2">债权申报截止</dt><dd class="col-sm-4">{{formatTime .Case.ClaimDeadline}}</dd>
+      <dt class="col-sm-2">开庭时间</dt><dd class="col-sm-4">{{formatTime .Case.FirstHearingDate}}</dd>
+      <dt class="col-sm-2">行业</dt><dd class="col-sm-4">{{.Case.Industry}}</dd>
+      <dt class="col-sm-2">标签</dt><dd class="col-sm-4">{{.Case.Tags}}</dd>
+      <dt class="col-sm-2">状态</dt><dd class="col-sm-4">
+        {{if .Case.HitSubscription}}<span class="badge bg-danger me-1">告警命中</span>{{end}}
+        {{if .Case.IsWithdrawn}}<span class="badge bg-warning">已撤稿</span>{{end}}
+        {{if .Case.IsRead}}<span class="badge bg-secondary">已读</span>{{else}}<span class="badge bg-primary">未读</span>{{end}}
+      </dd>
+    </dl>
+    {{if .Case.Announcements}}
+    <h6 class="mt-3">公告历史</h6>
+    <div class="list-group">
+      {{range .Case.Announcements}}
+      <div class="list-group-item list-group-item-action">
+        <div class="d-flex justify-content-between">
+          <strong>{{.Title}}</strong>
+          <small class="text-muted">{{formatTime .AnnouncementDate}}</small>
+        </div>
+        <a href="{{.SourceURL}}" target="_blank" class="small">{{.SourceURL}}</a>
+        <p class="mb-0 mt-1 small text-muted" style="max-height:80px;overflow:hidden">{{.Content}}</p>
+      </div>
+      {{end}}
+    </div>
+    {{end}}
+  </div>
+</div>

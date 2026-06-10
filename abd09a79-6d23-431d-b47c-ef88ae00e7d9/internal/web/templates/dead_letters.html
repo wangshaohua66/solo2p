@@ -1,0 +1,28 @@
+{{define "content"}}
+<div class="row">
+  <div class="col-12">
+    <div class="main-panel">
+      <h4 class="mb-3">死信队列 <small class="text-muted">抓取失败的请求</small></h4>
+      <table class="table table-hover table-sm">
+        <thead class="table-light">
+          <tr><th>ID</th><th>错误类型</th><th>来源法院</th><th>URL</th><th>重试次数</th><th>时间</th></tr>
+        </thead>
+        <tbody>
+          {{range .DeadLetters}}
+          <tr>
+            <td>{{.ID}}</td>
+            <td><span class="badge bg-warning">{{.ErrorType}}</span></td>
+            <td class="small">{{.SourceCourt}}</td>
+            <td class="small font-monospace" style="max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{.URL}}">{{.URL}}</td>
+            <td>{{.AttemptCount}}</td>
+            <td class="text-muted small">{{formatTimeFull .CreatedAt}}</td>
+          </tr>
+          {{else}}
+          <tr><td colspan="6" class="text-center text-muted py-4">死信队列为空</td></tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{{end}}

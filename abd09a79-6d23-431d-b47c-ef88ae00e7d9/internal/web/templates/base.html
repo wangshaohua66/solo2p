@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{.PageTitle}} - 破产案件监控</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+  body { padding-top: 60px; background: #f8f9fa; }
+  .navbar-brand { font-weight: 700; }
+  mark { background: #fff3cd; padding: 0 2px; border-radius: 2px; }
+  .hit-badge { background: #dc3545; }
+  .case-row { cursor: pointer; transition: background 0.15s; }
+  .case-row:hover { background: #e9ecef; }
+  .case-row.unread { font-weight: 600; background: #fff; }
+  .sidebar { background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .main-panel { background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .stat-card { border-radius: 8px; padding: 16px; color: #fff; }
+  .stat-card h4 { margin: 0; font-size: 24px; font-weight: 700; }
+  .stat-card small { opacity: 0.9; }
+  .tag-pill { display: inline-block; padding: 2px 8px; border-radius: 10px; background: #e9ecef; font-size: 12px; margin-right: 4px; }
+</style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="/"><i class="bi bi-bank me-2"></i>破产案件监控</a>
+    <div class="navbar-nav ms-auto">
+      <a class="nav-link" href="/cases">案件列表</a>
+      <a class="nav-link" href="/subscriptions">订阅管理</a>
+      <a class="nav-link" href="/dead-letters">死信队列</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container-fluid">
+  {{template "content" .}}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+<script>
+if ("Notification" in window && Notification.permission === "default") {
+  Notification.requestPermission();
+}
+setInterval(() => {
+  fetch("/api/hits")
+    .then(r => r.json())
+    .then(data => {
+      if (data.total > 0 && Notification.permission === "granted") {
+        data.items.slice(0,3).forEach(c => {
+          new Notification("破产案件告警", { body: c.debtor + " - " + c.case_number });
+        });
+      }
+    });
+}, 60000);
+</script>
+</body>
+</html>

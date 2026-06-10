@@ -1,0 +1,10 @@
+{{define "content"}}
+<div class="row">
+  <div class="col-12">
+    <div class="main-panel">
+      <h4 class="mb-3">案件详情: {{.Case.Debtor}}</h4>
+      {{template "case_detail" .}}
+    </div>
+  </div>
+</div>
+{{end}}

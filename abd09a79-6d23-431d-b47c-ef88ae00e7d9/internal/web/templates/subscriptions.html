@@ -1,0 +1,27 @@
+{{define "content"}}
+<div class="row">
+  <div class="col-12">
+    <div class="main-panel">
+      <h4 class="mb-3">订阅管理</h4>
+      <form class="row g-2 mb-4 p-3 bg-light rounded" method="post" action="/subscriptions">
+        <div class="col-md-3"><input type="text" class="form-control" name="keyword" placeholder="关键词 (企业名/姓名)" required></div>
+        <div class="col-md-2">
+          <select class="form-select" name="match_type">
+            <option value="contains">包含匹配</option>
+            <option value="prefix">前缀匹配</option>
+            <option value="exact">精确匹配</option>
+          </select>
+        </div>
+        <div class="col-md-2"><input type="text" class="form-control" name="category" placeholder="分类 (可选)"></div>
+        <div class="col-md-2"><input type="text" class="form-control" name="channels" placeholder="通知通道: webhook,wechat,email,sms"></div>
+        <div class="col-md-2"><div class="form-check pt-2"><input class="form-check-input" type="checkbox" name="enabled" checked id="chk-enable"><label class="form-check-label" for="chk-enable">启用</label></div></div>
+        <div class="col-md-1"><button class="btn btn-primary w-100">添加</button></div>
+      </form>
+
+      <div id="sub-list">
+        {{template "sub_list" .}}
+      </div>
+    </div>
+  </div>
+</div>
+{{end}}
