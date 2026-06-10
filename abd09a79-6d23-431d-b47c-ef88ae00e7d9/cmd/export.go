@@ -12,12 +12,17 @@ import (
 	"bankrupt-monitor/internal/store"
 )
 
+const ExportMaxPage = 100
+
 type ExportFlags struct {
-	Format  string
-	Output  string
-	Keyword string
-	SortBy  string
-	Page    int
+	Format   string
+	Output   string
+	Keyword  string
+	Court    string
+	FromDate string
+	ToDate   string
+	SortBy   string
+	Page     int
 }
 
 func RunExport(configPath string, f *ExportFlags) error {
@@ -27,11 +32,25 @@ func RunExport(configPath string, f *ExportFlags) error {
 	}
 	defer db.Close()
 
+	if f.Page > ExportMaxPage {
+		return fmt.Errorf("page %d exceeds maximum %d (avoid deep pagination)", f.Page, ExportMaxPage)
+	}
+	if f.Page < 1 {
+		f.Page = 1
+	}
+
 	q := &store.CaseQuery{
 		Keyword:  f.Keyword,
+		Court:    f.Court,
 		SortBy:   f.SortBy,
 		Page:     f.Page,
 		PageSize: 100000,
+	}
+	if f.FromDate != "" {
+		q.FromDate = parseDateFlag(f.FromDate)
+	}
+	if f.ToDate != "" {
+		q.ToDate = parseDateFlag(f.ToDate)
 	}
 
 	cases, total, err := db.QueryCases(q)

@@ -49,6 +49,7 @@ type Case struct {
 	IsRead            bool             `gorm:"default:false;index:idx_read" json:"is_read"`
 	IsWithdrawn       bool             `gorm:"default:false;index:idx_withdrawn" json:"is_withdrawn"`
 	HitSubscription   bool             `gorm:"default:false;index:idx_hit" json:"hit_subscription"`
+	NotifiedAt        *time.Time       `gorm:"index:idx_notified" json:"notified_at"`
 	CreatedAt         time.Time        `gorm:"autoCreateTime;index:idx_created" json:"created_at"`
 	UpdatedAt         time.Time        `gorm:"autoUpdateTime" json:"updated_at"`
 

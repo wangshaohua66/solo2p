@@ -149,7 +149,7 @@ func (c *Config) Load(configPath string, watch bool) error {
 }
 
 func (c *Config) setDefaults() {
-	c.viper.SetDefault("crawler.worker_count", 10)
+	c.viper.SetDefault("crawler.worker_count", 60)
 	c.viper.SetDefault("crawler.request_delay", []int{1500, 4000})
 	c.viper.SetDefault("crawler.user_agents", []string{
 		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",

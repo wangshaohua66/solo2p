@@ -30,10 +30,17 @@ func main() {
 	collectCmd.StringVar(&configPath, "config", "", "配置文件路径")
 	collectCmd.BoolVar(&watch, "watch", false, "监听配置文件变更")
 	fullScan := collectCmd.Bool("full", false, "执行全量抓取 (默认增量)")
+	cCourt := collectCmd.String("court", "", "按法院名称过滤 (仅抓取指定法院)")
+	cFrom := collectCmd.String("from", "", "开始日期 (2006-01-02)")
+	cTo := collectCmd.String("to", "", "结束日期 (2006-01-02)")
+	cPage := collectCmd.Int("page", 1, "页码")
 
 	queryCmd := flag.NewFlagSet("query", flag.ExitOnError)
 	queryCmd.StringVar(&configPath, "config", "", "配置文件路径")
 	qFilter := queryCmd.String("filter", "", "关键词过滤 (债务人/案号/法院)")
+	qCourt := queryCmd.String("court", "", "按法院名称过滤")
+	qFrom := queryCmd.String("from", "", "开始日期 (2006-01-02)")
+	qTo := queryCmd.String("to", "", "结束日期 (2006-01-02)")
 	qSort := queryCmd.String("sort", "created_at", "排序字段")
 	qOrder := queryCmd.String("order", "desc", "排序方向 asc/desc")
 	qPage := queryCmd.Int("page", 1, "页码")
@@ -45,6 +52,9 @@ func main() {
 	eFormat := exportCmd.String("format", "csv", "导出格式: csv/json")
 	eOutput := exportCmd.String("output", "-", "输出路径 (- 表示 stdout)")
 	eFilter := exportCmd.String("filter", "", "关键词过滤 (债务人/案号/法院)")
+	eCourt := exportCmd.String("court", "", "按法院名称过滤")
+	eFrom := exportCmd.String("from", "", "开始日期 (2006-01-02)")
+	eTo := exportCmd.String("to", "", "结束日期 (2006-01-02)")
 	eSort := exportCmd.String("sort", "created_at", "排序字段")
 	ePage := exportCmd.Int("page", 1, "页码")
 	eJSON := exportCmd.Bool("json", false, "JSON 输出 (等同于 --format json)")
@@ -63,17 +73,27 @@ func main() {
 	switch os.Args[1] {
 	case "collect":
 		collectCmd.Parse(os.Args[2:])
-		err = cmd.RunCollect(configPath, *fullScan, watch)
+		err = cmd.RunCollect(configPath, &cmd.CollectFlags{
+			FullScan: *fullScan,
+			Watch:    watch,
+			Court:    *cCourt,
+			FromDate: *cFrom,
+			ToDate:   *cTo,
+			Page:     *cPage,
+		})
 
 	case "query":
 		queryCmd.Parse(os.Args[2:])
 		err = cmd.RunQuery(configPath, &cmd.QueryFlags{
-			Keyword:   *qFilter,
-			SortBy:    *qSort,
+			Keyword:  *qFilter,
+			Court:    *qCourt,
+			FromDate: *qFrom,
+			ToDate:   *qTo,
+			SortBy:   *qSort,
 			SortOrder: *qOrder,
-			Page:      *qPage,
-			PageSize:  *qSize,
-			AsJSON:    *qJSON,
+			Page:     *qPage,
+			PageSize: *qSize,
+			AsJSON:   *qJSON,
 		})
 
 	case "export":
@@ -85,6 +105,9 @@ func main() {
 			Format:   *eFormat,
 			Output:   *eOutput,
 			Keyword:  *eFilter,
+			Court:    *eCourt,
+			FromDate: *eFrom,
+			ToDate:   *eTo,
 			SortBy:   *eSort,
 			Page:     *ePage,
 		})

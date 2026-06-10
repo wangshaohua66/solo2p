@@ -196,7 +196,7 @@ func (e *Engine) applyCookies(c *colly.Collector) {
 		raw := e.cfg.Crawler.CookiePool[cookieIdx%cookieCount]
 		cookieIdx++
 		pairs := strings.Split(raw, ";")
-		host := r.URL.Host
+		var cookies []string
 		for _, pair := range pairs {
 			pair = strings.TrimSpace(pair)
 			if pair == "" {
@@ -211,9 +211,25 @@ func (e *Engine) applyCookies(c *colly.Collector) {
 			if strings.HasPrefix(strings.ToLower(name), "domain") {
 				continue
 			}
-			r.Headers.Set("Cookie", fmt.Sprintf("%s=%s", name, val))
+			cookies = append(cookies, fmt.Sprintf("%s=%s", name, val))
 		}
-		_ = host
+		if len(cookies) > 0 {
+			r.Headers.Set("Cookie", strings.Join(cookies, "; "))
+		}
+	})
+
+	c.OnResponse(func(r *colly.Response) {
+		cookieHdr := r.Request.Headers.Get("Cookie")
+		if cookieHdr == "" {
+			return
+		}
+		respCookies := r.Headers.Values("Set-Cookie")
+		e.logger.Debug("cookie injection verified",
+			zap.String("url", r.Request.URL.String()),
+			zap.Int("status", r.StatusCode),
+			zap.Int("request_cookie_count", strings.Count(cookieHdr, ";")+1),
+			zap.Int("response_set_cookie_count", len(respCookies)),
+		)
 	})
 }
 

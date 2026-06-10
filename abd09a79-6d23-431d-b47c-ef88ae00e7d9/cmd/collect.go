@@ -19,13 +19,28 @@ import (
 	"go.uber.org/zap"
 )
 
-func RunCollect(configPath string, fullScan, watch bool) error {
-	cfg, log, db, err := bootstrap(configPath, watch)
+const CollectMaxPage = 100
+
+type CollectFlags struct {
+	FullScan bool
+	Watch    bool
+	Court    string
+	FromDate string
+	ToDate   string
+	Page     int
+}
+
+func RunCollect(configPath string, f *CollectFlags) error {
+	cfg, log, db, err := bootstrap(configPath, f.Watch)
 	if err != nil {
 		return err
 	}
 	defer log.Sync()
 	defer db.Close()
+
+	if f.Page > CollectMaxPage {
+		return fmt.Errorf("page %d exceeds maximum %d (avoid deep pagination)", f.Page, CollectMaxPage)
+	}
 
 	engine, err := crawler.NewEngine(cfg, db, log)
 	if err != nil {
@@ -33,6 +48,20 @@ func RunCollect(configPath string, fullScan, watch bool) error {
 	}
 	disp := notify.NewDispatcher(&cfg.Notify, log)
 	sched := scheduler.NewScheduler(cfg, db, engine, disp, log)
+
+	if f.Court != "" {
+		found := false
+		for i := range cfg.Courts {
+			if cfg.Courts[i].Name == f.Court {
+				cfg.Courts = []config.CourtConfig{cfg.Courts[i]}
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("court %q not found in config", f.Court)
+		}
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -57,10 +86,10 @@ func RunCollect(configPath string, fullScan, watch bool) error {
 		}
 	})
 
-	fmt.Fprintf(os.Stderr, "开始抓取 (全量=%v)...\n", fullScan)
+	fmt.Fprintf(os.Stderr, "开始抓取 (全量=%v)...\n", f.FullScan)
 	start := time.Now()
 
-	if fullScan {
+	if f.FullScan {
 		err = sched.RunFull(ctx)
 	} else {
 		err = sched.RunIncremental(ctx)

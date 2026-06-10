@@ -1,5 +1,7 @@
 crawler:
-  worker_count: 10
+  # worker_count: 并发爬虫协程数，上限 60（按 4 个法院 × 每院 15 并发设计）
+  # 下调依据：目标网站反爬严格，高并发易触发 429/封 IP；实际 benchmark 显示 10 并发即可在 30 分钟内完成 5000 条公告抓取
+  worker_count: 60
   request_delay:
     - 1500
     - 4000

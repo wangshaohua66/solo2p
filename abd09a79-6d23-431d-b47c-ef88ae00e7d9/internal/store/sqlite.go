@@ -117,6 +117,13 @@ func (s *Store) UpsertCase(c *model.Case) (bool, error) {
 	return true, nil
 }
 
+func (s *Store) MarkCaseNotified(caseID uint64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	now := time.Now()
+	return s.db.Model(&model.Case{}).Where("id = ?", caseID).Update("notified_at", now).Error
+}
+
 func (s *Store) UpsertAnnouncement(a *model.Announcement) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

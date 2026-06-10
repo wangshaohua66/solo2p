@@ -15,6 +15,8 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
+const MaxPage = 1000
+
 type QueryFlags struct {
 	Keyword   string
 	Court     string
@@ -40,6 +42,13 @@ func RunQuery(configPath string, f *QueryFlags) error {
 		return err
 	}
 	defer db.Close()
+
+	if f.Page > MaxPage {
+		return fmt.Errorf("page %d exceeds maximum %d (avoid deep pagination)", f.Page, MaxPage)
+	}
+	if f.Page < 1 {
+		f.Page = 1
+	}
 
 	q := &store.CaseQuery{
 		Keyword:    f.Keyword,

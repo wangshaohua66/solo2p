@@ -216,6 +216,9 @@ func (s *Scheduler) dispatchHits(ctx context.Context) {
 
 	for i := range cases {
 		c := &cases[i]
+		if c.NotifiedAt != nil {
+			continue
+		}
 		for _, sub := range subs {
 			if parser.MatchSubscription(&sub, c) {
 				if s.notifier == nil {
@@ -234,6 +237,13 @@ func (s *Scheduler) dispatchHits(ctx context.Context) {
 						zap.Uint64("case_id", c.ID),
 						zap.Error(err),
 					)
+				} else {
+					if err := s.store.MarkCaseNotified(c.ID); err != nil {
+						s.logger.Warn("mark notified failed",
+							zap.Uint64("case_id", c.ID),
+							zap.Error(err),
+						)
+					}
 				}
 				break
 			}
