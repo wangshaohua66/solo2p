@@ -155,6 +155,10 @@ func (s *Scheduler) runCourts(ctx context.Context, fullScan bool) error {
 				zap.String("elapsed", stats.Elapsed),
 			)
 
+			if fullScan {
+				s.checkWithdrawn(ctx, c.Name)
+			}
+
 			if s.onProgress != nil {
 				s.onProgress(c.Name, stats, s.crawler.CurrentURL())
 			}
@@ -281,6 +285,33 @@ func splitAndTrim(s, sep string) []string {
 		}
 	}
 	return result
+}
+
+func (s *Scheduler) checkWithdrawn(ctx context.Context, courtName string) {
+	cutoff := time.Now().Add(-7 * 24 * time.Hour)
+	fps, err := s.store.GetAnnouncementFingerprints(courtName, cutoff)
+	if err != nil {
+		s.logger.Error("get fingerprints for withdrawal check failed",
+			zap.String("court", courtName),
+			zap.Error(err),
+		)
+		return
+	}
+
+	count, err := s.store.MarkAnnouncementsWithdrawn(courtName, cutoff, fps)
+	if err != nil {
+		s.logger.Error("mark withdrawn failed",
+			zap.String("court", courtName),
+			zap.Error(err),
+		)
+		return
+	}
+	if count > 0 {
+		s.logger.Info("withdrawn announcements detected",
+			zap.String("court", courtName),
+			zap.Int64("count", count),
+		)
+	}
 }
 
 var _ = time.Second

@@ -1,49 +1,64 @@
-<div class="row g-2 mb-3" id="stats-grid">
-</div>
 {{define "content"}}
-<div class="row">
-  <div class="col-12">
-    <div class="main-panel">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="mb-0">案件列表</h4>
-        <div>
-          <button class="btn btn-sm btn-outline-secondary" id="btn-batch-read">批量标记已读</button>
-          <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#tagModal">批量打标签</button>
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+        <h6 class="mb-0">案件列表</h6>
+        <div class="d-flex gap-1">
+          <button class="btn btn-sm btn-outline-success" id="btn-batch-read"
+                  hx-post="/cases/batch-read" hx-include=".case-check:checked" hx-target="#case-table" hx-swap="innerHTML">批量标记已读</button>
+          <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#tagModal">批量打标签</button>
         </div>
       </div>
-      <form class="row g-2 mb-3" hx-get="/cases" hx-target="#case-table" hx-push-url="true">
-        <div class="col-md-3"><input class="form-control form-control-sm" type="text" name="q" placeholder="关键词搜索" value="{{.Query.q}}"></div>
-        <div class="col-md-2"><input class="form-control form-control-sm" type="text" name="case" placeholder="案号" value="{{.Query.case}}"></div>
-        <div class="col-md-2"><input class="form-control form-control-sm" type="text" name="debtor" placeholder="债务人" value="{{.Query.debtor}}"></div>
-        <div class="col-md-2"><input class="form-control form-control-sm" type="text" name="court" placeholder="法院" value="{{.Query.court}}"></div>
-        <div class="col-md-2">
-          <select class="form-select form-select-sm" name="type">
-            <option value="">全部类型</option>
-            <option value="reorganization" {{if eq .Query.type "reorganization"}}selected{{end}}>重整</option>
-            <option value="liquidation" {{if eq .Query.type "liquidation"}}selected{{end}}>清算</option>
-            <option value="claim_notice" {{if eq .Query.type "claim_notice"}}selected{{end}}>债权申报</option>
-          </select>
+      <div class="card-body p-0">
+        <form class="row g-2 p-2 border-bottom" hx-get="/cases" hx-target="#case-table" hx-push-url="true">
+          <div class="col-md-3"><input class="form-control form-control-sm" type="text" name="q" placeholder="关键词搜索" value="{{.Query.q}}"></div>
+          <div class="col-md-2"><input class="form-control form-control-sm" type="text" name="case" placeholder="案号" value="{{.Query.case}}"></div>
+          <div class="col-md-2"><input class="form-control form-control-sm" type="text" name="debtor" placeholder="债务人" value="{{.Query.debtor}}"></div>
+          <div class="col-md-2"><input class="form-control form-control-sm" type="text" name="court" placeholder="法院" value="{{.Query.court}}"></div>
+          <div class="col-md-2">
+            <select class="form-select form-select-sm" name="type">
+              <option value="">全部类型</option>
+              <option value="reorganization" {{if eq .Query.type "reorganization"}}selected{{end}}>重整</option>
+              <option value="liquidation" {{if eq .Query.type "liquidation"}}selected{{end}}>清算</option>
+              <option value="claim_notice" {{if eq .Query.type "claim_notice"}}selected{{end}}>债权申报</option>
+            </select>
+          </div>
+          <div class="col-md-1"><button class="btn btn-sm btn-primary w-100" type="submit">查询</button></div>
+        </form>
+
+        <div id="case-table">
+          {{template "case_rows" .}}
         </div>
-        <div class="col-md-1"><button class="btn btn-sm btn-primary w-100" type="submit">查询</button></div>
-      </form>
 
-      <div id="case-table">
-        {{template "case_rows" .}}
+        <nav class="p-2">
+          <ul class="pagination pagination-sm justify-content-center mb-0">
+            {{$totalPages := .TotalPages}}
+            {{$currentPage := .Page}}
+            {{if gt $currentPage 1}}
+            <li class="page-item"><a class="page-link" hx-get="/cases?page={{sub $currentPage 1}}&q={{.Query.q}}&court={{.Query.court}}" hx-target="#case-table">上一页</a></li>
+            {{end}}
+            <li class="page-item disabled"><span class="page-link">第 {{$currentPage}} / {{$totalPages}} 页，共 {{.Total}} 条</span></li>
+            {{if lt $currentPage $totalPages}}
+            <li class="page-item"><a class="page-link" hx-get="/cases?page={{add $currentPage 1}}&q={{.Query.q}}&court={{.Query.court}}" hx-target="#case-table">下一页</a></li>
+            {{end}}
+          </ul>
+        </nav>
       </div>
+    </div>
+  </div>
 
-      <nav class="mt-3">
-        <ul class="pagination pagination-sm justify-content-center">
-          {{$totalPages := .TotalPages}}
-          {{$currentPage := .Page}}
-          {{if gt $currentPage 1}}
-          <li class="page-item"><a class="page-link" hx-get="/cases?page={{sub $currentPage 1}}&q={{.Query.q}}&court={{.Query.court}}" hx-target="#case-table">上一页</a></li>
-          {{end}}
-          <li class="page-item disabled"><span class="page-link">第 {{$currentPage}} / {{$totalPages}} 页，共 {{.Total}} 条</span></li>
-          {{if lt $currentPage $totalPages}}
-          <li class="page-item"><a class="page-link" hx-get="/cases?page={{add $currentPage 1}}&q={{.Query.q}}&court={{.Query.court}}" hx-target="#case-table">下一页</a></li>
-          {{end}}
-        </ul>
-      </nav>
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm sticky-top" style="top:1rem">
+      <div class="card-header bg-white py-2">
+        <h6 class="mb-0">案件详情</h6>
+      </div>
+      <div class="card-body" id="detail-panel">
+        <div class="text-center text-muted py-5">
+          <i class="bi bi-arrow-left-circle" style="font-size:2rem"></i>
+          <p class="mt-2">点击左侧案件查看详情</p>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -53,11 +68,12 @@
     <div class="modal-content">
       <div class="modal-header"><h5 class="modal-title">批量打标签</h5></div>
       <div class="modal-body">
-        <input type="text" id="tag-input" class="form-control" placeholder="输入标签，多个用逗号分隔">
+        <input type="text" id="tag-input" name="tag" class="form-control" placeholder="输入标签，多个用逗号分隔">
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-        <button class="btn btn-primary" id="btn-do-tag">确定</button>
+        <button class="btn btn-primary" id="btn-do-tag"
+                hx-post="/cases/batch-tag" hx-include="#tag-input,.case-check:checked" hx-target="#case-table" hx-swap="innerHTML">确定</button>
       </div>
     </div>
   </div>

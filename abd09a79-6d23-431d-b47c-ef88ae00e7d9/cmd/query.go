@@ -84,9 +84,7 @@ func RunQuery(configPath string, f *QueryFlags) error {
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"ID", "债务人", "案号", "法院", "类型", "申报截止", "告警", "已读", "创建时间"})
-	table.SetAutoWrapText(false)
-	table.SetRowLine(true)
+	table.Header([]string{"ID", "债务人", "案号", "法院", "类型", "申报截止", "告警", "已读", "创建时间"})
 
 	for _, c := range cases {
 		row := []string{

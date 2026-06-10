@@ -31,7 +31,7 @@ func NormalizeCaseNumber(raw string) string {
 
 	s := strings.TrimSpace(raw)
 	s = strings.ReplaceAll(s, " ", "")
-	s = strings.ReplaceAll(s,　"", "")
+	s = strings.ReplaceAll(s, "\u3000", "")
 
 	if m := caseNumberRegex.FindStringSubmatch(s); m != nil {
 		return fmt.Sprintf("%s-%s-%s-%s", m[1], m[2], m[3], m[4])

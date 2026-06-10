@@ -9,7 +9,6 @@ import (
 	"syscall"
 	"time"
 
-	"bankrupt-monitor/internal/config"
 	webpkg "bankrupt-monitor/internal/web"
 
 	"go.uber.org/zap"

@@ -1,5 +1,5 @@
 crawler:
-  worker_count: 60
+  worker_count: 10
   request_delay:
     - 1500
     - 4000
@@ -20,41 +20,44 @@ courts:
     list_url: "https://www.court.gov.cn/fabu-gengduo-29.html"
     detail_url: ""
     parser: "supreme"
-    enabled: false
+    enabled: true
   - name: "北京市高级人民法院"
     level: "high"
     base_url: "https://bjgy.chinacourt.gov.cn"
     list_url: "https://bjgy.chinacourt.gov.cn/article/index2.shtml"
     parser: "high"
-    enabled: false
+    enabled: true
   - name: "上海市高级人民法院"
     level: "high"
     base_url: "https://hshfy.chinacourt.gov.cn"
     list_url: "https://hshfy.chinacourt.gov.cn/article/index2.shtml"
     parser: "high"
-    enabled: false
+    enabled: true
   - name: "广东省高级人民法院"
     level: "high"
     base_url: "https://www.gdcourts.gov.cn"
     list_url: "https://www.gdcourts.gov.cn/index.php?v=notice&m=index&c=index"
     parser: "high"
-    enabled: false
+    enabled: true
 
 store:
   db_path: "./data/bankrupt.db"
 
 notify:
-  webhook_urls: []
-  wechat_webhook: ""
-  smtp_host: ""
+  webhook_urls:
+    - "https://hooks.example.com/bankrupt-monitor"
+  wechat_webhook: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY"
+  smtp_host: "smtp.example.com"
   smtp_port: 465
-  smtp_user: ""
-  smtp_password: ""
-  email_from: ""
-  email_to: []
-  sms_api: ""
-  sms_api_key: ""
-  sms_phones: []
+  smtp_user: "monitor@example.com"
+  smtp_password: "YOUR_PASSWORD"
+  email_from: "monitor@example.com"
+  email_to:
+    - "legal-team@example.com"
+  sms_api: "https://sms-api.example.com/send"
+  sms_api_key: "YOUR_SMS_API_KEY"
+  sms_phones:
+    - "13800138000"
 
 scheduler:
   incremental_cron: "*/30 * * * *"

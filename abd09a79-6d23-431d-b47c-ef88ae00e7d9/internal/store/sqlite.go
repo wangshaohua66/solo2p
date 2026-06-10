@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"bankrupt-monitor/internal/model"
+	"bankrupt-monitor/internal/validator"
 
 	"go.uber.org/zap"
 	"gorm.io/driver/sqlite"
@@ -106,6 +107,10 @@ func (s *Store) UpsertCase(c *model.Case) (bool, error) {
 		return false, err
 	}
 
+	if err := validator.ValidateCase(c); err != nil {
+		s.logger.Warn("case validation skipped", zap.Error(err))
+	}
+
 	if err := s.db.Create(c).Error; err != nil {
 		return false, err
 	}
@@ -130,6 +135,10 @@ func (s *Store) UpsertAnnouncement(a *model.Announcement) (bool, error) {
 
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return false, err
+	}
+
+	if err := validator.ValidateAnnouncement(a); err != nil {
+		s.logger.Warn("announcement validation skipped", zap.Error(err))
 	}
 
 	if err := s.db.Create(a).Error; err != nil {
@@ -242,6 +251,9 @@ func (s *Store) TagCases(ids []uint64, tags string) error {
 }
 
 func (s *Store) AddSubscription(sub *model.Subscription) error {
+	if err := validator.ValidateSubscription(sub); err != nil {
+		return err
+	}
 	return s.db.Create(sub).Error
 }
 

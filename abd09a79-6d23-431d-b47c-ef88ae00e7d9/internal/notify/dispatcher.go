@@ -172,7 +172,7 @@ func (d *Dispatcher) sendEmail(ctx context.Context, n *Notification) error {
 	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s",
 		from, strings.Join(d.cfg.EmailTo, ","), n.Subject, n.Body)
 
-	var dialer *net.Dialer
+	var dialer net.Dialer
 	conn, err := dialer.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return fmt.Errorf("smtp dial: %w", err)

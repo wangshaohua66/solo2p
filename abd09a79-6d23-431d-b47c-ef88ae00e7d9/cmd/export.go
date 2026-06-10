@@ -13,13 +13,11 @@ import (
 )
 
 type ExportFlags struct {
-	Format    string
-	Output    string
-	Court     string
-	FromDate  string
-	ToDate    string
-	Debtor    string
-	Keyword   string
+	Format  string
+	Output  string
+	Keyword string
+	SortBy  string
+	Page    int
 }
 
 func RunExport(configPath string, f *ExportFlags) error {
@@ -30,16 +28,10 @@ func RunExport(configPath string, f *ExportFlags) error {
 	defer db.Close()
 
 	q := &store.CaseQuery{
-		Keyword:    f.Keyword,
-		Court:      f.Court,
-		Debtor:     f.Debtor,
-		PageSize:   100000,
-	}
-	if f.FromDate != "" {
-		q.FromDate = parseDateFlag(f.FromDate)
-	}
-	if f.ToDate != "" {
-		q.ToDate = parseDateFlag(f.ToDate)
+		Keyword:  f.Keyword,
+		SortBy:   f.SortBy,
+		Page:     f.Page,
+		PageSize: 100000,
 	}
 
 	cases, total, err := db.QueryCases(q)

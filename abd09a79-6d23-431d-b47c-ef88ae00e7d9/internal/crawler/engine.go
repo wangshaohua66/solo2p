@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -71,7 +72,11 @@ func NewEngine(cfg *config.AppConfig, store *store.Store, log *zap.Logger) (*Eng
 	}
 	e.collector = c
 
-	e.registerBuiltinParsers()
+	e.RegisterParser("generic", &GenericParser{})
+	e.RegisterParser("supreme", &SupremeCourtParser{})
+	e.RegisterParser("high", &HighCourtParser{})
+	e.RegisterParser("middle", &MiddleCourtParser{})
+	e.RegisterParser("basic", &BasicCourtParser{})
 
 	return e, nil
 }
@@ -91,6 +96,29 @@ func (e *Engine) buildCollector() (*colly.Collector, error) {
 		RandomDelay: time.Duration(e.cfg.Crawler.RequestDelay[0]) * time.Millisecond,
 		Delay:       time.Duration(e.cfg.Crawler.RequestDelay[1]) * time.Millisecond,
 	})
+
+	for _, court := range e.cfg.Courts {
+		if !court.Enabled || court.BaseURL == "" {
+			continue
+		}
+		u, err := url.Parse(court.BaseURL)
+		if err != nil {
+			continue
+		}
+		perDomain := e.cfg.Crawler.WorkerCount
+		if n := len(e.cfg.Courts); n > 0 {
+			perDomain = e.cfg.Crawler.WorkerCount / n
+		}
+		if perDomain < 1 {
+			perDomain = 1
+		}
+		c.Limit(&colly.LimitRule{
+			DomainGlob:  u.Host,
+			Parallelism: perDomain,
+			RandomDelay: time.Duration(e.cfg.Crawler.RequestDelay[0]) * time.Millisecond,
+			Delay:       time.Duration(e.cfg.Crawler.RequestDelay[1]) * time.Millisecond,
+		})
+	}
 
 	c.SetCookieJar(jar)
 
@@ -158,11 +186,35 @@ func (e *Engine) buildCollector() (*colly.Collector, error) {
 }
 
 func (e *Engine) applyCookies(c *colly.Collector) {
-	for _, rawCookies := range e.cfg.Crawler.CookiePool {
-		// cookie format: "name=value; domain=.example.com"
-		// simplified: apply to each visited domain
-		_ = rawCookies
+	cookieIdx := 0
+	cookieCount := len(e.cfg.Crawler.CookiePool)
+	if cookieCount == 0 {
+		return
 	}
+
+	c.OnRequest(func(r *colly.Request) {
+		raw := e.cfg.Crawler.CookiePool[cookieIdx%cookieCount]
+		cookieIdx++
+		pairs := strings.Split(raw, ";")
+		host := r.URL.Host
+		for _, pair := range pairs {
+			pair = strings.TrimSpace(pair)
+			if pair == "" {
+				continue
+			}
+			kv := strings.SplitN(pair, "=", 2)
+			if len(kv) != 2 {
+				continue
+			}
+			name := strings.TrimSpace(kv[0])
+			val := strings.TrimSpace(kv[1])
+			if strings.HasPrefix(strings.ToLower(name), "domain") {
+				continue
+			}
+			r.Headers.Set("Cookie", fmt.Sprintf("%s=%s", name, val))
+		}
+		_ = host
+	})
 }
 
 func (e *Engine) RegisterParser(name string, p AnnouncementParser) {
@@ -218,7 +270,7 @@ func (e *Engine) Crawl(ctx context.Context, courtCfg config.CourtConfig, fullSca
 			e.backoff.Do(ctx, func(ctx context.Context) error { return nil },
 				el.Request.URL.String(),
 				courtCfg.Name,
-				el.Response.Body,
+				string(el.Response.Body),
 				true,
 			)
 			e.incError(courtCfg.Name)

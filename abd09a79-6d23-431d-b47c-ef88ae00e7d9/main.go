@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -14,8 +13,6 @@ import (
 	"bankrupt-monitor/internal/notify"
 	"bankrupt-monitor/internal/scheduler"
 	"bankrupt-monitor/internal/store"
-
-	"go.uber.org/zap"
 )
 
 func main() {
@@ -36,31 +33,21 @@ func main() {
 
 	queryCmd := flag.NewFlagSet("query", flag.ExitOnError)
 	queryCmd.StringVar(&configPath, "config", "", "配置文件路径")
-	qKeyword := queryCmd.String("filter", "", "关键词过滤 (债务人/案号/法院)")
-	qCourt := queryCmd.String("court", "", "按法院过滤")
-	qDebtor := queryCmd.String("debtor", "", "按债务人过滤")
-	qCase := queryCmd.String("case", "", "按案号过滤")
-	qType := queryCmd.String("type", "", "类型: reorganization/liquidation/claim_notice/meeting")
-	qFrom := queryCmd.String("from", "", "起始日期 YYYY-MM-DD")
-	qTo := queryCmd.String("to", "", "结束日期 YYYY-MM-DD")
+	qFilter := queryCmd.String("filter", "", "关键词过滤 (债务人/案号/法院)")
 	qSort := queryCmd.String("sort", "created_at", "排序字段")
 	qOrder := queryCmd.String("order", "desc", "排序方向 asc/desc")
 	qPage := queryCmd.Int("page", 1, "页码")
 	qSize := queryCmd.Int("page-size", 20, "每页数量")
 	qJSON := queryCmd.Bool("json", false, "JSON 输出")
-	qHit := queryCmd.Bool("hit-only", false, "仅显示告警命中")
-	qRead := queryCmd.String("read", "", "已读状态: 1/0")
-	qHighlight := queryCmd.Bool("highlight", false, "关键词高亮")
 
 	exportCmd := flag.NewFlagSet("export", flag.ExitOnError)
 	exportCmd.StringVar(&configPath, "config", "", "配置文件路径")
 	eFormat := exportCmd.String("format", "csv", "导出格式: csv/json")
 	eOutput := exportCmd.String("output", "-", "输出路径 (- 表示 stdout)")
-	eCourt := exportCmd.String("court", "", "按法院过滤")
-	eDebtor := exportCmd.String("debtor", "", "按债务人过滤")
-	eKeyword := exportCmd.String("keyword", "", "关键词过滤")
-	eFrom := exportCmd.String("from", "", "起始日期")
-	eTo := exportCmd.String("to", "", "结束日期")
+	eFilter := exportCmd.String("filter", "", "关键词过滤 (债务人/案号/法院)")
+	eSort := exportCmd.String("sort", "created_at", "排序字段")
+	ePage := exportCmd.Int("page", 1, "页码")
+	eJSON := exportCmd.Bool("json", false, "JSON 输出 (等同于 --format json)")
 
 	serveCmd := flag.NewFlagSet("serve", flag.ExitOnError)
 	serveCmd.StringVar(&configPath, "config", "", "配置文件路径")
@@ -80,39 +67,26 @@ func main() {
 
 	case "query":
 		queryCmd.Parse(os.Args[2:])
-		var readFlag *bool
-		if *qRead != "" {
-			b := *qRead == "1"
-			readFlag = &b
-		}
 		err = cmd.RunQuery(configPath, &cmd.QueryFlags{
-			Keyword:   *qKeyword,
-			Court:     *qCourt,
-			Debtor:    *qDebtor,
-			CaseNum:   *qCase,
-			Type:      *qType,
-			FromDate:  *qFrom,
-			ToDate:    *qTo,
+			Keyword:   *qFilter,
 			SortBy:    *qSort,
 			SortOrder: *qOrder,
 			Page:      *qPage,
 			PageSize:  *qSize,
-			IsRead:    readFlag,
-			HitOnly:   *qHit,
 			AsJSON:    *qJSON,
-			Highlight: *qHighlight,
 		})
 
 	case "export":
 		exportCmd.Parse(os.Args[2:])
+		if *eJSON {
+			*eFormat = "json"
+		}
 		err = cmd.RunExport(configPath, &cmd.ExportFlags{
 			Format:   *eFormat,
 			Output:   *eOutput,
-			Court:    *eCourt,
-			Debtor:   *eDebtor,
-			Keyword:  *eKeyword,
-			FromDate: *eFrom,
-			ToDate:   *eTo,
+			Keyword:  *eFilter,
+			SortBy:   *eSort,
+			Page:     *ePage,
 		})
 
 	case "serve":
@@ -177,9 +151,6 @@ func runDaemon(configPath string, watch bool) error {
 	defer sched.Stop()
 
 	log.Info("daemon started")
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)

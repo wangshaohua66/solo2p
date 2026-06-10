@@ -2,6 +2,7 @@ package retry
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net"
@@ -19,9 +20,9 @@ import (
 )
 
 type Backoff struct {
-	baseDelay  time.Duration
-	maxDelay   time.Duration
-	multiplier float64
+	baseDelay   time.Duration
+	maxDelay    time.Duration
+	multiplier  float64
 	maxAttempts int
 	logger      *zap.Logger
 	store       *store.Store
@@ -34,12 +35,12 @@ type RetryableFunc func(ctx context.Context) error
 type ErrorType string
 
 const (
-	ErrNetwork    ErrorType = "network"
-	ErrHTTP5xx    ErrorType = "http_5xx"
-	ErrHTTP4xx    ErrorType = "http_4xx"
-	ErrParse      ErrorType = "parse"
-	ErrTimeout    ErrorType = "timeout"
-	ErrUnknown    ErrorType = "unknown"
+	ErrNetwork ErrorType = "network"
+	ErrHTTP5xx ErrorType = "http_5xx"
+	ErrHTTP4xx ErrorType = "http_4xx"
+	ErrParse   ErrorType = "parse"
+	ErrTimeout ErrorType = "timeout"
+	ErrUnknown ErrorType = "unknown"
 )
 
 func NewBackoff(baseDelay, maxDelay time.Duration, multiplier float64, maxAttempts int, store *store.Store, dlDir string, log *zap.Logger) *Backoff {
@@ -118,20 +119,20 @@ func IsRetryable(err error) bool {
 	errStr := strings.ToLower(err.Error())
 
 	var netErr net.Error
-	if net.Error.As(err, &netErr) {
+	if errors.As(err, &netErr) {
 		if netErr.Timeout() {
 			return true
 		}
 	}
 
 	var opErr *net.OpError
-	if net.Error.As(err, &opErr) {
+	if errors.As(err, &opErr) {
 		return true
 	}
 
 	var urlErr *url.Error
-	if net.Error.As(err, &urlErr) {
-		if urlErr.Timeout() || urlErr.Temporary() {
+	if errors.As(err, &urlErr) {
+		if urlErr.Timeout() || strings.Contains(strings.ToLower(urlErr.Error()), "temporary") {
 			return true
 		}
 	}
@@ -157,7 +158,7 @@ func classifyError(err error) ErrorType {
 	s := strings.ToLower(err.Error())
 
 	var netErr net.Error
-	if net.Error.As(err, &netErr) && netErr.Timeout() {
+	if errors.As(err, &netErr) && netErr.Timeout() {
 		return ErrTimeout
 	}
 

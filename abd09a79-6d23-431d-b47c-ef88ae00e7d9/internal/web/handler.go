@@ -216,21 +216,52 @@ func (h *Handler) markCaseRead(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) batchMarkRead(w http.ResponseWriter, r *http.Request) {
-	ids := parseIDs(r.FormValue("ids"))
-	read := r.FormValue("read") != "0"
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	var ids []uint64
+	for _, v := range r.Form["ids"] {
+		if id, err := strconv.ParseUint(strings.TrimSpace(v), 10, 64); err == nil {
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		ids = parseIDs(r.FormValue("ids"))
+	}
 	if len(ids) == 0 {
 		w.WriteHeader(204)
 		return
 	}
-	if err := h.db.MarkCaseRead(ids, read); err != nil {
+	if err := h.db.MarkCaseRead(ids, true); err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	w.WriteHeader(204)
+	cases, total, err := h.db.QueryCases(&store.CaseQuery{Page: 1, PageSize: 20})
+	if err != nil {
+		w.WriteHeader(204)
+		return
+	}
+	h.renderPartial(w, "case_rows.html", map[string]interface{}{
+		"Cases": cases,
+		"Total": total,
+	})
 }
 
 func (h *Handler) batchTag(w http.ResponseWriter, r *http.Request) {
-	ids := parseIDs(r.FormValue("ids"))
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	var ids []uint64
+	for _, v := range r.Form["ids"] {
+		if id, err := strconv.ParseUint(strings.TrimSpace(v), 10, 64); err == nil {
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		ids = parseIDs(r.FormValue("ids"))
+	}
 	tag := strings.TrimSpace(r.FormValue("tag"))
 	if len(ids) == 0 || tag == "" {
 		w.WriteHeader(204)
@@ -240,7 +271,15 @@ func (h *Handler) batchTag(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	w.WriteHeader(204)
+	cases, total, err := h.db.QueryCases(&store.CaseQuery{Page: 1, PageSize: 20})
+	if err != nil {
+		w.WriteHeader(204)
+		return
+	}
+	h.renderPartial(w, "case_rows.html", map[string]interface{}{
+		"Cases": cases,
+		"Total": total,
+	})
 }
 
 func (h *Handler) listSubscriptions(w http.ResponseWriter, r *http.Request) {
@@ -363,9 +402,16 @@ func (h *Handler) listDeadLetters(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) render(w http.ResponseWriter, name string, data map[string]interface{}) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.tpl.ExecuteTemplate(w, name, data); err != nil {
-		h.logger.Error("template render failed", zap.String("template", name), zap.Error(err))
+	tplFS, _ := fs.Sub(embedFS, "templates")
+	t := template.Must(h.tpl.Clone())
+	tmpl, err := t.ParseFS(tplFS, name)
+	if err != nil {
+		h.logger.Error("parse page template failed", zap.String("template", name), zap.Error(err))
 		http.Error(w, err.Error(), 500)
+		return
+	}
+	if err := tmpl.ExecuteTemplate(w, "base.html", data); err != nil {
+		h.logger.Error("template render failed", zap.String("template", name), zap.Error(err))
 	}
 }
 
