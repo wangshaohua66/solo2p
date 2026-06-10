@@ -181,7 +181,7 @@
     $('#participantsBody').html(ev.participants.map(p => {
       var u = p.user || { nickname: '用户' };
       return `<tr>
-        <td>
+        <td data-label="成员">
           <div class="d-flex align-items-center gap-2">
             ${CampHub.ui.avatar(u, 34)}
             <div>
@@ -190,15 +190,16 @@
             </div>
           </div>
         </td>
-        <td><select class="form-select form-select-sm p-role" data-user="${p.userId}" style="width:auto;">
+        <td data-label="角色"><select class="form-select form-select-sm p-role" data-user="${p.userId}" style="width:auto;">
           ${roles.map(r => `<option ${p.role === r ? 'selected' : ''}>${r}</option>`).join('')}
         </select></td>
-        <td>${p.confirmed
+        <td data-label="状态">${p.confirmed
           ? '<span class="badge rounded-pill bg-success">已确认</span>'
           : '<span class="badge rounded-pill bg-secondary">待确认</span>'}</td>
-        <td class="small text-muted">${CampHub.ui.formatLocalDate(p.joinedAt)}</td>
+        <td data-label="加入时间" class="small text-muted">${CampHub.ui.formatLocalDate(p.joinedAt)}</td>
       </tr>`;
     }).join(''));
+    $('#participantsTable').addClass('table-card-mobile');
   }
 
   function renderGearList() {
@@ -211,7 +212,7 @@
     Object.keys(categories).forEach(function (cat) {
       html += `<h6 class="fw-bold text-ch-primary mt-3 mb-2 border-bottom pb-2"><i class="bi bi-folder2-open me-1"></i>${cat}</h6>
         <div class="table-responsive mb-3">
-          <table class="table table-sm table-hover align-middle">
+          <table class="table table-sm table-hover align-middle table-card-mobile">
             <thead><tr>
               <th style="width:40px;"></th>
               <th>名称</th>
@@ -225,13 +226,13 @@
           `<option value="${p.userId}" ${g.broughtByUserId === p.userId ? 'selected' : ''}>${CampHub.util.escapeHtml((p.user || {}).nickname || '用户')}</option>`
         ).join('');
         html += `<tr class="${!g.checked && !g.broughtByUserId ? 'table-warning' : ''}">
-          <td><input type="checkbox" class="form-check-input gear-checked" ${g.checked ? 'checked' : ''} data-cat="${cat}" data-idx="${i}" /></td>
-          <td><input type="text" class="form-control form-control-sm gear-name border-0 bg-transparent" value="${CampHub.util.escapeHtml(g.name)}" data-cat="${cat}" data-idx="${i}" /></td>
-          <td><input type="number" class="form-control form-control-sm gear-qty" min="1" value="${g.quantity}" data-cat="${cat}" data-idx="${i}" /></td>
-          <td><select class="form-select form-select-sm gear-user" data-cat="${cat}" data-idx="${i}">
+          <td data-label=""><input type="checkbox" class="form-check-input gear-checked" ${g.checked ? 'checked' : ''} data-cat="${cat}" data-idx="${i}" /></td>
+          <td data-label="名称"><input type="text" class="form-control form-control-sm gear-name border-0 bg-transparent" value="${CampHub.util.escapeHtml(g.name)}" data-cat="${cat}" data-idx="${i}" /></td>
+          <td data-label="数量"><input type="number" class="form-control form-control-sm gear-qty" min="1" value="${g.quantity}" data-cat="${cat}" data-idx="${i}" /></td>
+          <td data-label="携带人"><select class="form-select form-select-sm gear-user" data-cat="${cat}" data-idx="${i}">
             <option value="">-- 待分配 --</option>${userOptions}
           </select></td>
-          <td><button class="btn btn-sm btn-outline-danger gear-remove" data-cat="${cat}" data-idx="${i}"><i class="bi bi-trash"></i></button></td>
+          <td data-label="操作"><button class="btn btn-sm btn-outline-danger gear-remove" data-cat="${cat}" data-idx="${i}"><i class="bi bi-trash"></i></button></td>
         </tr>`;
       });
       html += '</tbody></table></div>';
@@ -246,19 +247,19 @@
     var html = '';
     Object.keys(byCategory).forEach(cat => {
       html += `<h6 class="fw-bold text-ch-accent mt-3 mb-2 border-bottom pb-2"><i class="bi bi-basket me-1"></i>${cat}</h6>
-        <div class="table-responsive"><table class="table table-sm align-middle">
+        <div class="table-responsive"><table class="table table-sm align-middle table-card-mobile">
           <thead><tr><th style="width:36px;"></th><th>名称</th><th style="width:90px;">数量</th><th style="width:70px;">单位</th><th>负责人</th><th style="width:50px;"></th></tr></thead><tbody>`;
       byCategory[cat].forEach((p, i) => {
         html += `<tr class="${p.purchased ? 'table-success' : ''}">
-          <td><input type="checkbox" class="form-check-input p-purchased" ${p.purchased ? 'checked' : ''} data-cat="${cat}" data-idx="${i}" /></td>
-          <td><input class="form-control form-control-sm border-0 bg-transparent p-name" value="${CampHub.util.escapeHtml(p.name)}" data-cat="${cat}" data-idx="${i}" /></td>
-          <td><input type="number" class="form-control form-control-sm p-qty" min="1" value="${p.quantity}" data-cat="${cat}" data-idx="${i}" /></td>
-          <td><input class="form-control form-control-sm p-unit" value="${CampHub.util.escapeHtml(p.unit || '份')}" data-cat="${cat}" data-idx="${i}" /></td>
-          <td><select class="form-select form-select-sm p-user" data-cat="${cat}" data-idx="${i}">
+          <td data-label=""><input type="checkbox" class="form-check-input p-purchased" ${p.purchased ? 'checked' : ''} data-cat="${cat}" data-idx="${i}" /></td>
+          <td data-label="名称"><input class="form-control form-control-sm border-0 bg-transparent p-name" value="${CampHub.util.escapeHtml(p.name)}" data-cat="${cat}" data-idx="${i}" /></td>
+          <td data-label="数量"><input type="number" class="form-control form-control-sm p-qty" min="1" value="${p.quantity}" data-cat="${cat}" data-idx="${i}" /></td>
+          <td data-label="单位"><input class="form-control form-control-sm p-unit" value="${CampHub.util.escapeHtml(p.unit || '份')}" data-cat="${cat}" data-idx="${i}" /></td>
+          <td data-label="负责人"><select class="form-select form-select-sm p-user" data-cat="${cat}" data-idx="${i}">
             <option value="">-- 未分配 --</option>
             ${ev.participants.map(p2 => `<option value="${p2.userId}" ${p.assignedToUserId === p2.userId ? 'selected' : ''}>${CampHub.util.escapeHtml((p2.user || {}).nickname || '')}</option>`).join('')}
           </select></td>
-          <td><button class="btn btn-sm btn-outline-danger p-remove" data-cat="${cat}" data-idx="${i}"><i class="bi bi-x"></i></button></td>
+          <td data-label=""><button class="btn btn-sm btn-outline-danger p-remove" data-cat="${cat}" data-idx="${i}"><i class="bi bi-x"></i></button></td>
         </tr>`;
       });
       html += '</tbody></table></div>';
@@ -515,10 +516,186 @@
     }).catch(function () {});
   }
 
+  var collabConnection = null;
+  function initCollabHub() {
+    if (!window.signalR || !eventId) return;
+    try {
+      collabConnection = new signalR.HubConnectionBuilder()
+        .withUrl('/hubs/eventCollab')
+        .withAutomaticReconnect([0, 1000, 3000, 5000])
+        .configureLogging(signalR.LogLevel.Warning)
+        .build();
+
+      collabConnection.on('UserJoined', function (u) {
+        CampHub.ui.toast(`${u.nickname} 加入了协同编辑`, 'info');
+      });
+      collabConnection.on('UserLeft', function (u) {
+        CampHub.ui.toast(`${u.nickname} 离开了`, 'info');
+      });
+      collabConnection.on('GearItemUpdated', function (msg) {
+        if (msg.updatedBy === (CampHub.auth.getUser() || {}).id) return;
+        if (!ev || !ev.gearList) return;
+        var item = ev.gearList.find(function (g) { return g.key === msg.itemKey; });
+        if (item && msg.payload) {
+          if (typeof msg.payload.checked === 'boolean') item.checked = msg.payload.checked;
+          if (typeof msg.payload.name === 'string') item.name = msg.payload.name;
+          if (typeof msg.payload.quantity === 'number') item.quantity = msg.payload.quantity;
+          if (typeof msg.payload.broughtByUserId !== 'undefined') item.broughtByUserId = msg.payload.broughtByUserId;
+          renderGearList();
+        }
+      });
+      collabConnection.on('PurchaseItemUpdated', function (msg) {
+        if (msg.updatedBy === (CampHub.auth.getUser() || {}).id) return;
+        if (!ev || !ev.purchaseList) return;
+        var item = ev.purchaseList.find(function (p) { return p.key === msg.itemKey; });
+        if (item && msg.payload) {
+          if (typeof msg.payload.purchased === 'boolean') item.purchased = msg.payload.purchased;
+          if (typeof msg.payload.name === 'string') item.name = msg.payload.name;
+          if (typeof msg.payload.quantity === 'number') item.quantity = msg.payload.quantity;
+          if (typeof msg.payload.unit === 'string') item.unit = msg.payload.unit;
+          if (typeof msg.payload.assignedToUserId !== 'undefined') item.assignedToUserId = msg.payload.assignedToUserId;
+          renderPurchaseList();
+        }
+      });
+      collabConnection.on('ChatMessage', function (msg) {
+        appendCollabMessage(msg);
+      });
+
+      collabConnection.start().then(function () {
+        return collabConnection.invoke('JoinEvent', eventId);
+      }).catch(function (err) {
+        console.warn('SignalR 连接失败:', err);
+      });
+    } catch (e) {
+      console.warn('SignalR 初始化失败:', e);
+    }
+  }
+
+  function collabSendGearUpdate(key, payload) {
+    if (!collabConnection || collabConnection.state !== signalR.HubConnectionState.Connected) return;
+    try {
+      collabConnection.invoke('UpdateGearItem', eventId, key, payload);
+    } catch (e) {}
+  }
+  function collabSendPurchaseUpdate(key, payload) {
+    if (!collabConnection || collabConnection.state !== signalR.HubConnectionState.Connected) return;
+    try {
+      collabConnection.invoke('UpdatePurchaseItem', eventId, key, payload);
+    } catch (e) {}
+  }
+  function collabSendChat(msg) {
+    if (!collabConnection || !msg) return;
+    collabConnection.invoke('SendMessage', eventId, msg);
+  }
+  function appendCollabMessage(msg) {
+    var $box = $('#collabChatBox');
+    if (!$box.length) return;
+    var t = msg.timestamp ? CampHub.ui.formatLocalTime(msg.timestamp) : '';
+    var html = `<div class="mb-2 small">
+      <span class="fw-bold text-ch-primary">${CampHub.util.escapeHtml(msg.nickname)}</span>
+      <span class="text-muted ms-1">${t}</span>
+      <div class="mt-1 ps-2 border-start border-2 border-ch-primary-30">${CampHub.util.escapeHtml(msg.message)}</div>
+    </div>`;
+    $box.append(html);
+    $box.scrollTop($box[0].scrollHeight);
+  }
+
+  function bindCollabInputs() {
+    $(document).on('change', '.gear-checked', function () {
+      var cat = $(this).data('cat');
+      var idx = parseInt($(this).data('idx'), 10);
+      var item = getGearItem(cat, idx);
+      if (item && item.key) collabSendGearUpdate(item.key, { checked: this.checked });
+    });
+    $(document).on('input', '.gear-name', CampHub.util.debounce(function () {
+      var cat = $(this).data('cat');
+      var idx = parseInt($(this).data('idx'), 10);
+      var item = getGearItem(cat, idx);
+      if (item && item.key) collabSendGearUpdate(item.key, { name: this.value });
+    }, 400));
+    $(document).on('change', '.gear-qty', function () {
+      var cat = $(this).data('cat');
+      var idx = parseInt($(this).data('idx'), 10);
+      var item = getGearItem(cat, idx);
+      if (item && item.key) collabSendGearUpdate(item.key, { quantity: parseInt(this.value, 10) || 1 });
+    });
+    $(document).on('change', '.gear-user', function () {
+      var cat = $(this).data('cat');
+      var idx = parseInt($(this).data('idx'), 10);
+      var item = getGearItem(cat, idx);
+      if (item && item.key) collabSendGearUpdate(item.key, { broughtByUserId: this.value });
+    });
+
+    $(document).on('change', '.p-purchased', function () {
+      var cat = $(this).data('cat');
+      var idx = parseInt($(this).data('idx'), 10);
+      var item = getPurchaseItem(cat, idx);
+      if (item && item.key) collabSendPurchaseUpdate(item.key, { purchased: this.checked });
+    });
+    $(document).on('input', '.p-name', CampHub.util.debounce(function () {
+      var cat = $(this).data('cat');
+      var idx = parseInt($(this).data('idx'), 10);
+      var item = getPurchaseItem(cat, idx);
+      if (item && item.key) collabSendPurchaseUpdate(item.key, { name: this.value });
+    }, 400));
+    $(document).on('change', '.p-qty', function () {
+      var cat = $(this).data('cat');
+      var idx = parseInt($(this).data('idx'), 10);
+      var item = getPurchaseItem(cat, idx);
+      if (item && item.key) collabSendPurchaseUpdate(item.key, { quantity: parseInt(this.value, 10) || 1 });
+    });
+    $(document).on('change', '.p-unit', function () {
+      var cat = $(this).data('cat');
+      var idx = parseInt($(this).data('idx'), 10);
+      var item = getPurchaseItem(cat, idx);
+      if (item && item.key) collabSendPurchaseUpdate(item.key, { unit: this.value });
+    });
+    $(document).on('change', '.p-user', function () {
+      var cat = $(this).data('cat');
+      var idx = parseInt($(this).data('idx'), 10);
+      var item = getPurchaseItem(cat, idx);
+      if (item && item.key) collabSendPurchaseUpdate(item.key, { assignedToUserId: this.value });
+    });
+
+    $(document).on('click', '#collabChatSend', function () {
+      var $input = $('#collabChatInput');
+      var txt = $input.val();
+      if (!txt.trim()) return;
+      collabSendChat(txt.trim());
+      $input.val('');
+    });
+    $(document).on('keypress', '#collabChatInput', function (e) {
+      if (e.key === 'Enter') { $('#collabChatSend').click(); }
+    });
+  }
+
+  function getGearItem(cat, idx) {
+    if (!ev || !ev.gearList) return null;
+    var cats = {};
+    ev.gearList.forEach(function (g) {
+      if (!cats[g.category]) cats[g.category] = [];
+      cats[g.category].push(g);
+    });
+    var arr = cats[cat] || [];
+    return arr[idx] || null;
+  }
+  function getPurchaseItem(cat, idx) {
+    if (!ev || !ev.purchaseList) return null;
+    var cats = {};
+    ev.purchaseList.forEach(function (p) {
+      if (!cats[p.category]) cats[p.category] = [];
+      cats[p.category].push(p);
+    });
+    var arr = cats[cat] || [];
+    return arr[idx] || null;
+  }
+
   $(function () {
     if (!CampHub.auth.requireLogin()) return;
     if (!eventId) { $('#eventDetailRoot').html(CampHub.ui.emptyState('缺少活动ID', 'bi-exclamation-triangle')); return; }
     reload();
     loadRatings();
+    initCollabHub();
+    bindCollabInputs();
   });
 })(jQuery);

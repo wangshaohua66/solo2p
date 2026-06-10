@@ -140,6 +140,9 @@ public class Gear
     [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
     public DateTime? LastMaintenanceDate { get; set; }
 
+    [BsonElement("lastMaintenanceUsageCount")]
+    public int LastMaintenanceUsageCount { get; set; }
+
     [BsonElement("nextMaintenanceAfterUses")]
     public int NextMaintenanceAfterUses { get; set; } = 20;
 
@@ -159,11 +162,11 @@ public class Gear
     public int Version { get; set; } = 1;
 
     [BsonIgnore]
-    public bool NeedsMaintenance =>
-        LastMaintenanceDate.HasValue &&
-        UsageCount - GetMaintenanceUsageCount() >= NextMaintenanceAfterUses;
+    public int UsesSinceMaintenance => UsageCount - LastMaintenanceUsageCount;
 
-    private int GetMaintenanceUsageCount() => 0;
+    [BsonIgnore]
+    public bool NeedsMaintenance =>
+        UsesSinceMaintenance >= NextMaintenanceAfterUses && NextMaintenanceAfterUses > 0;
 }
 
 public class BorrowRecord

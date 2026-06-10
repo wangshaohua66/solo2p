@@ -27,6 +27,85 @@
       </div>`;
     }).join(''));
     $('#photoMoreWrap').toggleClass('d-none', !state.hasMore || items.length < state.pageSize);
+    initPhotoMasonry();
+  }
+
+  var _photoMsnry = null;
+  function initPhotoMasonry() {
+    if (!window.Masonry || !$('#photoGrid').length) return;
+    if (_photoMsnry) { _photoMsnry.destroy(); _photoMsnry = null; }
+    $('#photoGrid').addClass('ch-masonry-grid').find('.ch-photo-item').addClass('ch-masonry-item');
+    _photoMsnry = new Masonry('#photoGrid', {
+      itemSelector: '.ch-photo-item',
+      percentPosition: true,
+      gutter: 10,
+      transitionDuration: '0.2s'
+    });
+    if ($('#photoGrid').imagesLoaded) {
+      $('#photoGrid').imagesLoaded(function () { _photoMsnry && _photoMsnry.layout(); });
+    } else {
+      setTimeout(function () { _photoMsnry && _photoMsnry.layout(); }, 500);
+    }
+  }
+
+  var _map = null;
+  var _heatLayer = null;
+  function initTrackMap(points) {
+    var $mapEl = $('#photoTrackMap');
+    if (!$mapEl.length || !window.L || !points || !points.length) return;
+    if (_map) { _map.remove(); _map = null; }
+
+    $mapEl.css({ height: '320px', borderRadius: '12px', overflow: 'hidden' });
+    var center = [points[0].gpsLat || 31.23, points[0].gpsLng || 121.47];
+    _map = L.map('photoTrackMap').setView(center, 12);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 19
+    }).addTo(_map);
+
+    var latlngs = points.filter(p => p.gpsLat && p.gpsLng).map(p => [p.gpsLat, p.gpsLng]);
+    if (latlngs.length > 1) {
+      latlngs.sort(function (a, b) { return a[2] - b[2]; });
+      var polyline = L.polyline(latlngs, {
+        color: '#2D5A27',
+        weight: 4,
+        opacity: 0.85
+      }).addTo(_map);
+      _map.fitBounds(polyline.getBounds(), { padding: [30, 30] });
+
+      for (var i = 0; i < latlngs.length && i < 20; i++) {
+        var pt = points[i];
+        L.marker([pt.gpsLat, pt.gpsLng], {
+          icon: L.divIcon({
+            className: 'ch-photo-map-marker',
+            html: `<div style="width:36px;height:36px;border-radius:6px;overflow:hidden;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);background:#fff;">
+                     <img src="${pt.thumbUrl || pt.fileUrl}" style="width:100%;height:100%;object-fit:cover;" />
+                   </div>`,
+            iconSize: [36, 36],
+            iconAnchor: [18, 36]
+          })
+        }).addTo(_map).bindPopup(`
+          <div style="min-width:160px;">
+            <img src="${pt.fileUrl}" style="width:100%;border-radius:6px;" />
+            <div class="small mt-1 text-muted">${pt.takenAt ? CampHub.ui.formatLocalDateTime(pt.takenAt) : ''}</div>
+          </div>
+        `);
+      }
+    } else if (latlngs.length === 1) {
+      L.marker(latlngs[0]).addTo(_map);
+    }
+
+    var $trackPts = $('#photoTrackPoints');
+    if ($trackPts.length) {
+      $trackPts.html(points.slice(0, 15).map(function (pt, i) {
+        var t = pt.takenAt ? CampHub.ui.formatLocalDateTime(pt.takenAt) : '';
+        return `<a href="${pt.fileUrl}" target="_blank" class="d-inline-block me-1 mb-1" title="${t}">
+          <img src="${pt.thumbUrl || pt.fileUrl}" class="rounded"
+               style="width:56px;height:56px;object-fit:cover;border:2px solid var(--ch-bg);" />
+        </a>`;
+      }).join('') + (points.length > 15 ? `<span class="small text-muted align-top ms-2">共 ${points.length} 个GPS标记</span>` : ''));
+    }
   }
 
   function loadMore() {
@@ -93,12 +172,7 @@
     CampHub.ajax.get(`/photo/track/${state.eventId}`).then(function (pts) {
       if (!pts || !pts.length) { $('#photoTrackSection').addClass('d-none'); return; }
       $('#photoTrackSection').removeClass('d-none');
-      $('#photoTrackPoints').html(pts.slice(0, 20).map(function (pt, i) {
-        var t = CampHub.ui.formatLocalDateTime(pt.takenAt);
-        return `<a href="${pt.thumbUrl}" target="_blank" class="d-inline-block me-1 mb-1" title="${t}">
-          <img src="${pt.thumbUrl}" class="rounded" style="width:56px;height:56px;object-fit:cover;border:2px solid var(--ch-bg);" />
-        </a>`;
-      }).join('') + (pts.length > 20 ? `<span class="small text-muted align-top ms-2">共 ${pts.length} 个轨迹点</span>` : ''));
+      initTrackMap(pts);
     }).catch(function () { $('#photoTrackSection').addClass('d-none'); });
   }
 

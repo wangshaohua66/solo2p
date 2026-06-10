@@ -101,6 +101,28 @@
     }
 
     $('#gearCountLabel').text(`共 ${count} 件装备`);
+    refreshGearMasonry();
+  }
+
+  var _gearMsnry = null;
+  function initGearMasonry() {
+    if (!window.Masonry || !$('#gearGrid').length) return;
+    if (_gearMsnry) { _gearMsnry.destroy(); _gearMsnry = null; }
+    $('#gearGrid').addClass('ch-masonry-grid').find('.ch-gear-card').addClass('ch-masonry-item');
+    _gearMsnry = new Masonry('#gearGrid', {
+      itemSelector: '.ch-gear-card',
+      percentPosition: true,
+      gutter: 14,
+      transitionDuration: '0.2s'
+    });
+    if ($('#gearGrid').imagesLoaded) {
+      $('#gearGrid').imagesLoaded(function () { _gearMsnry && _gearMsnry.layout(); });
+    } else {
+      setTimeout(function () { _gearMsnry && _gearMsnry.layout(); }, 400);
+    }
+  }
+  function refreshGearMasonry() {
+    if (_gearMsnry) { setTimeout(function () { _gearMsnry.layout(); }, 30); }
   }
 
   var gears = [];
@@ -116,6 +138,7 @@
       }
       $grid.html(gears.map(renderGearCard).join(''));
       applyFilters();
+      initGearMasonry();
     }).catch(function (err) {
       $grid.html('<div class="col-12">' + CampHub.ui.emptyState('加载失败：' + (err.message || ''), 'bi-exclamation-triangle') + '</div>');
     });

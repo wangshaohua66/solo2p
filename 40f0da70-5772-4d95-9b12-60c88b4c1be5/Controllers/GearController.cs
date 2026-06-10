@@ -40,12 +40,13 @@ public class GearController : ControllerBase
 
         if (!string.IsNullOrEmpty(q.Keyword))
         {
+            var kw = q.Keyword.Trim();
+            var kwLower = kw.ToLowerInvariant();
             filter &= fb.Or(
-                fb.Text(q.Keyword),
+                fb.Text(kw),
                 fb.Regex(g => g.Name,
-                    new MongoDB.Bson.BsonRegularExpression(q.Keyword, "i")),
-                fb.Regex(g => g.Category,
-                    new MongoDB.Bson.BsonRegularExpression(q.Keyword, "i"))
+                    new MongoDB.Bson.BsonRegularExpression("^" +
+                        System.Text.RegularExpressions.Regex.Escape(kwLower), "i"))
             );
         }
 
@@ -82,6 +83,43 @@ public class GearController : ControllerBase
         var map = await BuildUserMap(ids);
 
         return Ok(ApiResponse<GearDto>.Ok(MapGearDto(g, map)));
+    }
+
+    [HttpGet("{id}/borrow-records")]
+    public async Task<ActionResult<ApiResponse<List<object>>>> BorrowRecords(string id, [FromQuery] int limit = 20)
+    {
+        var gear = await _db.Gears.Find(g => g.Id == id).FirstOrDefaultAsync();
+        if (gear == null) return NotFound(ApiResponse<List<object>>.Fail("装备不存在"));
+
+        var uid = CurrentUserId;
+        if (gear.OwnerId != uid && gear.CurrentBorrowerId != uid)
+            return Forbid();
+
+        var records = await _db.BorrowRecords
+            .Find(b => b.GearId == id)
+            .SortByDescending(b => b.BorrowDate)
+            .Limit(limit)
+            .ToListAsync();
+
+        var userIds = records.Select(r => r.BorrowerId).Distinct().ToList();
+        var userMap = await BuildUserMap(userIds);
+
+        var result = records.Select(r => new
+        {
+            r.Id,
+            r.GearId,
+            r.LenderId,
+            r.BorrowerId,
+            Borrower = userMap.GetValueOrDefault(r.BorrowerId),
+            r.BorrowDate,
+            r.DueDate,
+            r.ActualReturnDate,
+            r.ReturnCondition,
+            r.CreditChange,
+            r.Notes
+        }).Cast<object>().ToList();
+
+        return Ok(ApiResponse<List<object>>.Ok(result));
     }
 
     [HttpPost]
@@ -164,6 +202,27 @@ public class GearController : ControllerBase
                 .Where(s => !string.IsNullOrEmpty(s)).ToList())), "更新成功"));
     }
 
+    [HttpPost("{id}/maintenance")]
+    public async Task<ActionResult<ApiResponse<GearDto>>> RecordMaintenance(string id)
+    {
+        var uid = CurrentUserId;
+        var gear = await _db.Gears.Find(g => g.Id == id).FirstOrDefaultAsync();
+        if (gear == null) return NotFound(ApiResponse<GearDto>.Fail("装备不存在"));
+        if (gear.OwnerId != uid) return Forbid();
+
+        var update = Builders<Gear>.Update
+            .Set(g => g.LastMaintenanceDate, DateTime.UtcNow)
+            .Set(g => g.LastMaintenanceUsageCount, gear.UsageCount)
+            .Inc(g => g.Version, 1);
+
+        var updated = await _db.Gears.FindOneAndUpdateAsync(
+            g => g.Id == id, update,
+            new FindOneAndUpdateOptions<Gear> { ReturnDocument = ReturnDocument.After });
+
+        return Ok(ApiResponse<GearDto>.Ok(MapGearDto(updated!,
+            await BuildUserMap(new[] { updated!.OwnerId }.ToList())), "保养已记录"));
+    }
+
     [HttpPost("{id}/lend")]
     public async Task<ActionResult<ApiResponse<BorrowRecord>>> Lend(
         string id, [FromBody] GearLendDto req)
@@ -180,6 +239,10 @@ public class GearController : ControllerBase
         var borrower = await _db.Users.Find(u => u.Id == req.BorrowerId).FirstOrDefaultAsync();
         if (borrower == null)
             return BadRequest(ApiResponse<BorrowRecord>.Fail("借用人不存在"));
+
+        if (borrower.CreditScore < 60)
+            return BadRequest(ApiResponse<BorrowRecord>.Fail(
+                $"借用人信用分不足（当前{borrower.CreditScore}分，低于60分失去借出优先权）"));
 
         using var session = await _db.Database.Client.StartSessionAsync();
         session.StartTransaction();
@@ -380,7 +443,8 @@ public class GearController : ControllerBase
             CurrentBorrowerId = g.CurrentBorrowerId,
             CurrentBorrower = borrower,
             DueDate = g.DueDate,
-            NeedsMaintenance = g.NeedsMaintenance
+            NeedsMaintenance = g.NeedsMaintenance,
+            UsesSinceMaintenance = g.UsesSinceMaintenance
         };
     }
 

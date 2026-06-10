@@ -23,7 +23,7 @@ public class EventController : ControllerBase
 
     private string CurrentUserId => JwtService.GetUserIdFromClaims(User) ?? "";
 
-    [HttpGet]
+    [HttpGet("list")]
     [AllowAnonymous]
     public async Task<ActionResult<ApiResponse<List<EventDto>>>> List(
         [FromQuery] EventQueryDto q)

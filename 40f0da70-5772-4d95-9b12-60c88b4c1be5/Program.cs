@@ -2,6 +2,8 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using CampHub.Services;
+using CampHub.HostedServices;
+using CampHub.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +21,10 @@ builder.Services.AddSingleton<MongoContext>();
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<RecommendationService>();
 builder.Services.AddScoped<ExifService>();
+
+builder.Services.AddHostedService<OverdueScanService>();
+
+builder.Services.AddSignalR();
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
 builder.Services.AddAuthentication(options =>
@@ -87,5 +93,7 @@ app.MapControllerRoute(
     name: "api",
     pattern: "api/{controller}/{action}/{id?}",
     defaults: new { area = "Api" });
+
+app.MapHub<EventCollaborationHub>("/hubs/eventCollab");
 
 app.Run();

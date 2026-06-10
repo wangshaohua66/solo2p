@@ -122,6 +122,7 @@ public class GearDto
     public decimal WearLevel { get; set; }
     public DateTime? LastMaintenanceDate { get; set; }
     public int NextMaintenanceAfterUses { get; set; }
+    public int UsesSinceMaintenance { get; set; }
     public string? CurrentBorrowerId { get; set; }
     public UserDto? CurrentBorrower { get; set; }
     public DateTime? DueDate { get; set; }
