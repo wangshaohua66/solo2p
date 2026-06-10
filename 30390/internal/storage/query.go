@@ -178,11 +178,11 @@ func (s *Store) GetTechDebtByRepo(repoName string) ([]TechDebtItem, error) {
 	return items, err
 }
 
-func (s *Store) SaveTechDebt(items []TechDebtItem) error {
+func (s *Store) SaveTechDebt(items []*TechDebtItem) error {
 	return s.Batch(func(tx *Tx) error {
 		for _, item := range items {
 			key := MakeKey(item.RepoName, item.ID)
-			if err := tx.Put(BucketTechDebt, key, item); err != nil {
+			if err := tx.Put(BucketTechDebt, key, *item); err != nil {
 				return err
 			}
 		}

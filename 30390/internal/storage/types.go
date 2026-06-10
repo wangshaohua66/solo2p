@@ -107,12 +107,19 @@ type AlertRecord struct {
 	RepoName   string    `json:"repo_name"`
 	Type       string    `json:"type"`
 	Level      string    `json:"level"`
+	Title      string    `json:"title"`
 	Message    string    `json:"message"`
 	Detail     string    `json:"detail,omitempty"`
 	Owner      string    `json:"owner,omitempty"`
 	CreatedAt  time.Time `json:"created_at"`
 	Resolved   bool      `json:"resolved"`
 	ResolvedAt time.Time `json:"resolved_at,omitempty"`
+}
+
+type GitFile struct {
+	Path    string
+	Added   int
+	Deleted   int
 }
 
 type FileChurn struct {
@@ -136,21 +143,21 @@ type PRHealth struct {
 }
 
 type RepoStats struct {
-	RepoName       string
-	HealthLevel    git.HealthLevel
-	HealthScore    float64
-	TotalCommits   int
-	TotalFiles     int
-	TotalLines     int
-	Contributors   int
-	SilentDays     int
-	LastCommit     time.Time
-	ChurnWindow    int
-	HighRiskFiles  int
-	TechDebtCount  int
-	ActivePRs      int
-	AvgReviewHours float64
-	MergeRate      float64
+	RepoName       string         `json:"repo_name"`
+	HealthLevel    git.HealthLevel `json:"health_level"`
+	HealthScore    float64        `json:"health_score"`
+	TotalCommits   int            `json:"total_commits"`
+	TotalFiles     int            `json:"total_files"`
+	TotalLines     int            `json:"total_lines"`
+	Contributors   int            `json:"contributors"`
+	SilentDays     int            `json:"silent_days"`
+	LastCommit     time.Time      `json:"last_commit"`
+	ChurnWindow    int            `json:"churn_window"`
+	HighRiskFiles  int            `json:"high_risk_files"`
+	TechDebtCount  int            `json:"tech_debt_count"`
+	ActivePRs      int            `json:"active_prs"`
+	AvgReviewHours float64        `json:"avg_review_hours"`
+	MergeRate      float64        `json:"merge_rate"`
 }
 
 type HeatmapData struct {
@@ -187,6 +194,33 @@ func NewCommitRecord(c *git.Commit) *CommitRecord {
 		Author:         c.AuthorName,
 		Message:        c.Subject,
 		Date:           c.AuthorDate,
+	}
+}
+
+func NewCommitRecordWithFields(hash, repoName, authorName, authorEmail string, date time.Time, message string, files []GitFile) *CommitRecord {
+	additions := 0
+	deletions := 0
+	for _, f := range files {
+		additions += f.Added
+		deletions += f.Deleted
+	}
+	return &CommitRecord{
+		Hash:           hash,
+		ShortHash:      hash[:7],
+		RepoName:       repoName,
+		AuthorName:     authorName,
+		AuthorEmail:    authorEmail,
+		AuthorDate:     date,
+		CommitterName:  authorName,
+		CommitterEmail: authorEmail,
+		CommitterDate:  date,
+		Subject:        message,
+		Additions:      additions,
+		Deletions:      deletions,
+		FilesChanged:   len(files),
+		Author:         authorName,
+		Message:        message,
+		Date:           date,
 	}
 }
 

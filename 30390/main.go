@@ -164,18 +164,52 @@ Exit Codes:
 
 func parseGlobalFlags(args []string) (*globalFlags, []string) {
 	gf := &globalFlags{}
-	fs := flag.NewFlagSet("global", flag.ContinueOnError)
 
-	fs.StringVar(&gf.config, "config", "", "config file path")
-	fs.StringVar(&gf.output, "output", "", "output directory")
-	fs.BoolVar(&gf.verbose, "verbose", false, "verbose logging")
-	fs.BoolVar(&gf.verbose, "v", false, "verbose logging (short)")
-	fs.BoolVar(&gf.help, "help", false, "show help")
-	fs.BoolVar(&gf.help, "h", false, "show help (short)")
+	globalFlags := map[string]bool{
+		"-config": true, "--config": true,
+		"-output": true, "--output": true,
+		"-verbose": true, "--verbose": true,
+		"-v": true,
+		"-help": true, "--help": true,
+		"-h": true,
+	}
 
-	fs.SetOutput(os.Stderr)
-	_ = fs.Parse(args)
-	return gf, fs.Args()
+	var remaining []string
+	i := 0
+	for i < len(args) {
+		arg := args[i]
+		if globalFlags[arg] {
+			switch arg {
+			case "-config", "--config":
+				if i+1 < len(args) {
+					gf.config = args[i+1]
+					i += 2
+				} else {
+					i++
+				}
+			case "-output", "--output":
+				if i+1 < len(args) {
+					gf.output = args[i+1]
+					i += 2
+				} else {
+					i++
+				}
+			case "-verbose", "--verbose", "-v":
+				gf.verbose = true
+				i++
+			case "-help", "--help", "-h":
+				gf.help = true
+				i++
+			default:
+				remaining = append(remaining, arg)
+				i++
+			}
+		} else {
+			remaining = append(remaining, arg)
+			i++
+		}
+	}
+	return gf, remaining
 }
 
 func expandArgs(args []string) []string {
@@ -462,7 +496,7 @@ Examples:
 		return 1
 	}
 
-	fmt.Println(color.GreenString("✓ Report generated: %s"), path)
+	fmt.Println(color.GreenString("✓ Report generated: %s", path))
 	return 0
 }
 
@@ -783,18 +817,18 @@ func printSummaryStats(stats []storage.RepoStats, alerts []storage.AlertRecord) 
 	fmt.Fprintln(w, "\nREPOSITORY\tHEALTH\tSILENT DAYS\tALERTS")
 	for _, s := range stats {
 		level := git.HealthLevel(s.HealthLevel)
-		healthColor := color.NewStringFunc(color.FgGreen)
+		healthColor := color.New(color.FgGreen).SprintFunc()
 		if level == git.HealthWarning {
-			healthColor = color.NewStringFunc(color.FgYellow)
+			healthColor = color.New(color.FgYellow).SprintFunc()
 		} else if level == git.HealthCritical {
-			healthColor = color.NewStringFunc(color.FgRed)
+			healthColor = color.New(color.FgRed).SprintFunc()
 		}
 
-		silentColor := color.NewStringFunc(color.FgWhite)
+		silentColor := color.New(color.FgWhite).SprintFunc()
 		if s.SilentDays >= 60 {
-			silentColor = color.NewStringFunc(color.FgRed)
+			silentColor = color.New(color.FgRed).SprintFunc()
 		} else if s.SilentDays >= 30 {
-			silentColor = color.NewStringFunc(color.FgYellow)
+			silentColor = color.New(color.FgYellow).SprintFunc()
 		}
 
 		alertCount := 0

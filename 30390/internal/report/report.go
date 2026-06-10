@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
 	"github.com/gitmon/gitmon/internal/analyzer"
 	"github.com/gitmon/gitmon/internal/storage"
@@ -46,11 +47,11 @@ func New(an *analyzer.Analyzer, store *storage.Store) *Generator {
 		analyzer: an,
 		store:    store,
 	}
-	g.loadTemplates()
+	_ = g.loadTemplates()
 	return g
 }
 
-func (g *Generator) loadTemplates() {
+func (g *Generator) loadTemplates() error {
 	tmplDir := "templates"
 	if _, err := os.Stat(tmplDir); os.IsNotExist(err) {
 		_ = os.MkdirAll(tmplDir, 0755)
@@ -104,9 +105,10 @@ func (g *Generator) loadTemplates() {
 	if err != nil {
 		log.Printf("load templates failed: %v", err)
 		g.tmpl = nil
-		return
+		return err
 	}
 	g.tmpl = tmpl
+	return nil
 }
 
 func (g *Generator) Generate(cfg ReportConfig) (string, error) {
@@ -297,11 +299,19 @@ func (g *Generator) generatePDF(data *ReportData, outputDir string) (string, err
 		chromedp.Navigate(fileURL),
 		chromedp.WaitReady("body", chromedp.ByQuery),
 		chromedp.Sleep(1*time.Second),
-		chromedp.PrintToPDF(&pdfBuf, chromedp.WithPrintToPDFParams(
-			chromedp.PaperSize(8.5, 11),
-			chromedp.Margin(0.4, 0.4, 0.4, 0.4),
-			chromedp.PrintBackground(true),
-		)),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			var err error
+			pdfBuf, _, err = page.PrintToPDF().
+				WithPaperWidth(8.5).
+				WithPaperHeight(11).
+				WithMarginTop(0.4).
+				WithMarginBottom(0.4).
+				WithMarginLeft(0.4).
+				WithMarginRight(0.4).
+				WithPrintBackground(true).
+				Do(ctx)
+			return err
+		}),
 	); err != nil {
 		return "", fmt.Errorf("chromedp print to pdf: %w", err)
 	}

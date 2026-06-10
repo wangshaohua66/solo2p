@@ -385,8 +385,12 @@ func (n *DingtalkNotifier) post(msg interface{}) error {
 	}
 
 	url := n.WebhookURL
-	if sign, ok := msg["sign"].(string); ok && sign != "" {
-		url = fmt.Sprintf("%s&timestamp=%d&sign=%s", n.WebhookURL, msg["timestamp"].(int64), sign)
+	if msgMap, ok := msg.(map[string]interface{}); ok {
+		if sign, ok := msgMap["sign"].(string); ok && sign != "" {
+			if timestamp, ok := msgMap["timestamp"].(int64); ok {
+				url = fmt.Sprintf("%s&timestamp=%d&sign=%s", n.WebhookURL, timestamp, sign)
+			}
+		}
 	}
 
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(body))

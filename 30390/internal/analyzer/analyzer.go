@@ -496,8 +496,8 @@ func (a *Analyzer) calculateRiskScore(churnCount int, complexity float64, lines 
 	return math.Round(score*100) / 100
 }
 
-func (a *Analyzer) scanTechDebt(ctx context.Context, client *git.Client, commits []git.Commit, repoName string) []storage.TechDebtItem {
-	var items []storage.TechDebtItem
+func (a *Analyzer) scanTechDebt(ctx context.Context, client *git.Client, commits []git.Commit, repoName string) []*storage.TechDebtItem {
+	var items []*storage.TechDebtItem
 	patterns := a.cfg.Analyzer.TechDebtPatterns
 
 	fileSet := make(map[string]bool)

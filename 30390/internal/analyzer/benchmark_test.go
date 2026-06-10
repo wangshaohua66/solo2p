@@ -175,7 +175,7 @@ func BenchmarkTechDebtScanWithBlame(b *testing.B) {
 
 		for _, item := range items {
 			if item.Author == "" || item.Email == "" {
-				b.Errorf("TechDebtItem missing Author/Email: %+v", item)
+				b.Errorf("TechDebtItem missing Author/Email: %+v", *item)
 			}
 		}
 	}

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitMon Repository Analysis Report</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1f2937; background: #f9fafb; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; border-radius: 8px; margin: 1rem; }
+        .header h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+        .header p { opacity: 0.9; }
+        .content { padding: 1rem; max-width: 1400px; margin: 0 auto; }
+        .section { background: white; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .section h2 { color: #374151; margin-bottom: 1rem; font-size: 1.25rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+        .stat-card { background: #f3f4f6; padding: 1rem; border-radius: 8px; text-align: center; }
+        .stat-card .value { font-size: 1.75rem; font-weight: bold; color: #6366f1; }
+        .stat-card .label { font-size: 0.875rem; color: #6b7280; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th { background: #f3f4f6; text-align: left; padding: 0.75rem; font-weight: 600; border-bottom: 2px solid #e5e7eb; }
+        td { padding: 0.75rem; border-bottom: 1px solid #e5e7eb; }
+        tr:hover { background: #f9fafb; }
+        .health-good { color: #10b981; }
+        .health-warning { color: #f59e0b; }
+        .health-critical { color: #ef4444; }
+        .badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; color: white; }
+        .badge-good { background: #10b981; }
+        .badge-warning { background: #f59e0b; }
+        .badge-critical { background: #ef4444; }
+        .mono { font-family: 'SF Mono', Monaco, monospace; font-size: 0.8125rem; }
+        .chart-container { width: 100%; height: 300px; margin-top: 1rem; }
+        .heatmap-grid { display: grid; grid-template-columns: repeat(90, 1fr); gap: 2px; margin-top: 1rem; }
+        .heatmap-cell { width: 12px; height: 12px; border-radius: 2px; background: #ebedf0; }
+        .heatmap-cell[data-level="1"] { background: #c6e48b; }
+        .heatmap-cell[data-level="2"] { background: #7bc96f; }
+        .heatmap-cell[data-level="3"] { background: #239a3b; }
+        .heatmap-cell[data-level="4"] { background: #196127; }
+        .heatmap-cell[data-level="5"] { background: #0a4019; }
+        @media print { body { background: white; } .header { background: #4f46e5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } .section { page-break-inside: avoid; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>GitMon Repository Analysis Report</h1>
+        <p>Generated: 2026-06-10 08:32:39 | Repositories: 0 | Alerts: 0</p>
+    </div>
+
+    <div class="content">
+        <div class="section">
+            <h2>Executive Summary</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="value">0</div>
+                    <div class="label">Total Repositories</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value health-good">0</div>
+                    <div class="label">Healthy</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value health-warning">0</div>
+                    <div class="label">Warning</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value health-critical">0</div>
+                    <div class="label">Critical</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value">0</div>
+                    <div class="label">Total Commits</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value">0</div>
+                    <div class="label">Total Contributors</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Repository Health Scores</h2>
+            <div class="chart-container" id="healthChart"></div>
+        </div>
+
+        <div class="section">
+            <h2>Commit Activity</h2>
+            <div class="chart-container" id="commitsChart"></div>
+        </div>
+
+        <div class="section">
+            <h2>Alert Distribution</h2>
+            <div class="chart-container" id="alertsChart"></div>
+        </div>
+
+        
+
+        <div class="section">
+            <h2>Repository Summary</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Repository</th>
+                        <th>Health</th>
+                        <th>Score</th>
+                        <th>Commits</th>
+                        <th>Contributors</th>
+                        <th>Files</th>
+                        <th>Lines of Code</th>
+                        <th>Silent Days</th>
+                        <th>Last Commit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>Technical Debt by Pattern</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Pattern</th>
+                        <th>Count</th>
+                        <th>Repository</th>
+                        <th>File</th>
+                        <th>Line</th>
+                        <th>Content</th>
+                        <th>Author</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>Active Alerts</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Level</th>
+                        <th>Type</th>
+                        <th>Repository</th>
+                        <th>Title</th>
+                        <th>Message</th>
+                        <th>Owner</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script>
+        const statsData = JSON.parse("null");
+        const alertsData = JSON.parse("null");
+        const reposData = JSON.parse("null");
+
+        function renderHealthChart() {
+            const chart = echarts.init(document.getElementById('healthChart'));
+            const sorted = [...statsData].sort((a, b) => b.health_score - a.health_score);
+            const colors = sorted.map(s => s.health_level === 'good' ? '#10b981' : s.health_level === 'warning' ? '#f59e0b' : '#ef4444');
+            chart.setOption({
+                title: { text: 'Health Scores by Repository', left: 'center' },
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                xAxis: { type: 'category', data: sorted.map(s => s.repo_name), axisLabel: { rotate: 45 } },
+                yAxis: { type: 'value', max: 100 },
+                series: [{
+                    type: 'bar',
+                    data: sorted.map((s, i) => ({ value: s.health_score, itemStyle: { color: colors[i] } })),
+                    label: { show: true, position: 'top' }
+                }]
+            });
+        }
+
+        function renderCommitsChart() {
+            const chart = echarts.init(document.getElementById('commitsChart'));
+            const sorted = [...statsData].sort((a, b) => b.total_commits - a.total_commits);
+            chart.setOption({
+                title: { text: 'Total Commits by Repository', left: 'center' },
+                tooltip: { trigger: 'axis' },
+                xAxis: { type: 'category', data: sorted.map(s => s.repo_name), axisLabel: { rotate: 45 } },
+                yAxis: { type: 'value' },
+                series: [{
+                    type: 'line',
+                    data: sorted.map(s => s.total_commits),
+                    smooth: true,
+                    areaStyle: { opacity: 0.3 }
+                }]
+            });
+        }
+
+        function renderAlertsChart() {
+            const chart = echarts.init(document.getElementById('alertsChart'));
+            const typeMap = {};
+            alertsData.forEach(a => { if (!a.resolved) typeMap[a.type] = (typeMap[a.type] || 0) + 1; });
+            const data = Object.entries(typeMap).map(([name, value]) => ({ name, value }));
+            chart.setOption({
+                title: { text: 'Alert Type Distribution', left: 'center' },
+                tooltip: { trigger: 'item', formatter: '{b}: {c}' },
+                legend: { orient: 'vertical', left: 'left' },
+                series: [{
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    data: data,
+                    label: { formatter: '{b}: {c}' }
+                }]
+            });
+        }
+
+        renderHealthChart();
+        renderCommitsChart();
+        renderAlertsChart();
+
+        window.addEventListener('resize', () => {
+            echarts.getInstanceByDom(document.getElementById('healthChart')).resize();
+            echarts.getInstanceByDom(document.getElementById('commitsChart')).resize();
+            echarts.getInstanceByDom(document.getElementById('alertsChart')).resize();
+        });
+    </script>
+</body>
+</html>

@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 type RepoConfig struct {
@@ -26,10 +28,10 @@ type ScanConfig struct {
 }
 
 type AlertConfig struct {
-	SilentDays          int      `yaml:"silent_days"`
-	ComplexityThreshold int      `yaml:"complexity_threshold"`
-	NotifyTargets       []string `yaml:"notify_targets"`
-	NotifyChannels      []string `yaml:"notify_channels"`
+	SilentDays          int       `yaml:"silent_days"`
+	ComplexityThreshold float64   `yaml:"complexity_threshold"`
+	NotifyTargets       []string  `yaml:"notify_targets"`
+	NotifyChannels      []string  `yaml:"notify_channels"`
 }
 
 type ServerConfig struct {
@@ -55,6 +57,16 @@ type DingtalkConfig struct {
 type AnalyzerConfig struct {
 	TechDebtPatterns []string `yaml:"tech_debt_patterns"`
 	ChurnWindow      int      `yaml:"churn_window"`
+	MaxCommitsPerRepo int     `yaml:"max_commits_per_repo"`
+}
+
+type StorageConfig struct {
+	DBPath string `yaml:"db_path"`
+}
+
+type ReportConfig struct {
+	OutputDir string `yaml:"output_dir"`
+	Template  string `yaml:"template"`
 }
 
 type Config struct {
@@ -64,6 +76,8 @@ type Config struct {
 	Server   ServerConfig   `yaml:"server"`
 	Notify   NotifyConfig   `yaml:"notify"`
 	Analyzer AnalyzerConfig `yaml:"analyzer"`
+	Storage  StorageConfig  `yaml:"storage"`
+	Report   ReportConfig   `yaml:"report"`
 	Database string         `yaml:"database"`
 	DataDir  string         `yaml:"data_dir"`
 }
@@ -90,7 +104,7 @@ func DefaultConfig() *Config {
 		},
 		Alert: AlertConfig{
 			SilentDays:          90,
-			ComplexityThreshold: 15,
+			ComplexityThreshold: 15.0,
 		},
 		Server: ServerConfig{
 			Host: "localhost",
@@ -99,6 +113,13 @@ func DefaultConfig() *Config {
 		Analyzer: AnalyzerConfig{
 			TechDebtPatterns: []string{"TODO", "FIXME", "HACK", "XXX", "BUG", "OPTIMIZE"},
 			ChurnWindow:      90,
+			MaxCommitsPerRepo: 100000,
+		},
+		Storage: StorageConfig{
+			DBPath: filepath.Join(dataDir, "gitmon.db"),
+		},
+		Report: ReportConfig{
+			OutputDir: filepath.Join(dataDir, "reports"),
 		},
 		Database: filepath.Join(dataDir, "gitmon.db"),
 		DataDir:  dataDir,
@@ -140,8 +161,12 @@ func (c *Config) Validate() error {
 	if c.Alert.SilentDays < 1 {
 		return errors.New("alert silent days must be at least 1")
 	}
-	if c.Alert.ComplexityThreshold < 1 {
+	if c.Alert.ComplexityThreshold < 1.0 {
 		return errors.New("complexity threshold must be at least 1")
 	}
 	return nil
+}
+
+func (c *Config) ToYAML() ([]byte, error) {
+	return yaml.Marshal(c)
 }

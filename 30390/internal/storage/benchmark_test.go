@@ -1,9 +1,7 @@
 package storage
 
 import (
-	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -14,7 +12,7 @@ func setupTestDB(b *testing.B) *Store {
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
 
-	store, err := New(dbPath)
+	store, err := Open(dbPath)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -45,7 +43,7 @@ func generateRepoRecords(count int) []RepoRecord {
 func generateCommitRecords(repoName string, count int) []CommitRecord {
 	var commits []CommitRecord
 	for i := 0; i < count; i++ {
-		commit := NewCommitRecord(
+		commit := NewCommitRecordWithFields(
 			fmt.Sprintf("commit-%s-%d", repoName, i),
 			repoName,
 			fmt.Sprintf("Test Author %d", i%10),
@@ -54,7 +52,7 @@ func generateCommitRecords(repoName string, count int) []CommitRecord {
 			fmt.Sprintf("Commit message %d", i),
 			[]GitFile{{Path: fmt.Sprintf("file-%d.go", i%20), Added: 10, Deleted: 5}},
 		)
-		commits = append(commits, commit)
+		commits = append(commits, *commit)
 	}
 	return commits
 }
@@ -71,7 +69,8 @@ func BenchmarkSaveRepos50(b *testing.B) {
 		start := time.Now()
 
 		for _, repo := range repos {
-			if err := store.SaveRepo(&repo); err != nil {
+			repoCopy := repo
+			if err := store.SaveRepo(&repoCopy); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -96,7 +95,7 @@ func BenchmarkSaveCommits10K(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		start := time.Now()
 
-		if err := store.SaveCommits("test-repo", commits); err != nil {
+		if err := store.SaveCommits(commits); err != nil {
 			b.Fatal(err)
 		}
 
@@ -110,7 +109,8 @@ func BenchmarkGetAllRepos(b *testing.B) {
 
 	repos := generateRepoRecords(50)
 	for _, repo := range repos {
-		if err := store.SaveRepo(&repo); err != nil {
+		repoCopy := repo
+		if err := store.SaveRepo(&repoCopy); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -144,7 +144,7 @@ func BenchmarkGetCommitsByRepo10K(b *testing.B) {
 	}
 
 	commits := generateCommitRecords("test-repo", 10000)
-	if err := store.SaveCommits("test-repo", commits); err != nil {
+	if err := store.SaveCommits(commits); err != nil {
 		b.Fatal(err)
 	}
 
@@ -175,7 +175,7 @@ func BenchmarkGetContributorsByRepo(b *testing.B) {
 	}
 
 	commits := generateCommitRecords("test-repo", 5000)
-	if err := store.SaveCommits("test-repo", commits); err != nil {
+	if err := store.SaveCommits(commits); err != nil {
 		b.Fatal(err)
 	}
 
@@ -193,30 +193,33 @@ func BenchmarkGetContributorsByRepo(b *testing.B) {
 	}
 }
 
-func BenchmarkConcurrentWrites(b *testing.B) {
+func BenchmarkSaveTechDebt(b *testing.B) {
 	store := setupTestDB(b)
 	defer store.Close()
 
-	ctx := context.Background()
+	var items []*TechDebtItem
+	for i := 0; i < 1000; i++ {
+		item := NewTechDebtItem(
+			"test-repo",
+			fmt.Sprintf("file-%d.go", i),
+			i+1,
+			"TODO",
+			fmt.Sprintf("TODO: fix issue %d", i),
+			"Test Author",
+			"test@example.com",
+		)
+		items = append(items, item)
+	}
 
 	b.ResetTimer()
 
-	b.RunParallel(func(pb *testing.PB) {
-		i := 0
-		for pb.Next() {
-			repoName := fmt.Sprintf("repo-%d", i%10)
-			repo := RepoRecord{
-				Name:         repoName,
-				Path:         fmt.Sprintf("/path/to/%s", repoName),
-				CommitCount:  i,
-				Contributors: 5,
-				FilesCount:   50,
-				LastCommit:   time.Now(),
-			}
-			if err := store.SaveRepo(&repo); err != nil {
-				b.Error(err)
-			}
-			i++
+	for n := 0; n < b.N; n++ {
+		start := time.Now()
+
+		if err := store.SaveTechDebt(items); err != nil {
+			b.Fatal(err)
 		}
-	})
+
+		b.ReportMetric(float64(time.Since(start).Milliseconds()), "ms")
+	}
 }
