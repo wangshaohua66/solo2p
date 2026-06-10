@@ -233,7 +233,7 @@
         var userOptions = ev.participants.map(p =>
           `<option value="${p.userId}" ${g.broughtByUserId === p.userId ? 'selected' : ''}>${CampHub.util.escapeHtml((p.user || {}).nickname || '用户')}</option>`
         ).join('');
-        html += `<tr class="${!g.checked && !g.broughtByUserId ? 'table-warning' : ''}">
+        html += `<tr class="${!g.checked && !g.broughtByUserId ? 'table-warning' : ''}" data-key="${g.key || ''}" data-gearid="${g.gearId || ''}">
           <td data-label=""><input type="checkbox" class="form-check-input gear-checked" ${g.checked ? 'checked' : ''} data-cat="${cat}" data-idx="${i}" /></td>
           <td data-label="名称"><input type="text" class="form-control form-control-sm gear-name border-0 bg-transparent" value="${CampHub.util.escapeHtml(g.name)}" data-cat="${cat}" data-idx="${i}" /></td>
           <td data-label="数量"><input type="number" class="form-control form-control-sm gear-qty" min="1" value="${g.quantity}" data-cat="${cat}" data-idx="${i}" /></td>
@@ -258,7 +258,7 @@
         <div class="table-responsive"><table class="table table-sm align-middle table-card-mobile">
           <thead><tr><th style="width:36px;"></th><th>名称</th><th style="width:90px;">数量</th><th style="width:70px;">单位</th><th>负责人</th><th style="width:50px;"></th></tr></thead><tbody>`;
       byCategory[cat].forEach((p, i) => {
-        html += `<tr class="${p.purchased ? 'table-success' : ''}">
+        html += `<tr class="${p.purchased ? 'table-success' : ''}" data-key="${p.key || ''}">
           <td data-label=""><input type="checkbox" class="form-check-input p-purchased" ${p.purchased ? 'checked' : ''} data-cat="${cat}" data-idx="${i}" /></td>
           <td data-label="名称"><input class="form-control form-control-sm border-0 bg-transparent p-name" value="${CampHub.util.escapeHtml(p.name)}" data-cat="${cat}" data-idx="${i}" /></td>
           <td data-label="数量"><input type="number" class="form-control form-control-sm p-qty" min="1" value="${p.quantity}" data-cat="${cat}" data-idx="${i}" /></td>
@@ -358,11 +358,11 @@
         CampHub.ui.confirm(`系统根据「${reco.basedOnEventTitle || '历史数据'}」（相似度 ${(reco.similarity*100).toFixed(0)}%）推荐了 ${reco.gearList.length} 项装备和 ${reco.purchaseList.length} 项采购，是否替换当前清单？`).then(ok => {
           if (!ok) return;
           ev.gearList = reco.gearList.map(g => ({
-            gearId: null, name: g.name, category: g.category, quantity: g.quantity,
+            key: CampHub.util.uuid(), gearId: null, name: g.name, category: g.category, quantity: g.quantity,
             broughtByUserId: null, checked: false
           }));
           ev.purchaseList = reco.purchaseList.map(p => ({
-            name: p.name, category: p.category, quantity: p.quantity, unit: p.unit,
+            key: CampHub.util.uuid(), name: p.name, category: p.category, quantity: p.quantity, unit: p.unit,
             assignedToUserId: null, purchased: false
           }));
           renderGearList();
@@ -376,7 +376,7 @@
     $('#saveGearBtn').on('click', function () {
       collectGearFromUI();
       var dtos = ev.gearList.map(g => ({
-        gearId: g.gearId, name: g.name, category: g.category, quantity: g.quantity,
+        key: g.key, gearId: g.gearId, name: g.name, category: g.category, quantity: g.quantity,
         broughtByUserId: g.broughtByUserId, checked: g.checked
       }));
       CampHub.ajax.put(`/event/${eventId}/gearlist`, dtos).then(function () {
@@ -386,11 +386,11 @@
     });
 
     $('#addGearBtn').on('click', () => {
-      ev.gearList.push({ name: '新装备', category: '其他', quantity: 1, checked: false, broughtByUserId: null });
+      ev.gearList.push({ key: CampHub.util.uuid(), name: '新装备', category: '其他', quantity: 1, checked: false, broughtByUserId: null, gearId: null });
       renderGearList();
     });
     $('#addPurchaseBtn').on('click', () => {
-      ev.purchaseList.push({ name: '新采购项', category: '食物', quantity: 1, unit: '份', purchased: false });
+      ev.purchaseList.push({ key: CampHub.util.uuid(), name: '新采购项', category: '食物', quantity: 1, unit: '份', purchased: false, assignedToUserId: null });
       renderPurchaseList();
     });
 
@@ -458,6 +458,17 @@
   function collectGearFromUI() {
     var $c = $('#gearListContainer');
     var byCategory = {};
+    $c.find('tbody tr').each(function () {
+      var $tr = $(this);
+      var key = $tr.data('key') || CampHub.util.uuid();
+      var gearId = $tr.data('gearid') || null;
+      var cat = $tr.find('.gear-name').data('cat');
+      var idx = parseInt($tr.find('.gear-name').data('idx'), 10);
+      if (!byCategory[cat]) byCategory[cat] = {};
+      if (!byCategory[cat][idx]) byCategory[cat][idx] = { key: key, gearId: gearId };
+      byCategory[cat][idx].key = key;
+      byCategory[cat][idx].gearId = gearId;
+    });
     $c.find('.gear-name').each(function () {
       var cat = $(this).data('cat'), idx = parseInt($(this).data('idx'), 10);
       if (!byCategory[cat]) byCategory[cat] = {};
@@ -486,7 +497,15 @@
     Object.keys(byCategory).forEach(cat => {
       Object.keys(byCategory[cat]).forEach(idx => {
         var it = byCategory[cat][idx];
-        newList.push({ category: cat, name: it.name || '(未命名)', quantity: it.quantity || 1, broughtByUserId: it.broughtByUserId || null, checked: !!it.checked });
+        newList.push({
+          key: it.key || CampHub.util.uuid(),
+          gearId: it.gearId || null,
+          category: cat,
+          name: it.name || '(未命名)',
+          quantity: it.quantity || 1,
+          broughtByUserId: it.broughtByUserId || null,
+          checked: !!it.checked
+        });
       });
     });
     ev.gearList = newList;

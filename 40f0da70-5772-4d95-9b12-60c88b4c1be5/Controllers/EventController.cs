@@ -121,11 +121,13 @@ public class EventController : ControllerBase
             uid, req.Destination, start, ev.Participants.Count, req.Title);
         ev.GearList = reco.GearList.Select(g => new EventGear
         {
+            Key = Guid.NewGuid().ToString("N"),
             Name = g.Name, Category = g.Category,
             Quantity = g.Quantity, Checked = false
         }).ToList();
         ev.PurchaseList = reco.PurchaseList.Select(p => new PurchaseItem
         {
+            Key = Guid.NewGuid().ToString("N"),
             Name = p.Name, Category = p.Category,
             Quantity = p.Quantity, Unit = p.Unit
         }).ToList();

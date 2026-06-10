@@ -1031,6 +1031,41 @@ input.error, select.error { border-color: var(--ch-danger); }
     font-size: 0.82rem;
   }
   .table-card-mobile td:first-child::before { top: 0.3rem; }
+
+  .ch-credit-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.5rem !important;
+    padding: 1rem !important;
+    border-radius: var(--ch-radius) !important;
+    box-shadow: var(--ch-shadow-sm) !important;
+    background: var(--ch-surface) !important;
+    margin-bottom: 0.75rem !important;
+  }
+  .ch-credit-row > div:last-child {
+    align-self: flex-end !important;
+    text-align: right !important;
+  }
+
+  .ch-heatmap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .ch-heatmap-cell, .ch-heatmap-header {
+    min-width: 32px !important;
+    font-size: 0.65rem !important;
+  }
+  .ch-heatmap-header {
+    max-width: 60px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #creditHistoryChart {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 1rem !important;
+  }
 }
 
 /* ===== Scrollbar ===== */

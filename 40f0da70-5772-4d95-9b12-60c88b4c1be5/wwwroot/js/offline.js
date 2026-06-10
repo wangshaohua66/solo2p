@@ -108,7 +108,7 @@
           if (item.baseVersion) {
             payload = payload && typeof payload === 'object' ? Object.assign({}, payload) : {};
             payload.baseVersion = item.baseVersion;
-            if (!payload.version) payload.version = item.baseVersion;
+            payload.version = item.baseVersion;
           }
           var serverResult = await CampHub.ajax.request(item.method, item.endpoint, payload, { skipOfflineQueue: true });
           await removeOutboxItem(item.id);
@@ -120,12 +120,13 @@
           if (isConflict && !item.conflictResolved) {
             item.conflictResolved = 'lastWrite';
             item.baseVersion = (item.baseVersion || 1) + 1;
-            if (item.data && typeof item.data === 'object') item.data._forceLww = true;
+            if (item.data && typeof item.data === 'object') item.data.forceLastWriteWins = true;
             await updateOutboxItem(item.id, item);
             try {
               var payload2 = item.data && typeof item.data === 'object' ? Object.assign({}, item.data) : {};
               payload2.baseVersion = item.baseVersion;
-              payload2._forceLww = true;
+              payload2.version = item.baseVersion;
+              payload2.forceLastWriteWins = true;
               var retryResult = await CampHub.ajax.request(item.method, item.endpoint, payload2, { skipOfflineQueue: true });
               await removeOutboxItem(item.id);
               results.push({ id: item.id, success: true, conflict: true, serverResult: retryResult });
