@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"path/filepath"
 	"sync"
 
 	apperrors "github.com/remote-sensing/sentinel-cli/internal/errors"
 	"github.com/remote-sensing/sentinel-cli/internal/types"
+	"github.com/remote-sensing/sentinel-cli/internal/util"
 )
 
 const (
@@ -111,8 +111,8 @@ func validateSevenParams(params types.SevenParams) error {
 func getDefaultParams(sourceEPSG, targetEPSG int) types.SevenParams {
 	key := fmt.Sprintf("%d_to_%d", sourceEPSG, targetEPSG)
 	paramsMap := map[string]types.SevenParams{
-		"4326_to_4490":  {DX: 0, DY: 0, DZ: 0, RX: 0, RY: 0, RZ: 0, DS: 0},
-		"4490_to_4326":  {DX: 0, DY: 0, DZ: 0, RX: 0, RY: 0, RZ: 0, DS: 0},
+		"4326_to_4490":  {DX: -26.7, DY: 69.5, DZ: 33.9, RX: 0.0, RY: 0.0, RZ: 0.0, DS: 0.0},
+		"4490_to_4326":  {DX: 26.7, DY: -69.5, DZ: -33.9, RX: 0.0, RY: 0.0, RZ: 0.0, DS: 0.0},
 		"4326_to_4214":  {DX: -13.5, DY: -129.5, DZ: -76.8, RX: 0.0, RY: 0.0, RZ: 0.0, DS: 0.0},
 		"4214_to_4326":  {DX: 13.5, DY: 129.5, DZ: 76.8, RX: 0.0, RY: 0.0, RZ: 0.0, DS: 0.0},
 		"4326_to_4610":  {DX: -10.5, DY: -118.5, DZ: -63.5, RX: 0.0, RY: 0.0, RZ: 0.0, DS: 0.0},
@@ -131,7 +131,7 @@ func getDefaultParams(sourceEPSG, targetEPSG int) types.SevenParams {
 }
 
 func (t *CRSTransformer) loadNTv2Grid(filePath string) error {
-	expandedPath := expandPath(filePath)
+	expandedPath := util.ExpandPath(filePath)
 	if _, err := os.Stat(expandedPath); os.IsNotExist(err) {
 		return apperrors.Wrap(err, apperrors.E2004, fmt.Sprintf("NTv2 grid file not found: %s", filePath))
 	}
@@ -180,15 +180,6 @@ func (t *CRSTransformer) loadNTv2Grid(filePath string) error {
 	}
 	t.ntv2Grid = grid
 	return nil
-}
-
-func expandPath(path string) string {
-	if len(path) > 0 && path[0] == '~' {
-		if home, err := os.UserHomeDir(); err == nil {
-			path = filepath.Join(home, path[1:])
-		}
-	}
-	return path
 }
 
 func (t *CRSTransformer) Transform(coord Coordinate) (Coordinate, error) {
@@ -444,26 +435,84 @@ func (t *CRSTransformer) TransformChunk(chunk *types.Chunk, sourceMetadata *type
 	gt := sourceMetadata.GeoTransform
 	rows := chunk.Height
 	cols := chunk.Width
-	transformedData := make([][]float64, len(data))
-	for b := range data {
-		transformedData[b] = make([]float64, rows*cols)
-		copy(transformedData[b], data[b])
+	totalPixels := rows * cols
+
+	cornerCoords := []struct{ row, col int }{
+		{0, 0},
+		{0, cols - 1},
+		{rows - 1, 0},
+		{rows - 1, cols - 1},
 	}
-	for row := 0; row < rows; row++ {
-		absRow := chunk.OffsetY + row
+	transformedCorners := make([]Coordinate, 4)
+	for i, c := range cornerCoords {
+		absRow := chunk.OffsetY + c.row
+		absCol := chunk.OffsetX + c.col
+		x := gt.OriginX + float64(absCol)*gt.PixelWidth + gt.PixelWidth/2
 		y := gt.OriginY + float64(absRow)*gt.PixelHeight + gt.PixelHeight/2
-		for col := 0; col < cols; col++ {
-			absCol := chunk.OffsetX + col
-			x := gt.OriginX + float64(absCol)*gt.PixelWidth + gt.PixelWidth/2
-			coord := Coordinate{Latitude: y, Longitude: x}
-			_, err := t.Transform(coord)
-			if err != nil {
-				continue
-			}
+		coord := Coordinate{Latitude: y, Longitude: x}
+		transformed, err := t.Transform(coord)
+		if err != nil {
+			transformedCorners[i] = coord
+		} else {
+			transformedCorners[i] = transformed
 		}
 	}
+
+	minX := transformedCorners[0].Longitude
+	maxX := transformedCorners[0].Longitude
+	minY := transformedCorners[0].Latitude
+	maxY := transformedCorners[0].Latitude
+	for _, c := range transformedCorners[1:] {
+		if c.Longitude < minX { minX = c.Longitude }
+		if c.Longitude > maxX { maxX = c.Longitude }
+		if c.Latitude < minY { minY = c.Latitude }
+		if c.Latitude > maxY { maxY = c.Latitude }
+	}
+
+	newGT := types.GeoTransform{
+		OriginX:     minX,
+		OriginY:     maxY,
+		PixelWidth:  (maxX - minX) / float64(cols),
+		PixelHeight: (minY - maxY) / float64(rows),
+		RotationX:   0,
+		RotationY:   0,
+	}
+
+	transformedData := make([][]float64, len(data))
+	for b := range data {
+		transformedData[b] = make([]float64, totalPixels)
+	}
+
+	for i := 0; i < totalPixels; i++ {
+		row := i / cols
+		col := i % cols
+		absRow := chunk.OffsetY + row
+		absCol := chunk.OffsetX + col
+		x := gt.OriginX + float64(absCol)*gt.PixelWidth + gt.PixelWidth/2
+		y := gt.OriginY + float64(absRow)*gt.PixelHeight + gt.PixelHeight/2
+		coord := Coordinate{Latitude: y, Longitude: x}
+		transformed, err := t.Transform(coord)
+		if err != nil {
+			transformed = coord
+		}
+
+		newColFloat := (transformed.Longitude - newGT.OriginX) / newGT.PixelWidth
+		newRowFloat := (transformed.Latitude - newGT.OriginY) / newGT.PixelHeight
+		newCol := int(math.Max(0, math.Min(float64(cols-1), math.Round(newColFloat))))
+		newRow := int(math.Max(0, math.Min(float64(rows-1), math.Round(newRowFloat))))
+		newIdx := newRow*cols + newCol
+
+		for b := range data {
+			transformedData[b][newIdx] = data[b][i]
+		}
+	}
+
 	resultChunk := *chunk
 	resultChunk.Data = transformedData
+	if chunk.GeoTransform == nil {
+		chunk.GeoTransform = &types.GeoTransform{}
+	}
+	*chunk.GeoTransform = newGT
 	return &resultChunk, nil
 }
 

@@ -6,21 +6,24 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/remote-sensing/sentinel-cli/internal/config"
 	apperrors "github.com/remote-sensing/sentinel-cli/internal/errors"
 	appio "github.com/remote-sensing/sentinel-cli/internal/io"
 	"github.com/remote-sensing/sentinel-cli/internal/log"
 	"github.com/remote-sensing/sentinel-cli/internal/types"
+	"github.com/remote-sensing/sentinel-cli/internal/util"
 )
 
 var (
-	inspectInputPath   string
-	inspectOutputPath  string
-	inspectFormat      string
+	inspectInputPath     string
+	inspectOutputPath    string
+	inspectFormat        string
 	inspectShowHistogram bool
-	inspectShowBands   bool
+	inspectShowBands     bool
 )
 
 var inspectCmd = &cobra.Command{
@@ -99,7 +102,7 @@ func validateInspectTileFlags() error {
 		return err
 	}
 
-	info, err := os.Stat(expandPath(inspectInputPath))
+	info, err := os.Stat(util.ExpandPath(inspectInputPath))
 	if err != nil {
 		return err
 	}
@@ -120,46 +123,61 @@ func validateInspectTileFlags() error {
 }
 
 type TileReport struct {
-	FilePath      string              `json:"file_path"`
-	FileSize      int64               `json:"file_size"`
-	FileSizeHuman string              `json:"file_size_human"`
-	SHA256        string              `json:"sha256"`
-	Projection    string              `json:"projection"`
-	EPSGCode      int                 `json:"epsg_code"`
-	Width         int                 `json:"width"`
-	Height        int                 `json:"height"`
-	ResolutionX   float64             `json:"resolution_x"`
-	ResolutionY   float64             `json:"resolution_y"`
-	GeoTransform  types.GeoTransform  `json:"geo_transform"`
-	NumBands      int                 `json:"num_bands"`
-	NoDataValue   *float64            `json:"no_data_value,omitempty"`
-	DataType      string              `json:"data_type"`
-	Compression   string              `json:"compression"`
-	Bands         []BandReport        `json:"bands,omitempty"`
-	GeneratedAt   string              `json:"generated_at"`
+	FilePath      string             `json:"file_path"`
+	FileSize      int64              `json:"file_size"`
+	FileSizeHuman string             `json:"file_size_human"`
+	SHA256        string             `json:"sha256"`
+	Projection    string             `json:"projection"`
+	EPSGCode      int                `json:"epsg_code"`
+	Width         int                `json:"width"`
+	Height        int                `json:"height"`
+	ResolutionX   float64            `json:"resolution_x"`
+	ResolutionY   float64            `json:"resolution_y"`
+	GeoTransform  types.GeoTransform `json:"geo_transform"`
+	NumBands      int                `json:"num_bands"`
+	NoDataValue   *float64           `json:"no_data_value,omitempty"`
+	DataType      string             `json:"data_type"`
+	Compression   string             `json:"compression"`
+	Bands         []BandReport       `json:"bands,omitempty"`
+	GeneratedAt   string             `json:"generated_at"`
 }
 
 type BandReport struct {
-	Index        int      `json:"index"`
-	Name         string   `json:"name"`
-	Description  string   `json:"description"`
-	DataType     string   `json:"data_type"`
-	NoDataValue  *float64 `json:"no_data_value,omitempty"`
-	MinValue     float64  `json:"min_value"`
-	MaxValue     float64  `json:"max_value"`
-	MeanValue    float64  `json:"mean_value"`
-	StdDev       float64  `json:"std_dev"`
-	WavelengthMin float64 `json:"wavelength_min,omitempty"`
-	WavelengthMax float64 `json:"wavelength_max,omitempty"`
-	Histogram    []uint64 `json:"histogram,omitempty"`
+	Index         int      `json:"index"`
+	Name          string   `json:"name"`
+	Description   string   `json:"description"`
+	DataType      string   `json:"data_type"`
+	NoDataValue   *float64 `json:"no_data_value,omitempty"`
+	MinValue      float64  `json:"min_value"`
+	MaxValue      float64  `json:"max_value"`
+	MeanValue     float64  `json:"mean_value"`
+	StdDev        float64  `json:"std_dev"`
+	WavelengthMin float64  `json:"wavelength_min,omitempty"`
+	WavelengthMax float64  `json:"wavelength_max,omitempty"`
+	Histogram     []uint64 `json:"histogram,omitempty"`
 }
 
 func runInspectTile() error {
-	inputPath := expandPath(inspectInputPath)
+	inputPath := util.ExpandPath(inspectInputPath)
 
 	metadata, err := appio.ReadMetadata(inputPath)
 	if err != nil {
 		return err
+	}
+
+	if metadata.SensorType != "" && metadata.SensorType != types.SensorUnknown {
+		indexTypes := []string{"ndvi", "evi", "savi"}
+		for _, indexType := range indexTypes {
+			if formula, ok := config.GetIndexFormula(metadata.SensorType, indexType); ok {
+				validation := config.ValidateBandCombination(metadata.SensorType, formula)
+				if !validation.Valid {
+					fmt.Fprintf(os.Stderr, "警告: %s 波段组合验证失败 | Warning: %s band combination validation failed:\n", strings.ToUpper(indexType), strings.ToUpper(indexType))
+					for _, e := range validation.Errors {
+						fmt.Fprintf(os.Stderr, "  - %s: %s\n", e.Field, e.Message)
+					}
+				}
+			}
+		}
 	}
 
 	sha256, err := log.ComputeFileSHA256(inputPath)
@@ -249,7 +267,7 @@ func runInspectTile() error {
 		DataType:      metadata.DataType,
 		Compression:   metadata.Compression,
 		Bands:         bandReports,
-		GeneratedAt:   "2026-06-11T00:00:00Z",
+		GeneratedAt:   time.Now().UTC().Format(time.RFC3339),
 	}
 
 	var output string
@@ -266,7 +284,7 @@ func runInspectTile() error {
 	}
 
 	if inspectOutputPath != "" {
-		outputPath := expandPath(inspectOutputPath)
+		outputPath := util.ExpandPath(inspectOutputPath)
 		dir := filepath.Dir(outputPath)
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return apperrors.Wrap(err, apperrors.E1005,

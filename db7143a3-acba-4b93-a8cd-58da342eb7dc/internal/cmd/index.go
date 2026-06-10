@@ -12,9 +12,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/remote-sensing/sentinel-cli/internal/config"
+	apperrors "github.com/remote-sensing/sentinel-cli/internal/errors"
 	appio "github.com/remote-sensing/sentinel-cli/internal/io"
 	"github.com/remote-sensing/sentinel-cli/internal/types"
-	apperrors "github.com/remote-sensing/sentinel-cli/internal/errors"
+	"github.com/remote-sensing/sentinel-cli/internal/util"
 )
 
 var (
@@ -309,7 +310,7 @@ func getFormula(sensorType types.SensorType, indexType string) (string, error) {
 }
 
 func runIndexCalculation(indexType string) error {
-	inputInfo, err := os.Stat(expandPath(indexInputPath))
+	inputInfo, err := os.Stat(util.ExpandPath(indexInputPath))
 	if err != nil {
 		return err
 	}
@@ -326,7 +327,7 @@ func runIndexCalculation(indexType string) error {
 					indexInputPath, indexInputPath))
 		}
 	} else {
-		files = []string{expandPath(indexInputPath)}
+		files = []string{util.ExpandPath(indexInputPath)}
 	}
 
 	fmt.Printf("正在计算 %d 个文件的 %s 指数\n", len(files), strings.ToUpper(indexType))
@@ -368,7 +369,7 @@ func runIndexCalculation(indexType string) error {
 }
 
 func generateIndexOutputPath(inputFile, inputPath, outputPath string, inputIsDir bool, indexType string) string {
-	expandedOutput := expandPath(outputPath)
+	expandedOutput := util.ExpandPath(outputPath)
 	base := filepath.Base(inputFile)
 	ext := filepath.Ext(base)
 	name := strings.TrimSuffix(base, ext)
@@ -385,7 +386,7 @@ func generateIndexOutputPath(inputFile, inputPath, outputPath string, inputIsDir
 		return filepath.Join(filepath.Dir(expandedOutput), fmt.Sprintf("%s%s%s", name, suffix, ext))
 	}
 
-	relPath, err := filepath.Rel(expandPath(inputPath), inputFile)
+	relPath, err := filepath.Rel(util.ExpandPath(inputPath), inputFile)
 	if err != nil {
 		return filepath.Join(expandedOutput, fmt.Sprintf("%s%s%s", name, suffix, ext))
 	}

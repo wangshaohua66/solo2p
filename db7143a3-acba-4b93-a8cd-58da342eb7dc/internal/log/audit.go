@@ -15,6 +15,7 @@ import (
 
 	apperrors "github.com/remote-sensing/sentinel-cli/internal/errors"
 	"github.com/remote-sensing/sentinel-cli/internal/types"
+	"github.com/remote-sensing/sentinel-cli/internal/util"
 )
 
 type AuditLogger struct {
@@ -44,7 +45,7 @@ func GetAuditLogger(cfg types.LoggingConfig) (*AuditLogger, error) {
 }
 
 func newAuditLogger(cfg types.LoggingConfig) (*AuditLogger, error) {
-	expandedPath := expandPath(cfg.AuditLogPath)
+	expandedPath := util.ExpandPath(cfg.AuditLogPath)
 	dir := filepath.Dir(expandedPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, apperrors.Wrap(err, apperrors.E1005, fmt.Sprintf("cannot create audit log directory: %s", dir))
@@ -66,15 +67,6 @@ func newAuditLogger(cfg types.LoggingConfig) (*AuditLogger, error) {
 		maxBackups:  cfg.AuditLogMaxBackups,
 		currentSize: fileInfo.Size(),
 	}, nil
-}
-
-func expandPath(path string) string {
-	if len(path) > 0 && path[0] == '~' {
-		if home, err := os.UserHomeDir(); err == nil {
-			path = filepath.Join(home, path[1:])
-		}
-	}
-	return path
 }
 
 func (a *AuditLogger) Log(entry types.AuditLogEntry) error {
@@ -147,7 +139,7 @@ func (a *AuditLogger) Close() error {
 }
 
 func ComputeFileSHA256(filePath string) (string, error) {
-	expandedPath := expandPath(filePath)
+	expandedPath := util.ExpandPath(filePath)
 	file, err := os.Open(expandedPath)
 	if err != nil {
 		return "", apperrors.Wrap(err, apperrors.E4001, fmt.Sprintf("cannot open file for SHA256: %s", filePath))
@@ -226,7 +218,7 @@ func LogChunkProgress(logger zerolog.Logger, taskID string, chunkIndex, totalChu
 }
 
 func GenerateReportJSON(tasks []*types.Task, outputPath string) error {
-	expandedPath := expandPath(outputPath)
+	expandedPath := util.ExpandPath(outputPath)
 	dir := filepath.Dir(expandedPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return apperrors.Wrap(err, apperrors.E1005, fmt.Sprintf("cannot create report directory: %s", dir))

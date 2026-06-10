@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
@@ -22,6 +23,7 @@ import (
 	"github.com/remote-sensing/sentinel-cli/internal/pipeline"
 	"github.com/remote-sensing/sentinel-cli/internal/store"
 	"github.com/remote-sensing/sentinel-cli/internal/types"
+	"github.com/remote-sensing/sentinel-cli/internal/util"
 )
 
 var (
@@ -291,6 +293,8 @@ func runFileWatcher(ctx context.Context, logger zerolog.Logger, watchDir string,
 	taskType types.TaskType, dbStore *store.BoltStore, engine *pipeline.PipelineEngine,
 	seenFiles map[string]time.Time, seenFilesMu *sync.Mutex) error {
 
+	watchDir = util.ExpandPath(watchDir)
+
 	logger.Info().
 		Str("watch_dir", watchDir).
 		Str("task_type", string(taskType)).
@@ -307,6 +311,10 @@ func runFileWatcher(ctx context.Context, logger zerolog.Logger, watchDir string,
 		return err
 	}
 
+	if daemonUseFSNotify {
+		return runFSNotifyWatcher(ctx, logger, watchDir, taskType, dbStore, engine, seenFiles, seenFilesMu, extMap)
+	}
+
 	ticker := time.NewTicker(time.Duration(daemonPollInterval) * time.Millisecond)
 	defer ticker.Stop()
 
@@ -319,6 +327,93 @@ func runFileWatcher(ctx context.Context, logger zerolog.Logger, watchDir string,
 			if err := scanForNewFiles(ctx, logger, watchDir, taskType, dbStore, engine, seenFiles, seenFilesMu, extMap); err != nil {
 				logger.Error().Err(err).Msg("file scan error")
 			}
+		}
+	}
+}
+
+func runFSNotifyWatcher(ctx context.Context, logger zerolog.Logger, watchDir string,
+	taskType types.TaskType, dbStore *store.BoltStore, engine *pipeline.PipelineEngine,
+	seenFiles map[string]time.Time, seenFilesMu *sync.Mutex, extMap map[string]bool) error {
+
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return apperrors.Wrap(err, apperrors.E6003, "cannot create fsnotify watcher")
+	}
+	defer watcher.Close()
+
+	if err := watcher.Add(watchDir); err != nil {
+		return apperrors.Wrap(err, apperrors.E6003,
+			fmt.Sprintf("cannot add watch directory: %s", watchDir))
+	}
+
+	logger.Info().Msg("fsnotify event watcher started")
+
+	pendingFiles := make(map[string]time.Time)
+	var pendingMu sync.Mutex
+
+	debounceTimer := time.NewTicker(2 * time.Second)
+	defer debounceTimer.Stop()
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case event, ok := <-watcher.Events:
+				if !ok {
+					return
+				}
+				if event.Op&(fsnotify.Create|fsnotify.Rename) == 0 {
+					continue
+				}
+				ext := strings.ToLower(filepath.Ext(event.Name))
+				if !extMap[ext] {
+					continue
+				}
+				pendingMu.Lock()
+				pendingFiles[event.Name] = time.Now()
+				pendingMu.Unlock()
+				logger.Debug().Str("file", event.Name).Str("op", event.Op.String()).Msg("file event detected")
+			case err, ok := <-watcher.Errors:
+				if !ok {
+					return
+				}
+				logger.Error().Err(err).Msg("fsnotify watcher error")
+			}
+		}
+	}()
+
+	for {
+		select {
+		case <-ctx.Done():
+			logger.Info().Msg("fsnotify watcher stopping")
+			return nil
+		case <-debounceTimer.C:
+			pendingMu.Lock()
+			now := time.Now()
+			for path, firstSeen := range pendingFiles {
+				if now.Sub(firstSeen) < 2*time.Second {
+					continue
+				}
+				info, err := os.Stat(path)
+				if err != nil {
+					delete(pendingFiles, path)
+					continue
+				}
+				if info.Size() == 0 {
+					continue
+				}
+				seenFilesMu.Lock()
+				if _, seen := seenFiles[path]; !seen {
+					seenFiles[path] = now
+					seenFilesMu.Unlock()
+					go processNewFile(ctx, logger, path, taskType, dbStore, engine)
+				} else {
+					seenFilesMu.Unlock()
+				}
+				delete(pendingFiles, path)
+			}
+			pendingMu.Unlock()
 		}
 	}
 }

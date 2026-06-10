@@ -12,6 +12,7 @@ import (
 	"github.com/remote-sensing/sentinel-cli/internal/config"
 	apperrors "github.com/remote-sensing/sentinel-cli/internal/errors"
 	"github.com/remote-sensing/sentinel-cli/internal/types"
+	"github.com/remote-sensing/sentinel-cli/internal/util"
 )
 
 var (
@@ -134,7 +135,7 @@ func validateConfigInitFlags() error {
 	}
 
 	if !configInitForce {
-		expandedPath := expandPath(configInitOutput)
+		expandedPath := util.ExpandPath(configInitOutput)
 		if _, err := os.Stat(expandedPath); err == nil {
 			return apperrors.New(apperrors.E1005,
 				fmt.Sprintf("文件已存在: %s，使用 --force 强制覆盖 | File already exists: %s, use --force to overwrite",
@@ -160,7 +161,7 @@ func runConfigInit() error {
 		}
 	}
 
-	expandedPath := expandPath(configInitOutput)
+	expandedPath := util.ExpandPath(configInitOutput)
 	dir := filepath.Dir(expandedPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return apperrors.Wrap(err, apperrors.E1005,
@@ -392,7 +393,7 @@ func generateConfigWithComments(cfg *types.Config) string {
 }
 
 func validateConfigValidateFlags() error {
-	expandedPath := expandPath(configValidateInput)
+	expandedPath := util.ExpandPath(configValidateInput)
 	if _, err := os.Stat(expandedPath); os.IsNotExist(err) {
 		return apperrors.Wrap(err, apperrors.E4001,
 			fmt.Sprintf("配置文件不存在: %s | Config file not found: %s", configValidateInput, configValidateInput))
@@ -401,7 +402,7 @@ func validateConfigValidateFlags() error {
 }
 
 func runConfigValidate() error {
-	expandedPath := expandPath(configValidateInput)
+	expandedPath := util.ExpandPath(configValidateInput)
 	data, err := os.ReadFile(expandedPath)
 	if err != nil {
 		return apperrors.Wrap(err, apperrors.E5001,

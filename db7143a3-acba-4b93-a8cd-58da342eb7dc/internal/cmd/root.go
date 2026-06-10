@@ -19,10 +19,10 @@ var (
 	GitCommit = "none"
 	BuildDate = "unknown"
 
-	cfgFiles    []string
-	dbPath      string
-	verbose     bool
-	quiet       bool
+	cfgFiles      []string
+	dbPath        string
+	verbose       bool
+	quiet         bool
 	maxConcurrent int
 
 	AppConfig *types.Config
@@ -70,6 +70,8 @@ Supports processing of multi-source remote sensing data including Sentinel-2, La
 	SilenceUsage:  false,
 	SilenceErrors: false,
 	PreRunE: func(cmd *cobra.Command, args []string) error {
+		parseCombinedShortFlags()
+
 		if err := loadConfiguration(); err != nil {
 			return err
 		}
@@ -246,6 +248,22 @@ func printVersion() {
 	fmt.Printf("  Build Date: %s\n", BuildDate)
 	fmt.Printf("  Go Version: %s\n", strings.TrimPrefix(os.Getenv("GOVERSION"), "go"))
 	fmt.Printf("  OS/Arch:    %s/%s\n", os.Getenv("GOOS"), os.Getenv("GOARCH"))
+}
+
+func parseCombinedShortFlags() {
+	var newArgs []string
+	for i := 0; i < len(os.Args); i++ {
+		arg := os.Args[i]
+		if idx := strings.Index(arg, "=-"); idx != -1 {
+			flags := arg[idx+2:]
+			for j := 0; j < len(flags); j++ {
+				newArgs = append(newArgs, "-"+string(flags[j]))
+			}
+		} else {
+			newArgs = append(newArgs, arg)
+		}
+	}
+	os.Args = newArgs
 }
 
 func Execute() {

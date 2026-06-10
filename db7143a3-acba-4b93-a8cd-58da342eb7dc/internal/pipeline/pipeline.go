@@ -4,11 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -18,10 +15,12 @@ import (
 
 	apperrors "github.com/remote-sensing/sentinel-cli/internal/errors"
 	"github.com/remote-sensing/sentinel-cli/internal/crs"
+	"github.com/remote-sensing/sentinel-cli/internal/formula"
 	"github.com/remote-sensing/sentinel-cli/internal/io"
 	"github.com/remote-sensing/sentinel-cli/internal/log"
 	"github.com/remote-sensing/sentinel-cli/internal/store"
 	"github.com/remote-sensing/sentinel-cli/internal/types"
+	"github.com/remote-sensing/sentinel-cli/internal/util"
 
 	"github.com/rs/zerolog"
 )
@@ -465,7 +464,42 @@ func (w *Worker) processTask(ctx context.Context, task *types.Task) error {
 	return nil
 }
 
+func (w *Worker) checkChunkMemory(chunk *types.Chunk, meta *types.GeoTIFFMetadata, task *types.Task) error {
+	memoryLimitGB := w.engine.config.Pipeline.MemoryLimitGB
+	if memoryLimitGB <= 0 {
+		memoryLimitGB = 1.5
+	}
+	memoryLimitBytes := int64(memoryLimitGB * 1024 * 1024 * 1024)
+
+	rows := chunk.Height
+	cols := chunk.Width
+	numBands := meta.NumBands
+	bytesPerPixel := 8
+
+	inputBytes := int64(rows) * int64(cols) * int64(numBands) * int64(bytesPerPixel)
+	var outputBands int
+	switch {
+	case task.Type == types.TaskTypeConvertCRS:
+		outputBands = numBands
+	default:
+		outputBands = 1
+	}
+	outputBytes := int64(rows) * int64(cols) * int64(outputBands) * int64(bytesPerPixel)
+	overheadBytes := int64(10 * 1024 * 1024)
+
+	totalRequired := inputBytes + outputBytes + overheadBytes
+	if totalRequired > memoryLimitBytes {
+		return apperrors.New(apperrors.E1004,
+			fmt.Sprintf("chunk memory required %.2f MB exceeds limit %.2f MB, reduce chunk size or increase MemoryLimitGB",
+				float64(totalRequired)/1024/1024, float64(memoryLimitBytes)/1024/1024))
+	}
+	return nil
+}
+
 func (w *Worker) processChunk(ctx context.Context, chunk *types.Chunk, task *types.Task, meta *types.GeoTIFFMetadata) (*types.Chunk, error) {
+	if err := w.checkChunkMemory(chunk, meta, task); err != nil {
+		return nil, err
+	}
 	switch task.Type {
 	case types.TaskTypeConvertCRS:
 		crsConfig, ok := task.Config.(types.CRSTransformConfig)
@@ -533,13 +567,13 @@ func (w *Worker) calculateVegetationIndex(chunk *types.Chunk, config types.Veget
 	if !ok {
 		return nil, apperrors.New(apperrors.E1001, "invalid chunk data format")
 	}
-	bandMap := w.buildBandMap(meta)
-	formula := config.Formula
-	if formula == "" {
+	bandMap := formula.BuildBandMap(meta)
+	formulaStr := config.Formula
+	if formulaStr == "" {
 		f, _ := w.getIndexFormula(meta.SensorType, config.IndexType)
-		formula = f
+		formulaStr = f
 	}
-	parsed := w.parseFormula(formula, bandMap)
+	parsed := formula.Tokenize(formulaStr, bandMap)
 	rows := chunk.Height
 	cols := chunk.Width
 	numPixels := rows * cols
@@ -552,127 +586,11 @@ func (w *Worker) calculateVegetationIndex(chunk *types.Chunk, config types.Veget
 				values[bandKey] = data[bandIdx][i]
 			}
 		}
-		resultData[0][i] = w.evaluateFormula(parsed, values, config.NoDataValue)
+		resultData[0][i] = formula.Evaluate(parsed, values, config.NoDataValue)
 	}
 	resultChunk := *chunk
 	resultChunk.Data = resultData
 	return &resultChunk, nil
-}
-
-func (w *Worker) buildBandMap(meta *types.GeoTIFFMetadata) map[string]int {
-	bandMap := make(map[string]int)
-	for i, band := range meta.Bands {
-		key := fmt.Sprintf("B%d", band.Index)
-		bandMap[key] = i
-		altKey := fmt.Sprintf("b%d", band.Index)
-		bandMap[altKey] = i
-	}
-	return bandMap
-}
-
-type formulaToken struct {
-	Type  string
-	Value string
-	Op    rune
-	Num   float64
-	Band  string
-}
-
-func (w *Worker) parseFormula(formula string, bandMap map[string]int) []formulaToken {
-	var tokens []formulaToken
-	re := regexp.MustCompile(`([Bb]\d+[Aa]?|\d+\.?\d*|[+\-*/()])`)
-	matches := re.FindAllString(formula, -1)
-	for _, match := range matches {
-		switch {
-		case strings.ContainsAny(match, "+-*/()"):
-			tokens = append(tokens, formulaToken{Type: "op", Op: rune(match[0])})
-		case regexp.MustCompile(`^[Bb]\d`).MatchString(match):
-			upper := strings.ToUpper(match)
-			if _, ok := bandMap[upper]; ok {
-				tokens = append(tokens, formulaToken{Type: "band", Band: upper})
-			}
-		default:
-			if num, err := strconv.ParseFloat(match, 64); err == nil {
-				tokens = append(tokens, formulaToken{Type: "num", Num: num})
-			}
-		}
-	}
-	return tokens
-}
-
-func (w *Worker) evaluateFormula(tokens []formulaToken, values map[string]float64, noData float64) float64 {
-	if len(tokens) == 0 {
-		return noData
-	}
-	var output []formulaToken
-	var opStack []rune
-	precedence := map[rune]int{'(': 0, ')': 0, '+': 1, '-': 1, '*': 2, '/': 2}
-	for _, tok := range tokens {
-		switch tok.Type {
-		case "num", "band":
-			output = append(output, tok)
-		case "op":
-			if tok.Op == '(' {
-				opStack = append(opStack, tok.Op)
-			} else if tok.Op == ')' {
-				for len(opStack) > 0 && opStack[len(opStack)-1] != '(' {
-					output = append(output, formulaToken{Type: "op", Op: opStack[len(opStack)-1]})
-					opStack = opStack[:len(opStack)-1]
-				}
-				if len(opStack) > 0 {
-					opStack = opStack[:len(opStack)-1]
-				}
-			} else {
-				for len(opStack) > 0 && precedence[opStack[len(opStack)-1]] >= precedence[tok.Op] && opStack[len(opStack)-1] != '(' {
-					output = append(output, formulaToken{Type: "op", Op: opStack[len(opStack)-1]})
-					opStack = opStack[:len(opStack)-1]
-				}
-				opStack = append(opStack, tok.Op)
-			}
-		}
-	}
-	for len(opStack) > 0 {
-		output = append(output, formulaToken{Type: "op", Op: opStack[len(opStack)-1]})
-		opStack = opStack[:len(opStack)-1]
-	}
-	var stack []float64
-	for _, tok := range output {
-		switch tok.Type {
-		case "num":
-			stack = append(stack, tok.Num)
-		case "band":
-			if v, ok := values[tok.Band]; ok {
-				stack = append(stack, v)
-			} else {
-				stack = append(stack, noData)
-			}
-		case "op":
-			if len(stack) < 2 {
-				return noData
-			}
-			b := stack[len(stack)-1]
-			a := stack[len(stack)-2]
-			stack = stack[:len(stack)-2]
-			switch tok.Op {
-			case '+':
-				stack = append(stack, a+b)
-			case '-':
-				stack = append(stack, a-b)
-			case '*':
-				stack = append(stack, a*b)
-			case '/':
-				if b == 0 || math.IsNaN(a) || math.IsNaN(b) {
-					stack = append(stack, noData)
-				} else {
-					stack = append(stack, a/b)
-				}
-			}
-		}
-	}
-	if len(stack) == 1 {
-		return stack[0]
-	}
-	return noData
 }
 
 func (w *Worker) saveCheckpoint(taskID string, chunkIndex int, bytesProcessed int64) error {
@@ -734,7 +652,7 @@ func CalculateThroughputMBs(processedBytes int64, elapsed time.Duration) float64
 
 func FindFiles(root string, recursive bool, extensions []string) ([]string, error) {
 	var files []string
-	root = expandPath(root)
+	root = util.ExpandPath(root)
 	if _, err := os.Stat(root); os.IsNotExist(err) {
 		return nil, apperrors.Wrap(err, apperrors.E4001, fmt.Sprintf("directory not found: %s", root))
 	}
@@ -767,15 +685,6 @@ func FindFiles(root string, recursive bool, extensions []string) ([]string, erro
 		}
 	}
 	return files, nil
-}
-
-func expandPath(path string) string {
-	if len(path) > 0 && path[0] == '~' {
-		if home, err := os.UserHomeDir(); err == nil {
-			path = filepath.Join(home, path[1:])
-		}
-	}
-	return path
 }
 
 func CreateTaskFromFile(filePath string, taskType types.TaskType, config interface{}, priority, maxRetries int) *types.Task {

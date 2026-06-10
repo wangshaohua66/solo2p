@@ -19,35 +19,35 @@ import (
 )
 
 var (
-	green    = lipgloss.Color("#04B575")
-	red      = lipgloss.Color("#FF5555")
-	yellow   = lipgloss.Color("#F1FA8C")
-	blue     = lipgloss.Color("#569CD6")
-	purple   = lipgloss.Color("#C586C0")
-	gray     = lipgloss.Color("#808080")
-	bg       = lipgloss.Color("#1E1E1E")
-	lightBg  = lipgloss.Color("#2D2D30")
+	green   = lipgloss.Color("#04B575")
+	red     = lipgloss.Color("#FF5555")
+	yellow  = lipgloss.Color("#F1FA8C")
+	blue    = lipgloss.Color("#569CD6")
+	purple  = lipgloss.Color("#C586C0")
+	gray    = lipgloss.Color("#808080")
+	bg      = lipgloss.Color("#1E1E1E")
+	lightBg = lipgloss.Color("#2D2D30")
 )
 
 type DashboardModel struct {
-	store       *store.BoltStore
-	logger      zerolog.Logger
-	stats       types.PipelineStats
-	tasks       []*types.Task
+	store         *store.BoltStore
+	logger        zerolog.Logger
+	stats         types.PipelineStats
+	tasks         []*types.Task
 	filteredTasks []*types.Task
-	selectedTask int
-	filterMode  string
-	table       table.Model
-	viewport    viewport.Model
-	progress    progress.Model
-	width       int
-	height      int
-	lastUpdate  time.Time
-	refreshChan chan tea.Msg
-	mu          sync.RWMutex
-	showHelp    bool
-	scrollOffset int
-	maxTasks    int
+	selectedTask  int
+	filterMode    string
+	table         table.Model
+	viewport      viewport.Model
+	progress      progress.Model
+	width         int
+	height        int
+	lastUpdate    time.Time
+	refreshChan   chan tea.Msg
+	mu            sync.RWMutex
+	showHelp      bool
+	scrollOffset  int
+	maxTasks      int
 }
 
 type StatsMsg struct {
@@ -201,6 +201,21 @@ func (m *DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.selectedTask = len(m.filteredTasks) - 1
 			m.table.GotoBottom()
 		}
+	case tea.MouseMsg:
+		const (
+			wheelUp   = 4
+			wheelDown = 5
+		)
+		mev := msg
+		if mev.Button == wheelUp {
+			if m.scrollOffset > 0 {
+				m.scrollOffset--
+			}
+		} else if mev.Button == wheelDown {
+			if m.scrollOffset < max(0, len(m.filteredTasks)-10) {
+				m.scrollOffset++
+			}
+		}
 	case TickMsg:
 		return m, tea.Batch(tickCmd(), m.refreshData())
 	case StatsMsg:
@@ -328,7 +343,17 @@ func (m *DashboardModel) View() string {
 		m.filterMode, len(m.filteredTasks), len(m.tasks))
 	sb.WriteString(lipgloss.NewStyle().Foreground(gray).Render(filterInfo))
 	sb.WriteString("\n\n")
-	sb.WriteString(m.table.View())
+	if m.filterMode != "all" && len(m.filteredTasks) == 0 {
+		noTasksStyle := lipgloss.NewStyle().
+			Foreground(yellow).
+			Bold(true).
+			Align(lipgloss.Center).
+			Width(m.width - 4)
+		sb.WriteString(noTasksStyle.Render("无匹配任务 | No matching tasks"))
+		sb.WriteString("\n\n")
+	} else {
+		sb.WriteString(m.table.View())
+	}
 	sb.WriteString("\n\n")
 	if m.selectedTask >= 0 && m.selectedTask < len(m.filteredTasks) {
 		task := m.filteredTasks[m.selectedTask]
@@ -483,8 +508,8 @@ func (m *DashboardModel) renderHelp() string {
 		{"a", "Show all tasks"},
 		{"s", "Show failed tasks"},
 		{"p", "Show pending tasks"},
-		{"r", "Retry selected task"},
-		{"R", "Force retry selected task"},
+		{"r", "Retry selected (soft reset)"},
+		{"R", "Force retry selected (clear errors)"},
 		{"h/?", "Toggle help"},
 		{"q/ctrl+c", "Quit"},
 	}

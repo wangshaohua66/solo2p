@@ -14,19 +14,20 @@ import (
 
 	apperrors "github.com/remote-sensing/sentinel-cli/internal/errors"
 	"github.com/remote-sensing/sentinel-cli/internal/types"
+	"github.com/remote-sensing/sentinel-cli/internal/util"
 )
 
 var (
-	bucketTasks    = []byte("tasks")
-	bucketStatus   = []byte("status")
+	bucketTasks       = []byte("tasks")
+	bucketStatus      = []byte("status")
 	bucketCheckpoints = []byte("checkpoints")
-	bucketAudit    = []byte("audit")
+	bucketAudit       = []byte("audit")
 )
 
 type BoltStore struct {
-	db     *bbolt.DB
-	path   string
-	mu     sync.RWMutex
+	db   *bbolt.DB
+	path string
+	mu   sync.RWMutex
 }
 
 func init() {
@@ -36,7 +37,7 @@ func init() {
 }
 
 func NewBoltStore(path string) (*BoltStore, error) {
-	expandedPath := expandPath(path)
+	expandedPath := util.ExpandPath(path)
 	dir := filepath.Dir(expandedPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, apperrors.Wrap(err, apperrors.E3001, fmt.Sprintf("cannot create database directory: %s", dir))
@@ -58,15 +59,6 @@ func NewBoltStore(path string) (*BoltStore, error) {
 		return nil, err
 	}
 	return store, nil
-}
-
-func expandPath(path string) string {
-	if len(path) > 0 && path[0] == '~' {
-		if home, err := os.UserHomeDir(); err == nil {
-			path = filepath.Join(home, path[1:])
-		}
-	}
-	return path
 }
 
 func (s *BoltStore) initBuckets() error {

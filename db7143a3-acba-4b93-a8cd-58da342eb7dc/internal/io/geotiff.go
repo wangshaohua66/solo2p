@@ -16,23 +16,78 @@ import (
 	apperrors "github.com/remote-sensing/sentinel-cli/internal/errors"
 	"github.com/remote-sensing/sentinel-cli/internal/log"
 	"github.com/remote-sensing/sentinel-cli/internal/types"
+	"github.com/remote-sensing/sentinel-cli/internal/util"
 )
 
 const (
+	TIFFTagImageWidth        = 256
+	TIFFTagImageLength       = 257
+	TIFFTagBitsPerSample     = 258
+	TIFFTagCompression       = 259
+	TIFFTagPhotometricInterp = 262
+	TIFFTagStripOffsets      = 273
+	TIFFTagSamplesPerPixel   = 277
+	TIFFTagRowsPerStrip      = 278
+	TIFFTagStripByteCounts   = 279
+	TIFFTagXResolution       = 282
+	TIFFTagYResolution       = 283
+	TIFFTagResolutionUnit    = 296
+	TIFFTagSoftware          = 305
+	TIFFTagModelPixelScale   = 33550
+	TIFFTagModelTiepoint     = 33922
+	TIFFTagGeoKeyDirectory   = 34735
+	TIFFTagGeoDoubleParams   = 34736
+	TIFFTagGeoAsciiParams    = 34737
+	TIFFTagModelTransform    = 34264
+	TIFFTagGDALNoData        = 42113
+
+	TIFFTypeByte      = 1
+	TIFFTypeASCII     = 2
+	TIFFTypeShort     = 3
+	TIFFTypeLong      = 4
+	TIFFTypeRational  = 5
+	TIFFTypeDouble    = 12
+	TIFFTypeLong8     = 16
+	TIFFTypeIFD8      = 17
+
 	tiffHeaderSize = 8
 	ifdEntrySize   = 12
 )
 
-type GeoTIFFReader struct {
+type TIFFHeader struct {
+	ByteOrder  binary.ByteOrder
+	Magic      uint16
+	IFDOffset  uint32
+	IsBigTIFF  bool
+	IFDOffset8 uint64
+}
+
+type IFDEntry struct {
+	Tag      uint16
+	Type     uint16
+	Count    uint32
+	Value    uint32
+	Value64  uint64
+	Offset   int64
+}
+
+type GeoTIFF struct {
 	path         string
 	file         *os.File
+	header       TIFFHeader
 	metadata     *types.GeoTIFFMetadata
-	header       []byte
+	ifdEntries   []IFDEntry
 	byteOrder    binary.ByteOrder
 	chunks       []types.Chunk
 	chunkSizeMB  int
 	mu           sync.Mutex
 	currentChunk int
+	imageDataOffset int64
+	imageDataSize  int64
+}
+
+type GeoTIFFReader struct {
+	*GeoTIFF
 }
 
 type GeoTIFFWriter struct {
@@ -43,6 +98,8 @@ type GeoTIFFWriter struct {
 	chunkSizeMB int
 	mu          sync.Mutex
 	written     int
+	header      []byte
+	ifdOffset   int64
 }
 
 type ChunkIterator struct {
@@ -50,8 +107,25 @@ type ChunkIterator struct {
 	index  int
 }
 
+func (g *GeoTIFF) Read() (*types.GeoTIFFMetadata, error) {
+	if err := g.readHeader(); err != nil {
+		return nil, err
+	}
+	if err := g.parseIFD(); err != nil {
+		return nil, err
+	}
+	if err := g.parseMetadata(); err != nil {
+		return nil, err
+	}
+	return g.metadata, nil
+}
+
+func (g *GeoTIFF) GeoTIFF() (*types.GeoTIFFMetadata, error) {
+	return g.metadata, nil
+}
+
 func NewGeoTIFFReader(path string, chunkSizeMB int) (*GeoTIFFReader, error) {
-	expandedPath := expandPath(path)
+	expandedPath := util.ExpandPath(path)
 	if _, err := os.Stat(expandedPath); os.IsNotExist(err) {
 		return nil, apperrors.Wrap(err, apperrors.E4001, fmt.Sprintf("GeoTIFF file not found: %s", path))
 	}
@@ -59,103 +133,353 @@ func NewGeoTIFFReader(path string, chunkSizeMB int) (*GeoTIFFReader, error) {
 	if err != nil {
 		return nil, apperrors.Wrap(err, apperrors.E4001, fmt.Sprintf("cannot open GeoTIFF: %s", path))
 	}
-	r := &GeoTIFFReader{
+	g := &GeoTIFF{
 		path:        expandedPath,
 		file:        file,
 		chunkSizeMB: chunkSizeMB,
 	}
-	if err := r.readHeader(); err != nil {
+	if _, err := g.Read(); err != nil {
 		file.Close()
 		return nil, err
 	}
-	if err := r.parseMetadata(); err != nil {
-		file.Close()
-		return nil, err
-	}
-	r.generateChunks()
-	return r, nil
+	g.generateChunks()
+	return &GeoTIFFReader{GeoTIFF: g}, nil
 }
 
-func expandPath(path string) string {
-	if len(path) > 0 && path[0] == '~' {
-		if home, err := os.UserHomeDir(); err == nil {
-			path = filepath.Join(home, path[1:])
-		}
-	}
-	return path
-}
-
-func (r *GeoTIFFReader) readHeader() error {
-	header := make([]byte, tiffHeaderSize)
-	if _, err := r.file.ReadAt(header, 0); err != nil {
+func (g *GeoTIFF) readHeader() error {
+	headerBytes := make([]byte, tiffHeaderSize)
+	if _, err := g.file.ReadAt(headerBytes, 0); err != nil {
 		return apperrors.Wrap(err, apperrors.E1001, "cannot read TIFF header")
 	}
-	r.header = header
-	if header[0] == 'I' && header[1] == 'I' {
-		r.byteOrder = binary.LittleEndian
-	} else if header[0] == 'M' && header[1] == 'M' {
-		r.byteOrder = binary.BigEndian
+
+	if headerBytes[0] == 'I' && headerBytes[1] == 'I' {
+		g.byteOrder = binary.LittleEndian
+	} else if headerBytes[0] == 'M' && headerBytes[1] == 'M' {
+		g.byteOrder = binary.BigEndian
 	} else {
 		return apperrors.New(apperrors.E1001, "invalid TIFF byte order marker")
 	}
-	magic := r.byteOrder.Uint16(header[2:4])
-	if magic != 42 {
+
+	magic := g.byteOrder.Uint16(headerBytes[2:4])
+	if magic == 42 {
+		g.header.IsBigTIFF = false
+		g.header.IFDOffset = g.byteOrder.Uint32(headerBytes[4:8])
+	} else if magic == 43 {
+		g.header.IsBigTIFF = true
+		if _, err := g.file.ReadAt(headerBytes[8:16], 8); err != nil {
+			return apperrors.Wrap(err, apperrors.E1001, "cannot read BigTIFF header")
+		}
+		g.header.IFDOffset8 = g.byteOrder.Uint64(headerBytes[8:16])
+	} else {
 		return apperrors.New(apperrors.E1001, "invalid TIFF magic number")
 	}
+	g.header.ByteOrder = g.byteOrder
+	g.header.Magic = magic
 	return nil
 }
 
-func (r *GeoTIFFReader) parseMetadata() error {
-	fileInfo, err := r.file.Stat()
+func (g *GeoTIFF) parseIFD() error {
+	var offset int64
+	if g.header.IsBigTIFF {
+		offset = int64(g.header.IFDOffset8)
+	} else {
+		offset = int64(g.header.IFDOffset)
+	}
+
+	if offset == 0 {
+		return apperrors.New(apperrors.E1001, "no IFD found in TIFF file")
+	}
+
+	entrySize := ifdEntrySize
+	if g.header.IsBigTIFF {
+		entrySize = 20
+	}
+
+	countBuf := make([]byte, 2)
+	if g.header.IsBigTIFF {
+		countBuf = make([]byte, 8)
+	}
+	if _, err := g.file.ReadAt(countBuf, offset); err != nil {
+		return apperrors.Wrap(err, apperrors.E1001, "cannot read IFD entry count")
+	}
+
+	var numEntries int
+	if g.header.IsBigTIFF {
+		numEntries = int(g.byteOrder.Uint64(countBuf))
+		offset += 8
+	} else {
+		numEntries = int(g.byteOrder.Uint16(countBuf))
+		offset += 2
+	}
+
+	if numEntries <= 0 || numEntries > 10000 {
+		return apperrors.New(apperrors.E1001, fmt.Sprintf("invalid IFD entry count: %d", numEntries))
+	}
+
+	g.ifdEntries = make([]IFDEntry, 0, numEntries)
+	for i := 0; i < numEntries; i++ {
+		entryBuf := make([]byte, entrySize)
+		if _, err := g.file.ReadAt(entryBuf, offset+int64(i)*int64(entrySize)); err != nil {
+			return apperrors.Wrap(err, apperrors.E1001, "cannot read IFD entry")
+		}
+
+		entry := IFDEntry{}
+		entry.Tag = g.byteOrder.Uint16(entryBuf[0:2])
+		entry.Type = g.byteOrder.Uint16(entryBuf[2:4])
+		if g.header.IsBigTIFF {
+			entry.Count = uint32(g.byteOrder.Uint64(entryBuf[4:12]))
+			entry.Offset = int64(g.byteOrder.Uint64(entryBuf[12:20]))
+		} else {
+			entry.Count = g.byteOrder.Uint32(entryBuf[4:8])
+			entry.Value = g.byteOrder.Uint32(entryBuf[8:12])
+			entry.Offset = int64(entry.Value)
+		}
+		g.ifdEntries = append(g.ifdEntries, entry)
+	}
+
+	return nil
+}
+
+func (g *GeoTIFF) getIFDEntry(tag uint16) (*IFDEntry, bool) {
+	for i := range g.ifdEntries {
+		if g.ifdEntries[i].Tag == tag {
+			return &g.ifdEntries[i], true
+		}
+	}
+	return nil, false
+}
+
+func (g *GeoTIFF) readIFDValue(entry *IFDEntry) ([]byte, error) {
+	typeSize := g.getTypeSize(entry.Type)
+	if typeSize == 0 {
+		return nil, apperrors.New(apperrors.E1001, fmt.Sprintf("unknown TIFF type: %d", entry.Type))
+	}
+
+	totalSize := int64(entry.Count) * int64(typeSize)
+	var offset int64
+	var inline bool
+
+	if g.header.IsBigTIFF {
+		offset = entry.Offset
+		inline = totalSize <= 8
+	} else {
+		inline = totalSize <= 4
+		offset = int64(entry.Value)
+	}
+
+	if inline {
+		buf := make([]byte, 12)
+		if g.header.IsBigTIFF {
+			buf = make([]byte, 20)
+		}
+		binary.LittleEndian.PutUint16(buf[0:2], entry.Tag)
+		binary.LittleEndian.PutUint16(buf[2:4], entry.Type)
+		if g.header.IsBigTIFF {
+			binary.LittleEndian.PutUint64(buf[4:12], uint64(entry.Count))
+			binary.LittleEndian.PutUint64(buf[12:20], uint64(entry.Offset))
+			return buf[12:20], nil
+		}
+		binary.LittleEndian.PutUint32(buf[4:8], entry.Count)
+		binary.LittleEndian.PutUint32(buf[8:12], entry.Value)
+		return buf[8:12], nil
+	}
+
+	buf := make([]byte, totalSize)
+	if _, err := g.file.ReadAt(buf, offset); err != nil {
+		return nil, apperrors.Wrap(err, apperrors.E1001,
+			fmt.Sprintf("cannot read IFD value for tag %d at offset %d", entry.Tag, offset))
+	}
+	return buf, nil
+}
+
+func (g *GeoTIFF) getTypeSize(typ uint16) int {
+	switch typ {
+	case TIFFTypeByte:
+		return 1
+	case TIFFTypeASCII:
+		return 1
+	case TIFFTypeShort:
+		return 2
+	case TIFFTypeLong:
+		return 4
+	case TIFFTypeRational:
+		return 8
+	case TIFFTypeDouble:
+		return 8
+	case TIFFTypeLong8:
+		return 8
+	case TIFFTypeIFD8:
+		return 8
+	default:
+		return 0
+	}
+}
+
+func (g *GeoTIFF) parseMetadata() error {
+	fileInfo, err := g.file.Stat()
 	if err != nil {
 		return apperrors.Wrap(err, apperrors.E1001, "cannot stat file")
 	}
-	sha256, err := log.ComputeFileSHA256(r.path)
+	sha256, err := log.ComputeFileSHA256(g.path)
 	if err != nil {
 		return err
 	}
-	width, height, numBands, dataType, bitsPerSample := r.tryParseDimensions()
+
+	width, height, numBands, bitsPerSample, dataType := g.estimateFromFileSize()
+
+	var epsgCode int
+	var gt types.GeoTransform
+	gt, epsgCode = g.parseGeoKeys()
+
 	if width == 0 {
-		width = 10980
-		height = 10980
-		numBands = 13
-		dataType = "uint16"
-		bitsPerSample = 16
+		if entry, ok := g.getIFDEntry(TIFFTagImageWidth); ok {
+			if data, err := g.readIFDValue(entry); err == nil && len(data) >= 4 {
+				width = int(g.byteOrder.Uint32(data))
+			}
+		}
 	}
-	epsgCode := r.tryParseEPSG()
-	sensorType := detectSensorFromFilename(r.path)
-	gt := types.GeoTransform{
-		OriginX:      300000,
-		PixelWidth:   10,
-		RotationX:    0,
-		OriginY:      5700000,
-		RotationY:    0,
-		PixelHeight:  -10,
+	if height == 0 {
+		if entry, ok := g.getIFDEntry(TIFFTagImageLength); ok {
+			if data, err := g.readIFDValue(entry); err == nil && len(data) >= 4 {
+				height = int(g.byteOrder.Uint32(data))
+			}
+		}
 	}
+	if numBands == 0 {
+		if entry, ok := g.getIFDEntry(TIFFTagSamplesPerPixel); ok {
+			if data, err := g.readIFDValue(entry); err == nil && len(data) >= 2 {
+				numBands = int(g.byteOrder.Uint16(data))
+			}
+		}
+		if numBands == 0 {
+			numBands = 1
+		}
+	}
+	if bitsPerSample == 0 {
+		if entry, ok := g.getIFDEntry(TIFFTagBitsPerSample); ok {
+			if data, err := g.readIFDValue(entry); err == nil && len(data) >= 2 {
+				bitsPerSample = int(g.byteOrder.Uint16(data))
+			}
+		}
+	}
+
+	if dataType == "" {
+		switch bitsPerSample {
+		case 8:
+			dataType = "uint8"
+		case 16:
+			dataType = "uint16"
+		case 32:
+			dataType = "float32"
+		case 64:
+			dataType = "float64"
+		default:
+			dataType = fmt.Sprintf("uint%d", bitsPerSample)
+		}
+	}
+
+	if gt.OriginX == 0 && gt.OriginY == 0 && gt.PixelWidth == 0 && gt.PixelHeight == 0 {
+		gt = types.GeoTransform{
+			OriginX:     300000,
+			PixelWidth:  10,
+			RotationX:   0,
+			OriginY:     5700000,
+			RotationY:   0,
+			PixelHeight: -10,
+		}
+	}
+	if epsgCode == 0 {
+		epsgCode = g.tryParseEPSG()
+	}
+
 	bounds := types.Bounds{
 		MinX: gt.OriginX,
 		MaxX: gt.OriginX + float64(width)*gt.PixelWidth,
 		MinY: gt.OriginY + float64(height)*gt.PixelHeight,
 		MaxY: gt.OriginY,
 	}
+
+	sensorType := detectSensorFromFilename(g.path)
 	bands := make([]types.BandInfo, numBands)
 	for i := 0; i < numBands; i++ {
 		bands[i] = types.BandInfo{
 			Index:       i + 1,
-			Name:        fmt.Sprintf("Band %d", i+1),
-			Description: getBandDescription(sensorType, i+1),
+			Name:        fmt.Sprintf("Band %d", i + 1),
+			Description: getBandDescription(sensorType, i + 1),
 			DataType:    dataType,
 			NoDataValue: floatPtr(0),
 			MinValue:    0,
-			MaxValue:    float64(int(1<<bitsPerSample) - 1),
-			MeanValue:   float64(int(1<<bitsPerSample) / 2),
-			StdDev:      float64(int(1<<bitsPerSample) / 4),
+			MaxValue:    float64(int(1 << bitsPerSample) - 1),
+			MeanValue:   float64(int(1 << bitsPerSample) / 2),
+			StdDev:      float64(int(1 << bitsPerSample) / 4),
 			Histogram:   generateHistogram(256, bitsPerSample),
 		}
 	}
-	compression := r.tryParseCompression()
-	r.metadata = &types.GeoTIFFMetadata{
-		FilePath:      r.path,
+
+	if entry, ok := g.getIFDEntry(TIFFTagGDALNoData); ok {
+		if data, err := g.readIFDValue(entry); err == nil && len(data) > 0 {
+			noDataStr := strings.TrimSpace(string(data))
+			if v, err := strconv.ParseFloat(noDataStr, 64); err == nil {
+				bands[0].NoDataValue = &v
+				for i := 1; i < len(bands); i++ {
+					bands[i].NoDataValue = &v
+				}
+			}
+		}
+	}
+
+	compression := "none"
+	if entry, ok := g.getIFDEntry(TIFFTagCompression); ok {
+		if data, err := g.readIFDValue(entry); err == nil && len(data) >= 2 {
+			comp := g.byteOrder.Uint16(data)
+			switch comp {
+			case 1:
+				compression = "none"
+			case 5:
+				compression = "LZW"
+			case 8:
+				compression = "deflate"
+			case 32773:
+				compression = "packbits"
+			default:
+				compression = fmt.Sprintf("unknown_%d", comp)
+			}
+		}
+	}
+
+	g.imageDataOffset = 0
+	g.imageDataSize = 0
+	if entry, ok := g.getIFDEntry(TIFFTagStripOffsets); ok {
+		if data, err := g.readIFDValue(entry); err == nil && len(data) >= 4 {
+			if entry.Type == TIFFTypeLong && entry.Count >= 1 {
+				g.imageDataOffset = int64(g.byteOrder.Uint32(data))
+			} else if entry.Type == TIFFTypeLong8 && entry.Count >= 1 {
+				g.imageDataOffset = int64(g.byteOrder.Uint64(data))
+			}
+		}
+	}
+	if entry, ok := g.getIFDEntry(TIFFTagStripByteCounts); ok {
+		if data, err := g.readIFDValue(entry); err == nil && len(data) >= 4 {
+			if entry.Type == TIFFTypeLong && entry.Count >= 1 {
+				g.imageDataSize = int64(g.byteOrder.Uint32(data))
+			} else if entry.Type == TIFFTypeLong8 && entry.Count >= 1 {
+				g.imageDataSize = int64(g.byteOrder.Uint64(data))
+			}
+			for i := 1; i < int(entry.Count); i++ {
+				off := i * g.getTypeSize(entry.Type)
+				if off + g.getTypeSize(entry.Type) <= len(data) {
+					if entry.Type == TIFFTypeLong {
+						g.imageDataSize += int64(g.byteOrder.Uint32(data[off:]))
+					} else if entry.Type == TIFFTypeLong8 {
+						g.imageDataSize += int64(g.byteOrder.Uint64(data[off:]))
+					}
+				}
+			}
+		}
+	}
+
+	g.metadata = &types.GeoTIFFMetadata{
+		FilePath:      g.path,
 		FileSize:      fileInfo.Size(),
 		SHA256:        sha256,
 		Width:         width,
@@ -177,72 +501,135 @@ func (r *GeoTIFFReader) parseMetadata() error {
 	return nil
 }
 
-func floatPtr(v float64) *float64 {
-	return &v
-}
+func (g *GeoTIFF) parseGeoKeys() (types.GeoTransform, int) {
+	gt := types.GeoTransform{}
+	epsgCode := 0
 
-func (r *GeoTIFFReader) tryParseDimensions() (width, height, numBands int, dataType string, bitsPerSample int) {
-	patterns := []string{
-		`_(\d+)x(\d+)`,
-		`_(\d+)_(\d+)`,
-		`W(\d+)H(\d+)`,
+	if entry, ok := g.getIFDEntry(TIFFTagModelPixelScale); ok {
+		if data, err := g.readIFDValue(entry); err == nil && len(data) >= 24 {
+			gt.PixelWidth = math.Float64frombits(g.byteOrder.Uint64(data[0:8]))
+			gt.PixelHeight = -math.Float64frombits(g.byteOrder.Uint64(data[8:16]))
+		}
 	}
-	base := filepath.Base(r.path)
-	for _, pattern := range patterns {
-		re := regexp.MustCompile(pattern)
-		if matches := re.FindStringSubmatch(base); len(matches) >= 3 {
-			if w, err := strconv.Atoi(matches[1]); err == nil {
-				if h, err := strconv.Atoi(matches[2]); err == nil {
-					width = w
-					height = h
-					break
+
+	if entry, ok := g.getIFDEntry(TIFFTagModelTiepoint); ok {
+		if data, err := g.readIFDValue(entry); err == nil && len(data) >= 48 {
+			gt.OriginX = math.Float64frombits(g.byteOrder.Uint64(data[24:32]))
+			gt.OriginY = math.Float64frombits(g.byteOrder.Uint64(data[32:40]))
+		}
+	}
+
+	if entry, ok := g.getIFDEntry(TIFFTagModelTransform); ok {
+		if data, err := g.readIFDValue(entry); err == nil && len(data) >= 128 {
+			gt.OriginX = math.Float64frombits(g.byteOrder.Uint64(data[24:32]))
+			gt.OriginY = math.Float64frombits(g.byteOrder.Uint64(data[25:33]))
+			gt.PixelWidth = math.Float64frombits(g.byteOrder.Uint64(data[0:8]))
+			gt.PixelHeight = math.Float64frombits(g.byteOrder.Uint64(data[16:24]))
+			gt.RotationX = math.Float64frombits(g.byteOrder.Uint64(data[8:16]))
+			gt.RotationY = math.Float64frombits(g.byteOrder.Uint64(data[12:20]))
+		}
+	}
+
+	if entry, ok := g.getIFDEntry(TIFFTagGeoKeyDirectory); ok {
+		if data, err := g.readIFDValue(entry); err == nil && len(data) >= 8 {
+			numKeys := int(g.byteOrder.Uint16(data[4:6]))
+			for i := 0; i < numKeys; i++ {
+				off := 8 + i*8
+				if off+8 <= len(data) {
+					keyID := g.byteOrder.Uint16(data[off:off+2])
+					valOffset := g.byteOrder.Uint16(data[off+6:off+8])
+					if keyID == 3072 {
+						epsgCode = int(valOffset)
+					}
 				}
 			}
 		}
 	}
-	if width == 0 {
-		width, height, numBands, bitsPerSample = estimateFromFileSize(r.metadata)
-	}
-	if strings.Contains(base, "S2") || strings.Contains(base, "sentinel") {
-		numBands = 13
-		dataType = "uint16"
-		bitsPerSample = 16
-	} else if strings.Contains(base, "LC08") || strings.Contains(base, "landsat") {
-		numBands = 11
-		dataType = "uint16"
-		bitsPerSample = 16
-	} else if strings.Contains(base, "GF2") || strings.Contains(base, "gaofen") {
-		numBands = 5
-		dataType = "uint16"
-		bitsPerSample = 16
-	}
-	if dataType == "" {
-		dataType = "uint16"
-		bitsPerSample = 16
-	}
-	return
+
+	return gt, epsgCode
 }
 
-func estimateFromFileSize(meta *types.GeoTIFFMetadata) (width, height, numBands, bits int) {
-	fileInfo, err := os.Stat(expandPath(""))
+func (g *GeoTIFF) estimateFromFileSize() (width, height, numBands, bits int, dataType string) {
+	width = 0
+	height = 0
+	numBands = 0
+	bits = 0
+	dataType = ""
+
+	if widthEntry, ok := g.getIFDEntry(TIFFTagImageWidth); ok {
+		if data, err := g.readIFDValue(widthEntry); err == nil && len(data) >= 4 {
+			width = int(g.byteOrder.Uint32(data))
+		}
+	}
+	if heightEntry, ok := g.getIFDEntry(TIFFTagImageLength); ok {
+		if data, err := g.readIFDValue(heightEntry); err == nil && len(data) >= 4 {
+			height = int(g.byteOrder.Uint32(data))
+		}
+	}
+	if bandsEntry, ok := g.getIFDEntry(TIFFTagSamplesPerPixel); ok {
+		if data, err := g.readIFDValue(bandsEntry); err == nil && len(data) >= 2 {
+			numBands = int(g.byteOrder.Uint16(data))
+		}
+	}
+	if bitsEntry, ok := g.getIFDEntry(TIFFTagBitsPerSample); ok {
+		if data, err := g.readIFDValue(bitsEntry); err == nil && len(data) >= 2 {
+			bits = int(g.byteOrder.Uint16(data))
+		}
+	}
+
+	if bits > 0 {
+		switch bits {
+		case 8:
+			dataType = "uint8"
+		case 16:
+			dataType = "uint16"
+		case 32:
+			dataType = "float32"
+		case 64:
+			dataType = "float64"
+		}
+	}
+
+	if width > 0 && height > 0 {
+		return
+	}
+
+	fileInfo, err := os.Stat(g.path)
 	if err != nil {
-		return 10980, 10980, 13, 16
+		return 0, 0, 0, 0, ""
 	}
 	sizeMB := float64(fileInfo.Size()) / 1024 / 1024
 	switch {
 	case sizeMB > 400:
-		return 10980, 10980, 13, 16
+		if width == 0 { width = 10980 }
+		if height == 0 { height = 10980 }
+		if numBands == 0 { numBands = 13 }
+		if bits == 0 { bits = 16 }
+		if dataType == "" { dataType = "uint16" }
 	case sizeMB > 200:
-		return 7680, 7920, 11, 16
+		if width == 0 { width = 7680 }
+		if height == 0 { height = 7920 }
+		if numBands == 0 { numBands = 11 }
+		if bits == 0 { bits = 16 }
+		if dataType == "" { dataType = "uint16" }
 	case sizeMB > 100:
-		return 12000, 12000, 5, 16
+		if width == 0 { width = 12000 }
+		if height == 0 { height = 12000 }
+		if numBands == 0 { numBands = 5 }
+		if bits == 0 { bits = 16 }
+		if dataType == "" { dataType = "uint16" }
 	default:
-		return 512, 512, 3, 16
+		if width == 0 { width = 512 }
+		if height == 0 { height = 512 }
+		if numBands == 0 { numBands = 3 }
+		if bits == 0 { bits = 16 }
+		if dataType == "" { dataType = "uint16" }
 	}
+	return
 }
 
-func (r *GeoTIFFReader) tryParseEPSG() int {
-	base := filepath.Base(r.path)
+func (g *GeoTIFF) tryParseEPSG() int {
+	base := filepath.Base(g.path)
 	patterns := map[string]int{
 		"4326": 4326, "wgs84": 4326, "WGS84": 4326,
 		"4490": 4490, "cgcs2000": 4490, "CGCS2000": 4490,
@@ -258,8 +645,8 @@ func (r *GeoTIFFReader) tryParseEPSG() int {
 	return 4326
 }
 
-func (r *GeoTIFFReader) tryParseCompression() string {
-	return "LZW"
+func floatPtr(v float64) *float64 {
+	return &v
 }
 
 func getBandDescription(sensor types.SensorType, bandNum int) string {
@@ -319,25 +706,25 @@ func detectSensorFromFilename(path string) types.SensorType {
 	}
 }
 
-func (r *GeoTIFFReader) generateChunks() {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	chunkBytes := r.chunkSizeMB * 1024 * 1024
+func (g *GeoTIFF) generateChunks() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	chunkBytes := g.chunkSizeMB * 1024 * 1024
 	bytesPerPixel := 2
-	rowBytes := r.metadata.Width * bytesPerPixel * r.metadata.NumBands
+	rowBytes := g.metadata.Width * bytesPerPixel * g.metadata.NumBands
 	rowsPerChunk := max(1, chunkBytes/rowBytes)
-	rowsPerChunk = min(rowsPerChunk, r.metadata.Height)
-	totalChunks := (r.metadata.Height + rowsPerChunk - 1) / rowsPerChunk
-	r.chunks = make([]types.Chunk, totalChunks)
+	rowsPerChunk = min(rowsPerChunk, g.metadata.Height)
+	totalChunks := (g.metadata.Height + rowsPerChunk - 1) / rowsPerChunk
+	g.chunks = make([]types.Chunk, totalChunks)
 	for i := 0; i < totalChunks; i++ {
 		offsetY := i * rowsPerChunk
-		height := min(rowsPerChunk, r.metadata.Height-offsetY)
-		r.chunks[i] = types.Chunk{
+		height := min(rowsPerChunk, g.metadata.Height-offsetY)
+		g.chunks[i] = types.Chunk{
 			ChunkIndex:  i,
 			TotalChunks: totalChunks,
 			OffsetX:     0,
 			OffsetY:     offsetY,
-			Width:       r.metadata.Width,
+			Width:       g.metadata.Width,
 			Height:      height,
 			Processed:   false,
 			RetryCount:  0,
@@ -401,6 +788,31 @@ func (r *GeoTIFFReader) readChunkData(chunk *types.Chunk) ([][]float64, error) {
 	data := make([][]float64, bands)
 	for b := 0; b < bands; b++ {
 		data[b] = make([]float64, rows*cols)
+	}
+
+	if r.imageDataOffset > 0 && r.file != nil {
+		bytesPerPixel := 2
+		bytesPerRow := cols * bytesPerPixel * bands
+		startOffset := r.imageDataOffset + int64(chunk.OffsetY)*int64(bytesPerRow)
+		readSize := int64(rows) * int64(bytesPerRow)
+
+		rawData := make([]byte, readSize)
+		n, err := r.file.ReadAt(rawData, startOffset)
+		if err == nil && n == int(readSize) {
+			for i := 0; i < rows*cols; i++ {
+				for b := 0; b < bands; b++ {
+					byteOffset := i*bands*bytesPerPixel + b*bytesPerPixel
+					if byteOffset+2 <= n {
+						val := r.byteOrder.Uint16(rawData[byteOffset:byteOffset+2])
+						data[b][i] = float64(val)
+					}
+				}
+			}
+			return data, nil
+		}
+	}
+
+	for b := 0; b < bands; b++ {
 		for i := 0; i < rows*cols; i++ {
 			row := chunk.OffsetY + (i / cols)
 			col := i % cols
@@ -438,7 +850,7 @@ func (r *GeoTIFFReader) Close() error {
 }
 
 func NewGeoTIFFWriter(path string, metadata *types.GeoTIFFMetadata, chunkSizeMB int) (*GeoTIFFWriter, error) {
-	expandedPath := expandPath(path)
+	expandedPath := util.ExpandPath(path)
 	dir := filepath.Dir(expandedPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, apperrors.Wrap(err, apperrors.E1005, fmt.Sprintf("cannot create output directory: %s", dir))
@@ -455,6 +867,92 @@ func NewGeoTIFFWriter(path string, metadata *types.GeoTIFFMetadata, chunkSizeMB 
 		chunkSizeMB: chunkSizeMB,
 		mu:          sync.Mutex{},
 	}, nil
+}
+
+func (w *GeoTIFFWriter) Write(data []byte) (int, error) {
+	return w.file.Write(data)
+}
+
+func (w *GeoTIFFWriter) writeTIFFHeader() error {
+	header := make([]byte, tiffHeaderSize)
+	header[0] = 'I'
+	header[1] = 'I'
+	w.byteOrder.PutUint16(header[2:4], 42)
+	headerBytes := 8 + 2 + 12*16 + 4
+	w.byteOrder.PutUint32(header[4:8], uint32(headerBytes))
+	w.ifdOffset = int64(headerBytes)
+	if _, err := w.file.WriteAt(header, 0); err != nil {
+		return apperrors.Wrap(err, apperrors.E1005, "cannot write TIFF header")
+	}
+	w.header = header
+	return nil
+}
+
+func (w *GeoTIFFWriter) writeIFD(dataOffset int64) error {
+	meta := w.metadata
+	entries := []struct {
+		tag, typ, count uint32
+		value          uint32
+	}{
+		{TIFFTagImageWidth, TIFFTypeLong, 1, uint32(meta.Width)},
+		{TIFFTagImageLength, TIFFTypeLong, 1, uint32(meta.Height)},
+		{TIFFTagBitsPerSample, TIFFTypeShort, uint32(meta.NumBands), uint32(dataOffset) - 8},
+		{TIFFTagCompression, TIFFTypeShort, 1, 1},
+		{TIFFTagPhotometricInterp, TIFFTypeShort, 1, 1},
+		{TIFFTagSamplesPerPixel, TIFFTypeShort, 1, uint32(meta.NumBands)},
+		{TIFFTagRowsPerStrip, TIFFTypeLong, 1, uint32(meta.Height)},
+		{TIFFTagStripOffsets, TIFFTypeLong, 1, uint32(dataOffset)},
+		{TIFFTagStripByteCounts, TIFFTypeLong, 1, uint32(meta.Width * meta.Height * meta.NumBands * 2)},
+		{TIFFTagXResolution, TIFFTypeRational, 1, uint32(dataOffset) + 8},
+		{TIFFTagYResolution, TIFFTypeRational, 1, uint32(dataOffset) + 16},
+		{TIFFTagResolutionUnit, TIFFTypeShort, 1, 1},
+		{TIFFTagSoftware, TIFFTypeASCII, 11, uint32(dataOffset) + 24},
+		{TIFFTagGDALNoData, TIFFTypeASCII, 2, uint32(dataOffset) + 36},
+		{TIFFTagModelPixelScale, TIFFTypeDouble, 3, uint32(dataOffset) + 40},
+		{TIFFTagModelTiepoint, TIFFTypeDouble, 6, uint32(dataOffset) + 64},
+	}
+
+	ifdBytes := make([]byte, 2+len(entries)*12+4)
+	w.byteOrder.PutUint16(ifdBytes[0:2], uint16(len(entries)))
+	for i, e := range entries {
+		off := 2 + i*12
+		w.byteOrder.PutUint16(ifdBytes[off:off+2], uint16(e.tag))
+		w.byteOrder.PutUint16(ifdBytes[off+2:off+4], uint16(e.typ))
+		w.byteOrder.PutUint32(ifdBytes[off+4:off+8], e.count)
+		w.byteOrder.PutUint32(ifdBytes[off+8:off+12], e.value)
+	}
+	w.byteOrder.PutUint32(ifdBytes[2+len(entries)*12:], 0)
+
+	if _, err := w.file.WriteAt(ifdBytes, w.ifdOffset); err != nil {
+		return apperrors.Wrap(err, apperrors.E1005, "cannot write IFD")
+	}
+
+	extraData := make([]byte, 100)
+	for i := 0; i < meta.NumBands && i < 10; i++ {
+		w.byteOrder.PutUint16(extraData[i*2:i*2+2], 16)
+	}
+	w.byteOrder.PutUint32(extraData[20:24], 1)
+	w.byteOrder.PutUint32(extraData[24:28], 1)
+	w.byteOrder.PutUint32(extraData[28:32], 1000000)
+	copy(extraData[36:47], []byte("Sentinel-CLI"))
+	extraData[47] = 0
+	copy(extraData[48:50], []byte("0\000"))
+
+	gt := meta.GeoTransform
+	binary.LittleEndian.PutUint64(extraData[56:64], math.Float64bits(math.Abs(gt.PixelWidth)))
+	binary.LittleEndian.PutUint64(extraData[64:72], math.Float64bits(math.Abs(gt.PixelHeight)))
+	binary.LittleEndian.PutUint64(extraData[72:80], math.Float64bits(0))
+	binary.LittleEndian.PutUint64(extraData[80:88], math.Float64bits(0))
+	binary.LittleEndian.PutUint64(extraData[88:96], math.Float64bits(0))
+	binary.LittleEndian.PutUint64(extraData[96:104], math.Float64bits(gt.OriginX))
+	binary.LittleEndian.PutUint64(extraData[104:112], math.Float64bits(gt.OriginY))
+	binary.LittleEndian.PutUint64(extraData[112:120], math.Float64bits(0))
+
+	if _, err := w.file.WriteAt(extraData, dataOffset-8); err != nil {
+		return apperrors.Wrap(err, apperrors.E1005, "cannot write TIFF extra data")
+	}
+
+	return nil
 }
 
 func (w *GeoTIFFWriter) WriteChunk(chunk *types.Chunk) error {
@@ -481,7 +979,19 @@ func (w *GeoTIFFWriter) WriteChunk(chunk *types.Chunk) error {
 			idx += 2
 		}
 	}
-	offset := int64(chunk.OffsetY) * int64(cols) * int64(bands) * 2
+
+	if chunk.ChunkIndex == 0 && w.written == 0 {
+		headerSize := int64(8 + 2 + 16*12 + 4 + 128)
+		imageOffset := headerSize
+		if err := w.writeTIFFHeader(); err != nil {
+			return err
+		}
+		if err := w.writeIFD(imageOffset); err != nil {
+			return err
+		}
+	}
+
+	offset := int64(8 + 2 + 16*12 + 4 + 128) + int64(chunk.OffsetY)*int64(cols)*int64(bands)*2
 	if _, err := w.file.WriteAt(byteData, offset); err != nil {
 		return apperrors.Wrap(err, apperrors.E1005, "cannot write chunk data")
 	}
@@ -570,7 +1080,7 @@ func ReadMetadata(path string) (*types.GeoTIFFMetadata, error) {
 
 func FindGeoTIFFFiles(root string, recursive bool) ([]string, error) {
 	var files []string
-	root = expandPath(root)
+	root = util.ExpandPath(root)
 	if _, err := os.Stat(root); os.IsNotExist(err) {
 		return nil, apperrors.Wrap(err, apperrors.E4001, fmt.Sprintf("directory not found: %s", root))
 	}

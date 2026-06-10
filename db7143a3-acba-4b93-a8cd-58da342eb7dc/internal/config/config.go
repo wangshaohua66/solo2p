@@ -12,6 +12,7 @@ import (
 
 	apperrors "github.com/remote-sensing/sentinel-cli/internal/errors"
 	"github.com/remote-sensing/sentinel-cli/internal/types"
+	"github.com/remote-sensing/sentinel-cli/internal/util"
 )
 
 var defaultConfig = &types.Config{
@@ -25,9 +26,9 @@ var defaultConfig = &types.Config{
 		DefaultSourceEPSG: 4326,
 		DefaultTargetEPSG: 4490,
 		SevenParams: map[string]types.SevenParams{
-			"wgs84_to_cgcs2000": {DX: 0, DY: 0, DZ: 0, RX: 0, RY: 0, RZ: 0, DS: 0},
+			"wgs84_to_cgcs2000":  {DX: 0, DY: 0, DZ: 0, RX: 0, RY: 0, RZ: 0, DS: 0},
 			"wgs84_to_beijing54": {DX: -13.5, DY: -129.5, DZ: -76.8, RX: 0.0, RY: 0.0, RZ: 0.0, DS: 0.0},
-			"wgs84_to_xian80": {DX: -10.5, DY: -118.5, DZ: -63.5, RX: 0.0, RY: 0.0, RZ: 0.0, DS: 0.0},
+			"wgs84_to_xian80":    {DX: -10.5, DY: -118.5, DZ: -63.5, RX: 0.0, RY: 0.0, RZ: 0.0, DS: 0.0},
 		},
 		NTv2Grids: map[string]types.NTv2Grid{
 			"china_geoid": {FilePath: "~/.sentinel/crs/china_geoid.gsb", GridName: "CHINA_GEOID", SourceEPSG: 4326, TargetEPSG: 4490},
@@ -51,30 +52,30 @@ var defaultConfig = &types.Config{
 		WriteConcurrency:   2,
 	},
 	Pipeline: types.PipelineConfig{
-		DefaultMaxRetries:       3,
-		RetryBackoffMs:          1000,
-		RetryBackoffMultiplier:  2.0,
-		CheckpointInterval:      10,
-		DeadTaskThreshold:       5,
-		QueueCapacity:           1000,
+		DefaultMaxRetries:      3,
+		RetryBackoffMs:         1000,
+		RetryBackoffMultiplier: 2.0,
+		CheckpointInterval:     10,
+		DeadTaskThreshold:      5,
+		QueueCapacity:          1000,
 	},
 	Daemon: types.DaemonConfig{
-		PIDFile:            "~/.sentinel/daemon.pid",
-		LogFile:            "~/.sentinel/daemon.log",
-		WatchDirectories:   []string{"./watch"},
-		FileExtensions:     []string{".tif", ".tiff", ".img"},
-		PollIntervalMs:     5000,
+		PIDFile:             "~/.sentinel/daemon.pid",
+		LogFile:             "~/.sentinel/daemon.log",
+		WatchDirectories:    []string{"./watch"},
+		FileExtensions:      []string{".tif", ".tiff", ".img"},
+		PollIntervalMs:      5000,
 		GracefulShutdownSec: 30,
-		SystemdNotify:      false,
+		SystemdNotify:       false,
 	},
 	Logging: types.LoggingConfig{
-		Level:             "info",
-		Format:            "json",
-		AuditLogPath:      "~/.sentinel/audit.log",
-		AuditLogMaxSizeMB: 100,
+		Level:              "info",
+		Format:             "json",
+		AuditLogPath:       "~/.sentinel/audit.log",
+		AuditLogMaxSizeMB:  100,
 		AuditLogMaxBackups: 10,
-		Verbose:           false,
-		Quiet:             false,
+		Verbose:            false,
+		Quiet:              false,
 	},
 	Sensors: map[string]types.SensorPreset{
 		"sentinel2": {
@@ -95,12 +96,12 @@ var defaultConfig = &types.Config{
 				"B12": {Index: 13, Name: "SWIR 2", WavelengthMin: 2.100, WavelengthMax: 2.300, Resolution: 20, Description: "Shortwave infrared band 2"},
 			},
 			DefaultBands: map[string]string{
-				"red":    "B4",
-				"green":  "B3",
-				"blue":   "B2",
-				"nir":    "B8",
-				"swir1":  "B11",
-				"swir2":  "B12",
+				"red":   "B4",
+				"green": "B3",
+				"blue":  "B2",
+				"nir":   "B8",
+				"swir1": "B11",
+				"swir2": "B12",
 			},
 			NDVIFormula:     "(B8 - B4) / (B8 + B4)",
 			EVIFormula:      "2.5 * (B8 - B4) / (B8 + 6 * B4 - 7.5 * B2 + 1)",
@@ -123,12 +124,12 @@ var defaultConfig = &types.Config{
 				"B11": {Index: 11, Name: "TIRS 2", WavelengthMin: 11.50, WavelengthMax: 12.51, Resolution: 100, Description: "Thermal infrared band 2"},
 			},
 			DefaultBands: map[string]string{
-				"red":    "B4",
-				"green":  "B3",
-				"blue":   "B2",
-				"nir":    "B5",
-				"swir1":  "B6",
-				"swir2":  "B7",
+				"red":   "B4",
+				"green": "B3",
+				"blue":  "B2",
+				"nir":   "B5",
+				"swir1": "B6",
+				"swir2": "B7",
 			},
 			NDVIFormula:     "(B5 - B4) / (B5 + B4)",
 			EVIFormula:      "2.5 * (B5 - B4) / (B5 + 6 * B4 - 7.5 * B2 + 1)",
@@ -159,11 +160,11 @@ var defaultConfig = &types.Config{
 }
 
 var validEPSGCodes = map[int]string{
-	4326: "WGS84 - World Geodetic System 1984",
-	4490: "CGCS2000 - China Geodetic Coordinate System 2000",
-	4214: "Beijing54 - Beijing Geodetic Coordinate System 1954",
-	4610: "Xian80 - Xi'an Geodetic Coordinate System 1980",
-	3857: "Web Mercator / Pseudo-Mercator",
+	4326:  "WGS84 - World Geodetic System 1984",
+	4490:  "CGCS2000 - China Geodetic Coordinate System 2000",
+	4214:  "Beijing54 - Beijing Geodetic Coordinate System 1954",
+	4610:  "Xian80 - Xi'an Geodetic Coordinate System 1980",
+	3857:  "Web Mercator / Pseudo-Mercator",
 	32649: "WGS 84 / UTM zone 49N",
 	32650: "WGS 84 / UTM zone 50N",
 	32651: "WGS 84 / UTM zone 51N",
@@ -202,7 +203,7 @@ func deepCopy(src *types.Config) *types.Config {
 func LoadConfig(paths ...string) (*types.Config, error) {
 	cfg := DefaultConfig()
 	for _, path := range paths {
-		expandedPath := expandPath(path)
+		expandedPath := util.ExpandPath(path)
 		if _, err := os.Stat(expandedPath); os.IsNotExist(err) {
 			return nil, apperrors.Wrap(err, apperrors.E5001, fmt.Sprintf("configuration file not found: %s", path))
 		}
@@ -260,30 +261,20 @@ func applyEnvOverrides(cfg *types.Config) {
 }
 
 func expandConfigPaths(cfg *types.Config) {
-	cfg.Global.DatabasePath = expandPath(cfg.Global.DatabasePath)
-	cfg.Global.TempDirectory = expandPath(cfg.Global.TempDirectory)
-	cfg.Global.OutputDirectory = expandPath(cfg.Global.OutputDirectory)
-	cfg.CRS.DatabasePath = expandPath(cfg.CRS.DatabasePath)
-	cfg.Daemon.PIDFile = expandPath(cfg.Daemon.PIDFile)
-	cfg.Daemon.LogFile = expandPath(cfg.Daemon.LogFile)
-	cfg.Logging.AuditLogPath = expandPath(cfg.Logging.AuditLogPath)
+	cfg.Global.DatabasePath = util.ExpandPath(cfg.Global.DatabasePath)
+	cfg.Global.TempDirectory = util.ExpandPath(cfg.Global.TempDirectory)
+	cfg.Global.OutputDirectory = util.ExpandPath(cfg.Global.OutputDirectory)
+	cfg.CRS.DatabasePath = util.ExpandPath(cfg.CRS.DatabasePath)
+	cfg.Daemon.PIDFile = util.ExpandPath(cfg.Daemon.PIDFile)
+	cfg.Daemon.LogFile = util.ExpandPath(cfg.Daemon.LogFile)
+	cfg.Logging.AuditLogPath = util.ExpandPath(cfg.Logging.AuditLogPath)
 	for i, dir := range cfg.Daemon.WatchDirectories {
-		cfg.Daemon.WatchDirectories[i] = expandPath(dir)
+		cfg.Daemon.WatchDirectories[i] = util.ExpandPath(dir)
 	}
 	for k, grid := range cfg.CRS.NTv2Grids {
-		grid.FilePath = expandPath(grid.FilePath)
+		grid.FilePath = util.ExpandPath(grid.FilePath)
 		cfg.CRS.NTv2Grids[k] = grid
 	}
-}
-
-func expandPath(path string) string {
-	if strings.HasPrefix(path, "~") {
-		home, err := os.UserHomeDir()
-		if err == nil {
-			path = filepath.Join(home, path[1:])
-		}
-	}
-	return path
 }
 
 func ValidateConfig(cfg *types.Config) types.ValidationResult {
@@ -395,7 +386,7 @@ func ValidateConfig(cfg *types.Config) types.ValidationResult {
 }
 
 func SaveConfig(cfg *types.Config, path string) error {
-	expandedPath := expandPath(path)
+	expandedPath := util.ExpandPath(path)
 	dir := filepath.Dir(expandedPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return apperrors.Wrap(err, apperrors.E1005, fmt.Sprintf("cannot create directory: %s", dir))
@@ -548,10 +539,23 @@ func GetIndexFormula(sensor types.SensorType, indexType string) (string, bool) {
 	return "", false
 }
 
+type FieldLocation struct {
+	Line   int
+	Column int
+}
+
 func GetFieldsWithLineNumbers(node *yaml.Node, prefix string) map[string]int {
 	result := make(map[string]int)
 	if node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
 		getFieldsRecursive(node.Content[0], prefix, result)
+	}
+	return result
+}
+
+func GetFieldsWithLocation(node *yaml.Node, prefix string) map[string]FieldLocation {
+	result := make(map[string]FieldLocation)
+	if node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
+		getFieldsRecursiveWithLocation(node.Content[0], prefix, result)
 	}
 	return result
 }
@@ -578,30 +582,58 @@ func getFieldsRecursive(node *yaml.Node, prefix string, result map[string]int) {
 	}
 }
 
+func getFieldsRecursiveWithLocation(node *yaml.Node, prefix string, result map[string]FieldLocation) {
+	if node.Kind != yaml.MappingNode {
+		return
+	}
+	for i := 0; i < len(node.Content); i += 2 {
+		if i+1 >= len(node.Content) {
+			break
+		}
+		keyNode := node.Content[i]
+		valueNode := node.Content[i+1]
+		key := keyNode.Value
+		fullKey := key
+		if prefix != "" {
+			fullKey = prefix + "." + key
+		}
+		result[fullKey] = FieldLocation{
+			Line:   keyNode.Line,
+			Column: keyNode.Column,
+		}
+		if valueNode.Kind == yaml.MappingNode {
+			getFieldsRecursiveWithLocation(valueNode, fullKey, result)
+		}
+	}
+}
+
 func ValidateConfigWithSchema(cfg *types.Config, data []byte) types.ValidationResult {
 	result := ValidateConfig(cfg)
 	var node yaml.Node
 	if err := yaml.Unmarshal(data, &node); err != nil {
 		return result
 	}
-	fieldLines := GetFieldsWithLineNumbers(&node, "")
+	fieldLocations := GetFieldsWithLocation(&node, "")
 	for i := range result.Errors {
-		if line, ok := fieldLines[result.Errors[i].Field]; ok {
-			result.Errors[i].Line = line
+		if loc, ok := fieldLocations[result.Errors[i].Field]; ok {
+			result.Errors[i].Line = loc.Line
+			result.Errors[i].Column = loc.Column
 		}
 	}
 	for i := range result.Warning {
-		if line, ok := fieldLines[result.Warning[i].Field]; ok {
-			result.Warning[i].Line = line
+		if loc, ok := fieldLocations[result.Warning[i].Field]; ok {
+			result.Warning[i].Line = loc.Line
+			result.Warning[i].Column = loc.Column
 		}
 	}
 	validFields := getValidFields()
-	for field := range fieldLines {
+	for field, loc := range fieldLocations {
 		if !validFields[field] {
 			result.Warning = append(result.Warning, types.ValidationError{
 				Field:    field,
 				Message:  fmt.Sprintf("unknown configuration key '%s' will be ignored", field),
-				Line:     fieldLines[field],
+				Line:     loc.Line,
+				Column:   loc.Column,
 				Severity: "warning",
 			})
 		}

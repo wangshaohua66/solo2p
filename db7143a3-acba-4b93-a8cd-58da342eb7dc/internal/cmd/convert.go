@@ -11,9 +11,10 @@ import (
 
 	"github.com/remote-sensing/sentinel-cli/internal/config"
 	"github.com/remote-sensing/sentinel-cli/internal/crs"
+	apperrors "github.com/remote-sensing/sentinel-cli/internal/errors"
 	appio "github.com/remote-sensing/sentinel-cli/internal/io"
 	"github.com/remote-sensing/sentinel-cli/internal/types"
-	apperrors "github.com/remote-sensing/sentinel-cli/internal/errors"
+	"github.com/remote-sensing/sentinel-cli/internal/util"
 )
 
 var (
@@ -179,7 +180,7 @@ func parseSevenParams(paramStr string) (*types.SevenParams, error) {
 }
 
 func validateInputPath(path string) error {
-	expandedPath := expandPath(path)
+	expandedPath := util.ExpandPath(path)
 	info, err := os.Stat(expandedPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -202,15 +203,6 @@ func validateInputPath(path string) error {
 	}
 
 	return nil
-}
-
-func expandPath(path string) string {
-	if len(path) > 0 && path[0] == '~' {
-		if home, err := os.UserHomeDir(); err == nil {
-			path = filepath.Join(home, path[1:])
-		}
-	}
-	return path
 }
 
 func runConvertCRS() error {
@@ -241,7 +233,7 @@ func runConvertCRS() error {
 	}
 	defer transformer.Close()
 
-	inputInfo, err := os.Stat(expandPath(convertInputPath))
+	inputInfo, err := os.Stat(util.ExpandPath(convertInputPath))
 	if err != nil {
 		return err
 	}
@@ -258,7 +250,7 @@ func runConvertCRS() error {
 					convertInputPath, convertInputPath))
 		}
 	} else {
-		files = []string{expandPath(convertInputPath)}
+		files = []string{util.ExpandPath(convertInputPath)}
 	}
 
 	fmt.Printf("正在转换 %d 个文件，从 EPSG:%d 到 EPSG:%d\n",
@@ -308,7 +300,7 @@ func runConvertCRS() error {
 }
 
 func generateOutputPath(inputFile, inputPath, outputPath string, inputIsDir bool) string {
-	expandedOutput := expandPath(outputPath)
+	expandedOutput := util.ExpandPath(outputPath)
 
 	if !inputIsDir {
 		outputInfo, err := os.Stat(expandedOutput)
@@ -318,7 +310,7 @@ func generateOutputPath(inputFile, inputPath, outputPath string, inputIsDir bool
 		return expandedOutput
 	}
 
-	relPath, err := filepath.Rel(expandPath(inputPath), inputFile)
+	relPath, err := filepath.Rel(util.ExpandPath(inputPath), inputFile)
 	if err != nil {
 		return filepath.Join(expandedOutput, filepath.Base(inputFile))
 	}
