@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class ScryfallSyncService
 {
@@ -97,7 +98,7 @@ class ScryfallSyncService
         return null;
     }
 
-    private function streamAndProcessCards(string $url, ?\DateTime $lastUpdatedAt, array &$stats): void
+    private function streamAndProcessCards(string $url, ?\DateTime $lastUpdatedAt, array &$stats, ?array $checkpoint = null): void
     {
         $context = stream_context_create([
             'http' => [
@@ -116,6 +117,11 @@ class ScryfallSyncService
         $cardData = '';
         $depth = 0;
         $inArray = false;
+        $skipCount = $checkpoint['processed'] ?? 0;
+        $skipped = 0;
+        $lastCardId = $checkpoint['cursor'] ?? null;
+        $batchSize = $this->chunkSize;
+        $batchCount = 0;
 
         while (! feof($handle)) {
             $chunk = fread($handle, 8192);
@@ -156,7 +162,26 @@ class ScryfallSyncService
                         $cardData .= $char;
                         $card = json_decode($cardData, true);
                         if ($card) {
-                            $this->processCard($card, $lastUpdatedAt, $stats);
+                            if ($skipped < $skipCount) {
+                                $skipped++;
+                            } elseif ($lastCardId !== null && ($card['id'] ?? '') !== $lastCardId) {
+                                $skipped++;
+                            } else {
+                                if ($lastCardId !== null && ($card['id'] ?? '') === $lastCardId) {
+                                    $lastCardId = null;
+                                    $skipped++;
+                                } else {
+                                    $this->processCard($card, $lastUpdatedAt, $stats);
+                                    $stats['last_card_id'] = $card['id'] ?? null;
+                                    $batchCount++;
+
+                                    if ($batchCount >= $batchSize) {
+                                        $this->setCheckpoint($stats['total_processed'], $stats['last_card_id']);
+                                        Log::debug("Checkpoint saved: {$stats['total_processed'] processed, last card: {$stats['last_card_id']}");
+                                        $batchCount = 0;
+                                    }
+                                }
+                            }
                         }
                         $cardData = '';
                         continue;
@@ -307,6 +332,31 @@ class ScryfallSyncService
         return $response['data'] ?? [];
     }
 
+    private function ensurePriceHistoryTableExists(string $tableName): void
+    {
+        if (! Schema::hasTable($tableName)) {
+            DB::statement("
+                CREATE TABLE {$tableName} (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    card_id INTEGER NOT NULL,
+                    price_usd DECIMAL(10,2),
+                    price_eur DECIMAL(10,2) NULL,
+                    price_tix DECIMAL(10,2),
+                    source VARCHAR(255) DEFAULT 'scryfall',
+                    price_date DATE NOT NULL,
+                    created_at TIMESTAMP NULL,
+                    updated_at TIMESTAMP NULL,
+                    FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE CASCADE
+                )
+            ");
+
+            DB::statement("CREATE INDEX idx_{$tableName}_card_date ON {$tableName}(card_id, price_date)");
+            DB::statement("CREATE INDEX idx_{$tableName}_price_date ON {$tableName}(price_date)");
+
+            Log::info("Created price history table: {$tableName}");
+        }
+    }
+
     public function updatePrices(): array
     {
         $stats = [
@@ -317,7 +367,11 @@ class ScryfallSyncService
 
         $cards = Card::whereNotNull('scryfall_id')->cursor();
         $priceDate = now()->toDateString();
-        $tableName = sprintf('price_histories_%s', substr($priceDate, 0, 7));
+        $year = (int) substr($priceDate, 0, 4);
+        $month = (int) substr($priceDate, 5, 2);
+        $tableName = sprintf('price_histories_%04d_%02d', $year, $month);
+
+        $this->ensurePriceHistoryTableExists($tableName);
 
         foreach ($cards as $card) {
             try {
@@ -334,10 +388,23 @@ class ScryfallSyncService
                     'price_tix' => isset($prices['tix']) ? (float) $prices['tix'] : null,
                 ];
 
-                if ($newPrices['price_usd'] != $card->price_usd ||
-                    $newPrices['price_eur'] != $card->price_eur ||
-                    $newPrices['price_tix'] != $card->price_tix) {
+                $lastPrice = DB::table('price_histories_view')
+                    ->where('card_id', $card->id)
+                    ->orderBy('price_date', 'desc')
+                    ->first();
 
+                $hasChanges = false;
+                if ($lastPrice) {
+                    $hasChanges = (
+                        $newPrices['price_usd'] != $lastPrice->price_usd ||
+                        $newPrices['price_eur'] != $lastPrice->price_eur ||
+                        $newPrices['price_tix'] != $lastPrice->price_tix
+                    );
+                } else {
+                    $hasChanges = true;
+                }
+
+                if ($hasChanges) {
                     $card->update($newPrices);
 
                     DB::statement("
