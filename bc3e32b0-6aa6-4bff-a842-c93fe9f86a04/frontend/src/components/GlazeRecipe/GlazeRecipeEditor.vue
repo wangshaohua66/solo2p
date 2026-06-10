@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import type { GlazeRecipe, GlazeIngredient, FiringType } from '@/types'
 import { ElMessage } from 'element-plus'
+import { CopyDocument, Plus, Minus, Delete, Sunny, FolderOpened } from '@element-plus/icons-vue'
 
 const props = defineProps<{
   recipe: GlazeRecipe | null
@@ -14,6 +15,10 @@ const emit = defineEmits<{
   createVersion: []
   archive: []
 }>()
+
+const canvasRef = ref<HTMLCanvasElement>()
+let ctx: CanvasRenderingContext2D | null = null
+let animationId: number | null = null
 
 const localRecipe = ref<Partial<GlazeRecipe>>({
   name: '',
@@ -41,6 +46,59 @@ const totalPercentage = computed(() => {
 const isTotalValid = computed(() => {
   return Math.abs(totalPercentage.value - 100) < 0.1
 })
+
+const getGlazeColor = (tone: 'light' | 'main' | 'dark') => {
+  const colorant = ingredients.value.find(i => i.name.includes('色料') || i.name.includes('铁') || i.name.includes('铜') || i.name.includes('钴'))
+  const colorantPercent = colorant ? colorant.percentage : 5
+  
+  let baseHue = 20
+  let saturation = 60
+  let lightness = 50
+  
+  if (colorant?.name.includes('铁')) {
+    baseHue = 30
+    saturation = 70 + colorantPercent * 2
+  } else if (colorant?.name.includes('铜')) {
+    baseHue = 180
+    saturation = 50 + colorantPercent * 3
+  } else if (colorant?.name.includes('钴')) {
+    baseHue = 220
+    saturation = 60 + colorantPercent * 2
+  } else {
+    baseHue = 25
+    saturation = 55 + colorantPercent * 1.5
+  }
+  
+  const feldspar = ingredients.value.find(i => i.name.includes('长石'))?.percentage || 0
+  const quartz = ingredients.value.find(i => i.name.includes('石英'))?.percentage || 0
+  const kaolin = ingredients.value.find(i => i.name.includes('高岭土') || i.name.includes('黏土'))?.percentage || 0
+  
+  if (feldspar > 30) {
+    lightness += 5
+    saturation -= 5
+  }
+  if (quartz > 20) {
+    lightness += 3
+  }
+  if (kaolin > 20) {
+    lightness -= 5
+    saturation += 5
+  }
+  
+  const tempFactor = (localRecipe.value.temperatureMax || 1250) / 1250
+  lightness = lightness * (0.9 + tempFactor * 0.2)
+  
+  if (tone === 'light') {
+    return `hsl(${baseHue}, ${saturation}%, ${Math.min(lightness + 20, 90)}%)`
+  } else if (tone === 'dark') {
+    return `hsl(${baseHue}, ${saturation + 10}%, ${Math.max(lightness - 25, 20)}%)`
+  }
+  return `hsl(${baseHue}, ${saturation}%, ${lightness}%)`
+}
+
+const glazeMainColor = computed(() => getGlazeColor('main'))
+const glazeLightColor = computed(() => getGlazeColor('light'))
+const glazeDarkColor = computed(() => getGlazeColor('dark'))
 
 watch(() => props.recipe, (newRecipe) => {
   if (newRecipe) {
@@ -97,6 +155,211 @@ const adjustPercentage = (index: number, delta: number) => {
   const newValue = Math.max(0, Math.min(100, ingredients.value[index].percentage + delta))
   ingredients.value[index].percentage = Number(newValue.toFixed(1))
 }
+
+const drawVase = () => {
+  if (!ctx || !canvasRef.value) return
+  
+  const canvas = canvasRef.value
+  const w = canvas.width
+  const h = canvas.height
+  
+  ctx.clearRect(0, 0, w, h)
+  
+  const bgGradient = ctx.createLinearGradient(0, 0, 0, h)
+  bgGradient.addColorStop(0, '#f5f0eb')
+  bgGradient.addColorStop(1, '#e8ddd0')
+  ctx.fillStyle = bgGradient
+  ctx.fillRect(0, 0, w, h)
+  
+  const centerX = w / 2
+  const baseY = h - 40
+  const vaseHeight = h * 0.7
+  const vaseWidth = w * 0.55
+  
+  ctx.save()
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.2)'
+  ctx.shadowBlur = 20
+  ctx.shadowOffsetY = 10
+  
+  const ellipseY = baseY + 5
+  ctx.beginPath()
+  ctx.ellipse(centerX, ellipseY, vaseWidth * 0.5, vaseWidth * 0.1, 0, 0, Math.PI * 2)
+  ctx.fillStyle = 'rgba(139, 58, 26, 0.2)'
+  ctx.fill()
+  ctx.restore()
+  
+  const bodyGradient = ctx.createLinearGradient(centerX - vaseWidth / 2, 0, centerX + vaseWidth / 2, 0)
+  bodyGradient.addColorStop(0, glazeDarkColor.value)
+  bodyGradient.addColorStop(0.2, glazeMainColor.value)
+  bodyGradient.addColorStop(0.5, glazeLightColor.value)
+  bodyGradient.addColorStop(0.8, glazeMainColor.value)
+  bodyGradient.addColorStop(1, glazeDarkColor.value)
+  
+  const vertGradient = ctx.createLinearGradient(0, baseY - vaseHeight, 0, baseY)
+  vertGradient.addColorStop(0, glazeLightColor.value)
+  vertGradient.addColorStop(0.3, glazeMainColor.value)
+  vertGradient.addColorStop(0.7, glazeMainColor.value)
+  vertGradient.addColorStop(1, glazeDarkColor.value)
+  
+  ctx.save()
+  ctx.beginPath()
+  
+  const neckTopY = baseY - vaseHeight
+  const neckWidth = vaseWidth * 0.45
+  const shoulderY = baseY - vaseHeight * 0.8
+  const widestY = baseY - vaseHeight * 0.45
+  
+  ctx.moveTo(centerX - neckWidth / 2, neckTopY)
+  ctx.quadraticCurveTo(centerX - neckWidth * 0.6, shoulderY, centerX - vaseWidth / 2, widestY)
+  ctx.quadraticCurveTo(centerX - vaseWidth * 0.55, baseY - vaseHeight * 0.15, centerX - vaseWidth * 0.45, baseY)
+  ctx.lineTo(centerX + vaseWidth * 0.45, baseY)
+  ctx.quadraticCurveTo(centerX + vaseWidth * 0.55, baseY - vaseHeight * 0.15, centerX + vaseWidth / 2, widestY)
+  ctx.quadraticCurveTo(centerX + neckWidth * 0.6, shoulderY, centerX + neckWidth / 2, neckTopY)
+  ctx.closePath()
+  
+  ctx.fillStyle = bodyGradient
+  ctx.fill()
+  
+  ctx.globalCompositeOperation = 'source-atop'
+  ctx.fillStyle = vertGradient
+  ctx.globalAlpha = 0.5
+  ctx.fill()
+  ctx.globalAlpha = 1
+  ctx.globalCompositeOperation = 'source-over'
+  
+  ctx.beginPath()
+  ctx.moveTo(centerX - neckWidth / 2, neckTopY)
+  ctx.quadraticCurveTo(centerX - neckWidth * 0.6, shoulderY, centerX - vaseWidth / 2, widestY)
+  ctx.quadraticCurveTo(centerX - vaseWidth * 0.55, baseY - vaseHeight * 0.15, centerX - vaseWidth * 0.45, baseY)
+  ctx.lineTo(centerX + vaseWidth * 0.45, baseY)
+  ctx.quadraticCurveTo(centerX + vaseWidth * 0.55, baseY - vaseHeight * 0.15, centerX + vaseWidth / 2, widestY)
+  ctx.quadraticCurveTo(centerX + neckWidth * 0.6, shoulderY, centerX + neckWidth / 2, neckTopY)
+  ctx.closePath()
+  ctx.strokeStyle = glazeDarkColor.value
+  ctx.lineWidth = 2
+  ctx.stroke()
+  ctx.restore()
+  
+  ctx.save()
+  ctx.beginPath()
+  ctx.ellipse(centerX, neckTopY, neckWidth / 2, neckWidth * 0.12, 0, 0, Math.PI * 2)
+  
+  const rimGradient = ctx.createRadialGradient(
+    centerX, neckTopY, 0,
+    centerX, neckTopY, neckWidth / 2
+  )
+  rimGradient.addColorStop(0, '#d4a574')
+  rimGradient.addColorStop(0.7, '#c4956a')
+  rimGradient.addColorStop(1, '#a67b55')
+  
+  ctx.fillStyle = rimGradient
+  ctx.fill()
+  ctx.strokeStyle = '#8b6b45'
+  ctx.lineWidth = 1.5
+  ctx.stroke()
+  ctx.restore()
+  
+  ctx.save()
+  ctx.globalAlpha = 0.4
+  ctx.beginPath()
+  
+  const highlightX = centerX - vaseWidth * 0.25
+  const highlightStartY = neckTopY + 20
+  const highlightEndY = baseY - 30
+  
+  ctx.moveTo(highlightX, highlightStartY)
+  ctx.quadraticCurveTo(highlightX + 5, (highlightStartY + highlightEndY) / 2, highlightX - 3, highlightEndY)
+  ctx.lineTo(highlightX + 12, highlightEndY - 5)
+  ctx.quadraticCurveTo(highlightX + 20, (highlightStartY + highlightEndY) / 2, highlightX + 15, highlightStartY)
+  ctx.closePath()
+  
+  const highlightGradient = ctx.createLinearGradient(highlightX, 0, highlightX + 20, 0)
+  highlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.1)')
+  highlightGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.6)')
+  highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0.1)')
+  
+  ctx.fillStyle = highlightGradient
+  ctx.fill()
+  ctx.restore()
+  
+  ctx.save()
+  ctx.globalAlpha = 0.15
+  
+  for (let i = 0; i < 12; i++) {
+    const bubbleX = centerX + (Math.random() - 0.5) * vaseWidth * 0.7
+    const bubbleY = neckTopY + Math.random() * (vaseHeight * 0.6)
+    const bubbleR = 2 + Math.random() * 6
+    
+    const bubbleGradient = ctx.createRadialGradient(
+      bubbleX - bubbleR * 0.3, bubbleY - bubbleR * 0.3, 0,
+      bubbleX, bubbleY, bubbleR
+    )
+    bubbleGradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)')
+    bubbleGradient.addColorStop(1, 'rgba(255, 255, 255, 0)')
+    
+    ctx.beginPath()
+    ctx.arc(bubbleX, bubbleY, bubbleR, 0, Math.PI * 2)
+    ctx.fillStyle = bubbleGradient
+    ctx.fill()
+  }
+  ctx.restore()
+  
+  ctx.save()
+  ctx.globalAlpha = 0.08
+  ctx.beginPath()
+  ctx.ellipse(centerX, baseY + 3, vaseWidth * 0.4, 8, 0, 0, Math.PI * 2)
+  ctx.fillStyle = glazeDarkColor.value
+  ctx.fill()
+  ctx.restore()
+}
+
+const initCanvas = () => {
+  if (!canvasRef.value) return
+  
+  const canvas = canvasRef.value
+  const container = canvas.parentElement
+  if (container) {
+    canvas.width = container.clientWidth * 2
+    canvas.height = container.clientHeight * 2
+    canvas.style.width = container.clientWidth + 'px'
+    canvas.style.height = container.clientHeight + 'px'
+  }
+  
+  ctx = canvas.getContext('2d')
+  if (ctx) {
+    ctx.scale(2, 2)
+  }
+  
+  drawVase()
+}
+
+watch(
+  () => [ingredients.value, localRecipe.value.temperatureMax, localRecipe.value.atmosphere],
+  () => {
+    nextTick(() => {
+      drawVase()
+    })
+  },
+  { deep: true }
+)
+
+const handleResize = () => {
+  initCanvas()
+}
+
+onMounted(() => {
+  nextTick(() => {
+    initCanvas()
+    window.addEventListener('resize', handleResize)
+  })
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+  if (animationId) {
+    cancelAnimationFrame(animationId)
+  }
+})
 </script>
 
 <template>
@@ -293,31 +556,22 @@ const adjustPercentage = (index: number, delta: number) => {
       <div class="right-panel">
         <div class="preview-section">
           <h3 class="section-title">烧成效果预览</h3>
-          <div class="preview-image">
-            <svg viewBox="0 0 200 260" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <linearGradient :id="'glazeGradient'" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" :style="{ stopColor: getGlazeColor('light') }" />
-                  <stop offset="50%" :style="{ stopColor: getGlazeColor('main') }" />
-                  <stop offset="100%" :style="{ stopColor: getGlazeColor('dark') }" />
-                </linearGradient>
-              </defs>
-              <ellipse cx="100" cy="240" rx="60" ry="10" fill="#d4a574" opacity="0.3"/>
-              <path d="M50 240C50 180 60 120 100 120C140 120 150 180 150 240" 
-                :stroke="getGlazeColor('dark')" stroke-width="3" fill="url(#glazeGradient)"/>
-              <ellipse cx="100" cy="120" rx="35" ry="12" fill="#d4a574" opacity="0.5"/>
-              <path d="M70 120 Q80 100 100 100 Q120 100 130 120" 
-                :stroke="getGlazeColor('light')" stroke-width="2" fill="none" opacity="0.6"/>
-            </svg>
+          <div class="preview-canvas-container">
+            <canvas ref="canvasRef" class="preview-canvas"></canvas>
           </div>
           <div class="preview-info">
             <div class="temp-badge">
-              <el-icon><Flame /></el-icon>
+              <el-icon><Sunny /></el-icon>
               {{ localRecipe.temperatureMin }}-{{ localRecipe.temperatureMax }}℃
             </div>
             <div class="atmosphere-badge">
               {{ localRecipe.atmosphere }}
             </div>
+          </div>
+          <div class="color-palette">
+            <div class="color-swatch" :style="{ backgroundColor: glazeLightColor }"></div>
+            <div class="color-swatch" :style="{ backgroundColor: glazeMainColor }"></div>
+            <div class="color-swatch" :style="{ backgroundColor: glazeDarkColor }"></div>
           </div>
         </div>
 
@@ -354,23 +608,6 @@ const adjustPercentage = (index: number, delta: number) => {
     <el-empty description="请选择一个配方或创建新配方" />
   </div>
 </template>
-
-<script lang="ts">
-const getGlazeColor = (tone: 'light' | 'main' | 'dark') => {
-  const colors: Record<string, string> = {
-    light: '#e8a87c',
-    main: '#c85a32',
-    dark: '#8b3a1a'
-  }
-  return colors[tone]
-}
-
-export default {
-  methods: {
-    getGlazeColor
-  }
-}
-</script>
 
 <style scoped lang="scss">
 .recipe-editor {
@@ -449,11 +686,11 @@ export default {
 }
 
 .right-panel {
-  width: 280px;
+  width: 300px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 
   @media (max-width: 1024px) {
     width: 100%;
@@ -601,19 +838,19 @@ export default {
   margin: 0;
 }
 
-.preview-image {
+.preview-canvas-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 20px;
+  height: 240px;
   background: linear-gradient(135deg, #f5f0eb 0%, #e8ddd0 100%);
   border-radius: $border-radius-md;
   margin-bottom: 12px;
+  overflow: hidden;
+}
 
-  svg {
-    width: 150px;
-    height: 200px;
-  }
+.preview-canvas {
+  display: block;
 }
 
 .preview-info {
@@ -621,6 +858,7 @@ export default {
   justify-content: center;
   gap: 8px;
   flex-wrap: wrap;
+  margin-bottom: 12px;
 }
 
 .temp-badge,
@@ -637,6 +875,20 @@ export default {
 
 .temp-badge {
   color: $color-primary;
+}
+
+.color-palette {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.color-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .version-timeline {

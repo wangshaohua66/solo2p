@@ -170,6 +170,15 @@ public class KilnService : IKilnService
             throw new InvalidOperationException("存在时间冲突");
         }
 
+        if (existing.KilnId != schedule.KilnId)
+        {
+            var kiln = await _context.Kilns.FindAsync(schedule.KilnId);
+            if (kiln != null)
+            {
+                existing.KilnName = kiln.Name;
+            }
+        }
+
         existing.KilnId = schedule.KilnId;
         existing.Title = schedule.Title;
         existing.FiringType = schedule.FiringType;
@@ -180,7 +189,15 @@ public class KilnService : IKilnService
         existing.IsForced = forceOverride;
         existing.UpdatedAt = DateTime.UtcNow;
 
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new InvalidOperationException("排程已被其他用户修改，请刷新后重试");
+        }
+
         return existing;
     }
 

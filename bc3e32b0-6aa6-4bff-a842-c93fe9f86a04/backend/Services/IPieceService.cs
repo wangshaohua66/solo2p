@@ -48,6 +48,8 @@ public interface IStudioService
     Task CancelBookingAsync(Guid bookingId, Guid memberId);
     Task<StudioBooking> CheckInAsync(Guid bookingId);
     Task<StudioBooking> CheckOutAsync(Guid bookingId);
+    Task<StudioBooking> SensorCheckInAsync(Guid stationId, string memberIdentifier);
+    Task<StudioBooking> SensorCheckOutAsync(Guid stationId);
     
     Task<int> GetOccupancyAsync(DateTime date);
     Task<bool> CheckAvailabilityAsync(Guid stationId, DateTime startTime, DateTime endTime, Guid? excludeId = null);

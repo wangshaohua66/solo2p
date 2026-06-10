@@ -22,8 +22,12 @@ public interface IMemberService
     Task DeleteMemberAsync(Guid id);
     Task<User> UpgradeTierAsync(Guid memberId, MemberTier tier, int durationMonths);
     Task<MemberTierBenefit[]> GetTierBenefitsAsync();
+    Task<MemberTierThreshold[]> GetTierThresholdsAsync();
+    Task<MemberTier> CalculateTierByTotalSpentAsync(decimal totalSpent);
+    Task<User?> UpdateTierByTotalSpentAsync(Guid memberId);
     Task<PagedResult<PieceArchive>> GetMemberPiecesAsync(Guid memberId, PagedQuery query);
     Task<PagedResult<CourseRegistration>> GetMemberCoursesAsync(Guid memberId, PagedQuery query);
     Task<(int points, decimal totalHours)> GetMemberPointsAsync(Guid memberId);
+    Task AddConsumptionAsync(Guid memberId, decimal amount);
     Task CheckMembershipExpiryAsync();
 }

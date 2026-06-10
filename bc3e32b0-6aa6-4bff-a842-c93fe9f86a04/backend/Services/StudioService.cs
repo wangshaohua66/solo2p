@@ -7,10 +7,12 @@ namespace PotteryStudio.Services;
 public class StudioService : IStudioService
 {
     private readonly AppDbContext _context;
+    private readonly IMemberService _memberService;
 
-    public StudioService(AppDbContext context)
+    public StudioService(AppDbContext context, IMemberService memberService)
     {
         _context = context;
+        _memberService = memberService;
     }
 
     public async Task<List<Station>> GetStationsAsync(StationType? type = null)
@@ -130,12 +132,12 @@ public class StudioService : IStudioService
 
         booking.Id = Guid.NewGuid();
         booking.Status = BookingStatus.Booked;
+        booking.StationName = station.Name;
         booking.CreatedAt = DateTime.UtcNow;
         booking.UpdatedAt = DateTime.UtcNow;
 
         var duration = (booking.EndTime - booking.StartTime).TotalHours;
         booking.DurationHours = (decimal)duration;
-        booking.PointsEarned = (int)(duration * 10);
 
         _context.StudioBookings.Add(booking);
         await _context.SaveChangesAsync();
@@ -185,7 +187,15 @@ public class StudioService : IStudioService
 
         booking.Status = BookingStatus.InProgress;
         booking.ActualStartTime = now;
+        booking.SensorEntryTimestamp = now;
         booking.UpdatedAt = DateTime.UtcNow;
+
+        var station = await _context.Stations.FindAsync(booking.StationId);
+        if (station != null)
+        {
+            station.Status = StationStatus.Occupied;
+            station.UpdatedAt = DateTime.UtcNow;
+        }
 
         await _context.SaveChangesAsync();
         return booking;
@@ -201,23 +211,69 @@ public class StudioService : IStudioService
 
         var now = DateTime.UtcNow;
         booking.ActualEndTime = now;
+        booking.SensorExitTimestamp = now;
         booking.Status = BookingStatus.Completed;
 
-        var actualDuration = (now - booking.ActualStartTime).Value.TotalHours;
-        booking.ActualHours = (decimal)actualDuration;
-        booking.PointsEarned = Math.Max(0, (int)(actualDuration * 10));
+        if (booking.ActualStartTime.HasValue)
+        {
+            var actualDuration = (now - booking.ActualStartTime.Value).TotalHours;
+            booking.ActualHours = (decimal)actualDuration;
+            booking.PointsEarned = Math.Max(0, (int)(actualDuration * 10));
+        }
 
         booking.UpdatedAt = DateTime.UtcNow;
 
-        var member = await _context.Users.FindAsync(booking.MemberId);
-        if (member != null)
+        var station = await _context.Stations.FindAsync(booking.StationId);
+        if (station != null)
         {
-            member.Points += booking.PointsEarned;
+            station.Status = StationStatus.Available;
+            station.UpdatedAt = DateTime.UtcNow;
+        }
+
+        var member = await _context.Users.FindAsync(booking.MemberId);
+        if (member != null && booking.PointsEarned.HasValue)
+        {
+            member.Points += booking.PointsEarned.Value;
             member.UpdatedAt = DateTime.UtcNow;
+            await _memberService.UpdateTierByTotalSpentAsync(member.Id);
         }
 
         await _context.SaveChangesAsync();
         return booking;
+    }
+
+    public async Task<StudioBooking> SensorCheckInAsync(Guid stationId, string memberIdentifier)
+    {
+        var member = await _context.Users
+            .FirstOrDefaultAsync(u => u.Username == memberIdentifier || u.Email == memberIdentifier);
+        if (member == null)
+            throw new InvalidOperationException("会员不存在");
+
+        var activeBooking = await _context.StudioBookings
+            .FirstOrDefaultAsync(b => b.MemberId == member.Id 
+                && b.StationId == stationId
+                && b.Status == BookingStatus.Booked
+                && b.StartTime <= DateTime.UtcNow
+                && b.EndTime > DateTime.UtcNow);
+
+        if (activeBooking == null)
+            throw new InvalidOperationException("未找到有效的预约");
+
+        return await CheckInAsync(activeBooking.Id);
+    }
+
+    public async Task<StudioBooking> SensorCheckOutAsync(Guid stationId)
+    {
+        var activeBooking = await _context.StudioBookings
+            .FirstOrDefaultAsync(b => b.StationId == stationId
+                && b.Status == BookingStatus.InProgress
+                && b.SensorEntryTimestamp.HasValue
+                && !b.SensorExitTimestamp.HasValue);
+
+        if (activeBooking == null)
+            throw new InvalidOperationException("该工位没有进行中的预约");
+
+        return await CheckOutAsync(activeBooking.Id);
     }
 
     public async Task<int> GetOccupancyAsync(DateTime date)

@@ -1,25 +1,75 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
 import { ElCard } from 'element-plus'
+import * as echarts from 'echarts/core'
+import { LineChart, PieChart, BarChart } from 'echarts/charts'
+import {
+  TitleComponent,
+  TooltipComponent,
+  LegendComponent,
+  GridComponent
+} from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+import { use } from 'echarts/core'
+import { Calendar, Monitor, User, Picture, Plus, Upload, Reading, MagicStick } from '@element-plus/icons-vue'
+
+use([
+  LineChart,
+  PieChart,
+  BarChart,
+  TitleComponent,
+  TooltipComponent,
+  LegendComponent,
+  GridComponent,
+  CanvasRenderer
+])
 
 const authStore = useAuthStore()
 const router = useRouter()
 
+const memberGrowthChartRef = ref<HTMLElement>()
+const pieceStatusChartRef = ref<HTMLElement>()
+const kilnUsageChartRef = ref<HTMLElement>()
+
+let memberGrowthChart: echarts.ECharts | null = null
+let pieceStatusChart: echarts.ECharts | null = null
+let kilnUsageChart: echarts.ECharts | null = null
+
 const stats = ref([
-  { label: '今日排课', value: '3', icon: 'Calendar', color: '#5b8ff9', link: '/courses' },
-  { label: '窑炉运行中', value: '1', icon: 'Flame', color: '#c85a32', link: '/kiln' },
-  { label: '活跃会员', value: '80', icon: 'User', color: '#52c41a', link: '/members' },
-  { label: '作品总数', value: '256', icon: 'Picture', color: '#722ed1', link: '/pieces' }
+  { label: '今日排课', value: '3', icon: Calendar, color: '#5b8ff9', link: '/courses' },
+  { label: '窑炉运行中', value: '1', icon: Monitor, color: '#c85a32', link: '/kiln' },
+  { label: '活跃会员', value: '80', icon: User, color: '#52c41a', link: '/members' },
+  { label: '作品总数', value: '256', icon: Picture, color: '#722ed1', link: '/pieces' }
 ])
 
 const quickActions = [
-  { label: '新建排程', icon: 'Plus', link: '/kiln', type: 'primary' },
-  { label: '上传作品', icon: 'Upload', link: '/pieces', type: 'success' },
-  { label: '发布课程', icon: 'Reading', link: '/courses', type: 'warning' },
-  { label: '配方管理', icon: 'MagicStick', link: '/glaze-recipes', type: 'info' }
+  { label: '新建排程', icon: Plus, link: '/kiln', type: 'primary' },
+  { label: '上传作品', icon: Upload, link: '/pieces', type: 'success' },
+  { label: '发布课程', icon: Reading, link: '/courses', type: 'warning' },
+  { label: '配方管理', icon: MagicStick, link: '/glaze-recipes', type: 'info' }
 ]
+
+const memberGrowthData = {
+  months: ['1月', '2月', '3月', '4月', '5月', '6月'],
+  members: [45, 52, 58, 65, 72, 80],
+  newMembers: [8, 7, 6, 9, 7, 8]
+}
+
+const pieceStatusData = [
+  { value: 45, name: '泥坯阶段', color: '#d4a574' },
+  { value: 68, name: '素烧完成', color: '#8c8c8c' },
+  { value: 52, name: '施釉中', color: '#c85a32' },
+  { value: 91, name: '成品', color: '#52c41a' }
+]
+
+const kilnUsageData = {
+  days: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+  electricKiln: [6, 8, 7, 9, 10, 12, 8],
+  gasKiln: [4, 5, 6, 7, 8, 10, 6],
+  woodKiln: [2, 3, 2, 4, 5, 6, 3]
+}
 
 const recentPieces = ref([
   { id: '1', title: '青花瓷茶盏', author: '张小明', stage: 'finished', image: '', date: '2024-01-15' },
@@ -57,6 +107,138 @@ const getStageColor = (stage: string) => {
   }
   return map[stage] || '#999'
 }
+
+const initCharts = () => {
+  if (memberGrowthChartRef.value) {
+    memberGrowthChart = echarts.init(memberGrowthChartRef.value)
+    memberGrowthChart.setOption({
+      tooltip: { trigger: 'axis' },
+      legend: { data: ['会员总数', '新增会员'], bottom: 0 },
+      grid: { left: '3%', right: '4%', bottom: '15%', top: '10%', containLabel: true },
+      xAxis: {
+        type: 'category',
+        data: memberGrowthData.months,
+        axisLine: { lineStyle: { color: '#e8e0d5' } }
+      },
+      yAxis: {
+        type: 'value',
+        axisLine: { lineStyle: { color: '#e8e0d5' } },
+        splitLine: { lineStyle: { color: '#f0ebe3' } }
+      },
+      series: [
+        {
+          name: '会员总数',
+          type: 'line',
+          smooth: true,
+          data: memberGrowthData.members,
+          lineStyle: { color: '#c85a32', width: 2 },
+          itemStyle: { color: '#c85a32' },
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: 'rgba(200, 90, 50, 0.3)' },
+              { offset: 1, color: 'rgba(200, 90, 50, 0.05)' }
+            ])
+          }
+        },
+        {
+          name: '新增会员',
+          type: 'line',
+          smooth: true,
+          data: memberGrowthData.newMembers,
+          lineStyle: { color: '#52c41a', width: 2 },
+          itemStyle: { color: '#52c41a' }
+        }
+      ]
+    })
+  }
+
+  if (pieceStatusChartRef.value) {
+    pieceStatusChart = echarts.init(pieceStatusChartRef.value)
+    pieceStatusChart.setOption({
+      tooltip: { trigger: 'item', formatter: '{b}: {c}件 ({d}%)' },
+      legend: { orient: 'vertical', left: 'left', top: 'center' },
+      series: [
+        {
+          name: '作品状态',
+          type: 'pie',
+          radius: ['40%', '70%'],
+          center: ['65%', '50%'],
+          avoidLabelOverlap: false,
+          itemStyle: {
+            borderRadius: 6,
+            borderColor: '#fff',
+            borderWidth: 2
+          },
+          label: { show: false },
+          emphasis: {
+            label: { show: true, fontSize: 14, fontWeight: 'bold' }
+          },
+          data: pieceStatusData.map(item => ({
+            value: item.value,
+            name: item.name,
+            itemStyle: { color: item.color }
+          }))
+        }
+      ]
+    })
+  }
+
+  if (kilnUsageChartRef.value) {
+    kilnUsageChart = echarts.init(kilnUsageChartRef.value)
+    kilnUsageChart.setOption({
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      legend: { data: ['电窑', '汽窑', '柴窑'], bottom: 0 },
+      grid: { left: '3%', right: '4%', bottom: '15%', top: '10%', containLabel: true },
+      xAxis: {
+        type: 'category',
+        data: kilnUsageData.days,
+        axisLine: { lineStyle: { color: '#e8e0d5' } }
+      },
+      yAxis: {
+        type: 'value',
+        name: '使用时长(h)',
+        axisLine: { lineStyle: { color: '#e8e0d5' } },
+        splitLine: { lineStyle: { color: '#f0ebe3' } }
+      },
+      series: [
+        {
+          name: '电窑',
+          type: 'bar',
+          stack: 'total',
+          data: kilnUsageData.electricKiln,
+          itemStyle: { color: '#5b8ff9', borderRadius: [0, 0, 0, 0] }
+        },
+        {
+          name: '汽窑',
+          type: 'bar',
+          stack: 'total',
+          data: kilnUsageData.gasKiln,
+          itemStyle: { color: '#f6bd16' }
+        },
+        {
+          name: '柴窑',
+          type: 'bar',
+          stack: 'total',
+          data: kilnUsageData.woodKiln,
+          itemStyle: { color: '#c85a32', borderRadius: [4, 4, 0, 0] }
+        }
+      ]
+    })
+  }
+}
+
+const handleResize = () => {
+  memberGrowthChart?.resize()
+  pieceStatusChart?.resize()
+  kilnUsageChart?.resize()
+}
+
+onMounted(() => {
+  setTimeout(() => {
+    initCharts()
+    window.addEventListener('resize', handleResize)
+  }, 100)
+})
 </script>
 
 <template>
@@ -171,6 +353,35 @@ const getStageColor = (stage: string) => {
             </div>
           </div>
         </div>
+      </el-card>
+    </div>
+
+    <div class="charts-grid">
+      <el-card class="chart-card">
+        <template #header>
+          <div class="card-header">
+            <span>会员增长趋势</span>
+          </div>
+        </template>
+        <div ref="memberGrowthChartRef" class="chart-container"></div>
+      </el-card>
+
+      <el-card class="chart-card">
+        <template #header>
+          <div class="card-header">
+            <span>作品状态分布</span>
+          </div>
+        </template>
+        <div ref="pieceStatusChartRef" class="chart-container"></div>
+      </el-card>
+
+      <el-card class="chart-card chart-card-full">
+        <template #header>
+          <div class="card-header">
+            <span>窑炉使用率（本周）</span>
+          </div>
+        </template>
+        <div ref="kilnUsageChartRef" class="chart-container horizontal-chart"></div>
       </el-card>
     </div>
   </div>
@@ -514,5 +725,42 @@ const getStageColor = (stage: string) => {
 .schedule-time {
   font-size: 12px;
   color: $color-text-secondary;
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chart-card {
+  :deep(.el-card__body) {
+    padding: 16px 20px;
+  }
+}
+
+.chart-card-full {
+  grid-column: span 2;
+
+  @media (max-width: 1024px) {
+    grid-column: span 1;
+  }
+}
+
+.chart-container {
+  width: 100%;
+  height: 300px;
+
+  &.horizontal-chart {
+    height: 280px;
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    height: 250px;
+  }
 }
 </style>

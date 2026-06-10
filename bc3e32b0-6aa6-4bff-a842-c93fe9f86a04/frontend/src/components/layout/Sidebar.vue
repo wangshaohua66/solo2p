@@ -2,12 +2,13 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
+import { ArrowLeft, ArrowRight, Odometer, User, Monitor, MagicStick, Picture, Reading, Tickets, ShoppingBag, Box, UserFilled } from '@element-plus/icons-vue'
+import { markRaw, type Component } from 'vue'
 
 interface MenuItem {
   path: string
   title: string
-  icon: string
+  icon: Component
   roles?: string[]
 }
 
@@ -25,16 +26,16 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const menuItems: MenuItem[] = [
-  { path: '/dashboard', title: '工作台', icon: 'Odometer' },
-  { path: '/members', title: '会员管理', icon: 'User', roles: ['admin', 'instructor'] },
-  { path: '/kiln', title: '窑炉排程', icon: 'Flame' },
-  { path: '/glaze-recipes', title: '釉料配方', icon: 'MagicStick' },
-  { path: '/pieces', title: '作品档案', icon: 'Picture' },
-  { path: '/courses', title: '课程中心', icon: 'Reading' },
-  { path: '/studio', title: '自由创作', icon: 'Tickets' },
-  { path: '/sales', title: '作品销售', icon: 'ShoppingBag', roles: ['admin', 'instructor'] },
-  { path: '/inventory', title: '原料库存', icon: 'Box', roles: ['admin'] },
-  { path: '/profile', title: '个人中心', icon: 'UserFilled' }
+  { path: '/dashboard', title: '工作台', icon: markRaw(Odometer) },
+  { path: '/members', title: '会员管理', icon: markRaw(User), roles: ['admin', 'instructor'] },
+  { path: '/kiln', title: '窑炉排程', icon: markRaw(Monitor) },
+  { path: '/glaze-recipes', title: '釉料配方', icon: markRaw(MagicStick) },
+  { path: '/pieces', title: '作品档案', icon: markRaw(Picture) },
+  { path: '/courses', title: '课程中心', icon: markRaw(Reading) },
+  { path: '/studio', title: '自由创作', icon: markRaw(Tickets) },
+  { path: '/sales', title: '作品销售', icon: markRaw(ShoppingBag), roles: ['admin', 'instructor'] },
+  { path: '/inventory', title: '原料库存', icon: markRaw(Box), roles: ['admin'] },
+  { path: '/profile', title: '个人中心', icon: markRaw(UserFilled) }
 ]
 
 const visibleMenuItems = computed(() => {

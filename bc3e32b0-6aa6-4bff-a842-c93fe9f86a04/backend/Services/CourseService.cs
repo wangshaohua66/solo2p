@@ -181,10 +181,12 @@ public class CourseService : ICourseService
         if (registration.Status == RegistrationStatus.Cancelled)
             throw new InvalidOperationException("该报名已取消");
 
+        var wasConfirmed = registration.Status == RegistrationStatus.Confirmed;
+
         registration.Status = RegistrationStatus.Cancelled;
         registration.UpdatedAt = DateTime.UtcNow;
 
-        if (registration.Status == RegistrationStatus.Confirmed)
+        if (wasConfirmed)
         {
             var course = await _context.Courses.FindAsync(registration.CourseId);
             if (course != null && course.CurrentStudents > 0)
@@ -202,6 +204,17 @@ public class CourseService : ICourseService
                     waitlistNext.Status = RegistrationStatus.Confirmed;
                     waitlistNext.UpdatedAt = DateTime.UtcNow;
                     course.CurrentStudents++;
+
+                    _context.Notifications.Add(new Notification
+                    {
+                        Id = Guid.NewGuid(),
+                        UserId = waitlistNext.MemberId,
+                        Title = "候补转正式名额",
+                        Content = $"您已从候替补位成功，获得课程正式名额。",
+                        Type = NotificationType.Course,
+                        IsRead = false,
+                        CreatedAt = DateTime.UtcNow
+                    });
                 }
             }
         }

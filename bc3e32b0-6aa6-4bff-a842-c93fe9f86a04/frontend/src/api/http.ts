@@ -41,7 +41,7 @@ service.interceptors.response.use(
         case 401:
           if (authStore.refreshToken) {
             try {
-              const res = await authStore.refreshToken()
+              const res = await authStore.doRefreshToken()
               if (res) {
                 const config = error.config
                 config.headers.Authorization = `Bearer ${authStore.token}`

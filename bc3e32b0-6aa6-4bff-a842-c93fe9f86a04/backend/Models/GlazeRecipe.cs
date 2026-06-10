@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using System.ComponentModel.DataAnnotations;
 
 namespace PotteryStudio.Models;
 
@@ -21,7 +22,10 @@ public class GlazeRecipe
     public GlazeRecipe? Parent { get; set; }
     
     public int Version { get; set; } = 1;
+    public bool IsCurrentVersion { get; set; } = true;
+    public string? SourceVersion { get; set; }
     public bool IsArchived { get; set; }
+    public string? Notes { get; set; }
     public List<GlazeIngredient> Ingredients { get; set; } = new();
     public FiringType FiringType { get; set; } = FiringType.Glaze;
     public decimal TemperatureMin { get; set; }
@@ -39,4 +43,7 @@ public class GlazeRecipe
     public ICollection<GlazeRecipe> Children { get; set; } = new List<GlazeRecipe>();
     
     public ICollection<PieceArchive> Pieces { get; set; } = new List<PieceArchive>();
+
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
 }

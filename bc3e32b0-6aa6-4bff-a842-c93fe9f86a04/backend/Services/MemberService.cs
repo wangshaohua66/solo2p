@@ -244,4 +244,90 @@ public class MemberService : IMemberService
 
         await _context.SaveChangesAsync();
     }
+
+    public Task<MemberTierThreshold[]> GetTierThresholdsAsync()
+    {
+        var thresholds = new[]
+        {
+            new MemberTierThreshold { Tier = MemberTier.Experience, Name = "experience", MinTotalSpent = 0 },
+            new MemberTierThreshold { Tier = MemberTier.Monthly, Name = "monthly", MinTotalSpent = 500 },
+            new MemberTierThreshold { Tier = MemberTier.Quarterly, Name = "quarterly", MinTotalSpent = 2000 },
+            new MemberTierThreshold { Tier = MemberTier.Yearly, Name = "yearly", MinTotalSpent = 5000 }
+        };
+
+        return Task.FromResult(thresholds);
+    }
+
+    public async Task<MemberTier> CalculateTierByTotalSpentAsync(decimal totalSpent)
+    {
+        var thresholds = await GetTierThresholdsAsync();
+        var ordered = thresholds.OrderByDescending(t => t.MinTotalSpent);
+
+        foreach (var threshold in ordered)
+        {
+            if (totalSpent >= threshold.MinTotalSpent)
+            {
+                return threshold.Tier;
+            }
+        }
+
+        return MemberTier.Experience;
+    }
+
+    public async Task<User?> UpdateTierByTotalSpentAsync(Guid memberId)
+    {
+        var member = await _context.Users.FindAsync(memberId);
+        if (member == null || member.Role != UserRole.Member)
+            return null;
+
+        var newTier = await CalculateTierByTotalSpentAsync(member.TotalSpent);
+        
+        if (newTier != member.MemberTier)
+        {
+            var oldTier = member.MemberTier;
+            member.MemberTier = newTier;
+            member.UpdatedAt = DateTime.UtcNow;
+
+            _context.Notifications.Add(new Notification
+            {
+                Id = Guid.NewGuid(),
+                UserId = member.Id,
+                Title = "会员等级升级",
+                Content = $"恭喜！您的会员等级已从 {GetTierDisplayName(oldTier)} 升级为 {GetTierDisplayName(newTier)}，解锁更多权益。",
+                Type = NotificationType.Membership,
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+        }
+
+        return member;
+    }
+
+    public async Task AddConsumptionAsync(Guid memberId, decimal amount)
+    {
+        if (amount <= 0) return;
+
+        var member = await _context.Users.FindAsync(memberId)
+            ?? throw new InvalidOperationException("会员不存在");
+
+        member.TotalSpent += amount;
+        member.UpdatedAt = DateTime.UtcNow;
+
+        await UpdateTierByTotalSpentAsync(memberId);
+        await _context.SaveChangesAsync();
+    }
+
+    private static string GetTierDisplayName(MemberTier tier)
+    {
+        return tier switch
+        {
+            MemberTier.Experience => "体验卡",
+            MemberTier.Monthly => "月卡会员",
+            MemberTier.Quarterly => "季卡会员",
+            MemberTier.Yearly => "年卡会员",
+            _ => "体验卡"
+        };
+    }
 }

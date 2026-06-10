@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace PotteryStudio.Models;
 
 public enum KilnType
@@ -55,6 +57,7 @@ public class KilnSchedule
     public Guid Id { get; set; }
     public Guid KilnId { get; set; }
     public Kiln? Kiln { get; set; }
+    public string KilnName { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public FiringType FiringType { get; set; }
     public DateTime StartTime { get; set; }
@@ -70,6 +73,9 @@ public class KilnSchedule
 
     public ICollection<PieceArchive> Pieces { get; set; } = new List<PieceArchive>();
     public ICollection<FiringRecord> FiringRecords { get; set; } = new List<FiringRecord>();
+
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
 }
 
 public class FiringRecord

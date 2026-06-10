@@ -1,9 +1,29 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus, ArrowLeft, ArrowRight, Monitor, Calendar } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import type { Kiln, KilnSchedule, FiringType } from '@/types'
+import * as echarts from 'echarts/core'
+import { LineChart } from 'echarts/charts'
+import {
+  TitleComponent,
+  TooltipComponent,
+  LegendComponent,
+  GridComponent
+} from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+import { use } from 'echarts/core'
+
+use([
+  LineChart,
+  TitleComponent,
+  TooltipComponent,
+  LegendComponent,
+  GridComponent,
+  CanvasRenderer
+])
 
 const router = useRouter()
 
@@ -11,6 +31,123 @@ const viewMode = ref<'day' | 'week'>('week')
 const currentDate = ref(dayjs())
 const showAddDialog = ref(false)
 const isMobile = ref(false)
+const selectedScheduleId = ref<string | null>(null)
+const tempChartRef = ref<HTMLElement>()
+let tempChart: echarts.ECharts | null = null
+
+const generateTempCurve = (schedule: KilnSchedule) => {
+  const start = dayjs(schedule.startTime)
+  const end = dayjs(schedule.endTime)
+  const durationHours = end.diff(start, 'hour')
+  const points: { time: string; temp: number }[] = []
+  const maxTemp = schedule.firingType === 'bisque' ? 1000 : 
+                  schedule.firingType === 'glaze' ? 1250 : 1280
+  
+  const totalPoints = 20
+  for (let i = 0; i <= totalPoints; i++) {
+    const ratio = i / totalPoints
+    const time = start.add(ratio * durationHours, 'hour')
+    let temp: number
+    
+    if (ratio < 0.15) {
+      temp = Math.round(20 + (maxTemp * 0.4) * (ratio / 0.15))
+    } else if (ratio < 0.5) {
+      temp = Math.round(maxTemp * 0.4 + maxTemp * 0.55 * ((ratio - 0.15) / 0.35))
+    } else if (ratio < 0.65) {
+      temp = maxTemp
+    } else if (ratio < 0.85) {
+      temp = Math.round(maxTemp * (1 - (ratio - 0.65) / 0.2 * 0.4))
+    } else {
+      temp = Math.round(maxTemp * 0.6 * (1 - (ratio - 0.85) / 0.15))
+    }
+    
+    points.push({
+      time: time.format('HH:mm'),
+      temp
+    })
+  }
+  
+  return points
+}
+
+const initTempChart = () => {
+  if (!tempChartRef.value) return
+  
+  tempChart = echarts.init(tempChartRef.value)
+  
+  const defaultSchedule = schedules.value[0]
+  if (defaultSchedule) {
+    updateTempChart(defaultSchedule)
+  }
+  
+  window.addEventListener('resize', handleResize)
+}
+
+const updateTempChart = (schedule: KilnSchedule) => {
+  if (!tempChart) return
+  
+  const points = generateTempCurve(schedule)
+  
+  const option: echarts.EChartsOption = {
+    title: {
+      text: `${schedule.title} - 温度曲线`,
+      left: 'center',
+      textStyle: { fontSize: 14, fontWeight: 'normal' }
+    },
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params: any) => {
+        const data = params[0]
+        return `${data.name}<br/>温度: ${data.value}℃`
+      }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      top: '15%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      boundaryGap: false,
+      data: points.map(p => p.time),
+      axisLabel: { fontSize: 10 }
+    },
+    yAxis: {
+      type: 'value',
+      name: '温度(℃)',
+      nameTextStyle: { fontSize: 10 },
+      axisLabel: { fontSize: 10 }
+    },
+    series: [
+      {
+        name: '温度',
+        type: 'line',
+        smooth: true,
+        data: points.map(p => p.temp),
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(200, 90, 50, 0.3)' },
+            { offset: 1, color: 'rgba(200, 90, 50, 0.05)' }
+          ])
+        },
+        lineStyle: {
+          color: '#c85a32',
+          width: 2
+        },
+        itemStyle: { color: '#c85a32' }
+      }
+    ]
+  }
+  
+  tempChart.setOption(option)
+}
+
+const handleResize = () => {
+  tempChart?.resize()
+  checkMobile()
+}
 
 const checkMobile = () => {
   isMobile.value = window.innerWidth < 768
@@ -80,6 +217,41 @@ const timeSlots = computed(() => {
   }
   return slots
 })
+
+const mobileScheduleList = computed(() => {
+  const start = currentDate.value.startOf(viewMode.value === 'week' ? 'week' : 'day')
+  const end = currentDate.value.endOf(viewMode.value === 'week' ? 'week' : 'day')
+  
+  const list = schedules.value
+    .filter(s => {
+      const sStart = dayjs(s.startTime)
+      const sEnd = dayjs(s.endTime)
+      return sEnd.isAfter(start) && sStart.isBefore(end)
+    })
+    .sort((a, b) => dayjs(a.startTime).valueOf() - dayjs(b.startTime).valueOf())
+  
+  return list
+})
+
+const getStatusLabel = (status: string) => {
+  const map: Record<string, string> = {
+    pending: '待烧制',
+    running: '烧制中',
+    completed: '已完成',
+    cancelled: '已取消'
+  }
+  return map[status] || status
+}
+
+const getStatusType = (status: string) => {
+  const map: Record<string, string> = {
+    pending: 'info',
+    running: 'warning',
+    completed: 'success',
+    cancelled: 'danger'
+  }
+  return map[status] || 'info'
+}
 
 const getFiringTypeLabel = (type: FiringType) => {
   const map: Record<FiringType, string> = {
@@ -238,7 +410,10 @@ const handleSubmitSchedule = async () => {
 }
 
 const handleScheduleClick = (schedule: KilnSchedule) => {
-  ElMessage.info(`查看排程: ${schedule.title}`)
+  selectedScheduleId.value = schedule.id
+  if (tempChart) {
+    updateTempChart(schedule)
+  }
 }
 
 const handleScheduleDrag = (e: DragEvent, schedule: KilnSchedule) => {
@@ -303,11 +478,15 @@ const formatDateRange = () => {
 
 onMounted(() => {
   checkMobile()
-  window.addEventListener('resize', checkMobile)
+  window.addEventListener('resize', handleResize)
+  nextTick(() => {
+    initTempChart()
+  })
 })
 
 onUnmounted(() => {
-  window.removeEventListener('resize', checkMobile)
+  window.removeEventListener('resize', handleResize)
+  tempChart?.dispose()
 })
 </script>
 
@@ -364,7 +543,7 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div class="schedule-container">
+    <div class="schedule-container" v-if="!isMobile">
       <div class="time-column">
         <div class="corner-cell"></div>
         <div class="time-slots">
@@ -382,7 +561,7 @@ onUnmounted(() => {
         >
           <div class="kiln-header">
             <div class="kiln-name" :style="{ color: getKilnTypeColor(kiln.type) }">
-              <el-icon><Flame /></el-icon>
+              <el-icon><Monitor /></el-icon>
               {{ kiln.name }}
             </div>
             <div class="kiln-info">
@@ -434,6 +613,60 @@ onUnmounted(() => {
           </div>
         </div>
       </div>
+    </div>
+
+    <div class="mobile-timeline" v-else>
+      <div class="timeline-title">{{ viewMode === 'week' ? '本周' : '今日' }}排程</div>
+      <div v-if="mobileScheduleList.length === 0" class="empty-state">
+        <el-empty description="暂无排程" />
+      </div>
+      <div v-else class="timeline-list">
+        <div 
+          v-for="schedule in mobileScheduleList" 
+          :key="schedule.id"
+          class="timeline-item"
+          :class="{ active: schedule.id === selectedScheduleId }"
+          @click="handleScheduleClick(schedule)"
+        >
+          <div class="timeline-time">
+            <div class="time-start">{{ dayjs(schedule.startTime).format('HH:mm') }}</div>
+            <div class="time-line"></div>
+            <div class="time-end">{{ dayjs(schedule.endTime).format('HH:mm') }}</div>
+          </div>
+          <div class="timeline-content">
+            <div class="timeline-header">
+              <span 
+                class="firing-type-tag" 
+                :style="{ backgroundColor: getFiringTypeColor(schedule.firingType) }"
+              >
+                {{ getFiringTypeLabel(schedule.firingType) }}
+              </span>
+              <el-tag size="small" :type="getStatusType(schedule.status)" effect="plain">
+                {{ getStatusLabel(schedule.status) }}
+              </el-tag>
+            </div>
+            <div class="timeline-title-text">{{ schedule.title }}</div>
+            <div class="timeline-meta">
+              <el-icon class="meta-icon"><Monitor /></el-icon>
+              <span>{{ schedule.kilnName }}</span>
+              <span class="meta-divider">·</span>
+              <el-icon class="meta-icon"><Calendar /></el-icon>
+              <span>{{ dayjs(schedule.startTime).format('MM-DD') }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-section">
+      <div class="section-header">
+        <h3 class="section-title">
+          <el-icon class="section-icon"><Monitor /></el-icon>
+          烧制温度曲线
+        </h3>
+        <p class="section-desc">点击上方排程查看详细温度曲线</p>
+      </div>
+      <div ref="tempChartRef" class="temp-chart"></div>
     </div>
 
     <el-dialog 
@@ -790,5 +1023,171 @@ onUnmounted(() => {
 
 .full-width {
   width: 100%;
+}
+
+.chart-section {
+  margin-top: 24px;
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.section-header {
+  margin-bottom: 16px;
+  
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1d2129;
+    margin: 0;
+    
+    .section-icon {
+      color: #c85a32;
+      font-size: 18px;
+    }
+  }
+  
+  .section-desc {
+    font-size: 12px;
+    color: #86909c;
+    margin: 4px 0 0 0;
+  }
+}
+
+.temp-chart {
+  width: 100%;
+  height: 300px;
+}
+
+@media (max-width: 768px) {
+  .chart-section {
+    padding: 16px;
+    margin-top: 16px;
+  }
+  
+  .temp-chart {
+    height: 220px;
+  }
+}
+
+.mobile-timeline {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  
+  .timeline-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1d2129;
+    margin-bottom: 16px;
+  }
+  
+  .empty-state {
+    padding: 40px 0;
+  }
+  
+  .timeline-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .timeline-item {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+    background: #f7f8fa;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
+    
+    &:hover {
+      background: #f2f3f5;
+    }
+    
+    &.active {
+      background: #fff7e6;
+      border-left-color: #c85a32;
+    }
+  }
+  
+  .timeline-time {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 50px;
+    flex-shrink: 0;
+    
+    .time-start {
+      font-size: 13px;
+      font-weight: 600;
+      color: #1d2129;
+    }
+    
+    .time-line {
+      flex: 1;
+      width: 2px;
+      background: #e5e6eb;
+      margin: 4px 0;
+    }
+    
+    .time-end {
+      font-size: 12px;
+      color: #86909c;
+    }
+  }
+  
+  .timeline-content {
+    flex: 1;
+    min-width: 0;
+    
+    .timeline-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    
+    .firing-type-tag {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    
+    .timeline-title-text {
+      font-size: 14px;
+      font-weight: 500;
+      color: #1d2129;
+      margin-bottom: 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    .timeline-meta {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: #86909c;
+      
+      .meta-icon {
+        font-size: 12px;
+      }
+      
+      .meta-divider {
+        color: #e5e6eb;
+      }
+    }
+  }
 }
 </style>
