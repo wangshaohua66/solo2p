@@ -1,0 +1,61 @@
+@{
+    ViewData["Title"] = "统计分析";
+    ViewData["Breadcrumb"] = "数据统计";
+}
+
+<section class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card p-4 h-100">
+            <h5 class="mb-4"><i class="bi bi-calendar2-week me-2 text-ch-primary"></i>营地季节适宜性矩阵</h5>
+            <div class="text-muted small mb-3">颜色越深代表该月份营地类型综合评分越高（交通/风景/设施/安全四维度平均）</div>
+            <div class="ch-season-matrix p-0">
+                <div class="ch-heatmap" id="seasonalityMatrix" style="grid-template-columns: 100px repeat(12, 1fr);"></div>
+            </div>
+            <div class="d-flex justify-content-center gap-4 mt-4 small">
+                <span class="d-inline-flex align-items-center gap-2"><i class="bi bi-square-fill text-light"></i>不推荐</span>
+                <span class="d-inline-flex align-items-center gap-2"><i class="bi bi-square-fill" style="color:#A7D88F"></i>一般</span>
+                <span class="d-inline-flex align-items-center gap-2"><i class="bi bi-square-fill" style="color:#5A9C47"></i>推荐</span>
+                <span class="d-inline-flex align-items-center gap-2"><i class="bi bi-square-fill" style="color:#2D5A27"></i>绝佳</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card p-4 h-100">
+            <h5 class="mb-4"><i class="bi bi-trophy me-2 text-ch-accent"></i>借还信用排行榜</h5>
+            <div class="text-muted small mb-3">按时归还 +5 分 / 逾期每天 -2 分 / 丢失报废 -20 分</div>
+            <div class="ch-credit-list" id="creditRankList"></div>
+        </div>
+    </div>
+</section>
+
+<section class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card p-4 h-100">
+            <h5 class="mb-4"><i class="bi bi-box-seam me-2 text-ch-primary"></i>装备使用频率 TOP 10</h5>
+            <div id="gearUsageList" class="d-flex flex-column gap-2"></div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card p-4 h-100">
+            <h5 class="mb-4"><i class="bi bi-pie-chart me-2 text-ch-accent"></i>装备分类占比</h5>
+            <div id="gearCategoryChart" class="d-flex flex-column gap-3"></div>
+            <div class="mt-4 p-3 bg-ch-primary-50 rounded-3 small">
+                <div class="fw-bold text-ch-primary mb-1"><i class="bi bi-info-circle me-1"></i>小贴士</div>
+                <div class="text-muted">系统通过<strong>余弦相似度</strong>算法为你匹配同类型露营场景下最常携带的装备组合；分类占比高的类别也是下次借出申请的优先方。</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="row g-4 mb-4">
+    <div class="col-lg-12">
+        <div class="card p-4">
+            <h5 class="mb-4"><i class="bi bi-clock-history me-2 text-ch-danger"></i>借还信用历史趋势（近12个月）</h5>
+            <div id="creditHistoryChart" style="height:220px;display:flex;align-items:flex-end;gap:8px;padding:0 1rem;"></div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <script src="/js/pages/stats.js"></script>
+}

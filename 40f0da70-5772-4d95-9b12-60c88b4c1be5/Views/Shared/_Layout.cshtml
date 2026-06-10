@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#2D5A27" />
+    <title>@ViewData["Title"] - CampHub 露营管家</title>
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏕️</text></svg>" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@600;700;900&display=swap" rel="stylesheet" />
+    <link href="/css/site.css" rel="stylesheet" />
+    @await RenderSectionAsync("Head", required: false)
+</head>
+<body>
+    @{
+        var isAuthPage = ViewContext.ActionDescriptor.DisplayName?.Contains("Account") ?? false;
+    }
+
+    @if (isAuthPage)
+    {
+        @RenderBody()
+    }
+    else
+    {
+        <div class="ch-app">
+            <div class="ch-sidebar-backdrop" id="chSidebarBackdrop"></div>
+            <partial name="_PartialNav" />
+            <main class="ch-main">
+                <header class="ch-topbar">
+                    <button class="ch-toggle-sidebar" id="chToggleSidebar" aria-label="菜单">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <nav class="ch-breadcrumb">
+                        <span>首页</span>
+                        @if (ViewData["Breadcrumb"] != null)
+                        {
+                            <span class="separator">/</span>
+                            <span class="current">@ViewData["Breadcrumb"]</span>
+                        }
+                    </nav>
+                    <div class="ch-topbar-right">
+                        <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                            <i class="bi bi-cloud-upload me-1"></i>上传照片
+                        </button>
+                        <button class="btn btn-accent btn-sm" onclick="location.href='/Event/Create'">
+                            <i class="bi bi-plus-circle me-1"></i>发起活动
+                        </button>
+                    </div>
+                </header>
+                <div class="ch-content">
+                    @RenderBody()
+                </div>
+            </main>
+        </div>
+
+        <div class="modal fade" id="uploadModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-cloud-arrow-up me-2 text-ch-primary"></i>上传照片</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">关联活动</label>
+                            <select class="form-select" id="quickUploadEventId">
+                                <option value="">-- 不关联（我的相册）--</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">选择照片</label>
+                            <input type="file" id="quickUploadFiles" class="form-control" multiple accept="image/*" />
+                            <div class="form-text">单张最大 20MB，超过 5MB 会自动压缩</div>
+                        </div>
+                        <div id="quickUploadPreview" class="d-flex flex-wrap gap-2"></div>
+                        <div class="mt-3">
+                            <div class="progress d-none" id="quickUploadProgress">
+                                <div class="progress-bar bg-ch-primary" style="width:0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="button" class="btn btn-primary" id="quickUploadBtn">
+                            <i class="bi bi-upload me-1"></i>开始上传
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery-validation@1.20.0/dist/jquery.validate.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery-validation@1.20.0/dist/additional-methods.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js"></script>
+    <script src="/js/app.js"></script>
+
+    <script>
+        $('#chToggleSidebar, #chSidebarBackdrop').on('click', function () {
+            $('.ch-sidebar').toggleClass('open');
+            $('#chSidebarBackdrop').toggleClass('show');
+        });
+        $(function () {
+            if (CampHub.auth.isLoggedIn()) {
+                CampHub.ajax.get('/event/list', { status: '筹备', page: 1, pageSize: 50 }).then(events => {
+                    const $sel = $('#quickUploadEventId');
+                    (events || []).forEach(e => {
+                        $sel.append(`<option value="${e.id}">${CampHub.util.escapeHtml(e.title)}</option>`);
+                    });
+                }).catch(() => { });
+            }
+        });
+    </script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

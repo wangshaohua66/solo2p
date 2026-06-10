@@ -1,0 +1,111 @@
+@{
+    Layout = null;
+    ViewData["Title"] = "登录";
+    var returnUrl = ViewData["ReturnUrl"] as string ?? "/";
+}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>登录 - CampHub 露营管家</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏕️</text></svg>" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@600;700;900&display=swap" rel="stylesheet" />
+    <link href="/css/site.css" rel="stylesheet" />
+</head>
+<body>
+<div class="ch-auth">
+    <div class="ch-auth-hero">
+        <div class="ch-auth-brand">
+            <i class="bi bi-tree-fill"></i>
+            <span>CampHub</span>
+        </div>
+        <div>
+            <h1 class="ch-auth-slogan">
+                去野，<br />
+                更<span class="accent">从容</span>。
+            </h1>
+            <p class="ch-auth-sub">
+                装备借还管理、活动协同筹备、照片时间轴沉淀——
+                为都市露营爱好者打造的一站式协作平台。
+            </p>
+            <div class="ch-auth-tags">
+                <span>⛺ 装备共享借还</span>
+                <span>📋 活动智能清单</span>
+                <span>📍 GPS轨迹回放</span>
+                <span>⭐ 信用评价体系</span>
+            </div>
+        </div>
+        <div class="text-white-50 small opacity-75">© 2024 CampHub · 让每一次出发都值得被记住</div>
+    </div>
+
+    <div class="ch-auth-panel">
+        <div class="ch-auth-card">
+            <h2>欢迎回来</h2>
+            <p class="subtitle">登录你的 CampHub 账户，准备下次出发</p>
+
+            <form id="loginForm" novalidate>
+                <div class="mb-3">
+                    <label class="form-label">邮箱地址</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                        <input type="email" name="email" class="form-control" placeholder="you@example.com" required autocomplete="email" />
+                    </div>
+                    <label class="error" for="email"></label>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">密码</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                        <input type="password" name="password" class="form-control" placeholder="至少6位" required minlength="6" autocomplete="current-password" />
+                        <button type="button" class="btn btn-outline-secondary toggle-pw" data-target="password"><i class="bi bi-eye"></i></button>
+                    </div>
+                    <label class="error" for="password"></label>
+                </div>
+
+                <div class="d-flex align-items-center justify-content-between mb-4">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="remember" checked />
+                        <label class="form-check-label small text-muted" for="remember">记住我</label>
+                    </div>
+                    <a href="#" class="small">忘记密码？</a>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100" id="loginBtn">
+                    <span class="btn-label">登 录</span>
+                </button>
+
+                <div id="loginError" class="alert alert-danger mt-3 d-none small py-2"></div>
+            </form>
+
+            <div class="ch-auth-hr"><span>或快速体验</span></div>
+            <div class="ch-auth-social">
+                <div class="ch-social-btn" data-demo="organizer">
+                    <i class="bi bi-person-workspace text-ch-primary"></i>组织者 Demo
+                </div>
+                <div class="ch-social-btn" data-demo="participant">
+                    <i class="bi bi-people text-ch-accent"></i>参与者 Demo
+                </div>
+            </div>
+
+            <div class="ch-auth-switch">
+                还没有账户？<a href="/Account/Register?returnUrl=@returnUrl">立即注册</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery-validation@1.20.0/dist/jquery.validate.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery-validation@1.20.0/dist/additional-methods.min.js"></script>
+<script src="/js/app.js"></script>
+<script src="/js/pages/auth.js"></script>
+<script>
+    window._returnUrl = '@returnUrl';
+</script>
+</body>
+</html>

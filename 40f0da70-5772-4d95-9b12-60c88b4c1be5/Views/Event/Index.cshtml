@@ -1,0 +1,38 @@
+@{
+    ViewData["Title"] = "我的活动";
+    ViewData["Breadcrumb"] = "活动列表";
+}
+
+<section class="ch-filter-bar">
+    <div class="ch-filter-group">
+        <span class="ch-filter-label">状态</span>
+        <span class="ch-pill active" data-status="">全部</span>
+        <span class="ch-pill" data-status="筹备">筹备中</span>
+        <span class="ch-pill" data-status="进行">进行中</span>
+        <span class="ch-pill" data-status="结束">已结束</span>
+        <span class="ch-pill" data-status="归档">已归档</span>
+    </div>
+    <div class="ch-filter-group">
+        <span class="ch-filter-label">时间</span>
+        <span class="ch-pill" data-range="upcoming">即将开始</span>
+        <span class="ch-pill active" data-range="">全部时间</span>
+        <span class="ch-pill" data-range="past">历史活动</span>
+    </div>
+    <div class="ms-auto">
+        <a href="/Event/Create" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i>发起活动
+        </a>
+    </div>
+</section>
+
+<section>
+    <div class="ch-event-grid ch-anim-up" id="eventGrid">
+        <div class="ch-loading-overlay position-absolute w-100 h-100 d-flex align-items-center justify-content-center">
+            <div class="spinner-border text-ch-primary"></div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <script src="/js/pages/events.js"></script>
+}

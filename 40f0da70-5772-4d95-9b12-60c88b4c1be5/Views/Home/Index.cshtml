@@ -1,0 +1,89 @@
+@{
+    ViewData["Title"] = "首页";
+    ViewData["Breadcrumb"] = "仪表盘";
+}
+
+<section class="ch-hero-welcome">
+    <div class="ch-hero-inner">
+        <div class="ch-hero-greeting">
+            <h1 id="welcomeGreeting">你好，露营人！</h1>
+            <p id="welcomeSubtitle">
+                <i class="bi bi-sunrise me-1"></i>
+                <span id="todayTip">今天是整理装备的好日子</span>
+            </p>
+        </div>
+        <div class="ch-hero-tip">
+            <i class="bi bi-lightbulb"></i>
+            <div>
+                <div class="fw-bold small mb-1">露营黄历</div>
+                <div id="huangli">宜：天幕下的下午茶 / 忌：忘记带充电宝</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="ch-stat-grid ch-anim-up" id="statGrid">
+    <div class="ch-stat-card" style="--ch-stat-color:var(--ch-primary);--ch-stat-bg:var(--ch-primary-50);">
+        <i class="bi bi-calendar-event ch-stat-icon"></i>
+        <div class="ch-stat-label">总活动数</div>
+        <div class="ch-stat-value" id="statEvents">0</div>
+    </div>
+    <div class="ch-stat-card" style="--ch-stat-color:var(--ch-accent);--ch-stat-bg:#FFF2E6;">
+        <i class="bi bi-backpack2 ch-stat-icon"></i>
+        <div class="ch-stat-label">装备总数</div>
+        <div class="ch-stat-value" id="statGear">0</div>
+    </div>
+    <div class="ch-stat-card" style="--ch-stat-color:#B5442C;--ch-stat-bg:#FCE8E4;">
+        <i class="bi bi-arrow-clockwise ch-stat-icon"></i>
+        <div class="ch-stat-label">待归还</div>
+        <div class="ch-stat-value" id="statPending">0</div>
+    </div>
+    <div class="ch-stat-card" style="--ch-stat-color:#685B9F;--ch-stat-bg:#EEEAF7;">
+        <i class="bi bi-award ch-stat-icon"></i>
+        <div class="ch-stat-label">我的信用分</div>
+        <div class="ch-stat-value" id="statCredit">0</div>
+    </div>
+</section>
+
+<section class="ch-quick-actions ch-anim-up">
+    <div class="ch-quick-btn" onclick="location.href='/Event/Create'" style="--ch-quick-color:var(--ch-primary);">
+        <div class="ch-quick-icon"><i class="bi bi-calendar-plus"></i></div>
+        <div class="ch-quick-text">
+            <h5>发起活动</h5>
+            <p>创建露营活动 · 自动推荐装备清单</p>
+        </div>
+    </div>
+    <div class="ch-quick-btn" onclick="location.href='/Gear/Create'" style="--ch-quick-color:var(--ch-accent);">
+        <div class="ch-quick-icon"><i class="bi bi-box-seam"></i></div>
+        <div class="ch-quick-text">
+            <h5>添加装备</h5>
+            <p>登记新装备 · 标记分类与保养周期</p>
+        </div>
+    </div>
+    <div class="ch-quick-btn" onclick="$('#uploadModal').modal('show')" style="--ch-quick-color:#4A6FA5;">
+        <div class="ch-quick-icon"><i class="bi bi-cloud-arrow-up"></i></div>
+        <div class="ch-quick-text">
+            <h5>上传照片</h5>
+            <p>批量上传 · 自动提取EXIF GPS时间</p>
+        </div>
+    </div>
+</section>
+
+<section>
+    <div class="ch-section-title">
+        <h3><i class="bi bi-flower2 me-2 text-ch-accent"></i>即将开始的活动</h3>
+        <a href="/Event" class="btn btn-outline-primary btn-sm">查看全部 →</a>
+    </div>
+    <div class="ch-event-grid ch-anim-up" id="upcomingEvents"></div>
+</section>
+
+<section class="mt-4">
+    <div class="ch-section-title">
+        <h3><i class="bi bi-fire me-2 text-ch-danger"></i>正在进行 / 近期热门</h3>
+    </div>
+    <div class="ch-event-grid ch-anim-up" id="ongoingEvents"></div>
+</section>
+
+@section Scripts {
+    <script src="/js/pages/home.js"></script>
+}

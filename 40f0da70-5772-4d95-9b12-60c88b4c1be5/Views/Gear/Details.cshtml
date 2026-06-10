@@ -1,0 +1,11 @@
+@{
+    ViewData["Title"] = "装备详情";
+    ViewData["Breadcrumb"] = "装备详情";
+    var gearId = ViewData["GearId"]?.ToString() ?? "";
+}
+
+<div id="gearDetailRoot" data-id="@gearId" class="position-relative">
+    <div class="ch-loading-overlay position-absolute w-100 h-100 d-flex align-items-center justify-content-center">
+        <div class="spinner-border text-ch-primary"></div>
+    </div>
+</div>

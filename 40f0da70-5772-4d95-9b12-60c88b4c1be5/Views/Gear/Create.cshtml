@@ -1,0 +1,84 @@
+@{
+    ViewData["Title"] = "添加装备";
+    ViewData["Breadcrumb"] = "添加装备";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-xl-7">
+        <div class="card p-4">
+            <h3 class="mb-1"><i class="bi bi-box-seam me-2 text-ch-primary"></i>登记新装备</h3>
+            <p class="text-muted mb-4">装备登记入库后，可参与借出与活动清单共享</p>
+
+            <form id="gearCreateForm" novalidate>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-8">
+                        <label class="form-label">装备名称 <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" placeholder="如：NatureHike 云尚2 双人帐篷" required minlength="2" maxlength="50" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">分类 <span class="text-danger">*</span></label>
+                        <select name="category" class="form-select" required>
+                            <option value="">请选择分类</option>
+                            @foreach (var cat in new[] {"帐篷","天幕","睡袋","防潮垫","桌椅","炉具","炊具","灯具","冷藏","背包","水具","服装","工具","电子","其他"})
+                            {
+                                <option value="@cat">@cat</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">装备图片</label>
+                    <div class="border border-dashed rounded-3 p-5 text-center bg-ch-primary-50" id="gearUploadDrop">
+                        <i class="bi bi-cloud-upload fs-1 d-block text-ch-primary opacity-50 mb-2"></i>
+                        <p class="mb-2 small text-muted">点击或拖拽图片到此处上传</p>
+                        <p class="mb-0 small text-muted" style="font-size:.75rem;">建议方形构图 · 单张最大 20MB</p>
+                        <input type="file" id="gearImageFile" accept="image/*" class="d-none" />
+                    </div>
+                    <div id="gearImagePreview" class="mt-3 d-none">
+                        <div class="position-relative d-inline-block">
+                            <img id="gearImagePreviewImg" class="img-fluid rounded-3" style="max-height:260px;" />
+                            <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2" id="gearImageRemove">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">装备描述</label>
+                    <textarea name="description" class="form-control" rows="4" placeholder="介绍装备特性、适用场景、注意事项等..."></textarea>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <label class="form-label">购入价格 (¥)</label>
+                        <input type="number" name="purchasePrice" class="form-control" min="0" step="0.01" placeholder="可选" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">保养周期 (使用次数)</label>
+                        <input type="number" name="nextMaintenanceAfterUses" class="form-control" min="1" value="20" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">状态</label>
+                        <select name="status" class="form-select">
+                            <option value="在库">在库可用</option>
+                            <option value="维修中">维修中</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-secondary" onclick="history.back()">取消</button>
+                    <button type="submit" class="btn btn-primary ms-auto" id="gearCreateBtn">
+                        <i class="bi bi-check-lg me-1"></i>提交登记
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="/js/pages/gear-create.js"></script>
+}

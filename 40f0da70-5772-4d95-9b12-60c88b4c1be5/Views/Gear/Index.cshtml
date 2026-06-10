@@ -1,0 +1,118 @@
+@{
+    ViewData["Title"] = "装备库";
+    ViewData["Breadcrumb"] = "装备列表";
+}
+
+<section class="ch-filter-bar" id="gearFilters">
+    <div class="ch-filter-group">
+        <span class="ch-filter-label">状态</span>
+        <span class="ch-pill active" data-status="">全部</span>
+        <span class="ch-pill" data-status="在库">在库</span>
+        <span class="ch-pill" data-status="借出">借出</span>
+        <span class="ch-pill" data-status="维修中">维修中</span>
+        <span class="ch-pill" data-status="报废">报废</span>
+    </div>
+    <div class="ch-filter-group">
+        <span class="ch-filter-label">分类</span>
+        <span class="ch-pill active" data-category="">全部分类</span>
+        @foreach (var cat in new[] {"帐篷","天幕","睡袋","防潮垫","桌椅","炉具","炊具","灯具","冷藏","背包","水具","服装","工具","电子","其他"})
+        {
+            <span class="ch-pill" data-category="@cat">@cat</span>
+        }
+    </div>
+    <div class="ch-filter-group">
+        <span class="ch-filter-label">所有者</span>
+        <span class="ch-pill active" data-owner="">全部</span>
+        <span class="ch-pill" data-owner="__me__">我的</span>
+    </div>
+    <div class="ch-search">
+        <i class="bi bi-search"></i>
+        <input type="search" class="form-control" id="gearSearch" placeholder="搜索装备名称..." />
+    </div>
+</section>
+
+<section class="d-flex justify-content-between align-items-center mb-3">
+    <div class="text-muted small" id="gearCountLabel">加载中...</div>
+    <a href="/Gear/Create" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-lg me-1"></i>添加装备
+    </a>
+</section>
+
+<section class="ch-gear-grid position-relative" id="gearGrid">
+    <div class="ch-loading-overlay position-absolute w-100 h-100 d-flex align-items-center justify-content-center">
+        <div class="spinner-border text-ch-primary"></div>
+    </div>
+</section>
+
+<div class="modal fade" id="lendModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-arrow-left-right me-2 text-ch-primary"></i>装备借出</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info small py-2 mb-3" id="lendGearInfo"></div>
+                <div class="mb-3">
+                    <label class="form-label">借用人</label>
+                    <select class="form-select" id="lendBorrowerId" required>
+                        <option value="">-- 选择借用人 --</option>
+                    </select>
+                    <div class="small text-muted mt-1" id="lendCreditInfo"></div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">预计归还日期</label>
+                    <input type="date" class="form-control" id="lendDueDate" required />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">备注</label>
+                    <textarea class="form-control" id="lendNotes" rows="2" placeholder="可填写借出备注..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="confirmLendBtn">
+                    <i class="bi bi-check-lg me-1"></i>确认借出
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="returnModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-arrow-counterclockwise me-2 text-ch-accent"></i>装备归还</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning small py-2 mb-3" id="returnGearInfo"></div>
+                <div class="mb-3">
+                    <label class="form-label">归还状态</label>
+                    <select class="form-select" id="returnCondition">
+                        <option value="完好">完好无损 +5分</option>
+                        <option value="轻微磨损">轻微磨损 +5分</option>
+                        <option value="损坏">有损坏 +3分</option>
+                        <option value="报废">报废 / 丢失 -20分</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">损耗等级（0-100）</label>
+                    <input type="range" class="form-range" id="returnWearLevel" min="0" max="100" value="0" />
+                    <div class="small text-muted text-end" id="returnWearValue">0%</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-accent" id="confirmReturnBtn">
+                    <i class="bi bi-check2-circle me-1"></i>确认归还
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="/js/pages/gear.js"></script>
+}

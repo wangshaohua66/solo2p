@@ -1,0 +1,84 @@
+@{
+    ViewData["Title"] = "发起活动";
+    ViewData["Breadcrumb"] = "发起活动";
+}
+
+<div class="row justify-content-center">
+    <div class="col-xl-9 col-lg-10">
+        <div class="card p-4 p-md-5">
+            <div class="mb-4">
+                <h3 class="mb-1"><i class="bi bi-calendar-event me-2 text-ch-primary"></i>创建露营活动</h3>
+                <p class="text-muted mb-0">填写基础信息后，系统会根据历史活动自动为你推荐装备与采购清单</p>
+            </div>
+
+            <form id="eventCreateForm" novalidate>
+                <div class="row g-4 mb-4">
+                    <div class="col-md-8">
+                        <label class="form-label">活动标题 <span class="text-danger">*</span></label>
+                        <input type="text" name="title" class="form-control form-control-lg" placeholder="例：周末崇明岛3天2夜亲子露营" required minlength="2" maxlength="80" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">最大参与人数</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-people"></i></span>
+                            <input type="number" name="maxParticipants" class="form-control" min="2" max="200" value="12" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">目的地 <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-geo-alt"></i></span>
+                        <input type="text" name="destination" class="form-control" placeholder="例：上海市崇明岛明珠湖营地" required />
+                    </div>
+                </div>
+
+                <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label">开始时间 <span class="text-danger">*</span></label>
+                        <input type="datetime-local" name="startTime" class="form-control" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">结束时间 <span class="text-danger">*</span></label>
+                        <input type="datetime-local" name="endTime" class="form-control" required />
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">活动描述</label>
+                    <textarea name="description" class="form-control" rows="4" placeholder="活动亮点、集合点、交通说明、注意事项等..."></textarea>
+                </div>
+
+                <div class="alert bg-ch-primary-50 border-0 mb-4" role="alert">
+                    <div class="d-flex align-items-start">
+                        <i class="bi bi-lightbulb text-ch-primary fs-4 me-3 mt-1"></i>
+                        <div>
+                            <div class="fw-bold text-ch-primary mb-1">💡 智能装备推荐</div>
+                            <div class="small text-muted">提交创建后，系统会根据目的地、时间和人数，基于你过去的活动记录通过 Jaccard 相似度算法推荐最合适的装备清单和采购清单，你也可以在详情页手动调整。</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">初始参与者（可选）</label>
+                    <div id="participantList" class="mb-2"></div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="addParticipantBtn">
+                        <i class="bi bi-person-plus me-1"></i>添加参与者
+                    </button>
+                </div>
+
+                <div class="d-flex gap-2 pt-3 border-top">
+                    <button type="button" class="btn btn-outline-secondary" onclick="history.back()">取消</button>
+                    <button type="submit" class="btn btn-primary ms-auto btn-lg px-5" id="eventCreateBtn">
+                        <i class="bi bi-rocket-takeoff me-2"></i>创建活动
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="/js/pages/event-create.js"></script>
+}

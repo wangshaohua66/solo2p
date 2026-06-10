@@ -1,0 +1,26 @@
+{
+  "name": "CampHub 露营管家",
+  "short_name": "CampHub",
+  "description": "装备管理、活动筹备、照片沉淀——为露营爱好者打造的一站式协作平台",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F5F3EF",
+  "theme_color": "#2D5A27",
+  "orientation": "portrait-primary",
+  "lang": "zh-CN",
+  "categories": ["lifestyle", "travel", "social"],
+  "icons": [
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='40' fill='%232D5A27'/><text x='96' y='140' font-size='110' text-anchor='middle' font-family='Apple Color Emoji, Segoe UI Emoji'>🏕️</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%232D5A27'/><text x='256' y='370' font-size='290' text-anchor='middle' font-family='Apple Color Emoji, Segoe UI Emoji'>🏕️</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+@{
+    ViewData["Title"] = "活动详情";
+    ViewData["Breadcrumb"] = "活动详情";
+    var eventId = ViewData["EventId"]?.ToString() ?? "";
+}
+
+<div id="eventDetailRoot" data-id="@eventId" class="position-relative">
+    <div class="ch-loading-overlay position-absolute w-100 h-100 d-flex align-items-center justify-content-center">
+        <div class="spinner-border text-ch-primary"></div>
+    </div>
+</div>
+
+<div class="modal fade" id="ratingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-star me-2 text-ch-accent"></i>营地评价</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label d-flex justify-content-between">
+                        <span>🚗 交通便利性</span>
+                        <span id="tVal" class="fw-bold text-ch-accent">3 / 5</span>
+                    </label>
+                    <input type="range" class="form-range" id="transportationScore" min="1" max="5" value="3" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label d-flex justify-content-between">
+                        <span>🏞️ 风景指数</span>
+                        <span id="sVal" class="fw-bold text-ch-accent">3 / 5</span>
+                    </label>
+                    <input type="range" class="form-range" id="sceneryScore" min="1" max="5" value="3" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label d-flex justify-content-between">
+                        <span>🛠️ 设施完善度</span>
+                        <span id="fVal" class="fw-bold text-ch-accent">3 / 5</span>
+                    </label>
+                    <input type="range" class="form-range" id="facilityScore" min="1" max="5" value="3" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label d-flex justify-content-between">
+                        <span>🛡️ 安全性</span>
+                        <span id="saVal" class="fw-bold text-ch-accent">3 / 5</span>
+                    </label>
+                    <input type="range" class="form-range" id="safetyScore" min="1" max="5" value="3" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">最适合月份</label>
+                    <select id="ratingSeason" class="form-select">
+                        @for (int m = 1; m <= 12; m++)
+                        {
+                            <option value="@m" selected="@(m == DateTime.Today.Month)">@m 月</option>
+                        }
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">评价文字</label>
+                    <textarea id="ratingComments" class="form-control" rows="3" placeholder="营地优缺点、适合人群、踩坑经验..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-accent" id="submitRatingBtn">提交评价</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="/js/pages/event-details.js"></script>
+}
