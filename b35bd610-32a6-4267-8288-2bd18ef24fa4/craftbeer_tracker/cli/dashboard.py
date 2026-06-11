@@ -320,11 +320,16 @@ class Dashboard:
     def render_full(self, stats: dict[str, Any] | None = None, expanded_row: int | None = None, beer_data: dict | None = None) -> Layout:
         width = self._detect_width()
         layout = Layout()
-        layout.split_column(
+        blog_feed = self.render_blog_feed()
+
+        rows = [
             Layout(name="header", size=3),
             Layout(name="body"),
-            Layout(name="footer", size=3),
-        )
+        ]
+        if blog_feed:
+            rows.append(Layout(name="blog", size=8))
+        rows.append(Layout(name="footer", size=3))
+        layout.split_column(*rows)
 
         layout["header"].update(
             Panel(
@@ -356,9 +361,6 @@ class Dashboard:
         ks_alerts = self.render_kickstarter_alerts()
         if ks_alerts:
             right_panels.append(ks_alerts)
-        blog_feed = self.render_blog_feed()
-        if blog_feed:
-            right_panels.append(blog_feed)
         price_alerts = self.render_price_alerts()
         if price_alerts:
             right_panels.append(price_alerts)
@@ -372,6 +374,9 @@ class Dashboard:
 
         layout["left"].update(Panel(left_group, title="📡 Scrape Queue & Status", border_style="cyan"))
         layout["right"].update(Panel(right_group, title="🍺 Today's New & Releases", border_style="green"))
+
+        if blog_feed and "blog" in layout:
+            layout["blog"].update(Panel(blog_feed, title="📝 Brewery Blog Feed", border_style="magenta"))
 
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         db_size = self.db.check_db_size()
@@ -476,10 +481,6 @@ class Dashboard:
     def render_once(self, stats: dict[str, Any] | None = None) -> None:
         layout = self.render_full(stats)
         self._console.print(layout)
-        blog_feed = self.render_blog_feed()
-        if blog_feed:
-            self._console.print()
-            self._console.print(blog_feed)
 
     def _get_today_beer_by_idx(self, idx: int) -> dict | None:
         beers = self.db.get_beers_today()
