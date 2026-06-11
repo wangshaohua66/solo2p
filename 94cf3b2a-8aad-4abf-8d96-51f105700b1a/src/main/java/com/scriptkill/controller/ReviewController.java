@@ -18,7 +18,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/reviews")
-@Tag(name = "06-复盘评分", description = "玩家评价与多维雷达图数据")
+@Tag(name = "player", description = "复盘评分、雷达图")
 public class ReviewController {
 
     private final ReviewService reviewService;

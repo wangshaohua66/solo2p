@@ -1,4 +1,7 @@
-com/scriptkill/service/MatchingServiceTest.class
+com/scriptkill/service/ScriptAndPurchaseServiceTest.class
+com/scriptkill/service/RiskServiceTest.class
 com/scriptkill/service/SessionServiceTest.class
+com/scriptkill/controller/SessionAndBookingWebMvcTest.class
 com/scriptkill/service/PasswordGeneratorTest.class
+com/scriptkill/service/MatchingServiceTest.class
 com/scriptkill/ScriptKillApplicationTests.class

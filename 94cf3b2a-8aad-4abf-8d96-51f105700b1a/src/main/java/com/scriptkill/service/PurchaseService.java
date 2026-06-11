@@ -76,6 +76,10 @@ public class PurchaseService {
         User reviewer = userRepository.findById(reviewerId)
                 .orElseThrow(() -> new BusinessException("评审人不存在"));
 
+        if (reviewer.getRole() != com.scriptkill.entity.enums.Role.DM) {
+            throw new BusinessException("只有DM角色可以参与本子评审");
+        }
+
         assignReview(purchase, reviewerId, request.getScore(), request.getComment());
 
         if (isAllReviewed(purchase)) {
@@ -164,19 +168,32 @@ public class PurchaseService {
 
         String durationStr = purchase.getEstimatedDuration();
         if (durationStr != null) {
-            script.setEstimatedDurationMinutes(240);
+            try {
+                script.setEstimatedDurationMinutes(Integer.parseInt(
+                        durationStr.replaceAll("[^0-9]", "")));
+            } catch (Exception e) {
+                script.setEstimatedDurationMinutes(240);
+            }
         } else {
             script.setEstimatedDurationMinutes(240);
         }
 
         try {
-            script.setGenre(ScriptGenre.REASONING);
+            if (purchase.getGenre() != null && !purchase.getGenre().isEmpty()) {
+                script.setGenre(ScriptGenre.valueOf(purchase.getGenre()));
+            } else {
+                script.setGenre(ScriptGenre.REASONING);
+            }
         } catch (Exception e) {
             script.setGenre(ScriptGenre.REASONING);
         }
 
         try {
-            script.setDifficulty(ScriptDifficulty.NORMAL);
+            if (purchase.getDifficulty() != null && !purchase.getDifficulty().isEmpty()) {
+                script.setDifficulty(ScriptDifficulty.valueOf(purchase.getDifficulty()));
+            } else {
+                script.setDifficulty(ScriptDifficulty.NORMAL);
+            }
         } catch (Exception e) {
             script.setDifficulty(ScriptDifficulty.NORMAL);
         }

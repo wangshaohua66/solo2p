@@ -18,7 +18,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/bookings")
-@Tag(name = "07-预约与定金", description = "玩家预约、定金、爽约风控")
+@Tag(name = "player", description = "预约、定金、爽约风控")
 public class BookingController {
 
     private final BookingService bookingService;

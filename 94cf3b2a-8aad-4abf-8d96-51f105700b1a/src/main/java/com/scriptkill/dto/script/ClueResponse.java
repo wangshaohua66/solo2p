@@ -48,4 +48,13 @@ public class ClueResponse {
 
     @Schema(description = "角色ID")
     private Long characterId;
+
+    @Schema(description = "会话中实际触发时间")
+    private java.time.LocalDateTime triggeredAt;
+
+    @Schema(description = "会话中触发人ID")
+    private Long triggeredBy;
+
+    @Schema(description = "会话中触发时所处阶段索引")
+    private Integer stageIndex;
 }

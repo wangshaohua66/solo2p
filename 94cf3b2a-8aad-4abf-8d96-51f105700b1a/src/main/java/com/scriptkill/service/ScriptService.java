@@ -158,14 +158,41 @@ public class ScriptService {
         Script script = scriptRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("剧本不存在"));
 
-        if (script.getVersionSnapshot() == null) {
+        if (version == null || version < 1) {
+            throw new BusinessException("无效的版本号");
+        }
+
+        if (version > script.getVersion()) {
+            throw new BusinessException("目标版本号大于当前版本");
+        }
+
+        if (script.getVersionSnapshot() == null || script.getVersionSnapshot().isEmpty()) {
             throw new BusinessException("没有历史版本可回滚");
         }
 
-        script.setStatus("ACTIVE");
-        scriptRepository.save(script);
+        try {
+            Script snapshot = objectMapper.readValue(script.getVersionSnapshot(), Script.class);
 
-        return getScriptDetail(id);
+            script.setName(snapshot.getName());
+            script.setDescription(snapshot.getDescription());
+            script.setMinPlayers(snapshot.getMinPlayers());
+            script.setMaxPlayers(snapshot.getMaxPlayers());
+            script.setEstimatedDurationMinutes(snapshot.getEstimatedDurationMinutes());
+            script.setGenre(snapshot.getGenre());
+            script.setDifficulty(snapshot.getDifficulty());
+            script.setVisibilityLevel(snapshot.getVisibilityLevel());
+            script.setBackgroundStory(snapshot.getBackgroundStory());
+            script.setEndingCount(snapshot.getEndingCount());
+            script.setCoverImageUrl(snapshot.getCoverImageUrl());
+            script.setStatus(snapshot.getStatus() != null ? snapshot.getStatus() : "ACTIVE");
+            script.setVersion(version);
+
+            scriptRepository.save(script);
+
+            return getScriptDetail(id);
+        } catch (JsonProcessingException e) {
+            throw new BusinessException("版本快照解析失败，无法回滚");
+        }
     }
 
     private void createVersionSnapshot(Script script) {

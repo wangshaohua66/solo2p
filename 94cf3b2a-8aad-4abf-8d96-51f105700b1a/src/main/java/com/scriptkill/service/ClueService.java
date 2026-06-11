@@ -160,7 +160,8 @@ public class ClueService {
     }
 
     @Transactional(readOnly = true)
-    public List<ClueResponse> getClueTimeline(Long sessionId) {
+    public List<ClueResponse> getClueTimeline(Long sessionId, LocalDateTime startTime,
+                                              LocalDateTime endTime) {
         GameSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new BusinessException("会话不存在"));
 
@@ -168,7 +169,20 @@ public class ClueService {
                 .findBySessionIdOrderByTriggeredAtAsc(sessionId);
 
         return logs.stream()
-                .map(log -> convertToResponse(log.getClue()))
+                .filter(log -> {
+                    if (startTime != null && log.getTriggeredAt().isBefore(startTime)) {
+                        return false;
+                    }
+                    return endTime == null || !log.getTriggeredAt().isAfter(endTime);
+                })
+                .map(log -> {
+                    ClueResponse resp = convertToResponse(log.getClue());
+                    resp.setTriggeredAt(log.getTriggeredAt());
+                    resp.setTriggeredBy(log.getTriggeredBy());
+                    resp.setTriggerType(log.getTriggerType());
+                    resp.setStageIndex(log.getStageIndex());
+                    return resp;
+                })
                 .collect(Collectors.toList());
     }
 

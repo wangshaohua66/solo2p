@@ -8,10 +8,14 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
+    generate-ddl: false
     show-sql: false
+    open-in-view: false
     properties:
       hibernate:
         dialect: org.hibernate.community.dialect.SQLiteDialect
+        jdbc:
+          batch_size: 50
   flyway:
     enabled: false
   jackson:

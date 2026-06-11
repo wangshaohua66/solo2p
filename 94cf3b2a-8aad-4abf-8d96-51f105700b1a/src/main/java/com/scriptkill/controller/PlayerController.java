@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/players")
-@Tag(name = "10-玩家档案", description = "玩家画像与偏好分析")
+@Tag(name = "player", description = "玩家档案、偏好分析")
 public class PlayerController {
 
     private final PlayerService playerService;

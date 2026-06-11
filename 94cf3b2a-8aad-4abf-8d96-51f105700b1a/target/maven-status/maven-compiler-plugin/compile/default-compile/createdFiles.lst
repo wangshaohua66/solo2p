@@ -1,5 +1,6 @@
 com/scriptkill/exception/GlobalExceptionHandler.class
 com/scriptkill/dto/matching/CharacterAssignment.class
+com/scriptkill/service/ArchiveService.class
 com/scriptkill/entity/Clue.class
 com/scriptkill/service/SessionService$1.class
 com/scriptkill/dto/session/SessionCreateRequest.class
@@ -12,6 +13,7 @@ com/scriptkill/entity/Script.class
 com/scriptkill/dto/script/CharacterResponse.class
 com/scriptkill/repository/SessionEventRepository.class
 com/scriptkill/controller/ScriptController.class
+com/scriptkill/util/PasswordGenerator.class
 com/scriptkill/security/CustomUserDetailsService.class
 com/scriptkill/entity/Deposit.class
 com/scriptkill/entity/User.class
@@ -19,6 +21,7 @@ com/scriptkill/security/JwtTokenProvider.class
 com/scriptkill/dto/script/ClueResponse.class
 com/scriptkill/service/ScriptService.class
 com/scriptkill/dto/matching/MatchingScoreDetail.class
+com/scriptkill/service/ClueSseService.class
 com/scriptkill/exception/BusinessException.class
 com/scriptkill/dto/purchase/PurchaseResponse.class
 com/scriptkill/dto/risk/PlayerRiskInfo.class
@@ -68,6 +71,7 @@ com/scriptkill/service/RiskService.class
 com/scriptkill/dto/schedule/DMScheduleResponse.class
 com/scriptkill/config/OpenApiConfig.class
 com/scriptkill/controller/AuthController.class
+com/scriptkill/config/SwaggerExampleInjector.class
 com/scriptkill/dto/session/SessionEventResponse.class
 com/scriptkill/service/SessionService.class
 com/scriptkill/repository/PurchaseRepository.class

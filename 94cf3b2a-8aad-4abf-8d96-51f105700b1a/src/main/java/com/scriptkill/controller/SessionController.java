@@ -19,8 +19,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/sessions")
-@Tag(name = "03-开本会话", description = "开本状态机、事件溯源、会话管理")
+@RequestMapping("/api/session")
+@Tag(name = "session", description = "开本会话、状态机、事件溯源")
 public class SessionController {
 
     private final SessionService sessionService;

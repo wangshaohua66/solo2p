@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/scripts")
-@Tag(name = "02-剧本管理", description = "剧本库增删改查、角色卡、阶段、线索管理")
+@Tag(name = "admin", description = "剧本库、角色、阶段、线索")
 public class ScriptController {
 
     private final ScriptService scriptService;

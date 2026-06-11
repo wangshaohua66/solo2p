@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/purchases")
-@Tag(name = "09-本子采购", description = "新本子评审与入库流程")
+@Tag(name = "admin", description = "本子采购与评审")
 public class PurchaseController {
 
     private final PurchaseService purchaseService;

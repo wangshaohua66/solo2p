@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
-@Tag(name = "01-认证管理", description = "用户登录注册与JWT认证")
+@Tag(name = "admin", description = "用户认证与JWT")
 public class AuthController {
 
     private final AuthService authService;

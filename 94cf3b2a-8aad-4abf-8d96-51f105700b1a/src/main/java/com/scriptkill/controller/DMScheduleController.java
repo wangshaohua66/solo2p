@@ -18,7 +18,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/dm-schedules")
-@Tag(name = "08-DM排班", description = "DM排班与提成计算")
+@Tag(name = "dm", description = "DM排班、提成计算")
 public class DMScheduleController {
 
     private final DMScheduleService dmScheduleService;

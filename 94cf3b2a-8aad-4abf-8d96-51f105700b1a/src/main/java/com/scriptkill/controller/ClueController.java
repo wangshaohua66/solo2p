@@ -4,25 +4,39 @@ import com.scriptkill.dto.common.ApiResponse;
 import com.scriptkill.dto.script.ClueResponse;
 import com.scriptkill.service.AuthService;
 import com.scriptkill.service.ClueService;
+import com.scriptkill.service.ClueSseService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/clues")
-@Tag(name = "05-线索引擎", description = "DM线索推送与时间轴回放")
+@Tag(name = "session", description = "线索引擎、SSE推送、时间轴回放")
 public class ClueController {
 
     private final ClueService clueService;
+    private final ClueSseService clueSseService;
     private final AuthService authService;
 
-    public ClueController(ClueService clueService, AuthService authService) {
+    public ClueController(ClueService clueService, ClueSseService clueSseService,
+                          AuthService authService) {
         this.clueService = clueService;
+        this.clueSseService = clueSseService;
         this.authService = authService;
+    }
+
+    @GetMapping(path = "/session/{sessionId}/subscribe", produces = "text/event-stream")
+    @Operation(summary = "订阅会话线索SSE通道", description = "实时接收推送线索，text/event-stream")
+    public SseEmitter subscribe(
+            @Parameter(description = "会话ID") @PathVariable Long sessionId) {
+        return clueSseService.subscribe(sessionId);
     }
 
     @GetMapping("/session/{sessionId}")
@@ -44,12 +58,13 @@ public class ClueController {
 
     @PostMapping("/session/{sessionId}/trigger/{clueId}")
     @PreAuthorize("hasAnyRole('DM', 'STORE_MANAGER', 'ADMIN')")
-    @Operation(summary = "DM主动触发线索", description = "DM手动推送线索给玩家")
+    @Operation(summary = "DM主动触发线索", description = "DM手动推送线索给玩家（自动SSE广播）")
     public ApiResponse<ClueResponse> triggerClue(
             @Parameter(description = "会话ID") @PathVariable Long sessionId,
             @Parameter(description = "线索ID") @PathVariable Long clueId) {
         Long dmUserId = authService.getCurrentUser().getId();
         ClueResponse clue = clueService.triggerClue(sessionId, clueId, dmUserId, "MANUAL");
+        clueSseService.publishClue(sessionId, clue);
         return ApiResponse.success("线索已推送", clue);
     }
 
@@ -71,14 +86,19 @@ public class ClueController {
             @Parameter(description = "事件名称") @PathVariable String eventName) {
         Long dmUserId = authService.getCurrentUser().getId();
         List<ClueResponse> clues = clueService.checkEventTrigger(sessionId, eventName, dmUserId);
+        clues.forEach(c -> clueSseService.publishClue(sessionId, c));
         return ApiResponse.success("事件触发完成", clues);
     }
 
     @GetMapping("/session/{sessionId}/timeline")
-    @Operation(summary = "获取线索时间轴", description = "复盘支持时间轴回放，按触发顺序展示线索")
+    @Operation(summary = "获取线索时间轴", description = "复盘时间轴回放，支持startTime/endTime区间过滤")
     public ApiResponse<List<ClueResponse>> getClueTimeline(
-            @Parameter(description = "会话ID") @PathVariable Long sessionId) {
-        List<ClueResponse> clues = clueService.getClueTimeline(sessionId);
+            @Parameter(description = "会话ID") @PathVariable Long sessionId,
+            @Parameter(description = "开始时间(ISO)") @RequestParam(required = false)
+                @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
+            @Parameter(description = "结束时间(ISO)") @RequestParam(required = false)
+                @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime) {
+        List<ClueResponse> clues = clueService.getClueTimeline(sessionId, startTime, endTime);
         return ApiResponse.success(clues);
     }
 

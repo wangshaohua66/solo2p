@@ -77,19 +77,18 @@ public class BookingService {
 
         int requiredDeposit = riskService.calculateRequiredDeposit(
                 request.getPlayerId(), session.getDepositAmount());
+        requiredDeposit = Math.max(requiredDeposit, session.getDepositAmount());
 
-        if (requiredDeposit > 0) {
-            booking.setDepositPaid(requiredDeposit);
+        booking.setDepositPaid(requiredDeposit);
 
-            Deposit deposit = new Deposit();
-            deposit.setBooking(booking);
-            deposit.setPlayer(player);
-            deposit.setSession(session);
-            deposit.setAmount(requiredDeposit);
-            deposit.setStatus(DepositStatus.HELD);
-            deposit.setPaymentMethod(request.getPaymentMethod());
-            depositRepository.save(deposit);
-        }
+        Deposit deposit = new Deposit();
+        deposit.setBooking(booking);
+        deposit.setPlayer(player);
+        deposit.setSession(session);
+        deposit.setAmount(requiredDeposit);
+        deposit.setStatus(DepositStatus.HELD);
+        deposit.setPaymentMethod(request.getPaymentMethod());
+        depositRepository.save(deposit);
 
         booking.setStatus(BookingStatus.CONFIRMED);
         booking = bookingRepository.save(booking);

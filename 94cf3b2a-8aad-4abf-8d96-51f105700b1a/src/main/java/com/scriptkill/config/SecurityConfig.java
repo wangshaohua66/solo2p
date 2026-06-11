@@ -41,13 +41,45 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**").permitAll()
-                .requestMatchers("/dark-theme.css", "/favicon.ico", "/static/**").permitAll()
+                .requestMatchers(
+                    "/swagger-ui/**",
+                    "/swagger-ui.html",
+                    "/swagger-ui/index.html",
+                    "/api-docs/**",
+                    "/v3/api-docs/**",
+                    "/api-docs/swagger-config",
+                    "/v3/api-docs/swagger-config"
+                ).permitAll()
+                .requestMatchers(
+                    "/dark-theme.css",
+                    "/favicon.ico",
+                    "/favicon-*.png",
+                    "/**/*.css",
+                    "/**/*.js",
+                    "/**/*.html",
+                    "/**/*.png",
+                    "/**/*.jpg",
+                    "/**/*.jpeg",
+                    "/**/*.svg",
+                    "/**/*.ico",
+                    "/**/*.woff2",
+                    "/**/*.woff",
+                    "/**/*.ttf"
+                ).permitAll()
                 .requestMatchers("/api/player/**").hasAnyRole("PLAYER", "DM", "STORE_MANAGER", "ADMIN")
                 .requestMatchers("/api/dm/**").hasAnyRole("DM", "STORE_MANAGER", "ADMIN")
                 .requestMatchers("/api/admin/**").hasAnyRole("STORE_MANAGER", "ADMIN")
                 .requestMatchers("/api/session/**").hasAnyRole("PLAYER", "DM", "STORE_MANAGER", "ADMIN")
+                .requestMatchers("/api/bookings/**").hasAnyRole("PLAYER", "DM", "STORE_MANAGER", "ADMIN")
+                .requestMatchers("/api/reviews/**").hasAnyRole("PLAYER", "DM", "STORE_MANAGER", "ADMIN")
+                .requestMatchers("/api/clues/**").hasAnyRole("DM", "STORE_MANAGER", "ADMIN")
+                .requestMatchers("/api/dm/schedules/**").hasAnyRole("DM", "STORE_MANAGER", "ADMIN")
+                .requestMatchers("/api/purchases/**").hasAnyRole("STORE_MANAGER", "ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/scripts/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/scripts/**").hasAnyRole("STORE_MANAGER", "ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/scripts/**").hasAnyRole("STORE_MANAGER", "ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/scripts/**").hasAnyRole("STORE_MANAGER", "ADMIN")
+                .requestMatchers("/sse/**").hasAnyRole("PLAYER", "DM", "STORE_MANAGER", "ADMIN")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
@@ -58,10 +90,12 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("*"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+        configuration.setAllowedOriginPatterns(List.of("*"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"));
         configuration.setAllowedHeaders(List.of("*"));
-        configuration.setExposedHeaders(List.of("Authorization"));
+        configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Disposition"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

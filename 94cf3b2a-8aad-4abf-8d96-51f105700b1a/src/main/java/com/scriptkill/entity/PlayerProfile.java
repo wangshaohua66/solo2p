@@ -11,7 +11,8 @@ import java.time.LocalDateTime;
 @Data
 @Entity
 @Table(name = "players", indexes = {
-    @Index(name = "idx_player_user", columnList = "user_id", unique = true),
+    @Index(name = "idx_player_user", columnList = "user_id"),
+    @Index(name = "idx_player_user_unique", columnList = "user_id", unique = true),
     @Index(name = "idx_player_preference", columnList = "preferred_genre"),
     @Index(name = "idx_player_age_group", columnList = "age_group")
 })

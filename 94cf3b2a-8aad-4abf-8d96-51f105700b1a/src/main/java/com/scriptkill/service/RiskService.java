@@ -112,7 +112,8 @@ public class RiskService {
 
     public int calculateRequiredDeposit(Long playerId, int baseDeposit) {
         PlayerRiskInfo riskInfo = getPlayerRiskInfo(playerId);
-        return (int) (baseDeposit * riskInfo.getDepositMultiplier());
+        int required = (int) (baseDeposit * riskInfo.getDepositMultiplier());
+        return Math.max(required, baseDeposit);
     }
 
     public boolean isHighRiskPlayer(Long playerId) {

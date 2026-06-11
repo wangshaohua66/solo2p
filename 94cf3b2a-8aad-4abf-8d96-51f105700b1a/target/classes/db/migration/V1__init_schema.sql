@@ -141,6 +141,31 @@ CREATE INDEX idx_session_status ON sessions(status);
 CREATE INDEX idx_session_start_time ON sessions(start_time);
 CREATE INDEX idx_session_room ON sessions(room_number);
 
+CREATE TABLE cold_sessions (
+    id INTEGER PRIMARY KEY,
+    script_id INTEGER NOT NULL,
+    dm_id INTEGER NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    start_time DATETIME,
+    end_time DATETIME,
+    room_number VARCHAR(20),
+    max_players INTEGER NOT NULL,
+    current_players_count INTEGER DEFAULT 0,
+    difficulty_factor REAL DEFAULT 1.0,
+    deposit_amount INTEGER DEFAULT 0,
+    price_per_person INTEGER DEFAULT 0,
+    total_revenue INTEGER DEFAULT 0,
+    dm_commission INTEGER DEFAULT 0,
+    notes TEXT,
+    original_created_at DATETIME,
+    archived_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_cold_session_script ON cold_sessions(script_id);
+CREATE INDEX idx_cold_session_dm ON cold_sessions(dm_id);
+CREATE INDEX idx_cold_session_start_time ON cold_sessions(start_time);
+CREATE INDEX idx_cold_session_archived_at ON cold_sessions(archived_at);
+
 CREATE TABLE session_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id INTEGER NOT NULL,
@@ -178,7 +203,7 @@ CREATE INDEX idx_clue_log_time ON session_clue_logs(triggered_at);
 
 CREATE TABLE players (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL UNIQUE,
+    user_id INTEGER NOT NULL,
     real_name VARCHAR(50),
     age_group VARCHAR(20),
     gender VARCHAR(10),
@@ -200,6 +225,7 @@ CREATE TABLE players (
 );
 
 CREATE INDEX idx_player_user ON players(user_id);
+CREATE UNIQUE INDEX idx_player_user_unique ON players(user_id);
 CREATE INDEX idx_player_preference ON players(preferred_genre);
 CREATE INDEX idx_player_age_group ON players(age_group);
 
@@ -348,17 +374,3 @@ CREATE TABLE purchases (
 CREATE INDEX idx_purchase_status ON purchases(status);
 CREATE INDEX idx_purchase_script_name ON purchases(script_name);
 CREATE INDEX idx_purchase_submitter ON purchases(submitter_id);
-
-INSERT INTO users (username, password, nickname, phone, email, role) VALUES 
-('admin', '$2a$10$rjFrEeMVy3a42OL383pXbeLSB4gayV88xkkMFOjQH8exnTetPFMEO', '超级管理员', '13800000001', 'admin@scriptkill.com', 'ADMIN'),
-('manager', '$2a$10$rjFrEeMVy3a42OL383pXbeLSB4gayV88xkkMFOjQH8exnTetPFMEO', '店长', '13800000002', 'manager@scriptkill.com', 'STORE_MANAGER'),
-('dm01', '$2a$10$rjFrEeMVy3a42OL383pXbeLSB4gayV88xkkMFOjQH8exnTetPFMEO', 'DM小A', '13800000003', 'dm01@scriptkill.com', 'DM'),
-('dm02', '$2a$10$rjFrEeMVy3a42OL383pXbeLSB4gayV88xkkMFOjQH8exnTetPFMEO', 'DM小B', '13800000004', 'dm02@scriptkill.com', 'DM'),
-('player01', '$2a$10$rjFrEeMVy3a42OL383pXbeLSB4gayV88xkkMFOjQH8exnTetPFMEO', '玩家小明', '13900000001', 'player01@scriptkill.com', 'PLAYER'),
-('player02', '$2a$10$rjFrEeMVy3a42OL383pXbeLSB4gayV88xkkMFOjQH8exnTetPFMEO', '玩家小红', '13900000002', 'player02@scriptkill.com', 'PLAYER'),
-('player03', '$2a$10$rjFrEeMVy3a42OL383pXbeLSB4gayV88xkkMFOjQH8exnTetPFMEO', '玩家小刚', '13900000003', 'player03@scriptkill.com', 'PLAYER');
-
-INSERT INTO players (user_id, real_name, age_group, gender, preferred_genre, horror_tolerance, emotional_sensitivity, reasoning_ability, social_level) VALUES 
-(5, '张明', '18-25', '男', 'REASONING,HORROR', 7, 3, 8, 6),
-(6, '李红', '25-35', '女', 'EMOTIONAL,HAPPY', 3, 9, 5, 8),
-(7, '王刚', '35-45', '男', 'SUSPENSE,SCI_FI', 5, 4, 9, 4);
