@@ -188,7 +188,7 @@ async def _run_pipeline(config: dict[str, Any], mode: str, zipcode: str | None) 
         signal.signal(signal.SIGTERM, _shutdown)
 
         logger.info("Starting watch mode — dashboard live refresh")
-        dashboard.render_watch(get_stats=pipeline.get_stats, refresh_interval=5.0)
+        dashboard.render_watch(get_stats=pipeline.get_stats, refresh_interval=5.0, heartbeat_fn=pipeline.tick)
     else:
         logger.error("Unknown mode: {mode}", mode=mode)
 

@@ -315,6 +315,11 @@ class PipelineScheduler:
                 )
         logger.info("Kickstarter check complete, {count} active campaigns", count=len(campaigns))
 
+    def tick(self) -> None:
+        self._stats.last_tick = datetime.now(timezone.utc).isoformat()
+        if self._scheduler.running:
+            self._stats.running = True
+
     def get_stats(self) -> dict[str, Any]:
         return {
             "running": self._stats.running,

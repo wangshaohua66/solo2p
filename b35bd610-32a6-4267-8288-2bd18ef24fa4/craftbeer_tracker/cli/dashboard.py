@@ -350,17 +350,18 @@ class Dashboard:
 
         right_panels = [
             self.render_today_new(),
+            self.render_scarcity_top(20),
             self.render_release_calendar(),
         ]
         ks_alerts = self.render_kickstarter_alerts()
         if ks_alerts:
             right_panels.append(ks_alerts)
-        price_alerts = self.render_price_alerts()
-        if price_alerts:
-            right_panels.append(price_alerts)
         blog_feed = self.render_blog_feed()
         if blog_feed:
             right_panels.append(blog_feed)
+        price_alerts = self.render_price_alerts()
+        if price_alerts:
+            right_panels.append(price_alerts)
 
         left_group = Group(*left_panels)
         right_group = Group(*right_panels)
@@ -475,6 +476,10 @@ class Dashboard:
     def render_once(self, stats: dict[str, Any] | None = None) -> None:
         layout = self.render_full(stats)
         self._console.print(layout)
+        blog_feed = self.render_blog_feed()
+        if blog_feed:
+            self._console.print()
+            self._console.print(blog_feed)
 
     def _get_today_beer_by_idx(self, idx: int) -> dict | None:
         beers = self.db.get_beers_today()
@@ -495,6 +500,10 @@ class Dashboard:
         while True:
             layout = self.render_full(stats, expanded_row=expanded_row, beer_data=expanded_beer)
             self._console.print(layout)
+            blog_feed = self.render_blog_feed()
+            if blog_feed:
+                self._console.print()
+                self._console.print(blog_feed)
 
             try:
                 choice = Prompt.ask(
