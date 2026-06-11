@@ -209,11 +209,13 @@ var ExpDetail = (function() {
     }
 
     function renderCompare() {
+        $(document).off('mousedown.compare mousemove.compare mouseup.compare mouseleave.compare');
+
         var ids = AppState.get('compareIds');
         var $modalBody = $('#compareModal .modal-body');
         if (ids.length <= 1) {
             $modalBody.find('.compare-toolbar').remove();
-            $modalBody.find('.compare-grid-wrapper').remove();
+            $modalBody.find('#compareGridWrap').remove();
             $modalBody.html('<div class="text-center text-muted py-5"><i class="bi bi-layers display-4 opacity-50"></i><p class="mt-3">请在列表中按住Ctrl/Shift点击选择2-4条实验进行对比</p></div>');
             return;
         }
@@ -222,7 +224,14 @@ var ExpDetail = (function() {
         comparePanX = 0;
         comparePanY = 0;
 
-        Promise.all(ids.map(function(id) { return AppDB.getExperimentWithMedia(id); })).then(function(exps) {
+        var toolbarExists = $modalBody.children('.compare-toolbar').length > 0;
+        var $wrap = $modalBody.find('#compareGridWrap');
+        var wrapCache = {};
+        if ($wrap.length > 0) {
+            wrapCache = $wrap.data() || {};
+        }
+
+        if (!toolbarExists) {
             var toolbarHtml = '<div class="compare-toolbar d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">' +
                 '<div class="d-flex align-items-center gap-2">' +
                     '<label class="form-label small mb-0">缩放:</label>' +
@@ -234,60 +243,159 @@ var ExpDetail = (function() {
                     '<label class="form-check-label small" for="compareShowLabels">显示标签叠加</label>' +
                 '</div>' +
             '</div>';
+            $modalBody.prepend(toolbarHtml);
+        } else {
+            var $z = $('#compareZoom');
+            if ($z.length > 0 && parseInt($z.val()) !== compareZoom) { $z.val(compareZoom); $('#compareZoomVal').text(compareZoom + '%'); }
+        }
 
-            var gridInner = '';
-            exps.forEach(function(exp, idx) {
-                if (!exp) return;
-                var firstMedia = (exp.media && exp.media[0]) ? exp.media[0].dataBase64 : null;
-                var defectTags = (exp.defectTags || []).map(function(d) {
-                    return '<span class="mini-tag" style="background:rgba(220,53,69,0.85);color:#fff;">' + d + '</span>';
-                }).join('');
-                var glazeTags = '<span class="mini-tag celadon">' + (exp.glazeCategory || '-') + '</span>' +
-                    '<span class="mini-tag">锥' + (exp.cone || '-') + '</span>' +
-                    '<span class="mini-tag">' + (exp.atmosphere || '-') + '</span>';
-
-                gridInner += '<div class="compare-item" data-exp-id="' + exp.id + '">' +
-                    '<div class="compare-img-wrap" data-idx="' + idx + '">' +
-                        (firstMedia ? '<img src="' + firstMedia + '" alt="" style="transform: translate(-50%, -50%) translate(' + comparePanX + 'px, ' + comparePanY + 'px) scale(' + (compareZoom / 100) + ');">' :
-                            '<div class="text-muted text-center w-100"><i class="bi bi-image display-4 opacity-30"></i><p class="small mt-2">无照片</p></div>') +
-                        '<div class="compare-caption">' + escapeHtml(truncate(exp.name || '未命名', 18)) + '</div>' +
-                        '<button class="btn-compare-remove" data-remove="' + exp.id + '" title="从对比移除"><i class="bi bi-x"></i></button>' +
-                        '<div class="compare-label-overlay" style="display:' + (compareShowLabels ? 'flex' : 'none') + ';">' +
-                            glazeTags + defectTags +
-                        '</div>' +
-                    '</div>' +
-                '</div>';
+        Promise.all(ids.map(function(id) { return AppDB.getExperimentWithMedia(id); })).then(function(exps) {
+            var validExps = [];
+            var idMap = {};
+            exps.forEach(function(exp) {
+                if (exp) {
+                    validExps.push(exp);
+                    idMap[exp.id] = exp;
+                }
             });
+            ids = validExps.map(function(e) { return e.id; });
 
-            var colPercents = [];
-            for (var i = 0; i < cols; i++) colPercents.push((100 / cols).toFixed(4) + '%');
+            var $grid;
+            var newWrap = $modalBody.find('#compareGridWrap');
+            if ($wrap.length === 0) {
+                var colPercents = [];
+                for (var i = 0; i < cols; i++) colPercents.push((100 / cols).toFixed(4) + '%');
 
-            var draggersHtml = '';
-            for (var d = 1; d < cols; d++) {
-                draggersHtml += '<div class="compare-dragger" data-col-index="' + d + '" style="left: calc(' + colPercents.slice(0, d).reduce(function(a, b) { return a + parseFloat(b); }, 0) + '% - 3px);"></div>';
+                var draggersHtml = '';
+                for (var d = 1; d < cols; d++) {
+                    draggersHtml += '<div class="compare-dragger" data-col-index="' + d + '" style="left: calc(' + colPercents.slice(0, d).reduce(function(a, b) { return a + parseFloat(b); }, 0) + '% - 3px);"></div>';
+                }
+
+                $modalBody.append(
+                    '<div class="compare-grid-wrapper position-relative" id="compareGridWrap" style="width:100%;">' +
+                        '<div class="compare-grid cols-' + cols + '" id="compareGrid" style="grid-template-columns: ' + colPercents.join(' ') + ';"></div>' +
+                        draggersHtml +
+                    '</div>'
+                );
+                $wrap = $modalBody.find('#compareGridWrap');
+                $grid = $wrap.find('#compareGrid');
+                wrapCache = {};
+            } else {
+                $grid = $wrap.find('#compareGrid');
+                var currentCols = $grid.hasClass('cols-4') ? 4 : $grid.hasClass('cols-3') ? 3 : 2;
+                if (currentCols !== cols) {
+                    $grid.removeClass('cols-2 cols-3 cols-4').addClass('cols-' + cols);
+                    var newColPercents = [];
+                    for (var ci = 0; ci < cols; ci++) newColPercents.push((100 / cols).toFixed(4) + '%');
+                    $grid.css('grid-template-columns', newColPercents.join(' '));
+
+                    $wrap.find('.compare-dragger').remove();
+                    var newDraggers = '';
+                    for (var dd = 1; dd < cols; dd++) {
+                        newDraggers += '<div class="compare-dragger" data-col-index="' + dd + '" style="left: calc(' + newColPercents.slice(0, dd).reduce(function(a, b) { return a + parseFloat(b); }, 0) + '% - 3px);"></div>';
+                    }
+                    $wrap.append(newDraggers);
+                }
             }
 
-            var gridHtml = '<div class="compare-grid-wrapper position-relative" style="width:100%;">' +
-                '<div class="compare-grid cols-' + cols + '" id="compareGrid" style="grid-template-columns: ' + colPercents.join(' ') + ';">' +
-                    gridInner +
-                '</div>' +
-                draggersHtml +
-            '</div>';
+            var existingIds = [];
+            $grid.children('.compare-item').each(function() {
+                existingIds.push(parseInt($(this).data('exp-id')));
+            });
 
-            $modalBody.html(toolbarHtml + gridHtml);
+            var newIdsSet = {};
+            ids.forEach(function(id) { newIdsSet[id] = true; });
 
-            $modalBody.off('input', '#compareZoom').on('input', '#compareZoom', function() {
+            existingIds.forEach(function(eid) {
+                if (!newIdsSet[eid]) {
+                    $grid.find('.compare-item[data-exp-id="' + eid + '"]').remove();
+                    delete wrapCache['img-' + eid];
+                }
+            });
+
+            validExps.forEach(function(exp) {
+                var idx = ids.indexOf(exp.id);
+                var firstMedia = (exp.media && exp.media[0]) ? exp.media[0].dataBase64 : null;
+                var $item = $grid.find('.compare-item[data-exp-id="' + exp.id + '"]');
+
+                if ($item.length === 0) {
+                    var defectTags = (exp.defectTags || []).map(function(d) {
+                        return '<span class="mini-tag" style="background:rgba(220,53,69,0.85);color:#fff;">' + d + '</span>';
+                    }).join('');
+                    var glazeTags = '<span class="mini-tag celadon">' + (exp.glazeCategory || '-') + '</span>' +
+                        '<span class="mini-tag">锥' + (exp.cone || '-') + '</span>' +
+                        '<span class="mini-tag">' + (exp.atmosphere || '-') + '</span>';
+
+                    var imgHtml = firstMedia ?
+                        '<img alt="">' :
+                        '<div class="text-muted text-center w-100"><i class="bi bi-image display-4 opacity-30"></i><p class="small mt-2">无照片</p></div>';
+
+                    $item = $(
+                        '<div class="compare-item" data-exp-id="' + exp.id + '">' +
+                            '<div class="compare-img-wrap" data-idx="' + idx + '">' +
+                                imgHtml +
+                                '<div class="compare-caption">' + escapeHtml(truncate(exp.name || '未命名', 18)) + '</div>' +
+                                '<button class="btn-compare-remove" data-remove="' + exp.id + '" title="从对比移除"><i class="bi bi-x"></i></button>' +
+                                '<div class="compare-label-overlay" style="display:' + (compareShowLabels ? 'flex' : 'none') + ';">' +
+                                    glazeTags + defectTags +
+                                '</div>' +
+                            '</div>' +
+                        '</div>'
+                    );
+                    $grid.append($item);
+
+                    if (firstMedia) {
+                        var $img = $item.find('img');
+                        $img.attr('src', firstMedia);
+                        $img.css('transform', 'translate(-50%, -50%) translate(' + comparePanX + 'px, ' + comparePanY + 'px) scale(' + (compareZoom / 100) + ')');
+                        wrapCache['img-' + exp.id] = firstMedia;
+                    }
+                } else {
+                    $item.find('.compare-img-wrap').data('idx', idx);
+                    $item.find('.compare-caption').text(escapeHtml(truncate(exp.name || '未命名', 18)));
+                    if (firstMedia && wrapCache['img-' + exp.id] !== firstMedia) {
+                        var $existImg = $item.find('img');
+                        if ($existImg.length === 0) {
+                            $item.find('.compare-img-wrap').prepend('<img alt="">');
+                            $existImg = $item.find('img');
+                        }
+                        $existImg.attr('src', firstMedia);
+                        wrapCache['img-' + exp.id] = firstMedia;
+                    }
+                    $item.find('.compare-label-overlay').toggle(compareShowLabels);
+                }
+
+                var $imgEl = $item.find('img');
+                if ($imgEl.length > 0 && !$imgEl.attr('src')) {
+                    $imgEl.css('transform', 'translate(-50%, -50%) translate(' + comparePanX + 'px, ' + comparePanY + 'px) scale(' + (compareZoom / 100) + ')');
+                } else if ($imgEl.length > 0) {
+                    $imgEl.css('transform', 'translate(-50%, -50%) translate(' + comparePanX + 'px, ' + comparePanY + 'px) scale(' + (compareZoom / 100) + ')');
+                }
+            });
+
+            var orderedItems = [];
+            ids.forEach(function(id) {
+                var $it = $grid.find('.compare-item[data-exp-id="' + id + '"]');
+                if ($it.length > 0) {
+                    orderedItems.push($it.detach()[0]);
+                }
+            });
+            $grid.append(orderedItems);
+
+            $wrap.data(wrapCache);
+
+            $modalBody.off('input.compare', '#compareZoom').on('input.compare', '#compareZoom', function() {
                 compareZoom = parseInt($(this).val());
                 $('#compareZoomVal').text(compareZoom + '%');
                 applyCompareTransform();
             });
 
-            $modalBody.off('change', '#compareShowLabels').on('change', '#compareShowLabels', function() {
+            $modalBody.off('change.compare', '#compareShowLabels').on('change.compare', '#compareShowLabels', function() {
                 compareShowLabels = $(this).prop('checked');
                 $('.compare-label-overlay').toggle(compareShowLabels);
             });
 
-            $modalBody.off('click', '[data-remove]').on('click', '[data-remove]', function(e) {
+            $modalBody.off('click.compare', '[data-remove]').on('click.compare', '[data-remove]', function(e) {
                 e.stopPropagation();
                 var rid = parseInt($(this).data('remove'));
                 AppState.toggleCompare(rid);

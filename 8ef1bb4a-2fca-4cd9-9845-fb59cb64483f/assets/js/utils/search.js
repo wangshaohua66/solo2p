@@ -89,7 +89,9 @@ var SearchUtil = (function() {
         for (var i = 0; i < experiments.length; i++) {
             var exp = experiments[i];
             var matched = false;
-            if (exp.notes && exp.notes.toLowerCase().indexOf(kw) > -1) {
+            if (exp.name && exp.name.toLowerCase().indexOf(kw) > -1) {
+                matched = true;
+            } else if (exp.notes && exp.notes.toLowerCase().indexOf(kw) > -1) {
                 matched = true;
             } else {
                 var recipe = exp.recipe || [];

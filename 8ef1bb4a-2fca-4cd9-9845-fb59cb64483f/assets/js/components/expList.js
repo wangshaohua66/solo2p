@@ -66,6 +66,14 @@ var ExpList = (function() {
             }
         });
 
+        $('#btnToggleMultiCurve').on('click', function() {
+            var $section = $('#multiCurveSection');
+            $section.toggleClass('d-none');
+            if (!$section.hasClass('d-none')) {
+                renderMultiCurve();
+            }
+        });
+
         updateCompareBadge();
     }
 
@@ -461,6 +469,7 @@ var ExpList = (function() {
         var ids = AppState.get('compareIds');
         $('#compareCount').text(ids.length);
         $('#btnOpenCompare').prop('disabled', ids.length < 2);
+        $('#btnToggleMultiCurve').prop('disabled', ids.length < 2);
         if (ids.length > 0) {
             $('#compareHint').text('（按住Ctrl/Shift+点击可多选加入对比）');
         } else {
@@ -475,6 +484,18 @@ var ExpList = (function() {
             } else {
                 $(this).removeClass('selected');
             }
+        });
+        if ($('#multiCurveSection').length && !$('#multiCurveSection').hasClass('d-none')) {
+            renderMultiCurve();
+        }
+    }
+
+    function renderMultiCurve() {
+        var ids = AppState.get('compareIds');
+        if (ids.length < 2) return;
+        Promise.all(ids.map(function(id) { return AppDB.getExperimentWithMedia(id); })).then(function(exps) {
+            var valid = exps.filter(function(e) { return e != null; });
+            FiringCurve.renderMultiCompare(valid);
         });
     }
 
