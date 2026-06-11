@@ -76,6 +76,72 @@ def show_config():
     console.print(table)
 
 
+@app.command("self-check")
+def self_check(
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
+):
+    """Run self-diagnostic checks on color engine and inventory system."""
+    from cli.commands.ui import print_success, print_warning, print_error, create_table, print_json
+    from rich.console import Console
+    from core import color_engine
+    from core import inventory as inv_module
+
+    console = Console()
+
+    color_results = color_engine.self_check()
+    inv_results = inv_module.self_check()
+
+    all_results = {
+        "color_engine": color_results,
+        "inventory": inv_results,
+        "all_passed": color_results["all_passed"] and inv_results["all_passed"],
+    }
+
+    if json_output:
+        print_json(all_results)
+        return
+
+    table = create_table("Self-Check Results", ["Module", "Check", "Status", "Details"])
+
+    color_checks = [
+        ("Color Engine", "CIELAB ↔ RGB roundtrip", color_results.get("color_roundtrip", False),
+         f"ΔE = {color_results.get('roundtrip_delta_e', 'N/A')}" if color_results.get("color_roundtrip") else "FAILED"),
+        ("Color Engine", "ΔE identity (same color)", color_results.get("delta_e_identity", False), ""),
+        ("Color Engine", "Paper white sanity", color_results.get("paper_white_sanity", False), ""),
+    ]
+
+    for module, check, passed, detail in color_checks:
+        status = "[green]PASS[/]" if passed else "[red]FAIL[/]"
+        table.add_row(module, check, status, detail)
+
+    inv_checks = [
+        ("Inventory", "Database connection", inv_results.get("db_connection", False), ""),
+        ("Inventory", "Ink list structure", inv_results.get("ink_list_roundtrip", False), ""),
+        ("Inventory", "Inventory list structure", inv_results.get("inventory_list_structure", False), ""),
+    ]
+
+    for module, check, passed, detail in inv_checks:
+        status = "[green]PASS[/]" if passed else "[red]FAIL[/]"
+        table.add_row(module, check, status, detail)
+
+    console.print(table)
+
+    all_errors = color_results.get("errors", []) + inv_results.get("errors", [])
+    if all_errors:
+        console.print()
+        print_warning(f"Found {len(all_errors)} error(s):")
+        for err in all_errors:
+            console.print(f"  • {err}")
+
+    if all_results["all_passed"]:
+        console.print()
+        print_success("All checks passed!")
+    else:
+        console.print()
+        print_error("Some checks failed. See details above.")
+        raise typer.Exit(code=1)
+
+
 def _handle_exception(exc_type, exc_value, exc_traceback):
     if issubclass(exc_type, KeyboardInterrupt):
         print("\nOperation cancelled by user")

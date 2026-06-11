@@ -4,7 +4,7 @@ from datetime import datetime, date
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from storage.sqlite_db import Database, get_db
-from core.ink_model import Ink, Recipe, JournalEntry
+from core.ink_model import Ink, Recipe, JournalEntry, CIELAB
 from core.color_engine import cielab_to_rgb
 from utils.logger import get_logger
 
@@ -89,11 +89,8 @@ class Exporter:
             ])
 
             for ink in inks:
-                rgb = cielab_to_rgb({
-                    "l": ink["l"],
-                    "a": ink["a"],
-                    "b": ink["b"],
-                })
+                cielab = CIELAB(l=ink["l"], a=ink["a"], b=ink["b"])
+                rgb = cielab_to_rgb(cielab)
                 writer.writerow([
                     ink["id"],
                     ink["brand"],
@@ -179,11 +176,8 @@ class Exporter:
         story.append(Paragraph(f"Ink Mix Recipe: {recipe['name']}", title_style))
         story.append(Spacer(1, 0.25 * inch))
 
-        rgb = cielab_to_rgb({
-            "l": recipe["target_l"],
-            "a": recipe["target_a"],
-            "b": recipe["target_b"],
-        })
+        cielab = CIELAB(l=recipe["target_l"], a=recipe["target_a"], b=recipe["target_b"])
+        rgb = cielab_to_rgb(cielab)
         hex_color = rgb.to_hex()
 
         color_info = [

@@ -178,15 +178,15 @@ Color Difference: {delta_e_display(delta_e, config.delta_e_threshold)}
 def predict_mix(
     components: List[str] = typer.Option(..., "--ink", "-i", help="Ink ID:ratio pairs, e.g. --ink 1:0.5 --ink 2:0.5"),
     batch_ml: float = typer.Option(50.0, "--batch", help="Batch size in ml"),
-    paper_white_l: float = typer.Option(95.0, "--paper-l", help="Paper white L*"),
-    paper_white_a: float = typer.Option(0.0, "--paper-a", help="Paper white a*"),
-    paper_white_b: float = typer.Option(0.0, "--paper-b", help="Paper white b*"),
+    paper_white_l: Optional[float] = typer.Option(None, "--paper-l", help="Custom paper white L*"),
+    paper_white_a: float = typer.Option(0.0, "--paper-a", help="Custom paper white a*"),
+    paper_white_b: float = typer.Option(0.0, "--paper-b", help="Custom paper white b*"),
     save: bool = typer.Option(False, "--save", help="Save prediction to database"),
     name: Optional[str] = typer.Option(None, "--name", "-n", help="Recipe name for saving"),
     no_color: bool = typer.Option(False, "--no-color", help="Disable color output"),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
 ):
-    """Predict the resulting color of a custom ink mix with paper white adjustment."""
+    """Predict the resulting color of a custom ink mix with multi-level paper white comparison."""
     try:
         set_no_color(no_color)
 
@@ -233,15 +233,28 @@ def predict_mix(
 
         result_lab = mix_colors(normalized_input)
 
-        paper_white = CIELAB(l=paper_white_l, a=paper_white_a, b=paper_white_b)
-        adjusted_lab = paper_white_adjustment(result_lab, paper_white)
-        color_shift = delta_e2000(result_lab, adjusted_lab)
+        paper_whites = [
+            ("Bright White (95)", CIELAB(l=95.0, a=0.0, b=0.0)),
+            ("Standard (85)", CIELAB(l=85.0, a=0.0, b=0.0)),
+            ("Cream/Tinted (75)", CIELAB(l=75.0, a=0.0, b=0.0)),
+        ]
 
-        color_shift_notes = None
-        if color_shift > 3.0:
-            color_shift_notes = f"Paper white causes significant color shift (ΔE={color_shift:.2f})"
-        elif color_shift > 1.0:
-            color_shift_notes = f"Paper white causes moderate color shift (ΔE={color_shift:.2f})"
+        if paper_white_l is not None:
+            paper_whites.insert(0, (
+                "Custom",
+                CIELAB(l=paper_white_l, a=paper_white_a, b=paper_white_b),
+            ))
+
+        paper_results = []
+        for label, pw in paper_whites:
+            adjusted = paper_white_adjustment(result_lab, pw)
+            shift = delta_e2000(result_lab, adjusted)
+            paper_results.append({
+                "label": label,
+                "paper_white": pw,
+                "adjusted": adjusted,
+                "delta_e": shift,
+            })
 
         if json_output:
             result = {
@@ -251,18 +264,25 @@ def predict_mix(
                     "b": result_lab.b,
                     "hex": get_color_hex(result_lab),
                 },
-                "paper_adjusted": {
-                    "l": adjusted_lab.l,
-                    "a": adjusted_lab.a,
-                    "b": adjusted_lab.b,
-                    "hex": get_color_hex(adjusted_lab),
-                },
-                "paper_white": {
-                    "l": paper_white_l,
-                    "a": paper_white_a,
-                    "b": paper_white_b,
-                },
-                "color_shift_delta_e": color_shift,
+                "paper_comparisons": [
+                    {
+                        "label": pr["label"],
+                        "paper_white": {
+                            "l": pr["paper_white"].l,
+                            "a": pr["paper_white"].a,
+                            "b": pr["paper_white"].b,
+                        },
+                        "adjusted": {
+                            "l": pr["adjusted"].l,
+                            "a": pr["adjusted"].a,
+                            "b": pr["adjusted"].b,
+                            "hex": get_color_hex(pr["adjusted"]),
+                        },
+                        "delta_e": pr["delta_e"],
+                        "warning": pr["delta_e"] > 3.0,
+                    }
+                    for pr in paper_results
+                ],
                 "components": [
                     {
                         "ink_id": c.ink_id,
@@ -278,7 +298,7 @@ def predict_mix(
 
         print_header("Mix Prediction")
 
-        left_panel = f"""
+        base_panel = f"""
 [bold]Uncorrected Color[/bold]
 {color_block(result_lab, width=20)}
 [bold]{get_color_hex(result_lab)}[/bold]
@@ -287,26 +307,19 @@ a* = {result_lab.a:>6.1f}
 b* = {result_lab.b:>6.1f}
         """.strip()
 
-        right_panel = f"""
-[bold]Paper White Adjusted[/bold]
-{color_block(adjusted_lab, width=20)}
-[bold]{get_color_hex(adjusted_lab)}[/bold]
-L* = {adjusted_lab.l:>6.1f}
-a* = {adjusted_lab.a:>6.1f}
-b* = {adjusted_lab.b:>6.1f}
+        first_pw = paper_results[0]
+        first_panel = f"""
+[bold]{first_pw['label']}[/bold]
+{color_block(first_pw['adjusted'], width=20)}
+[bold]{get_color_hex(first_pw['adjusted'])}[/bold]
+L* = {first_pw['adjusted'].l:>6.1f}
+a* = {first_pw['adjusted'].a:>6.1f}
+b* = {first_pw['adjusted'].b:>6.1f}
 
-[dim]Paper White: L*={paper_white_l:.0f} a*={paper_white_a:.0f} b*={paper_white_b:.0f}[/]
-Color Shift: {delta_e_display(color_shift)}
+ΔE: {delta_e_display(first_pw['delta_e'], 3.0)}
         """.strip()
 
-        console.print(two_column_layout(left_panel, right_panel, left_width=35))
-        console.print()
-
-        if color_shift > 3.0:
-            print_warning(color_shift_notes or "Significant color shift on this paper")
-        elif color_shift > 1.0:
-            print_info(color_shift_notes or "Moderate color shift on this paper")
-
+        console.print(two_column_layout(base_panel, first_panel, left_width=35))
         console.print()
 
         comp_table = create_table("Components", [
@@ -324,6 +337,43 @@ Color Shift: {delta_e_display(color_shift)}
             )
 
         console.print(comp_table)
+        console.print()
+
+        pw_table = create_table("Paper White Comparison (ΔE vs uncorrected)", [
+            "Paper Type", "L*", "Color", "Hex", "ΔE", "Shift"
+        ])
+
+        from utils.config import load_config
+        config = load_config()
+
+        for pr in paper_results:
+            shift_level = "None"
+            if pr["delta_e"] > 5.0:
+                shift_level = "[red]Major[/]"
+            elif pr["delta_e"] > 3.0:
+                shift_level = "[yellow]Moderate[/]"
+            elif pr["delta_e"] > 1.0:
+                shift_level = "[green]Slight[/]"
+            else:
+                shift_level = "[dim]Minimal[/]"
+
+            pw_table.add_row(
+                pr["label"],
+                f"{pr['paper_white'].l:.0f}",
+                color_block(pr["adjusted"]),
+                get_color_hex(pr["adjusted"]),
+                delta_e_display(pr["delta_e"], config.delta_e_threshold),
+                shift_level,
+            )
+
+        console.print(pw_table)
+
+        major_shifts = [pr for pr in paper_results if pr["delta_e"] > 3.0]
+        if major_shifts:
+            print_warning(
+                f"Significant color shift detected on {len(major_shifts)} paper type(s). "
+                f"Consider adjusting the mix for target paper."
+            )
 
     except Exception as e:
         logger.error(f"Failed to predict mix: {e}")

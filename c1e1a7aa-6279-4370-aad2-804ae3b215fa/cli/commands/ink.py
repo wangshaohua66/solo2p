@@ -44,20 +44,31 @@ def add_ink(
         set_no_color(no_color)
 
         cielab = None
+        extracted_colors = None
         if image:
             print_info(f"Extracting colors from image...")
-            colors = extract_dominant_colors(image)
-            if not colors:
-                cielab = colors[0][0]
-                print_success(f"Extracted L*={cielab.l:.1f} a*={cielab.a:.1f} b*={cielab.b:.1f}")
-        elif l is not None and a is not None and b is not None:
+            try:
+                extracted_colors = extract_dominant_colors(image)
+                if extracted_colors and len(extracted_colors) > 0:
+                    cielab = extracted_colors[0][0]
+                    print_success(f"Extracted main color: L*={cielab.l:.1f} a*={cielab.a:.1f} b*={cielab.b:.1f}")
+                    if len(extracted_colors) > 1:
+                        print_info(f"Found {len(extracted_colors)} dominant colors total")
+                else:
+                    print_warning("No colors extracted from image, falling back to manual values")
+            except Exception as e:
+                print_warning(f"Color extraction failed: {e}, falling back to manual values")
+                logger.warning(f"Color extraction failed for {image}: {e}")
+
+        if cielab is None and l is not None and a is not None and b is not None:
             cielab = CIELAB(l=l, a=a, b=b)
-        elif r is not None and g is not None and b_rgb is not None:
+        elif cielab is None and r is not None and g is not None and b_rgb is not None:
             from core.ink_model import RGB
             rgb = RGB(r=r, g=g, b=b_rgb)
             cielab = rgb_to_cielab(rgb)
-        else:
-            print_error("Must provide either CIELAB values, RGB values, or an image path")
+
+        if cielab is None:
+            print_error("Must provide either CIELAB values, RGB values, or a valid image path")
             raise typer.Exit(code=1)
 
         pur_date = None

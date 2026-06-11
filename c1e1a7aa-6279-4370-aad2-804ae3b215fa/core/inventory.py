@@ -8,6 +8,7 @@ from core.ink_model import (
     Inventory,
     InventoryCreate,
     StockAlert,
+    CIELAB,
 )
 from utils.logger import get_logger
 from utils.config import load_config
@@ -127,29 +128,60 @@ class InkManager:
         logger.info(f"Deleted ink ID {ink_id}")
 
     def _row_to_ink(self, row: Dict[str, Any]) -> Ink:
-        tags = row["tags"].split(",") if row["tags"] else []
-        purchase_date = (
-            date.fromisoformat(row["purchase_date"]) if row["purchase_date"] else None
-        )
-        expiration_date = (
-            date.fromisoformat(row["expiration_date"]) if row["expiration_date"] else None
-        )
+        tags_str = row.get("tags")
+        tags = tags_str.split(",") if tags_str else []
+
+        purchase_date = None
+        if row.get("purchase_date"):
+            try:
+                purchase_date = date.fromisoformat(row["purchase_date"])
+            except (ValueError, TypeError):
+                pass
+
+        expiration_date = None
+        if row.get("expiration_date"):
+            try:
+                expiration_date = date.fromisoformat(row["expiration_date"])
+            except (ValueError, TypeError):
+                pass
+
+        created_at = row.get("created_at")
+        if created_at:
+            try:
+                created_at = datetime.fromisoformat(created_at)
+            except (ValueError, TypeError):
+                created_at = datetime.now()
+        else:
+            created_at = datetime.now()
+
+        updated_at = row.get("updated_at")
+        if updated_at:
+            try:
+                updated_at = datetime.fromisoformat(updated_at)
+            except (ValueError, TypeError):
+                updated_at = datetime.now()
+        else:
+            updated_at = datetime.now()
 
         return Ink(
-            id=row["id"],
-            brand=row["brand"],
-            line=row["line"],
-            color_name=row["color_name"],
-            volume_ml=row["volume_ml"],
-            price=row["price"],
-            cielab={"l": row["l"], "a": row["a"], "b": row["b"]},
-            ink_type=row["ink_type"],
+            id=row.get("id", 0),
+            brand=row.get("brand", "Unknown"),
+            line=row.get("line"),
+            color_name=row.get("color_name", "Unknown"),
+            volume_ml=row.get("volume_ml", 0.0),
+            price=row.get("price"),
+            cielab=CIELAB(
+                l=row.get("l", 50.0),
+                a=row.get("a", 0.0),
+                b=row.get("b", 0.0),
+            ),
+            ink_type=row.get("ink_type", "dye"),
             tags=tags,
             purchase_date=purchase_date,
             expiration_date=expiration_date,
-            notes=row["notes"],
-            created_at=datetime.fromisoformat(row["created_at"]),
-            updated_at=datetime.fromisoformat(row["updated_at"]),
+            notes=row.get("notes"),
+            created_at=created_at,
+            updated_at=updated_at,
         )
 
     def get_inks_for_mixing(self) -> List[Dict[str, Any]]:
@@ -224,7 +256,9 @@ class InventoryManager:
         expiring_soon: bool = False,
     ) -> List[Inventory]:
         sql = """
-            SELECT inv.*, i.*
+            SELECT inv.id as inv_id, inv.ink_id, inv.bottle_count, inv.current_ml,
+                   inv.location, inv.batch_number,
+                   i.*
             FROM inventory inv
             JOIN inks i ON inv.ink_id = i.id
             WHERE 1=1
@@ -279,7 +313,9 @@ class InventoryManager:
 
         rows = self.db.query(
             """
-            SELECT inv.*, i.brand, i.color_name, i.expiration_date
+            SELECT inv.id as inv_id, inv.ink_id, inv.bottle_count, inv.current_ml,
+                   inv.location, inv.batch_number,
+                   i.*
             FROM inventory inv
             JOIN inks i ON inv.ink_id = i.id
             """
@@ -361,11 +397,11 @@ class InventoryManager:
                         color_name=row["color_name"],
                         volume_ml=float(row.get("volume_ml", 50)),
                         price=float(row["price"]) if row.get("price") else None,
-                        cielab={
-                            "l": float(row["l"]),
-                            "a": float(row["a"]),
-                            "b": float(row["b"]),
-                        },
+                        cielab=CIELAB(
+                            l=float(row["l"]),
+                            a=float(row["a"]),
+                            b=float(row["b"]),
+                        ),
                         ink_type=row.get("ink_type", "dye"),
                         tags=row.get("tags", ""),
                         purchase_date=(
@@ -395,12 +431,74 @@ class InventoryManager:
             ink_mgr = InkManager(self.db)
             ink = ink_mgr._row_to_ink(row)
 
+        inv_id = row.get("inv_id") or row.get("id", 0)
+
         return Inventory(
-            id=row["id"],
+            id=inv_id,
             ink_id=row["ink_id"],
-            bottle_count=row["bottle_count"],
-            current_ml=row["current_ml"],
+            bottle_count=row.get("bottle_count", 0),
+            current_ml=row.get("current_ml", 0.0),
             location=row.get("location"),
             batch_number=row.get("batch_number"),
             ink=ink,
         )
+
+
+def self_check(db: Optional[Database] = None) -> Dict[str, Any]:
+    results = {
+        "db_connection": False,
+        "ink_list_roundtrip": False,
+        "inventory_list_structure": False,
+        "errors": [],
+    }
+
+    try:
+        if db is None:
+            db = get_db()
+        results["db_connection"] = True
+    except Exception as e:
+        results["errors"].append(f"db_connection: {e}")
+        return results
+
+    try:
+        ink_mgr = InkManager(db)
+        inks = ink_mgr.list_inks(limit=5)
+        if inks:
+            ink = inks[0]
+            required_fields = ["id", "brand", "color_name", "cielab", "tags", "volume_ml"]
+            missing = [f for f in required_fields if not hasattr(ink, f)]
+            if missing:
+                results["errors"].append(f"ink missing fields: {missing}")
+            else:
+                results["ink_list_roundtrip"] = hasattr(ink.cielab, "l")
+    except Exception as e:
+        results["errors"].append(f"ink_list_roundtrip: {e}")
+
+    try:
+        inv_mgr = InventoryManager(db)
+        inventory_list = inv_mgr.list_inventory()[:5]
+        if inventory_list:
+            inv = inventory_list[0]
+            required_inv_fields = ["id", "ink_id", "bottle_count", "current_ml", "ink"]
+            missing_inv = [f for f in required_inv_fields if not hasattr(inv, f)]
+            if missing_inv:
+                results["errors"].append(f"inventory missing fields: {missing_inv}")
+            elif inv.ink is not None:
+                required_ink_fields = ["id", "brand", "color_name", "cielab", "tags"]
+                missing_ink = [f for f in required_ink_fields if not hasattr(inv.ink, f)]
+                if missing_ink:
+                    results["errors"].append(f"inventory.ink missing fields: {missing_ink}")
+                else:
+                    results["inventory_list_structure"] = hasattr(inv.ink.cielab, "l")
+            else:
+                results["inventory_list_structure"] = True
+    except Exception as e:
+        results["errors"].append(f"inventory_list_structure: {e}")
+
+    results["all_passed"] = (
+        results["db_connection"]
+        and results["ink_list_roundtrip"]
+        and results["inventory_list_structure"]
+        and not results["errors"]
+    )
+    return results

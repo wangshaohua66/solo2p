@@ -14,6 +14,66 @@ D65_Y = 100.000
 D65_Z = 108.883
 
 
+def _require_cielab(obj, func_name: str = "function") -> None:
+    if not isinstance(obj, CIELAB):
+        raise TypeError(
+            f"{func_name} expects a CIELAB object, got {type(obj).__name__}. "
+            f"Use CIELAB(l=..., a=..., b=...) to construct one."
+        )
+
+
+def _require_rgb(obj, func_name: str = "function") -> None:
+    if not isinstance(obj, RGB):
+        raise TypeError(
+            f"{func_name} expects an RGB object, got {type(obj).__name__}. "
+            f"Use RGB(r=..., g=..., b=...) to construct one."
+        )
+
+
+def self_check() -> Dict[str, Any]:
+    results = {
+        "color_roundtrip": False,
+        "delta_e_identity": False,
+        "paper_white_sanity": False,
+        "errors": [],
+    }
+
+    try:
+        test_lab = CIELAB(l=50.0, a=25.0, b=-30.0)
+        rgb = cielab_to_rgb(test_lab)
+        back = rgb_to_cielab(rgb)
+        de = delta_e2000(test_lab, back)
+        results["color_roundtrip"] = de < 2.0
+        results["roundtrip_delta_e"] = round(de, 4)
+    except Exception as e:
+        results["errors"].append(f"color_roundtrip: {e}")
+
+    try:
+        lab = CIELAB(l=60.0, a=10.0, b=20.0)
+        de = delta_e2000(lab, lab)
+        results["delta_e_identity"] = abs(de) < 0.001
+    except Exception as e:
+        results["errors"].append(f"delta_e_identity: {e}")
+
+    try:
+        base = CIELAB(l=50.0, a=0.0, b=0.0)
+        pw_95 = CIELAB(l=95.0, a=0.0, b=0.0)
+        pw_75 = CIELAB(l=75.0, a=0.0, b=0.0)
+        adj_95 = paper_white_adjustment(base, pw_95)
+        adj_75 = paper_white_adjustment(base, pw_75)
+        results["paper_white_sanity"] = adj_95.l > adj_75.l
+    except Exception as e:
+        results["errors"].append(f"paper_white_sanity: {e}")
+
+    results["all_passed"] = (
+        results["color_roundtrip"]
+        and results["delta_e_identity"]
+        and results["paper_white_sanity"]
+        and not results["errors"]
+    )
+    return results
+
+
 def _f(t: float) -> float:
     delta = 6.0 / 29.0
     if t > delta**3:
@@ -93,6 +153,7 @@ def xyz_to_cielab(x: float, y: float, z: float) -> CIELAB:
 
 
 def cielab_to_xyz(lab: CIELAB) -> Tuple[float, float, float]:
+    _require_cielab(lab, "cielab_to_xyz")
     fy = (lab.l + 16) / 116.0
     fx = lab.a / 500.0 + fy
     fz = fy - lab.b / 200.0
@@ -105,16 +166,20 @@ def cielab_to_xyz(lab: CIELAB) -> Tuple[float, float, float]:
 
 
 def rgb_to_cielab(rgb: RGB) -> CIELAB:
+    _require_rgb(rgb, "rgb_to_cielab")
     x, y, z = rgb_to_xyz(rgb)
     return xyz_to_cielab(x, y, z)
 
 
 def cielab_to_rgb(lab: CIELAB) -> RGB:
+    _require_cielab(lab, "cielab_to_rgb")
     x, y, z = cielab_to_xyz(lab)
     return xyz_to_rgb(x, y, z)
 
 
 def delta_e2000(lab1: CIELAB, lab2: CIELAB) -> float:
+    _require_cielab(lab1, "delta_e2000(lab1)")
+    _require_cielab(lab2, "delta_e2000(lab2)")
     l1, a1, b1 = lab1.to_tuple()
     l2, a2, b2 = lab2.to_tuple()
 
@@ -524,6 +589,9 @@ def _optimize_ratios(
 def paper_white_adjustment(
     color: CIELAB, paper_white: CIELAB, base_white: CIELAB = CIELAB(l=100, a=0, b=0)
 ) -> CIELAB:
+    _require_cielab(color, "paper_white_adjustment(color)")
+    _require_cielab(paper_white, "paper_white_adjustment(paper_white)")
+    _require_cielab(base_white, "paper_white_adjustment(base_white)")
     l_shift = paper_white.l - base_white.l
     a_shift = paper_white.a - base_white.a
     b_shift = paper_white.b - base_white.b
