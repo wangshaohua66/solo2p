@@ -23,6 +23,7 @@ import logging
 import os
 import re
 import sqlite3
+import subprocess
 import sys
 import urllib.error
 import urllib.request
@@ -51,11 +52,20 @@ logger = logging.getLogger("hamlog")
 
 class _ConfigManager:
     def __init__(self):
-        self._config_dir = Path(os.environ.get("HAMLOG_DATA_DIR", str(Path.home() / ".hamlog")))
-        self._yaml_path = self._config_dir / "config.yaml"
-        self._ini_path = self._config_dir / "config.ini"
         self._cached_config: Optional[Dict[str, Any]] = None
         self._cached_mtime: Optional[float] = None
+
+    @property
+    def _config_dir(self) -> Path:
+        return Path(os.environ.get("HAMLOG_DATA_DIR", str(Path.home() / ".hamlog")))
+
+    @property
+    def _yaml_path(self) -> Path:
+        return self._config_dir / "config.yaml"
+
+    @property
+    def _ini_path(self) -> Path:
+        return self._config_dir / "config.ini"
 
     def _current_mtime(self) -> Optional[float]:
         for p in (self._yaml_path, self._ini_path):
@@ -92,7 +102,13 @@ class _ConfigManager:
 
 
 _config_manager = _ConfigManager()
-CONFIG_DIR = Path(os.environ.get("HAMLOG_DATA_DIR", str(Path.home() / ".hamlog")))
+
+
+def _get_config_dir() -> Path:
+    return Path(os.environ.get("HAMLOG_DATA_DIR", str(Path.home() / ".hamlog")))
+
+
+CONFIG_DIR = _get_config_dir()
 CONFIG_FILE = CONFIG_DIR / "config.yaml"
 CONFIG_FILE_INI = CONFIG_DIR / "config.ini"
 
@@ -165,12 +181,15 @@ def get_config() -> Dict[str, Any]:
 
 
 def save_config(config: Dict[str, Any]) -> None:
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    config_dir = _config_manager._config_dir
+    yaml_path = _config_manager._yaml_path
+    ini_path = _config_manager._ini_path
+    config_dir.mkdir(parents=True, exist_ok=True)
     try:
         import yaml
-        with open(CONFIG_FILE, "w") as f:
+        with open(yaml_path, "w") as f:
             yaml.dump(config, f, default_flow_style=False, sort_keys=False)
-        logger.info("Config saved to %s", CONFIG_FILE)
+        logger.info("Config saved to %s", yaml_path)
         return
     except ImportError:
         pass
@@ -183,13 +202,15 @@ def save_config(config: Dict[str, Any]) -> None:
             parser[section] = {k: str(v) for k, v in values.items()}
         else:
             parser[section] = {"value": str(values)}
-    with open(CONFIG_FILE_INI, "w") as f:
+    with open(ini_path, "w") as f:
         parser.write(f)
-    logger.info("Config saved to %s", CONFIG_FILE_INI)
+    logger.info("Config saved to %s", ini_path)
 
 
 def generate_default_config() -> None:
-    if CONFIG_FILE.exists() or CONFIG_FILE_INI.exists():
+    yaml_path = _config_manager._yaml_path
+    ini_path = _config_manager._ini_path
+    if yaml_path.exists() or ini_path.exists():
         return
     template = _deep_merge({}, DEFAULT_CONFIG)
     template["operator"]["callsign"] = "YOURCALL"
@@ -201,9 +222,11 @@ def generate_default_config() -> None:
 
 
 def get_config_path() -> Path:
-    if CONFIG_FILE.exists():
-        return CONFIG_FILE
-    return CONFIG_FILE_INI
+    yaml_path = _config_manager._yaml_path
+    ini_path = _config_manager._ini_path
+    if yaml_path.exists():
+        return yaml_path
+    return ini_path
 
 
 DB_FILENAME = "hamlog.db"
@@ -263,7 +286,8 @@ class Database:
         current_version = self._get_schema_version()
         if current_version < SCHEMA_VERSION:
             self._migrate(current_version)
-        self.conn.commit()
+            self.conn.commit()
+            self.conn.execute("ANALYZE")
         logger.debug("Schema initialized at version %d", SCHEMA_VERSION)
 
     def _get_schema_version(self) -> int:
@@ -299,6 +323,7 @@ class Database:
             CREATE INDEX IF NOT EXISTS idx_qso_callsign ON qsos(callsign);
             CREATE INDEX IF NOT EXISTS idx_qso_date ON qsos(qso_date);
             CREATE INDEX IF NOT EXISTS idx_qso_band_mode ON qsos(band, mode);
+            CREATE INDEX IF NOT EXISTS idx_qso_band_mode_date ON qsos(band, mode, qso_date DESC, qso_time DESC);
             CREATE INDEX IF NOT EXISTS idx_qso_dxcc ON qsos(dxcc);
             CREATE INDEX IF NOT EXISTS idx_qso_state ON qsos(state);
             CREATE INDEX IF NOT EXISTS idx_qso_cq_zone ON qsos(cq_zone);
@@ -714,6 +739,41 @@ DXCC_ENTITIES: List[DXCCEntity] = [
     for t in _DXCC_RAW
 ]
 
+_DXCC_RARITY: Dict[int, int] = {}
+for _e in DXCC_ENTITIES:
+    score = 0
+    if _e.deleted:
+        score += 500
+    if _e.continent == "OC":
+        score += 150
+    if _e.continent == "AF":
+        score += 80
+    if _e.continent == "AN":
+        score += 300
+    remote_islands = {
+        242:400, 243:400, 250:350, 251:350, 152:300, 153:300, 154:300,
+        155:300, 156:300, 157:300, 158:300, 159:300, 160:300,
+        62:200, 64:200, 83:200, 84:200, 85:200, 86:200, 87:200,
+        88:200, 89:200, 90:200, 91:200, 92:200, 93:200,
+        505:350, 506:350, 507:350, 508:350, 509:350, 510:350, 511:350,
+        461:300, 462:300, 463:300, 464:300, 465:300, 466:300, 467:300,
+        468:300, 469:300,
+        317:250, 318:250, 319:250, 320:250, 321:250, 322:250, 323:250,
+        324:250, 325:250, 326:250, 327:250, 328:250, 329:250, 330:250,
+        331:250, 332:250, 333:250, 334:250, 335:250, 336:250, 337:250,
+        338:250, 339:250, 340:250, 341:250, 342:250, 343:250, 344:250,
+        345:250, 346:250, 347:250, 348:250, 349:250, 350:250, 351:250,
+        352:250, 353:250, 354:250, 355:250, 356:250, 357:250, 358:250,
+        359:250, 360:250, 361:250, 362:250, 363:250, 364:250, 365:250,
+        366:250, 367:250, 368:250, 369:250,
+        120:150, 121:200,
+        11:180, 9:180, 10:180, 12:150,
+    }
+    score += remote_islands.get(_e.entity_id, 0)
+    if _e.cq_zone in (22, 23, 24, 25, 26, 27, 28, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40):
+        score += 50
+    _DXCC_RARITY[_e.entity_id] = score
+
 US_STATES: Dict[str, str] = {
     "AL":"Alabama","AK":"Alaska","AZ":"Arizona","AR":"Arkansas","CA":"California",
     "CO":"Colorado","CT":"Connecticut","DE":"Delaware","FL":"Florida","GA":"Georgia",
@@ -909,6 +969,17 @@ class QSOMANAGER:
         if errors:
             raise ValueError("Validation failed: " + "; ".join(errors))
         try:
+            _insert_cols = """callsign, qso_date, qso_time, band, mode, freq,
+                rst_sent, rst_rcvd, grid, name, qth, state,
+                cq_zone, ituzone, dxcc, country, operator,
+                station_callsign, my_grid, tx_pwr, rig, antenna,
+                comment, notes, contest_id, srx, srx_string,
+                stx, stx_string, qsl_rcvd, qsl_sent,
+                lotw_rcvd, lotw_sent,
+                freq_rx, band_rx, a_index, cont,
+                qrzcom_qso_upload_date, qsl_rcvd_date, qsl_sent_date,
+                lotw_rcvd_date, lotw_sent_date"""
+            assert len(_insert_cols.split(",")) == 42, f"column count {len(_insert_cols.split(','))}"
             cursor = self.db.execute("""
                 INSERT INTO qsos (
                     callsign, qso_date, qso_time, band, mode, freq,
@@ -1042,7 +1113,13 @@ class QSOMANAGER:
         where_sql = ""
         if where_clauses:
             where_sql = " WHERE " + " AND ".join(where_clauses)
-        sql = f"SELECT * FROM qsos{where_sql} ORDER BY {order_by} LIMIT ? OFFSET ?"
+        if callsign and not callsign_regex and not bands and not modes:
+            effective_order = order_by
+        elif bands or modes:
+            effective_order = "id DESC"
+        else:
+            effective_order = order_by
+        sql = f"SELECT * FROM qsos{where_sql} ORDER BY {effective_order} LIMIT ? OFFSET ?"
         params.extend([limit, offset])
         rows = self.db.query_all(sql, tuple(params))
         return [_row_to_qso(row) for row in rows]
@@ -1099,30 +1176,26 @@ class QSOMANAGER:
 def _row_to_qso(row) -> QSO:
     if row is None:
         return None
-    def _get(key, default=None):
-        try:
-            return row[key]
-        except (KeyError, IndexError):
-            return default
+    r = dict(row) if not isinstance(row, dict) else row
     return QSO(
-        id=_get("id"), callsign=_get("callsign",""), qso_date=_get("qso_date",""),
-        qso_time=_get("qso_time",""), band=_get("band",""), mode=_get("mode",""),
-        freq=_get("freq"), rst_sent=_get("rst_sent"), rst_rcvd=_get("rst_rcvd"),
-        grid=_get("grid"), name=_get("name"), qth=_get("qth"), state=_get("state"),
-        cq_zone=_get("cq_zone"), ituzone=_get("ituzone"), dxcc=_get("dxcc"),
-        country=_get("country"), operator=_get("operator"),
-        station_callsign=_get("station_callsign"), my_grid=_get("my_grid"),
-        tx_pwr=_get("tx_pwr"), rig=_get("rig"), antenna=_get("antenna"),
-        comment=_get("comment"), notes=_get("notes"), contest_id=_get("contest_id"),
-        srx=_get("srx"), srx_string=_get("srx_string"), stx=_get("stx"),
-        stx_string=_get("stx_string"), qsl_rcvd=_get("qsl_rcvd") or "N",
-        qsl_sent=_get("qsl_sent") or "N", lotw_rcvd=_get("lotw_rcvd") or "N",
-        lotw_sent=_get("lotw_sent") or "N",
-        freq_rx=_get("freq_rx"), band_rx=_get("band_rx"), a_index=_get("a_index"),
-        cont=_get("cont"), qrzcom_qso_upload_date=_get("qrzcom_qso_upload_date"),
-        qsl_rcvd_date=_get("qsl_rcvd_date"), qsl_sent_date=_get("qsl_sent_date"),
-        lotw_rcvd_date=_get("lotw_rcvd_date"), lotw_sent_date=_get("lotw_sent_date"),
-        created_at=_get("created_at"), updated_at=_get("updated_at"),
+        id=r.get("id"), callsign=r.get("callsign",""), qso_date=r.get("qso_date",""),
+        qso_time=r.get("qso_time",""), band=r.get("band",""), mode=r.get("mode",""),
+        freq=r.get("freq"), rst_sent=r.get("rst_sent"), rst_rcvd=r.get("rst_rcvd"),
+        grid=r.get("grid"), name=r.get("name"), qth=r.get("qth"), state=r.get("state"),
+        cq_zone=r.get("cq_zone"), ituzone=r.get("ituzone"), dxcc=r.get("dxcc"),
+        country=r.get("country"), operator=r.get("operator"),
+        station_callsign=r.get("station_callsign"), my_grid=r.get("my_grid"),
+        tx_pwr=r.get("tx_pwr"), rig=r.get("rig"), antenna=r.get("antenna"),
+        comment=r.get("comment"), notes=r.get("notes"), contest_id=r.get("contest_id"),
+        srx=r.get("srx"), srx_string=r.get("srx_string"), stx=r.get("stx"),
+        stx_string=r.get("stx_string"), qsl_rcvd=r.get("qsl_rcvd") or "N",
+        qsl_sent=r.get("qsl_sent") or "N", lotw_rcvd=r.get("lotw_rcvd") or "N",
+        lotw_sent=r.get("lotw_sent") or "N",
+        freq_rx=r.get("freq_rx"), band_rx=r.get("band_rx"), a_index=r.get("a_index"),
+        cont=r.get("cont"), qrzcom_qso_upload_date=r.get("qrzcom_qso_upload_date"),
+        qsl_rcvd_date=r.get("qsl_rcvd_date"), qsl_sent_date=r.get("qsl_sent_date"),
+        lotw_rcvd_date=r.get("lotw_rcvd_date"), lotw_sent_date=r.get("lotw_sent_date"),
+        created_at=r.get("created_at"), updated_at=r.get("updated_at"),
     )
 
 
@@ -1343,7 +1416,7 @@ class AwardManager:
         missing_entities = [
             e for e in all_entities if not e.deleted and e.entity_id not in worked_ids
         ]
-        missing_entities.sort(key=lambda e: self._qso_count_for_dxcc(e.entity_id))
+        missing_entities.sort(key=lambda e: (-_DXCC_RARITY.get(e.entity_id, 0), e.name))
         missing_names = [truncate_entity_name(e.name) for e in missing_entities]
         return AwardProgress(
             name="DXCC", worked=len(worked_ids), total=total_active,
@@ -1728,13 +1801,24 @@ def get_prop_color(rating: int) -> str:
     else: return "red"
 
 
-def pager_output(text: str):
+def pager_output(text: str, threshold: int = 40):
+    lines = text.count('\n') + 1
+    if lines <= threshold:
+        print(text)
+        return
     try:
-        less = os.popen("less -R", "w")
-        less.write(text)
-        less.close()
+        proc = subprocess.Popen(["less", "-R", "-F"], stdin=subprocess.PIPE, text=True)
+        proc.communicate(input=text)
     except Exception:
         print(text)
+
+
+def maybe_pager(text: str, threshold: int = 40):
+    lines = text.count('\n') + 1
+    if lines <= threshold:
+        print(text)
+        return
+    pager_output(text, threshold=0)
 
 
 def cmd_qso_add(args, config, db):
@@ -1852,12 +1936,13 @@ def cmd_qso_search(args, config, db):
                           qso.rst_rcvd or "", qso.grid or "", qso.country or "")
         console.print(table)
     else:
-        print(f"Found {len(qsos)} QSOs:")
-        print(f"{'Call':<12} {'Date':<10} {'Time':<7} {'Band':<6} {'Mode':<6} {'Grid':<7} {'Country'}")
-        print("-" * 80)
+        buf = f"Found {len(qsos)} QSOs:\n"
+        buf += f"{'Call':<12} {'Date':<10} {'Time':<7} {'Band':<6} {'Mode':<6} {'Grid':<7} {'Country'}\n"
+        buf += "-" * 80 + "\n"
         for qso in qsos:
-            print(f"{qso.callsign:<12} {qso.qso_date:<10} {qso.qso_time + 'Z':<7} "
-                  f"{qso.band:<6} {qso.mode:<6} {(qso.grid or ''):<7} {qso.country or ''}")
+            buf += f"{qso.callsign:<12} {qso.qso_date:<10} {qso.qso_time + 'Z':<7} "
+            buf += f"{qso.band:<6} {qso.mode:<6} {(qso.grid or ''):<7} {qso.country or ''}\n"
+        maybe_pager(buf.rstrip())
 
 
 def cmd_qso_export(args, config, db):
@@ -1948,11 +2033,10 @@ def cmd_award_status(args, config, db):
             cont_table.add_row(get_continent_name(cont), str(worked), str(total), pct)
         console.print(cont_table)
         if args.show_missing and dxcc.missing:
-            print("\nMissing DXCC entities (sorted by rarity):")
-            for i, name in enumerate(dxcc.missing[:20], 1):
-                print(f"  {i:2d}. {name}")
-            if len(dxcc.missing) > 20:
-                print(f"  ... and {len(dxcc.missing) - 20} more")
+            buf = "\nMissing DXCC entities (sorted by rarity):\n"
+            for i, name in enumerate(dxcc.missing, 1):
+                buf += f"  {i:3d}. {name}\n"
+            maybe_pager(buf.rstrip())
     else:
         print(f"Award Progress{band_info}")
         print("=" * 50)
@@ -2050,49 +2134,91 @@ def cmd_contest(args, config, db):
     use_prompt = False
     try:
         from prompt_toolkit import prompt as pt_prompt
-        from prompt_toolkit.completion import WordCompleter
-        band_completer = WordCompleter(BANDS)
-        mode_completer = WordCompleter(MODES)
+        from prompt_toolkit.completion import WordCompleter, merge_completers
+        band_completer = WordCompleter(BANDS, sentence=True)
+        mode_completer = WordCompleter(MODES, sentence=True)
+        combined_completer = merge_completers(band_completer, mode_completer)
         use_prompt = True
     except ImportError:
         pass
     count = 0
     contest_session_date = format_date(now_utc_datetime())
     try:
-        while True:
-            try:
-                if use_prompt:
-                    line = pt_prompt(f"[{default_band} {default_mode}] Callsign: ").strip()
-                else:
+        if use_prompt:
+            from prompt_toolkit import PromptSession
+            from prompt_toolkit.key_binding import KeyBindings
+
+            session = PromptSession(completer=combined_completer)
+            kb = KeyBindings()
+
+            @kb.add('enter')
+            def _(event):
+                buf = event.app.current_buffer
+                line = buf.text.strip()
+                buf.text = ''
+                if line.lower() in ('q', 'quit', 'exit'):
+                    event.app.exit()
+                    return
+                if not line:
+                    return
+                parts = line.split()
+                callsign = parts[0].upper()
+                rst_rcvd = parts[1] if len(parts) > 1 else None
+                now = now_utc_datetime()
+                qso = QSO(callsign=callsign, qso_date=format_date(now), qso_time=format_time(now),
+                           band=default_band, mode=default_mode, rst_rcvd=rst_rcvd,
+                           rst_sent=args.rst_sent or "59",
+                           operator=config["operator"].get("callsign") or None,
+                           station_callsign=config["operator"].get("callsign") or None,
+                           my_grid=config["operator"].get("grid") or None,
+                           contest_id=args.contest_id)
+                try:
+                    qso_id = qso_mgr.add(qso)
+                    count += 1
+                    print_info(f"#{count} QSO logged: {callsign} (ID: {qso_id})")
+                except ValueError as e:
+                    if "Duplicate" in str(e):
+                        print_warning(f"Duplicate: {callsign}")
+                    else:
+                        print_error(str(e))
+
+            while True:
+                try:
+                    session.prompt(f"[{default_band} {default_mode}] Callsign: ", key_bindings=kb)
+                except EOFError:
+                    break
+        else:
+            while True:
+                try:
                     line = input(f"[{default_band} {default_mode}] Callsign: ").strip()
-            except EOFError:
-                break
-            if line.lower() in ("q", "quit", "exit"):
-                break
-            if not line:
-                continue
-            parts = line.split()
-            callsign = parts[0].upper()
-            rst_rcvd = None
-            if len(parts) > 1:
-                rst_rcvd = parts[1]
-            now = now_utc_datetime()
-            qso = QSO(callsign=callsign, qso_date=format_date(now), qso_time=format_time(now),
-                       band=default_band, mode=default_mode, rst_rcvd=rst_rcvd,
-                       rst_sent=args.rst_sent or "59",
-                       operator=config["operator"].get("callsign") or None,
-                       station_callsign=config["operator"].get("callsign") or None,
-                       my_grid=config["operator"].get("grid") or None,
-                       contest_id=args.contest_id)
-            try:
-                qso_id = qso_mgr.add(qso)
-                count += 1
-                print_info(f"#{count} QSO logged: {callsign} (ID: {qso_id})")
-            except ValueError as e:
-                if "Duplicate" in str(e):
-                    print_warning(f"Duplicate: {callsign}")
-                else:
-                    print_error(str(e))
+                except EOFError:
+                    break
+                if line.lower() in ("q", "quit", "exit"):
+                    break
+                if not line:
+                    continue
+                parts = line.split()
+                callsign = parts[0].upper()
+                rst_rcvd = None
+                if len(parts) > 1:
+                    rst_rcvd = parts[1]
+                now = now_utc_datetime()
+                qso = QSO(callsign=callsign, qso_date=format_date(now), qso_time=format_time(now),
+                           band=default_band, mode=default_mode, rst_rcvd=rst_rcvd,
+                           rst_sent=args.rst_sent or "59",
+                           operator=config["operator"].get("callsign") or None,
+                           station_callsign=config["operator"].get("callsign") or None,
+                           my_grid=config["operator"].get("grid") or None,
+                           contest_id=args.contest_id)
+                try:
+                    qso_id = qso_mgr.add(qso)
+                    count += 1
+                    print_info(f"#{count} QSO logged: {callsign} (ID: {qso_id})")
+                except ValueError as e:
+                    if "Duplicate" in str(e):
+                        print_warning(f"Duplicate: {callsign}")
+                    else:
+                        print_error(str(e))
     except KeyboardInterrupt:
         pass
     print()
