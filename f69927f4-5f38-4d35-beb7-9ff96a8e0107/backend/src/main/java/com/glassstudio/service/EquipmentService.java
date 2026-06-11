@@ -20,6 +20,7 @@ public class EquipmentService {
 
     private final KilnRepository kilnRepository;
     private final MaintenanceOrderRepository maintenanceOrderRepository;
+    private final NotificationService notificationService;
 
     public List<Kiln> getAllKilns() {
         return kilnRepository.findAll();
@@ -123,7 +124,16 @@ public class EquipmentService {
                 .scheduledDate(dto.getScheduledDate())
                 .build();
 
-        return maintenanceOrderRepository.save(order);
+        MaintenanceOrder savedOrder = maintenanceOrderRepository.save(order);
+        notificationService.sendToTopic("/topic/maintenance", Map.of(
+                "type", "MAINTENANCE_DUE",
+                "kilnId", kilnId,
+                "kilnName", kiln.getName(),
+                "orderId", savedOrder.getId(),
+                "message", "设备维护通知：窑炉 " + kiln.getName() + " 需要维护",
+                "timestamp", System.currentTimeMillis()
+        ));
+        return savedOrder;
     }
 
     @Transactional

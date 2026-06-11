@@ -1,9 +1,14 @@
 package com.glassstudio.dto;
 
+import com.glassstudio.entity.CurveSegment;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -11,9 +16,11 @@ import lombok.NoArgsConstructor;
 @Builder
 public class CurveUpdateDTO {
 
+    @Size(max = 100, message = "曲线名称长度不能超过100")
     private String name;
 
-    private String segments;
+    @Valid
+    private List<CurveSegment> segments;
 
     private Boolean isTemplate;
 }

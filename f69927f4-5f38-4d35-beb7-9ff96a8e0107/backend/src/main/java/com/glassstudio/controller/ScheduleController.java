@@ -1,5 +1,6 @@
 package com.glassstudio.controller;
 
+import com.glassstudio.annotation.RateLimit;
 import com.glassstudio.dto.ScheduleCreateDTO;
 import com.glassstudio.dto.ScheduleUpdateDTO;
 import com.glassstudio.entity.Schedule;
@@ -31,15 +32,21 @@ public class ScheduleController {
     @GetMapping
     public ResponseEntity<Page<Schedule>> getSchedules(
             @RequestParam(required = false) Long kilnId,
+            @RequestParam(required = false) Long memberId,
+            @RequestParam(required = false) ScheduleStatus status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
-            @RequestParam(required = false) ScheduleStatus status,
+            @RequestParam(required = false) String memberName,
             @PageableDefault(size = 20) Pageable pageable) {
-        Page<Schedule> schedules = kilnScheduleService.getSchedules(kilnId, startDate, endDate, status, pageable);
+        int size = Math.min(pageable.getPageSize(), 100);
+        Page<Schedule> schedules = kilnScheduleService.getSchedules(
+                kilnId, memberId, status, startDate, endDate, memberName,
+                org.springframework.data.domain.PageRequest.of(pageable.getPageNumber(), size, pageable.getSort()));
         return ResponseEntity.ok(schedules);
     }
 
     @PostMapping
+    @RateLimit(key = "schedule:create:{user}", limit = 60, window = 60)
     public ResponseEntity<Schedule> createSchedule(@Valid @RequestBody ScheduleCreateDTO dto) {
         Schedule schedule = kilnScheduleService.createSchedule(dto);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()

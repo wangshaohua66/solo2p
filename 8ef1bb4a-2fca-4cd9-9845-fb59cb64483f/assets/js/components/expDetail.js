@@ -36,6 +36,10 @@ var ExpDetail = (function() {
         });
         AppState.subscribe('compare:changed', function() {
             if ($('#compareModal').hasClass('show')) renderCompare();
+            updateMultiCurveBtn();
+            if ($('#multiCurveSection').length && !$('#multiCurveSection').hasClass('d-none')) {
+                renderMultiCurve();
+            }
         });
 
         $('#detailOffcanvas').on('hidden.bs.offcanvas', function() {
@@ -58,6 +62,15 @@ var ExpDetail = (function() {
             renderCompare();
         });
 
+        $('#btnToggleMultiCurve').on('click', function() {
+            var $section = $('#multiCurveSection');
+            $section.toggleClass('d-none');
+            if (!$section.hasClass('d-none')) {
+                renderMultiCurve();
+            }
+        });
+
+        updateMultiCurveBtn();
         bindCompareDrag();
     }
 
@@ -213,16 +226,6 @@ var ExpDetail = (function() {
 
         var ids = AppState.get('compareIds');
         var $modalBody = $('#compareModal .modal-body');
-        if (ids.length <= 1) {
-            $modalBody.find('.compare-toolbar').remove();
-            $modalBody.find('#compareGridWrap').remove();
-            $modalBody.html('<div class="text-center text-muted py-5"><i class="bi bi-layers display-4 opacity-50"></i><p class="mt-3">请在列表中按住Ctrl/Shift点击选择2-4条实验进行对比</p></div>');
-            return;
-        }
-
-        var cols = ids.length === 2 ? 2 : ids.length === 3 ? 3 : 4;
-        comparePanX = 0;
-        comparePanY = 0;
 
         var toolbarExists = $modalBody.children('.compare-toolbar').length > 0;
         var $wrap = $modalBody.find('#compareGridWrap');
@@ -230,6 +233,10 @@ var ExpDetail = (function() {
         if ($wrap.length > 0) {
             wrapCache = $wrap.data() || {};
         }
+
+        var cols = ids.length === 2 ? 2 : ids.length === 3 ? 3 : 4;
+        comparePanX = 0;
+        comparePanY = 0;
 
         if (!toolbarExists) {
             var toolbarHtml = '<div class="compare-toolbar d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">' +
@@ -249,6 +256,41 @@ var ExpDetail = (function() {
             if ($z.length > 0 && parseInt($z.val()) !== compareZoom) { $z.val(compareZoom); $('#compareZoomVal').text(compareZoom + '%'); }
         }
 
+        if ($wrap.length === 0) {
+            $modalBody.append(
+                '<div class="compare-grid-wrapper position-relative" id="compareGridWrap" style="width:100%;">' +
+                    '<div class="compare-grid cols-1" id="compareGrid" style="grid-template-columns: 100%;"></div>' +
+                '</div>'
+            );
+            $wrap = $modalBody.find('#compareGridWrap');
+        }
+        var $grid = $wrap.find('#compareGrid');
+
+        if (ids.length <= 1) {
+            $grid.empty().append(
+                '<div class="text-center text-muted py-5" style="grid-column: 1 / -1;">' +
+                    '<i class="bi bi-layers display-4 opacity-50"></i>' +
+                    '<p class="mt-3">请在列表中按住Ctrl/Shift点击选择2-4条实验进行对比</p>' +
+                '</div>'
+            );
+            return;
+        }
+
+        var currentCols = $grid.hasClass('cols-4') ? 4 : $grid.hasClass('cols-3') ? 3 : $grid.hasClass('cols-2') ? 2 : 1;
+        if (currentCols !== cols) {
+            $grid.removeClass('cols-1 cols-2 cols-3 cols-4').addClass('cols-' + cols);
+            var colPercents = [];
+            for (var ci = 0; ci < cols; ci++) colPercents.push((100 / cols).toFixed(4) + '%');
+            $grid.css('grid-template-columns', colPercents.join(' '));
+
+            $wrap.find('.compare-dragger').remove();
+            var draggersHtml = '';
+            for (var dd = 1; dd < cols; dd++) {
+                draggersHtml += '<div class="compare-dragger" data-col-index="' + dd + '" style="left: calc(' + colPercents.slice(0, dd).reduce(function(a, b) { return a + parseFloat(b); }, 0) + '% - 3px);"></div>';
+            }
+            $wrap.append(draggersHtml);
+        }
+
         Promise.all(ids.map(function(id) { return AppDB.getExperimentWithMedia(id); })).then(function(exps) {
             var validExps = [];
             var idMap = {};
@@ -259,44 +301,6 @@ var ExpDetail = (function() {
                 }
             });
             ids = validExps.map(function(e) { return e.id; });
-
-            var $grid;
-            var newWrap = $modalBody.find('#compareGridWrap');
-            if ($wrap.length === 0) {
-                var colPercents = [];
-                for (var i = 0; i < cols; i++) colPercents.push((100 / cols).toFixed(4) + '%');
-
-                var draggersHtml = '';
-                for (var d = 1; d < cols; d++) {
-                    draggersHtml += '<div class="compare-dragger" data-col-index="' + d + '" style="left: calc(' + colPercents.slice(0, d).reduce(function(a, b) { return a + parseFloat(b); }, 0) + '% - 3px);"></div>';
-                }
-
-                $modalBody.append(
-                    '<div class="compare-grid-wrapper position-relative" id="compareGridWrap" style="width:100%;">' +
-                        '<div class="compare-grid cols-' + cols + '" id="compareGrid" style="grid-template-columns: ' + colPercents.join(' ') + ';"></div>' +
-                        draggersHtml +
-                    '</div>'
-                );
-                $wrap = $modalBody.find('#compareGridWrap');
-                $grid = $wrap.find('#compareGrid');
-                wrapCache = {};
-            } else {
-                $grid = $wrap.find('#compareGrid');
-                var currentCols = $grid.hasClass('cols-4') ? 4 : $grid.hasClass('cols-3') ? 3 : 2;
-                if (currentCols !== cols) {
-                    $grid.removeClass('cols-2 cols-3 cols-4').addClass('cols-' + cols);
-                    var newColPercents = [];
-                    for (var ci = 0; ci < cols; ci++) newColPercents.push((100 / cols).toFixed(4) + '%');
-                    $grid.css('grid-template-columns', newColPercents.join(' '));
-
-                    $wrap.find('.compare-dragger').remove();
-                    var newDraggers = '';
-                    for (var dd = 1; dd < cols; dd++) {
-                        newDraggers += '<div class="compare-dragger" data-col-index="' + dd + '" style="left: calc(' + newColPercents.slice(0, dd).reduce(function(a, b) { return a + parseFloat(b); }, 0) + '% - 3px);"></div>';
-                    }
-                    $wrap.append(newDraggers);
-                }
-            }
 
             var existingIds = [];
             $grid.children('.compare-item').each(function() {
@@ -525,6 +529,20 @@ var ExpDetail = (function() {
         return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
     }
     function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+    function updateMultiCurveBtn() {
+        var ids = AppState.get('compareIds');
+        $('#btnToggleMultiCurve').prop('disabled', ids.length < 2);
+    }
+
+    function renderMultiCurve() {
+        var ids = AppState.get('compareIds');
+        if (ids.length < 2) return;
+        Promise.all(ids.map(function(id) { return AppDB.getExperimentWithMedia(id); })).then(function(exps) {
+            var valid = exps.filter(function(e) { return e != null; });
+            FiringCurve.renderMultiCompare(valid);
+        });
+    }
 
     return {
         init: init,

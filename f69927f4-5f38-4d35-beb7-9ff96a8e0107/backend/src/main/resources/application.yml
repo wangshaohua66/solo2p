@@ -50,6 +50,12 @@ cors:
   allow-credentials: true
   max-age: 3600
 
+minio:
+  endpoint: http://localhost:9000
+  accessKey: minioadmin
+  secretKey: minioadmin
+  bucket: glass-studio
+
 management:
   endpoints:
     web:

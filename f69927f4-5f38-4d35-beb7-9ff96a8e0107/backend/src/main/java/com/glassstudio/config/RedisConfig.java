@@ -8,6 +8,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
@@ -34,5 +36,33 @@ public class RedisConfig {
         template.afterPropertiesSet();
 
         return template;
+    }
+
+    @Bean
+    public RedisScript<Long> rateLimitScript() {
+        String script = """
+                local key = KEYS[1]
+                local limit = tonumber(ARGV[1])
+                local windowMs = tonumber(ARGV[2])
+                local now = tonumber(ARGV[3])
+                
+                local windowStart = now - windowMs
+                
+                redis.call('ZREMRANGEBYSCORE', key, '-inf', windowStart)
+                
+                local count = redis.call('ZCARD', key)
+                
+                if count < limit then
+                    redis.call('ZADD', key, now, now .. '-' .. math.random())
+                    redis.call('EXPIRE', key, math.ceil(windowMs / 1000))
+                    return 1
+                else
+                    return 0
+                end
+                """;
+        DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>();
+        redisScript.setScriptText(script);
+        redisScript.setResultType(Long.class);
+        return redisScript;
     }
 }

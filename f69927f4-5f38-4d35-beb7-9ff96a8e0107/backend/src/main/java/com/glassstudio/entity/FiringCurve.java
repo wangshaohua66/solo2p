@@ -1,5 +1,6 @@
 package com.glassstudio.entity;
 
+import com.glassstudio.converter.SegmentConverter;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,6 +10,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -25,8 +28,10 @@ public class FiringCurve {
     @Column(nullable = false, length = 100)
     private String name;
 
+    @Convert(converter = SegmentConverter.class)
     @Column(columnDefinition = "TEXT")
-    private String segments;
+    @Builder.Default
+    private List<CurveSegment> segments = new ArrayList<>();
 
     @Column(nullable = false)
     private Boolean isTemplate;

@@ -4,12 +4,13 @@ import com.glassstudio.entity.Incident;
 import com.glassstudio.entity.IncidentSeverity;
 import com.glassstudio.entity.IncidentType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
 @Repository
-public interface IncidentRepository extends JpaRepository<Incident, Long> {
+public interface IncidentRepository extends JpaRepository<Incident, Long>, JpaSpecificationExecutor<Incident> {
 
     List<Incident> findByMemberId(Long memberId);
 

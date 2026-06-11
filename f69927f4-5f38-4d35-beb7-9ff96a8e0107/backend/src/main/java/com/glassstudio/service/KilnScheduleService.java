@@ -7,14 +7,17 @@ import com.glassstudio.exception.ConflictException;
 import com.glassstudio.exception.ForbiddenException;
 import com.glassstudio.exception.NotFoundException;
 import com.glassstudio.repository.*;
+import com.glassstudio.repository.specification.ScheduleSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
@@ -30,9 +33,14 @@ public class KilnScheduleService {
     private final FiringCurveRepository firingCurveRepository;
     private final MemberRoleConfigRepository memberRoleConfigRepository;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final NotificationService notificationService;
 
-    public Page<Schedule> getSchedules(Long kilnId, LocalDateTime startDate, LocalDateTime endDate, ScheduleStatus status, Pageable pageable) {
-        return scheduleRepository.findAll(pageable);
+    public Page<Schedule> getSchedules(Long kilnId, Long memberId, ScheduleStatus status,
+                                       LocalDateTime startDate, LocalDateTime endDate,
+                                       String memberName, Pageable pageable) {
+        Specification<Schedule> spec = ScheduleSpecification.buildSpecification(
+                kilnId, memberId, status, startDate, endDate, memberName);
+        return scheduleRepository.findAll(spec, pageable);
     }
 
     public Schedule getScheduleById(Long id) {
@@ -73,13 +81,14 @@ public class KilnScheduleService {
             throw new ConflictException("时间段存在冲突");
         }
 
-        String lockKey = "schedule:lock:" + dto.getKilnId() + ":" + System.currentTimeMillis();
+        String lockKey = buildLockKey(dto.getKilnId(), startTime);
         Boolean locked = redisTemplate.opsForValue().setIfAbsent(lockKey, "locked", 10, TimeUnit.SECONDS);
 
         if (locked == null || !locked) {
             throw new ConflictException("获取分布式锁失败，请稍后重试");
         }
 
+        Schedule savedSchedule = null;
         try {
             conflicts = checkConflict(dto.getKilnId(), startTime, endTime);
             if (!conflicts.isEmpty()) {
@@ -97,7 +106,11 @@ public class KilnScheduleService {
                     .note(dto.getNote())
                     .build();
 
-            return scheduleRepository.save(schedule);
+            savedSchedule = scheduleRepository.save(schedule);
+            notificationService.sendScheduleUpdate(savedSchedule.getId(), savedSchedule.getStatus().name(), "新的窑炉排程已创建");
+            return savedSchedule;
+        } catch (Exception e) {
+            throw e;
         } finally {
             redisTemplate.delete(lockKey);
         }
@@ -161,5 +174,17 @@ public class KilnScheduleService {
         originalSchedule.setNote(originalSchedule.getNote() + " [管理员强制取消原因: " + reason + "]");
         scheduleRepository.save(originalSchedule);
         return originalSchedule;
+    }
+
+    private String buildLockKey(Long kilnId, LocalDateTime startTime) {
+        LocalDateTime rounded = roundDownTo15Minutes(startTime);
+        String timeSlot = rounded.format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmm"));
+        return "schedule:lock:" + kilnId + ":" + timeSlot;
+    }
+
+    private LocalDateTime roundDownTo15Minutes(LocalDateTime time) {
+        int minute = time.getMinute();
+        int roundedMinute = (minute / 15) * 15;
+        return time.withMinute(roundedMinute).withSecond(0).withNano(0);
     }
 }

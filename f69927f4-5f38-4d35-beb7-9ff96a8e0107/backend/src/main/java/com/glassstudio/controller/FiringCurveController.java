@@ -6,6 +6,9 @@ import com.glassstudio.entity.FiringCurve;
 import com.glassstudio.service.FiringCurveService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -21,8 +24,11 @@ public class FiringCurveController {
     private final FiringCurveService firingCurveService;
 
     @GetMapping
-    public ResponseEntity<List<FiringCurve>> getAllCurves() {
-        List<FiringCurve> curves = firingCurveService.getAllCurves();
+    public ResponseEntity<Page<FiringCurve>> getAllCurves(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Boolean isTemplate,
+            @PageableDefault(size = 20) Pageable pageable) {
+        Page<FiringCurve> curves = firingCurveService.getAllCurves(keyword, isTemplate, pageable);
         return ResponseEntity.ok(curves);
     }
 
@@ -61,10 +67,12 @@ public class FiringCurveController {
     }
 
     @PostMapping("/{id}/duplicate")
-    public ResponseEntity<FiringCurve> duplicateCurve(@PathVariable Long id) {
-        FiringCurve curve = firingCurveService.duplicateCurve(id, 1L);
+    public ResponseEntity<FiringCurve> duplicateCurve(
+            @PathVariable Long id,
+            @RequestParam(required = false) String name) {
+        FiringCurve curve = firingCurveService.duplicateCurve(id, 1L, name);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
-                .path("/{id}")
+                .replacePath("/api/v1/curves/{id}")
                 .buildAndExpand(curve.getId())
                 .toUri();
         return ResponseEntity.created(location).body(curve);

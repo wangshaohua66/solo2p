@@ -1,1 +1,0 @@
-{"time":"2026-06-10T13:48:08.824965+08:00","level":"ERROR","source":"internal/logger/logger.go:240","msg":"failed to init storage: init schema: SQL logic error: near \"references\": syntax error (1)","trace_id":"2a16f577-5fe8-70d1-08f3-138e10586f41"}

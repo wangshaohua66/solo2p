@@ -101,6 +101,15 @@ var SearchUtil = (function() {
                         break;
                     }
                 }
+                if (!matched) {
+                    var defects = exp.defectTags || [];
+                    for (var k = 0; k < defects.length; k++) {
+                        if (defects[k] && defects[k].toLowerCase().indexOf(kw) > -1) {
+                            matched = true;
+                            break;
+                        }
+                    }
+                }
             }
             if (matched && exp.id !== undefined) {
                 result.push(exp.id);

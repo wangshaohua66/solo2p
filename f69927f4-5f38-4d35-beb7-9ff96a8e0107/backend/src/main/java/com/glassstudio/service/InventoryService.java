@@ -25,6 +25,7 @@ public class InventoryService {
     private final BatchRepository batchRepository;
     private final BatchMapper batchMapper;
     private final ObjectMapper objectMapper;
+    private final NotificationService notificationService;
 
     public List<Batch> getAllBatches() {
         return batchRepository.findAll();
@@ -37,7 +38,11 @@ public class InventoryService {
 
     public List<Batch> getExpiryWarnings() {
         LocalDate warningDate = LocalDate.now().plusDays(30);
-        return batchRepository.findByStatusAndExpiryDateBefore(BatchStatus.IN_STOCK, warningDate);
+        List<Batch> batches = batchRepository.findByStatusAndExpiryDateBefore(BatchStatus.IN_STOCK, warningDate);
+        if (!batches.isEmpty()) {
+            notificationService.sendInventoryAlert("库存过期预警：有 " + batches.size() + " 个批次即将过期");
+        }
+        return batches;
     }
 
     @Transactional
@@ -76,7 +81,14 @@ public class InventoryService {
             batch.setQuantity(remaining);
         }
 
-        return batchRepository.save(batch);
+        Batch savedBatch = batchRepository.save(batch);
+
+        if (savedBatch.getStatus() == BatchStatus.IN_STOCK &&
+                savedBatch.getQuantity().compareTo(new BigDecimal("10")) <= 0) {
+            notificationService.sendInventoryAlert("库存不足告警：物料 " + savedBatch.getMaterialName() + " 库存仅剩 " + savedBatch.getQuantity());
+        }
+
+        return savedBatch;
     }
 
     @Transactional

@@ -1,5 +1,6 @@
 package com.glassstudio.controller;
 
+import com.glassstudio.annotation.RateLimit;
 import com.glassstudio.dto.IncidentCreateDTO;
 import com.glassstudio.dto.KilnOpenDTO;
 import com.glassstudio.entity.Incident;
@@ -62,6 +63,7 @@ public class IncidentController {
     }
 
     @PostMapping("/kiln-opens")
+    @RateLimit(key = "incident:kiln-opens", limit = 30, window = 60)
     public ResponseEntity<KilnOpenRecord> recordKilnOpen(@Valid @RequestBody KilnOpenDTO dto) {
         KilnOpenRecord record = incidentService.recordKilnOpen(dto);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()

@@ -1,5 +1,6 @@
 package com.glassstudio.controller;
 
+import com.glassstudio.annotation.RateLimit;
 import com.glassstudio.dto.LoginRequest;
 import com.glassstudio.dto.LoginResponse;
 import com.glassstudio.entity.Member;
@@ -19,6 +20,7 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/login")
+    @RateLimit(key = "auth:login:{ip}", limit = 10, window = 60)
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         LoginResponse response = authService.login(request);
         return ResponseEntity.ok(response);

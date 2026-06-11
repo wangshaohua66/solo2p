@@ -27,6 +27,7 @@ public class IncidentService {
     private final IncidentMapper incidentMapper;
     private final KilnOpenRecordMapper kilnOpenRecordMapper;
     private final MemberService memberService;
+    private final NotificationService notificationService;
 
     public List<Incident> getAllIncidents() {
         return incidentRepository.findAll();
@@ -119,9 +120,10 @@ public class IncidentService {
                 .resolved(false)
                 .build();
 
-        incidentRepository.save(incident);
+        Incident savedIncident = incidentRepository.save(incident);
 
-        memberService.addToWatchlist(record.getOperatorId(), "违规开窑", incident.getId(), 30);
+        memberService.addToWatchlist(record.getOperatorId(), "违规开窑", savedIncident.getId(), 30);
+        notificationService.sendTemperatureAlert(record.getKilnId(), "违规开窑告警：窑炉ID " + record.getKilnId());
     }
 
     @Transactional

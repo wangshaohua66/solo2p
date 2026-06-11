@@ -325,46 +325,92 @@ var ExpForm = (function() {
         var date = $('#expDate').val();
         if (!name) { AppState.publish('toast:show', { type: 'error', message: '请填写实验名称' }); return; }
         if (!date) { AppState.publish('toast:show', { type: 'error', message: '请选择实验日期' }); return; }
+
+        var expDate = new Date(date);
+        var today = new Date();
+        today.setHours(23, 59, 59, 999);
+        if (expDate > today) {
+            AppState.publish('toast:show', { type: 'error', message: '实验日期不能晚于今天' });
+            return;
+        }
+
         var recipe = collectRecipe();
         if (recipe.length === 0) { AppState.publish('toast:show', { type: 'error', message: '请至少添加一种原料' }); return; }
 
-        var expData = {
-            name: name,
-            date: date,
-            glazeCategory: $('#expCategory').val(),
-            kilnType: $('#expKiln').val(),
-            atmosphere: $('#expAtmosphere').val(),
-            cone: $('#expCone').val(),
-            recipe: recipe,
-            firingCurve: collectCurve(),
-            defectTags: collectDefects(),
-            notes: $('#expNotes').val().trim()
-        };
-
-        var allMedia = formState.existingMedia.concat(formState.photos.map(function(p) { return { dataBase64: p.dataBase64 }; }));
-        var mediaIds = allMedia.map(function(m) { return m.id; }).filter(function(x) { return x; });
-        expData.mediaIds = mediaIds;
-        expData.firstMediaThumb = allMedia[0] ? allMedia[0].dataBase64 : null;
-
-        var promise;
-        if (formState.editingId) {
-            expData.updatedAt = new Date().toISOString();
-            promise = AppDB.updateExperiment(formState.editingId, expData, formState.photos, formState.removeMediaIds);
-        } else {
-            expData.createdAt = new Date().toISOString();
-            expData.updatedAt = expData.createdAt;
-            promise = AppDB.createExperiment(expData, formState.photos);
+        var recipeTotal = 0;
+        recipe.forEach(function(r) { recipeTotal += r.percentage; });
+        if (recipeTotal <= 0) {
+            AppState.publish('toast:show', { type: 'error', message: '配方合计不能为0%' });
+            return;
         }
 
-        promise.then(function() {
-            bootstrap.Modal.getInstance(document.getElementById('expFormModal')).hide();
-            AppState.publish(formState.editingId ? 'exp:updated' : 'exp:created', expData);
-            AppState.publish('toast:show', { type: 'success', message: formState.editingId ? '实验已更新' : '实验已保存' });
-            formState.editingId = null;
-        }).catch(function(err) {
-            console.error(err);
-            AppState.publish('toast:show', { type: 'error', message: '保存失败：' + err.message });
-        });
+        var curve = collectCurve();
+        for (var ci = 0; ci < curve.length; ci++) {
+            var seg = curve[ci];
+            var segIdx = ci + 1;
+            if (seg.type === '升温') {
+                if (!(seg.tempFrom < seg.tempTo)) {
+                    AppState.publish('toast:show', { type: 'error', message: '第' + segIdx + '阶段（升温）温度不合法：起始温度需低于结束温度' });
+                    return;
+                }
+            } else if (seg.type === '保温') {
+                if (Math.abs(seg.tempFrom - seg.tempTo) > 0.5) {
+                    AppState.publish('toast:show', { type: 'error', message: '第' + segIdx + '阶段（保温）温度不合法：起始温度需等于结束温度' });
+                    return;
+                }
+            } else if (seg.type === '降温') {
+                if (!(seg.tempFrom > seg.tempTo)) {
+                    AppState.publish('toast:show', { type: 'error', message: '第' + segIdx + '阶段（降温）温度不合法：起始温度需高于结束温度' });
+                    return;
+                }
+            }
+        }
+
+        function doSave() {
+            var expData = {
+                name: name,
+                date: date,
+                glazeCategory: $('#expCategory').val(),
+                kilnType: $('#expKiln').val(),
+                atmosphere: $('#expAtmosphere').val(),
+                cone: $('#expCone').val(),
+                recipe: recipe,
+                firingCurve: curve,
+                defectTags: collectDefects(),
+                notes: $('#expNotes').val().trim()
+            };
+
+            var allMedia = formState.existingMedia.concat(formState.photos.map(function(p) { return { dataBase64: p.dataBase64 }; }));
+            var mediaIds = allMedia.map(function(m) { return m.id; }).filter(function(x) { return x; });
+            expData.mediaIds = mediaIds;
+            expData.firstMediaThumb = allMedia[0] ? allMedia[0].dataBase64 : null;
+
+            var promise;
+            if (formState.editingId) {
+                expData.updatedAt = new Date().toISOString();
+                promise = AppDB.updateExperiment(formState.editingId, expData, formState.photos, formState.removeMediaIds);
+            } else {
+                expData.createdAt = new Date().toISOString();
+                expData.updatedAt = expData.createdAt;
+                promise = AppDB.createExperiment(expData, formState.photos);
+            }
+
+            promise.then(function() {
+                bootstrap.Modal.getInstance(document.getElementById('expFormModal')).hide();
+                AppState.publish(formState.editingId ? 'exp:updated' : 'exp:created', expData);
+                AppState.publish('toast:show', { type: 'success', message: formState.editingId ? '实验已更新' : '实验已保存' });
+                formState.editingId = null;
+            }).catch(function(err) {
+                console.error(err);
+                AppState.publish('toast:show', { type: 'error', message: '保存失败：' + err.message });
+            });
+        }
+
+        if (Math.abs(recipeTotal - 100) > 5) {
+            Exporter.showConfirm('配方合计为 ' + recipeTotal.toFixed(1) + '%，是否仍然保存？', doSave);
+        } else {
+            doSave();
+        }
     }
 
     function loadMaterialTable() {

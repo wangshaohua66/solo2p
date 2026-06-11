@@ -177,21 +177,35 @@ public class DataInitializer implements CommandLineRunner {
 
         FiringCurve curve1 = FiringCurve.builder()
                 .name("标准玻璃熔制曲线")
-                .segments("[{\"name\":\"升温\",\"rate\":100,\"target\":1200,\"hold\":120},{\"name\":\"降温\",\"rate\":50,\"target\":500,\"hold\":60},{\"name\":\"退火\",\"rate\":20,\"target\":450,\"hold\":180}]")
+                .segments(java.util.Arrays.asList(
+                        CurveSegment.builder().targetTemp(300).duration(60).description("升温段1").build(),
+                        CurveSegment.builder().targetTemp(800).duration(120).description("升温段2").build(),
+                        CurveSegment.builder().targetTemp(1200).duration(180).description("高温保温").build(),
+                        CurveSegment.builder().targetTemp(500).duration(100).description("降温段").build(),
+                        CurveSegment.builder().targetTemp(450).duration(120).description("退火保温").build()
+                ))
                 .isTemplate(true)
                 .createdBy(1L)
                 .build();
 
         FiringCurve curve2 = FiringCurve.builder()
                 .name("低温烧结曲线")
-                .segments("[{\"name\":\"升温\",\"rate\":50,\"target\":800,\"hold\":60},{\"name\":\"保温\",\"rate\":0,\"target\":800,\"hold\":120}]")
+                .segments(java.util.Arrays.asList(
+                        CurveSegment.builder().targetTemp(400).duration(40).description("升温段").build(),
+                        CurveSegment.builder().targetTemp(800).duration(80).description("升温段2").build(),
+                        CurveSegment.builder().targetTemp(800).duration(120).description("保温段").build()
+                ))
                 .isTemplate(true)
                 .createdBy(1L)
                 .build();
 
         FiringCurve curve3 = FiringCurve.builder()
                 .name("快速退火曲线")
-                .segments("[{\"name\":\"降温\",\"rate\":100,\"target\":550,\"hold\":0},{\"name\":\"保温\",\"rate\":0,\"target\":550,\"hold\":60},{\"name\":\"冷却\",\"rate\":30,\"target\":300,\"hold\":0}]")
+                .segments(java.util.Arrays.asList(
+                        CurveSegment.builder().targetTemp(550).duration(30).description("快速降温").build(),
+                        CurveSegment.builder().targetTemp(550).duration(60).description("保温退火").build(),
+                        CurveSegment.builder().targetTemp(300).duration(90).description("缓慢冷却").build()
+                ))
                 .isTemplate(true)
                 .createdBy(1L)
                 .build();

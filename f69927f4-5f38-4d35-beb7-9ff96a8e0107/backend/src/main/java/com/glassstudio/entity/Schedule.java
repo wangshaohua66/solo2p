@@ -18,7 +18,8 @@ import java.time.LocalDateTime;
 @Table(name = "schedules", indexes = {
         @Index(name = "idx_kiln_time", columnList = "kilnId, startTime, endTime"),
         @Index(name = "idx_member", columnList = "memberId"),
-        @Index(name = "idx_status", columnList = "status")
+        @Index(name = "idx_status", columnList = "status"),
+        @Index(name = "idx_member_status", columnList = "memberId, status")
 })
 public class Schedule {
 
