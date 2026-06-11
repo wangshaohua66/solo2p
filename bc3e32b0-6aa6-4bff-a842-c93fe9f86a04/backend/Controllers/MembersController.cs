@@ -106,6 +106,13 @@ public class MembersController : ControllerBase
         return Ok(ApiResponse<MemberTierBenefit[]>.Success(benefits));
     }
 
+    [HttpGet("growth")]
+    public async Task<ActionResult<ApiResponse<object>>> GetMemberGrowth([FromQuery] int months = 6)
+    {
+        var result = await _memberService.GetMemberGrowthAsync(months);
+        return Ok(ApiResponse<object>.Success(result));
+    }
+
     [HttpGet("{id}/pieces")]
     public async Task<ActionResult<ApiResponse<PagedResult<PieceArchive>>>> GetMemberPieces(
         Guid id,

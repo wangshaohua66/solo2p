@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { PieceArchive, PieceStatus, PhotoStage, PagedQuery } from '@/types'
 import { ElMessage } from 'element-plus'
@@ -71,8 +71,6 @@ const fetchPieces = async (reset: boolean = false) => {
   }
 }
 
-const filteredPieces = computed(() => pieces.value)
-
 const getStatusLabel = (status: PieceStatus) => {
   const map: Record<PieceStatus, string> = {
     draft: '创作中',
@@ -140,7 +138,7 @@ onMounted(() => {
     <div class="page-header">
       <div class="header-left">
         <h2 class="page-title">作品档案墙</h2>
-        <span class="piece-count">共 {{ filteredPieces.length }} 件作品</span>
+        <span class="piece-count">共 {{ pieces.length }} 件作品</span>
       </div>
       <div class="header-right">
         <el-button type="primary" :icon="Plus" @click="handleUploadPiece">
@@ -190,7 +188,7 @@ onMounted(() => {
     <div class="waterfall-container">
       <div class="waterfall-column">
         <div 
-          v-for="(piece, index) in filteredPieces.filter((_, i) => i % 3 === 0)" 
+          v-for="(piece, index) in pieces.filter((_, i) => i % 3 === 0)" 
           :key="piece.id"
           class="piece-card"
           @click="handlePieceClick(piece)"
@@ -250,7 +248,7 @@ onMounted(() => {
       
       <div class="waterfall-column">
         <div 
-          v-for="(piece, index) in filteredPieces.filter((_, i) => i % 3 === 1)" 
+          v-for="(piece, index) in pieces.filter((_, i) => i % 3 === 1)" 
           :key="piece.id"
           class="piece-card"
           @click="handlePieceClick(piece)"
@@ -295,7 +293,7 @@ onMounted(() => {
       
       <div class="waterfall-column">
         <div 
-          v-for="(piece, index) in filteredPieces.filter((_, i) => i % 3 === 2)" 
+          v-for="(piece, index) in pieces.filter((_, i) => i % 3 === 2)" 
           :key="piece.id"
           class="piece-card"
           @click="handlePieceClick(piece)"
@@ -345,11 +343,11 @@ onMounted(() => {
       </el-button>
     </div>
     
-    <div class="no-more" v-else-if="filteredPieces.length > 0">
+    <div class="no-more" v-else-if="pieces.length > 0">
       <el-divider>— 已经到底啦 —</el-divider>
     </div>
 
-    <el-empty v-if="filteredPieces.length === 0" description="暂无作品" />
+    <el-empty v-if="pieces.length === 0" description="暂无作品" />
   </div>
 </template>
 

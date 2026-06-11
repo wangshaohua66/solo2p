@@ -83,6 +83,19 @@ public class StudioController : ControllerBase
         return Ok(ApiResponse<List<StudioBooking>>.Success(bookings));
     }
 
+    [HttpGet("bookings/my")]
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<List<StudioBooking>>>> GetMyBookings([FromQuery] string? status = null)
+    {
+        var memberId = GetCurrentUserId();
+        var bookings = await _studioService.GetBookingsAsync(null, null, memberId);
+        if (!string.IsNullOrEmpty(status))
+        {
+            bookings = bookings.Where(b => b.Status.ToString().Equals(status, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+        return Ok(ApiResponse<List<StudioBooking>>.Success(bookings));
+    }
+
     [HttpGet("bookings/{id}")]
     [Authorize]
     public async Task<ActionResult<ApiResponse<StudioBooking>>> GetBooking(Guid id)

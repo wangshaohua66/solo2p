@@ -79,5 +79,12 @@ export const kilnApi = {
 
   getFiringRecords(kilnId?: string, params?: PagedQuery): Promise<PagedResult<any>> {
     return http.get('/kilns/firing-records', { params: { kilnId, ...params } })
+  },
+
+  getKilnUsage(params?: {
+    startDate?: string
+    endDate?: string
+  }): Promise<{ days: string[]; electricKiln: number[]; gasKiln: number[]; woodKiln: number[] }> {
+    return http.get('/kilns/usage', { params })
   }
 }

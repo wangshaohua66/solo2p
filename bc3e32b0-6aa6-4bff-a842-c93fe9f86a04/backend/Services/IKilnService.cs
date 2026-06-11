@@ -21,6 +21,7 @@ public interface IKilnService
     Task<KilnSchedule> CompleteFiringAsync(Guid scheduleId);
     Task<KilnSchedule> CancelScheduleAsync(Guid scheduleId);
     Task<PagedResult<FiringRecord>> GetFiringRecordsAsync(Guid? kilnId = null, PagedQuery? query = null);
+    Task<object> GetKilnUsageAsync(DateTime? startDate = null, DateTime? endDate = null);
 }
 
 public interface IGlazeRecipeService

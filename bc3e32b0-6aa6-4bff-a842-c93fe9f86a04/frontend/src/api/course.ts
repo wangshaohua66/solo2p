@@ -57,7 +57,7 @@ export const courseApi = {
     return http.post(`/courses/${courseId}/sessions/${sessionId}/check-in`, { qrCode })
   },
 
-  generateQrCode(courseId: string, sessionId: string): Promise<{ qrCode: string; qrDataUrl: string }> {
+  generateQrCode(courseId: string, sessionId: string): Promise<{ qrDataUrl: string }> {
     return http.get(`/courses/${courseId}/sessions/${sessionId}/qr-code`)
   },
 
@@ -67,6 +67,10 @@ export const courseApi = {
 
   getMyCourses(status?: string): Promise<CourseRegistration[]> {
     return http.get('/courses/my', { params: { status } })
+  },
+
+  getMyRegistration(courseId: string): Promise<CourseRegistration> {
+    return http.get(`/courses/${courseId}/my-registration`)
   },
 
   getWaitlist(courseId: string): Promise<CourseRegistration[]> {

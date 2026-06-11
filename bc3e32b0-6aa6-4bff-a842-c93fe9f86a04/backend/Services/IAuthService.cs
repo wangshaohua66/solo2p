@@ -30,4 +30,5 @@ public interface IMemberService
     Task<(int points, decimal totalHours)> GetMemberPointsAsync(Guid memberId);
     Task AddConsumptionAsync(Guid memberId, decimal amount);
     Task CheckMembershipExpiryAsync();
+    Task<object> GetMemberGrowthAsync(int months = 6);
 }

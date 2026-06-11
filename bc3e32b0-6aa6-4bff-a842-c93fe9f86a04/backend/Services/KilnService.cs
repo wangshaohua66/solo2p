@@ -342,4 +342,62 @@ public class KilnService : IKilnService
 
         return PagedResult.Create(items, totalCount, query.PageIndex, query.PageSize);
     }
+
+    public async Task<object> GetKilnUsageAsync(DateTime? startDate = null, DateTime? endDate = null)
+    {
+        var now = DateTime.UtcNow;
+        var diff = (7 + (now.DayOfWeek - DayOfWeek.Monday)) % 7;
+        var start = startDate ?? now.Date.AddDays(-diff);
+        var end = endDate ?? start.AddDays(7);
+
+        var schedules = await _context.KilnSchedules
+            .Where(s => s.StartTime < end && s.EndTime > start)
+            .ToListAsync();
+
+        var kilns = await _context.Kilns.ToListAsync();
+        var electricKiln = kilns.FirstOrDefault(k => k.Type == KilnType.Electric);
+        var gasKiln = kilns.FirstOrDefault(k => k.Type == KilnType.Gas);
+        var woodKiln = kilns.FirstOrDefault(k => k.Type == KilnType.Wood);
+
+        var days = new List<string>();
+        var electricUsage = new List<double>();
+        var gasUsage = new List<double>();
+        var woodUsage = new List<double>();
+
+        for (int i = 0; i < 7; i++)
+        {
+            var day = start.AddDays(i);
+            var dayName = day.DayOfWeek switch
+            {
+                DayOfWeek.Monday => "周一",
+                DayOfWeek.Tuesday => "周二",
+                DayOfWeek.Wednesday => "周三",
+                DayOfWeek.Thursday => "周四",
+                DayOfWeek.Friday => "周五",
+                DayOfWeek.Saturday => "周六",
+                DayOfWeek.Sunday => "周日",
+                _ => ""
+            };
+            days.Add(dayName);
+
+            var dayStart = day.Date;
+            var dayEnd = dayStart.AddDays(1);
+
+            var daySchedules = schedules.Where(s => s.StartTime < dayEnd && s.EndTime > dayStart).ToList();
+
+            double CalcHours(Guid? kilnId)
+            {
+                if (kilnId == null) return 0;
+                return daySchedules.Where(s => s.KilnId == kilnId)
+                    .Sum(s => Math.Min(s.EndTime.Ticks, dayEnd.Ticks) - Math.Max(s.StartTime.Ticks, dayStart.Ticks))
+                    / (double)TimeSpan.FromHours(1).Ticks;
+            }
+
+            electricUsage.Add(electricKiln != null ? CalcHours(electricKiln.Id) : 0);
+            gasUsage.Add(gasKiln != null ? CalcHours(gasKiln.Id) : 0);
+            woodUsage.Add(woodKiln != null ? CalcHours(woodKiln.Id) : 0);
+        }
+
+        return new { days, electricKiln = electricUsage, gasKiln = gasUsage, woodKiln = woodUsage };
+    }
 }

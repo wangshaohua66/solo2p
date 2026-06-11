@@ -103,8 +103,8 @@ const generateQRCode = async (session: CourseSession) => {
   try {
     if (!course.value?.id) return
     const result = await courseApi.generateQrCode(course.value.id, session.id)
-    if (result?.qrCodeDataUrl) {
-      qrCodeDataUrl.value = result.qrCodeDataUrl
+    if (result?.qrDataUrl) {
+      qrCodeDataUrl.value = result.qrDataUrl
       return
     }
   } catch (e) {

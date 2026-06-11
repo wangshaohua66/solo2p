@@ -29,8 +29,8 @@ export const memberApi = {
     return http.delete(`/members/${id}`)
   },
 
-  updateTier(id: string, tier: string): Promise<User> {
-    return http.patch(`/members/${id}/tier`, { tier })
+  updateTier(id: string, tier: string, durationMonths?: number): Promise<User> {
+    return http.post(`/members/${id}/upgrade`, { tier, durationMonths })
   },
 
   addConsumption(id: string, amount: number, description?: string): Promise<User> {
@@ -42,7 +42,7 @@ export const memberApi = {
   },
 
   getTierThresholds(): Promise<{ tier: string; name: string; minTotalSpent: number }[]> {
-    return http.get('/members/tier-thresholds')
+    return http.get('/members/benefits')
   },
 
   getMyProfile(): Promise<User> {
@@ -63,5 +63,9 @@ export const memberApi = {
 
   getMemberPointsHistory(memberId: string, params?: PagedQuery): Promise<PagedResult<any>> {
     return http.get(`/members/${memberId}/points-history`, { params })
+  },
+
+  getMemberGrowth(): Promise<{ months: string[]; members: number[]; newMembers: number[] }> {
+    return http.get('/members/growth')
   }
 }

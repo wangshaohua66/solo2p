@@ -94,6 +94,18 @@ public class CoursesController : ControllerBase
         return Ok(ApiResponse<List<CourseRegistration>>.Success(registrations));
     }
 
+    [HttpGet("{id}/my-registration")]
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<CourseRegistration>>> GetMyRegistration(Guid id)
+    {
+        var memberId = GetCurrentUserId();
+        var registrations = await _courseService.GetCourseRegistrationsAsync(id);
+        var myReg = registrations.FirstOrDefault(r => r.MemberId == memberId);
+        if (myReg == null)
+            return Ok(ApiResponse<CourseRegistration?>.Success(null));
+        return Ok(ApiResponse<CourseRegistration>.Success(myReg));
+    }
+
     [HttpPost("{id}/register")]
     [Authorize]
     public async Task<ActionResult<ApiResponse<CourseRegistration>>> RegisterCourse(Guid id)

@@ -124,29 +124,20 @@ const loadDashboardStats = async () => {
 
     if (growthData.status === 'fulfilled' && growthData.value) {
       memberGrowthData.value = growthData.value
-    } else {
-      memberGrowthData.value = generateFallbackMemberGrowth()
     }
 
     if (statusData.status === 'fulfilled' && statusData.value?.length) {
       pieceStatusData.value = statusData.value
-    } else {
-      pieceStatusData.value = generateFallbackPieceStatus()
     }
 
     if (usageData.status === 'fulfilled' && usageData.value) {
       kilnUsageData.value = usageData.value
-    } else {
-      kilnUsageData.value = generateFallbackKilnUsage()
     }
 
     await Promise.allSettled([loadRecentPieces(), loadUpcomingSchedules()])
 
   } catch (e) {
     console.error('Failed to load dashboard stats:', e)
-    memberGrowthData.value = generateFallbackMemberGrowth()
-    pieceStatusData.value = generateFallbackPieceStatus()
-    kilnUsageData.value = generateFallbackKilnUsage()
   } finally {
     loading.value = false
     nextTick(() => {
@@ -155,46 +146,12 @@ const loadDashboardStats = async () => {
   }
 }
 
-const generateFallbackMemberGrowth = () => {
-  const months: string[] = []
-  for (let i = 5; i >= 0; i--) {
-    months.push(dayjs().subtract(i, 'month').format('M月'))
-  }
-  return {
-    months,
-    members: [45, 52, 58, 65, 72, 80],
-    newMembers: [8, 7, 6, 9, 7, 8]
-  }
-}
-
-const generateFallbackPieceStatus = () => [
-  { value: 45, name: '泥坯阶段', color: '#d4a574' },
-  { value: 68, name: '素烧完成', color: '#8c8c8c' },
-  { value: 52, name: '施釉中', color: '#c85a32' },
-  { value: 91, name: '成品', color: '#52c41a' }
-]
-
-const generateFallbackKilnUsage = () => ({
-  days: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
-  electricKiln: [6, 8, 7, 9, 10, 12, 8],
-  gasKiln: [4, 5, 6, 7, 8, 10, 6],
-  woodKiln: [2, 3, 2, 4, 5, 6, 3]
-})
-
 const fetchMemberGrowth = async () => {
-  try {
-    const months: string[] = []
-    for (let i = 5; i >= 0; i--) {
-      months.push(dayjs().subtract(i, 'month').format('M月'))
-    }
-    return {
-      months,
-      members: [45, 52, 58, 65, 72, 80],
-      newMembers: [8, 7, 6, 9, 7, 8]
-    }
-  } catch (e) {
-    throw e
-  }
+  const result = await memberApi.getMemberGrowth()
+  const months = result.months || []
+  const members = result.members || []
+  const newMembers = result.newMembers || []
+  return { months, members, newMembers }
 }
 
 const fetchPieceStatus = async () => {
@@ -233,11 +190,15 @@ const fetchPieceStatus = async () => {
 }
 
 const fetchKilnUsage = async () => {
+  const result = await kilnApi.getKilnUsage({
+    startDate: dayjs().startOf('week').toISOString(),
+    endDate: dayjs().endOf('week').toISOString()
+  })
   return {
-    days: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
-    electricKiln: [6, 8, 7, 9, 10, 12, 8],
-    gasKiln: [4, 5, 6, 7, 8, 10, 6],
-    woodKiln: [2, 3, 2, 4, 5, 6, 3]
+    days: result.days || [],
+    electricKiln: result.electricKiln || [],
+    gasKiln: result.gasKiln || [],
+    woodKiln: result.woodKiln || []
   }
 }
 
@@ -253,9 +214,7 @@ const loadRecentPieces = async () => {
       date: dayjs(p.createdAt).format('YYYY-MM-DD')
     }))
   } catch (e) {
-    recentPieces.value = [
-      { id: '1', title: '青花瓷茶盏', author: '张小明', stage: 'finished', image: '', date: '2024-01-15' }
-    ]
+    recentPieces.value = []
   }
 }
 

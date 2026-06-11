@@ -212,4 +212,13 @@ public class KilnsController : ControllerBase
         var result = await _kilnService.GetFiringRecordsAsync(kilnId, query);
         return Ok(ApiResponse<PagedResult<FiringRecord>>.Success(result));
     }
+
+    [HttpGet("usage")]
+    public async Task<ActionResult<ApiResponse<object>>> GetKilnUsage(
+        [FromQuery] DateTime? startDate = null,
+        [FromQuery] DateTime? endDate = null)
+    {
+        var result = await _kilnService.GetKilnUsageAsync(startDate, endDate);
+        return Ok(ApiResponse<object>.Success(result));
+    }
 }

@@ -33,9 +33,8 @@ const fetchStations = async () => {
 
 const fetchWeeklyBookings = async () => {
   try {
-    const start = currentWeek.value.startOf('week').toISOString()
-    const end = currentWeek.value.endOf('week').toISOString()
-    weeklyBookings.value = await studioApi.getWeeklyBookings({ startDate: start, endDate: end })
+    const weekStart = currentWeek.value.startOf('week').format('YYYY-MM-DD')
+    weeklyBookings.value = await studioApi.getWeeklyBookings(weekStart)
   } catch (e) {
     console.error('Failed to fetch weekly bookings:', e)
   }
@@ -43,9 +42,7 @@ const fetchWeeklyBookings = async () => {
 
 const fetchMyBookings = async () => {
   try {
-    const start = currentWeek.value.startOf('week').toISOString()
-    const end = currentWeek.value.endOf('week').toISOString()
-    myBookings.value = await studioApi.getMyBookings({ startDate: start, endDate: end })
+    myBookings.value = await studioApi.getMyBookings()
   } catch (e) {
     console.error('Failed to fetch my bookings:', e)
   }
@@ -134,12 +131,11 @@ const confirmBooking = async () => {
   
   try {
     loading.value = true
-    const startDateTime = `${bookingForm.value.date}T${bookingForm.value.startTime}:00`
-    const endDateTime = `${bookingForm.value.date}T${bookingForm.value.endTime}:00`
     await studioApi.createBooking({
       stationId: bookingForm.value.stationId,
-      startTime: dayjs(startDateTime).toISOString(),
-      endTime: dayjs(endDateTime).toISOString()
+      date: bookingForm.value.date,
+      startTime: bookingForm.value.startTime,
+      endTime: bookingForm.value.endTime
     })
     ElMessage.success('预约成功！请准时到达')
     showBookingDialog.value = false

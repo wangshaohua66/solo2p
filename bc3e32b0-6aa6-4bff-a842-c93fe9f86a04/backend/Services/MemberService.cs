@@ -330,4 +330,29 @@ public class MemberService : IMemberService
             _ => "体验卡"
         };
     }
+
+    public async Task<object> GetMemberGrowthAsync(int months = 6)
+    {
+        var now = DateTime.UtcNow;
+        var monthLabels = new List<string>();
+        var membersCounts = new List<int>();
+        var newMembersCounts = new List<int>();
+
+        for (int i = months - 1; i >= 0; i--)
+        {
+            var monthStart = new DateTime(now.Year, now.Month, 1).AddMonths(-i);
+            var monthEnd = monthStart.AddMonths(1);
+            monthLabels.Add($"{monthStart.Month}月");
+
+            var totalMembers = await _context.Users
+                .CountAsync(u => u.Role == UserRole.Member && u.IsActive && u.CreatedAt < monthEnd);
+            membersCounts.Add(totalMembers);
+
+            var newMembers = await _context.Users
+                .CountAsync(u => u.Role == UserRole.Member && u.IsActive && u.CreatedAt >= monthStart && u.CreatedAt < monthEnd);
+            newMembersCounts.Add(newMembers);
+        }
+
+        return new { months = monthLabels, members = membersCounts, newMembers = newMembersCounts };
+    }
 }

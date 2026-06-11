@@ -1,4 +1,5 @@
 import http from './http'
+import dayjs from 'dayjs'
 import type {
   StudioBooking,
   Station,
@@ -34,7 +35,7 @@ export const studioApi = {
     startDate?: string
     endDate?: string
     status?: string
-  } & PagedQuery): Promise<PagedResult<StudioBooking>> {
+  }): Promise<StudioBooking[]> {
     return http.get('/studio/bookings', { params })
   },
 
@@ -63,7 +64,9 @@ export const studioApi = {
   },
 
   getWeeklyBookings(weekStart: string, stationId?: string): Promise<StudioBooking[]> {
-    return http.get('/studio/bookings/weekly', { params: { weekStart, stationId } })
+    const startDate = weekStart
+    const endDate = dayjs(weekStart).add(6, 'day').toISOString()
+    return http.get('/studio/bookings', { params: { startDate, endDate, stationId } })
   },
 
   getMyBookings(status?: string): Promise<StudioBooking[]> {
