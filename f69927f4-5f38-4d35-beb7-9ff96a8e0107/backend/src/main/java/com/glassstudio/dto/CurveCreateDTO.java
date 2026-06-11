@@ -22,6 +22,9 @@ public class CurveCreateDTO {
     @Size(max = 100, message = "曲线名称长度不能超过100")
     private String name;
 
+    @Size(max = 500, message = "描述长度不能超过500")
+    private String description;
+
     @NotNull(message = "曲线段不能为空")
     @Valid
     private List<CurveSegment> segments;
