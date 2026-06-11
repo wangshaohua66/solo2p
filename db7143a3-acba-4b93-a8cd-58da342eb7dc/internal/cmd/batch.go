@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"text/tabwriter"
@@ -229,6 +230,47 @@ func validateBatchRunFlags() error {
 		return apperrors.New(apperrors.E1003,
 			fmt.Sprintf("input path does not exist: %s", batchInputPath))
 	}
+
+	absInput, err := filepath.Abs(batchInputPath)
+	if err != nil {
+		return apperrors.Wrap(err, apperrors.E1003,
+			"cannot resolve absolute input path")
+	}
+	cleanInput := filepath.Clean(absInput)
+	if cleanInput != absInput {
+		return apperrors.New(apperrors.E4001,
+			fmt.Sprintf("input path contains traversal components: %s", batchInputPath))
+	}
+
+	absOutput, err := filepath.Abs(batchOutputPath)
+	if err != nil {
+		return apperrors.Wrap(err, apperrors.E1005,
+			"cannot resolve absolute output path")
+	}
+	cleanOutput := filepath.Clean(absOutput)
+	if cleanOutput != absOutput {
+		return apperrors.New(apperrors.E4001,
+			fmt.Sprintf("output path contains traversal components: %s", batchOutputPath))
+	}
+	if strings.Contains(cleanOutput, "..") {
+		return apperrors.New(apperrors.E4001,
+			"output path contains '..' traversal and is unsafe")
+	}
+
+	if err := os.MkdirAll(cleanOutput, 0755); err != nil {
+		return apperrors.Wrap(err, apperrors.E1005,
+			fmt.Sprintf("cannot create output directory: %s", cleanOutput))
+	}
+
+	testFile := filepath.Join(cleanOutput, ".sentinel_writable_test_"+strconv.FormatInt(int64(os.Getpid()), 10))
+	if f, err := os.OpenFile(testFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600); err != nil {
+		return apperrors.Wrap(err, apperrors.E1005,
+			fmt.Sprintf("output directory is not writable: %s", cleanOutput))
+	} else {
+		f.Close()
+		_ = os.Remove(testFile)
+	}
+	batchOutputPath = cleanOutput
 
 	if batchTaskType == "crs" {
 		if !config.IsValidEPSG(batchSourceEPSG) {

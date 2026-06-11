@@ -36,78 +36,6 @@ func DataTypeBytesPerPixel(dataType string, bitsPerSample int) int {
 	return 2
 }
 
-func (g *GeoTIFF) u16Field(tag uint16) (uint16, bool) {
-	if !g.ifd.HasField(tag) {
-		return 0, false
-	}
-	b := g.ifd.GetField(tag).Value().Bytes()
-	if len(b) < 2 {
-		return 0, false
-	}
-	return g.byteOrder.Uint16(b), true
-}
-
-func (g *GeoTIFF) u32Field(tag uint16) (uint32, bool) {
-	if !g.ifd.HasField(tag) {
-		return 0, false
-	}
-	b := g.ifd.GetField(tag).Value().Bytes()
-	if len(b) < 4 {
-		return 0, false
-	}
-	return g.byteOrder.Uint32(b), true
-}
-
-func (g *GeoTIFF) u16SliceField(tag uint16) []uint16 {
-	if !g.ifd.HasField(tag) {
-		return nil
-	}
-	f := g.ifd.GetField(tag)
-	b := f.Value().Bytes()
-	n := int(f.Count())
-	vals := make([]uint16, n)
-	for i := 0; i < n && i*2+2 <= len(b); i++ {
-		vals[i] = g.byteOrder.Uint16(b[i*2:])
-	}
-	return vals
-}
-
-func (g *GeoTIFF) float64SliceField(tag uint16) []float64 {
-	if !g.ifd.HasField(tag) {
-		return nil
-	}
-	b := g.ifd.GetField(tag).Value().Bytes()
-	n := len(b) / 8
-	vals := make([]float64, n)
-	for i := 0; i < n; i++ {
-		vals[i] = math.Float64frombits(g.byteOrder.Uint64(b[i*8:]))
-	}
-	return vals
-}
-
-func (g *GeoTIFF) strField(tag uint16) string {
-	if !g.ifd.HasField(tag) {
-		return ""
-	}
-	f := g.ifd.GetField(tag)
-	return strings.TrimRight(string(f.Value().Bytes()[:f.Count()]), "\x00")
-}
-
-func (g *GeoTIFF) tryParseEPSG() int {
-	base := filepath.Base(g.path)
-	lower := strings.ToLower(base)
-	if strings.Contains(lower, "4326") || strings.Contains(lower, "wgs84") {
-		return 4326
-	}
-	if strings.Contains(lower, "4490") || strings.Contains(lower, "cgcs2000") {
-		return 4490
-	}
-	if strings.Contains(lower, "4214") || strings.Contains(lower, "beijing54") {
-		return 4214
-	}
-	return 4326
-}
-
 func getBandDescription(sensor types.SensorType, bandNum int) string {
 	descs := map[types.SensorType]map[int]string{
 		types.SensorSentinel2: {
@@ -183,53 +111,46 @@ func (it *ChunkIterator) HasNext() bool {
 }
 
 func (r *GeoTIFFReader) readChunkData(chunk *types.Chunk) ([][]float64, error) {
+	if r.imageDataOffset <= 0 || r.file == nil {
+		return nil, apperrors.New(apperrors.E1001,
+			"TIFF image data offset not set or file unavailable; ensure source is a valid uncompressed GeoTIFF with StripOffsets tag")
+	}
 	bands := r.metadata.NumBands
 	rows, cols := chunk.Height, chunk.Width
+	bpp := DataTypeBytesPerPixel(r.metadata.DataType, r.metadata.BitsPerSample)
 	data := make([][]float64, bands)
 	for b := 0; b < bands; b++ {
 		data[b] = make([]float64, rows*cols)
 	}
-	bpp := DataTypeBytesPerPixel(r.metadata.DataType, r.metadata.BitsPerSample)
-
-	if r.imageDataOffset > 0 && r.file != nil {
-		bytesPerRow := cols * bpp * bands
-		startOffset := r.imageDataOffset + int64(chunk.OffsetY)*int64(bytesPerRow)
-		readSize := int64(rows) * int64(bytesPerRow)
-		raw := make([]byte, readSize)
-		if n, err := r.file.ReadAt(raw, startOffset); err == nil && n == int(readSize) {
-			for i := 0; i < rows*cols; i++ {
-				for b := 0; b < bands; b++ {
-					off := i*bands*bpp + b*bpp
-					if off+bpp > n {
-						continue
-					}
-					switch bpp {
-					case 1:
-						data[b][i] = float64(raw[off])
-					case 2:
-						data[b][i] = float64(r.byteOrder.Uint16(raw[off:]))
-					case 4:
-						if r.metadata.DataType == "float32" {
-							data[b][i] = float64(math.Float32frombits(r.byteOrder.Uint32(raw[off:])))
-						} else {
-							data[b][i] = float64(r.byteOrder.Uint32(raw[off:]))
-						}
-					case 8:
-						data[b][i] = math.Float64frombits(r.byteOrder.Uint64(raw[off:]))
-					}
-				}
-			}
-			return data, nil
-		}
+	bytesPerRow := cols * bpp * bands
+	startOffset := r.imageDataOffset + int64(chunk.OffsetY)*int64(bytesPerRow)
+	readSize := int64(rows) * int64(bytesPerRow)
+	raw := make([]byte, readSize)
+	n, err := r.file.ReadAt(raw, startOffset)
+	if err != nil && n != int(readSize) {
+		return nil, apperrors.Wrap(err, apperrors.E1001,
+			"failed to read chunk data from TIFF at offset")
 	}
-
-	for b := 0; b < bands; b++ {
-		for i := 0; i < rows*cols; i++ {
-			row := chunk.OffsetY + (i / cols)
-			col := i % cols
-			baseValue := float64((row*cols + col) % 65536)
-			noise := float64(int64(row+col+b) % 100)
-			data[b][i] = baseValue + noise
+	for i := 0; i < rows*cols; i++ {
+		for b := 0; b < bands; b++ {
+			off := i*bands*bpp + b*bpp
+			if off+bpp > n {
+				continue
+			}
+			switch bpp {
+			case 1:
+				data[b][i] = float64(raw[off])
+			case 2:
+				data[b][i] = float64(r.byteOrder.Uint16(raw[off:]))
+			case 4:
+				if r.metadata.DataType == "float32" {
+					data[b][i] = float64(math.Float32frombits(r.byteOrder.Uint32(raw[off:])))
+				} else {
+					data[b][i] = float64(r.byteOrder.Uint32(raw[off:]))
+				}
+			case 8:
+				data[b][i] = math.Float64frombits(r.byteOrder.Uint64(raw[off:]))
+			}
 		}
 	}
 	return data, nil

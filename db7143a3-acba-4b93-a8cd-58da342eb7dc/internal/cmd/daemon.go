@@ -22,19 +22,21 @@ import (
 	"github.com/remote-sensing/sentinel-cli/internal/log"
 	"github.com/remote-sensing/sentinel-cli/internal/pipeline"
 	"github.com/remote-sensing/sentinel-cli/internal/store"
+	"github.com/remote-sensing/sentinel-cli/internal/tui"
 	"github.com/remote-sensing/sentinel-cli/internal/types"
 	"github.com/remote-sensing/sentinel-cli/internal/util"
 )
 
 var (
-	daemonWatchDir      string
-	daemonTaskType      string
-	daemonOutputDir     string
-	daemonPIDFile       string
-	daemonLogFile       string
-	daemonSystemd       bool
-	daemonPollInterval  int
-	daemonUseFSNotify   bool
+	daemonWatchDir       string
+	daemonTaskType       string
+	daemonOutputDir      string
+	daemonPIDFile        string
+	daemonLogFile        string
+	daemonSystemd        bool
+	daemonPollInterval   int
+	daemonUseFSNotify    bool
+	daemonUseTUI         bool
 	daemonFileExtensions []string
 )
 
@@ -136,6 +138,8 @@ func init() {
 		"使用 fsnotify 监控（默认轮询） | Use fsnotify (default: polling)")
 	daemonStartCmd.Flags().StringSliceVar(&daemonFileExtensions, "extensions", []string{".tif", ".tiff"},
 		"监控的文件扩展名 | File extensions to watch")
+	daemonStartCmd.Flags().BoolVar(&daemonUseTUI, "tui", false,
+		"启动后打开仪表盘 TUI | Open dashboard TUI after start")
 
 	daemonStopCmd.Flags().StringVar(&daemonPIDFile, "pid-file", "",
 		"PID 文件路径 | PID file path")
@@ -278,12 +282,27 @@ func runDaemonStart(cmd *cobra.Command, args []string) error {
 		}
 	}()
 
+	if daemonUseTUI {
+		tuiDone := make(chan error, 1)
+		go func() {
+			tuiDone <- tui.StartDashboard(dbStore, logger)
+		}()
+		select {
+		case <-tuiDone:
+			logger.Info().Msg("dashboard closed by user")
+			cancel()
+		case <-shutdown:
+		}
+	}
+
 	if err := g.Wait(); err != nil && err != context.Canceled {
 		logger.Error().Err(err).Msg("daemon error")
 		return err
 	}
 
-	<-shutdown
+	if !daemonUseTUI {
+		<-shutdown
+	}
 
 	logger.Info().Msg("daemon stopped successfully")
 	return shutdownErr

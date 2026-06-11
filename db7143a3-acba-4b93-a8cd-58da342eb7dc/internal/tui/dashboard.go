@@ -565,7 +565,7 @@ func StartDashboard(store *store.BoltStore, logger zerolog.Logger) error {
 	p := tea.NewProgram(
 		NewDashboardModel(store, logger),
 		tea.WithAltScreen(),
-		tea.WithMouseCellMotion(),
+		tea.WithMouseAllMotion(),
 	)
 	_, err := p.Run()
 	return err

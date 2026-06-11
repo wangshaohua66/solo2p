@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -96,10 +97,77 @@ func (g *GeoTIFF) buildMetadata() error {
 	if err != nil {
 		return err
 	}
+	ifd := g.ifd
+	bo := g.byteOrder
+	getU32 := func(tag uint16) (uint32, bool) {
+		if !ifd.HasField(tag) {
+			return 0, false
+		}
+		b := ifd.GetField(tag).Value().Bytes()
+		if len(b) < 4 {
+			return 0, false
+		}
+		return bo.Uint32(b), true
+	}
+	getU16 := func(tag uint16) (uint16, bool) {
+		if !ifd.HasField(tag) {
+			return 0, false
+		}
+		b := ifd.GetField(tag).Value().Bytes()
+		if len(b) < 2 {
+			return 0, false
+		}
+		return bo.Uint16(b), true
+	}
+	getU16Slice := func(tag uint16) []uint16 {
+		if !ifd.HasField(tag) {
+			return nil
+		}
+		f := ifd.GetField(tag)
+		b := f.Value().Bytes()
+		n := int(f.Count())
+		vals := make([]uint16, n)
+		for i := 0; i < n && i*2+2 <= len(b); i++ {
+			vals[i] = bo.Uint16(b[i*2:])
+		}
+		return vals
+	}
+	getF64Slice := func(tag uint16) []float64 {
+		if !ifd.HasField(tag) {
+			return nil
+		}
+		b := ifd.GetField(tag).Value().Bytes()
+		n := len(b) / 8
+		vals := make([]float64, n)
+		for i := 0; i < n; i++ {
+			vals[i] = math.Float64frombits(bo.Uint64(b[i*8:]))
+		}
+		return vals
+	}
+	getStr := func(tag uint16) string {
+		if !ifd.HasField(tag) {
+			return ""
+		}
+		f := ifd.GetField(tag)
+		return strings.TrimRight(string(f.Value().Bytes()[:f.Count()]), "\x00")
+	}
+	tryEPSGFromName := func() int {
+		base := filepath.Base(g.path)
+		lower := strings.ToLower(base)
+		switch {
+		case strings.Contains(lower, "4326") || strings.Contains(lower, "wgs84"):
+			return 4326
+		case strings.Contains(lower, "4490") || strings.Contains(lower, "cgcs2000"):
+			return 4490
+		case strings.Contains(lower, "4214") || strings.Contains(lower, "beijing54"):
+			return 4214
+		}
+		return 4326
+	}
 
-	width32, wOk := g.u32Field(tagImageWidth)
-	height32, hOk := g.u32Field(tagImageLength)
-	samples, sOk := g.u16Field(tagSamplesPerPixel)
+	width32, wOk := getU32(tagImageWidth)
+	height32, hOk := getU32(tagImageLength)
+	samples, sOk := getU16(tagSamplesPerPixel)
 	if !wOk || !hOk || width32 == 0 || height32 == 0 {
 		return apperrors.New(apperrors.E1001,
 			fmt.Sprintf("cannot determine image dimensions from TIFF IFD: width=%d height=%d; ensure the file is a valid GeoTIFF with proper ImageWidth/ImageLength tags", width32, height32))
@@ -110,12 +178,12 @@ func (g *GeoTIFF) buildMetadata() error {
 		numBands = 1
 	}
 
-	bps := g.u16SliceField(tagBitsPerSample)
+	bps := getU16Slice(tagBitsPerSample)
 	bitsPerSample := 16
 	if len(bps) > 0 {
 		bitsPerSample = int(bps[0])
 	}
-	sampleFmt := g.u16SliceField(tagSampleFormat)
+	sampleFmt := getU16Slice(tagSampleFormat)
 	dataType := fmt.Sprintf("uint%d", bitsPerSample)
 	switch bitsPerSample {
 	case 8:
@@ -134,20 +202,20 @@ func (g *GeoTIFF) buildMetadata() error {
 
 	var gt types.GeoTransform
 	epsgCode := 0
-	if ps := g.float64SliceField(tagModelPixelScale); len(ps) >= 2 {
+	if ps := getF64Slice(tagModelPixelScale); len(ps) >= 2 {
 		gt.PixelWidth = ps[0]
 		gt.PixelHeight = -ps[1]
 	}
-	if tp := g.float64SliceField(tagModelTiepoint); len(tp) >= 6 {
+	if tp := getF64Slice(tagModelTiepoint); len(tp) >= 6 {
 		gt.OriginX = tp[3]
 		gt.OriginY = tp[4]
 	}
-	if mt := g.float64SliceField(tagModelTransform); len(mt) >= 16 {
+	if mt := getF64Slice(tagModelTransform); len(mt) >= 16 {
 		gt.OriginX, gt.OriginY = mt[3], mt[7]
 		gt.PixelWidth, gt.PixelHeight = mt[0], mt[5]
 		gt.RotationX, gt.RotationY = mt[1], mt[4]
 	}
-	if gk := g.u16SliceField(tagGeoKeyDirectory); len(gk) >= 4 {
+	if gk := getU16Slice(tagGeoKeyDirectory); len(gk) >= 4 {
 		numKeys := int(gk[3])
 		for i := 0; i < numKeys; i++ {
 			off := 4 + i*4
@@ -157,7 +225,7 @@ func (g *GeoTIFF) buildMetadata() error {
 		}
 	}
 	if epsgCode == 0 {
-		epsgCode = g.tryParseEPSG()
+		epsgCode = tryEPSGFromName()
 	}
 	if gt.OriginX == 0 && gt.OriginY == 0 && gt.PixelWidth == 0 {
 		gt = types.GeoTransform{OriginX: 300000, PixelWidth: 10, OriginY: 5700000, PixelHeight: -10}
@@ -168,7 +236,7 @@ func (g *GeoTIFF) buildMetadata() error {
 	}
 
 	compression := "none"
-	if comp, ok := g.u16Field(tagCompression); ok {
+	if comp, ok := getU16(tagCompression); ok {
 		switch comp {
 		case 5:
 			compression = "LZW"
@@ -179,7 +247,7 @@ func (g *GeoTIFF) buildMetadata() error {
 		}
 	}
 
-	noDataStr := g.strField(tagGDALNoData)
+	noDataStr := getStr(tagGDALNoData)
 	var noDataVal *float64
 	if noDataStr != "" {
 		if v, e := strconv.ParseFloat(strings.TrimSpace(noDataStr), 64); e == nil {
@@ -204,11 +272,11 @@ func (g *GeoTIFF) buildMetadata() error {
 		}
 	}
 
-	if g.ifd.HasField(tagStripOffsets) {
-		if off, ok := g.u32Field(tagStripOffsets); ok {
+	if ifd.HasField(tagStripOffsets) {
+		if off, ok := getU32(tagStripOffsets); ok {
 			g.imageDataOffset = int64(off)
 		}
-		if cnt, ok := g.u32Field(tagStripByteCounts); ok {
+		if cnt, ok := getU32(tagStripByteCounts); ok {
 			g.imageDataSize = int64(cnt)
 		}
 	}

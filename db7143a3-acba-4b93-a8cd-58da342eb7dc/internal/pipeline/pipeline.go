@@ -422,7 +422,8 @@ func (w *Worker) processTask(ctx context.Context, task *types.Task) error {
 			return err
 		}
 		progress.CurrentChunk = chunkIdx + 1
-		progress.BytesProcessed += int64(chunk.Height * chunk.Width * meta.NumBands * 2)
+		chunkBytesPerPixel := io.DataTypeBytesPerPixel(meta.DataType, meta.BitsPerSample)
+		progress.BytesProcessed += int64(chunk.Height * chunk.Width * meta.NumBands * chunkBytesPerPixel)
 		progress.LastUpdate = time.Now()
 		elapsed := progress.LastUpdate.Sub(progress.StartTime).Seconds()
 		if elapsed > 0 {
@@ -433,7 +434,8 @@ func (w *Worker) processTask(ctx context.Context, task *types.Task) error {
 			_ = w.saveCheckpoint(task.ID, chunkIdx+1, progress.BytesProcessed)
 		}
 		if w.engine.config.Logging.Verbose {
-			rateMBs := float64(chunk.Height*chunk.Width*meta.NumBands*2) / 1024 / 1024 / time.Since(progress.LastUpdate).Seconds()
+			chunkBytes := float64(chunk.Height*chunk.Width*meta.NumBands*chunkBytesPerPixel) / 1024 / 1024
+			rateMBs := chunkBytes / time.Since(progress.LastUpdate).Seconds()
 			log.LogChunkProgress(w.logger, task.ID, chunkIdx, totalChunks, progress.BytesProcessed, rateMBs)
 		}
 		_ = w.engine.store.UpdateTask(task)
