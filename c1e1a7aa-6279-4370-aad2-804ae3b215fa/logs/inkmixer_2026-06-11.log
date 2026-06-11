@@ -1,0 +1,229 @@
+2026-06-11 22:18:12 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:18:12 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:18:12 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/WorkSpace/TestSoloCoder/c1e1a7aa-6279-4370-aad2-804ae3b215fa/inkmixer.db
+2026-06-11 22:18:12 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 0
+2026-06-11 22:18:12 | INFO     | storage.sqlite_db:_migrate:184 - Applying migration v1: Initial schema - inks, inventory, recipes, journal
+2026-06-11 22:18:12 | INFO     | storage.sqlite_db:_migrate:196 - Migration v1 applied successfully
+2026-06-11 22:18:12 | INFO     | storage.sqlite_db:_migrate:184 - Applying migration v2: Add indexes for performance
+2026-06-11 22:18:12 | INFO     | storage.sqlite_db:_migrate:196 - Migration v2 applied successfully
+2026-06-11 22:18:12 | INFO     | storage.sqlite_db:_migrate:184 - Applying migration v3: Add mixing predictions table
+2026-06-11 22:18:12 | INFO     | storage.sqlite_db:_migrate:196 - Migration v3 applied successfully
+2026-06-11 22:18:12 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:18:12 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:18:12 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:18:12 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:18:12 | INFO     | core.inventory:add_inventory:202 - Added inventory for ink ID 1
+2026-06-11 22:18:12 | INFO     | core.inventory:add_ink:56 - Added ink: Pilot Kon-peki (ID: 1)
+2026-06-11 22:18:20 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:18:20 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:18:20 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/WorkSpace/TestSoloCoder/c1e1a7aa-6279-4370-aad2-804ae3b215fa/inkmixer.db
+2026-06-11 22:18:20 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:18:20 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:18:20 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:18:20 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:18:20 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:18:20 | INFO     | core.inventory:add_inventory:202 - Added inventory for ink ID 2
+2026-06-11 22:18:20 | INFO     | core.inventory:add_ink:56 - Added ink: Pilot Yama-budo (ID: 2)
+2026-06-11 22:18:30 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:18:30 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:18:30 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/WorkSpace/TestSoloCoder/c1e1a7aa-6279-4370-aad2-804ae3b215fa/inkmixer.db
+2026-06-11 22:18:30 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:18:30 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:18:30 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:18:30 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:18:30 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:18:30 | INFO     | core.inventory:add_inventory:202 - Added inventory for ink ID 3
+2026-06-11 22:18:30 | INFO     | core.inventory:add_ink:56 - Added ink: Pelikan Brilliant Black (ID: 3)
+2026-06-11 22:18:38 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:18:38 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:18:38 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/WorkSpace/TestSoloCoder/c1e1a7aa-6279-4370-aad2-804ae3b215fa/inkmixer.db
+2026-06-11 22:18:38 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:18:38 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:18:38 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:18:38 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:18:38 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:18:45 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:18:45 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:18:45 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:18:45 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:18:45 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/WorkSpace/TestSoloCoder/c1e1a7aa-6279-4370-aad2-804ae3b215fa/inkmixer.db
+2026-06-11 22:18:45 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:18:45 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:18:45 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:18:45 | INFO     | core.color_engine:find_best_mix:373 - Searching for best mix for target L*=40.0 a*=20.0 b*=-25.0
+2026-06-11 22:18:46 | INFO     | core.color_engine:find_best_mix:429 - Best mix found with 2 inks, ΔE=3.83
+2026-06-11 22:18:55 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:18:55 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:18:55 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/WorkSpace/TestSoloCoder/c1e1a7aa-6279-4370-aad2-804ae3b215fa/inkmixer.db
+2026-06-11 22:18:55 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:18:55 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:18:55 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:18:55 | ERROR    | cli.commands.mix:predict_mix:329 - Failed to predict mix: 'CIELAB' object has no attribute 'cielab'
+2026-06-11 22:19:51 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:19:51 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:19:51 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/WorkSpace/TestSoloCoder/c1e1a7aa-6279-4370-aad2-804ae3b215fa/inkmixer.db
+2026-06-11 22:19:51 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:19:51 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:19:51 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:20:31 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:20:31 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:20:31 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/WorkSpace/TestSoloCoder/c1e1a7aa-6279-4370-aad2-804ae3b215fa/inkmixer.db
+2026-06-11 22:20:31 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:20:31 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:20:31 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:20:31 | INFO     | core.journal:add_entry:32 - Added journal entry: Lamy Safari + Rhodia A5
+2026-06-11 22:20:31 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:20:31 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:20:37 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:20:37 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:20:37 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/WorkSpace/TestSoloCoder/c1e1a7aa-6279-4370-aad2-804ae3b215fa/inkmixer.db
+2026-06-11 22:20:37 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:20:37 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:20:37 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:20:37 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:20:37 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:21:10 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:21:10 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:21:10 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/WorkSpace/TestSoloCoder/c1e1a7aa-6279-4370-aad2-804ae3b215fa/inkmixer.db
+2026-06-11 22:21:10 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:21:10 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:21:10 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:21:10 | INFO     | core.exporter:export_all_json:34 - Full database exported to test_backup.json
+2026-06-11 22:21:28 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:21:28 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:21:28 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/WorkSpace/TestSoloCoder/c1e1a7aa-6279-4370-aad2-804ae3b215fa/inkmixer.db
+2026-06-11 22:21:28 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:21:28 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:21:28 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:21:28 | INFO     | utils.config:load_config:74 - No config file found. Using default configuration.
+2026-06-11 22:21:28 | WARNING  | utils.config:load_config:90 - Could not create default config: [Errno 1] Operation not permitted: '/Users/paul/.config/inkmixer'
+2026-06-11 22:24:18 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:18 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/.config/inkmixer/inkmixer.db
+2026-06-11 22:24:18 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 0
+2026-06-11 22:24:18 | INFO     | storage.sqlite_db:_migrate:184 - Applying migration v1: Initial schema - inks, inventory, recipes, journal
+2026-06-11 22:24:18 | INFO     | storage.sqlite_db:_migrate:196 - Migration v1 applied successfully
+2026-06-11 22:24:18 | INFO     | storage.sqlite_db:_migrate:184 - Applying migration v2: Add indexes for performance
+2026-06-11 22:24:18 | INFO     | storage.sqlite_db:_migrate:196 - Migration v2 applied successfully
+2026-06-11 22:24:18 | INFO     | storage.sqlite_db:_migrate:184 - Applying migration v3: Add mixing predictions table
+2026-06-11 22:24:18 | INFO     | storage.sqlite_db:_migrate:196 - Migration v3 applied successfully
+2026-06-11 22:24:18 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:18 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:18 | INFO     | core.inventory:add_inventory:202 - Added inventory for ink ID 1
+2026-06-11 22:24:18 | INFO     | core.inventory:add_ink:56 - Added ink: Pilot Iroshizuku Take-Sumi (ID: 1)
+2026-06-11 22:24:23 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:23 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/.config/inkmixer/inkmixer.db
+2026-06-11 22:24:23 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:24:23 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:23 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:23 | INFO     | core.inventory:add_inventory:202 - Added inventory for ink ID 2
+2026-06-11 22:24:23 | INFO     | core.inventory:add_ink:56 - Added ink: Sailor Yama-Dori (ID: 2)
+2026-06-11 22:24:25 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:25 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/.config/inkmixer/inkmixer.db
+2026-06-11 22:24:25 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:24:25 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:25 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:29 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:29 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:29 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/.config/inkmixer/inkmixer.db
+2026-06-11 22:24:29 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:24:29 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:29 | INFO     | core.color_engine:find_best_mix:373 - Searching for best mix for target L*=35.0 a*=-5.0 b*=7.0
+2026-06-11 22:24:29 | INFO     | core.color_engine:find_best_mix:429 - Best mix found with 2 inks, ΔE=1.52
+2026-06-11 22:24:33 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:33 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/.config/inkmixer/inkmixer.db
+2026-06-11 22:24:33 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:24:33 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:40 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:40 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/.config/inkmixer/inkmixer.db
+2026-06-11 22:24:40 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:24:40 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:43 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:43 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/.config/inkmixer/inkmixer.db
+2026-06-11 22:24:43 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:24:43 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:43 | INFO     | core.journal:add_entry:32 - Added journal entry: Lamy Safari + Tomoe River
+2026-06-11 22:24:43 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:47 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:47 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/.config/inkmixer/inkmixer.db
+2026-06-11 22:24:47 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:24:47 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:47 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:47 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:47 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:47 | ERROR    | cli.commands.ink:ink_stock:299 - Failed to show stock: 'tags'
+2026-06-11 22:24:52 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:52 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/.config/inkmixer/inkmixer.db
+2026-06-11 22:24:52 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:24:52 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:52 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:24:52 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:00 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:00 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/.config/inkmixer/inkmixer.db
+2026-06-11 22:25:00 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:25:00 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:03 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:03 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/.config/inkmixer/inkmixer.db
+2026-06-11 22:25:03 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:25:03 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:03 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:03 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:03 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:03 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:03 | ERROR    | cli.commands.report:inventory_report:213 - Failed to generate inventory report: 'tags'
+2026-06-11 22:25:09 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:09 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/.config/inkmixer/inkmixer.db
+2026-06-11 22:25:09 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:25:12 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:12 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/.config/inkmixer/inkmixer.db
+2026-06-11 22:25:12 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:25:12 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:12 | INFO     | core.exporter:export_all_json:34 - Full database exported to /tmp/backup.json
+2026-06-11 22:25:13 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:13 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/.config/inkmixer/inkmixer.db
+2026-06-11 22:25:13 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:25:13 | ERROR    | cli.commands.export_import:export_csv_inks:59 - Failed to export inks CSV: 'dict' object has no attribute 'l'
+2026-06-11 22:25:13 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:13 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/.config/inkmixer/inkmixer.db
+2026-06-11 22:25:13 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:25:13 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:13 | INFO     | core.exporter:export_journal_csv:147 - Journal exported to /tmp/journal.csv
+2026-06-11 22:25:21 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:21 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/.config/inkmixer/inkmixer.db
+2026-06-11 22:25:21 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:25:21 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:24 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:24 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/.config/inkmixer/inkmixer.db
+2026-06-11 22:25:24 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:25:25 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:25 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/.config/inkmixer/inkmixer.db
+2026-06-11 22:25:25 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:25:31 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:31 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/.config/inkmixer/inkmixer.db
+2026-06-11 22:25:31 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:25:31 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:31 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:31 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:31 | INFO     | core.inventory:add_inventory:202 - Added inventory for ink ID 3
+2026-06-11 22:25:31 | INFO     | core.inventory:add_ink:56 - Added ink: Iroshizuku Iroshizuku-Kon (ID: 3)
+2026-06-11 22:25:31 | INFO     | core.inventory:import_csv:389 - Imported 1 inks from /tmp/test_inks.csv
+2026-06-11 22:25:34 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:34 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/.config/inkmixer/inkmixer.db
+2026-06-11 22:25:34 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:25:34 | ERROR    | cli.commands.export_import:export_recipe_pdf:111 - Failed to export recipe PDF: Recipe with ID 1 not found
+2026-06-11 22:25:38 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:38 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:38 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/.config/inkmixer/inkmixer.db
+2026-06-11 22:25:38 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:25:38 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:38 | INFO     | core.color_engine:find_best_mix:373 - Searching for best mix for target L*=35.0 a*=-5.0 b*=7.0
+2026-06-11 22:25:38 | INFO     | core.color_engine:find_best_mix:429 - Best mix found with 2 inks, ΔE=1.52
+2026-06-11 22:25:38 | INFO     | cli.commands.mix:_save_recipe:440 - Saved recipe 'saved-recipe' (ID: 1)
+2026-06-11 22:25:40 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:25:40 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/.config/inkmixer/inkmixer.db
+2026-06-11 22:25:40 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:25:40 | ERROR    | cli.commands.export_import:export_recipe_pdf:111 - Failed to export recipe PDF: 'dict' object has no attribute 'l'
+2026-06-11 22:26:24 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:26:24 | INFO     | storage.sqlite_db:__init__:155 - Initializing database at /Users/paul/.config/inkmixer/inkmixer.db
+2026-06-11 22:26:24 | INFO     | storage.sqlite_db:_migrate:180 - Current schema version: 3
+2026-06-11 22:26:24 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml
+2026-06-11 22:26:24 | INFO     | utils.config:load_config:70 - Loaded configuration from /Users/paul/.config/inkmixer/config.toml

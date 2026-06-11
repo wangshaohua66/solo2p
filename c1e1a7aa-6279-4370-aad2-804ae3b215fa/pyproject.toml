@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "inkmixer"
+version = "0.1.0"
+description = "Ink mixing and inventory management CLI for fountain pen enthusiasts"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "Ink Mixer Team"}]
+dependencies = [
+    "typer>=0.12.0",
+    "rich>=13.0.0",
+    "pillow>=10.0.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "loguru>=0.7.0",
+    "tomli>=2.0.1",
+    "numpy>=1.24.0",
+    "reportlab>=4.0.0",
+]
+
+[project.scripts]
+inkmixer = "cli.main:app"
+
+[tool.setuptools.packages.find]
+include = ["cli*", "core*", "storage*", "utils*"]

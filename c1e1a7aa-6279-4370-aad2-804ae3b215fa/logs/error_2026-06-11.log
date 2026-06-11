@@ -1,0 +1,6 @@
+2026-06-11 22:18:55 | ERROR    | cli.commands.mix:predict_mix:329 - Failed to predict mix: 'CIELAB' object has no attribute 'cielab'
+2026-06-11 22:24:47 | ERROR    | cli.commands.ink:ink_stock:299 - Failed to show stock: 'tags'
+2026-06-11 22:25:03 | ERROR    | cli.commands.report:inventory_report:213 - Failed to generate inventory report: 'tags'
+2026-06-11 22:25:13 | ERROR    | cli.commands.export_import:export_csv_inks:59 - Failed to export inks CSV: 'dict' object has no attribute 'l'
+2026-06-11 22:25:34 | ERROR    | cli.commands.export_import:export_recipe_pdf:111 - Failed to export recipe PDF: Recipe with ID 1 not found
+2026-06-11 22:25:40 | ERROR    | cli.commands.export_import:export_recipe_pdf:111 - Failed to export recipe PDF: 'dict' object has no attribute 'l'

@@ -1,0 +1,2 @@
+[console_scripts]
+inkmixer = cli.main:app
