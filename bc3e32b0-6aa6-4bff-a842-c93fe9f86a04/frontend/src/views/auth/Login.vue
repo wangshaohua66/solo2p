@@ -33,16 +33,10 @@ const handleLogin = async () => {
     router.push(redirect)
   } catch (error: any) {
     console.error('Login failed:', error)
+    ElMessage.error(error?.response?.data?.message || '登录失败，请检查用户名和密码')
   } finally {
     loading.value = false
   }
-}
-
-const handleQuickLogin = (role: string) => {
-  authStore.mockLogin(role as 'admin' | 'instructor' | 'member')
-  ElMessage.success(`已以${role === 'admin' ? '管理员' : role === 'instructor' ? '陶艺师' : '会员'}身份登录（演示模式）`)
-  const redirect = route.query.redirect as string || '/dashboard'
-  router.push(redirect)
 }
 </script>
 
@@ -93,15 +87,6 @@ const handleQuickLogin = (role: string) => {
         登录
       </el-button>
     </el-form>
-    
-    <div class="quick-login">
-      <span class="quick-login-label">快速体验：</span>
-      <div class="quick-login-buttons">
-        <el-button size="small" @click="handleQuickLogin('admin')">管理员</el-button>
-        <el-button size="small" @click="handleQuickLogin('instructor')">陶艺师</el-button>
-        <el-button size="small" @click="handleQuickLogin('member')">会员</el-button>
-      </div>
-    </div>
     
     <div class="login-footer">
       <span>还没有账号？</span>
@@ -160,25 +145,6 @@ const handleQuickLogin = (role: string) => {
   --el-button-hover-border-color: $color-primary-light;
   --el-button-active-bg-color: $color-primary-dark;
   --el-button-active-border-color: $color-primary-dark;
-}
-
-.quick-login {
-  text-align: center;
-  padding: 16px 0;
-  border-top: 1px solid $color-border;
-
-  &-label {
-    font-size: 13px;
-    color: $color-text-secondary;
-    display: block;
-    margin-bottom: 12px;
-  }
-
-  &-buttons {
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-  }
 }
 
 .login-footer {

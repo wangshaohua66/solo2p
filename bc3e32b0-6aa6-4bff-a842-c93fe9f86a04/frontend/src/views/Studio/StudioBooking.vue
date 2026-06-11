@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
 import type { Station, StudioBooking, StationType } from '@/types'
+import { studioApi } from '@/api/studio'
 
 const authStore = useAuthStore()
 
 const currentWeek = ref(dayjs().startOf('week'))
 const selectedStation = ref<string>('')
 const showBookingDialog = ref(false)
+const loading = ref(false)
 const bookingForm = ref({
   stationId: '',
   date: '',
@@ -17,16 +19,41 @@ const bookingForm = ref({
   endTime: '12:00'
 })
 
-const stations = ref<Station[]>([
-  { id: 's1', name: '拉坯工位 1号', type: 'wheel', status: 'available', position: 1 },
-  { id: 's2', name: '拉坯工位 2号', type: 'wheel', status: 'available', position: 2 },
-  { id: 's3', name: '拉坯工位 3号', type: 'wheel', status: 'occupied', position: 3 },
-  { id: 's4', name: '拉坯工位 4号', type: 'wheel', status: 'available', position: 4 },
-  { id: 's5', name: '手捏桌 A', type: 'table', status: 'available', position: 5 },
-  { id: 's6', name: '手捏桌 B', type: 'table', status: 'available', position: 6 },
-  { id: 's7', name: '手捏桌 C', type: 'table', status: 'maintenance', position: 7 },
-  { id: 's8', name: '施釉区', type: 'glaze', status: 'available', position: 8 }
-])
+const stations = ref<Station[]>([])
+const myBookings = ref<StudioBooking[]>([])
+const weeklyBookings = ref<StudioBooking[]>([])
+
+const fetchStations = async () => {
+  try {
+    stations.value = await studioApi.getStations()
+  } catch (e) {
+    console.error('Failed to fetch stations:', e)
+  }
+}
+
+const fetchWeeklyBookings = async () => {
+  try {
+    const start = currentWeek.value.startOf('week').toISOString()
+    const end = currentWeek.value.endOf('week').toISOString()
+    weeklyBookings.value = await studioApi.getWeeklyBookings({ startDate: start, endDate: end })
+  } catch (e) {
+    console.error('Failed to fetch weekly bookings:', e)
+  }
+}
+
+const fetchMyBookings = async () => {
+  try {
+    const start = currentWeek.value.startOf('week').toISOString()
+    const end = currentWeek.value.endOf('week').toISOString()
+    myBookings.value = await studioApi.getMyBookings({ startDate: start, endDate: end })
+  } catch (e) {
+    console.error('Failed to fetch my bookings:', e)
+  }
+}
+
+const loadData = () => {
+  Promise.all([fetchStations(), fetchWeeklyBookings(), fetchMyBookings()])
+}
 
 const weekDays = computed(() => {
   const days = []
@@ -47,21 +74,6 @@ const stationTypeOptions = [
   { value: 'table', label: '手捏桌' },
   { value: 'glaze', label: '施釉区' }
 ]
-
-const myBookings = ref<StudioBooking[]>([
-  {
-    id: 'b1',
-    memberId: 'm1',
-    memberName: '张小明',
-    stationId: 's1',
-    stationName: '拉坯工位 1号',
-    date: dayjs().format('YYYY-MM-DD'),
-    startTime: '14:00',
-    endTime: '16:00',
-    status: 'booked',
-    createdAt: dayjs().toISOString()
-  }
-])
 
 const getStationTypeLabel = (type: StationType) => {
   const map: Record<string, string> = {
@@ -103,6 +115,10 @@ const handleBooking = (station: Station, day: dayjs.Dayjs) => {
     ElMessage.warning('该工位当前不可用')
     return
   }
+  if (day.isBefore(dayjs(), 'day')) {
+    ElMessage.warning('不能预约过去的日期')
+    return
+  }
   
   bookingForm.value = {
     stationId: station.id,
@@ -113,24 +129,81 @@ const handleBooking = (station: Station, day: dayjs.Dayjs) => {
   showBookingDialog.value = true
 }
 
-const confirmBooking = () => {
-  ElMessage.success('预约成功！请准时到达')
-  showBookingDialog.value = false
+const confirmBooking = async () => {
+  if (!bookingForm.value.stationId || !bookingForm.value.date) return
+  
+  try {
+    loading.value = true
+    const startDateTime = `${bookingForm.value.date}T${bookingForm.value.startTime}:00`
+    const endDateTime = `${bookingForm.value.date}T${bookingForm.value.endTime}:00`
+    await studioApi.createBooking({
+      stationId: bookingForm.value.stationId,
+      startTime: dayjs(startDateTime).toISOString(),
+      endTime: dayjs(endDateTime).toISOString()
+    })
+    ElMessage.success('预约成功！请准时到达')
+    showBookingDialog.value = false
+    await Promise.all([fetchWeeklyBookings(), fetchMyBookings()])
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message || '预约失败')
+  } finally {
+    loading.value = false
+  }
 }
 
-const handleCheckIn = (bookingId: string) => {
-  ElMessage.success('签到成功，创作愉快！')
+const handleCheckIn = async (bookingId: string) => {
+  try {
+    loading.value = true
+    await studioApi.checkIn(bookingId)
+    ElMessage.success('签到成功，创作愉快！')
+    await fetchMyBookings()
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message || '签到失败')
+  } finally {
+    loading.value = false
+  }
 }
 
-const handleCheckOut = (bookingId: string) => {
-  ElMessage.success('签退成功，获得创作积分！')
+const handleCheckOut = async (bookingId: string) => {
+  try {
+    loading.value = true
+    await studioApi.checkOut(bookingId)
+    ElMessage.success('签退成功，获得创作积分！')
+    await fetchMyBookings()
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message || '签退失败')
+  } finally {
+    loading.value = false
+  }
 }
 
-const handleCancelBooking = (bookingId: string) => {
-  ElMessage.info('取消预约功能开发中...')
+const handleCancelBooking = async (bookingId: string) => {
+  try {
+    await ElMessageBox.confirm('确定要取消此预约吗？', '取消预约', {
+      type: 'warning',
+      confirmButtonText: '确定取消',
+      cancelButtonText: '再想想'
+    })
+    loading.value = true
+    await studioApi.cancelBooking(bookingId)
+    ElMessage.success('预约已取消')
+    await Promise.all([fetchWeeklyBookings(), fetchMyBookings()])
+  } catch (err: any) {
+    if (err !== 'cancel') {
+      ElMessage.error(err?.response?.data?.message || '取消失败')
+    }
+  } finally {
+    loading.value = false
+  }
 }
+
+watch(currentWeek, () => {
+  fetchWeeklyBookings()
+  fetchMyBookings()
+})
 
 onMounted(() => {
+  loadData()
 })
 </script>
 

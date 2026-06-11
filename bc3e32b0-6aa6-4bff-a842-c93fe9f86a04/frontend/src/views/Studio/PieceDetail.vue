@@ -3,12 +3,14 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
+import { pieceApi } from '@/api/piece'
 
 const route = useRoute()
 const router = useRouter()
 
 const activeTab = ref('overview')
 const piece = ref<any>(null)
+const loading = ref(false)
 const activePhotoStage = ref<'clay' | 'bisque' | 'glaze' | 'finished'>('finished')
 
 const stages = [
@@ -17,35 +19,6 @@ const stages = [
   { value: 'glaze', label: '施釉', icon: 'MagicStick' },
   { value: 'finished', label: '成品', icon: 'Star' }
 ]
-
-const mockPiece = {
-  id: 'piece-1',
-  title: '青花瓷茶盏',
-  description: '一只精心制作的青花茶盏，器型典雅，釉色温润。',
-  memberId: 'member-1',
-  memberName: '张小明',
-  glazeRecipeId: 'recipe-1',
-  glazeRecipeName: '青瓷釉',
-  kilnScheduleId: 'schedule-1',
-  kilnScheduleName: '第24期釉烧',
-  status: 'completed',
-  weight: 180,
-  height: 8.5,
-  width: 10,
-  createdAt: '2024-01-10T00:00:00Z',
-  completedAt: '2024-01-25T00:00:00Z',
-  isForSale: true,
-  price: 388,
-  photos: [
-    { id: 'p1', stage: 'clay', url: '', uploadedAt: '2024-01-10T00:00:00Z', description: '刚拉坯完成的泥坯状态' },
-    { id: 'p2', stage: 'bisque', url: '', uploadedAt: '2024-01-15T00:00:00Z', description: '素烧后的效果' },
-    { id: 'p3', stage: 'glaze', url: '', uploadedAt: '2024-01-20T00:00:00Z', description: '施釉完成，准备入窑' },
-    { id: 'p4', stage: 'finished', url: '', uploadedAt: '2024-01-25T00:00:00Z', description: '最终成品效果' }
-  ],
-  tags: ['青花瓷', '茶器', '手工拉坯']
-}
-
-piece.value = mockPiece
 
 const getStatusLabel = (status: string) => {
   const map: Record<string, string> = {
@@ -82,7 +55,7 @@ const getStageColor = (stage: string) => {
 }
 
 const hasStagePhoto = (stage: string) => {
-  return piece.value?.photos.some((p: any) => p.stage === stage)
+  return piece.value?.photos?.some((p: any) => p.stage === stage)
 }
 
 const handleBack = () => {
@@ -101,9 +74,25 @@ const handleSetForSale = () => {
   ElMessage.info('上架销售功能开发中...')
 }
 
-onMounted(() => {
+const fetchPiece = async () => {
   const id = route.params.id as string
-  console.log('Loading piece:', id)
+  if (!id) return
+  loading.value = true
+  try {
+    piece.value = await pieceApi.getPiece(id)
+    const stages: any[] = piece.value.photos?.map((p: any) => p.stage) || []
+    if (stages.includes('finished')) activePhotoStage.value = 'finished'
+    else if (stages.length > 0) activePhotoStage.value = stages[stages.length - 1]
+  } catch (e) {
+    console.error('Failed to fetch piece:', e)
+    ElMessage.error('加载作品详情失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchPiece()
 })
 </script>
 

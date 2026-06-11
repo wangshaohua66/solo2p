@@ -68,55 +68,6 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function mockLogin(role: 'admin' | 'instructor' | 'member') {
-    const mockUsers: Record<string, User> = {
-      admin: {
-        id: 'admin-001',
-        username: 'admin',
-        email: 'admin@pottery.com',
-        phone: '13800000001',
-        role: 'admin',
-        memberTier: 'yearly',
-        memberExpireDate: '2025-12-31',
-        totalSpent: 0,
-        points: 9999,
-        avatar: '',
-        createdAt: '2023-01-01T00:00:00Z'
-      },
-      instructor: {
-        id: 'inst-001',
-        username: 'teacher',
-        email: 'teacher@pottery.com',
-        phone: '13800000002',
-        role: 'instructor',
-        memberTier: 'yearly',
-        memberExpireDate: '2025-06-30',
-        totalSpent: 3200,
-        points: 800,
-        avatar: '',
-        createdAt: '2023-03-15T00:00:00Z'
-      },
-      member: {
-        id: 'mem-001',
-        username: '张小明',
-        email: 'zhangxiaoming@example.com',
-        phone: '13800138001',
-        role: 'member',
-        memberTier: 'yearly',
-        memberExpireDate: '2024-12-31',
-        totalSpent: 5680,
-        points: 1250,
-        avatar: '',
-        createdAt: '2023-06-15T00:00:00Z'
-      }
-    }
-    
-    token.value = 'mock-token-' + role
-    refreshToken.value = 'mock-refresh-' + role
-    user.value = mockUsers[role]
-    tokenExpireTime.value = Date.now() + 7200 * 1000
-  }
-
   return {
     token,
     refreshToken,
@@ -130,8 +81,7 @@ export const useAuthStore = defineStore('auth', () => {
     doRefreshToken: refreshTokenFn,
     logout,
     fetchCurrentUser,
-    updateUser,
-    mockLogin
+    updateUser
   }
 }, {
   persist: {

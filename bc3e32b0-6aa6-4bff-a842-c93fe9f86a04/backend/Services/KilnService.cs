@@ -133,7 +133,14 @@ public class KilnService : IKilnService
         schedule.KilnName = kiln.Name;
 
         _context.KilnSchedules.Add(schedule);
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new InvalidOperationException("创建排程时发生并发冲突，请刷新后重试");
+        }
 
         if (conflict.HasConflict && forceOverride)
         {

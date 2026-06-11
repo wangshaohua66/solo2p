@@ -5,6 +5,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, ArrowLeft, ArrowRight, Monitor, Calendar } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import type { Kiln, KilnSchedule, FiringType } from '@/types'
+import { kilnApi } from '@/api/kiln'
 import * as echarts from 'echarts/core'
 import { LineChart } from 'echarts/charts'
 import {
@@ -33,7 +34,16 @@ const showAddDialog = ref(false)
 const isMobile = ref(false)
 const selectedScheduleId = ref<string | null>(null)
 const tempChartRef = ref<HTMLElement>()
+const loading = ref(false)
+const isDragging = ref(false)
+const dragScheduleId = ref<string | null>(null)
+const dragStartY = ref(0)
+const dragStartTop = ref(0)
+const dragSchedule = ref<KilnSchedule | null>(null)
 let tempChart: echarts.ECharts | null = null
+
+const kilns = ref<Kiln[]>([])
+const schedules = ref<KilnSchedule[]>([])
 
 const generateTempCurve = (schedule: KilnSchedule) => {
   const start = dayjs(schedule.startTime)
@@ -156,38 +166,35 @@ const checkMobile = () => {
   }
 }
 
-const kilns = ref<Kiln[]>([
-  { id: '1', name: '电窑A', type: 'electric', capacity: 50, status: 'available', maxTemperature: 1280 },
-  { id: '2', name: '汽窑B', type: 'gas', capacity: 80, status: 'running', maxTemperature: 1300 },
-  { id: '3', name: '柴窑', type: 'wood', capacity: 120, status: 'available', maxTemperature: 1350 }
-])
-
-const schedules = ref<KilnSchedule[]>([
-  {
-    id: '1', kilnId: '1', kilnName: '电窑A', title: '素烧 - 第24期课程作品',
-    firingType: 'bisque', startTime: dayjs().hour(9).minute(0).second(0).toISOString(),
-    endTime: dayjs().hour(17).minute(0).second(0).toISOString(),
-    status: 'running', createdBy: 'admin'
-  },
-  {
-    id: '2', kilnId: '1', kilnName: '电窑A', title: '釉烧 - 会员作品批量',
-    firingType: 'glaze', startTime: dayjs().add(1, 'day').hour(8).minute(0).toISOString(),
-    endTime: dayjs().add(1, 'day').hour(20).minute(0).toISOString(),
-    status: 'pending', createdBy: 'admin'
-  },
-  {
-    id: '3', kilnId: '2', kilnName: '汽窑B', title: '釉烧 - 中级班作品',
-    firingType: 'glaze', startTime: dayjs().add(2, 'day').hour(10).minute(0).toISOString(),
-    endTime: dayjs().add(2, 'day').hour(22).minute(0).toISOString(),
-    status: 'pending', createdBy: 'teacher'
-  },
-  {
-    id: '4', kilnId: '3', kilnName: '柴窑', title: '还原焰 - 大师班',
-    firingType: 'reduction', startTime: dayjs().add(5, 'day').hour(10).minute(0).toISOString(),
-    endTime: dayjs().add(6, 'day').hour(18).minute(0).toISOString(),
-    status: 'pending', createdBy: 'admin'
+const fetchKilns = async () => {
+  try {
+    kilns.value = await kilnApi.getKilns()
+  } catch (e) {
+    console.error('Failed to fetch kilns:', e)
   }
-])
+}
+
+const fetchSchedules = async () => {
+  loading.value = true
+  try {
+    const start = currentDate.value.startOf(viewMode.value === 'week' ? 'week' : 'day').toISOString()
+    const end = currentDate.value.endOf(viewMode.value === 'week' ? 'week' : 'day').toISOString()
+    schedules.value = await kilnApi.getSchedules({ startDate: start, endDate: end })
+  } catch (e) {
+    console.error('Failed to fetch schedules:', e)
+  } finally {
+    loading.value = false
+  }
+}
+
+const loadData = async () => {
+  await Promise.all([fetchKilns(), fetchSchedules()])
+  nextTick(() => {
+    if (tempChartRef.value && schedules.value.length > 0) {
+      initTempChart()
+    }
+  })
+}
 
 const newSchedule = ref({
   kilnId: '',
@@ -335,6 +342,10 @@ const goToday = () => {
   currentDate.value = dayjs()
 }
 
+watch([currentDate, viewMode], () => {
+  fetchSchedules()
+})
+
 const handleAddSchedule = () => {
   newSchedule.value = {
     kilnId: kilns.value[0]?.id || '',
@@ -348,23 +359,17 @@ const handleAddSchedule = () => {
   showAddDialog.value = true
 }
 
-const checkForConflicts = () => {
-  const start = dayjs(newSchedule.value.startTime)
-  const end = dayjs(newSchedule.value.endTime)
-  
-  if (end.isBefore(start) || end.isSame(start)) {
-    ElMessage.warning('结束时间必须晚于开始时间')
-    return null
+const checkForConflicts = async () => {
+  try {
+    const result = await kilnApi.checkConflict(
+      newSchedule.value.kilnId,
+      dayjs(newSchedule.value.startTime).toISOString(),
+      dayjs(newSchedule.value.endTime).toISOString()
+    )
+    return result
+  } catch {
+    return { hasConflict: false, conflictingSchedules: [] }
   }
-
-  const conflicts = schedules.value.filter(s => {
-    if (s.kilnId !== newSchedule.value.kilnId) return false
-    const sStart = dayjs(s.startTime)
-    const sEnd = dayjs(s.endTime)
-    return start.isBefore(sEnd) && end.isAfter(sStart)
-  })
-
-  return conflicts
 }
 
 const handleSubmitSchedule = async () => {
@@ -373,98 +378,177 @@ const handleSubmitSchedule = async () => {
     return
   }
 
-  const conflicts = checkForConflicts()
-  if (conflicts && conflicts.length > 0) {
-    try {
-      await ElMessageBox.confirm(
-        `检测到与 ${conflicts.length} 个排程存在时间冲突，是否强制覆盖？`,
-        '时间冲突',
-        {
-          confirmButtonText: '强制覆盖',
-          cancelButtonText: '返回修改',
-          type: 'warning',
-          confirmButtonClass: 'el-button--danger'
-        }
-      )
-    } catch {
-      return
+  const start = dayjs(newSchedule.value.startTime)
+  const end = dayjs(newSchedule.value.endTime)
+  if (end.isBefore(start) || end.isSame(start)) {
+    ElMessage.warning('结束时间必须晚于开始时间')
+    return
+  }
+
+  try {
+    const conflict = await checkForConflicts()
+    if (conflict && conflict.hasConflict && conflict.conflictingSchedules?.length > 0) {
+      try {
+        await ElMessageBox.confirm(
+          `检测到与 ${conflict.conflictingSchedules.length} 个排程存在时间冲突，是否强制覆盖？`,
+          '时间冲突',
+          {
+            confirmButtonText: '强制覆盖',
+            cancelButtonText: '返回修改',
+            type: 'warning',
+            confirmButtonClass: 'el-button--danger'
+          }
+        )
+      } catch {
+        return
+      }
     }
-  }
 
-  const schedule: KilnSchedule = {
-    id: Date.now().toString(),
-    kilnId: newSchedule.value.kilnId,
-    kilnName: kilns.value.find(k => k.id === newSchedule.value.kilnId)?.name,
-    title: newSchedule.value.title,
-    firingType: newSchedule.value.firingType,
-    startTime: dayjs(newSchedule.value.startTime).toISOString(),
-    endTime: dayjs(newSchedule.value.endTime).toISOString(),
-    status: 'pending',
-    createdBy: 'admin',
-    isConflict: false
-  }
+    await kilnApi.createSchedule({
+      kilnId: newSchedule.value.kilnId,
+      title: newSchedule.value.title,
+      firingType: newSchedule.value.firingType,
+      startTime: start.toISOString(),
+      endTime: end.toISOString(),
+      notes: newSchedule.value.notes
+    })
 
-  schedules.value.push(schedule)
-  showAddDialog.value = false
-  ElMessage.success('排程创建成功')
+    showAddDialog.value = false
+    ElMessage.success('排程创建成功')
+    await fetchSchedules()
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message || '创建排程失败')
+  }
 }
 
 const handleScheduleClick = (schedule: KilnSchedule) => {
+  if (isDragging.value) return
   selectedScheduleId.value = schedule.id
   if (tempChart) {
     updateTempChart(schedule)
   }
 }
 
-const handleScheduleDrag = (e: DragEvent, schedule: KilnSchedule) => {
-  e.dataTransfer?.setData('scheduleId', schedule.id)
-}
-
-const handleDrop = (e: DragEvent, kilnId: string, day: dayjs.Dayjs) => {
-  e.preventDefault()
-  const scheduleId = e.dataTransfer?.getData('scheduleId')
-  if (!scheduleId) return
-
-  const rect = (e.target as HTMLElement).getBoundingClientRect()
-  const y = e.clientY - rect.top
-  const percentage = y / rect.height
-  const hour = 6 + percentage * 18
-  const startHour = Math.floor(hour)
-  const startMinute = Math.round((hour - startHour) * 60 / 15) * 15
-
-  const schedule = schedules.value.find(s => s.id === scheduleId)
-  if (!schedule) return
-
-  const start = dayjs(schedule.startTime)
-  const end = dayjs(schedule.endTime)
-  const duration = end.diff(start, 'minute')
-
-  const newStart = day.hour(startHour).minute(startMinute).second(0)
-  const newEnd = newStart.add(duration, 'minute')
-
-  const conflicts = schedules.value.filter(s => {
-    if (s.id === scheduleId) return false
-    if (s.kilnId !== kilnId) return false
-    const sStart = dayjs(s.startTime)
-    const sEnd = dayjs(s.endTime)
-    return newStart.isBefore(sEnd) && newEnd.isAfter(sStart)
-  })
-
-  if (conflicts.length > 0) {
-    conflictScheduleId.value = scheduleId
-    ElMessage.warning('存在时间冲突，请选择其他时段')
-    setTimeout(() => {
-      conflictScheduleId.value = null
-    }, 1000)
+const handleScheduleMouseDown = (e: MouseEvent, schedule: KilnSchedule) => {
+  if (e.button !== 0) return
+  if (schedule.status === 'running' || schedule.status === 'completed') {
+    ElMessage.warning('已开始或完成的排程无法拖拽')
     return
   }
-
-  schedule.kilnId = kilnId
-  schedule.kilnName = kilns.value.find(k => k.id === kilnId)?.name
-  schedule.startTime = newStart.toISOString()
-  schedule.endTime = newEnd.toISOString()
   
-  ElMessage.success('排程已更新')
+  isDragging.value = true
+  dragScheduleId.value = schedule.id
+  dragSchedule.value = schedule
+  dragStartY.value = e.clientY
+  const blockEl = e.currentTarget as HTMLElement
+  dragStartTop.value = parseFloat(blockEl.style.top) || 0
+  
+  document.addEventListener('mousemove', handleMouseMove)
+  document.addEventListener('mouseup', handleMouseUp)
+  e.preventDefault()
+}
+
+const handleMouseMove = (e: MouseEvent) => {
+  if (!isDragging.value || !dragScheduleId.value) return
+  
+  const scheduleBlock = document.querySelector<HTMLElement>(
+    `[data-schedule-id="${dragScheduleId.value}"]`
+  )
+  if (!scheduleBlock) return
+  
+  const parentArea = scheduleBlock.parentElement
+  if (!parentArea) return
+  
+  const rect = parentArea.getBoundingClientRect()
+  const y = e.clientY - rect.top
+  const percentage = Math.max(0, Math.min(1, y / rect.height))
+  const top = percentage * 100
+  scheduleBlock.style.top = `${top}%`
+  scheduleBlock.style.zIndex = '100'
+  scheduleBlock.style.opacity = '0.85'
+  scheduleBlock.style.transform = 'scale(1.02)'
+  scheduleBlock.style.cursor = 'grabbing'
+}
+
+const handleMouseUp = async (e: MouseEvent) => {
+  if (!isDragging.value || !dragScheduleId.value || !dragSchedule.value) {
+    resetDragState()
+    return
+  }
+  
+  const scheduleBlock = document.querySelector<HTMLElement>(
+    `[data-schedule-id="${dragScheduleId.value}"]`
+  )
+  
+  if (scheduleBlock) {
+    const parentArea = scheduleBlock.parentElement
+    const dayColumn = parentArea?.parentElement
+    const kilnColumn = dayColumn?.parentElement?.parentElement
+    
+    if (parentArea && dayColumn) {
+      const rect = parentArea.getBoundingClientRect()
+      const y = e.clientY - rect.top
+      const percentage = Math.max(0, Math.min(1, y / rect.height))
+      const hour = 6 + percentage * 18
+      const startHour = Math.floor(hour)
+      const startMinute = Math.round((hour - startHour) * 60 / 15) * 15
+      
+      const dayAttr = dayColumn.getAttribute('data-day')
+      const kilnAttr = kilnColumn?.getAttribute('data-kiln-id')
+      
+      if (dayAttr && kilnAttr) {
+        const targetDay = dayjs(dayAttr)
+        const schedule = schedules.value.find(s => s.id === dragScheduleId.value)
+        if (schedule) {
+          const origStart = dayjs(schedule.startTime)
+          const origEnd = dayjs(schedule.endTime)
+          const duration = origEnd.diff(origStart, 'minute')
+          
+          const newStart = targetDay.hour(startHour).minute(startMinute).second(0)
+          const newEnd = newStart.add(duration, 'minute')
+          const newKilnId = kilnAttr
+          
+          try {
+            const conflict = await kilnApi.checkConflict(
+              newKilnId, newStart.toISOString(), newEnd.toISOString(), schedule.id
+            )
+            if (conflict.hasConflict && conflict.conflictingSchedules?.length > 0) {
+              conflictScheduleId.value = schedule.id
+              ElMessage.warning('存在时间冲突，排程已恢复原位')
+              setTimeout(() => {
+                conflictScheduleId.value = null
+              }, 1500)
+              resetDragState()
+              return
+            }
+            
+            const newKiln = kilns.value.find(k => k.id === newKilnId)
+            await kilnApi.updateSchedule(schedule.id, {
+              kilnId: newKilnId,
+              kilnName: newKiln?.name,
+              startTime: newStart.toISOString(),
+              endTime: newEnd.toISOString()
+            })
+            
+            ElMessage.success('排程已更新')
+            await fetchSchedules()
+          } catch (error: any) {
+            ElMessage.error(error?.response?.data?.message || '更新排程失败')
+          }
+        }
+      }
+    }
+  }
+  
+  resetDragState()
+}
+
+const resetDragState = () => {
+  isDragging.value = false
+  dragScheduleId.value = null
+  dragSchedule.value = null
+  document.removeEventListener('mousemove', handleMouseMove)
+  document.removeEventListener('mouseup', handleMouseUp)
 }
 
 const formatDateRange = () => {
@@ -479,13 +563,12 @@ const formatDateRange = () => {
 onMounted(() => {
   checkMobile()
   window.addEventListener('resize', handleResize)
-  nextTick(() => {
-    initTempChart()
-  })
+  loadData()
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
+  resetDragState()
   tempChart?.dispose()
 })
 </script>
@@ -558,6 +641,7 @@ onUnmounted(() => {
           v-for="kiln in kilns" 
           :key="kiln.id" 
           class="kiln-column"
+          :data-kiln-id="kiln.id"
         >
           <div class="kiln-header">
             <div class="kiln-name" :style="{ color: getKilnTypeColor(kiln.type) }">
@@ -577,8 +661,7 @@ onUnmounted(() => {
               v-for="day in weekDays" 
               :key="day.format('YYYY-MM-DD')"
               class="day-column"
-              @dragover.prevent
-              @drop="(e) => handleDrop(e, kiln.id, day)"
+              :data-day="day.format('YYYY-MM-DD')"
             >
               <div class="day-header">
                 <div class="day-name">{{ day.format('ddd') }}</div>
@@ -591,13 +674,13 @@ onUnmounted(() => {
                   v-for="schedule in getSchedulesForKilnAndDay(kiln.id, day)" 
                   :key="schedule.id"
                   class="schedule-block"
+                  :data-schedule-id="schedule.id"
                   :class="{ 
                     'is-running': schedule.status === 'running',
                     'is-conflict': schedule.id === conflictScheduleId
                   }"
                   :style="schedule.style!"
-                  draggable="true"
-                  @dragstart="(e) => handleScheduleDrag(e, schedule)"
+                  @mousedown="(e) => handleScheduleMouseDown(e, schedule)"
                   @click="handleScheduleClick(schedule)"
                 >
                   <div class="schedule-title">{{ schedule.title }}</div>

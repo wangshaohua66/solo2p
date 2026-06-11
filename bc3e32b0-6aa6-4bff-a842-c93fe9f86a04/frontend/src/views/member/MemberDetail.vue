@@ -4,28 +4,14 @@ import { useRoute, useRouter } from 'vue-router'
 import type { User } from '@/types'
 import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
+import { memberApi } from '@/api'
 
 const route = useRoute()
 const router = useRouter()
 
 const activeTab = ref('info')
 const member = ref<User | null>(null)
-
-const mockMember: User = {
-  id: 'm1',
-  username: '张小明',
-  email: 'zhangxiaoming@example.com',
-  phone: '13800138001',
-  avatar: '',
-  role: 'member',
-  memberTier: 'yearly',
-  memberExpireDate: '2024-12-31',
-  totalSpent: 5680,
-  points: 1250,
-  createdAt: '2023-06-15T00:00:00Z'
-}
-
-member.value = mockMember
+const loading = ref(false)
 
 const getTierLabel = (tier?: string) => {
   const map: Record<string, string> = {
@@ -64,9 +50,22 @@ const handleUpgrade = () => {
   ElMessage.info('会员升级功能开发中...')
 }
 
-onMounted(() => {
+const fetchMember = async () => {
   const id = route.params.id as string
-  console.log('Loading member:', id)
+  if (!id) return
+  loading.value = true
+  try {
+    member.value = await memberApi.getMember(id)
+  } catch (e) {
+    console.error('Failed to fetch member:', e)
+    ElMessage.error('加载会员信息失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchMember()
 })
 </script>
 

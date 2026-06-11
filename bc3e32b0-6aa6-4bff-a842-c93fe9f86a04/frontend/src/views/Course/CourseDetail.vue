@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Calendar, Clock, Edit, Sunny } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import QRCode from 'qrcode'
 import type { Course, CourseSession } from '@/types'
+import { courseApi } from '@/api/course'
 
 const route = useRoute()
 const router = useRouter()
@@ -13,37 +14,11 @@ const router = useRouter()
 const activeTab = ref('overview')
 const course = ref<Course | null>(null)
 const isRegistered = ref(false)
+const loading = ref(false)
 const showQrDialog = ref(false)
 const qrCodeDataUrl = ref('')
 const currentSessionId = ref('')
 const currentSession = ref<CourseSession | null>(null)
-
-const mockCourse: Course = {
-  id: '1',
-  title: '零基础拉坯入门班',
-  description: '从零开始学习拉坯技艺，掌握基本手法和造型技巧。本课程专为零基础学员设计，由资深陶艺师手把手教学，确保每位学员都能掌握基础拉坯技能。课程内容包括泥料准备、定心、开孔、拉高、修型等核心技法，完成课程后可独立制作简单的碗、杯等器物。',
-  type: 'wheel',
-  instructorId: 'ins-1',
-  instructorName: '李老师',
-  coverImage: '',
-  price: 299,
-  duration: 120,
-  maxStudents: 8,
-  currentStudents: 5,
-  level: 'beginner',
-  startDate: '2024-02-01',
-  endDate: '2024-03-01',
-  status: 'published',
-  createdAt: '2024-01-01T00:00:00Z',
-  schedule: [
-    { id: 's1', date: '2024-02-03', startTime: '14:00', endTime: '16:00', topic: '初识陶艺与泥料准备' },
-    { id: 's2', date: '2024-02-10', startTime: '14:00', endTime: '16:00', topic: '基础拉坯手法——定心与开孔' },
-    { id: 's3', date: '2024-02-17', startTime: '14:00', endTime: '16:00', topic: '拉高与造型练习' },
-    { id: 's4', date: '2024-02-24', startTime: '14:00', endTime: '16:00', topic: '修坯与作品完成' }
-  ]
-}
-
-course.value = mockCourse
 
 const getTypeLabel = (type: string) => {
   const map: Record<string, string> = {
@@ -77,15 +52,27 @@ const handleBack = () => {
   router.push('/courses')
 }
 
-const handleRegister = () => {
+const handleRegister = async () => {
   if (isRegistered.value) {
     ElMessage.info('您已报名此课程')
     return
   }
-  ElMessage.success('报名成功！请在开课前准时参加')
-  isRegistered.value = true
-  if (course.value) {
-    course.value.currentStudents++
+  if (!course.value?.id) return
+  
+  try {
+    loading.value = true
+    const result = await courseApi.register(course.value.id)
+    if (result) {
+      ElMessage.success(result.message || '报名成功！请在开课前准时参加')
+      isRegistered.value = true
+      if (course.value) {
+        course.value.currentStudents++
+      }
+    }
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message || '报名失败')
+  } finally {
+    loading.value = false
   }
 }
 
@@ -113,6 +100,17 @@ const getCheckInStatusText = (session: CourseSession) => {
 }
 
 const generateQRCode = async (session: CourseSession) => {
+  try {
+    if (!course.value?.id) return
+    const result = await courseApi.generateQrCode(course.value.id, session.id)
+    if (result?.qrCodeDataUrl) {
+      qrCodeDataUrl.value = result.qrCodeDataUrl
+      return
+    }
+  } catch (e) {
+    console.warn('后端QR生成失败，使用本地生成:', e)
+  }
+
   const checkInData = {
     courseId: course.value?.id,
     sessionId: session.id,
@@ -157,14 +155,41 @@ const handleCheckIn = async (sessionId: string) => {
   showQrDialog.value = true
 }
 
-const confirmCheckIn = () => {
-  ElMessage.success('签到成功！')
-  showQrDialog.value = false
+const confirmCheckIn = async () => {
+  if (!course.value?.id || !currentSessionId.value) return
+  
+  try {
+    loading.value = true
+    const result = await courseApi.checkIn(course.value.id, currentSessionId.value)
+    ElMessage.success(result?.message || '签到成功！')
+    showQrDialog.value = false
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message || '签到失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+const fetchCourse = async () => {
+  const id = route.params.id as string
+  if (!id) return
+  loading.value = true
+  try {
+    course.value = await courseApi.getCourse(id)
+    const regStatus = await courseApi.getMyRegistration(id)
+    if (regStatus) {
+      isRegistered.value = regStatus.isRegistered || regStatus.status === 'registered'
+    }
+  } catch (e) {
+    console.error('Failed to fetch course:', e)
+    ElMessage.error('加载课程详情失败')
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(() => {
-  const id = route.params.id as string
-  console.log('Loading course:', id)
+  fetchCourse()
 })
 </script>
 

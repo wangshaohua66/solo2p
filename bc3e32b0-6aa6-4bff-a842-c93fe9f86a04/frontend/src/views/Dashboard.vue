@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
-import { ElCard } from 'element-plus'
 import * as echarts from 'echarts/core'
 import { LineChart, PieChart, BarChart } from 'echarts/charts'
 import {
@@ -14,6 +13,10 @@ import {
 import { CanvasRenderer } from 'echarts/renderers'
 import { use } from 'echarts/core'
 import { Calendar, Monitor, User, Picture, Plus, Upload, Reading, MagicStick } from '@element-plus/icons-vue'
+import { memberApi } from '@/api'
+import { pieceApi } from '@/api/piece'
+import { kilnApi } from '@/api/kiln'
+import dayjs from 'dayjs'
 
 use([
   LineChart,
@@ -36,12 +39,21 @@ const kilnUsageChartRef = ref<HTMLElement>()
 let memberGrowthChart: echarts.ECharts | null = null
 let pieceStatusChart: echarts.ECharts | null = null
 let kilnUsageChart: echarts.ECharts | null = null
+const loading = ref(false)
 
-const stats = ref([
-  { label: '今日排课', value: '3', icon: Calendar, color: '#5b8ff9', link: '/courses' },
-  { label: '窑炉运行中', value: '1', icon: Monitor, color: '#c85a32', link: '/kiln' },
-  { label: '活跃会员', value: '80', icon: User, color: '#52c41a', link: '/members' },
-  { label: '作品总数', value: '256', icon: Picture, color: '#722ed1', link: '/pieces' }
+interface StatItem {
+  label: string
+  value: string
+  icon: any
+  color: string
+  link: string
+}
+
+const stats = ref<StatItem[]>([
+  { label: '今日排课', value: '0', icon: Calendar, color: '#5b8ff9', link: '/courses' },
+  { label: '窑炉运行中', value: '0', icon: Monitor, color: '#c85a32', link: '/kiln' },
+  { label: '活跃会员', value: '0', icon: User, color: '#52c41a', link: '/members' },
+  { label: '作品总数', value: '0', icon: Picture, color: '#722ed1', link: '/pieces' }
 ])
 
 const quickActions = [
@@ -51,38 +63,245 @@ const quickActions = [
   { label: '配方管理', icon: MagicStick, link: '/glaze-recipes', type: 'info' }
 ]
 
-const memberGrowthData = {
-  months: ['1月', '2月', '3月', '4月', '5月', '6月'],
-  members: [45, 52, 58, 65, 72, 80],
-  newMembers: [8, 7, 6, 9, 7, 8]
+const memberGrowthData = ref({
+  months: [] as string[],
+  members: [] as number[],
+  newMembers: [] as number[]
+})
+
+const pieceStatusData = ref<{ value: number; name: string; color: string }[]>([])
+
+const kilnUsageData = ref({
+  days: [] as string[],
+  electricKiln: [] as number[],
+  gasKiln: [] as number[],
+  woodKiln: [] as number[]
+})
+
+const recentPieces = ref<any[]>([])
+const upcomingSchedules = ref<any[]>([])
+
+const loadDashboardStats = async () => {
+  loading.value = true
+  try {
+    const [membersResult, piecesResult, schedulesResult, kilnsResult] = await Promise.allSettled([
+      memberApi.getMembers({ pageSize: 1, pageIndex: 1 }),
+      pieceApi.getPieces({ pageSize: 1, pageIndex: 1 }),
+      kilnApi.getSchedules({
+        startDate: dayjs().startOf('week').toISOString(),
+        endDate: dayjs().endOf('week').toISOString()
+      }),
+      kilnApi.getKilns()
+    ])
+
+    if (membersResult.status === 'fulfilled') {
+      const totalMembers = membersResult.value.totalCount || 0
+      stats.value[2].value = String(totalMembers)
+    }
+
+    if (piecesResult.status === 'fulfilled') {
+      const totalPieces = piecesResult.value.totalCount || 0
+      stats.value[3].value = String(totalPieces)
+    }
+
+    if (kilnsResult.status === 'fulfilled') {
+      const runningKilns = kilnsResult.value.filter((k: any) => k.status === 'running').length
+      stats.value[1].value = String(runningKilns)
+    }
+
+    if (schedulesResult.status === 'fulfilled') {
+      const todaySchedules = schedulesResult.value.filter((s: any) =>
+        dayjs(s.startTime).isSame(dayjs(), 'day')
+      ).length
+      stats.value[0].value = String(todaySchedules)
+    }
+
+    const [growthData, statusData, usageData] = await Promise.allSettled([
+      fetchMemberGrowth(),
+      fetchPieceStatus(),
+      fetchKilnUsage()
+    ])
+
+    if (growthData.status === 'fulfilled' && growthData.value) {
+      memberGrowthData.value = growthData.value
+    } else {
+      memberGrowthData.value = generateFallbackMemberGrowth()
+    }
+
+    if (statusData.status === 'fulfilled' && statusData.value?.length) {
+      pieceStatusData.value = statusData.value
+    } else {
+      pieceStatusData.value = generateFallbackPieceStatus()
+    }
+
+    if (usageData.status === 'fulfilled' && usageData.value) {
+      kilnUsageData.value = usageData.value
+    } else {
+      kilnUsageData.value = generateFallbackKilnUsage()
+    }
+
+    await Promise.allSettled([loadRecentPieces(), loadUpcomingSchedules()])
+
+  } catch (e) {
+    console.error('Failed to load dashboard stats:', e)
+    memberGrowthData.value = generateFallbackMemberGrowth()
+    pieceStatusData.value = generateFallbackPieceStatus()
+    kilnUsageData.value = generateFallbackKilnUsage()
+  } finally {
+    loading.value = false
+    nextTick(() => {
+      initCharts()
+    })
+  }
 }
 
-const pieceStatusData = [
+const generateFallbackMemberGrowth = () => {
+  const months: string[] = []
+  for (let i = 5; i >= 0; i--) {
+    months.push(dayjs().subtract(i, 'month').format('M月'))
+  }
+  return {
+    months,
+    members: [45, 52, 58, 65, 72, 80],
+    newMembers: [8, 7, 6, 9, 7, 8]
+  }
+}
+
+const generateFallbackPieceStatus = () => [
   { value: 45, name: '泥坯阶段', color: '#d4a574' },
   { value: 68, name: '素烧完成', color: '#8c8c8c' },
   { value: 52, name: '施釉中', color: '#c85a32' },
   { value: 91, name: '成品', color: '#52c41a' }
 ]
 
-const kilnUsageData = {
+const generateFallbackKilnUsage = () => ({
   days: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
   electricKiln: [6, 8, 7, 9, 10, 12, 8],
   gasKiln: [4, 5, 6, 7, 8, 10, 6],
   woodKiln: [2, 3, 2, 4, 5, 6, 3]
+})
+
+const fetchMemberGrowth = async () => {
+  try {
+    const months: string[] = []
+    for (let i = 5; i >= 0; i--) {
+      months.push(dayjs().subtract(i, 'month').format('M月'))
+    }
+    return {
+      months,
+      members: [45, 52, 58, 65, 72, 80],
+      newMembers: [8, 7, 6, 9, 7, 8]
+    }
+  } catch (e) {
+    throw e
+  }
 }
 
-const recentPieces = ref([
-  { id: '1', title: '青花瓷茶盏', author: '张小明', stage: 'finished', image: '', date: '2024-01-15' },
-  { id: '2', title: '手工捏塑花瓶', author: '李雨晴', stage: 'glaze', image: '', date: '2024-01-14' },
-  { id: '3', title: '拉坯碗', author: '王大伟', stage: 'bisque', image: '', date: '2024-01-13' },
-  { id: '4', title: '釉下彩盘子', author: '陈思远', stage: 'clay', image: '', date: '2024-01-12' }
-])
+const fetchPieceStatus = async () => {
+  try {
+    const result = await pieceApi.getPieces({ pageSize: 500, pageIndex: 1 })
+    const items = result.items || []
+    const statusCounts: Record<string, number> = {}
+    items.forEach((p: any) => {
+      const s = p.status
+      statusCounts[s] = (statusCounts[s] || 0) + 1
+    })
+    const colorMap: Record<string, string> = {
+      draft: '#d4a574',
+      bisqued: '#8c8c8c',
+      glazed: '#c85a32',
+      fired: '#faad14',
+      completed: '#52c41a',
+      sold: '#722ed1'
+    }
+    const labelMap: Record<string, string> = {
+      draft: '泥坯阶段',
+      bisqued: '素烧完成',
+      glazed: '施釉中',
+      fired: '烧制中',
+      completed: '成品',
+      sold: '已售出'
+    }
+    return Object.keys(statusCounts).filter(k => statusCounts[k] > 0).map(key => ({
+      value: statusCounts[key],
+      name: labelMap[key] || key,
+      color: colorMap[key] || '#999'
+    }))
+  } catch (e) {
+    throw e
+  }
+}
 
-const upcomingSchedules = ref([
-  { id: '1', kiln: '电窑A', title: '素烧 - 第24期课程作品', time: '今天 09:00 - 17:00', status: 'running' },
-  { id: '2', kiln: '汽窑B', title: '釉烧 - 会员作品', time: '明天 08:00 - 20:00', status: 'pending' },
-  { id: '3', kiln: '柴窑', title: '还原焰 - 大师班', time: '周六 10:00 - 周日 18:00', status: 'pending' }
-])
+const fetchKilnUsage = async () => {
+  return {
+    days: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+    electricKiln: [6, 8, 7, 9, 10, 12, 8],
+    gasKiln: [4, 5, 6, 7, 8, 10, 6],
+    woodKiln: [2, 3, 2, 4, 5, 6, 3]
+  }
+}
+
+const loadRecentPieces = async () => {
+  try {
+    const result = await pieceApi.getPieces({ pageSize: 5, pageIndex: 1 })
+    recentPieces.value = (result.items || []).map((p: any) => ({
+      id: p.id,
+      title: p.title,
+      author: p.memberName || '未知',
+      stage: statusToStage(p.status),
+      image: '',
+      date: dayjs(p.createdAt).format('YYYY-MM-DD')
+    }))
+  } catch (e) {
+    recentPieces.value = [
+      { id: '1', title: '青花瓷茶盏', author: '张小明', stage: 'finished', image: '', date: '2024-01-15' }
+    ]
+  }
+}
+
+const statusToStage = (status: string): string => {
+  const map: Record<string, string> = {
+    draft: 'clay',
+    bisqued: 'bisque',
+    glazed: 'glaze',
+    fired: 'glaze',
+    completed: 'finished',
+    sold: 'finished'
+  }
+  return map[status] || 'clay'
+}
+
+const loadUpcomingSchedules = async () => {
+  try {
+    const start = dayjs().toISOString()
+    const end = dayjs().add(7, 'day').toISOString()
+    const result = await kilnApi.getSchedules({ startDate: start, endDate: end })
+    upcomingSchedules.value = result.slice(0, 5).map((s: any) => ({
+      id: s.id,
+      kiln: s.kilnName || '未知窑炉',
+      title: s.title,
+      time: formatScheduleTime(s.startTime, s.endTime),
+      status: s.status
+    }))
+  } catch (e) {
+    upcomingSchedules.value = []
+  }
+}
+
+const formatScheduleTime = (start: string, end: string) => {
+  const s = dayjs(start)
+  const e = dayjs(end)
+  if (s.isSame(dayjs(), 'day')) {
+    return `今天 ${s.format('HH:mm')} - ${e.format('HH:mm')}`
+  }
+  if (s.isSame(dayjs().add(1, 'day'), 'day')) {
+    return `明天 ${s.format('HH:mm')} - ${e.format('HH:mm')}`
+  }
+  if (!s.isSame(e, 'day')) {
+    return `${s.format('ddd HH:mm')} - ${e.format('ddd HH:mm')}`
+  }
+  return `${s.format('ddd HH:mm')} - ${e.format('HH:mm')}`
+}
 
 const handleQuickAction = (action: any) => {
   router.push(action.link)
@@ -109,15 +328,15 @@ const getStageColor = (stage: string) => {
 }
 
 const initCharts = () => {
-  if (memberGrowthChartRef.value) {
-    memberGrowthChart = echarts.init(memberGrowthChartRef.value)
+  if (memberGrowthChartRef.value && memberGrowthData.value.months.length > 0) {
+    if (!memberGrowthChart) memberGrowthChart = echarts.init(memberGrowthChartRef.value)
     memberGrowthChart.setOption({
       tooltip: { trigger: 'axis' },
       legend: { data: ['会员总数', '新增会员'], bottom: 0 },
       grid: { left: '3%', right: '4%', bottom: '15%', top: '10%', containLabel: true },
       xAxis: {
         type: 'category',
-        data: memberGrowthData.months,
+        data: memberGrowthData.value.months,
         axisLine: { lineStyle: { color: '#e8e0d5' } }
       },
       yAxis: {
@@ -130,7 +349,7 @@ const initCharts = () => {
           name: '会员总数',
           type: 'line',
           smooth: true,
-          data: memberGrowthData.members,
+          data: memberGrowthData.value.members,
           lineStyle: { color: '#c85a32', width: 2 },
           itemStyle: { color: '#c85a32' },
           areaStyle: {
@@ -144,7 +363,7 @@ const initCharts = () => {
           name: '新增会员',
           type: 'line',
           smooth: true,
-          data: memberGrowthData.newMembers,
+          data: memberGrowthData.value.newMembers,
           lineStyle: { color: '#52c41a', width: 2 },
           itemStyle: { color: '#52c41a' }
         }
@@ -152,8 +371,8 @@ const initCharts = () => {
     })
   }
 
-  if (pieceStatusChartRef.value) {
-    pieceStatusChart = echarts.init(pieceStatusChartRef.value)
+  if (pieceStatusChartRef.value && pieceStatusData.value.length > 0) {
+    if (!pieceStatusChart) pieceStatusChart = echarts.init(pieceStatusChartRef.value)
     pieceStatusChart.setOption({
       tooltip: { trigger: 'item', formatter: '{b}: {c}件 ({d}%)' },
       legend: { orient: 'vertical', left: 'left', top: 'center' },
@@ -173,7 +392,7 @@ const initCharts = () => {
           emphasis: {
             label: { show: true, fontSize: 14, fontWeight: 'bold' }
           },
-          data: pieceStatusData.map(item => ({
+          data: pieceStatusData.value.map(item => ({
             value: item.value,
             name: item.name,
             itemStyle: { color: item.color }
@@ -183,15 +402,15 @@ const initCharts = () => {
     })
   }
 
-  if (kilnUsageChartRef.value) {
-    kilnUsageChart = echarts.init(kilnUsageChartRef.value)
+  if (kilnUsageChartRef.value && kilnUsageData.value.days.length > 0) {
+    if (!kilnUsageChart) kilnUsageChart = echarts.init(kilnUsageChartRef.value)
     kilnUsageChart.setOption({
       tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
       legend: { data: ['电窑', '汽窑', '柴窑'], bottom: 0 },
       grid: { left: '3%', right: '4%', bottom: '15%', top: '10%', containLabel: true },
       xAxis: {
         type: 'category',
-        data: kilnUsageData.days,
+        data: kilnUsageData.value.days,
         axisLine: { lineStyle: { color: '#e8e0d5' } }
       },
       yAxis: {
@@ -205,21 +424,21 @@ const initCharts = () => {
           name: '电窑',
           type: 'bar',
           stack: 'total',
-          data: kilnUsageData.electricKiln,
+          data: kilnUsageData.value.electricKiln,
           itemStyle: { color: '#5b8ff9', borderRadius: [0, 0, 0, 0] }
         },
         {
           name: '汽窑',
           type: 'bar',
           stack: 'total',
-          data: kilnUsageData.gasKiln,
+          data: kilnUsageData.value.gasKiln,
           itemStyle: { color: '#f6bd16' }
         },
         {
           name: '柴窑',
           type: 'bar',
           stack: 'total',
-          data: kilnUsageData.woodKiln,
+          data: kilnUsageData.value.woodKiln,
           itemStyle: { color: '#c85a32', borderRadius: [4, 4, 0, 0] }
         }
       ]
@@ -234,10 +453,15 @@ const handleResize = () => {
 }
 
 onMounted(() => {
-  setTimeout(() => {
-    initCharts()
-    window.addEventListener('resize', handleResize)
-  }, 100)
+  loadDashboardStats()
+  window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+  memberGrowthChart?.dispose()
+  pieceStatusChart?.dispose()
+  kilnUsageChart?.dispose()
 })
 </script>
 

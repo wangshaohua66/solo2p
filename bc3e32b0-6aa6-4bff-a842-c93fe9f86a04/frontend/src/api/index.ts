@@ -199,3 +199,5 @@ export const uploadApi = {
     return http.post(`/upload/chunk/complete/${uploadId}`)
   }
 }
+
+export { memberApi } from './member'

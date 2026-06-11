@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import type { PieceArchive, PieceStatus, PhotoStage } from '@/types'
+import type { PieceArchive, PieceStatus, PhotoStage, PagedQuery } from '@/types'
 import { ElMessage } from 'element-plus'
+import { pieceApi } from '@/api/piece'
 
 const router = useRouter()
 
@@ -15,6 +16,7 @@ const searchKeyword = ref('')
 const filterStatus = ref<PieceStatus | ''>('')
 const filterMember = ref('')
 const activeStage = ref<PhotoStage | 'all'>('all')
+const totalCount = ref(0)
 
 const stages = [
   { value: 'all', label: '全部', icon: 'Picture' },
@@ -24,87 +26,52 @@ const stages = [
   { value: 'finished', label: '成品', icon: 'Star' }
 ]
 
-const mockPieces: PieceArchive[] = Array.from({ length: 24 }, (_, i) => {
-  const stageOrder: PhotoStage[] = ['clay', 'bisque', 'glaze', 'finished']
-  const currentStage = stageOrder[Math.floor(Math.random() * 4)]
-  const statusMap: Record<PhotoStage, PieceStatus> = {
-    clay: 'draft',
-    bisque: 'bisqued',
-    glaze: 'glazed',
-    finished: 'completed'
+const fetchPieces = async (reset: boolean = false) => {
+  if (isLoading.value) return
+  isLoading.value = true
+  
+  if (reset) {
+    pageIndex.value = 1
+    pieces.value = []
+    hasMore.value = true
   }
   
-  return {
-    id: `piece-${i + 1}`,
-    title: ['青花瓷茶盏', '手工捏塑花瓶', '拉坯碗', '釉下彩盘子', '茶叶罐', '日式汤吞',
-            '粗陶花器', '青瓷笔筒', '紫砂茶壶', '白瓷餐具组', '手绘马克杯', '陶艺摆件'][i % 12],
-    description: '一件精美的手工作品，记录了完整的创作过程。',
-    memberId: `member-${(i % 10) + 1}`,
-    memberName: ['张小明', '李雨晴', '王大伟', '陈思远', '刘芳芳', '赵建国',
-                 '孙小美', '周志强', '吴梦琪', '郑浩然'][i % 10],
-    status: statusMap[currentStage],
-    weight: 200 + Math.random() * 500,
-    height: 5 + Math.random() * 25,
-    width: 5 + Math.random() * 20,
-    createdAt: new Date(Date.now() - i * 86400000 * 2).toISOString(),
-    photos: [
-      {
-        id: `photo-${i}-1`,
-        stage: 'clay',
-        url: '',
-        thumbnailUrl: '',
-        uploadedAt: new Date(Date.now() - i * 86400000 * 2).toISOString()
-      },
-      ...(stageOrder.indexOf(currentStage) >= 1 ? [{
-        id: `photo-${i}-2`,
-        stage: 'bisque' as PhotoStage,
-        url: '',
-        thumbnailUrl: '',
-        uploadedAt: new Date(Date.now() - i * 86400000 * 2 + 86400000).toISOString()
-      }] : []),
-      ...(stageOrder.indexOf(currentStage) >= 2 ? [{
-        id: `photo-${i}-3`,
-        stage: 'glaze' as PhotoStage,
-        url: '',
-        thumbnailUrl: '',
-        uploadedAt: new Date(Date.now() - i * 86400000 * 2 + 86400000 * 2).toISOString()
-      }] : []),
-      ...(stageOrder.indexOf(currentStage) >= 3 ? [{
-        id: `photo-${i}-4`,
-        stage: 'finished' as PhotoStage,
-        url: '',
-        thumbnailUrl: '',
-        uploadedAt: new Date(Date.now() - i * 86400000 * 2 + 86400000 * 3).toISOString()
-      }] : [])
-    ] as any,
-    tags: ['手工', '拉坯', '釉下彩'].slice(0, Math.floor(Math.random() * 3) + 1),
-    isForSale: Math.random() > 0.7,
-    price: Math.random() > 0.7 ? 100 + Math.floor(Math.random() * 900) : undefined
+  try {
+    const params: PagedQuery & {
+      keyword?: string
+      status?: PieceStatus
+      stage?: PhotoStage | 'all'
+      memberId?: string
+      pageIndex: number
+      pageSize: number
+    } = {
+      pageIndex: pageIndex.value,
+      pageSize: pageSize.value
+    }
+    if (searchKeyword.value) params.keyword = searchKeyword.value
+    if (filterStatus.value) params.status = filterStatus.value
+    if (filterMember.value) params.memberId = filterMember.value
+    if (activeStage.value !== 'all') params.stage = activeStage.value
+    
+    const result = await pieceApi.getPieces(params)
+    if (reset || pageIndex.value === 1) {
+      pieces.value = result.items
+    } else {
+      pieces.value = [...pieces.value, ...result.items]
+    }
+    totalCount.value = result.totalCount
+    hasMore.value = pieces.value.length < result.totalCount
+    if (result.items.length > 0) {
+      pageIndex.value++
+    }
+  } catch (e) {
+    console.error('Failed to fetch pieces:', e)
+  } finally {
+    isLoading.value = false
   }
-})
+}
 
-pieces.value = mockPieces
-
-const filteredPieces = computed(() => {
-  return pieces.value.filter(p => {
-    if (searchKeyword.value) {
-      const kw = searchKeyword.value.toLowerCase()
-      if (!p.title.toLowerCase().includes(kw) && 
-          !p.memberName?.toLowerCase().includes(kw)) {
-        return false
-      }
-    }
-    if (filterStatus.value && p.status !== filterStatus.value) {
-      return false
-    }
-    if (activeStage.value !== 'all') {
-      if (!p.photos.some(photo => photo.stage === activeStage.value)) {
-        return false
-      }
-    }
-    return true
-  })
-})
+const filteredPieces = computed(() => pieces.value)
 
 const getStatusLabel = (status: PieceStatus) => {
   const map: Record<PieceStatus, string> = {
@@ -147,25 +114,8 @@ const handlePieceClick = (piece: PieceArchive) => {
 }
 
 const handleLoadMore = () => {
-  if (isLoading.value || !hasMore.value) return
-  isLoading.value = true
-  
-  setTimeout(() => {
-    const newPieces = Array.from({ length: 8 }, (_, i) => {
-      const idx = pieces.value.length + i
-      return {
-        ...mockPieces[idx % mockPieces.length],
-        id: `piece-${idx + 1}`,
-        title: mockPieces[idx % mockPieces.length].title + ` #${idx + 1}`
-      }
-    })
-    pieces.value = [...pieces.value, ...newPieces]
-    pageIndex.value++
-    if (pageIndex.value > 5) {
-      hasMore.value = false
-    }
-    isLoading.value = false
-  }, 500)
+  if (!hasMore.value) return
+  fetchPieces(false)
 }
 
 const handleUploadPiece = () => {
@@ -175,6 +125,14 @@ const handleUploadPiece = () => {
 const getPhotoByStage = (piece: PieceArchive, stage: PhotoStage) => {
   return piece.photos.find(p => p.stage === stage)
 }
+
+watch([searchKeyword, filterStatus, activeStage, filterMember], () => {
+  fetchPieces(true)
+})
+
+onMounted(() => {
+  fetchPieces(true)
+})
 </script>
 
 <template>
