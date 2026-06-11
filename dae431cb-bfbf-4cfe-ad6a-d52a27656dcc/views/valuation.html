@@ -1,0 +1,54 @@
+<div class="page-header">
+  <div>
+    <h1 class="page-title">📊 估值分析</h1>
+    <p class="page-subtitle">可视化你的乐高收藏价值与结构</p>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card p-4 bg-gradient-red text-white">
+      <div class="small opacity-90 mb-1">零件估算总值</div>
+      <div class="fs-2 fw-bold" id="totalPartValue">¥0</div>
+      <i class="bi bi-box-seam position-absolute bottom-0 end-0 me-3 mb-3 fs-1 opacity-30"></i>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card p-4 bg-gradient-blue text-white">
+      <div class="small opacity-90 mb-1">套装购入总值</div>
+      <div class="fs-2 fw-bold" id="totalSetValue">¥0</div>
+      <i class="bi bi-box position-absolute bottom-0 end-0 me-3 mb-3 fs-1 opacity-30"></i>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card p-4 bg-gradient-yellow">
+      <div class="small mb-1">收藏总价值</div>
+      <div class="fs-2 fw-bold" id="totalValue">¥0</div>
+      <div class="small mt-1">
+        <i class="bi bi-boxes me-1"></i>
+        共 <span id="totalPieces">0</span> 块零件
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card p-4 h-100">
+      <h6 class="mb-3"><i class="bi bi-palette me-2"></i> 颜色分布</h6>
+      <div style="height:300px"><canvas id="colorPieChart"></canvas></div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card p-4 h-100">
+      <h6 class="mb-3"><i class="bi bi-bar-chart me-2"></i> 零件类别统计</h6>
+      <div style="height:300px"><canvas id="categoryBarChart"></canvas></div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="card p-4">
+      <h6 class="mb-3"><i class="bi bi-graph-up me-2"></i> 年度购置投入趋势</h6>
+      <div style="height:300px"><canvas id="yearLineChart"></canvas></div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,23 @@
+<div class="page-header">
+  <div>
+    <h1 class="page-title">🏗️ 套装管理</h1>
+    <p class="page-subtitle">登记你的乐高套装，追踪状态与散件入库</p>
+  </div>
+  <button class="btn btn-lego-red" id="btnAddSet">
+    <i class="bi bi-plus-lg"></i> 添加套装
+  </button>
+</div>
+
+<div class="filter-panel">
+  <div class="d-flex flex-wrap gap-2">
+    <span class="badge rounded-pill bg-secondary p-2">
+      <i class="bi bi-funnel me-1"></i> 状态筛选
+    </span>
+    <a href="#/sets" class="btn btn-sm btn-outline-secondary">全部</a>
+    <button class="btn btn-sm" style="background:#DCFCE7;color:#166534">未拆封</button>
+    <button class="btn btn-sm" style="background:#DBEAFE;color:#1E40AF">已散件</button>
+    <button class="btn btn-sm" style="background:#FEF3C7;color:#92400E">已MOC化</button>
+  </div>
+</div>
+
+<div class="row g-3" id="setsGrid"></div>

@@ -1,0 +1,114 @@
+<div class="page-header">
+  <div>
+    <h1 class="page-title">🧱 仪表盘</h1>
+    <p class="page-subtitle">一览你的乐高收藏全貌</p>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="stat-card bg-gradient-red">
+      <p class="stat-parts">0</p>
+      <p class="stat-label">零件种类</p>
+      <i class="bi bi-boxes stat-icon"></i>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card bg-gradient-yellow">
+      <p class="stat-sets">0</p>
+      <p class="stat-label">套装数量</p>
+      <i class="bi bi-box-seam stat-icon"></i>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card bg-gradient-blue">
+      <p class="stat-mocs">0</p>
+      <p class="stat-label">MOC 作品</p>
+      <i class="bi bi-brush stat-icon"></i>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card bg-gradient-green">
+      <p class="stat-total">¥0</p>
+      <p class="stat-label">估算总价值</p>
+      <i class="bi bi-currency-yen stat-icon"></i>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-8">
+    <div class="card p-4">
+      <h5 class="mb-3"><i class="bi bi-grid me-2"></i> 快速入口</h5>
+      <div class="quick-grid">
+        <a href="#/inventory" class="quick-card">
+          <i class="bi bi-boxes"></i>
+          <span>零件库</span>
+        </a>
+        <a href="#/sets" class="quick-card">
+          <i class="bi bi-box-seam"></i>
+          <span>套装管理</span>
+        </a>
+        <a href="#/moc" class="quick-card">
+          <i class="bi bi-brush"></i>
+          <span>MOC 档案</span>
+        </a>
+        <a href="#/auction" class="quick-card">
+          <i class="bi bi-hammer"></i>
+          <span>拍卖追踪</span>
+        </a>
+        <a href="#/valuation" class="quick-card">
+          <i class="bi bi-bar-chart"></i>
+          <span>估值分析</span>
+        </a>
+        <a href="#/lug" class="quick-card">
+          <i class="bi bi-calendar-event"></i>
+          <span>社区活动</span>
+        </a>
+        <a href="#/import" class="quick-card">
+          <i class="bi bi-file-earmark-arrow-up"></i>
+          <span>数据导入</span>
+        </a>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card p-4 h-100">
+      <h5 class="mb-3"><i class="bi bi-calendar3 me-2"></i> 近期活动</h5>
+      <ul class="list-group list-group-flush" id="upcomingEventsList"></ul>
+    </div>
+  </div>
+</div>
+
+<div class="card p-4">
+  <h5 class="mb-3"><i class="bi bi-info-circle me-2"></i> 使用提示</h5>
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="d-flex gap-2">
+        <i class="bi bi-lightbulb text-lego-red fs-4"></i>
+        <div>
+          <strong>开始录入</strong>
+          <p class="small text-muted mb-0">前往「套装管理」添加你拥有的 Set，点击「散件入库」可自动关联零件库</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="d-flex gap-2">
+        <i class="bi bi-search text-lego-red fs-4"></i>
+        <div>
+          <strong>快速检索</strong>
+          <p class="small text-muted mb-0">零件库支持按编号、颜色、类别、形状多维过滤，5000+ 行秒级响应</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="d-flex gap-2">
+        <i class="bi bi-moon-stars text-lego-red fs-4"></i>
+        <div>
+          <strong>离线可用</strong>
+          <p class="small text-muted mb-0">所有数据存储在本地 IndexedDB，断网也能正常使用，隐私安全</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

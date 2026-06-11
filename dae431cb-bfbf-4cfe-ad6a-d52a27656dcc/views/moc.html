@@ -1,0 +1,63 @@
+<div class="page-header">
+  <div>
+    <h1 class="page-title">🎨 MOC 档案</h1>
+    <p class="page-subtitle">记录你的原创作品、搭建过程与改造历史</p>
+  </div>
+  <button class="btn btn-lego-red" id="btnAddMoc">
+    <i class="bi bi-plus-lg"></i> 新建作品
+  </button>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-4">
+    <div class="card p-3 h-100">
+      <h6 class="mb-3"><i class="bi bi-collection me-2"></i> 作品列表</h6>
+      <div class="list-group list-group-flush" id="mocList"></div>
+    </div>
+  </div>
+  <div class="col-lg-8" id="mocDetail" style="display:none">
+    <div class="card p-4 mb-3">
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+          <h3 class="mb-1" id="mocDetailName"></h3>
+          <p class="text-muted mb-0" id="mocDetailDesc"></p>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-secondary btn-sm" id="btnAddTimeline">
+            <i class="bi bi-flag"></i> 里程碑
+          </button>
+          <button class="btn btn-outline-secondary btn-sm" id="btnAddLog">
+            <i class="bi bi-journal-text"></i> 改造日志
+          </button>
+          <button class="btn btn-outline-lego-red btn-sm" id="btnEditMoc">
+            <i class="bi bi-pencil"></i> 编辑
+          </button>
+        </div>
+      </div>
+      <div class="mb-3">
+        <div class="d-flex justify-content-between small text-muted mb-1">
+          <span>搭建进度</span>
+        </div>
+        <div class="progress"><div class="progress-bar" id="mocDetailProgress"></div></div>
+      </div>
+      <div>
+        <div class="small text-muted mb-2">配色矩阵</div>
+        <div class="d-flex gap-2" id="mocPalette"></div>
+      </div>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="card p-4 h-100">
+          <h6 class="mb-3"><i class="bi bi-diagram-3 me-2"></i> 搭建时间线</h6>
+          <div class="timeline" id="mocTimeline"></div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card p-4 h-100">
+          <h6 class="mb-3"><i class="bi bi-journal me-2"></i> 改造日志</h6>
+          <div id="mocModLogs"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
