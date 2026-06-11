@@ -22,7 +22,7 @@ public class ArchiveService {
     private final SessionRepository sessionRepository;
     private final JdbcTemplate jdbcTemplate;
 
-    @Value("${app.archive.retention-days:90}")
+    @Value("${scriptkill.archive.retention-days:90}")
     private int retentionDays;
 
     public ArchiveService(SessionRepository sessionRepository, JdbcTemplate jdbcTemplate) {
@@ -30,7 +30,7 @@ public class ArchiveService {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    @Scheduled(cron = "${app.archive.cron:0 0 3 * * ?}")
+    @Scheduled(cron = "${scriptkill.archive.cron:0 0 3 * * ?}")
     @Transactional
     public int runArchiveJob() {
         log.info("Start archive job, retentionDays={}", retentionDays);

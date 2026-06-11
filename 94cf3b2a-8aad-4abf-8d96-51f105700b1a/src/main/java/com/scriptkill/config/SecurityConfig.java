@@ -72,6 +72,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/session/**").hasAnyRole("PLAYER", "DM", "STORE_MANAGER", "ADMIN")
                 .requestMatchers("/api/bookings/**").hasAnyRole("PLAYER", "DM", "STORE_MANAGER", "ADMIN")
                 .requestMatchers("/api/reviews/**").hasAnyRole("PLAYER", "DM", "STORE_MANAGER", "ADMIN")
+                .requestMatchers("/api/clues/session/*/subscribe").authenticated()
                 .requestMatchers("/api/clues/**").hasAnyRole("DM", "STORE_MANAGER", "ADMIN")
                 .requestMatchers("/api/dm/schedules/**").hasAnyRole("DM", "STORE_MANAGER", "ADMIN")
                 .requestMatchers("/api/purchases/**").hasAnyRole("STORE_MANAGER", "ADMIN")

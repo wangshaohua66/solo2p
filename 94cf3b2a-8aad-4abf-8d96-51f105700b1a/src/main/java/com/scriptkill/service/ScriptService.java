@@ -1,6 +1,7 @@
 package com.scriptkill.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.scriptkill.dto.common.PageResult;
 import com.scriptkill.dto.script.*;
@@ -14,6 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -153,6 +155,8 @@ public class ScriptService {
         scriptRepository.save(script);
     }
 
+    private static final int MAX_SNAPSHOTS = 10;
+
     @Transactional
     public ScriptDetailResponse rollbackToVersion(Long id, Integer version) {
         Script script = scriptRepository.findById(id)
@@ -171,7 +175,17 @@ public class ScriptService {
         }
 
         try {
-            Script snapshot = objectMapper.readValue(script.getVersionSnapshot(), Script.class);
+            List<VersionSnapshotEntry> snapshots = objectMapper.readValue(
+                    script.getVersionSnapshot(),
+                    new TypeReference<List<VersionSnapshotEntry>>() {});
+
+            VersionSnapshotEntry target = snapshots.stream()
+                    .filter(s -> s.version.equals(version))
+                    .findFirst()
+                    .orElseThrow(() -> new BusinessException("版本 " + version + " 的快照不存在"));
+
+            String snapshotJson = objectMapper.writeValueAsString(target.data);
+            Script snapshot = objectMapper.readValue(snapshotJson, Script.class);
 
             script.setName(snapshot.getName());
             script.setDescription(snapshot.getDescription());
@@ -190,6 +204,8 @@ public class ScriptService {
             scriptRepository.save(script);
 
             return getScriptDetail(id);
+        } catch (BusinessException e) {
+            throw e;
         } catch (JsonProcessingException e) {
             throw new BusinessException("版本快照解析失败，无法回滚");
         }
@@ -197,10 +213,36 @@ public class ScriptService {
 
     private void createVersionSnapshot(Script script) {
         try {
-            String snapshot = objectMapper.writeValueAsString(script);
-            script.setVersionSnapshot(snapshot);
+            List<VersionSnapshotEntry> snapshots = new ArrayList<>();
+            if (script.getVersionSnapshot() != null && !script.getVersionSnapshot().isEmpty()) {
+                List<VersionSnapshotEntry> existing = objectMapper.readValue(
+                        script.getVersionSnapshot(),
+                        new TypeReference<List<VersionSnapshotEntry>>() {});
+                snapshots.addAll(existing);
+            }
+
+            snapshots.add(new VersionSnapshotEntry(script.getVersion(), script));
+
+            if (snapshots.size() > MAX_SNAPSHOTS) {
+                snapshots = snapshots.subList(snapshots.size() - MAX_SNAPSHOTS, snapshots.size());
+                snapshots = new ArrayList<>(snapshots);
+            }
+
+            script.setVersionSnapshot(objectMapper.writeValueAsString(snapshots));
         } catch (JsonProcessingException e) {
             throw new BusinessException("创建版本快照失败");
+        }
+    }
+
+    private static class VersionSnapshotEntry {
+        public Integer version;
+        public Script data;
+
+        public VersionSnapshotEntry() {}
+
+        public VersionSnapshotEntry(Integer version, Script data) {
+            this.version = version;
+            this.data = data;
         }
     }
 

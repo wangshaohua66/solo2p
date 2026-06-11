@@ -62,7 +62,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ApiResponse<Void>> handleMissingParamException(
             MissingServletRequestParameterException e) {
-        ApiResponse<Void> response = ApiResponse.error(400, "缺少必填参数: " + e.getParameterName());
+        log.warn("Missing request parameter: {}", e.getParameterName());
+        ApiResponse<Void> response = ApiResponse.error(400, "缺少必填参数");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
@@ -98,7 +99,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleIllegalArgumentException(
             IllegalArgumentException e) {
         log.warn("Illegal argument: {}", e.getMessage());
-        ApiResponse<Void> response = ApiResponse.error(400, e.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(400, "请求参数不合法");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
