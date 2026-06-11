@@ -62,6 +62,51 @@ var SearchUtil = (function() {
         });
     }
 
+    function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
+    }
+
+    function escapeRegExp(str) {
+        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function highlightKeyword(text, keyword) {
+        var escaped = escapeHtml(text || '');
+        if (!keyword) return escaped;
+        var kw = keyword.trim();
+        if (!kw) return escaped;
+        var re = new RegExp('(' + escapeRegExp(kw) + ')', 'gi');
+        return escaped.replace(re, '<span class=\'hl-match\'>$1</span>');
+    }
+
+    function getMatchedExperiments(experiments, keyword) {
+        var result = [];
+        if (!keyword) return result;
+        var kw = keyword.trim().toLowerCase();
+        if (!kw) return result;
+        for (var i = 0; i < experiments.length; i++) {
+            var exp = experiments[i];
+            var matched = false;
+            if (exp.notes && exp.notes.toLowerCase().indexOf(kw) > -1) {
+                matched = true;
+            } else {
+                var recipe = exp.recipe || [];
+                for (var j = 0; j < recipe.length; j++) {
+                    if (recipe[j].materialName && recipe[j].materialName.toLowerCase().indexOf(kw) > -1) {
+                        matched = true;
+                        break;
+                    }
+                }
+            }
+            if (matched && exp.id !== undefined) {
+                result.push(exp.id);
+            }
+        }
+        return result;
+    }
+
     function sortExperiments(experiments, sortBy) {
         var arr = experiments.slice();
         switch (sortBy) {
@@ -83,6 +128,8 @@ var SearchUtil = (function() {
         init: init,
         applyFilters: applyFilters,
         sortExperiments: sortExperiments,
+        highlightKeyword: highlightKeyword,
+        getMatchedExperiments: getMatchedExperiments,
         CONE_VALUES: CONE_VALUES
     };
 })();

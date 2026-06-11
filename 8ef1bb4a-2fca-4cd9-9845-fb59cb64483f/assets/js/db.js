@@ -37,13 +37,13 @@ var AppDB = (function() {
 
     function ensureDefaultMaterials() {
         return db.materials.count().then(function(count) {
-            if (count > 0) return;
+            if (count > 0) return Promise.resolve();
             return addMaterialsSequentially(DEFAULT_MATERIALS.slice(), 0);
         });
     }
 
     function addMaterialsSequentially(list, idx) {
-        if (idx >= list.length) return;
+        if (idx >= list.length) return Promise.resolve();
         var mat = list[idx];
         return db.materials.add(mat).then(function() {
             return addMaterialsSequentially(list, idx + 1);
@@ -93,7 +93,7 @@ var AppDB = (function() {
     }
 
     function addMediaSequentially(expId, list, idx) {
-        if (idx >= list.length) return;
+        if (idx >= list.length) return Promise.resolve();
         var m = list[idx];
         return db.media.add({
             experimentId: expId,
@@ -107,14 +107,14 @@ var AppDB = (function() {
 
     function updateMaterialUsage(recipe) {
         var names = recipe.map(function(r) { return r.materialName; }).filter(Boolean);
-        if (names.length === 0) return;
+        if (names.length === 0) return Promise.resolve();
         return db.materials.where('name').anyOf(names).toArray().then(function(mats) {
             return updateUsageSeq(mats, 0);
         });
     }
 
     function updateUsageSeq(mats, idx) {
-        if (idx >= mats.length) return;
+        if (idx >= mats.length) return Promise.resolve();
         var m = mats[idx];
         return db.materials.update(m.id, { usageCount: (m.usageCount || 0) + 1 }).then(function() {
             return updateUsageSeq(mats, idx + 1);
@@ -126,7 +126,7 @@ var AppDB = (function() {
         return db.experiments.update(parseInt(id), expData).then(function() {
             return deleteMediaSeq(removeMediaIds || [], 0);
         }).then(function() {
-            if (!newMediaList || newMediaList.length === 0) return id;
+            if (!newMediaList || newMediaList.length === 0) return Promise.resolve(id);
             return db.media.where('experimentId').equals(parseInt(id)).sortBy('order').then(function(existing) {
                 var nextOrder = existing.length;
                 return addNewMediaSeq(parseInt(id), newMediaList, 0, nextOrder).then(function() { return id; });
@@ -135,14 +135,14 @@ var AppDB = (function() {
     }
 
     function deleteMediaSeq(ids, idx) {
-        if (idx >= ids.length) return;
+        if (idx >= ids.length) return Promise.resolve();
         return db.media.delete(parseInt(ids[idx])).then(function() {
             return deleteMediaSeq(ids, idx + 1);
         });
     }
 
     function addNewMediaSeq(expId, list, idx, baseOrder) {
-        if (idx >= list.length) return;
+        if (idx >= list.length) return Promise.resolve();
         var m = list[idx];
         return db.media.add({
             experimentId: expId,
@@ -226,7 +226,7 @@ var AppDB = (function() {
     }
 
     function putSeq(table, list, idx) {
-        if (idx >= list.length) return;
+        if (idx >= list.length) return Promise.resolve();
         return table.put(list[idx]).then(function() {
             return putSeq(table, list, idx + 1);
         });

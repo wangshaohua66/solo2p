@@ -1,5 +1,5 @@
 var FiringCurve = (function() {
-    var previewChart, detailChart, compareChart;
+    var previewChart, detailChart, compareChart, multiCompareChart;
     var statsChart;
 
     var COLOR_PALETTE = [
@@ -130,10 +130,119 @@ var FiringCurve = (function() {
         });
     }
 
+    function renderMultiCompare(experiments) {
+        var canvas = document.getElementById('multiCurveChart');
+        if (!canvas) return;
+        if (multiCompareChart) {
+            multiCompareChart.destroy();
+            multiCompareChart = null;
+        }
+        var ctx = canvas.getContext('2d');
+        if (!experiments || experiments.length < 2) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            return;
+        }
+        var datasets = experiments.map(function(exp, idx) {
+            var points = buildCurvePoints(exp.curveSegments || []);
+            return {
+                label: exp.name || ('实验' + (idx + 1)),
+                data: points,
+                borderColor: COLOR_PALETTE[idx % COLOR_PALETTE.length],
+                backgroundColor: 'transparent',
+                fill: false,
+                tension: 0.2,
+                pointRadius: 3,
+                pointBackgroundColor: COLOR_PALETTE[idx % COLOR_PALETTE.length],
+                borderWidth: 2
+            };
+        });
+        multiCompareChart = new Chart(canvas, {
+            type: 'line',
+            data: { datasets: datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                return ctx.dataset.label + ': ' + ctx.parsed.y + '℃ / ' + ctx.parsed.x + '分钟';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'linear',
+                        title: { display: true, text: '时间 (分钟)' },
+                        grid: { color: 'rgba(160,82,45,0.08)' }
+                    },
+                    y: {
+                        title: { display: true, text: '温度 (℃)' },
+                        min: 0,
+                        grid: { color: 'rgba(160,82,45,0.08)' }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderHeatmapMatrix(canvas, title, rowLabels, colLabels, dataMatrix) {
+        var parent = canvas.parentElement;
+        $(parent).find('.heatmap-matrix').remove();
+        canvas.style.display = 'none';
+
+        var maxFreq = 0;
+        for (var i = 0; i < dataMatrix.length; i++) {
+            for (var j = 0; j < dataMatrix[i].length; j++) {
+                if (dataMatrix[i][j] > maxFreq) maxFreq = dataMatrix[i][j];
+            }
+        }
+        if (maxFreq === 0) maxFreq = 1;
+
+        var html = '<div class="heatmap-matrix" style="overflow-x:auto; padding: 10px;">';
+        html += '<div style="font-size:14px; font-weight:bold; font-family:\'Noto Serif SC\'; margin-bottom:10px; color:#3D2B1F;">' + title + '</div>';
+        html += '<table style="border-collapse: collapse; font-size: 12px;">';
+
+        html += '<tr>';
+        html += '<th style="border:1px solid #d4c4b0; padding:6px 10px; background:#f5efe8; min-width:80px; text-align:center;"></th>';
+        for (var ci = 0; ci < colLabels.length; ci++) {
+            html += '<th style="border:1px solid #d4c4b0; padding:6px 10px; background:#f5efe8; min-width:60px; text-align:center; white-space:nowrap;">' + colLabels[ci] + '</th>';
+        }
+        html += '</tr>';
+
+        for (var ri = 0; ri < rowLabels.length; ri++) {
+            html += '<tr>';
+            html += '<th style="border:1px solid #d4c4b0; padding:6px 10px; background:#f5efe8; text-align:left; white-space:nowrap; font-weight:normal;">' + rowLabels[ri] + '</th>';
+            for (var cj = 0; cj < colLabels.length; cj++) {
+                var val = dataMatrix[ri][cj];
+                var bgStyle = '';
+                var textColor = '#3D2B1F';
+                if (val > 0) {
+                    var alpha = Math.min(1, val / maxFreq * 0.85 + 0.1);
+                    bgStyle = 'background: rgba(160,82,45,' + alpha + ');';
+                    if (alpha > 0.5) textColor = '#ffffff';
+                }
+                html += '<td style="border:1px solid #d4c4b0; padding:6px 10px; text-align:center; ' + bgStyle + ' color:' + textColor + ';">' + (val > 0 ? val : '') + '</td>';
+            }
+            html += '</tr>';
+        }
+        html += '</table>';
+        html += '</div>';
+
+        $(parent).append(html);
+    }
+
     function renderStatsTab(tab) {
         if (statsChart) { statsChart.destroy(); statsChart = null; }
         var canvas = document.getElementById('statsChart');
         var overview = $('#overviewStats');
+        var parent = canvas.parentElement;
+        $(parent).find('.heatmap-matrix').remove();
 
         if (tab === 'overview') {
             canvas.style.display = 'none';
@@ -165,28 +274,10 @@ var FiringCurve = (function() {
             AppState.publish('toast:show', { type: 'info', message: '数据不足，暂无法生成热力图' });
             return;
         }
-        var datasets = cats.map(function(cat, ci) {
-            return {
-                label: cat,
-                data: mats.map(function(m) { return matMap[m][cat] || 0; }),
-                backgroundColor: COLOR_PALETTE[ci % COLOR_PALETTE.length]
-            };
+        var dataMatrix = mats.map(function(m) {
+            return cats.map(function(c) { return matMap[m][c] || 0; });
         });
-        statsChart = new Chart(canvas, {
-            type: 'bar',
-            data: { labels: mats, datasets: datasets },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: {
-                    title: { display: true, text: '原料 × 釉色分类 使用频次', font: { size: 14, family: "'Noto Serif SC'" } },
-                    legend: { position: 'bottom' }
-                },
-                scales: {
-                    x: { stacked: true, ticks: { maxRotation: 45, minRotation: 30, font: { size: 10 } } },
-                    y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } }
-                }
-            }
-        });
+        renderHeatmapMatrix(canvas, '原料 × 釉色分类 使用频次', mats, cats, dataMatrix);
     }
 
     function renderDefectHeatmap(canvas, exps) {
@@ -206,28 +297,10 @@ var FiringCurve = (function() {
             AppState.publish('toast:show', { type: 'info', message: '暂无缺陷标签数据' });
             return;
         }
-        var datasets = defects.map(function(d, ci) {
-            return {
-                label: d,
-                data: mats.map(function(m) { return matMap[m][d] || 0; }),
-                backgroundColor: COLOR_PALETTE[ci % COLOR_PALETTE.length]
-            };
+        var dataMatrix = mats.map(function(m) {
+            return defects.map(function(d) { return matMap[m][d] || 0; });
         });
-        statsChart = new Chart(canvas, {
-            type: 'bar',
-            data: { labels: mats, datasets: datasets },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: {
-                    title: { display: true, text: '原料 × 缺陷 关联频次', font: { size: 14, family: "'Noto Serif SC'" } },
-                    legend: { position: 'bottom' }
-                },
-                scales: {
-                    x: { stacked: true, ticks: { maxRotation: 45, minRotation: 30, font: { size: 10 } } },
-                    y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } }
-                }
-            }
-        });
+        renderHeatmapMatrix(canvas, '原料 × 缺陷 关联频次', mats, defects, dataMatrix);
     }
 
     function renderOverview() {
@@ -269,6 +342,7 @@ var FiringCurve = (function() {
         initGlobalCharts: initGlobalCharts,
         renderPreview: renderPreview,
         renderDetail: renderDetail,
-        buildCurvePoints: buildCurvePoints
+        buildCurvePoints: buildCurvePoints,
+        renderMultiCompare: renderMultiCompare
     };
 })();
