@@ -488,35 +488,20 @@ func (w *Worker) checkChunkMemory(chunk *types.Chunk, meta *types.GeoTIFFMetadat
 	cols := chunk.Width
 	numBands := meta.NumBands
 
-	bytesPerPixel := 8
-	if meta.BitsPerSample > 0 {
-		bytesPerPixel = meta.BitsPerSample / 8
-		if bytesPerPixel < 1 {
-			bytesPerPixel = 1
-		}
-	}
-	if meta.DataType != "" {
-		switch strings.ToLower(meta.DataType) {
-		case "uint8", "int8":
-			bytesPerPixel = 1
-		case "uint16", "int16":
-			bytesPerPixel = 2
-		case "uint32", "int32", "float32":
-			bytesPerPixel = 4
-		case "float64", "uint64", "int64":
-			bytesPerPixel = 8
-		}
-	}
-
+	bytesPerPixel := io.DataTypeBytesPerPixel(meta.DataType, meta.BitsPerSample)
 	inputBytes := int64(rows) * int64(cols) * int64(numBands) * int64(bytesPerPixel)
+
 	var outputBands int
+	var outputDataType string
 	switch {
 	case task.Type == types.TaskTypeConvertCRS:
 		outputBands = numBands
+		outputDataType = meta.DataType
 	default:
 		outputBands = 1
+		outputDataType = "float32"
 	}
-	outputBytesPerPixel := 8
+	outputBytesPerPixel := io.DataTypeBytesPerPixel(outputDataType, 0)
 	outputBytes := int64(rows) * int64(cols) * int64(outputBands) * int64(outputBytesPerPixel)
 	overheadBytes := int64(32 * 1024 * 1024)
 
