@@ -117,6 +117,14 @@ def _on_kickstarter_alert(campaign: dict) -> None:
     )
 
 
+def _resolve_db_path(config: dict[str, Any]) -> Path:
+    raw = config.get("db_path", str(DATA_DIR / "craftbeer.db"))
+    p = Path(raw)
+    if not p.is_absolute():
+        p = BASE_DIR / p
+    return p
+
+
 async def _run_pipeline(config: dict[str, Any], mode: str, zipcode: str | None) -> None:
     from .cli.dashboard import Dashboard
     from .pipeline.scarcity import ScarcityEngine
@@ -130,7 +138,7 @@ async def _run_pipeline(config: dict[str, Any], mode: str, zipcode: str | None) 
     from .scrapers.untappd import UntappdScraper
     from .storage.db import Database
 
-    db_path = Path(config.get("db_path", str(DATA_DIR / "craftbeer.db")))
+    db_path = _resolve_db_path(config)
     db = Database(db_path)
     db.connect()
 
@@ -217,7 +225,7 @@ def check(zipcode: str, beer: str | None, config_path: str | None) -> None:
     from .pipeline.scarcity import ScarcityEngine
     from .storage.db import Database
 
-    db_path = Path(config.get("db_path", str(DATA_DIR / "craftbeer.db")))
+    db_path = _resolve_db_path(config)
     db = Database(db_path)
     db.connect()
 
@@ -242,7 +250,7 @@ def dedup(config_path: str | None) -> None:
     from .pipeline.scarcity import ScarcityEngine
     from .storage.db import Database
 
-    db_path = Path(config.get("db_path", str(DATA_DIR / "craftbeer.db")))
+    db_path = _resolve_db_path(config)
     db = Database(db_path)
     db.connect()
 
@@ -263,7 +271,7 @@ def status(config_path: str | None) -> None:
 
     from .storage.db import Database
 
-    db_path = Path(config.get("db_path", str(DATA_DIR / "craftbeer.db")))
+    db_path = _resolve_db_path(config)
     db = Database(db_path)
     db.connect()
 

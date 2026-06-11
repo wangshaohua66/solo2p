@@ -24,3 +24,11 @@
 2026-06-11 22:41:55 | INFO     | craftbeer_tracker.scrapers.base:run:76 - Starting scrape for brewer
 2026-06-11 22:42:25 | WARNING  | craftbeer_tracker.scrapers.base:run:95 - Timeout scraping kickstarter (attempt 2/3)
 2026-06-11 22:42:25 | WARNING  | craftbeer_tracker.scrapers.base:run:95 - Timeout scraping brewer (attempt 2/3)
+2026-06-11 23:10:18 | INFO     | craftbeer_tracker.storage.db:connect:230 - Database connected at data/craftbeer.db
+2026-06-11 23:10:27 | INFO     | craftbeer_tracker.storage.db:connect:230 - Database connected at data/craftbeer.db
+2026-06-11 23:11:51 | INFO     | craftbeer_tracker.storage.db:connect:230 - Database connected at data/craftbeer.db
+2026-06-11 23:13:52 | INFO     | craftbeer_tracker.storage.db:connect:230 - Database connected at /Users/paul/WorkSpace/TestSoloCoder/b35bd610-32a6-4267-8288-2bd18ef24fa4/craftbeer_tracker/data/craftbeer.db
+2026-06-11 23:14:03 | INFO     | craftbeer_tracker.storage.db:connect:230 - Database connected at /Users/paul/WorkSpace/TestSoloCoder/b35bd610-32a6-4267-8288-2bd18ef24fa4/craftbeer_tracker/data/craftbeer.db
+2026-06-11 23:17:53 | INFO     | craftbeer_tracker.storage.db:connect:231 - Database connected at /Users/paul/WorkSpace/TestSoloCoder/b35bd610-32a6-4267-8288-2bd18ef24fa4/craftbeer_tracker/data/craftbeer.db
+2026-06-11 23:25:38 | INFO     | craftbeer_tracker.storage.db:connect:231 - Database connected at /Users/paul/WorkSpace/TestSoloCoder/b35bd610-32a6-4267-8288-2bd18ef24fa4/craftbeer_tracker/data/craftbeer.db
+2026-06-11 23:25:48 | INFO     | craftbeer_tracker.storage.db:connect:231 - Database connected at /Users/paul/WorkSpace/TestSoloCoder/b35bd610-32a6-4267-8288-2bd18ef24fa4/craftbeer_tracker/data/craftbeer.db

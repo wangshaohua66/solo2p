@@ -145,6 +145,11 @@ class PipelineScheduler:
                 if item.source == SourcePlatform.KICKSTARTER and item.raw_data:
                     self._process_kickstarter(beer_id, item)
 
+                if item.source == SourcePlatform.BREWER and item.raw_data:
+                    raw = item.raw_data
+                    if raw.get("rss_entry") or raw.get("mailchimp"):
+                        self._process_blog_post(item, beer_id)
+
                 if self.on_new_beer:
                     try:
                         self.on_new_beer(normalized)
@@ -174,6 +179,8 @@ class PipelineScheduler:
         goal = raw.get("goal_amount", 0) or 0
         backers = raw.get("backer_count", 0) or 0
 
+        actually_funded = pledged >= goal and goal > 0
+
         risk_score = 0
         if goal > 0:
             pct = (pledged / goal) * 100
@@ -191,6 +198,9 @@ class PipelineScheduler:
         if backers < 10:
             risk_score = min(risk_score + 20, 100)
 
+        if actually_funded:
+            risk_score = 0
+
         self.db.upsert_kickstarter({
             "beer_id": beer_id,
             "campaign_url": item.source_url,
@@ -199,7 +209,7 @@ class PipelineScheduler:
             "pledged_amount": pledged,
             "backer_count": backers,
             "days_left": raw.get("days_left"),
-            "is_funded": raw.get("is_funded", False),
+            "is_funded": actually_funded,
             "deadline": raw.get("deadline"),
             "risk_score": risk_score,
         })
@@ -216,6 +226,32 @@ class PipelineScheduler:
                 })
             except Exception as exc:
                 logger.error("on_kickstarter_alert callback error: {err}", err=str(exc))
+
+    def _process_blog_post(self, item: Any, beer_id: int) -> None:
+        raw = item.raw_data
+        brewery_name = item.brewery_name
+        brewery_row = self.db.conn.execute(
+            "SELECT id FROM breweries WHERE name = ?", (brewery_name,)
+        ).fetchone()
+        brewery_id = brewery_row["id"] if brewery_row else None
+
+        source_type = "mailchimp" if raw.get("mailchimp") else "rss"
+        published_at = raw.get("published") or item.release_date or item.scraped_at
+
+        self.db.upsert_blog_post({
+            "brewery_id": brewery_id,
+            "title": item.beer_name,
+            "url": item.source_url,
+            "source_type": source_type,
+            "published_at": published_at,
+            "content_snippet": (item.description or "")[:500],
+        })
+
+        logger.debug(
+            "Blog post upserted: {title} ({type})",
+            title=item.beer_name[:40],
+            type=source_type,
+        )
 
     async def _run_price_recheck(self) -> None:
         logger.info("Starting price recheck")

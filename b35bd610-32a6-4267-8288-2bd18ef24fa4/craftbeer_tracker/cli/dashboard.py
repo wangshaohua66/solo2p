@@ -169,8 +169,10 @@ class Dashboard:
 
         return table
 
-    def render_kickstarter_alerts(self) -> Table:
+    def render_kickstarter_alerts(self) -> Table | None:
         campaigns = self.db.get_kickstarter_active()
+        if not campaigns:
+            return None
         table = Table(
             title="⚠️  Kickstarter Risk Alerts",
             show_lines=False,
@@ -345,15 +347,20 @@ class Dashboard:
         manual_q = self.render_manual_queue()
         if manual_q:
             left_panels.append(manual_q)
-        left_panels.append(self.render_kickstarter_alerts())
 
         right_panels = [
             self.render_today_new(),
             self.render_release_calendar(),
         ]
+        ks_alerts = self.render_kickstarter_alerts()
+        if ks_alerts:
+            right_panels.append(ks_alerts)
         price_alerts = self.render_price_alerts()
         if price_alerts:
             right_panels.append(price_alerts)
+        blog_feed = self.render_blog_feed()
+        if blog_feed:
+            right_panels.append(blog_feed)
 
         left_group = Group(*left_panels)
         right_group = Group(*right_panels)
@@ -524,7 +531,7 @@ class Dashboard:
             except ValueError:
                 self._console.print("[yellow]Invalid input, try a row number[/yellow]")
 
-    def render_watch(self, get_stats: Any, refresh_interval: float = 5.0) -> None:
+    def render_watch(self, get_stats: Any, refresh_interval: float = 5.0, heartbeat_fn: Any = None) -> None:
         import threading
         import queue
 
@@ -532,6 +539,7 @@ class Dashboard:
         expanded_row: int | None = None
         expanded_beer: dict | None = None
         should_stop = threading.Event()
+        state_lock = threading.Lock()
 
         def _input_thread():
             while not should_stop.is_set():
@@ -542,47 +550,64 @@ class Dashboard:
                 except Exception:
                     break
 
+        def _process_input(choice: str) -> None:
+            nonlocal expanded_row, expanded_beer
+            if choice.lower() == "q":
+                should_stop.set()
+            elif choice.lower() == "t":
+                expanded_row = None
+                expanded_beer = None
+            elif choice.lower() == "s":
+                beers = self.db.get_scarcity_top(50)
+                if beers:
+                    expanded_beer = beers[0]
+                    expanded_row = 0
+            else:
+                try:
+                    row_idx = int(choice) - 1
+                    beer = self._get_today_beer_by_idx(row_idx)
+                    if not beer:
+                        beer = self._get_scarcity_beer_by_idx(row_idx)
+                    if beer:
+                        expanded_beer = beer
+                        expanded_row = row_idx + 1
+                except ValueError:
+                    pass
+
         thread = threading.Thread(target=_input_thread, daemon=True)
         thread.start()
 
+        def _generate_layout():
+            with state_lock:
+                stats = get_stats() if get_stats else {}
+                return self.render_full(stats, expanded_row=expanded_row, beer_data=expanded_beer)
+
         try:
-            with Live(console=self._console, refresh_per_second=1 / refresh_interval, screen=True) as live:
+            with Live(
+                _generate_layout(),
+                console=self._console,
+                refresh_per_second=1.0 / refresh_interval,
+                screen=True,
+            ) as live:
                 while not should_stop.is_set():
                     try:
-                        stats = get_stats() if get_stats else {}
-                        layout = self.render_full(stats, expanded_row=expanded_row, beer_data=expanded_beer)
-                        live.update(layout)
+                        if heartbeat_fn:
+                            try:
+                                heartbeat_fn()
+                            except Exception:
+                                pass
+
+                        live.update(_generate_layout())
 
                         try:
                             while not input_queue.empty():
                                 choice = input_queue.get_nowait()
-                                if choice.lower() == "q":
-                                    should_stop.set()
-                                    break
-                                elif choice.lower() == "t":
-                                    expanded_row = None
-                                    expanded_beer = None
-                                elif choice.lower() == "s":
-                                    beers = self.db.get_scarcity_top(50)
-                                    if beers:
-                                        expanded_beer = beers[0]
-                                        expanded_row = 0
-                                else:
-                                    try:
-                                        row_idx = int(choice) - 1
-                                        beer = self._get_today_beer_by_idx(row_idx)
-                                        if not beer:
-                                            beer = self._get_scarcity_beer_by_idx(row_idx)
-                                        if beer:
-                                            expanded_beer = beer
-                                            expanded_row = row_idx + 1
-                                    except ValueError:
-                                        pass
+                                with state_lock:
+                                    _process_input(choice)
                         except queue.Empty:
                             pass
 
-                        import time
-                        time.sleep(refresh_interval)
+                        should_stop.wait(refresh_interval)
                     except Exception as exc:
                         logger.error("Dashboard render error: {err}", err=str(exc))
         finally:

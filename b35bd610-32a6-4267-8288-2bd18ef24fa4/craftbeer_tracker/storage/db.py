@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -635,21 +636,24 @@ class Database:
     def _zipcode_matches(self, zipcode: str, pattern: str) -> bool:
         if not pattern or pattern == "*":
             return True
-        patterns = [p.strip() for p in pattern.split(",")]
+        patterns = [p.strip() for p in pattern.replace("-", ",").split(",") if p.strip()]
         for p in patterns:
+            if not p:
+                continue
             if "*" in p:
                 prefix = p.rstrip("*")
                 if zipcode.startswith(prefix):
                     return True
             elif zipcode == p:
                 return True
-            elif "-" in p:
-                try:
-                    lo, hi = p.split("-")
-                    if int(zipcode[:5]) >= int(lo) and int(zipcode[:5]) <= int(hi):
-                        return True
-                except ValueError:
-                    continue
+        numeric_range = re.match(r"^(\d{3,5})\s*-\s*(\d{3,5})$", pattern.strip())
+        if numeric_range:
+            try:
+                lo, hi = numeric_range.group(1), numeric_range.group(2)
+                if int(zipcode[:5]) >= int(lo) and int(zipcode[:5]) <= int(hi):
+                    return True
+            except ValueError:
+                pass
         return False
 
     def get_kickstarter_active(self) -> list[dict]:

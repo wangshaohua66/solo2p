@@ -10,3 +10,4 @@ plyer==2.1.0
 feedparser==6.0.11
 pytesseract==0.3.10
 aiosqlite==0.20.0
+rich-image==0.1.2
