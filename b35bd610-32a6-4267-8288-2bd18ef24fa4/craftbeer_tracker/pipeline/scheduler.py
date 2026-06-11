@@ -9,9 +9,9 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from loguru import logger
 
-from parsers.normalize import normalize_beer
-from scrapers.base import BaseScraper, ScrapeResult, SourcePlatform
-from storage.db import Database
+from ..parsers.normalize import normalize_beer
+from ..scrapers.base import BaseScraper, ScrapeResult, SourcePlatform
+from ..storage.db import Database
 
 SOURCE_INTERVALS: dict[SourcePlatform, int] = {
     SourcePlatform.UNTAPPD: 30,

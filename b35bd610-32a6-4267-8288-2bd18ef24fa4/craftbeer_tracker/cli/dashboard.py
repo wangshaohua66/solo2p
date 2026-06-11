@@ -1,23 +1,25 @@
 from __future__ import annotations
 
+import io
 import os
 import re
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from loguru import logger
 from rich.align import Align
-from rich.columns import Columns
 from rich.console import Console, Group
 from rich.live import Live
 from rich.panel import Panel
-from rich.rule import Rule
+from rich.prompt import Prompt
 from rich.table import Table
 from rich.text import Text
 from rich.layout import Layout
 
-from pipeline.scarcity import ScarcityEngine
-from storage.db import Database
+from ..pipeline.scarcity import ScarcityEngine
+from ..storage.db import Database
 
 SCARCITY_HIGH = 70
 SCARCITY_MEDIUM = 40
@@ -176,10 +178,11 @@ class Dashboard:
             title_style="bold yellow",
         )
         table.add_column("Risk", width=5, justify="center")
-        table.add_column("Campaign", width=30, no_wrap=True)
-        table.add_column("Pledged", width=10, justify="right")
-        table.add_column("Goal", width=10, justify="right")
-        table.add_column("Backers", width=8, justify="right")
+        table.add_column("Funded %", width=10, justify="right")
+        table.add_column("Campaign", width=25, no_wrap=True)
+        table.add_column("Pledged", width=9, justify="right")
+        table.add_column("Goal", width=9, justify="right")
+        table.add_column("Backers", width=7, justify="right")
         table.add_column("Days", width=5, justify="right")
 
         for camp in campaigns:
@@ -187,9 +190,11 @@ class Dashboard:
             risk_style = "bold red" if risk >= 60 else ("yellow" if risk >= 30 else "dim")
             pledged = camp.get("pledged_amount", 0) or 0
             goal = camp.get("goal_amount", 0) or 0
+            funding_pct = camp.get("funding_pct", 0) or 0
 
             table.add_row(
                 Text(str(risk), style=risk_style),
+                Text(f"{funding_pct:.1f}%", style=risk_style),
                 Text(camp.get("title", ""), style=risk_style),
                 Text(f"${pledged:,.0f}" if pledged else "?", style="dim"),
                 Text(f"${goal:,.0f}" if goal else "?", style="dim"),
@@ -310,7 +315,7 @@ class Dashboard:
         avail = self.db.get_availability_for_zipcode(beer_id, zipcode)
         return len(avail) > 0
 
-    def render_full(self, stats: dict[str, Any] | None = None) -> Layout:
+    def render_full(self, stats: dict[str, Any] | None = None, expanded_row: int | None = None, beer_data: dict | None = None) -> Layout:
         width = self._detect_width()
         layout = Layout()
         layout.split_column(
@@ -329,63 +334,259 @@ class Dashboard:
             )
         )
 
-        left_col_width = width // 2
-        right_col_width = width - left_col_width
-
         layout["body"].split_row(
             Layout(name="left", ratio=1),
             Layout(name="right", ratio=1),
         )
 
-        left_panels = [
-            self.render_today_new(),
-            self.render_release_calendar(),
-        ]
+        left_panels = []
         if stats:
             left_panels.append(self.render_scrape_status(stats))
         manual_q = self.render_manual_queue()
         if manual_q:
             left_panels.append(manual_q)
+        left_panels.append(self.render_kickstarter_alerts())
 
         right_panels = [
-            self.render_scarcity_top(),
-            self.render_kickstarter_alerts(),
+            self.render_today_new(),
+            self.render_release_calendar(),
         ]
         price_alerts = self.render_price_alerts()
         if price_alerts:
             right_panels.append(price_alerts)
-        blog_feed = self.render_blog_feed()
-        if blog_feed:
-            right_panels.append(blog_feed)
 
         left_group = Group(*left_panels)
         right_group = Group(*right_panels)
 
-        layout["left"].update(Panel(left_group, title="New & Queue", border_style="cyan"))
-        layout["right"].update(Panel(right_group, title="Scarcity & Alerts", border_style="red"))
+        if expanded_row is not None and beer_data:
+            detail_panel = self._render_expanded_detail(beer_data, expanded_row)
+            right_group = Group(detail_panel, *right_panels)
+
+        layout["left"].update(Panel(left_group, title="📡 Scrape Queue & Status", border_style="cyan"))
+        layout["right"].update(Panel(right_group, title="🍺 Today's New & Releases", border_style="green"))
 
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         db_size = self.db.check_db_size()
-        footer_text = f" {now}  |  DB: {db_size:.1f}MB  |  Zipcode: {self.zipcode or 'not set'}  |  Sources: 6"
+        zip_hint = f"Type row # + Enter to expand · " if expanded_row is None else ""
+        footer_text = f" {now}  |  DB: {db_size:.1f}MB  |  Zipcode: {self.zipcode or 'not set'}  |  {zip_hint}Sources: 6"
         layout["footer"].update(
             Panel(Align.center(Text(footer_text, style="dim")), style="dim")
         )
 
         return layout
 
+    def _render_expanded_detail(self, beer: dict, row_idx: int) -> Panel:
+        beer_id = beer.get("id")
+        name = beer.get("beer_name", "Unknown")
+        brewery = beer.get("brewery_name", "Unknown")
+        score = beer.get("scarcity_score", 0)
+        description = beer.get("description", "No description available")
+
+        conn = self.db.conn
+        sources = conn.execute(
+            "SELECT * FROM beer_sources WHERE beer_id = ?", (beer_id,)
+        ).fetchall()
+
+        purchase_url = ""
+        screenshot_path = None
+        source_urls = []
+        for s in sources:
+            avail_raw = s.get("availability_raw", "{}")
+            try:
+                import json
+                avail = json.loads(avail_raw)
+                if avail.get("purchase_url"):
+                    purchase_url = avail["purchase_url"]
+            except Exception:
+                pass
+            if s.get("screenshot_path"):
+                screenshot_path = s["screenshot_path"]
+            if s.get("source_url"):
+                source_urls.append((s["source"], s["source_url"]))
+
+        content = Group()
+        header = Table.grid(expand=True)
+        header.add_column(ratio=1)
+        header.add_column(ratio=2)
+        header.add_row(Text("🏷️  Beer:", style="bold"), Text(f"{name}"))
+        header.add_row(Text("🏭 Brewery:", style="bold"), Text(f"{brewery}"))
+        header.add_row(Text("🔥 Scarcity:", style="bold"), Text(f"{score}/100", style=self._scarcity_style(score)))
+        header.add_row(Text("📝 Description:", style="bold"), Text(description[:300], style="dim"))
+        content.renderable.append(header)
+
+        if screenshot_path and Path(screenshot_path).exists():
+            ascii_thumb = self._generate_ascii_thumbnail(screenshot_path, width=40)
+            if ascii_thumb:
+                content.renderable.append(Text(""))
+                content.renderable.append(Text("📸 Screenshot:", style="bold"))
+                content.renderable.append(Panel(Text(ascii_thumb, style="dim"), style="cyan"))
+            try:
+                from rich.padding import Padding
+                from rich_image import Image as RichImage
+                img = RichImage(screenshot_path, width=30, height=15)
+                content.renderable.append(Padding(img, (1, 0, 0, 2)))
+            except ImportError:
+                pass
+            except Exception as exc:
+                logger.debug("Rich image render failed: {err}", err=str(exc))
+
+        if purchase_url or source_urls:
+            content.renderable.append(Text(""))
+            content.renderable.append(Text("🔗 Purchase Links:", style="bold"))
+            if purchase_url:
+                osc8 = f"\033]8;;{purchase_url}\033\\{purchase_url}\033]8;;\033\\"
+                content.renderable.append(Text(f"  • Buy: {osc8}", style="green"))
+            for src, url in source_urls[:3]:
+                osc8 = f"\033]8;;{url}\033\\{url}\033]8;;\033\\"
+                content.renderable.append(Text(f"  • {src}: {osc8}", style="dim"))
+
+        return Panel(content, title=f"📌 Row {row_idx}: {name}", border_style="yellow", expand=True)
+
+    def _generate_ascii_thumbnail(self, image_path: str, width: int = 40) -> str:
+        try:
+            from PIL import Image
+            img = Image.open(image_path)
+            ratio = img.height / img.width
+            height = max(2, int(width * ratio * 0.5))
+            img = img.resize((width, height), Image.Resampling.LANCZOS)
+            img = img.convert("L")
+            pixels = img.getdata()
+            chars = " .:-=+*#%@"
+            new_pixels = [chars[pixel * len(chars) // 256] for pixel in pixels]
+            new_pixels_count = len(new_pixels)
+            ascii_image = [
+                "".join(new_pixels[index:index + width])
+                for index in range(0, new_pixels_count, width)
+            ]
+            return "\n".join(ascii_image)
+        except ImportError:
+            return ""
+        except Exception as exc:
+            logger.debug("ASCII thumb failed: {err}", err=str(exc))
+            return ""
+
     def render_once(self, stats: dict[str, Any] | None = None) -> None:
         layout = self.render_full(stats)
         self._console.print(layout)
 
+    def _get_today_beer_by_idx(self, idx: int) -> dict | None:
+        beers = self.db.get_beers_today()
+        if 0 <= idx < len(beers):
+            return beers[idx]
+        return None
+
+    def _get_scarcity_beer_by_idx(self, idx: int) -> dict | None:
+        beers = self.db.get_scarcity_top(50)
+        if 0 <= idx < len(beers):
+            return beers[idx]
+        return None
+
+    def render_interactive(self, stats: dict[str, Any] | None = None) -> None:
+        expanded_row: int | None = None
+        expanded_beer: dict | None = None
+
+        while True:
+            layout = self.render_full(stats, expanded_row=expanded_row, beer_data=expanded_beer)
+            self._console.print(layout)
+
+            try:
+                choice = Prompt.ask(
+                    "\n[dim]Enter row # to expand, 't' for today, 's' for scarcity, 'q' to quit[/dim]",
+                    default="q",
+                    show_default=False,
+                )
+            except (EOFError, KeyboardInterrupt):
+                break
+
+            if choice.lower() == "q":
+                break
+            elif choice.lower() == "t":
+                expanded_row = None
+                expanded_beer = None
+                continue
+            elif choice.lower() == "s":
+                beers = self.db.get_scarcity_top(50)
+                if beers:
+                    expanded_beer = beers[0]
+                    expanded_row = 0
+                continue
+
+            try:
+                row_idx = int(choice) - 1
+                beer = self._get_today_beer_by_idx(row_idx)
+                if not beer:
+                    beer = self._get_scarcity_beer_by_idx(row_idx)
+                if beer:
+                    expanded_beer = beer
+                    expanded_row = row_idx + 1
+                else:
+                    self._console.print(f"[yellow]Row {row_idx + 1} not found[/yellow]")
+            except ValueError:
+                self._console.print("[yellow]Invalid input, try a row number[/yellow]")
+
     def render_watch(self, get_stats: Any, refresh_interval: float = 5.0) -> None:
-        with Live(console=self._console, refresh_per_second=1 / refresh_interval, screen=True) as live:
-            while True:
+        import threading
+        import queue
+
+        input_queue: queue.Queue[str] = queue.Queue()
+        expanded_row: int | None = None
+        expanded_beer: dict | None = None
+        should_stop = threading.Event()
+
+        def _input_thread():
+            while not should_stop.is_set():
                 try:
-                    stats = get_stats() if get_stats else {}
-                    layout = self.render_full(stats)
-                    live.update(layout)
-                except Exception as exc:
-                    logger.error("Dashboard render error: {err}", err=str(exc))
+                    line = sys.stdin.readline().strip()
+                    if line:
+                        input_queue.put(line)
+                except Exception:
+                    break
+
+        thread = threading.Thread(target=_input_thread, daemon=True)
+        thread.start()
+
+        try:
+            with Live(console=self._console, refresh_per_second=1 / refresh_interval, screen=True) as live:
+                while not should_stop.is_set():
+                    try:
+                        stats = get_stats() if get_stats else {}
+                        layout = self.render_full(stats, expanded_row=expanded_row, beer_data=expanded_beer)
+                        live.update(layout)
+
+                        try:
+                            while not input_queue.empty():
+                                choice = input_queue.get_nowait()
+                                if choice.lower() == "q":
+                                    should_stop.set()
+                                    break
+                                elif choice.lower() == "t":
+                                    expanded_row = None
+                                    expanded_beer = None
+                                elif choice.lower() == "s":
+                                    beers = self.db.get_scarcity_top(50)
+                                    if beers:
+                                        expanded_beer = beers[0]
+                                        expanded_row = 0
+                                else:
+                                    try:
+                                        row_idx = int(choice) - 1
+                                        beer = self._get_today_beer_by_idx(row_idx)
+                                        if not beer:
+                                            beer = self._get_scarcity_beer_by_idx(row_idx)
+                                        if beer:
+                                            expanded_beer = beer
+                                            expanded_row = row_idx + 1
+                                    except ValueError:
+                                        pass
+                        except queue.Empty:
+                            pass
+
+                        import time
+                        time.sleep(refresh_interval)
+                    except Exception as exc:
+                        logger.error("Dashboard render error: {err}", err=str(exc))
+        finally:
+            should_stop.set()
 
     def check_zipcode_availability(self, zipcode: str, beer_name: str | None = None) -> Table:
         conn = self.db.conn

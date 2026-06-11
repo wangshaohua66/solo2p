@@ -8,7 +8,7 @@ from typing import Any
 import aiohttp
 from bs4 import BeautifulSoup
 
-from scrapers.base import BaseScraper, RawBeerItem, ScrapeResult, SourcePlatform
+from .base import BaseScraper, RawBeerItem, ScrapeResult, SourcePlatform
 
 
 class DistributorScraper(BaseScraper):
@@ -140,9 +140,35 @@ class DistributorScraper(BaseScraper):
                 link_el = el.select_one("a[href]")
                 source_url = link_el.get("href", "") if link_el else ""
 
+                purchase_url = ""
+                purchase_selectors = [
+                    'a[href*="/product/"]', 'a[href*="/shop/"]', 'a[href*="/buy/"]',
+                    'a[href*="/purchase/"]', 'a[class*="add-to-cart"]', 'a[class*="buy-now"]',
+                    'button[onclick*="http"]', 'a[href*="checkout"]'
+                ]
+                for sel in purchase_selectors:
+                    purchase_el = el.select_one(sel)
+                    if purchase_el:
+                        href = purchase_el.get("href", "")
+                        onclick = purchase_el.get("onclick", "")
+                        if href and href.startswith("http"):
+                            purchase_url = href
+                            break
+                        elif onclick:
+                            url_match = re.search(r"https?://[^\s'\"<>]+", onclick)
+                            if url_match:
+                                purchase_url = url_match.group()
+                                break
+
+                if not purchase_url and source_url and source_url.startswith("http"):
+                    purchase_url = source_url
+
+                availability_raw["purchase_url"] = purchase_url
+                availability_raw["source_url"] = source_url
+
                 items.append(RawBeerItem(
                     source=self.SOURCE,
-                    source_url=source_url,
+                    source_url=purchase_url or source_url,
                     brewery_name=brewery_name,
                     beer_name=beer_name,
                     style=style,
@@ -152,6 +178,7 @@ class DistributorScraper(BaseScraper):
                     limited_tags=limited_tags,
                     availability_raw=availability_raw,
                     image_url=image_url,
+                    raw_data={"purchase_url": purchase_url},
                     scraped_at=datetime.now(timezone.utc).isoformat(),
                 ))
             except Exception:

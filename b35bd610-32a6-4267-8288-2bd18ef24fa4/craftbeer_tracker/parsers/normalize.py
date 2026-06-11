@@ -4,7 +4,7 @@ import re
 import unicodedata
 from datetime import datetime, timezone
 
-from scrapers.base import RawBeerItem, SourcePlatform
+from ..scrapers.base import RawBeerItem, SourcePlatform
 
 LIMITED_KEYWORDS = {
     "limited", "limited edition", "limited release", "exclusive",

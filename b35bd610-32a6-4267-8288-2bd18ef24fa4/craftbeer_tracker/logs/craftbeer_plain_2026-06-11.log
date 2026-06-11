@@ -1,0 +1,26 @@
+2026-06-11 22:37:17 | INFO     | craftbeer_tracker.storage.db:connect:230 - Database connected at data/craftbeer.db
+2026-06-11 22:39:43 | INFO     | craftbeer_tracker.storage.db:connect:230 - Database connected at data/craftbeer.db
+2026-06-11 22:41:24 | INFO     | __main__:run:203 - Craft Beer Tracker starting in once mode
+2026-06-11 22:41:24 | INFO     | craftbeer_tracker.storage.db:connect:230 - Database connected at data/craftbeer.db
+2026-06-11 22:41:24 | INFO     | __main__:_run_pipeline:159 - Running single scrape cycle
+2026-06-11 22:41:24 | INFO     | craftbeer_tracker.scrapers.base:run:76 - Starting scrape for untappd
+2026-06-11 22:41:24 | INFO     | craftbeer_tracker.scrapers.base:run:76 - Starting scrape for ratebeer
+2026-06-11 22:41:24 | INFO     | craftbeer_tracker.scrapers.base:run:76 - Starting scrape for kickstarter
+2026-06-11 22:41:24 | INFO     | craftbeer_tracker.scrapers.base:run:76 - Starting scrape for brewer
+2026-06-11 22:41:24 | INFO     | craftbeer_tracker.scrapers.base:run:76 - Starting scrape for distributor
+2026-06-11 22:41:24 | INFO     | craftbeer_tracker.scrapers.base:run:76 - Starting scrape for newsletter
+2026-06-11 22:41:24 | ERROR    | craftbeer_tracker.scrapers.newsletter:fetch:40 - Newsletter Brewery Taplist error: No module named 'playwright'
+2026-06-11 22:41:24 | INFO     | craftbeer_tracker.scrapers.base:run:87 - Scrape complete for newsletter: 0 items
+2026-06-11 22:41:24 | INFO     | craftbeer_tracker.pipeline.scheduler:_execute_scraper:161 - Scraper newsletter done: 0 items, 1 errors
+2026-06-11 22:41:25 | INFO     | craftbeer_tracker.scrapers.base:run:87 - Scrape complete for ratebeer: 0 items
+2026-06-11 22:41:25 | INFO     | craftbeer_tracker.pipeline.scheduler:_execute_scraper:161 - Scraper ratebeer done: 0 items, 2 errors
+2026-06-11 22:41:26 | INFO     | craftbeer_tracker.scrapers.base:run:87 - Scrape complete for distributor: 0 items
+2026-06-11 22:41:26 | INFO     | craftbeer_tracker.pipeline.scheduler:_execute_scraper:161 - Scraper distributor done: 0 items, 1 errors
+2026-06-11 22:41:30 | INFO     | craftbeer_tracker.scrapers.base:run:87 - Scrape complete for untappd: 0 items
+2026-06-11 22:41:30 | INFO     | craftbeer_tracker.pipeline.scheduler:_execute_scraper:161 - Scraper untappd done: 0 items, 2 errors
+2026-06-11 22:41:54 | WARNING  | craftbeer_tracker.scrapers.base:run:95 - Timeout scraping kickstarter (attempt 1/3)
+2026-06-11 22:41:54 | WARNING  | craftbeer_tracker.scrapers.base:run:95 - Timeout scraping brewer (attempt 1/3)
+2026-06-11 22:41:55 | INFO     | craftbeer_tracker.scrapers.base:run:76 - Starting scrape for kickstarter
+2026-06-11 22:41:55 | INFO     | craftbeer_tracker.scrapers.base:run:76 - Starting scrape for brewer
+2026-06-11 22:42:25 | WARNING  | craftbeer_tracker.scrapers.base:run:95 - Timeout scraping kickstarter (attempt 2/3)
+2026-06-11 22:42:25 | WARNING  | craftbeer_tracker.scrapers.base:run:95 - Timeout scraping brewer (attempt 2/3)

@@ -1,4 +1,4 @@
-from pipeline.scheduler import PipelineScheduler
-from pipeline.scarcity import ScarcityEngine
+from .scheduler import PipelineScheduler
+from .scarcity import ScarcityEngine
 
 __all__ = ["PipelineScheduler", "ScarcityEngine"]

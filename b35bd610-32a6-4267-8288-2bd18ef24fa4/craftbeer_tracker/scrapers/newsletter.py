@@ -8,7 +8,7 @@ from typing import Any
 
 from loguru import logger
 
-from scrapers.base import BaseScraper, RawBeerItem, ScrapeResult, SourcePlatform
+from .base import BaseScraper, RawBeerItem, ScrapeResult, SourcePlatform
 
 
 class NewsletterScraper(BaseScraper):

@@ -65,9 +65,8 @@ class BaseScraper(ABC):
     async def fetch(self) -> ScrapeResult:
         ...
 
-    @abstractmethod
     async def _parse_page(self, content: Any) -> list[RawBeerItem]:
-        ...
+        return []
 
     async def run(self) -> ScrapeResult:
         retries = 0

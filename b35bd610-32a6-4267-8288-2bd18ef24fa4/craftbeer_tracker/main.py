@@ -52,12 +52,14 @@ def load_config(config_path: Path) -> dict[str, Any]:
     return {}
 
 
-def send_desktop_notification(title: str, message: str, url: str = "") -> None:
+def send_desktop_notification(title: str, message: str, purchase_url: str = "", source_url: str = "") -> None:
     try:
         from plyer import notification
         notify_msg = f"{message}"
-        if url:
-            notify_msg += f"\n{url}"
+        if purchase_url:
+            notify_msg += f"\nBuy: {purchase_url}"
+        elif source_url:
+            notify_msg += f"\nMore: {source_url}"
         notification.notify(
             title=title,
             message=notify_msg[:200],
@@ -67,49 +69,66 @@ def send_desktop_notification(title: str, message: str, url: str = "") -> None:
     except Exception as exc:
         logger.debug("Desktop notification failed: {err}", err=str(exc))
 
+    actual_url = purchase_url or source_url
+    if actual_url:
+        try:
+            import sys
+            osc8_link = f"\033]8;;{actual_url}\033\\{actual_url}\033]8;;\033\\"
+            sys.stdout.write(f"\n  🔗 Click to open: {osc8_link}\n\n")
+            sys.stdout.flush()
+        except Exception as exc:
+            logger.debug("OSC8 link failed: {err}", err=str(exc))
+            click.echo(f"  🔗 Link: {actual_url}")
+
 
 def _on_new_beer(beer: dict) -> None:
     name = beer.get("beer_name", "Unknown")
     brewery = beer.get("brewery_name", "Unknown")
     score = beer.get("scarcity_score", 0)
     if score >= 70:
+        purchase_url = beer.get("source_url", "")
         send_desktop_notification(
             f"🔥 Rare Beer Alert: {name}",
             f"{brewery} — Scarcity {score}/100",
-            beer.get("source_url", ""),
+            purchase_url=purchase_url,
+            source_url=purchase_url,
         )
 
 
 def _on_discount(discount: dict) -> None:
     name = discount.get("beer_name", "")
     pct = discount.get("discount_pct", 0)
+    purchase_url = discount.get("purchase_url", "")
     send_desktop_notification(
         f"💰 Price Drop: {name}",
         f"Discount -{pct:.0f}%",
+        purchase_url=purchase_url,
     )
 
 
 def _on_kickstarter_alert(campaign: dict) -> None:
     title = campaign.get("title", "")
     risk = campaign.get("risk_score", 0)
+    campaign_url = campaign.get("campaign_url", "")
     send_desktop_notification(
         f"⚠️ Kickstarter Risk: {title}",
         f"Risk score {risk}/100 — may not fund",
+        source_url=campaign_url,
     )
 
 
 async def _run_pipeline(config: dict[str, Any], mode: str, zipcode: str | None) -> None:
-    from cli.dashboard import Dashboard
-    from pipeline.scarcity import ScarcityEngine
-    from pipeline.scheduler import PipelineScheduler
-    from scrapers.base import SourcePlatform
-    from scrapers.brewer import BrewerScraper
-    from scrapers.distributor import DistributorScraper
-    from scrapers.kickstarter import KickstarterScraper
-    from scrapers.newsletter import NewsletterScraper
-    from scrapers.ratebeer import RateBeerScraper
-    from scrapers.untappd import UntappdScraper
-    from storage.db import Database
+    from .cli.dashboard import Dashboard
+    from .pipeline.scarcity import ScarcityEngine
+    from .pipeline.scheduler import PipelineScheduler
+    from .scrapers.base import SourcePlatform
+    from .scrapers.brewer import BrewerScraper
+    from .scrapers.distributor import DistributorScraper
+    from .scrapers.kickstarter import KickstarterScraper
+    from .scrapers.newsletter import NewsletterScraper
+    from .scrapers.ratebeer import RateBeerScraper
+    from .scrapers.untappd import UntappdScraper
+    from .storage.db import Database
 
     db_path = Path(config.get("db_path", str(DATA_DIR / "craftbeer.db")))
     db = Database(db_path)
@@ -142,6 +161,12 @@ async def _run_pipeline(config: dict[str, Any], mode: str, zipcode: str | None) 
         scarcity_engine.recalculate_all()
         scarcity_engine.deduplicate_and_score()
         dashboard.render_once(stats=pipeline.get_stats())
+    elif mode == "interactive":
+        logger.info("Running in interactive mode")
+        stats = await pipeline.run_all_once()
+        scarcity_engine.recalculate_all()
+        scarcity_engine.deduplicate_and_score()
+        dashboard.render_interactive(stats=pipeline.get_stats())
     elif mode == "watch":
         pipeline.start()
 
@@ -168,7 +193,7 @@ def cli() -> None:
 
 
 @cli.command()
-@click.option("--mode", type=click.Choice(["once", "watch"]), default="once", help="Run mode")
+@click.option("--mode", type=click.Choice(["once", "watch", "interactive"]), default="once", help="Run mode")
 @click.option("--zipcode", "-z", default=None, help="Your zipcode for availability check")
 @click.option("--config", "-c", "config_path", default=None, help="Config file path")
 def run(mode: str, zipcode: str | None, config_path: str | None) -> None:
@@ -188,9 +213,9 @@ def check(zipcode: str, beer: str | None, config_path: str | None) -> None:
     cfg_path = Path(config_path) if config_path else CONFIG_PATH
     config = load_config(cfg_path)
 
-    from cli.dashboard import Dashboard
-    from pipeline.scarcity import ScarcityEngine
-    from storage.db import Database
+    from .cli.dashboard import Dashboard
+    from .pipeline.scarcity import ScarcityEngine
+    from .storage.db import Database
 
     db_path = Path(config.get("db_path", str(DATA_DIR / "craftbeer.db")))
     db = Database(db_path)
@@ -214,8 +239,8 @@ def dedup(config_path: str | None) -> None:
     cfg_path = Path(config_path) if config_path else CONFIG_PATH
     config = load_config(cfg_path)
 
-    from pipeline.scarcity import ScarcityEngine
-    from storage.db import Database
+    from .pipeline.scarcity import ScarcityEngine
+    from .storage.db import Database
 
     db_path = Path(config.get("db_path", str(DATA_DIR / "craftbeer.db")))
     db = Database(db_path)
@@ -236,7 +261,7 @@ def status(config_path: str | None) -> None:
     cfg_path = Path(config_path) if config_path else CONFIG_PATH
     config = load_config(cfg_path)
 
-    from storage.db import Database
+    from .storage.db import Database
 
     db_path = Path(config.get("db_path", str(DATA_DIR / "craftbeer.db")))
     db = Database(db_path)

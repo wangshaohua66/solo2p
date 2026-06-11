@@ -1,3 +1,3 @@
-from cli.dashboard import Dashboard
+from .dashboard import Dashboard
 
 __all__ = ["Dashboard"]

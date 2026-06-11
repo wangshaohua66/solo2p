@@ -7,7 +7,7 @@ from typing import Any
 import aiohttp
 from bs4 import BeautifulSoup
 
-from scrapers.base import BaseScraper, RawBeerItem, ScrapeResult, SourcePlatform
+from .base import BaseScraper, RawBeerItem, ScrapeResult, SourcePlatform
 
 
 class UntappdScraper(BaseScraper):

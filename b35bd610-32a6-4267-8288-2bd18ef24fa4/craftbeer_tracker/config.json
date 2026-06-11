@@ -1,22 +1,59 @@
 {
   "db_path": "data/craftbeer.db",
   "untappd": {
-    "brewery_ids": []
+    "brewery_ids": [
+      "1234-the-bruery",
+      "5678-tree-house-brewing-company"
+    ]
   },
   "ratebeer": {
-    "brewery_slugs": []
+    "brewery_slugs": [
+      "the-bruery/54321",
+      "tree-house-brewing-co/98765"
+    ]
   },
   "kickstarter": {
     "search_terms": ["craft beer", "brewery", "brewing", "beer project", "taproom"]
   },
   "brewer": {
-    "breweries": []
+    "breweries": [
+      {
+        "name": "The Bruery",
+        "url": "https://thebruery.com/beer",
+        "rss_url": "https://thebruery.com/feed/"
+      },
+      {
+        "name": "Tree House",
+        "url": "https://www.treehousebrew.com/shop",
+        "rss_url": ""
+      }
+    ],
+    "mailchimp_urls": [
+      {
+        "name": "The Bruery Newsletter",
+        "url": "https://us1.campaign-archive.com/home/?u=abc123&id=def456"
+      },
+      {
+        "name": "Tree House Releases",
+        "url": "https://mailchi.mp/treehousebrew/releases"
+      }
+    ]
   },
   "distributor": {
-    "distributors": []
+    "distributors": [
+      {
+        "name": "Beverage Distribution Co",
+        "url": "https://example-distributor.com/craft-beer"
+      }
+    ]
   },
   "newsletter": {
-    "newsletter_urls": [],
+    "newsletter_urls": [
+      {
+        "name": "Brewery Taplist",
+        "url": "https://example-newsletter.com/taplist"
+      }
+    ],
     "screenshot_dir": "data/screenshots"
   }
 }

@@ -5,7 +5,7 @@ from typing import Any
 
 from loguru import logger
 
-from storage.db import Database
+from ..storage.db import Database
 
 LIMITED_TAG_WEIGHTS: dict[str, int] = {
     "taproom only": 25,
@@ -96,7 +96,7 @@ class ScarcityEngine:
             return 0.0
 
     def recalculate_all(self) -> int:
-        from parsers.normalize import generate_fingerprint
+        from ..parsers.normalize import generate_fingerprint
 
         conn = self.db.conn
         rows = conn.execute(
