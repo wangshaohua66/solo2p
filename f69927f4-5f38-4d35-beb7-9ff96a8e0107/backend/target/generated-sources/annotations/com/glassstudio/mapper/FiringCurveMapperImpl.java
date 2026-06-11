@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2026-06-11T14:46:34+0800",
+    date = "2026-06-11T15:23:19+0800",
     comments = "version: 1.5.5.Final, compiler: Eclipse JDT (IDE) 3.46.0.v20260407-0427, environment: Java 21.0.10 (Eclipse Adoptium)"
 )
 @Component
@@ -25,12 +25,12 @@ public class FiringCurveMapperImpl implements FiringCurveMapper {
 
         FiringCurve.FiringCurveBuilder firingCurve = FiringCurve.builder();
 
-        firingCurve.isTemplate( dto.getIsTemplate() );
         firingCurve.name( dto.getName() );
         List<CurveSegment> list = dto.getSegments();
         if ( list != null ) {
             firingCurve.segments( new ArrayList<CurveSegment>( list ) );
         }
+        firingCurve.isTemplate( dto.getIsTemplate() );
 
         return firingCurve.build();
     }
@@ -41,9 +41,6 @@ public class FiringCurveMapperImpl implements FiringCurveMapper {
             return;
         }
 
-        if ( dto.getIsTemplate() != null ) {
-            entity.setIsTemplate( dto.getIsTemplate() );
-        }
         if ( dto.getName() != null ) {
             entity.setName( dto.getName() );
         }
@@ -59,6 +56,9 @@ public class FiringCurveMapperImpl implements FiringCurveMapper {
             if ( list != null ) {
                 entity.setSegments( new ArrayList<CurveSegment>( list ) );
             }
+        }
+        if ( dto.getIsTemplate() != null ) {
+            entity.setIsTemplate( dto.getIsTemplate() );
         }
     }
 }

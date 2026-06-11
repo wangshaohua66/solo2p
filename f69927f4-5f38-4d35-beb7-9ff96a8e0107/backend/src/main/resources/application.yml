@@ -3,7 +3,7 @@ server:
 
 spring:
   profiles:
-    active: h2
+    active: mysql
 
   datasource:
     url: jdbc:mysql://localhost:3306/glass_studio?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true

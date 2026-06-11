@@ -94,8 +94,10 @@ public class FiringCurveService {
         List<CurveSegment> copiedSegments = new ArrayList<>();
         for (CurveSegment segment : original.getSegments()) {
             copiedSegments.add(CurveSegment.builder()
+                    .phase(segment.getPhase())
                     .targetTemp(segment.getTargetTemp())
                     .duration(segment.getDuration())
+                    .maxSlope(segment.getMaxSlope())
                     .description(segment.getDescription())
                     .build());
         }
