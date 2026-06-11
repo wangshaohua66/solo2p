@@ -1,0 +1,22 @@
+{
+  "db_path": "data/craftbeer.db",
+  "untappd": {
+    "brewery_ids": []
+  },
+  "ratebeer": {
+    "brewery_slugs": []
+  },
+  "kickstarter": {
+    "search_terms": ["craft beer", "brewery", "brewing", "beer project", "taproom"]
+  },
+  "brewer": {
+    "breweries": []
+  },
+  "distributor": {
+    "distributors": []
+  },
+  "newsletter": {
+    "newsletter_urls": [],
+    "screenshot_dir": "data/screenshots"
+  }
+}

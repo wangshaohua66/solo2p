@@ -1,0 +1,12 @@
+playwright==1.42.0
+beautifulsoup4==4.12.3
+aiohttp==3.9.5
+click==8.1.7
+rich==13.7.1
+apscheduler==3.10.4
+loguru==0.7.2
+Pillow==10.3.0
+plyer==2.1.0
+feedparser==6.0.11
+pytesseract==0.3.10
+aiosqlite==0.20.0
