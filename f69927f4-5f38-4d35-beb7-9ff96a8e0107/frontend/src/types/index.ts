@@ -230,9 +230,17 @@ export interface LoginResponse {
   user: AuthUser;
 }
 
+export type NotificationCategory =
+  | 'TEMPERATURE'
+  | 'SCHEDULE'
+  | 'ALERT'
+  | 'GENERAL'
+  | 'INVENTORY';
+
 export interface AppNotification {
   id: string;
   type: 'info' | 'success' | 'warning' | 'error';
+  category: NotificationCategory;
   title: string;
   content: string;
   timestamp: string;

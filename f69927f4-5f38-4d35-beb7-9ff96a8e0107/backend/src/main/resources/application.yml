@@ -1,0 +1,57 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/glass_studio?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      database: 0
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-wait: -1ms
+          max-idle: 8
+          min-idle: 0
+
+jwt:
+  secret: Y2xhc3Nfc3R1ZGlvX2p3dF9zZWNyZXRfa2V5XzI1Nml0X2JpdHNfZm9yX2F1dGg=
+  expiration: 86400000
+
+cors:
+  allowed-origins:
+    - http://localhost:5173
+  allowed-methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - OPTIONS
+    - PATCH
+  allowed-headers:
+    - "*"
+  allow-credentials: true
+  max-age: 3600
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

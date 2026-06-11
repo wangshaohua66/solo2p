@@ -1,0 +1,110 @@
+package com.glassstudio.service;
+
+import com.glassstudio.dto.BatchCreateDTO;
+import com.glassstudio.entity.Batch;
+import com.glassstudio.entity.BatchStatus;
+import com.glassstudio.exception.NotFoundException;
+import com.glassstudio.exception.ValidationException;
+import com.glassstudio.mapper.BatchMapper;
+import com.glassstudio.repository.BatchRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
+
+@Service
+@RequiredArgsConstructor
+public class InventoryService {
+
+    private final BatchRepository batchRepository;
+    private final BatchMapper batchMapper;
+    private final ObjectMapper objectMapper;
+
+    public List<Batch> getAllBatches() {
+        return batchRepository.findAll();
+    }
+
+    public Batch getBatchById(Long id) {
+        return batchRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("批次不存在"));
+    }
+
+    public List<Batch> getExpiryWarnings() {
+        LocalDate warningDate = LocalDate.now().plusDays(30);
+        return batchRepository.findByStatusAndExpiryDateBefore(BatchStatus.IN_STOCK, warningDate);
+    }
+
+    @Transactional
+    public Batch createBatch(BatchCreateDTO dto) {
+        Batch batch = batchMapper.toEntity(dto);
+        batch.setStatus(BatchStatus.IN_STOCK);
+
+        if (dto.getOxideComposition() != null) {
+            try {
+                batch.setOxideComposition(objectMapper.writeValueAsString(dto.getOxideComposition()));
+            } catch (JsonProcessingException e) {
+                throw new ValidationException("氧化物成分数据格式错误");
+            }
+        }
+
+        return batchRepository.save(batch);
+    }
+
+    @Transactional
+    public Batch checkoutBatch(Long id, BigDecimal quantity) {
+        Batch batch = getBatchById(id);
+
+        if (batch.getStatus() != BatchStatus.IN_STOCK) {
+            throw new ValidationException("批次不在库存状态");
+        }
+
+        if (batch.getQuantity().compareTo(quantity) < 0) {
+            throw new ValidationException("库存不足");
+        }
+
+        BigDecimal remaining = batch.getQuantity().subtract(quantity);
+        if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+            batch.setStatus(BatchStatus.CHECKED_OUT);
+            batch.setQuantity(BigDecimal.ZERO);
+        } else {
+            batch.setQuantity(remaining);
+        }
+
+        return batchRepository.save(batch);
+    }
+
+    @Transactional
+    public Batch fifoCheckout(String materialName, BigDecimal quantity) {
+        Batch batch = batchRepository.findTopByMaterialNameAndStatusOrderByCreatedAtAsc(materialName, BatchStatus.IN_STOCK);
+        if (batch == null) {
+            throw new NotFoundException("没有可用的库存批次");
+        }
+        return checkoutBatch(batch.getId(), quantity);
+    }
+
+    @Transactional
+    public void deleteBatch(Long id) {
+        if (!batchRepository.existsById(id)) {
+            throw new NotFoundException("批次不存在");
+        }
+        batchRepository.deleteById(id);
+    }
+
+    public Map<String, Object> getOxideComposition(Long id) {
+        Batch batch = getBatchById(id);
+        if (batch.getOxideComposition() == null) {
+            return Map.of();
+        }
+        try {
+            return objectMapper.readValue(batch.getOxideComposition(), Map.class);
+        } catch (JsonProcessingException e) {
+            throw new ValidationException("氧化物成分数据解析失败");
+        }
+    }
+}

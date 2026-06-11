@@ -4,7 +4,7 @@ import {
   Segmented, message, Tooltip,
 } from 'antd';
 import {
-  Plus, ChevronLeft, ChevronRight, AlertTriangle, X, Shield, Clock,
+  Plus, ChevronLeft, ChevronRight, AlertTriangle, X, Shield,
 } from 'lucide-react';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
@@ -58,16 +58,36 @@ function getScheduleHours(schedule: Schedule, date: Dayjs) {
   return { startHour, endHour };
 }
 
-function findConflicts(kilnId: number, startTime: string, endTime: string, schedules: Schedule[]) {
+function findConflicts(kilnId: number, startTime: string, endTime: string, schedules: Schedule[], excludeId?: number) {
   const s = dayjs(startTime);
   const e = dayjs(endTime);
   return schedules.filter(
     (sch) =>
       sch.kilnId === kilnId &&
       sch.status !== 'CANCELLED' &&
+      sch.id !== excludeId &&
       dayjs(sch.startTime).isBefore(e) &&
       dayjs(sch.endTime).isAfter(s),
   );
+}
+
+function getDropPosition(clientX: number, kilnRowElement: HTMLElement): number {
+  const rect = kilnRowElement.getBoundingClientRect();
+  const offsetX = clientX - rect.left;
+  const percentage = offsetX / rect.width;
+  const hour = percentage * 24;
+  return Math.max(0, Math.min(24, hour));
+}
+
+function calculateNewTimes(schedule: Schedule, newStartHour: number, date: Dayjs) {
+  const duration = dayjs(schedule.endTime).diff(dayjs(schedule.startTime), 'minute');
+  const dayStart = date.startOf('day');
+  const newStart = dayStart.add(newStartHour, 'hour');
+  const newEnd = newStart.add(duration, 'minute');
+  return {
+    startTime: newStart.toISOString(),
+    endTime: newEnd.toISOString(),
+  };
 }
 
 export default function SchedulePage() {
@@ -80,6 +100,11 @@ export default function SchedulePage() {
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
   const [formConflicts, setFormConflicts] = useState<Schedule[]>([]);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [draggingScheduleId, setDraggingScheduleId] = useState<number | null>(null);
+  const [dropPreview, setDropPreview] = useState<{ kilnId: number; startHour: number; endHour: number } | null>(null);
+  const [dropTargetKilnId, setDropTargetKilnId] = useState<number | null>(null);
+  const [conflictFlashId, setConflictFlashId] = useState<number | null>(null);
+  const [successFlashId, setSuccessFlashId] = useState<number | null>(null);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -189,6 +214,98 @@ export default function SchedulePage() {
     }
   };
 
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, schedule: Schedule) => {
+    e.dataTransfer.setData('scheduleId', String(schedule.id));
+    e.dataTransfer.setData('originalKilnId', String(schedule.kilnId));
+    const { startHour } = getScheduleHours(schedule, selectedDate);
+    e.dataTransfer.setData('originalStartHour', String(startHour));
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggingScheduleId(schedule.id);
+  };
+
+  const handleDragEnd = () => {
+    setDraggingScheduleId(null);
+    setDropPreview(null);
+    setDropTargetKilnId(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>, kilnId: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDropTargetKilnId(kilnId);
+
+    if (!draggingScheduleId) return;
+    const schedule = schedules.find((s) => s.id === draggingScheduleId);
+    if (!schedule) return;
+
+    const startHour = getDropPosition(e.clientX, e.currentTarget);
+    const duration = dayjs(schedule.endTime).diff(dayjs(schedule.startTime), 'minute') / 60;
+    let endHour = startHour + duration;
+
+    if (endHour > 24) {
+      endHour = 24;
+    }
+    if (startHour < 0) {
+      return;
+    }
+
+    setDropPreview({ kilnId, startHour, endHour });
+  };
+
+  const handleDragLeave = (kilnId: number) => {
+    if (dropTargetKilnId === kilnId) {
+      setDropTargetKilnId(null);
+      setDropPreview(null);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>, kilnId: number) => {
+    e.preventDefault();
+    const scheduleId = Number(e.dataTransfer.getData('scheduleId'));
+    const schedule = schedules.find((s) => s.id === scheduleId);
+
+    setDropTargetKilnId(null);
+    setDropPreview(null);
+    setDraggingScheduleId(null);
+
+    if (!schedule || schedule.status !== 'PENDING') {
+      return;
+    }
+
+    const startHour = getDropPosition(e.clientX, e.currentTarget);
+    const { startTime, endTime } = calculateNewTimes(schedule, startHour, selectedDate);
+
+    const endHour = startHour + dayjs(schedule.endTime).diff(dayjs(schedule.startTime), 'minute') / 60;
+    if (endHour > 24 || startHour < 0) {
+      message.error('时间超出当日范围');
+      return;
+    }
+
+    const conflicts = findConflicts(kilnId, startTime, endTime, schedules, schedule.id);
+    if (conflicts.length > 0) {
+      setConflictFlashId(kilnId);
+      setTimeout(() => setConflictFlashId(null), 600);
+      message.error('与现有排程冲突，无法放置');
+      return;
+    }
+
+    try {
+      const kiln = mockKilns.find((k) => k.id === kilnId);
+      await updateSchedule(schedule.id, {
+        kilnId,
+        kilnName: kiln?.name ?? schedule.kilnName,
+        startTime,
+        endTime,
+      });
+      setSuccessFlashId(kilnId);
+      setTimeout(() => setSuccessFlashId(null), 600);
+      message.success('排程已更新');
+      fetchSchedules();
+    } catch {
+      message.error('更新失败');
+    }
+  };
+
   const weekDates = useMemo(() => {
     const start = selectedDate.startOf('week');
     return Array.from({ length: 7 }, (_, i) => start.add(i, 'day'));
@@ -200,6 +317,8 @@ export default function SchedulePage() {
     const left = (startHour / 24) * 100;
     const width = ((endHour - startHour) / 24) * 100;
     const isConflict = displayStatus === 'CONFLICT';
+    const isDragging = draggingScheduleId === schedule.id;
+    const canDrag = schedule.status === 'PENDING';
 
     return (
       <Tooltip
@@ -207,7 +326,11 @@ export default function SchedulePage() {
         title={`${schedule.memberName} | ${schedule.curveName} | ${schedule.workpieceCount}件`}
       >
         <div
+          draggable={canDrag}
+          onDragStart={(e) => canDrag && handleDragStart(e, schedule)}
+          onDragEnd={handleDragEnd}
           onClick={() => {
+            if (isDragging) return;
             setSelectedSchedule(schedule);
             setDrawerVisible(true);
           }}
@@ -223,13 +346,16 @@ export default function SchedulePage() {
             padding: '2px 6px',
             color: '#fff',
             fontSize: 12,
-            cursor: 'pointer',
+            cursor: canDrag ? 'move' : 'pointer',
             overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',
             lineHeight: 1.3,
-            zIndex: 1,
+            zIndex: isDragging ? 10 : 1,
+            opacity: isDragging ? 0.5 : 1,
+            transition: 'opacity 0.15s',
+            userSelect: 'none',
           }}
         >
           <span style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -264,50 +390,116 @@ export default function SchedulePage() {
         ))}
       </div>
 
-      {mockKilns.map((kiln) => (
-        <div key={kiln.id} style={{ display: 'flex', borderBottom: '1px solid #F0F0F0' }}>
-          <div
-            style={{
-              width: LEFT_COL_WIDTH,
-              minWidth: LEFT_COL_WIDTH,
-              height: KILN_ROW_HEIGHT,
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              padding: '0 12px',
-              borderRight: '1px solid #E8E8E8',
-              background: '#FAFAFA',
-            }}
-          >
-            <span style={{ fontWeight: 600, fontSize: 14, color: '#2D2D2D' }}>{kiln.name}</span>
-            <KilnTypeTag type={kiln.type} />
+      {mockKilns.map((kiln) => {
+        const isDropTarget = dropTargetKilnId === kiln.id;
+        const hasConflictFlash = conflictFlashId === kiln.id;
+        const hasSuccessFlash = successFlashId === kiln.id;
+        const showPreview = dropPreview && dropPreview.kilnId === kiln.id;
+        const draggedSchedule = draggingScheduleId
+          ? schedules.find((s) => s.id === draggingScheduleId)
+          : null;
+
+        return (
+          <div key={kiln.id} style={{ display: 'flex', borderBottom: '1px solid #F0F0F0' }}>
+            <div
+              style={{
+                width: LEFT_COL_WIDTH,
+                minWidth: LEFT_COL_WIDTH,
+                height: KILN_ROW_HEIGHT,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                padding: '0 12px',
+                borderRight: '1px solid #E8E8E8',
+                background: '#FAFAFA',
+              }}
+            >
+              <span style={{ fontWeight: 600, fontSize: 14, color: '#2D2D2D' }}>{kiln.name}</span>
+              <KilnTypeTag type={kiln.type} />
+            </div>
+            <div
+              onDragOver={(e) => handleDragOver(e, kiln.id)}
+              onDragLeave={() => handleDragLeave(kiln.id)}
+              onDrop={(e) => handleDrop(e, kiln.id)}
+              style={{
+                flex: 1,
+                height: KILN_ROW_HEIGHT,
+                position: 'relative',
+                background: isDropTarget ? '#E6F7FF' : 'transparent',
+                border: isDropTarget ? '2px dashed #1890FF' : '2px solid transparent',
+                boxSizing: 'border-box',
+                transition: 'background 0.15s, border-color 0.15s',
+                animation: hasConflictFlash
+                  ? 'conflict-flash 0.6s ease-in-out'
+                  : hasSuccessFlash
+                  ? 'success-flash 0.6s ease-in-out'
+                  : undefined,
+              }}
+            >
+              {HOURS.map((h) => (
+                <div
+                  key={h}
+                  style={{
+                    position: 'absolute',
+                    left: `${(h / 24) * 100}%`,
+                    top: 0,
+                    bottom: 0,
+                    width: 1,
+                    background: h % 6 === 0 ? '#D9D9D9' : '#F0F0F0',
+                  }}
+                />
+              ))}
+              {showPreview && draggedSchedule && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: `${(dropPreview.startHour / 24) * 100}%`,
+                    width: `${Math.max(((dropPreview.endHour - dropPreview.startHour) / 24) * 100, 1)}%`,
+                    top: 4,
+                    height: KILN_ROW_HEIGHT - 8,
+                    background: STATUS_COLORS[draggedSchedule.status],
+                    borderRadius: 6,
+                    padding: '2px 6px',
+                    color: '#fff',
+                    fontSize: 12,
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    lineHeight: 1.3,
+                    opacity: 0.4,
+                    pointerEvents: 'none',
+                    zIndex: 5,
+                    border: '2px dashed rgba(255,255,255,0.6)',
+                  }}
+                >
+                  <span style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {draggedSchedule.memberName}
+                  </span>
+                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', opacity: 0.9 }}>
+                    {draggedSchedule.curveName}
+                  </span>
+                  <span style={{ opacity: 0.8 }}>{draggedSchedule.workpieceCount}件</span>
+                </div>
+              )}
+              {daySchedules
+                .filter((s) => s.kilnId === kiln.id)
+                .map(renderBlock)}
+            </div>
           </div>
-          <div
-            style={{
-              flex: 1,
-              height: KILN_ROW_HEIGHT,
-              position: 'relative',
-            }}
-          >
-            {HOURS.map((h) => (
-              <div
-                key={h}
-                style={{
-                  position: 'absolute',
-                  left: `${(h / 24) * 100}%`,
-                  top: 0,
-                  bottom: 0,
-                  width: 1,
-                  background: h % 6 === 0 ? '#D9D9D9' : '#F0F0F0',
-                }}
-              />
-            ))}
-            {daySchedules
-              .filter((s) => s.kilnId === kiln.id)
-              .map(renderBlock)}
-          </div>
-        </div>
-      ))}
+        );
+      })}
+      <style>{`
+        @keyframes conflict-flash {
+          0%, 100% { background-color: transparent; }
+          25%, 75% { background-color: #FFF2F0; }
+          50% { background-color: #FFCCC7; }
+        }
+        @keyframes success-flash {
+          0%, 100% { background-color: transparent; }
+          50% { background-color: #D9F7BE; }
+        }
+      `}</style>
     </div>
   );
 
