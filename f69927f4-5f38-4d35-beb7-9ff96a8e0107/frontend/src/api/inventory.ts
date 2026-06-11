@@ -1,68 +1,70 @@
+import api from '@/api/index';
 import type { Batch, PageResult, InventoryWarning } from '@/types';
-import { mockBatches, mockWarnings } from '@/mocks';
-import { delay } from '@/api/index';
 
 export async function listBatches(
   params?: Record<string, unknown>,
 ): Promise<PageResult<Batch>> {
-  await delay(300);
-  return Promise.resolve({
-    content: mockBatches,
-    totalElements: mockBatches.length,
+  const { data } = await api.get<Batch[]>('/inventories/batches', { params });
+  const list = data as Batch[];
+  return {
+    content: list,
+    totalElements: list.length,
     totalPages: 1,
-    size: 20,
+    size: list.length,
     number: 0,
-  });
+  };
+}
+
+export async function getBatch(id: number): Promise<Batch> {
+  const { data } = await api.get<Batch>(`/inventories/batches/${id}`);
+  return data;
 }
 
 export async function createBatch(
   data: Partial<Batch>,
 ): Promise<Batch> {
-  await delay(300);
-  const newBatch: Batch = {
-    id: Date.now(),
-    batchNo: `MOCK-${Date.now()}`,
-    supplierId: data.supplierId ?? 0,
-    supplierName: data.supplierName ?? '',
-    materialName: data.materialName ?? '',
-    quantity: data.quantity ?? 0,
-    unit: data.unit ?? 'kg',
-    expiryDate: data.expiryDate ?? null,
-    oxideComposition: data.oxideComposition ?? {},
-    spectralData: data.spectralData,
-    status: 'IN_STOCK',
-    createdAt: new Date().toISOString(),
-  };
-  return Promise.resolve(newBatch);
+  const resp = await api.post<Batch>('/inventories/batches', data);
+  return resp.data;
 }
 
 export async function updateBatch(
   id: number,
   data: Partial<Batch>,
 ): Promise<Batch> {
-  await delay(300);
-  const existing = mockBatches.find((b) => b.id === id);
-  return Promise.resolve({
-    ...(existing ?? mockBatches[0]),
-    ...data,
-    id,
-  } as Batch);
+  const resp = await api.put<Batch>(`/inventories/batches/${id}`, data);
+  return resp.data;
 }
 
 export async function checkoutBatch(
   id: number,
-  data: { quantity: number; operatorId: number; note?: string },
+  data: { quantity: number; operatorId?: number; note?: string },
 ): Promise<Batch> {
-  await delay(300);
-  const existing = mockBatches.find((b) => b.id === id);
-  return Promise.resolve({
-    ...(existing ?? mockBatches[0]),
-    id,
-    status: 'CHECKED_OUT',
-  } as Batch);
+  const resp = await api.post<Batch>(`/inventories/batches/${id}/checkout`, {
+    quantity: data.quantity,
+  });
+  return resp.data;
+}
+
+export async function fifoCheckout(
+  materialName: string,
+  quantity: number,
+): Promise<Batch> {
+  const resp = await api.post<Batch>('/inventories/batches/checkout-fifo', {
+    materialName,
+    quantity,
+  });
+  return resp.data;
 }
 
 export async function listWarnings(): Promise<InventoryWarning[]> {
-  await delay(300);
-  return Promise.resolve(mockWarnings);
+  const { data } = await api.get<Batch[]>('/inventories/warnings');
+  return (data as Batch[]).map((b) => ({
+    id: b.id,
+    type: 'EXPIRY',
+    materialName: b.materialName,
+    batchId: b.id,
+    batchNo: b.batchNo,
+    message: `批次 ${b.batchNo} 即将过期`,
+    createdAt: b.createdAt,
+  })) as InventoryWarning[];
 }

@@ -49,6 +49,7 @@
 /Users/paul/WorkSpace/TestSoloCoder/f69927f4-5f38-4d35-beb7-9ff96a8e0107/backend/src/main/java/com/glassstudio/controller/CostController.java
 /Users/paul/WorkSpace/TestSoloCoder/f69927f4-5f38-4d35-beb7-9ff96a8e0107/backend/src/main/java/com/glassstudio/entity/Incident.java
 /Users/paul/WorkSpace/TestSoloCoder/f69927f4-5f38-4d35-beb7-9ff96a8e0107/backend/src/main/java/com/glassstudio/service/MemberService.java
+/Users/paul/WorkSpace/TestSoloCoder/f69927f4-5f38-4d35-beb7-9ff96a8e0107/backend/src/main/java/com/glassstudio/dto/FifoCheckoutResult.java
 /Users/paul/WorkSpace/TestSoloCoder/f69927f4-5f38-4d35-beb7-9ff96a8e0107/backend/src/main/java/com/glassstudio/repository/CostRecordRepository.java
 /Users/paul/WorkSpace/TestSoloCoder/f69927f4-5f38-4d35-beb7-9ff96a8e0107/backend/src/main/java/com/glassstudio/controller/InventoryController.java
 /Users/paul/WorkSpace/TestSoloCoder/f69927f4-5f38-4d35-beb7-9ff96a8e0107/backend/src/main/java/com/glassstudio/exception/ForbiddenException.java

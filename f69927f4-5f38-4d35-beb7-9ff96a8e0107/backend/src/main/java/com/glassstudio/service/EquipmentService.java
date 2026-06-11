@@ -5,6 +5,7 @@ import com.glassstudio.entity.*;
 import com.glassstudio.exception.NotFoundException;
 import com.glassstudio.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -164,5 +165,49 @@ public class EquipmentService {
             throw new NotFoundException("维护工单不存在");
         }
         maintenanceOrderRepository.deleteById(id);
+    }
+
+    @Scheduled(cron = "0 0 8 * * ?")
+    @Transactional
+    public void scheduledHealthCheck() {
+        List<Kiln> kilns = kilnRepository.findAll();
+        for (Kiln kiln : kilns) {
+            HealthStatus currentStatus = calculateHealthStatus(kiln);
+            if (!currentStatus.equals(kiln.getHealthStatus())) {
+                kiln.setHealthStatus(currentStatus);
+                kilnRepository.save(kiln);
+            }
+
+            if ((currentStatus == HealthStatus.WARNING || currentStatus == HealthStatus.CRITICAL)
+                    && !maintenanceOrderRepository.existsByKilnIdAndStatus(kiln.getId(), MaintenanceStatus.PENDING)) {
+                MaintenanceType type = currentStatus == HealthStatus.CRITICAL
+                        ? MaintenanceType.EMERGENCY
+                        : MaintenanceType.ROUTINE;
+                String desc = currentStatus == HealthStatus.CRITICAL
+                        ? "窑炉健康状态严重，需紧急维护"
+                        : "窑炉健康状态预警，建议安排维护";
+
+                MaintenanceOrder order = MaintenanceOrder.builder()
+                        .kilnId(kiln.getId())
+                        .kilnName(kiln.getName())
+                        .type(type)
+                        .description(desc)
+                        .status(MaintenanceStatus.PENDING)
+                        .scheduledDate(LocalDate.now().plusDays(1))
+                        .build();
+                MaintenanceOrder saved = maintenanceOrderRepository.save(order);
+
+                notificationService.sendToTopic("/topic/maintenance", Map.of(
+                        "type", "MAINTENANCE_DUE",
+                        "kilnId", kiln.getId(),
+                        "kilnName", kiln.getName(),
+                        "orderId", saved.getId(),
+                        "orderType", type.name(),
+                        "healthStatus", currentStatus.name(),
+                        "message", "设备维护通知：窑炉 " + kiln.getName() + " 健康状态为 " + currentStatus,
+                        "timestamp", System.currentTimeMillis()
+                ));
+            }
+        }
     }
 }

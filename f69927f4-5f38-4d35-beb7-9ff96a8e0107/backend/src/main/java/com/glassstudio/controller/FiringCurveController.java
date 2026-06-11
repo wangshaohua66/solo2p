@@ -10,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -33,6 +34,7 @@ public class FiringCurveController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','ARTIST')")
     public ResponseEntity<FiringCurve> createCurve(@Valid @RequestBody CurveCreateDTO dto) {
         FiringCurve curve = firingCurveService.createCurve(dto, 1L);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
@@ -49,12 +51,14 @@ public class FiringCurveController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','ARTIST')")
     public ResponseEntity<FiringCurve> updateCurve(@PathVariable Long id, @Valid @RequestBody CurveUpdateDTO dto) {
         FiringCurve curve = firingCurveService.updateCurve(id, dto);
         return ResponseEntity.ok(curve);
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','ARTIST')")
     public ResponseEntity<Void> deleteCurve(@PathVariable Long id) {
         firingCurveService.deleteCurve(id);
         return ResponseEntity.noContent().build();
@@ -67,6 +71,7 @@ public class FiringCurveController {
     }
 
     @PostMapping("/{id}/duplicate")
+    @PreAuthorize("hasAnyRole('ADMIN','ARTIST')")
     public ResponseEntity<FiringCurve> duplicateCurve(
             @PathVariable Long id,
             @RequestParam(required = false) String name) {

@@ -16,4 +16,8 @@ public interface MaintenanceOrderRepository extends JpaRepository<MaintenanceOrd
     List<MaintenanceOrder> findByStatus(MaintenanceStatus status);
 
     List<MaintenanceOrder> findByType(MaintenanceType type);
+
+    List<MaintenanceOrder> findByKilnIdAndStatus(Long kilnId, MaintenanceStatus status);
+
+    boolean existsByKilnIdAndStatus(Long kilnId, MaintenanceStatus status);
 }

@@ -1,16 +1,33 @@
+import api from '@/api/index';
 import type { Kiln, MaintenanceOrder, MaintenanceType } from '@/types';
-import { mockKilns, mockMaintenanceOrders } from '@/mocks';
-import { delay } from '@/api/index';
 
 export async function listKilns(): Promise<Kiln[]> {
-  await delay(300);
-  return Promise.resolve(mockKilns);
+  const { data } = await api.get<Kiln[]>('/equipments/kilns');
+  return data;
 }
 
 export async function getKilnDetail(id: number): Promise<Kiln> {
-  await delay(300);
-  const existing = mockKilns.find((k) => k.id === id);
-  return Promise.resolve(existing ?? mockKilns[0]);
+  const { data } = await api.get<Kiln>(`/equipments/kilns/${id}`);
+  return data;
+}
+
+export async function createKiln(data: Partial<Kiln>): Promise<Kiln> {
+  const resp = await api.post<Kiln>('/equipments/kilns', data);
+  return resp.data;
+}
+
+export async function updateKiln(id: number, data: Partial<Kiln>): Promise<Kiln> {
+  const resp = await api.put<Kiln>(`/equipments/kilns/${id}`, data);
+  return resp.data;
+}
+
+export async function deleteKiln(id: number): Promise<void> {
+  await api.delete(`/equipments/kilns/${id}`);
+}
+
+export async function healthCheckKiln(id: number): Promise<Kiln> {
+  const resp = await api.post<Kiln>(`/equipments/kilns/${id}/health-check`);
+  return resp.data;
 }
 
 export async function createMaintenanceOrder(
@@ -21,27 +38,32 @@ export async function createMaintenanceOrder(
     scheduledDate: string;
   },
 ): Promise<MaintenanceOrder> {
-  await delay(300);
-  const kiln = mockKilns.find((k) => k.id === id);
-  const newOrder: MaintenanceOrder = {
-    id: Date.now(),
-    kilnId: id,
-    kilnName: kiln?.name ?? '',
-    type: data.type,
-    description: data.description,
-    status: 'PENDING',
-    scheduledDate: data.scheduledDate,
-    completedDate: null,
-    createdAt: new Date().toISOString(),
-  };
-  return Promise.resolve(newOrder);
+  const resp = await api.post<MaintenanceOrder>(
+    `/equipments/kilns/${id}/maintenance`,
+    data,
+  );
+  return resp.data;
 }
 
 export async function listMaintenanceHistory(
   id: number,
 ): Promise<MaintenanceOrder[]> {
-  await delay(300);
-  return Promise.resolve(
-    mockMaintenanceOrders.filter((o) => o.kilnId === id),
+  const { data } = await api.get<MaintenanceOrder[]>(
+    `/equipments/kilns/${id}/maintenance`,
   );
+  return data;
+}
+
+export async function startMaintenance(id: number): Promise<MaintenanceOrder> {
+  const resp = await api.post<MaintenanceOrder>(
+    `/equipments/kilns/maintenance/${id}/start`,
+  );
+  return resp.data;
+}
+
+export async function completeMaintenance(id: number): Promise<MaintenanceOrder> {
+  const resp = await api.post<MaintenanceOrder>(
+    `/equipments/kilns/maintenance/${id}/complete`,
+  );
+  return resp.data;
 }

@@ -7,11 +7,12 @@ interface CurveState {
   selectedCurve: FiringCurve | null;
   templates: FiringCurve[];
   loading: boolean;
-  fetchCurves: () => Promise<void>;
+  fetchCurves: (params?: Record<string, unknown>) => Promise<void>;
   fetchTemplates: () => Promise<void>;
-  createCurve: (data: Partial<FiringCurve>) => Promise<void>;
+  createCurve: (data: Partial<FiringCurve>) => Promise<FiringCurve>;
   updateCurve: (id: number, data: Partial<FiringCurve>) => Promise<void>;
   deleteCurve: (id: number) => Promise<void>;
+  duplicateCurve: (id: number, name?: string) => Promise<FiringCurve>;
   selectCurve: (curve: FiringCurve | null) => void;
 }
 
@@ -21,10 +22,10 @@ export const useCurveStore = create<CurveState>((set) => ({
   templates: [],
   loading: false,
 
-  fetchCurves: async () => {
+  fetchCurves: async (params) => {
     set({ loading: true });
     try {
-      const result = await curveApi.listCurves();
+      const result = await curveApi.listCurves(params);
       set({ curves: result.content, loading: false });
     } catch {
       set({ loading: false });
@@ -43,6 +44,7 @@ export const useCurveStore = create<CurveState>((set) => ({
   createCurve: async (data) => {
     const newCurve = await curveApi.createCurve(data);
     set((state) => ({ curves: [...state.curves, newCurve] }));
+    return newCurve;
   },
 
   updateCurve: async (id, data) => {
@@ -61,6 +63,12 @@ export const useCurveStore = create<CurveState>((set) => ({
       selectedCurve:
         state.selectedCurve?.id === id ? null : state.selectedCurve,
     }));
+  },
+
+  duplicateCurve: async (id, name) => {
+    const newCurve = await curveApi.duplicateCurve(id, name);
+    set((state) => ({ curves: [...state.curves, newCurve] }));
+    return newCurve;
   },
 
   selectCurve: (curve) => set({ selectedCurve: curve }),

@@ -33,6 +33,9 @@ public class Kiln {
     @Column(nullable = false)
     private Integer maxCapacity;
 
+    @Column(precision = 8, scale = 2)
+    private BigDecimal powerKw;
+
     @Column(nullable = false)
     private Integer totalFiringCount;
 

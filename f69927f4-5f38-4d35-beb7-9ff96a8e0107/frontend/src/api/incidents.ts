@@ -1,18 +1,23 @@
+import api from '@/api/index';
 import type { Incident, PageResult, KilnOpenRecord, IncidentType, IncidentSeverity } from '@/types';
-import { mockIncidents, mockKilnOpenRecords } from '@/mocks';
-import { delay } from '@/api/index';
 
 export async function listIncidents(
   params?: Record<string, unknown>,
 ): Promise<PageResult<Incident>> {
-  await delay(300);
-  return Promise.resolve({
-    content: mockIncidents,
-    totalElements: mockIncidents.length,
+  const { data } = await api.get<Incident[]>('/incidents', { params });
+  const list = data as Incident[];
+  return {
+    content: list,
+    totalElements: list.length,
     totalPages: 1,
-    size: 20,
+    size: list.length,
     number: 0,
-  });
+  };
+}
+
+export async function getIncident(id: number): Promise<Incident> {
+  const { data } = await api.get<Incident>(`/incidents/${id}`);
+  return data;
 }
 
 export async function reportIncident(
@@ -24,33 +29,31 @@ export async function reportIncident(
     description: string;
   },
 ): Promise<Incident> {
-  await delay(300);
-  const newIncident: Incident = {
-    id: Date.now(),
-    kilnOpenRecordId: data.kilnOpenRecordId ?? null,
-    memberId: data.memberId,
-    memberName: '',
-    type: data.type,
-    severity: data.severity,
-    description: data.description,
-    resolved: false,
-    createdAt: new Date().toISOString(),
-    resolvedAt: null,
-  };
-  return Promise.resolve(newIncident);
+  const resp = await api.post<Incident>('/incidents', data);
+  return resp.data;
+}
+
+export async function resolveIncident(id: number): Promise<Incident> {
+  const resp = await api.post<Incident>(`/incidents/${id}/resolve`);
+  return resp.data;
+}
+
+export async function deleteIncident(id: number): Promise<void> {
+  await api.delete(`/incidents/${id}`);
 }
 
 export async function listKilnOpens(
   params?: Record<string, unknown>,
 ): Promise<PageResult<KilnOpenRecord>> {
-  await delay(300);
-  return Promise.resolve({
-    content: mockKilnOpenRecords,
-    totalElements: mockKilnOpenRecords.length,
+  const { data } = await api.get<KilnOpenRecord[]>('/incidents/kiln-opens', { params });
+  const list = data as KilnOpenRecord[];
+  return {
+    content: list,
+    totalElements: list.length,
     totalPages: 1,
-    size: 20,
+    size: list.length,
     number: 0,
-  });
+  };
 }
 
 export async function recordKilnOpen(
@@ -62,18 +65,11 @@ export async function recordKilnOpen(
     note?: string;
   },
 ): Promise<KilnOpenRecord> {
-  await delay(300);
-  const newRecord: KilnOpenRecord = {
-    id: Date.now(),
-    kilnId: data.kilnId,
-    kilnName: '',
-    scheduleId: data.scheduleId,
-    operatorId: data.operatorId,
-    operatorName: '',
-    openTime: new Date().toISOString(),
-    temperatureAtOpen: data.temperatureAtOpen,
-    isViolation: false,
-    note: data.note,
-  };
-  return Promise.resolve(newRecord);
+  const resp = await api.post<KilnOpenRecord>('/incidents/kiln-opens', data);
+  return resp.data;
+}
+
+export async function getKilnOpenRecord(id: number): Promise<KilnOpenRecord> {
+  const { data } = await api.get<KilnOpenRecord>(`/incidents/kiln-opens/${id}`);
+  return data;
 }

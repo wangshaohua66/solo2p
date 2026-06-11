@@ -18,4 +18,6 @@ public interface BatchRepository extends JpaRepository<Batch, Long> {
     List<Batch> findByMaterialNameContaining(String materialName);
 
     Batch findTopByMaterialNameAndStatusOrderByCreatedAtAsc(String materialName, BatchStatus status);
+
+    List<Batch> findByMaterialNameAndStatusOrderByCreatedAtAsc(String materialName, BatchStatus status);
 }

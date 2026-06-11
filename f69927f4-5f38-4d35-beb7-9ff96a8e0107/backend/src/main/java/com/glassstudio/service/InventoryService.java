@@ -1,6 +1,7 @@
 package com.glassstudio.service;
 
 import com.glassstudio.dto.BatchCreateDTO;
+import com.glassstudio.dto.FifoCheckoutResult;
 import com.glassstudio.entity.Batch;
 import com.glassstudio.entity.BatchStatus;
 import com.glassstudio.exception.NotFoundException;
@@ -49,6 +50,7 @@ public class InventoryService {
     public Batch createBatch(BatchCreateDTO dto) {
         Batch batch = batchMapper.toEntity(dto);
         batch.setStatus(BatchStatus.IN_STOCK);
+        batch.setUnitPrice(dto.getUnitPrice());
 
         if (dto.getOxideComposition() != null) {
             try {
@@ -98,6 +100,74 @@ public class InventoryService {
             throw new NotFoundException("没有可用的库存批次");
         }
         return checkoutBatch(batch.getId(), quantity);
+    }
+
+    @Transactional
+    public FifoCheckoutResult fifoCheckoutBatches(String materialName, BigDecimal quantity) {
+        List<Batch> batches = batchRepository.findByMaterialNameAndStatusOrderByCreatedAtAsc(
+                materialName, BatchStatus.IN_STOCK);
+
+        if (batches.isEmpty()) {
+            throw new NotFoundException("没有可用的库存批次");
+        }
+
+        BigDecimal totalAvailable = batches.stream()
+                .map(Batch::getQuantity)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (totalAvailable.compareTo(quantity) < 0) {
+            throw new ValidationException("库存不足，可用: " + totalAvailable);
+        }
+
+        BigDecimal remaining = quantity;
+        BigDecimal totalCost = BigDecimal.ZERO;
+        List<FifoCheckoutResult.BatchCheckoutItem> items = new java.util.ArrayList<>();
+
+        for (Batch batch : batches) {
+            if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+                break;
+            }
+
+            BigDecimal takeQty = remaining.min(batch.getQuantity());
+            BigDecimal unitPrice = batch.getUnitPrice() != null ? batch.getUnitPrice() : BigDecimal.ZERO;
+            BigDecimal subtotal = takeQty.multiply(unitPrice).setScale(2, RoundingMode.HALF_UP);
+
+            BigDecimal leftInBatch = batch.getQuantity().subtract(takeQty);
+            if (leftInBatch.compareTo(BigDecimal.ZERO) <= 0) {
+                batch.setQuantity(BigDecimal.ZERO);
+                batch.setStatus(BatchStatus.CHECKED_OUT);
+            } else {
+                batch.setQuantity(leftInBatch);
+            }
+            batchRepository.save(batch);
+
+            items.add(FifoCheckoutResult.BatchCheckoutItem.builder()
+                    .batchId(batch.getId())
+                    .batchNo(batch.getBatchNo())
+                    .quantity(takeQty)
+                    .unitPrice(unitPrice)
+                    .subtotal(subtotal)
+                    .build());
+
+            totalCost = totalCost.add(subtotal);
+            remaining = remaining.subtract(takeQty);
+        }
+
+        if (items.size() > 0) {
+            Batch lastBatch = batchRepository.findById(items.get(items.size() - 1).getBatchId()).orElse(null);
+            if (lastBatch != null && lastBatch.getStatus() == BatchStatus.IN_STOCK &&
+                    lastBatch.getQuantity().compareTo(new BigDecimal("10")) <= 0) {
+                notificationService.sendInventoryAlert(
+                        "库存不足告警：物料 " + lastBatch.getMaterialName() + " 库存仅剩 " + lastBatch.getQuantity());
+            }
+        }
+
+        return FifoCheckoutResult.builder()
+                .materialName(materialName)
+                .totalQuantity(quantity)
+                .totalCost(totalCost)
+                .items(items)
+                .build();
     }
 
     @Transactional

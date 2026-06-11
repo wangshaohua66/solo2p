@@ -1,10 +1,15 @@
 package com.glassstudio.service;
 
 import com.glassstudio.entity.CostRecord;
+import com.glassstudio.entity.Kiln;
 import com.glassstudio.entity.Schedule;
 import com.glassstudio.exception.NotFoundException;
 import com.glassstudio.repository.CostRecordRepository;
+import com.glassstudio.repository.KilnRepository;
 import com.glassstudio.repository.ScheduleRepository;
+import com.glassstudio.repository.BatchRepository;
+import com.glassstudio.entity.Batch;
+import com.glassstudio.entity.BatchStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,9 +30,13 @@ public class CostService {
 
     private final CostRecordRepository costRecordRepository;
     private final ScheduleRepository scheduleRepository;
+    private final KilnRepository kilnRepository;
+    private final BatchRepository batchRepository;
 
-    private static final BigDecimal ELECTRICITY_RATE = new BigDecimal("1.5");
+    private static final BigDecimal ELECTRICITY_RATE = new BigDecimal("1.2");
     private static final BigDecimal LABOR_RATE_PER_HOUR = new BigDecimal("50");
+    private static final BigDecimal DEFAULT_POWER_KW = new BigDecimal("5.0");
+    private static final BigDecimal MATERIAL_PER_WORKPIECE_KG = new BigDecimal("0.5");
 
     public CostRecord getCostByScheduleId(Long scheduleId) {
         return costRecordRepository.findByScheduleId(scheduleId)
@@ -47,24 +56,30 @@ public class CostService {
         if (hours <= 0) {
             hours = 1;
         }
+        BigDecimal hoursDec = BigDecimal.valueOf(hours);
 
-        BigDecimal electricityCost = ELECTRICITY_RATE
-                .multiply(new BigDecimal(hours))
-                .multiply(new BigDecimal("5"))
+        Kiln kiln = kilnRepository.findById(schedule.getKilnId()).orElse(null);
+        BigDecimal powerKw = (kiln != null && kiln.getPowerKw() != null)
+                ? kiln.getPowerKw()
+                : DEFAULT_POWER_KW;
+
+        BigDecimal electricityCost = powerKw
+                .multiply(hoursDec)
+                .multiply(ELECTRICITY_RATE)
                 .setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal materialCost = calculateMaterialCost(schedule);
 
         BigDecimal laborCost = LABOR_RATE_PER_HOUR
-                .multiply(new BigDecimal(hours))
+                .multiply(hoursDec)
                 .setScale(2, RoundingMode.HALF_UP);
-
-        BigDecimal materialCost = BigDecimal.ZERO;
 
         BigDecimal totalCost = electricityCost
                 .add(materialCost)
                 .add(laborCost);
 
         BigDecimal costPerWorkpiece = totalCost
-                .divide(new BigDecimal(schedule.getWorkpieceCount()), 2, RoundingMode.HALF_UP);
+                .divide(BigDecimal.valueOf(schedule.getWorkpieceCount()), 2, RoundingMode.HALF_UP);
 
         CostRecord costRecord = CostRecord.builder()
                 .scheduleId(scheduleId)
@@ -76,6 +91,33 @@ public class CostService {
                 .build();
 
         return costRecordRepository.save(costRecord);
+    }
+
+    private BigDecimal calculateMaterialCost(Schedule schedule) {
+        BigDecimal totalMaterialKg = MATERIAL_PER_WORKPIECE_KG
+                .multiply(BigDecimal.valueOf(schedule.getWorkpieceCount()));
+
+        List<Batch> batches = batchRepository
+                .findByMaterialNameAndStatusOrderByCreatedAtAsc("玻璃原料", BatchStatus.IN_STOCK);
+
+        if (batches.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal remaining = totalMaterialKg;
+        BigDecimal totalCost = BigDecimal.ZERO;
+
+        for (Batch batch : batches) {
+            if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+                break;
+            }
+            BigDecimal takeQty = remaining.min(batch.getQuantity());
+            BigDecimal unitPrice = batch.getUnitPrice() != null ? batch.getUnitPrice() : BigDecimal.ZERO;
+            totalCost = totalCost.add(takeQty.multiply(unitPrice));
+            remaining = remaining.subtract(takeQty);
+        }
+
+        return totalCost.setScale(2, RoundingMode.HALF_UP);
     }
 
     public Map<String, Object> getMonthlyReport(int year, int month) {
@@ -94,8 +136,8 @@ public class CostService {
 
         for (Schedule schedule : schedules) {
             LocalDateTime scheduleDate = schedule.getStartTime();
-            if (!scheduleDate.toLocalDate().isBefore(startDate) ||
-                scheduleDate.toLocalDate().isAfter(endDate)) {
+            LocalDate date = scheduleDate.toLocalDate();
+            if (date.isBefore(startDate) || date.isAfter(endDate)) {
                 continue;
             }
 

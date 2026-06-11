@@ -1,25 +1,39 @@
+import api from '@/api/index';
 import type { CostRecord, MonthlyReportVO } from '@/types';
-import { mockCostRecords, mockMonthlyReport } from '@/mocks';
-import { delay } from '@/api/index';
 
 export async function getScheduleCost(
   scheduleId: number,
 ): Promise<CostRecord> {
-  await delay(300);
-  const existing = mockCostRecords.find((c) => c.scheduleId === scheduleId);
-  return Promise.resolve(existing ?? mockCostRecords[0]);
+  const { data } = await api.get<CostRecord>(`/costs/schedule/${scheduleId}`);
+  return data;
+}
+
+export async function calculateScheduleCost(
+  scheduleId: number,
+): Promise<CostRecord> {
+  const { data } = await api.post<CostRecord>(`/costs/schedule/${scheduleId}/calculate`);
+  return data;
 }
 
 export async function getMonthlyReport(
-  params?: Record<string, unknown>,
+  params: { year: number; month: number },
 ): Promise<MonthlyReportVO> {
-  await delay(300);
-  return Promise.resolve(mockMonthlyReport);
+  const { data } = await api.get<MonthlyReportVO>('/costs/monthly', { params });
+  return data as MonthlyReportVO;
+}
+
+export async function exportMonthlyReport(
+  params: { year: number; month: number },
+): Promise<Blob> {
+  const { data } = await api.get('/costs/monthly/export', {
+    params,
+    responseType: 'blob',
+  });
+  return data as Blob;
 }
 
 export async function exportMonthlyPdf(
-  params?: Record<string, unknown>,
+  params: { year: number; month: number },
 ): Promise<Blob> {
-  await delay(500);
-  return Promise.resolve(new Blob(['mock-pdf-content'], { type: 'application/pdf' }));
+  return exportMonthlyReport(params);
 }

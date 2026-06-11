@@ -28,6 +28,9 @@ public class BatchCreateDTO {
     @DecimalMin(value = "0", message = "数量不能为负数")
     private BigDecimal quantity;
 
+    @DecimalMin(value = "0", message = "单价不能为负数")
+    private BigDecimal unitPrice;
+
     @NotBlank(message = "单位不能为空")
     private String unit;
 

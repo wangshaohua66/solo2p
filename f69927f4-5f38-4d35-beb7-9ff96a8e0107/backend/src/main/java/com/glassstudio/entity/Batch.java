@@ -38,6 +38,9 @@ public class Batch {
     @Column(nullable = false, precision = 15, scale = 3)
     private BigDecimal quantity;
 
+    @Column(precision = 12, scale = 2)
+    private BigDecimal unitPrice;
+
     @Column(nullable = false, length = 20)
     private String unit;
 

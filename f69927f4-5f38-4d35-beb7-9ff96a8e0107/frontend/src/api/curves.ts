@@ -1,72 +1,48 @@
+import api from '@/api/index';
 import type { FiringCurve, PageResult } from '@/types';
-import { mockCurves } from '@/mocks';
-import { delay } from '@/api/index';
 
 export async function listCurves(
   params?: Record<string, unknown>,
 ): Promise<PageResult<FiringCurve>> {
-  await delay(300);
-  return Promise.resolve({
-    content: mockCurves,
-    totalElements: mockCurves.length,
-    totalPages: 1,
-    size: 20,
-    number: 0,
-  });
+  const { data } = await api.get<PageResult<FiringCurve>>('/curves', { params });
+  return data;
+}
+
+export async function getCurve(id: number): Promise<FiringCurve> {
+  const { data } = await api.get<FiringCurve>(`/curves/${id}`);
+  return data;
 }
 
 export async function createCurve(
   data: Partial<FiringCurve>,
 ): Promise<FiringCurve> {
-  await delay(300);
-  const newCurve: FiringCurve = {
-    id: Date.now(),
-    name: data.name ?? '新曲线',
-    segments: data.segments ?? [],
-    isTemplate: false,
-    createdBy: data.createdBy ?? 0,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-  return Promise.resolve(newCurve);
+  const resp = await api.post<FiringCurve>('/curves', data);
+  return resp.data;
 }
 
 export async function updateCurve(
   id: number,
   data: Partial<FiringCurve>,
 ): Promise<FiringCurve> {
-  await delay(300);
-  const existing = mockCurves.find((c) => c.id === id);
-  return Promise.resolve({
-    ...(existing ?? mockCurves[0]),
-    ...data,
-    id,
-    updatedAt: new Date().toISOString(),
-  } as FiringCurve);
+  const resp = await api.put<FiringCurve>(`/curves/${id}`, data);
+  return resp.data;
 }
 
 export async function deleteCurve(id: number): Promise<void> {
-  await delay(300);
-  return Promise.resolve();
+  await api.delete(`/curves/${id}`);
 }
 
 export async function duplicateCurve(
   id: number,
-  name: string,
+  name?: string,
 ): Promise<FiringCurve> {
-  await delay(300);
-  const existing = mockCurves.find((c) => c.id === id);
-  return Promise.resolve({
-    ...(existing ?? mockCurves[0]),
-    id: Date.now(),
-    name,
-    isTemplate: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  } as FiringCurve);
+  const resp = await api.post<FiringCurve>(`/curves/${id}/duplicate`, null, {
+    params: name ? { name } : undefined,
+  });
+  return resp.data;
 }
 
 export async function listTemplates(): Promise<FiringCurve[]> {
-  await delay(300);
-  return Promise.resolve(mockCurves.filter((c) => c.isTemplate));
+  const { data } = await api.get<FiringCurve[]>('/curves/templates');
+  return data;
 }
