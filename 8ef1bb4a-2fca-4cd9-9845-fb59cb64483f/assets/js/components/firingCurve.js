@@ -143,7 +143,7 @@ var FiringCurve = (function() {
             return;
         }
         var datasets = experiments.map(function(exp, idx) {
-            var points = buildCurvePoints(exp.curveSegments || []);
+            var points = buildCurvePoints(exp.firingCurve || exp.curveSegments || []);
             return {
                 label: exp.name || ('实验' + (idx + 1)),
                 data: points,

@@ -27,6 +27,7 @@
                         <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search"></i></span>
                         <input type="text" id="globalSearch" class="form-control border-start-0 bg-transparent" placeholder="全文搜索原料名或备注...">
                     </div>
+                    <div id="searchMatches" class="search-matches d-none"></div>
                     <button class="btn btn-clay btn-sm" data-bs-toggle="modal" data-bs-target="#expFormModal" id="btnNewExp">
                         <i class="bi bi-plus-lg me-1"></i>新建实验
                     </button>
@@ -52,6 +53,18 @@
             </div>
         </div>
     </nav>
+
+    <div class="d-none d-md-flex d-xl-none justify-content-center gap-2 py-2 border-bottom bg-body" id="mdViewToggle">
+        <button class="btn btn-sm btn-outline-secondary" data-md-view="filter">
+            <i class="bi bi-funnel me-1"></i>只看筛选
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" data-md-view="list">
+            <i class="bi bi-grid me-1"></i>只看列表
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" data-md-view="default">
+            <i class="bi bi-layout-three-columns me-1"></i>默认视图
+        </button>
+    </div>
 
     <div class="container-fluid main-layout">
         <div class="row g-0 h-100">
@@ -175,7 +188,10 @@
 
             <aside class="col-xl-4 detail-panel d-none d-xl-flex flex-column border-start" id="detailPanel">
                 <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0"><i class="bi bi-journal-text me-2"></i>实验详情</h6>
+                    <div class="d-flex align-items-center gap-2">
+                        <h6 class="mb-0"><i class="bi bi-journal-text me-2"></i>实验详情</h6>
+                        <button class="btn btn-sm btn-outline-celadon" id="btnToggleMultiCurve" disabled><i class="bi bi-graph-up me-1"></i>对比曲线</button>
+                    </div>
                     <span class="text-muted small" id="detailPanelHint">请选择一条记录</span>
                 </div>
                 <div class="flex-grow-1 overflow-auto p-3" id="detailPanelBody"></div>

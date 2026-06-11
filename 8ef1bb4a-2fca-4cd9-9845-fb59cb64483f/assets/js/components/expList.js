@@ -3,7 +3,6 @@ var ExpList = (function() {
     var filteredExperiments = [];
     var PAGE_SIZE = 50;
     var selectedDetailId = null;
-    var detailCurveChart = null;
 
     function init() {
         if (AppState.get('currentPage') == null) {
@@ -11,13 +10,17 @@ var ExpList = (function() {
         }
 
         bindFilterEvents();
+        bindMdViewToggle();
+        applyMdViewPref();
         loadAndRender();
 
         AppState.subscribe('exp:created', loadAndRender);
         AppState.subscribe('exp:updated', function() {
             loadAndRender();
             if (selectedDetailId != null) {
-                renderDetailToPanel(selectedDetailId);
+                AppDB.getExperimentWithMedia(selectedDetailId).then(function(exp) {
+                    if (exp) ExpDetail.renderDetailTo('#detailPanelBody', exp);
+                });
             }
         });
         AppState.subscribe('exp:deleted', function() {
@@ -27,6 +30,8 @@ var ExpList = (function() {
                     AppDB.getExperiment(selectedDetailId).then(function(exp) {
                         if (!exp) {
                             selectedDetailId = null;
+                            var panelChart = $('#detailPanelBody').data('lastCurveChart');
+                            if (panelChart) { panelChart.destroy(); $('#detailPanelBody').removeData('lastCurveChart'); }
                             $('#detailPanelBody').html('');
                             $('#detailPanelHint').text('请选择一条记录');
                         }
@@ -133,6 +138,92 @@ var ExpList = (function() {
         filteredExperiments = SearchUtil.applyFilters(allExperiments, filters);
         filteredExperiments = SearchUtil.sortExperiments(filteredExperiments, sortBy);
         renderList();
+        renderSearchMatches(filters);
+    }
+
+    function renderSearchMatches(filters) {
+        var keyword = (filters || {}).keyword || '';
+        var $container = $('#searchMatches');
+        if (!keyword) {
+            $container.addClass('d-none').empty();
+            return;
+        }
+        var matchedIds = SearchUtil.getMatchedExperiments(allExperiments, keyword);
+        if (!matchedIds || matchedIds.length === 0) {
+            $container.addClass('d-none').empty();
+            return;
+        }
+        var matchedExps = allExperiments.filter(function(e) {
+            return matchedIds.indexOf(e.id) > -1;
+        });
+        var html = '<small class="text-muted me-2">匹配 ' + matchedExps.length + ' 条：</small>';
+        matchedExps.forEach(function(exp) {
+            var nameHtml = highlightText(exp.name, keyword);
+            html += '<button type="button" class="btn btn-sm btn-outline-clay search-match-btn" data-id="' + exp.id + '">' + nameHtml + '</button>';
+        });
+        $container.html(html).removeClass('d-none');
+        $container.off('click', '.search-match-btn').on('click', '.search-match-btn', function() {
+            var id = parseInt($(this).data('id'));
+            jumpToExperiment(id);
+        });
+    }
+
+    function jumpToExperiment(id) {
+        var expIndex = -1;
+        for (var i = 0; i < filteredExperiments.length; i++) {
+            if (filteredExperiments[i].id === id) {
+                expIndex = i;
+                break;
+            }
+        }
+        if (expIndex < 0) return;
+        var targetPage = Math.floor(expIndex / PAGE_SIZE) + 1;
+        var currentPage = AppState.get('currentPage') || 1;
+        if (targetPage !== currentPage) {
+            AppState.set('currentPage', targetPage);
+            renderList();
+        }
+        setTimeout(function() {
+            var $card = $('.exp-card[data-id="' + id + '"]');
+            if ($card.length > 0) {
+                $('.list-scroll').animate({
+                    scrollTop: $card.offset().top - $('.list-scroll').offset().top + $('.list-scroll').scrollTop() - 20
+                }, 300, function() {
+                    $card.addClass('jump-anchor');
+                    setTimeout(function() {
+                        $card.removeClass('jump-anchor');
+                    }, 3000);
+                });
+            }
+        }, 200);
+    }
+
+    function bindMdViewToggle() {
+        $('#mdViewToggle').on('click', 'button[data-md-view]', function() {
+            var view = $(this).data('md-view');
+            applyMdView(view);
+            try { localStorage.setItem('mdViewPref', view); } catch(e) {}
+        });
+    }
+
+    function applyMdViewPref() {
+        var pref = null;
+        try { pref = localStorage.getItem('mdViewPref'); } catch(e) {}
+        if (pref) applyMdView(pref);
+    }
+
+    function applyMdView(view) {
+        var $filter = $('#filterSidebar');
+        var $list = $('.list-area');
+        var $detail = $('#detailPanel');
+        $filter.removeClass('d-none');
+        $list.removeClass('d-none');
+        if (view === 'filter') {
+            $list.addClass('d-none');
+            $detail.addClass('d-none');
+        } else if (view === 'list') {
+            $filter.addClass('d-none');
+        }
     }
 
     function highlightText(text, keyword) {
@@ -355,139 +446,15 @@ var ExpList = (function() {
 
         var isDesktop = window.matchMedia('(min-width: 1200px)').matches;
         if (isDesktop) {
-            renderDetailToPanel(id);
+            $('#detailPanelHint').text('加载中...');
+            AppDB.getExperimentWithMedia(id).then(function(exp) {
+                if (!exp) return;
+                $('#detailPanelHint').text('');
+                ExpDetail.renderDetailTo('#detailPanelBody', exp);
+            });
         } else {
             AppState.publish('exp:selected', id);
         }
-    }
-
-    function renderDetailToPanel(id) {
-        $('#detailPanelHint').text('加载中...');
-        AppDB.getExperimentWithMedia(id).then(function(exp) {
-            if (!exp) return;
-            selectedDetailId = id;
-
-            $('#detailPanelHint').text('');
-
-            var mediaHtml = '';
-            if (exp.media && exp.media.length > 0) {
-                mediaHtml = '<div class="detail-section">' +
-                    '<h6><i class="bi bi-image me-2"></i>釉面照片 (' + exp.media.length + ')</h6>';
-                if (exp.media.length === 1) {
-                    mediaHtml += '<img src="' + exp.media[0].dataBase64 + '" class="detail-img mb-2" alt="">';
-                } else {
-                    mediaHtml += '<div class="row g-2">';
-                    exp.media.forEach(function(m) {
-                        mediaHtml += '<div class="col-6"><img src="' + m.dataBase64 + '" class="detail-img" alt="" style="max-height:180px;"></div>';
-                    });
-                    mediaHtml += '</div>';
-                }
-                mediaHtml += '</div>';
-            }
-
-            var recipeHtml = '<div class="detail-section">' +
-                '<h6><i class="bi bi-flask me-2"></i>原料配方</h6>' +
-                '<table class="table table-sm recipe-table">' +
-                '<thead><tr><th>原料</th><th class="text-end">百分比</th><th class="text-end">占比</th></tr></thead><tbody>';
-            var total = 0;
-            (exp.recipe || []).forEach(function(r) { total += r.percentage || 0; });
-            (exp.recipe || []).forEach(function(r) {
-                var pct = r.percentage || 0;
-                var w = total > 0 ? (pct / total * 100) : 0;
-                recipeHtml += '<tr><td>' + escapeHtml(r.materialName) + '</td>' +
-                    '<td class="text-end"><strong>' + pct.toFixed(1) + '%</strong></td>' +
-                    '<td class="text-end" style="width:40%;"><div class="progress" style="height:6px;"><div class="progress-bar bg-clay" style="width:' + w + '%"></div></div></td></tr>';
-            });
-            recipeHtml += '<tr class="table-active"><td><strong>合计</strong></td><td class="text-end"><strong>' + total.toFixed(1) + '%</strong></td><td></td></tr>';
-            recipeHtml += '</tbody></table></div>';
-
-            var curveHtml = '';
-            if (exp.firingCurve && exp.firingCurve.length > 0) {
-                curveHtml = '<div class="detail-section">' +
-                    '<h6><i class="bi bi-graph-up me-2"></i>烧成曲线</h6>' +
-                    '<canvas id="detailPanelCurveChart" height="200"></canvas>' +
-                    '<div class="mt-2"><small class="text-muted">';
-                exp.firingCurve.forEach(function(seg, i) {
-                    curveHtml += '<span class="badge bg-secondary me-1 mb-1">#' + (i + 1) + ' ' + seg.type + ' ' +
-                        (seg.tempFrom || '?') + '→' + (seg.tempTo || '?') + '℃ / ' + seg.durationMin + 'min</span>';
-                });
-                curveHtml += '</small></div></div>';
-            }
-
-            var defectHtml = '';
-            if (exp.defectTags && exp.defectTags.length > 0) {
-                defectHtml = '<div class="detail-section"><h6><i class="bi bi-exclamation-triangle me-2"></i>缺陷标签</h6><div class="d-flex flex-wrap gap-1">';
-                exp.defectTags.forEach(function(d) {
-                    defectHtml += '<span class="mini-tag" style="background:#FDE0E0;color:#842029;">' + d + '</span>';
-                });
-                defectHtml += '</div></div>';
-            }
-
-            var notesHtml = '';
-            if (exp.notes) {
-                notesHtml = '<div class="detail-section"><h6><i class="bi bi-journal-text me-2"></i>备注</h6>' +
-                    '<p class="small text-muted mb-0" style="white-space:pre-wrap;">' + escapeHtml(exp.notes) + '</p></div>';
-            }
-
-            var metaHtml = '<div class="detail-section">' +
-                '<h6><i class="bi bi-info-circle me-2"></i>基础信息</h6>' +
-                '<div class="row g-2 small">' +
-                '<div class="col-6"><span class="text-muted">日期：</span>' + (exp.date || '-') + '</div>' +
-                '<div class="col-6"><span class="text-muted">分类：</span>' + (exp.glazeCategory || '-') + '</div>' +
-                '<div class="col-6"><span class="text-muted">窑炉：</span>' + (exp.kilnType || '-') + '</div>' +
-                '<div class="col-6"><span class="text-muted">锥号：</span>' + (exp.cone ? '锥' + exp.cone : '-') + '</div>' +
-                '<div class="col-6"><span class="text-muted">气氛：</span>' + (exp.atmosphere || '-') + '</div>' +
-                '<div class="col-6"><span class="text-muted">创建：</span>' + formatDateTime(exp.createdAt) + '</div>' +
-                '</div></div>';
-
-            var inCompare = AppState.isInCompare(exp.id);
-            var actionsHtml = '<div class="d-flex gap-2 mt-3">' +
-                '<button class="btn btn-sm ' + (inCompare ? 'btn-clay' : 'btn-outline-celadon') + '" id="btnPanelCompare">' +
-                '<i class="bi ' + (inCompare ? 'bi-check2' : 'bi-plus') + ' me-1"></i>' + (inCompare ? '已加入对比' : '加入对比') + '</button>' +
-                '<button class="btn btn-sm btn-outline-secondary" id="btnPanelEdit"><i class="bi bi-pencil me-1"></i>编辑</button>' +
-                '<button class="btn btn-sm btn-outline-danger ms-auto" id="btnPanelDelete"><i class="bi bi-trash me-1"></i>删除</button>' +
-                '</div>';
-
-            $('#detailPanelBody').html(metaHtml + mediaHtml + recipeHtml + curveHtml + defectHtml + notesHtml + actionsHtml);
-
-            if (exp.firingCurve && exp.firingCurve.length > 0) {
-                setTimeout(function() {
-                    if (detailCurveChart) detailCurveChart.destroy();
-                    detailCurveChart = FiringCurve.renderDetail('detailPanelCurveChart', exp.firingCurve, exp.name);
-                }, 100);
-            }
-
-            $('#btnPanelEdit').on('click', function() {
-                ExpForm.openForEdit(exp.id);
-            });
-            $('#btnPanelDelete').on('click', function() {
-                showConfirm('确定删除实验「' + exp.name + '」吗？', function() {
-                    AppDB.deleteExperiment(exp.id).then(function() {
-                        if (AppState.isInCompare(exp.id)) AppState.toggleCompare(exp.id);
-                        selectedDetailId = null;
-                        $('#detailPanelBody').html('');
-                        $('#detailPanelHint').text('请选择一条记录');
-                        AppState.publish('exp:deleted', exp.id);
-                        AppState.publish('toast:show', { type: 'success', message: '实验已删除' });
-                    });
-                });
-            });
-            $('#btnPanelCompare').on('click', function() {
-                AppState.toggleCompare(exp.id);
-                $(this).toggleClass('btn-clay btn-outline-celadon')
-                    .html('<i class="bi bi-' + (AppState.isInCompare(exp.id) ? 'check2' : 'plus') + ' me-1"></i>' +
-                          (AppState.isInCompare(exp.id) ? '已加入对比' : '加入对比'));
-            });
-        });
-    }
-
-    function showConfirm(message, onOk) {
-        $('#confirmMessage').text(message);
-        new bootstrap.Modal(document.getElementById('confirmModal')).show();
-        $('#confirmOk').off('click').on('click', function() {
-            bootstrap.Modal.getInstance(document.getElementById('confirmModal')).hide();
-            onOk && onOk();
-        });
     }
 
     function updateCompareBadge() {
@@ -516,14 +483,6 @@ var ExpList = (function() {
         div.textContent = str || '';
         return div.innerHTML;
     }
-
-    function formatDateTime(iso) {
-        if (!iso) return '-';
-        var d = new Date(iso);
-        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
-    }
-
-    function pad(n) { return n < 10 ? '0' + n : '' + n; }
 
     return {
         init: init,

@@ -1,6 +1,5 @@
 var ExpDetail = (function() {
     var currentExpId = null;
-    var detailCurveChart = null;
     var compareZoom = 100;
     var compareShowLabels = false;
     var comparePanX = 0;
@@ -41,7 +40,8 @@ var ExpDetail = (function() {
 
         $('#detailOffcanvas').on('hidden.bs.offcanvas', function() {
             currentExpId = null;
-            if (detailCurveChart) { detailCurveChart.destroy(); detailCurveChart = null; }
+            var lastChart = $('#detailBody').data('lastCurveChart');
+            if (lastChart) { lastChart.destroy(); $('#detailBody').removeData('lastCurveChart'); }
         });
 
         $('#compareZoom').on('input', function() {
@@ -100,11 +100,10 @@ var ExpDetail = (function() {
         recipeHtml += '</tbody></table></div>';
 
         var curveHtml = '';
-        var curveCanvasId = isPanel ? 'detailPanelCurveChart' : 'detailCurveChart';
         if (exp.firingCurve && exp.firingCurve.length > 0) {
             curveHtml = '<div class="detail-section">' +
                 '<h6><i class="bi bi-graph-up me-2"></i>烧成曲线</h6>' +
-                '<canvas id="' + curveCanvasId + '" height="200"></canvas>' +
+                '<canvas class="detail-curve-canvas" height="200"></canvas>' +
                 '<div class="mt-2"><small class="text-muted">';
             exp.firingCurve.forEach(function(seg, i) {
                 curveHtml += '<span class="badge bg-secondary me-1 mb-1">#' + (i + 1) + ' ' + seg.type + ' ' +
@@ -147,12 +146,22 @@ var ExpDetail = (function() {
             '<button class="btn btn-sm btn-outline-danger ms-auto" data-action="delete" data-id="' + exp.id + '"><i class="bi bi-trash me-1"></i>删除</button>' +
             '</div>';
 
+        var lastChart = $target.data('lastCurveChart');
+        if (lastChart) { lastChart.destroy(); $target.removeData('lastCurveChart'); }
+
         $target.html(metaHtml + mediaHtml + recipeHtml + curveHtml + defectHtml + notesHtml + actionsHtml);
 
         if (exp.firingCurve && exp.firingCurve.length > 0) {
             setTimeout(function() {
-                if (detailCurveChart) detailCurveChart.destroy();
-                detailCurveChart = FiringCurve.renderDetail(curveCanvasId, exp.firingCurve, exp.name);
+                var $canvas = $target.find('.detail-curve-canvas');
+                if ($canvas.length > 0) {
+                    var canvasEl = $canvas[0];
+                    if (!canvasEl.id) {
+                        canvasEl.id = 'curve_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+                    }
+                    var chart = FiringCurve.renderDetail(canvasEl.id, exp.firingCurve, exp.name);
+                    $target.data('lastCurveChart', chart);
+                }
             }, 100);
         }
 
@@ -171,6 +180,8 @@ var ExpDetail = (function() {
                         if (!isPanel) {
                             bootstrap.Offcanvas.getInstance(document.getElementById('detailOffcanvas')).hide();
                         } else {
+                            var panelChart = $target.data('lastCurveChart');
+                            if (panelChart) { panelChart.destroy(); $target.removeData('lastCurveChart'); }
                             $target.html('<div class="text-center text-muted py-5"><i class="bi bi-journal-text display-4 opacity-50"></i><p class="mt-3">请选择一条记录</p></div>');
                             $('#detailPanelHint').text('请选择一条记录');
                         }
