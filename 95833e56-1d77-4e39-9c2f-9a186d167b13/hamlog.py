@@ -265,7 +265,7 @@ class Database:
             self._conn.create_function("REGEXP", 2, _regexp_match)
             self._conn.execute("PRAGMA journal_mode=WAL")
             self._conn.execute("PRAGMA synchronous=NORMAL")
-            self._conn.execute("PRAGMA cache_size=-64000")
+            self._conn.execute("PRAGMA cache_size=-4096")
             self._conn.execute("PRAGMA temp_store=MEMORY")
             self._conn.execute("PRAGMA foreign_keys=ON")
         return self._conn
@@ -1920,6 +1920,10 @@ def cmd_qso_search(args, config, db):
         return
     console, Table, box = try_rich_import()
     if console and Table:
+        from io import StringIO
+        from rich.console import Console as RichConsoleClass
+        buf_io = StringIO()
+        render_console = RichConsoleClass(file=buf_io, width=console.width, force_terminal=True)
         table = Table(title=f"QSO Search Results ({len(qsos)} found)", box=box.SIMPLE)
         table.add_column("Call", style="bold")
         table.add_column("Date")
@@ -1934,7 +1938,8 @@ def cmd_qso_search(args, config, db):
             table.add_row(qso.callsign, qso.qso_date, qso.qso_time + "Z",
                           f"[{band_color}]{qso.band}[/{band_color}]", qso.mode,
                           qso.rst_rcvd or "", qso.grid or "", qso.country or "")
-        console.print(table)
+        render_console.print(table)
+        maybe_pager(buf_io.getvalue().rstrip())
     else:
         buf = f"Found {len(qsos)} QSOs:\n"
         buf += f"{'Call':<12} {'Date':<10} {'Time':<7} {'Band':<6} {'Mode':<6} {'Grid':<7} {'Country'}\n"
@@ -2012,6 +2017,10 @@ def cmd_award_status(args, config, db):
     dxcc_by_cont = award_mgr.dxcc_by_continent(band=band)
     band_info = f" ({band})" if band else ""
     if console and Table:
+        from io import StringIO
+        from rich.console import Console as RichConsoleClass
+        buf_io = StringIO()
+        render_console = RichConsoleClass(file=buf_io, width=console.width, force_terminal=True)
         table = Table(title=f"Award Progress{band_info}", box=box.SIMPLE)
         table.add_column("Award")
         table.add_column("Worked", justify="right")
@@ -2022,7 +2031,7 @@ def cmd_award_status(args, config, db):
             color = "green" if prog.percentage >= 90 else "yellow" if prog.percentage >= 50 else "red"
             table.add_row(name, str(prog.worked), str(prog.total),
                           f"[{color}]{prog.percentage:.1f}%[/{color}]", f"{len(prog.missing)} missing")
-        console.print(table)
+        render_console.print(table)
         cont_table = Table(title="DXCC by Continent", box=box.SIMPLE)
         cont_table.add_column("Continent")
         cont_table.add_column("Worked", justify="right")
@@ -2031,22 +2040,27 @@ def cmd_award_status(args, config, db):
         for cont, (worked, total) in dxcc_by_cont.items():
             pct = f"{worked/total*100:.1f}%" if total > 0 else "N/A"
             cont_table.add_row(get_continent_name(cont), str(worked), str(total), pct)
-        console.print(cont_table)
+        render_console.print(cont_table)
         if args.show_missing and dxcc.missing:
-            buf = "\nMissing DXCC entities (sorted by rarity):\n"
+            buf_io.write("\nMissing DXCC entities (sorted by rarity):\n")
             for i, name in enumerate(dxcc.missing, 1):
-                buf += f"  {i:3d}. {name}\n"
-            maybe_pager(buf.rstrip())
+                buf_io.write(f"  {i:3d}. {name}\n")
+        maybe_pager(buf_io.getvalue().rstrip())
     else:
-        print(f"Award Progress{band_info}")
-        print("=" * 50)
-        print(f"DXCC:    {dxcc.worked}/{dxcc.total} ({dxcc.percentage:.1f}%) - {len(dxcc.missing)} missing")
-        print(f"WAS:     {was.worked}/{was.total} ({was.percentage:.1f}%) - {len(was.missing)} missing")
-        print(f"WAZ:     {waz.worked}/{waz.total} ({waz.percentage:.1f}%) - {len(waz.missing)} missing")
-        print("\nDXCC by Continent:")
+        buf = f"Award Progress{band_info}\n"
+        buf += "=" * 50 + "\n"
+        buf += f"DXCC:    {dxcc.worked}/{dxcc.total} ({dxcc.percentage:.1f}%) - {len(dxcc.missing)} missing\n"
+        buf += f"WAS:     {was.worked}/{was.total} ({was.percentage:.1f}%) - {len(was.missing)} missing\n"
+        buf += f"WAZ:     {waz.worked}/{waz.total} ({waz.percentage:.1f}%) - {len(waz.missing)} missing\n"
+        buf += "\nDXCC by Continent:\n"
         for cont, (worked, total) in dxcc_by_cont.items():
             pct = f"{worked/total*100:.1f}%" if total > 0 else "N/A"
-            print(f"  {get_continent_name(cont):<20} {worked:>3d}/{total:<3d} {pct}")
+            buf += f"  {get_continent_name(cont):<20} {worked:>3d}/{total:<3d} {pct}\n"
+        if args.show_missing and dxcc.missing:
+            buf += "\nMissing DXCC entities (sorted by rarity):\n"
+            for i, name in enumerate(dxcc.missing, 1):
+                buf += f"  {i:3d}. {name}\n"
+        maybe_pager(buf.rstrip())
 
 
 def cmd_propagation(args, config, db):
@@ -2153,6 +2167,7 @@ def cmd_contest(args, config, db):
 
             @kb.add('enter')
             def _(event):
+                nonlocal count
                 buf = event.app.current_buffer
                 line = buf.text.strip()
                 buf.text = ''
@@ -2175,12 +2190,22 @@ def cmd_contest(args, config, db):
                 try:
                     qso_id = qso_mgr.add(qso)
                     count += 1
-                    print_info(f"#{count} QSO logged: {callsign} (ID: {qso_id})")
+                    try:
+                        event.app.print(f"[green]INFO:[/green] #{count} QSO logged: {callsign} (ID: {qso_id})")
+                    except Exception:
+                        event.app.output.write_raw(f"INFO: #{count} QSO logged: {callsign} (ID: {qso_id})\r\n")
                 except ValueError as e:
-                    if "Duplicate" in str(e):
-                        print_warning(f"Duplicate: {callsign}")
+                    msg = str(e)
+                    if "Duplicate" in msg:
+                        try:
+                            event.app.print(f"[yellow]WARNING:[/yellow] Duplicate: {callsign}")
+                        except Exception:
+                            event.app.output.write_raw(f"WARNING: Duplicate: {callsign}\r\n")
                     else:
-                        print_error(str(e))
+                        try:
+                            event.app.print(f"[red]ERROR:[/red] {msg}")
+                        except Exception:
+                            event.app.output.write_raw(f"ERROR: {msg}\r\n")
 
             while True:
                 try:
