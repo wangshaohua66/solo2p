@@ -185,21 +185,34 @@ func (m *DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "up", "k":
 			if m.selectedTask > 0 {
 				m.selectedTask--
-				m.table.MoveUp(1)
+				tableHeight := m.table.Height()
+				if tableHeight > 0 && m.selectedTask < m.scrollOffset {
+					m.scrollOffset = m.selectedTask
+				}
+				m.refreshTableRows()
 			}
 		case "down", "j":
 			if m.selectedTask < len(m.filteredTasks)-1 {
 				m.selectedTask++
-				m.table.MoveDown(1)
+				tableHeight := m.table.Height()
+				if tableHeight > 0 && m.selectedTask >= m.scrollOffset+tableHeight {
+					m.scrollOffset = m.selectedTask - tableHeight + 1
+				}
+				m.refreshTableRows()
 			}
 		case "h", "?":
 			m.showHelp = !m.showHelp
 		case "home", "g":
 			m.selectedTask = 0
-			m.table.GotoTop()
+			m.scrollOffset = 0
+			m.refreshTableRows()
 		case "end", "G":
 			m.selectedTask = len(m.filteredTasks) - 1
-			m.table.GotoBottom()
+			tableHeight := m.table.Height()
+			if tableHeight > 0 {
+				m.scrollOffset = max(0, len(m.filteredTasks)-tableHeight)
+			}
+			m.refreshTableRows()
 		}
 	case tea.MouseMsg:
 		const (
@@ -207,13 +220,20 @@ func (m *DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			wheelDown = 5
 		)
 		mev := msg
+		tableHeight := m.table.Height()
+		if tableHeight <= 0 {
+			tableHeight = 10
+		}
 		if mev.Button == wheelUp {
 			if m.scrollOffset > 0 {
 				m.scrollOffset--
+				m.refreshTableRows()
 			}
 		} else if mev.Button == wheelDown {
-			if m.scrollOffset < max(0, len(m.filteredTasks)-10) {
+			maxOffset := max(0, len(m.filteredTasks)-tableHeight)
+			if m.scrollOffset < maxOffset {
 				m.scrollOffset++
+				m.refreshTableRows()
 			}
 		}
 	case TickMsg:
@@ -254,8 +274,32 @@ func (m *DashboardModel) applyFilter() {
 	sort.Slice(m.filteredTasks, func(i, j int) bool {
 		return m.filteredTasks[i].CreatedAt.After(m.filteredTasks[j].CreatedAt)
 	})
-	rows := make([]table.Row, len(m.filteredTasks))
-	for i, task := range m.filteredTasks {
+	m.refreshTableRows()
+	if m.selectedTask >= len(m.filteredTasks) {
+		m.selectedTask = max(0, len(m.filteredTasks)-1)
+	}
+	if m.scrollOffset > max(0, len(m.filteredTasks)-10) {
+		m.scrollOffset = max(0, len(m.filteredTasks)-10)
+	}
+}
+
+func (m *DashboardModel) refreshTableRows() {
+	tableHeight := 10
+	if h := m.table.Height(); h > 0 {
+		tableHeight = h
+	}
+	start := m.scrollOffset
+	end := start + tableHeight
+	if start < 0 {
+		start = 0
+		m.scrollOffset = 0
+	}
+	if end > len(m.filteredTasks) {
+		end = len(m.filteredTasks)
+	}
+	visibleTasks := m.filteredTasks[start:end]
+	rows := make([]table.Row, len(visibleTasks))
+	for i, task := range visibleTasks {
 		progressPct := 0
 		if task.Progress.TotalChunks > 0 {
 			progressPct = task.Progress.CurrentChunk * 100 / task.Progress.TotalChunks
@@ -287,9 +331,6 @@ func (m *DashboardModel) applyFilter() {
 		}
 	}
 	m.table.SetRows(rows)
-	if m.selectedTask >= len(m.filteredTasks) {
-		m.selectedTask = max(0, len(m.filteredTasks)-1)
-	}
 }
 
 func max(a, b int) int {

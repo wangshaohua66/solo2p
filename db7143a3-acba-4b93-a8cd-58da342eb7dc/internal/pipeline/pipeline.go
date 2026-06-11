@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -465,16 +466,47 @@ func (w *Worker) processTask(ctx context.Context, task *types.Task) error {
 }
 
 func (w *Worker) checkChunkMemory(chunk *types.Chunk, meta *types.GeoTIFFMetadata, task *types.Task) error {
-	memoryLimitGB := w.engine.config.Pipeline.MemoryLimitGB
-	if memoryLimitGB <= 0 {
-		memoryLimitGB = 1.5
+	var ms runtime.MemStats
+	runtime.ReadMemStats(&ms)
+	sysMemory := ms.Sys
+	availableBytes := int64(sysMemory) - int64(ms.Alloc)
+
+	configuredLimitGB := w.engine.config.IO.MemoryLimitGB
+	if configuredLimitGB <= 0 {
+		configuredLimitGB = 1.5
 	}
-	memoryLimitBytes := int64(memoryLimitGB * 1024 * 1024 * 1024)
+	configuredLimitBytes := int64(configuredLimitGB * 1024 * 1024 * 1024)
+	memoryLimitBytes := availableBytes
+	if configuredLimitBytes < memoryLimitBytes {
+		memoryLimitBytes = configuredLimitBytes
+	}
+	if memoryLimitBytes < 256*1024*1024 {
+		memoryLimitBytes = 256 * 1024 * 1024
+	}
 
 	rows := chunk.Height
 	cols := chunk.Width
 	numBands := meta.NumBands
+
 	bytesPerPixel := 8
+	if meta.BitsPerSample > 0 {
+		bytesPerPixel = meta.BitsPerSample / 8
+		if bytesPerPixel < 1 {
+			bytesPerPixel = 1
+		}
+	}
+	if meta.DataType != "" {
+		switch strings.ToLower(meta.DataType) {
+		case "uint8", "int8":
+			bytesPerPixel = 1
+		case "uint16", "int16":
+			bytesPerPixel = 2
+		case "uint32", "int32", "float32":
+			bytesPerPixel = 4
+		case "float64", "uint64", "int64":
+			bytesPerPixel = 8
+		}
+	}
 
 	inputBytes := int64(rows) * int64(cols) * int64(numBands) * int64(bytesPerPixel)
 	var outputBands int
@@ -484,14 +516,17 @@ func (w *Worker) checkChunkMemory(chunk *types.Chunk, meta *types.GeoTIFFMetadat
 	default:
 		outputBands = 1
 	}
-	outputBytes := int64(rows) * int64(cols) * int64(outputBands) * int64(bytesPerPixel)
-	overheadBytes := int64(10 * 1024 * 1024)
+	outputBytesPerPixel := 8
+	outputBytes := int64(rows) * int64(cols) * int64(outputBands) * int64(outputBytesPerPixel)
+	overheadBytes := int64(32 * 1024 * 1024)
 
 	totalRequired := inputBytes + outputBytes + overheadBytes
 	if totalRequired > memoryLimitBytes {
 		return apperrors.New(apperrors.E1004,
-			fmt.Sprintf("chunk memory required %.2f MB exceeds limit %.2f MB, reduce chunk size or increase MemoryLimitGB",
-				float64(totalRequired)/1024/1024, float64(memoryLimitBytes)/1024/1024))
+			fmt.Sprintf("chunk memory required %.2f MB exceeds available %.2f MB (configured limit %.2f GB), reduce chunk size or increase memory_limit_gb",
+				float64(totalRequired)/1024/1024,
+				float64(memoryLimitBytes)/1024/1024,
+				configuredLimitGB))
 	}
 	return nil
 }

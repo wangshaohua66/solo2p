@@ -69,7 +69,7 @@ Supports processing of multi-source remote sensing data including Sentinel-2, La
   sentinel crs --source-epsg 4326 --target-epsg 4490 --input input.tif --output output.tif`,
 	SilenceUsage:  false,
 	SilenceErrors: false,
-	PreRunE: func(cmd *cobra.Command, args []string) error {
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		parseCombinedShortFlags()
 
 		if err := loadConfiguration(); err != nil {
@@ -166,7 +166,7 @@ func loadConfiguration() error {
 		AppConfig.Global.MaxConcurrent = maxConcurrent
 	}
 
-	validationResult := config.ValidateConfig(AppConfig)
+	validationResult := config.ValidateConfig(AppConfig, config.LastConfigNode)
 	if !validationResult.Valid {
 		var errMsgs []string
 		for _, e := range validationResult.Errors {

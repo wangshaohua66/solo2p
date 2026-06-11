@@ -1,0 +1,473 @@
+# Sentinel CLI 配置文件 | Sentinel CLI Configuration
+# =========================================
+
+# =========================
+# Global Configuration | 全局配置
+# =========================
+global:
+  # 最大并发处理数 (1-16) | Maximum concurrent processing count (1-16)
+  max_concurrent: 4
+  # 任务数据库路径 | Task database path
+  database_path: "~/.sentinel/tasks.db"
+  # 临时文件目录 | Temporary file directory
+  temp_directory: "~/.sentinel/tmp"
+  # 默认输出目录 | Default output directory
+  output_directory: "./output"
+
+# =========================
+# CRS Configuration | 坐标系统配置
+# =========================
+crs:
+  # 默认源EPSG代码 | Default source EPSG code
+  default_source_epsg: 4326
+  # 默认目标EPSG代码 | Default target EPSG code
+  default_target_epsg: 4490
+
+  # Bursa-Wolf 七参数转换预设 | Bursa-Wolf seven-parameter transformation presets
+  # 参数格式: dx, dy, dz, rx, ry, rz, scale
+  # 单位: dx/dy/dz为米, rx/ry/rz为弧秒, scale为ppm
+  seven_params:
+    wgs84_to_cgcs2000:
+      dx: 0
+      dy: 0
+      dz: 0
+      rx: 0
+      ry: 0
+      rz: 0
+      ds: 0
+    wgs84_to_beijing54:
+      dx: -13.5
+      dy: -129.5
+      dz: -76.8
+      rx: 0
+      ry: 0
+      rz: 0
+      ds: 0
+    wgs84_to_xian80:
+      dx: -10.5
+      dy: -118.5
+      dz: -63.5
+      rx: 0
+      ry: 0
+      rz: 0
+      ds: 0
+
+  # NTv2 网格文件（高精度转换）| NTv2 grid files (high-accuracy transformation)
+  ntv2_grids:
+    china_geoid:
+      file_path: "~/.sentinel/crs/china_geoid.gsb"
+      grid_name: "CHINA_GEOID"
+      source_epsg: 4326
+      target_epsg: 4490
+  # EPSG 数据库路径 | EPSG database path
+  database_path: "~/.sentinel/crs/epsg.db"
+
+# =========================
+# Index Configuration | 指数计算配置
+# =========================
+index:
+  # 默认 NoData 值 | Default NoData value
+  default_nodata_value: 0
+  # 输出格式 (GTiff/ENVI/HFA) | Output format (GTiff/ENVI/HFA)
+  output_format: "GTiff"
+  # 自定义指数公式 | Custom index formulas
+  # 可用操作符: +, -, *, /, ()
+  # 波段引用: B1, B2, B3, ...
+  custom_formulas:
+    ndvi: "(B8 - B4) / (B8 + B4)"
+    evi: "2.5 * (B8 - B4) / (B8 + 6 * B4 - 7.5 * B2 + 1)"
+    savi: "((B8 - B4) / (B8 + B4 + 0.5)) * 1.5"
+
+# =========================
+# IO Configuration | 输入输出配置
+# =========================
+io:
+  # 块大小 (1-512 MB) | Chunk size (1-512 MB)
+  chunk_size_mb: 64
+  # 内存限制 (0.5-16 GB) | Memory limit (0.5-16 GB)
+  memory_limit_gb: 1.5
+  # 压缩方式: none/lzw/deflate/packbits | Compression: none/lzw/deflate/packbits
+  compression: "LZW"
+  # 压缩质量 (1-100) | Compression quality (1-100)
+  compression_quality: 90
+  # 写入并发数 | Write concurrency
+  write_concurrency: 2
+
+# =========================
+# Pipeline Configuration | 流水线配置
+# =========================
+pipeline:
+  # 默认最大重试次数 (0-10) | Default maximum retries (0-10)
+  default_max_retries: 3
+  # 重试等待时间（毫秒）| Retry backoff time (milliseconds)
+  retry_backoff_ms: 1000
+  # 重试等待时间倍增器 | Retry backoff multiplier
+  retry_backoff_multiplier: 2
+  # 检查点间隔（任务数）| Checkpoint interval (task count)
+  checkpoint_interval: 10
+  # 死任务阈值（超过该重试次数视为死任务）| Dead task threshold (retries beyond this are considered dead)
+  dead_task_threshold: 5
+  # 队列容量 | Queue capacity
+  queue_capacity: 1000
+
+# =========================
+# Daemon Configuration | 守护进程配置
+# =========================
+daemon:
+  # PID 文件路径 | PID file path
+  pid_file: "~/.sentinel/daemon.pid"
+  # 日志文件路径 | Log file path
+  log_file: "~/.sentinel/daemon.log"
+  # 监听目录列表 | Watch directories
+  watch_directories:
+    - "./watch"
+  # 监听文件扩展名 | Watch file extensions
+  file_extensions:
+    - ".tif"
+    - ".tiff"
+    - ".img"
+  # 轮询间隔（毫秒）| Poll interval (milliseconds)
+  poll_interval_ms: 5000
+  # 优雅关闭超时（秒）| Graceful shutdown timeout (seconds)
+  graceful_shutdown_sec: 30
+  # 是否启用 systemd 通知 | Enable systemd notification
+  systemd_notify: false
+
+# =========================
+# Logging Configuration | 日志配置
+# =========================
+logging:
+  # 日志级别: debug/info/warn/error | Log level: debug/info/warn/error
+  level: "info"
+  # 日志格式: json/text | Log format: json/text
+  format: "json"
+  # 审计日志路径 | Audit log path
+  audit_log_path: "~/.sentinel/audit.log"
+  # 审计日志最大大小（MB）| Maximum audit log size (MB)
+  audit_log_max_size_mb: 100
+  # 审计日志最大备份数 | Maximum audit log backups
+  audit_log_max_backups: 10
+  # 详细输出模式 | Verbose output mode
+  verbose: false
+  # 静默模式（仅输出错误）| Quiet mode (output only errors)
+  quiet: false
+
+# =========================
+# Sensor Presets | 传感器预设
+# =========================
+sensors:
+  sentinel2:
+    # Sentinel-2 MSI
+    name: "Sentinel-2 MSI"
+
+    # 波段定义 | Band definitions
+    bands:
+      B8:
+        # NIR | Near infrared band
+        index: 8
+        name: "NIR"
+        wavelength_min: 0.785
+        wavelength_max: 0.9
+        resolution: 10
+        description: "Near infrared band"
+      B6:
+        # Vegetation Red Edge 2 | Red edge band 2
+        index: 6
+        name: "Vegetation Red Edge 2"
+        wavelength_min: 0.733
+        wavelength_max: 0.748
+        resolution: 20
+        description: "Red edge band 2"
+      B9:
+        # Water Vapour | Water vapour band
+        index: 10
+        name: "Water Vapour"
+        wavelength_min: 0.935
+        wavelength_max: 0.955
+        resolution: 60
+        description: "Water vapour band"
+      B10:
+        # SWIR Cirrus | Cirrus band
+        index: 11
+        name: "SWIR Cirrus"
+        wavelength_min: 1.365
+        wavelength_max: 1.385
+        resolution: 60
+        description: "Cirrus band"
+      B12:
+        # SWIR 2 | Shortwave infrared band 2
+        index: 13
+        name: "SWIR 2"
+        wavelength_min: 2.1
+        wavelength_max: 2.3
+        resolution: 20
+        description: "Shortwave infrared band 2"
+      B3:
+        # Green | Green visible band
+        index: 3
+        name: "Green"
+        wavelength_min: 0.543
+        wavelength_max: 0.578
+        resolution: 10
+        description: "Green visible band"
+      B4:
+        # Red | Red visible band
+        index: 4
+        name: "Red"
+        wavelength_min: 0.65
+        wavelength_max: 0.68
+        resolution: 10
+        description: "Red visible band"
+      B7:
+        # Vegetation Red Edge 3 | Red edge band 3
+        index: 7
+        name: "Vegetation Red Edge 3"
+        wavelength_min: 0.773
+        wavelength_max: 0.793
+        resolution: 20
+        description: "Red edge band 3"
+      B8A:
+        # Vegetation Red Edge 4 | Red edge band 4/NIR narrow
+        index: 9
+        name: "Vegetation Red Edge 4"
+        wavelength_min: 0.855
+        wavelength_max: 0.875
+        resolution: 20
+        description: "Red edge band 4/NIR narrow"
+      B11:
+        # SWIR 1 | Shortwave infrared band 1
+        index: 12
+        name: "SWIR 1"
+        wavelength_min: 1.565
+        wavelength_max: 1.655
+        resolution: 20
+        description: "Shortwave infrared band 1"
+      B1:
+        # Coastal Aerosol | Coastal aerosol band
+        index: 1
+        name: "Coastal Aerosol"
+        wavelength_min: 0.433
+        wavelength_max: 0.453
+        resolution: 60
+        description: "Coastal aerosol band"
+      B2:
+        # Blue | Blue visible band
+        index: 2
+        name: "Blue"
+        wavelength_min: 0.458
+        wavelength_max: 0.523
+        resolution: 10
+        description: "Blue visible band"
+      B5:
+        # Vegetation Red Edge 1 | Red edge band 1
+        index: 5
+        name: "Vegetation Red Edge 1"
+        wavelength_min: 0.699
+        wavelength_max: 0.711
+        resolution: 20
+        description: "Red edge band 1"
+
+    # 默认波段映射 | Default band mapping
+    default_bands:
+      green: "B3"
+      blue: "B2"
+      nir: "B8"
+      swir1: "B11"
+      swir2: "B12"
+      red: "B4"
+
+    # 植被指数公式 | Vegetation index formulas
+    ndvi_formula: "(B8 - B4) / (B8 + B4)"
+    evi_formula: "2.5 * (B8 - B4) / (B8 + 6 * B4 - 7.5 * B2 + 1)"
+    savi_formula: "((B8 - B4) / (B8 + B4 + 0.5)) * 1.5"
+
+    # 元数据文件匹配模式 | Metadata file matching pattern
+    metadata_pattern: "MTD_MSIL2A.xml"
+
+  landsat8:
+    # Landsat-8 OLI/TIRS
+    name: "Landsat-8 OLI/TIRS"
+
+    # 波段定义 | Band definitions
+    bands:
+      B2:
+        # Blue | Blue visible band
+        index: 2
+        name: "Blue"
+        wavelength_min: 0.452
+        wavelength_max: 0.512
+        resolution: 30
+        description: "Blue visible band"
+      B4:
+        # Red | Red visible band
+        index: 4
+        name: "Red"
+        wavelength_min: 0.636
+        wavelength_max: 0.673
+        resolution: 30
+        description: "Red visible band"
+      B5:
+        # NIR | Near infrared band
+        index: 5
+        name: "NIR"
+        wavelength_min: 0.851
+        wavelength_max: 0.879
+        resolution: 30
+        description: "Near infrared band"
+      B11:
+        # TIRS 2 | Thermal infrared band 2
+        index: 11
+        name: "TIRS 2"
+        wavelength_min: 11.5
+        wavelength_max: 12.51
+        resolution: 100
+        description: "Thermal infrared band 2"
+      B8:
+        # Panchromatic | Panchromatic band
+        index: 8
+        name: "Panchromatic"
+        wavelength_min: 0.503
+        wavelength_max: 0.676
+        resolution: 15
+        description: "Panchromatic band"
+      B10:
+        # TIRS 1 | Thermal infrared band 1
+        index: 10
+        name: "TIRS 1"
+        wavelength_min: 10.6
+        wavelength_max: 11.19
+        resolution: 100
+        description: "Thermal infrared band 1"
+      B1:
+        # Coastal Aerosol | Coastal aerosol band
+        index: 1
+        name: "Coastal Aerosol"
+        wavelength_min: 0.435
+        wavelength_max: 0.451
+        resolution: 30
+        description: "Coastal aerosol band"
+      B3:
+        # Green | Green visible band
+        index: 3
+        name: "Green"
+        wavelength_min: 0.533
+        wavelength_max: 0.59
+        resolution: 30
+        description: "Green visible band"
+      B6:
+        # SWIR 1 | Shortwave infrared band 1
+        index: 6
+        name: "SWIR 1"
+        wavelength_min: 1.566
+        wavelength_max: 1.651
+        resolution: 30
+        description: "Shortwave infrared band 1"
+      B7:
+        # SWIR 2 | Shortwave infrared band 2
+        index: 7
+        name: "SWIR 2"
+        wavelength_min: 2.107
+        wavelength_max: 2.294
+        resolution: 30
+        description: "Shortwave infrared band 2"
+      B9:
+        # Cirrus | Cirrus cloud band
+        index: 9
+        name: "Cirrus"
+        wavelength_min: 1.363
+        wavelength_max: 1.384
+        resolution: 30
+        description: "Cirrus cloud band"
+
+    # 默认波段映射 | Default band mapping
+    default_bands:
+      nir: "B5"
+      swir1: "B6"
+      swir2: "B7"
+      red: "B4"
+      green: "B3"
+      blue: "B2"
+
+    # 植被指数公式 | Vegetation index formulas
+    ndvi_formula: "(B5 - B4) / (B5 + B4)"
+    evi_formula: "2.5 * (B5 - B4) / (B5 + 6 * B4 - 7.5 * B2 + 1)"
+    savi_formula: "((B5 - B4) / (B5 + B4 + 0.5)) * 1.5"
+
+    # 元数据文件匹配模式 | Metadata file matching pattern
+    metadata_pattern: "*_MTL.txt"
+
+  gf2:
+    # Gaofen-2 PMS
+    name: "Gaofen-2 PMS"
+
+    # 波段定义 | Band definitions
+    bands:
+      B1:
+        # Pan | Panchromatic band
+        index: 1
+        name: "Pan"
+        wavelength_min: 0.45
+        wavelength_max: 0.9
+        resolution: 1
+        description: "Panchromatic band"
+      B2:
+        # Blue | Blue visible band
+        index: 2
+        name: "Blue"
+        wavelength_min: 0.45
+        wavelength_max: 0.52
+        resolution: 4
+        description: "Blue visible band"
+      B3:
+        # Green | Green visible band
+        index: 3
+        name: "Green"
+        wavelength_min: 0.52
+        wavelength_max: 0.6
+        resolution: 4
+        description: "Green visible band"
+      B4:
+        # Red | Red visible band
+        index: 4
+        name: "Red"
+        wavelength_min: 0.63
+        wavelength_max: 0.69
+        resolution: 4
+        description: "Red visible band"
+      B5:
+        # NIR | Near infrared band
+        index: 5
+        name: "NIR"
+        wavelength_min: 0.77
+        wavelength_max: 0.89
+        resolution: 4
+        description: "Near infrared band"
+
+    # 默认波段映射 | Default band mapping
+    default_bands:
+      nir: "B5"
+      red: "B4"
+      green: "B3"
+      blue: "B2"
+
+    # 植被指数公式 | Vegetation index formulas
+    ndvi_formula: "(B5 - B4) / (B5 + B4)"
+    evi_formula: "2.5 * (B5 - B4) / (B5 + 6 * B4 - 7.5 * B2 + 1)"
+    savi_formula: "((B5 - B4) / (B5 + B4 + 0.5)) * 1.5"
+
+    # 元数据文件匹配模式 | Metadata file matching pattern
+    metadata_pattern: "*.xml"
+
+# =========================
+# 支持的 EPSG 代码 | Supported EPSG Codes
+# =========================
+# 4326  - WGS84 - World Geodetic System 1984
+# 4490  - CGCS2000 - China Geodetic Coordinate System 2000
+# 4214  - Beijing54 - Beijing Geodetic Coordinate System 1954
+# 4610  - Xian80 - Xi'an Geodetic Coordinate System 1980
+# 3857  - Web Mercator / Pseudo-Mercator
+# 32649 - WGS 84 / UTM zone 49N
+# 32650 - WGS 84 / UTM zone 50N
+# 32651 - WGS 84 / UTM zone 51N
+# 23849 - CGCS2000 / 3-degree Gauss-Kruger zone 25
+# 23850 - CGCS2000 / 3-degree Gauss-Kruger zone 26

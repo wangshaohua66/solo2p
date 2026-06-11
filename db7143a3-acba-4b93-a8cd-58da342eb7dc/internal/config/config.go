@@ -200,8 +200,12 @@ func deepCopy(src *types.Config) *types.Config {
 	return &dst
 }
 
+var LastConfigNode *yaml.Node
+
 func LoadConfig(paths ...string) (*types.Config, error) {
 	cfg := DefaultConfig()
+	LastConfigNode = nil
+	var mergedNode *yaml.Node
 	for _, path := range paths {
 		expandedPath := util.ExpandPath(path)
 		if _, err := os.Stat(expandedPath); os.IsNotExist(err) {
@@ -218,7 +222,9 @@ func LoadConfig(paths ...string) (*types.Config, error) {
 		if err := node.Decode(cfg); err != nil {
 			return nil, apperrors.Wrap(err, apperrors.E5002, fmt.Sprintf("YAML decode error in %s", path))
 		}
+		mergedNode = &node
 	}
+	LastConfigNode = mergedNode
 	applyEnvOverrides(cfg)
 	expandConfigPaths(cfg)
 	return cfg, nil
@@ -277,108 +283,95 @@ func expandConfigPaths(cfg *types.Config) {
 	}
 }
 
-func ValidateConfig(cfg *types.Config) types.ValidationResult {
+func ValidateConfig(cfg *types.Config, node *yaml.Node) types.ValidationResult {
 	var result types.ValidationResult
 	result.Valid = true
 
+	var fieldLocations map[string]FieldLocation
+	if node != nil {
+		fieldLocations = GetFieldsWithLocation(node, "")
+	}
+
+	addError := func(field, message, severity string) {
+		e := types.ValidationError{
+			Field:    field,
+			Message:  message,
+			Severity: severity,
+		}
+		if fieldLocations != nil {
+			if loc, ok := fieldLocations[field]; ok {
+				e.Line = loc.Line
+				e.Column = loc.Column
+			}
+		}
+		if severity == "error" {
+			result.Errors = append(result.Errors, e)
+			result.Valid = false
+		} else {
+			result.Warning = append(result.Warning, e)
+		}
+	}
+
 	if cfg.Global.MaxConcurrent < 1 || cfg.Global.MaxConcurrent > 16 {
-		result.Valid = false
-		result.Errors = append(result.Errors, types.ValidationError{
-			Field:    "global.max_concurrent",
-			Message:  "must be between 1 and 16",
-			Severity: "error",
-		})
+		addError("global.max_concurrent", "must be between 1 and 16", "error")
 	}
 
 	if cfg.Global.DatabasePath == "" {
-		result.Valid = false
-		result.Errors = append(result.Errors, types.ValidationError{
-			Field:    "global.database_path",
-			Message:  "cannot be empty",
-			Severity: "error",
-		})
+		addError("global.database_path", "cannot be empty", "error")
 	}
 
 	if cfg.IO.ChunkSizeMB < 1 || cfg.IO.ChunkSizeMB > 512 {
-		result.Valid = false
-		result.Errors = append(result.Errors, types.ValidationError{
-			Field:    "io.chunk_size_mb",
-			Message:  "must be between 1 and 512",
-			Severity: "error",
-		})
+		addError("io.chunk_size_mb", "must be between 1 and 512", "error")
 	}
 
 	if cfg.IO.MemoryLimitGB < 0.5 || cfg.IO.MemoryLimitGB > 16 {
-		result.Valid = false
-		result.Errors = append(result.Errors, types.ValidationError{
-			Field:    "io.memory_limit_gb",
-			Message:  "must be between 0.5 and 16",
-			Severity: "error",
-		})
+		addError("io.memory_limit_gb", "must be between 0.5 and 16", "error")
 	}
 
 	if cfg.Pipeline.DefaultMaxRetries < 0 || cfg.Pipeline.DefaultMaxRetries > 10 {
-		result.Valid = false
-		result.Errors = append(result.Errors, types.ValidationError{
-			Field:    "pipeline.default_max_retries",
-			Message:  "must be between 0 and 10",
-			Severity: "error",
-		})
+		addError("pipeline.default_max_retries", "must be between 0 and 10", "error")
 	}
 
 	if cfg.Pipeline.DeadTaskThreshold < cfg.Pipeline.DefaultMaxRetries {
-		result.Warning = append(result.Warning, types.ValidationError{
-			Field:    "pipeline.dead_task_threshold",
-			Message:  "should be greater than default_max_retries",
-			Severity: "warning",
-		})
+		addError("pipeline.dead_task_threshold", "should be greater than default_max_retries", "warning")
 	}
 
 	validLogLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
 	if !validLogLevels[strings.ToLower(cfg.Logging.Level)] {
-		result.Valid = false
-		result.Errors = append(result.Errors, types.ValidationError{
-			Field:    "logging.level",
-			Message:  "must be one of: debug, info, warn, error",
-			Severity: "error",
-		})
+		addError("logging.level", "must be one of: debug, info, warn, error", "error")
 	}
 
 	validFormats := map[string]bool{"json": true, "text": true}
 	if !validFormats[strings.ToLower(cfg.Logging.Format)] {
-		result.Valid = false
-		result.Errors = append(result.Errors, types.ValidationError{
-			Field:    "logging.format",
-			Message:  "must be one of: json, text",
-			Severity: "error",
-		})
+		addError("logging.format", "must be one of: json, text", "error")
 	}
 
 	validCompressions := map[string]bool{"none": true, "lzw": true, "deflate": true, "packbits": true}
 	if !validCompressions[strings.ToLower(cfg.IO.Compression)] {
-		result.Valid = false
-		result.Errors = append(result.Errors, types.ValidationError{
-			Field:    "io.compression",
-			Message:  "must be one of: none, lzw, deflate, packbits",
-			Severity: "error",
-		})
+		addError("io.compression", "must be one of: none, lzw, deflate, packbits", "error")
 	}
 
 	for name, sensor := range cfg.Sensors {
 		if sensor.Name == "" {
-			result.Valid = false
-			result.Errors = append(result.Errors, types.ValidationError{
-				Field:    fmt.Sprintf("sensors.%s.name", name),
-				Message:  "sensor name cannot be empty",
-				Severity: "error",
-			})
+			addError(fmt.Sprintf("sensors.%s.name", name), "sensor name cannot be empty", "error")
 		}
 		if len(sensor.Bands) == 0 {
-			result.Warning = append(result.Warning, types.ValidationError{
-				Field:    fmt.Sprintf("sensors.%s.bands", name),
-				Message:  "no bands defined for sensor",
-				Severity: "warning",
-			})
+			addError(fmt.Sprintf("sensors.%s.bands", name), "no bands defined for sensor", "warning")
+		}
+	}
+
+	if fieldLocations != nil {
+		validFields := getValidFields()
+		for field, loc := range fieldLocations {
+			if !validFields[field] {
+				result.Warning = append(result.Warning, types.ValidationError{
+					Field:    field,
+					Message:  fmt.Sprintf("unknown configuration key '%s' will be ignored", field),
+					Line:     loc.Line,
+					Column:   loc.Column,
+					Severity: "warning",
+				})
+			}
 		}
 	}
 
@@ -608,37 +601,11 @@ func getFieldsRecursiveWithLocation(node *yaml.Node, prefix string, result map[s
 }
 
 func ValidateConfigWithSchema(cfg *types.Config, data []byte) types.ValidationResult {
-	result := ValidateConfig(cfg)
 	var node yaml.Node
 	if err := yaml.Unmarshal(data, &node); err != nil {
-		return result
+		return ValidateConfig(cfg, nil)
 	}
-	fieldLocations := GetFieldsWithLocation(&node, "")
-	for i := range result.Errors {
-		if loc, ok := fieldLocations[result.Errors[i].Field]; ok {
-			result.Errors[i].Line = loc.Line
-			result.Errors[i].Column = loc.Column
-		}
-	}
-	for i := range result.Warning {
-		if loc, ok := fieldLocations[result.Warning[i].Field]; ok {
-			result.Warning[i].Line = loc.Line
-			result.Warning[i].Column = loc.Column
-		}
-	}
-	validFields := getValidFields()
-	for field, loc := range fieldLocations {
-		if !validFields[field] {
-			result.Warning = append(result.Warning, types.ValidationError{
-				Field:    field,
-				Message:  fmt.Sprintf("unknown configuration key '%s' will be ignored", field),
-				Line:     loc.Line,
-				Column:   loc.Column,
-				Severity: "warning",
-			})
-		}
-	}
-	return result
+	return ValidateConfig(cfg, &node)
 }
 
 func getValidFields() map[string]bool {

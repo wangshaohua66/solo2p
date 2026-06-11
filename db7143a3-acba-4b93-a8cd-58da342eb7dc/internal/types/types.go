@@ -72,6 +72,7 @@ type GeoTIFFMetadata struct {
 	Width           int
 	Height          int
 	NumBands        int
+	BitsPerSample   int
 	DataType        string
 	Compression     string
 	CRS             string
