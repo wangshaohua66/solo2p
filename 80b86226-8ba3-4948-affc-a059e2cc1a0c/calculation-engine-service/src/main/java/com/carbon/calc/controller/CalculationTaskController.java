@@ -33,8 +33,9 @@ public class CalculationTaskController {
             @Parameter(description = "核算标准列表，默认三标准全开") @RequestParam(required = false) List<AccountingStandard> standards,
             @Parameter(description = "指定排放源ID列表，空=全部") @RequestParam(required = false) List<String> sourceIds,
             @Parameter(description = "按SCOPE过滤") @RequestParam(required = false) String scope,
-            @Parameter(description = "任务名称") @RequestParam(required = false) String taskName) {
-        return R.ok(service.submitTask(year, month, standards, sourceIds, scope, taskName));
+            @Parameter(description = "任务名称") @RequestParam(required = false) String taskName,
+            @Parameter(description = "关联证据ID列表(证据链校验)") @RequestParam(required = false) List<String> evidenceIds) {
+        return R.ok(service.submitTask(year, month, standards, sourceIds, scope, taskName, evidenceIds));
     }
 
     @GetMapping

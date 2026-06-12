@@ -2,6 +2,7 @@ package com.carbon.calc.controller;
 
 import com.carbon.calc.entity.CalculationDiff;
 import com.carbon.calc.entity.CalculationResult;
+import com.carbon.calc.entity.CalculationTask;
 import com.carbon.calc.service.CalculationService;
 import com.carbon.common.api.R;
 import com.carbon.common.enums.AccountingStandard;
@@ -46,11 +47,14 @@ public class CalculationController {
     @Operation(summary = "重算指定任务(清除旧结果+重算)")
     public R<Map<String, Object>> rerun(@PathVariable String taskId) {
         CalculationTask t = service.getTask(taskId);
+        String scope = t.getScopeFilter() != null && !t.getScopeFilter().isEmpty()
+                ? t.getScopeFilter().get(0) : null;
         CalculationTask fresh = service.submitTask(
                 t.getPeriodYear(), t.getPeriodMonth(),
                 t.getStandards(), t.getSourceIds(),
-                t.getScopeFilter() != null ? String.join(",", t.getScopeFilter()) : null,
-                "重算-" + t.getTaskName());
+                scope,
+                "重算-" + t.getTaskName(),
+                t.getEvidenceIds());
         return R.ok(Map.of("newTaskId", fresh.getId(), "period", fresh.getPeriod()));
     }
 }

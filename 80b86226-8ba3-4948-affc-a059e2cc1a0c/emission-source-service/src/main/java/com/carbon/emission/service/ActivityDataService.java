@@ -55,6 +55,10 @@ public class ActivityDataService {
     @Transactional
     @CacheEvict(value = "activityData", allEntries = true)
     public ActivityData create(ActivityData data) {
+        if (data.getEvidenceIds() != null && !data.getEvidenceIds().isEmpty()) {
+            com.carbon.common.verification.EvidenceChainValidator.requireEvidence(
+                    data.getEvidenceIds(), "活动数据");
+        }
         validateSourceAndFill(data);
         convertUnitsAndValidate(data);
         data.setPeriod(buildPeriod(data));

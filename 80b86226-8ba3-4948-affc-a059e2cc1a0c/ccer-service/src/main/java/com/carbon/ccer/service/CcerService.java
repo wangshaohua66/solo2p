@@ -6,6 +6,9 @@ import com.carbon.common.api.PageQuery;
 import com.carbon.common.api.PageResult;
 import com.carbon.common.audit.AuditLog;
 import com.carbon.common.context.UserContextHolder;
+import com.carbon.common.exception.BusinessException;
+import com.carbon.common.exception.NotFoundException;
+import com.carbon.ccer.client.QuotaComplianceClient;
 import com.carbon.ccer.entity.CcerIssuance;
 import com.carbon.ccer.entity.CcerProject;
 import com.carbon.ccer.entity.CcerValidation;
@@ -14,12 +17,9 @@ import com.carbon.ccer.repository.CcerIssuanceRepository;
 import com.carbon.ccer.repository.CcerProjectRepository;
 import com.carbon.ccer.repository.CcerValidationRepository;
 import com.carbon.ccer.repository.CcerVerificationRepository;
-import com.carbon.common.exception.BusinessException;
-import com.carbon.common.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -41,6 +41,7 @@ public class CcerService {
     private final CcerValidationRepository validationRepo;
     private final CcerVerificationRepository verificationRepo;
     private final CcerIssuanceRepository issuanceRepo;
+    private final QuotaComplianceClient quotaComplianceClient;
 
     @Value("${ccer.issuance.buffer-percent:2}")
     private int bufferPercent;
@@ -68,7 +69,7 @@ public class CcerService {
         Page<CcerProject> page;
         if (status != null) {
             page = projectRepo.findByTenantIdAndStatus(tenantId, status,
-                    PageRequest.of(pq.getPage(), pq.getSize(), Sort.by(Sort.Direction.DESC, "createdAt")));
+                    PageRequest.of(pq.getPage(), pq.getSize(), Sort.by(Sort.Direction.DESC, "createdAt"));
         } else {
             page = projectRepo.findByTenantIdOrderByCreatedAtDesc(tenantId,
                     PageRequest.of(pq.getPage(), pq.getSize()));
@@ -76,20 +77,55 @@ public class CcerService {
         return PageResult.of(page.getContent(), pq.getPage(), pq.getSize(), page.getTotalElements());
     }
 
-    @AuditLog(module = "CCER项目", operation = "提交备案", resourceType = "CCER_PROJECT")
+    @AuditLog(module = "CCER项目", operation = "提交备案申请", resourceType = "CCER_PROJECT")
     @Transactional
     public CcerProject submitProject(String projectId) {
         return transitionStatus(projectId, CcerProject.Status.SUBMITTED);
+    }
+
+    @AuditLog(module = "CCER项目", operation = "主管部门备案通过", resourceType = "CCER_PROJECT")
+    @Transactional
+    public CcerProject reviewProject(String projectId, boolean approved, String remark) {
+        CcerProject p = getProject(projectId);
+        if (p.getStatus() != CcerProject.Status.SUBMITTED) {
+            throw new BusinessException(ErrorCode.CCER_STATUS_TRANSITION_INVALID,
+                    "仅SUBMITTED状态才可审核");
+        }
+        if (approved) {
+            return transitionStatus(projectId, CcerProject.Status.UNDER_REVIEW);
+        } else {
+            return transitionStatus(projectId, CcerProject.Status.REJECTED);
+        }
+    }
+
+    @AuditLog(module = "CCER项目", operation = "完成备案登记", resourceType = "CCER_PROJECT")
+    @Transactional
+    public CcerProject recordProject(String projectId, String recordNo, LocalDate recordDate) {
+        CcerProject p = getProject(projectId);
+        if (p.getStatus() != CcerProject.Status.UNDER_REVIEW) {
+            throw new BusinessException(ErrorCode.CCER_STATUS_TRANSITION_INVALID,
+                    "仅UNDER_REVIEW状态才可完成备案登记");
+        }
+        p.setRecordNo(recordNo);
+        p.setRecordDate(recordDate != null ? recordDate : LocalDate.now());
+        return transitionStatus(projectId, CcerProject.Status.RECORDED);
     }
 
     @AuditLog(module = "CCER审定", operation = "提交审定报告", resourceType = "CCER_PROJECT")
     @Transactional
     public CcerValidation submitValidation(String projectId, CcerValidation v) {
         CcerProject p = getProject(projectId);
+        if (p.getStatus() != CcerProject.Status.RECORDED
+                && p.getStatus() != CcerProject.Status.VALIDATION_PASSED) {
+            throw new BusinessException(ErrorCode.CCER_STATUS_SKIP_NOT_ALLOWED,
+                    "CCER项目必须先完成备案登记(RECORDED)，不可跳过备案直接提交审定");
+        }
         v.setProjectId(projectId);
         v.setTenantId(p.getTenantId());
         CcerValidation saved = validationRepo.save(v);
-        transitionStatus(projectId, CcerProject.Status.VALIDATION_PASSED);
+        if (p.getStatus() == CcerProject.Status.RECORDED) {
+            transitionStatus(projectId, CcerProject.Status.VALIDATION_PASSED);
+        }
         return saved;
     }
 
@@ -101,11 +137,19 @@ public class CcerService {
     @Transactional
     public CcerVerification submitVerification(String projectId, CcerVerification v) {
         CcerProject p = getProject(projectId);
+        if (p.getStatus() != CcerProject.Status.IMPLEMENTING
+                && p.getStatus() != CcerProject.Status.VERIFICATION_SUBMITTED
+                && p.getStatus() != CcerProject.Status.ISSUED) {
+            throw new BusinessException(ErrorCode.CCER_VALIDATION_NOT_DONE,
+                    "CCER项目必须先通过审定(VALIDATION_PASSED)并进入实施阶段(IMPLEMENTING)");
+        }
         v.setProjectId(projectId);
         v.setTenantId(p.getTenantId());
         if (v.getStatus() == null) v.setStatus(CcerVerification.Status.SUBMITTED);
         CcerVerification saved = verificationRepo.save(v);
-        transitionStatus(projectId, CcerProject.Status.VERIFICATION_SUBMITTED);
+        if (p.getStatus() == CcerProject.Status.IMPLEMENTING) {
+            transitionStatus(projectId, CcerProject.Status.VERIFICATION_SUBMITTED);
+        }
         return saved;
     }
 
@@ -125,12 +169,12 @@ public class CcerService {
 
     @AuditLog(module = "CCER签发", operation = "签发减排量", resourceType = "CCER_PROJECT")
     @Transactional
-    public CcerIssuance issueCredits(String projectId, String verificationId) {
+    public CcerIssuance issueCredits(String projectId, String verificationId, boolean autoTransferToQuota) {
         CcerProject p = getProject(projectId);
         CcerVerification v = verificationRepo.findByProjectIdAndId(projectId, verificationId)
                 .orElseThrow(() -> new NotFoundException("CCER核证", verificationId));
         if (v.getStatus() != CcerVerification.Status.VERIFIED) {
-            throw new BusinessException(ErrorCode.CCER_ISSUE_AMOUNT_INVALID,
+            throw new BusinessException(ErrorCode.CCER_VERIFICATION_NOT_DONE,
                     "核证必须先通过VERIFIED才能签发");
         }
         BigDecimal verified = v.getVerifiedReduction();
@@ -176,6 +220,25 @@ public class CcerService {
         p.setCumulativeIssued(p.getCumulativeIssued().add(issued));
         p.setStatus(CcerProject.Status.ISSUED);
         projectRepo.save(p);
+
+        if (autoTransferToQuota) {
+            try {
+                Map<String, Object> req = new HashMap<>();
+                req.put("issuanceId", saved.getId());
+                req.put("projectId", projectId);
+                req.put("projectCode", p.getProjectCode());
+                req.put("tons", saved.getIssuedTons());
+                req.put("complianceYear",
+                        v.getPeriodEnd() != null ? v.getPeriodEnd().getYear()
+                                : LocalDate.now().getYear());
+                req.put("source", "CCER_ISSUANCE_AUTO_TRANSFER");
+                quotaComplianceClient.autoTransferIssuanceToQuota(req);
+                log.info("CCER签发自动转入履约账户: issuanceId={}, tons={}", saved.getId(), issued);
+            } catch (Exception e) {
+                log.error("CCER签发自动转入履约失败: {}", e.getMessage());
+            }
+        }
+
         return saved;
     }
 
@@ -276,6 +339,7 @@ public class CcerService {
                     Set.of(CcerProject.Status.ISSUED, CcerProject.Status.IMPLEMENTING).contains(to);
             case ISSUED -> Set.of(CcerProject.Status.IMPLEMENTING, CcerProject.Status.SUSPENDED).contains(to);
             case SUSPENDED -> Set.of(CcerProject.Status.IMPLEMENTING).contains(to);
+            case REJECTED -> false;
             default -> false;
         };
     }

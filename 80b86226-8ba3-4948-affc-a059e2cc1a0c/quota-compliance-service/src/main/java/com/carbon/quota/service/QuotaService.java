@@ -101,7 +101,12 @@ public class QuotaService {
     @AuditLog(module = "配额履约", operation = "月度配额对账", resourceType = "QuotaLedger")
     @Transactional
     public QuotaLedger reconcileMonth(Integer year, Integer month, String orgId,
-                                      BigDecimal actualEmission, String taskId) {
+                                      BigDecimal actualEmission, String taskId,
+                                      List<String> evidenceIds) {
+        if (evidenceIds != null && !evidenceIds.isEmpty()) {
+            com.carbon.common.verification.EvidenceChainValidator.requireEvidence(
+                    evidenceIds, "配额台账");
+        }
         String tenantId = UserContextHolder.getTenantId();
         String period = String.format("%04d-%02d", year, month);
         QuotaAllocation alloc = allocationRepo.findByTenantIdAndComplianceYearAndOrganizationId(tenantId, year, orgId)
@@ -150,6 +155,9 @@ public class QuotaService {
         ledger.setCalculationTaskId(taskId);
         ledger.setReconciliationDate(LocalDate.now());
         ledger.setStatus("RECONCILED");
+        if (evidenceIds != null && !evidenceIds.isEmpty()) {
+            ledger.setEvidenceIds(evidenceIds);
+        }
         ledger = ledgerRepo.save(ledger);
 
         evaluateAndTriggerAlerts(ledger, alloc);
@@ -302,9 +310,45 @@ public class QuotaService {
         return saved;
     }
 
+    @AuditLog(module = "配额履约", operation = "CCER签发自动转入履约", resourceType = "CcerTransfer")
+    @Transactional
+    public CcerTransfer autoTransferFromIssuance(Map<String, Object> request) {
+        String issuanceId = (String) request.get("issuanceId");
+        String projectId = (String) request.get("projectId");
+        String projectCode = (String) request.get("projectCode");
+        BigDecimal tons = toBigDecimal(request.get("tons"));
+        Integer complianceYear = request.get("complianceYear") != null
+                ? ((Number) request.get("complianceYear")).intValue()
+                : java.time.LocalDate.now().getYear();
+
+        CcerTransfer transfer = CcerTransfer.builder()
+                .ccerIssuanceId(issuanceId)
+                .projectId(projectId)
+                .projectName(projectCode)
+                .methodology("CCER")
+                .transferTons(tons)
+                .complianceYear(complianceYear)
+                .transferDate(java.time.LocalDate.now())
+                .status("APPROVED")
+                .build();
+
+        return applyCcerOffset(transfer);
+    }
+
     public List<CcerTransfer> listCcerTransfers(Integer year) {
         return ccerRepo.findByTenantIdAndComplianceYearOrderByTransferDateDesc(
                 UserContextHolder.getTenantId(), year);
+    }
+
+    private BigDecimal toBigDecimal(Object o) {
+        if (o == null) return BigDecimal.ZERO;
+        if (o instanceof BigDecimal bd) return bd;
+        if (o instanceof Number n) return BigDecimal.valueOf(n.doubleValue());
+        try {
+            return new BigDecimal(String.valueOf(o));
+        } catch (Exception e) {
+            return BigDecimal.ZERO;
+        }
     }
 
     public Map<String, Object> dashboard(Integer year) {

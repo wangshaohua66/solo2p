@@ -13,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.web.bind.annotation.*;
 
+import com.carbon.quota.entity.CcerTransfer;
+
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -58,8 +60,9 @@ public class QuotaController {
             @Parameter(required = true) @RequestParam Integer month,
             @Parameter(description = "机构ID") @RequestParam String organizationId,
             @Parameter(description = "本月实际排放量 tCO2e", required = true) @RequestParam BigDecimal actualEmission,
-            @Parameter(description = "关联核算任务ID") @RequestParam(required = false) String calculationTaskId) {
-        return R.ok(service.reconcileMonth(year, month, organizationId, actualEmission, calculationTaskId));
+            @Parameter(description = "关联核算任务ID") @RequestParam(required = false) String calculationTaskId,
+            @Parameter(description = "关联证据ID列表(证据链校验)") @RequestParam(required = false) List<String> evidenceIds) {
+        return R.ok(service.reconcileMonth(year, month, organizationId, actualEmission, calculationTaskId, evidenceIds));
     }
 
     @GetMapping("/ledgers")
@@ -72,5 +75,12 @@ public class QuotaController {
     @Operation(summary = "履约 Dashboard(年度概览+配额+排放+抵消+预警统计)")
     public R<Map<String, Object>> dashboard(@RequestParam Integer year) {
         return R.ok(service.dashboard(year));
+    }
+
+    @PostMapping("/ccer-transfers/auto-transfer")
+    @Operation(summary = "CCER签发量自动转入履约账户(跨服务调用)",
+            description = "CCER服务签发后自动调用，转入对应年度配额抵消账户")
+    public R<CcerTransfer> autoTransferFromIssuance(@RequestBody Map<String, Object> request) {
+        return R.ok(service.autoTransferFromIssuance(request));
     }
 }

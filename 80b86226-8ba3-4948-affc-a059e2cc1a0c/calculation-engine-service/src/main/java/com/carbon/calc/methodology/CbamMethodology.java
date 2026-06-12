@@ -10,7 +10,9 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -22,11 +24,20 @@ public class CbamMethodology implements AccountingMethodology {
             "FUEL_COMBUSTION",
             "RAW_MATERIAL",
             "PROCESS_EMISSION",
-            "PURCHASED_ELECTRICITY"
+            "PURCHASED_ELECTRICITY",
+            "STEAM_IMPORT",
+            "HYDROGEN_IMPORT",
+            "WASTE_DISPOSAL"
     );
 
-    private static final Set<String> CBAM_GASES = Set.of(
-            "CO2", "CH4", "N2O"
+    private static final List<GreenhouseGas> CBAM_GASES = List.of(
+            GreenhouseGas.CO2,
+            GreenhouseGas.CH4,
+            GreenhouseGas.N2O,
+            GreenhouseGas.HFC_23,
+            GreenhouseGas.PFC_CF4,
+            GreenhouseGas.SF6,
+            GreenhouseGas.NF3
     );
 
     @Override
@@ -52,9 +63,29 @@ public class CbamMethodology implements AccountingMethodology {
 
     @Override
     public CalculationResult calculate(CalcContext ctx, FactorSnapshot factor) {
-        GreenhouseGas gas = factor != null && CBAM_GASES.contains(factor.gas().name())
-                ? factor.gas() : (ctx.gasOverride() != null ? ctx.gasOverride() : GreenhouseGas.CO2);
-        if (!CBAM_GASES.contains(gas.name())) {
+        if (factor != null && CBAM_GASES.contains(factor.gas())) {
+            return calcSingleGas(ctx, factor, factor.gas());
+        }
+        return null;
+    }
+
+    public List<CalculationResult> calculateAllGases(CalcContext ctx,
+                                                      Map<GreenhouseGas, FactorSnapshot> gasFactors) {
+        List<CalculationResult> results = new ArrayList<>();
+        for (GreenhouseGas gas : CBAM_GASES) {
+            FactorSnapshot gasFactor = gasFactors.get(gas);
+            if (gasFactor != null) {
+                CalculationResult r = calcSingleGas(ctx, gasFactor, gas);
+                if (r != null) results.add(r);
+            }
+        }
+        return results;
+    }
+
+    private CalculationResult calcSingleGas(CalcContext ctx,
+                                            FactorSnapshot factor,
+                                            GreenhouseGas gas) {
+        if (!CBAM_GASES.contains(gas)) {
             return null;
         }
 
@@ -63,22 +94,36 @@ public class CbamMethodology implements AccountingMethodology {
         BigDecimal gasEmission;
 
         if (factor == null) {
-            formula = "CBAM 默认因子法：活动数据 × 欧盟默认排放因子 (无匹配则0)";
+            formula = "CBAM 隐含碳默认因子法：活动数据 × 欧盟默认排放因子 (无匹配则0)";
             gasEmission = BigDecimal.ZERO;
         } else if ("PROCESS_EMISSION".equals(ctx.activityDataType())) {
-            formula = "CBAM Annex II 工艺排放公式：E = Σ(原料量 × 排放因子 - 捕集封存减量)";
+            formula = String.format(
+                    "CBAM Annex II 工艺排放公式 [%s]：E = Σ(原料量 × %s排放因子 - 捕集封存减量)",
+                    gas.name(), gas.name());
             params.put("processFactor", factor.value());
             params.put("annex", "II");
+            params.put("gas", gas.name());
             gasEmission = ctx.activityValue().multiply(factor.value(), MathContext.DECIMAL64);
         } else if ("RAW_MATERIAL".equals(ctx.activityDataType())) {
-            formula = "CBAM 原材料隐含碳：原料投入量(t) × 排放因子(tCO2e/t原料)";
+            formula = String.format(
+                    "CBAM 原材料隐含碳 [%s]：原料投入量(t) × %s排放因子(tCO2e/t原料)",
+                    gas.name(), gas.name());
             params.put("embeddedFactor", factor.value());
+            params.put("gas", gas.name());
+            gasEmission = ctx.activityValue().multiply(factor.value(), MathContext.DECIMAL64);
+        } else if ("PURCHASED_ELECTRICITY".equals(ctx.activityDataType())) {
+            formula = String.format(
+                    "CBAM 购入电力隐含碳 [%s]：电力购入量(MWh) × 电网排放因子(tCO2e/MWh)",
+                    gas.name());
+            params.put("gridFactor", factor.value());
+            params.put("gas", gas.name());
             gasEmission = ctx.activityValue().multiply(factor.value(), MathContext.DECIMAL64);
         } else {
             formula = factor.formula() != null ? factor.formula()
-                    : "CBAM 过渡期报告公式：活动数据 × 排放因子 (Reg 2023/956)";
+                    : String.format("CBAM 过渡期报告公式 [%s]：活动数据 × 排放因子 (Reg 2023/956)", gas.name());
             params.put("factorValue", factor.value());
             params.put("regulation", "EU 2023/956");
+            params.put("gas", gas.name());
             gasEmission = ctx.activityValue().multiply(factor.value(), MathContext.DECIMAL64);
         }
 
@@ -91,6 +136,7 @@ public class CbamMethodology implements AccountingMethodology {
         params.put("activityUnit", ctx.activityUnit());
         params.put("gwp", gwp);
         params.put("reportingPhase", "过渡期 2024-2025");
+        params.put("methodology", "CBAM Regulation (EU) 2023/956");
         BigDecimal co2eq = applyGwp(gasEmission, gas);
 
         return CalculationResult.builder()
@@ -113,10 +159,10 @@ public class CbamMethodology implements AccountingMethodology {
                 .factorMatchKey(factor != null ? factor.matchKey() : null)
                 .formula(formula)
                 .formulaParams(params)
-                .gasEmissionTons(gasEmission.setScale(8, RoundingMode.HALF_UP))
-                .co2eqTons(co2eq.setScale(8, RoundingMode.HALF_UP))
+                .gasEmissionTons(gasEmission.setScale(10, RoundingMode.HALF_UP))
+                .co2eqTons(co2eq.setScale(10, RoundingMode.HALF_UP))
                 .gwpUsed(gwp)
-                .qualityTag("CBAM_TRANSITION")
+                .qualityTag("CBAM_TRANSITION_" + gas.name())
                 .build();
     }
 
@@ -126,5 +172,9 @@ public class CbamMethodology implements AccountingMethodology {
         } catch (Exception e) {
             return ScopeType.SCOPE_1;
         }
+    }
+
+    public List<GreenhouseGas> getSupportedGases() {
+        return CBAM_GASES;
     }
 }

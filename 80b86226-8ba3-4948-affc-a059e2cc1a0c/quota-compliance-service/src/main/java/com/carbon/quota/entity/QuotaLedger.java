@@ -15,7 +15,9 @@ import org.springframework.data.mongodb.core.mapping.FieldType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Data
@@ -76,6 +78,9 @@ public class QuotaLedger extends BaseEntity {
 
     @Builder.Default
     private String status = "INIT";
+
+    @Builder.Default
+    private List<String> evidenceIds = new ArrayList<>();
 
     @Builder.Default
     private Map<String, Object> extensions = new HashMap<>();

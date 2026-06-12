@@ -16,6 +16,7 @@ import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -42,20 +43,36 @@ public class CcerProjectController {
     @Operation(summary = "分页查询CCER项目")
     public R<PageResult<CcerProject>> list(
             @Parameter(description = "状态筛选") @RequestParam(required = false) CcerProject.Status status,
-            @Parameter(description = "项目类型: AFFORESTATION_REFORESTATION / GRID_CONNECTED_CSP / OFFSHORE_WIND / METHANE_RECOVERY_UTILIZATION / SOLAR_PV_GRID_CONNECTED ...")
+            @Parameter(description = "项目类型")
             @RequestParam(required = false) CcerProject.Type type,
             @ParameterObject PageQuery pq) {
         return R.ok(service.listProjects(status, type, pq));
     }
 
     @PostMapping("/{id}/submit")
-    @Operation(summary = "提交主管部门备案申请")
+    @Operation(summary = "提交主管部门备案申请(SUBMITTED)")
     public R<CcerProject> submit(@PathVariable String id) {
         return R.ok(service.submitProject(id));
     }
 
+    @PostMapping("/{id}/review")
+    @Operation(summary = "主管部门审核: true=进入UNDER_REVIEW, false=REJECTED")
+    public R<CcerProject> review(@PathVariable String id,
+                                  @RequestParam boolean approved,
+                                  @RequestParam(required = false) String remark) {
+        return R.ok(service.reviewProject(id, approved, remark));
+    }
+
+    @PostMapping("/{id}/record")
+    @Operation(summary = "完成备案登记(UNDER_REVIEW→RECORDED)，必须先备案再审定")
+    public R<CcerProject> record(@PathVariable String id,
+                                 @RequestParam(required = false) String recordNo,
+                                 @RequestParam(required = false) LocalDate recordDate) {
+        return R.ok(service.recordProject(id, recordNo, recordDate));
+    }
+
     @PostMapping("/{projectId}/validations")
-    @Operation(summary = "提交DOE审定报告(通过后状态=VALIDATION_PASSED)")
+    @Operation(summary = "提交DOE审定报告(RECORDED→VALIDATION_PASSED)，禁止跳过备案")
     public R<CcerValidation> submitValidation(@PathVariable String projectId,
                                               @RequestBody CcerValidation v) {
         return R.ok(service.submitValidation(projectId, v));
@@ -68,7 +85,7 @@ public class CcerProjectController {
     }
 
     @PostMapping("/{projectId}/verifications")
-    @Operation(summary = "提交监测期核证报告")
+    @Operation(summary = "提交监测期核证报告(IMPLEMENTING→VERIFICATION_SUBMITTED)")
     public R<CcerVerification> submitVerification(@PathVariable String projectId,
                                                   @RequestBody CcerVerification v) {
         return R.ok(service.submitVerification(projectId, v));
@@ -89,10 +106,13 @@ public class CcerProjectController {
     }
 
     @PostMapping("/{projectId}/issuances")
-    @Operation(summary = "对VERIFIED核证签发减排量(默认扣2%缓冲储备)")
+    @Operation(summary = "对VERIFIED核证签发减排量(默认扣2%缓冲储备)，可选择自动转入履约账户")
     public R<CcerIssuance> issue(@PathVariable String projectId,
-                                 @RequestBody Map<String, String> body) {
-        return R.ok(service.issueCredits(projectId, body.get("verificationId")));
+                                 @RequestBody Map<String, Object> body) {
+        String verificationId = (String) body.get("verificationId");
+        boolean autoTransfer = body.containsKey("autoTransferToQuota")
+                && Boolean.TRUE.equals(body.get("autoTransferToQuota"));
+        return R.ok(service.issueCredits(projectId, verificationId, autoTransfer));
     }
 
     @GetMapping("/{projectId}/issuances")

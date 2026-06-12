@@ -78,6 +78,9 @@ public class CalculationTask extends BaseEntity {
     @Builder.Default
     private Map<String, Object> metrics = new HashMap<>();
 
+    @Builder.Default
+    private List<String> evidenceIds = new java.util.ArrayList<>();
+
     @Transient
     public boolean isPeriodFullMonth() {
         return periodStart != null && periodStart.getDayOfMonth() == 1
