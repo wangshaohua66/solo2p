@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FilmGear - 胶片摄影器材管理</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#dashboard">
+                <i class="bi bi-camera me-2"></i>FilmGear
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#dashboard"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#cameras"><i class="bi bi-camera me-1"></i>Cameras</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#lenses"><i class="bi bi-circle me-1"></i>Lenses</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#maintenance"><i class="bi bi-wrench me-1"></i>Maintenance</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#comparison"><i class="bi bi-arrow-left-right me-1"></i>Comparison</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#shutter"><i class="bi bi-stopwatch me-1"></i>Shutter Est.</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#stats"><i class="bi bi-bar-chart me-1"></i>Stats</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#photos"><i class="bi bi-image me-1"></i>Photo Wall</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#settings"><i class="bi bi-gear me-1"></i>Settings</a>
+                    </li>
+                </ul>
+                <form class="d-flex" onsubmit="return false;">
+                    <input class="form-control me-2" type="search" id="globalSearch" placeholder="搜索器材...">
+                </form>
+            </div>
+        </div>
+    </nav>
+
+    <div class="d-flex" style="margin-top: 56px;">
+        <nav id="sidebar" class="sidebar bg-dark">
+            <ul class="nav flex-column py-3" id="sidebar-nav">
+            </ul>
+            <div class="sidebar-toggle p-3 border-top border-secondary">
+                <button class="btn btn-sm btn-outline-light w-100" id="sidebarToggle">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+            </div>
+        </nav>
+
+        <main id="main-content" class="main-content flex-grow-1">
+            <div class="container-fluid py-4">
+
+                <div id="page-dashboard" style="display:none;">
+                    <div class="row g-3 mb-4">
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card stat-card">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="text-muted mb-1">相机总数</h6>
+                                            <h3 class="mb-0" id="stat-cameras">0</h3>
+                                        </div>
+                                        <i class="bi bi-camera fs-2 text-primary"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card stat-card">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="text-muted mb-1">镜头总数</h6>
+                                            <h3 class="mb-0" id="stat-lenses">0</h3>
+                                        </div>
+                                        <i class="bi bi-circle fs-2 text-success"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card stat-card">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="text-muted mb-1">待维护</h6>
+                                            <h3 class="mb-0" id="stat-maintenance">0</h3>
+                                        </div>
+                                        <i class="bi bi-wrench fs-2 text-warning"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card stat-card">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="text-muted mb-1">总投入</h6>
+                                            <h3 class="mb-0" id="stat-cost">¥0</h3>
+                                        </div>
+                                        <i class="bi bi-currency-yen fs-2 text-danger"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row g-3 mb-4">
+                        <div class="col-lg-8">
+                            <div class="card">
+                                <div class="card-header"><h5 class="mb-0">器材获取趋势</h5></div>
+                                <div class="card-body"><canvas id="chart-acquisition"></canvas></div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="card">
+                                <div class="card-header"><h5 class="mb-0">品牌分布</h5></div>
+                                <div class="card-body"><canvas id="chart-brands"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-lg-6">
+                            <div class="card">
+                                <div class="card-header"><h5 class="mb-0">快门速度分布</h5></div>
+                                <div class="card-body"><canvas id="chart-shutter-dist"></canvas></div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="card">
+                                <div class="card-header"><h5 class="mb-0">维护成本统计</h5></div>
+                                <div class="card-body"><canvas id="chart-maintenance-cost"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="page-cameras" style="display:none;">
+                    <div class="d-flex justify-content-between align-items-center mb-3" id="cameras-action-bar">
+                        <h4 class="mb-0">相机管理</h4>
+                        <div>
+                            <button class="btn btn-primary" id="btn-add-camera"><i class="bi bi-plus-lg me-1"></i>添加相机</button>
+                            <button class="btn btn-outline-secondary" id="btn-export-cameras"><i class="bi bi-download me-1"></i>导出</button>
+                        </div>
+                    </div>
+                    <div class="card mb-3">
+                        <div class="card-body p-0">
+                            <table id="cameras-table" class="table table-striped table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>品牌</th>
+                                        <th>型号</th>
+                                        <th>类型</th>
+                                        <th>画幅</th>
+                                        <th>快门类型</th>
+                                        <th>购入日期</th>
+                                        <th>状态</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card d-none" id="camera-detail-panel">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">相机详情</h5>
+                            <button class="btn btn-sm btn-outline-secondary" id="btn-close-detail"><i class="bi bi-x-lg"></i></button>
+                        </div>
+                        <div class="card-body" id="camera-detail-body"></div>
+                    </div>
+                </div>
+
+                <div id="page-lenses" style="display:none;">
+                    <div class="d-flex justify-content-between align-items-center mb-3" id="lenses-action-bar">
+                        <h4 class="mb-0">镜头管理</h4>
+                        <div>
+                            <button class="btn btn-primary" id="btn-add-lens"><i class="bi bi-plus-lg me-1"></i>添加镜头</button>
+                            <button class="btn btn-outline-secondary" id="btn-export-lenses"><i class="bi bi-download me-1"></i>导出</button>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-body p-0">
+                            <table id="lenses-table" class="table table-striped table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>品牌</th>
+                                        <th>型号</th>
+                                        <th>焦距</th>
+                                        <th>光圈</th>
+                                        <th>卡口</th>
+                                        <th>购入日期</th>
+                                        <th>状态</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="page-maintenance" style="display:none;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="mb-0">维护记录</h4>
+                        <button class="btn btn-primary" id="btn-add-maintenance"><i class="bi bi-plus-lg me-1"></i>添加记录</button>
+                    </div>
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="row g-2" id="maintenance-filter-bar">
+                                <div class="col-md-3">
+                                    <select class="form-select form-select-sm" id="filter-maintenance-type">
+                                        <option value="">全部类型</option>
+                                        <option value="clean">清洁</option>
+                                        <option value="repair">维修</option>
+                                        <option value="cla">CLA</option>
+                                        <option value="seal">换海绵</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select form-select-sm" id="filter-maintenance-status">
+                                        <option value="">全部状态</option>
+                                        <option value="pending">待处理</option>
+                                        <option value="in-progress">进行中</option>
+                                        <option value="completed">已完成</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <input type="date" class="form-control form-control-sm" id="filter-maintenance-from" placeholder="起始日期">
+                                </div>
+                                <div class="col-md-3">
+                                    <input type="date" class="form-control form-control-sm" id="filter-maintenance-to" placeholder="截止日期">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-body p-0">
+                            <table id="maintenance-table" class="table table-striped table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>器材</th>
+                                        <th>维护类型</th>
+                                        <th>日期</th>
+                                        <th>费用</th>
+                                        <th>状态</th>
+                                        <th>提醒</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="page-comparison" style="display:none;">
+                    <h4 class="mb-3">镜头对比</h4>
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-4">
+                                    <label class="form-label">镜头 A</label>
+                                    <select class="form-select" id="compare-lens-a"><option value="">选择镜头</option></select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">镜头 B</label>
+                                    <select class="form-select" id="compare-lens-b"><option value="">选择镜头</option></select>
+                                </div>
+                                <div class="col-md-4">
+                                    <button class="btn btn-primary" id="btn-compare"><i class="bi bi-arrow-left-right me-1"></i>开始对比</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row g-3" id="comparison-grid" style="display:none;">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header"><h5 class="mb-0" id="compare-name-a">-</h5></div>
+                                <div class="card-body" id="compare-detail-a"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header"><h5 class="mb-0" id="compare-name-b">-</h5></div>
+                                <div class="card-body" id="compare-detail-b"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="page-shutter" style="display:none;">
+                    <h4 class="mb-3">快门寿命估算</h4>
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-6">
+                                    <label class="form-label">选择相机</label>
+                                    <select class="form-select" id="shutter-camera-select"><option value="">选择相机</option></select>
+                                </div>
+                                <div class="col-md-6">
+                                    <button class="btn btn-primary" id="btn-estimate-shutter"><i class="bi bi-stopwatch me-1"></i>估算</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="shutter-estimation-display" style="display:none;">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="card text-center">
+                                    <div class="card-body">
+                                        <h6 class="text-muted">预估剩余次数</h6>
+                                        <h2 id="shutter-remaining">-</h2>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card text-center">
+                                    <div class="card-body">
+                                        <h6 class="text-muted">已使用次数</h6>
+                                        <h2 id="shutter-used">-</h2>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card text-center">
+                                    <div class="card-body">
+                                        <h6 class="text-muted">健康度</h6>
+                                        <h2 id="shutter-health">-</h2>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card mt-3">
+                            <div class="card-body"><canvas id="chart-shutter-life"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="page-stats" style="display:none;">
+                    <h4 class="mb-3">数据统计</h4>
+                    <div class="row g-3 mb-4">
+                        <div class="col-lg-6">
+                            <div class="card">
+                                <div class="card-header"><h5 class="mb-0">投入趋势</h5></div>
+                                <div class="card-body"><canvas id="chart-investment-trend"></canvas></div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="card">
+                                <div class="card-header"><h5 class="mb-0">画幅分布</h5></div>
+                                <div class="card-body"><canvas id="chart-format-dist"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-lg-6">
+                            <div class="card">
+                                <div class="card-header"><h5 class="mb-0">卡口分布</h5></div>
+                                <div class="card-body"><canvas id="chart-mount-dist"></canvas></div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="card">
+                                <div class="card-header"><h5 class="mb-0">维护频率</h5></div>
+                                <div class="card-body"><canvas id="chart-maintenance-freq"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="page-photos" style="display:none;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="mb-0">照片墙</h4>
+                        <button class="btn btn-primary" id="btn-upload-photo"><i class="bi bi-upload me-1"></i>上传照片</button>
+                    </div>
+                    <div class="card mb-3" id="photo-upload-area" style="display:none;">
+                        <div class="card-body">
+                            <div class="drop-zone text-center p-5 border border-dashed rounded" id="drop-zone">
+                                <i class="bi bi-cloud-arrow-up fs-1 text-muted"></i>
+                                <p class="mt-2 text-muted">拖拽照片到此处或点击选择</p>
+                                <input type="file" id="photo-file-input" multiple accept="image/*" class="d-none">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="masonry-grid" id="photo-masonry-grid"></div>
+                </div>
+
+                <div id="page-settings" style="display:none;">
+                    <h4 class="mb-3">设置</h4>
+                    <div class="card mb-3">
+                        <div class="card-header"><h5 class="mb-0">数据管理</h5></div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <button class="btn btn-outline-primary w-100" id="btn-import-data"><i class="bi bi-upload me-1"></i>导入数据</button>
+                                    <input type="file" id="import-file-input" accept=".json" class="d-none">
+                                </div>
+                                <div class="col-md-6">
+                                    <button class="btn btn-outline-secondary w-100" id="btn-export-data"><i class="bi bi-download me-1"></i>导出数据</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h5 class="mb-0">关于</h5></div>
+                        <div class="card-body">
+                            <p class="mb-1"><strong>FilmGear</strong> - 胶片摄影器材管理</p>
+                            <p class="text-muted mb-1">版本 1.0.0</p>
+                            <p class="text-muted">用于管理胶片相机、镜头、维护记录和拍摄数据的本地工具。</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <div class="modal fade" id="genericModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="genericModalTitle">提示</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="genericModalBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-primary" id="genericModalConfirm">确认</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="confirmModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmModalTitle">确认操作</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="confirmModalBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-danger" id="confirmModalConfirm">确认</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="detailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="detailModalTitle">详情</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="detailModalBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery-validation@1.21.0/dist/jquery.validate.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@2.30.1/dayjs.min.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/validators.js"></script>
+    <script src="js/components/modal.js"></script>
+    <script src="js/utils/charts.js"></script>
+    <script src="js/router.js"></script>
+    <script src="js/pages/dashboard.js"></script>
+    <script src="js/pages/cameras.js"></script>
+    <script src="js/pages/lenses.js"></script>
+    <script src="js/pages/maintenance.js"></script>
+    <script src="js/pages/comparison.js"></script>
+</body>
+</html>
