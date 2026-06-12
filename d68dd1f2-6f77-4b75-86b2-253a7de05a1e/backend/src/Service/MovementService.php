@@ -1000,6 +1000,358 @@ class MovementService
                 'faults' => ['高频磨损', '特殊润滑油'],
                 'parts' => ['硅游丝', '硅擒纵叉', '高频摆轮']
             ],
+            // ===== Patek Philippe 百达翡丽 更多 =====
+            ['brand' => 'Patek Philippe', 'code' => '26-330 S C', 'commonName' => 'Cal.26-330 SC 自动', 'family' => '26-330', 'jewels' => 27, 'freq' => 28800, 'ampMin' => 280, 'ampMax' => 310, 'rateMin' => -3, 'rateMax' => 2, 'beatErr' => 0.2, 'pr' => 48, 'labor' => 8.5, 'wr' => '6 ATM',
+                'desc' => '百达翡丽入门自动机芯，Calatrava系列使用',
+                'steps' => ['PP认证调校', 'Gyromax摆轮检查', 'Spiromax游丝'],
+                'faults' => ['自动陀轴承', '上链系统'],
+                'parts' => ['Gyromax摆轮', 'Spiromax游丝', '自动轮组']
+            ],
+            ['brand' => 'Patek Philippe', 'code' => '324 S C FUS', 'commonName' => 'Cal.324 SC FUS 两地时', 'family' => '324', 'jewels' => 33, 'freq' => 28800, 'ampMin' => 280, 'ampMax' => 310, 'rateMin' => -3, 'rateMax' => 2, 'beatErr' => 0.2, 'pr' => 45, 'labor' => 9.0, 'wr' => '6 ATM',
+                'desc' => '324机芯加两地时模块，鹦鹉螺GMT款',
+                'steps' => ['两地时调校', '时区切换测试', 'PP认证'],
+                'faults' => ['GMT模块', '跳时机构'],
+                'parts' => ['GMT跳时轮', '双发条盒']
+            ],
+            ['brand' => 'Patek Philippe', 'code' => 'CH 28-520 IRM QA', 'commonName' => 'Cal.CH 28-520 计时', 'family' => 'CH 28', 'jewels' => 39, 'freq' => 28800, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -3, 'rateMax' => 2, 'beatErr' => 0.2, 'pr' => 55, 'labor' => 10.5, 'wr' => '6 ATM',
+                'desc' => '百达翡丽自产计时机芯，导柱轮+垂直离合',
+                'steps' => ['计时功能测试', '导柱轮检查', '垂直离合调校'],
+                'faults' => ['计时耦合', '导柱轮磨损'],
+                'parts' => ['导柱轮', '垂直离合器', '硅擒纵']
+            ],
+            // ===== Hermes 爱马仕 =====
+            ['brand' => 'Hermes', 'code' => 'H1837', 'commonName' => 'Cal.H1837 自动', 'family' => 'H18', 'jewels' => 28, 'freq' => 28800, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -5, 'rateMax' => 5, 'beatErr' => 0.4, 'pr' => 55, 'labor' => 7.0, 'wr' => '5 ATM',
+                'desc' => '爱马仕自产自动机芯，55小时动力，Nomade/Carre H使用',
+                'steps' => ['爱马仕标准调校', '55H动力测试'],
+                'faults' => ['自动上链效率', '摆轮平衡'],
+                'parts' => ['双发条盒', '自动陀轴承']
+            ],
+            ['brand' => 'Hermes', 'code' => 'H1912', 'commonName' => 'Cal.H1912 超薄自动', 'family' => 'H19', 'jewels' => 28, 'freq' => 28800, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -3, 'rateMax' => 3, 'beatErr' => 0.3, 'pr' => 50, 'labor' => 7.5, 'wr' => '3 ATM',
+                'desc' => '爱马仕超薄自动机芯，2.6mm厚度，Slim d\'Hermes使用',
+                'steps' => ['超薄装配', '50H动力测试', '珍珠陀检查'],
+                'faults' => ['超薄零件', '珍珠陀上链效率'],
+                'parts' => ['珍珠摆陀', '超薄发条盒']
+            ],
+            // ===== Cartier 卡地亚 更多 =====
+            ['brand' => 'Cartier', 'code' => '1904 MC', 'commonName' => 'Cal.1904 MC 自动', 'family' => '1904', 'jewels' => 27, 'freq' => 28800, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -5, 'rateMax' => 5, 'beatErr' => 0.4, 'pr' => 48, 'labor' => 6.5, 'wr' => '5 ATM',
+                'desc' => '卡地亚首枚自产自动机芯，卡利博系列',
+                'steps' => ['卡地亚认证', '48H动力测试'],
+                'faults' => ['自动上链系统', '日历跳历'],
+                'parts' => ['双发条盒', '自动轮组']
+            ],
+            ['brand' => 'Cartier', 'code' => '1904 CH MC', 'commonName' => 'Cal.1904 CH MC 计时', 'family' => '1904', 'jewels' => 39, 'freq' => 28800, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -5, 'rateMax' => 5, 'beatErr' => 0.4, 'pr' => 48, 'labor' => 8.5, 'wr' => '5 ATM',
+                'desc' => '1904 MC加计时模块，卡利博计时款',
+                'steps' => ['计时功能测试', '导柱轮调校'],
+                'faults' => ['计时模块', '离合器'],
+                'parts' => ['导柱轮', '离合器组件']
+            ],
+            ['brand' => 'Cartier', 'code' => '430 MC', 'commonName' => 'Cal.430 MC 手卷超薄', 'family' => '430', 'jewels' => 19, 'freq' => 21600, 'ampMin' => 260, 'ampMax' => 300, 'rateMin' => -5, 'rateMax' => 5, 'beatErr' => 0.5, 'pr' => 36, 'labor' => 5.0, 'wr' => '3 ATM',
+                'desc' => '卡地亚超薄手卷机芯，2.1mm厚度，坦克CPCP使用',
+                'steps' => ['超薄装配', '36H动力测试'],
+                'faults' => ['超薄零件易损', '动力储备短'],
+                'parts' => ['超薄发条盒', '薄型夹板']
+            ],
+            ['brand' => 'Cartier', 'code' => '9601 MC', 'commonName' => 'Cal.9601 MC 陀飞轮', 'family' => '9600', 'jewels' => 21, 'freq' => 21600, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -3, 'rateMax' => 3, 'beatErr' => 0.3, 'pr' => 50, 'labor' => 15.0, 'wr' => '3 ATM',
+                'desc' => '卡地亚陀飞轮机芯，每分钟旋转一圈',
+                'steps' => ['陀飞轮调校', '50H动力测试', '六方位调校'],
+                'faults' => ['陀飞轮框架', '精密零件'],
+                'parts' => ['陀飞轮框架', '陀飞轮轴承']
+            ],
+            // ===== Panerai 沛纳海 =====
+            ['brand' => 'Panerai', 'code' => 'P.3000', 'commonName' => 'Cal.P.3000 手卷', 'family' => 'P.3000', 'jewels' => 21, 'freq' => 21600, 'ampMin' => 260, 'ampMax' => 300, 'rateMin' => -8, 'rateMax' => 8, 'beatErr' => 0.6, 'pr' => 72, 'labor' => 5.0, 'wr' => '10 ATM',
+                'desc' => '沛纳海自产手卷基础机芯，72小时动力，Luminor 1950',
+                'steps' => ['沛纳海标准', '72H动力测试'],
+                'faults' => ['大摆轮调校', '手动上链手感'],
+                'parts' => ['双发条盒', '大摆轮']
+            ],
+            ['brand' => 'Panerai', 'code' => 'P.3002', 'commonName' => 'Cal.P.3002 手卷动显', 'family' => 'P.3000', 'jewels' => 21, 'freq' => 21600, 'ampMin' => 260, 'ampMax' => 300, 'rateMin' => -8, 'rateMax' => 8, 'beatErr' => 0.6, 'pr' => 72, 'labor' => 5.5, 'wr' => '10 ATM',
+                'desc' => 'P.3000加动力显示，72小时动力',
+                'steps' => ['动显调校', '72H动力测试'],
+                'faults' => ['动显机构', '齿轮啮合'],
+                'parts' => ['动力显示轮组', '双发条盒']
+            ],
+            ['brand' => 'Panerai', 'code' => 'P.9000', 'commonName' => 'Cal.P.9000 自动', 'family' => 'P.9000', 'jewels' => 28, 'freq' => 28800, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -6, 'rateMax' => 8, 'beatErr' => 0.5, 'pr' => 72, 'labor' => 6.0, 'wr' => '10 ATM',
+                'desc' => '沛纳海自产自动机芯，72小时动力，Luminor Submersible',
+                'steps' => ['72H动力测试', '双向上链检查'],
+                'faults' => ['自动上链效率', '摆轮轴尖'],
+                'parts' => ['双发条盒', '双向上链机构']
+            ],
+            ['brand' => 'Panerai', 'code' => 'P.9010', 'commonName' => 'Cal.P.9010 自动薄型', 'family' => 'P.9000', 'jewels' => 31, 'freq' => 28800, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -4, 'rateMax' => 6, 'beatErr' => 0.4, 'pr' => 72, 'labor' => 6.5, 'wr' => '10 ATM',
+                'desc' => 'P.9000升级款，更薄，72小时动力',
+                'steps' => ['薄型装配', '72H动力测试'],
+                'faults' => ['薄型齿轮', '轴承间隙'],
+                'parts' => ['薄型夹板', '双发条盒']
+            ],
+            ['brand' => 'Panerai', 'code' => 'P.9100', 'commonName' => 'Cal.P.9100 自动计时', 'family' => 'P.9000', 'jewels' => 37, 'freq' => 28800, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -6, 'rateMax' => 8, 'beatErr' => 0.5, 'pr' => 72, 'labor' => 8.5, 'wr' => '10 ATM',
+                'desc' => '沛纳海自产计时机芯，导柱轮+垂直离合',
+                'steps' => ['计时功能测试', '导柱轮检查', '飞返功能'],
+                'faults' => ['计时飞返机构', '离合器'],
+                'parts' => ['导柱轮', '垂直离合器', '飞返凸轮']
+            ],
+            // ===== Breguet 宝玑 更多 =====
+            ['brand' => 'Breguet', 'code' => '502.3', 'commonName' => 'Cal.502.3 自动', 'family' => '500', 'jewels' => 35, 'freq' => 28800, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -3, 'rateMax' => 3, 'beatErr' => 0.3, 'pr' => 65, 'labor' => 9.5, 'wr' => '5 ATM',
+                'desc' => '宝玑自动机芯，65小时动力，硅擒纵，Classique',
+                'steps' => ['宝玑传统调校', '65H动力测试', '硅擒纵检查'],
+                'faults' => ['硅擒纵', 'Parechute避震'],
+                'parts' => ['硅擒纵', 'Parechute避震', '双发条盒']
+            ],
+            ['brand' => 'Breguet', 'code' => '582Q', 'commonName' => 'Cal.582Q 自动计时', 'family' => '500', 'jewels' => 47, 'freq' => 28800, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -3, 'rateMax' => 3, 'beatErr' => 0.3, 'pr' => 48, 'labor' => 11.0, 'wr' => '5 ATM',
+                'desc' => '宝玑自动计时机芯，导柱轮，Type XXI',
+                'steps' => ['计时调校', '导柱轮检查', '飞返功能'],
+                'faults' => ['计时耦合', '飞返机构'],
+                'parts' => ['导柱轮', '飞返凸轮', '硅擒纵']
+            ],
+            // ===== Blancpain 宝珀 更多 =====
+            ['brand' => 'Blancpain', 'code' => '1150', 'commonName' => 'Cal.1150 自动基础', 'family' => '1150', 'jewels' => 28, 'freq' => 28800, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -3, 'rateMax' => 3, 'beatErr' => 0.3, 'pr' => 100, 'labor' => 8.0, 'wr' => '5 ATM',
+                'desc' => '宝珀自动基础机芯，100小时动力，Villeret系列',
+                'steps' => ['100H动力测试', '硅游丝检查'],
+                'faults' => ['长动力发条', '力矩输出'],
+                'parts' => ['双发条盒', '硅游丝']
+            ],
+            ['brand' => 'Blancpain', 'code' => '6651', 'commonName' => 'Cal.6651 自动动显', 'family' => '6600', 'jewels' => 30, 'freq' => 28800, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -3, 'rateMax' => 3, 'beatErr' => 0.3, 'pr' => 100, 'labor' => 8.5, 'wr' => '5 ATM',
+                'desc' => '宝珀自动动显机芯，100小时动力，Villeret月相',
+                'steps' => ['100H动力测试', '月相调校'],
+                'faults' => ['月相齿轮', '动显机构'],
+                'parts' => ['月相轮组', '双发条盒']
+            ],
+            ['brand' => 'Blancpain', 'code' => '13R0', 'commonName' => 'Cal.13R0 八日链', 'family' => '13R', 'jewels' => 32, 'freq' => 28800, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -3, 'rateMax' => 3, 'beatErr' => 0.3, 'pr' => 192, 'labor' => 10.0, 'wr' => '5 ATM',
+                'desc' => '宝珀八日链手动机芯，192小时动力，L-Evolution',
+                'steps' => ['八日动力测试', '六方位调校', '力矩曲线检查'],
+                'faults' => ['长动力力矩衰减', '四条发条盒同步'],
+                'parts' => ['四条发条盒', '特殊发条材质']
+            ],
+            // ===== IWC 万国 更多 =====
+            ['brand' => 'IWC', 'code' => '30110', 'commonName' => 'Cal.30110 自动', 'family' => '30000', 'jewels' => 21, 'freq' => 28800, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -6, 'rateMax' => 8, 'beatErr' => 0.5, 'pr' => 42, 'labor' => 5.0, 'wr' => '6 ATM',
+                'desc' => 'IWC基础自动机芯，ETA 2892-2精改，葡萄牙三针',
+                'steps' => ['精改调校', '42H动力测试'],
+                'faults' => ['自动轮磨损', '上链效率'],
+                'parts' => ['精改自动轮', '主发条']
+            ],
+            ['brand' => 'IWC', 'code' => '35111', 'commonName' => 'Cal.35111 自动', 'family' => '35000', 'jewels' => 25, 'freq' => 28800, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -6, 'rateMax' => 8, 'beatErr' => 0.5, 'pr' => 42, 'labor' => 5.0, 'wr' => '10 ATM',
+                'desc' => 'IWC自动机芯，Sellita SW300精改，马克十八',
+                'steps' => ['精改调校', '软铁防磁检查'],
+                'faults' => ['防磁罩影响', '自动上链'],
+                'parts' => ['软铁防磁罩', '精改自动轮']
+            ],
+            ['brand' => 'IWC', 'code' => '52010', 'commonName' => 'Cal.52010 自动七日链', 'family' => '52000', 'jewels' => 31, 'freq' => 28800, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -3, 'rateMax' => 5, 'beatErr' => 0.3, 'pr' => 168, 'labor' => 8.5, 'wr' => '6 ATM',
+                'desc' => 'IWC自产七日链机芯，双发条盒168小时，葡萄牙七日链',
+                'steps' => ['168H动力测试', '比勒顿上链检查'],
+                'faults' => ['七日动力衰减', '比勒顿上链棘爪'],
+                'parts' => ['比勒陀上链机构', '双发条盒']
+            ],
+            ['brand' => 'IWC', 'code' => '69370', 'commonName' => 'Cal.69370 自动计时', 'family' => '69000', 'jewels' => 33, 'freq' => 28800, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -4, 'rateMax' => 8, 'beatErr' => 0.4, 'pr' => 46, 'labor' => 7.5, 'wr' => '6 ATM',
+                'desc' => 'IWC自产计时机芯，导柱轮，葡萄牙计时',
+                'steps' => ['计时功能测试', '导柱轮检查'],
+                'faults' => ['计时机芯耦合', '导柱轮'],
+                'parts' => ['导柱轮', '水平离合器']
+            ],
+            // ===== Zenith 真力时 =====
+            ['brand' => 'Zenith', 'code' => 'El Primero 400', 'commonName' => 'El Primero 400 高频计时', 'family' => 'El Primero', 'jewels' => 31, 'freq' => 36000, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -3, 'rateMax' => 3, 'beatErr' => 0.2, 'pr' => 50, 'labor' => 8.0, 'wr' => '5 ATM',
+                'desc' => '真力时传奇高频计时机芯，36000摆频，1/10秒计时',
+                'steps' => ['36000高频测试', '导柱轮检查', '50H动力'],
+                'faults' => ['高频磨损', '特殊润滑油'],
+                'parts' => ['高频摆轮', '导柱轮', '特殊润滑油']
+            ],
+            ['brand' => 'Zenith', 'code' => 'El Primero 3600', 'commonName' => 'El Primero 3600 1/100秒计时', 'family' => 'El Primero', 'jewels' => 53, 'freq' => 36000, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -3, 'rateMax' => 3, 'beatErr' => 0.2, 'pr' => 55, 'labor' => 10.0, 'wr' => '5 ATM',
+                'desc' => '真力时新一代高频计时，1/100秒精度，双层硅游丝',
+                'steps' => ['1/100秒计时测试', '双层硅游丝检查', '55H动力'],
+                'faults' => ['双层硅游丝', '高频计时齿轮'],
+                'parts' => ['双层硅游丝', '高频计时齿轮组']
+            ],
+            ['brand' => 'Zenith', 'code' => 'Elite 670', 'commonName' => 'Elite 670 超薄自动', 'family' => 'Elite', 'jewels' => 27, 'freq' => 28800, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -5, 'rateMax' => 5, 'beatErr' => 0.4, 'pr' => 50, 'labor' => 6.0, 'wr' => '5 ATM',
+                'desc' => '真力时超薄自动机芯，3.92mm厚度，Elite系列',
+                'steps' => ['超薄装配', '50H动力测试'],
+                'faults' => ['超薄零件', '珍珠陀上链效率'],
+                'parts' => ['珍珠摆陀', '超薄发条盒']
+            ],
+            // ===== Oris 豪利时 =====
+            ['brand' => 'Oris', 'code' => '733', 'commonName' => 'Cal.733 自动', 'family' => '730', 'jewels' => 26, 'freq' => 28800, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -8, 'rateMax' => 10, 'beatErr' => 0.5, 'pr' => 38, 'labor' => 3.8, 'wr' => '10 ATM',
+                'desc' => 'Oris基础自动机芯，Sellita SW200精改，65年复刻',
+                'steps' => ['精改调校', '38H动力测试'],
+                'faults' => ['自动上链效率', '摆轮平衡'],
+                'parts' => ['精改自动轮', '红色自动陀']
+            ],
+            ['brand' => 'Oris', 'code' => '771', 'commonName' => 'Cal.771 自动计时', 'family' => '770', 'jewels' => 25, 'freq' => 28800, 'ampMin' => 260, 'ampMax' => 300, 'rateMin' => -8, 'rateMax' => 10, 'beatErr' => 0.6, 'pr' => 42, 'labor' => 5.5, 'wr' => '10 ATM',
+                'desc' => 'Oris计时机芯，Sellita SW500精改，Aquis计时',
+                'steps' => ['计时功能测试', '精改调校'],
+                'faults' => ['计时耦合', '凸轮磨损'],
+                'parts' => ['精改凸轮组件', '计时齿轮组']
+            ],
+            // ===== Hamilton 汉米尔顿 更多 =====
+            ['brand' => 'Hamilton', 'code' => 'H-21', 'commonName' => 'Cal.H-21 自动计时', 'family' => 'H-20', 'jewels' => 27, 'freq' => 28800, 'ampMin' => 260, 'ampMax' => 300, 'rateMin' => -8, 'rateMax' => 10, 'beatErr' => 0.6, 'pr' => 60, 'labor' => 4.5, 'wr' => '10 ATM',
+                'desc' => '汉米尔顿计时机芯，ETA 7753精改，卡其野战计时',
+                'steps' => ['60H动力测试', '精改调校'],
+                'faults' => ['长动力发条', '凸轮磨损'],
+                'parts' => ['长发条盒', '精改凸轮']
+            ],
+            ['brand' => 'Hamilton', 'code' => 'H-31', 'commonName' => 'Cal.H-31 自动计时', 'family' => 'H-30', 'jewels' => 27, 'freq' => 21600, 'ampMin' => 260, 'ampMax' => 300, 'rateMin' => -8, 'rateMax' => 10, 'beatErr' => 0.6, 'pr' => 60, 'labor' => 4.5, 'wr' => '10 ATM',
+                'desc' => '汉米尔顿长动力计时，21600摆频60小时动力，爵士大师',
+                'steps' => ['60H动力测试', '21600调较'],
+                'faults' => ['低频精度', '长动力力矩'],
+                'parts' => ['长发条盒', '精改自动轮']
+            ],
+            ['brand' => 'Hamilton', 'code' => 'H-10', 'commonName' => 'Cal.H-10 自动长动力', 'family' => 'H-10', 'jewels' => 25, 'freq' => 21600, 'ampMin' => 260, 'ampMax' => 300, 'rateMin' => -8, 'rateMax' => 10, 'beatErr' => 0.7, 'pr' => 80, 'labor' => 3.5, 'wr' => '5 ATM',
+                'desc' => '汉米尔顿80小时长动力机芯，卡其海军',
+                'steps' => ['80H动力测试', '21600调较'],
+                'faults' => ['低频精度', '长动力发条'],
+                'parts' => ['长发条盒', 'Nivachron合金游丝']
+            ],
+            // ===== Tissot 天梭 更多 =====
+            ['brand' => 'Tissot', 'code' => 'C01.211', 'commonName' => 'Cal.C01.211 自动计时', 'family' => 'C01', 'jewels' => 15, 'freq' => 21600, 'ampMin' => 250, 'ampMax' => 300, 'rateMin' => -12, 'rateMax' => 12, 'beatErr' => 0.8, 'pr' => 45, 'labor' => 3.5, 'wr' => '10 ATM',
+                'desc' => '天梭低成本计时机芯，塑料齿轮，PRS 516',
+                'steps' => ['45H动力测试', '功能检查'],
+                'faults' => ['塑料齿轮寿命', '精度一般'],
+                'parts' => ['复合齿轮组', '发条盒']
+            ],
+            ['brand' => 'Tissot', 'code' => 'C07.111', 'commonName' => 'Cal.C07.111 自动80小时', 'family' => 'C07', 'jewels' => 23, 'freq' => 21600, 'ampMin' => 260, 'ampMax' => 300, 'rateMin' => -8, 'rateMax' => 10, 'beatErr' => 0.6, 'pr' => 80, 'labor' => 3.0, 'wr' => '5 ATM',
+                'desc' => '天梭Powermatic 80长动力机芯，80小时动力，卡森臻我',
+                'steps' => ['80H动力测试', '21600调较'],
+                'faults' => ['塑料擒纵轮', '低频精度'],
+                'parts' => ['长发条盒', '复合擒纵轮']
+            ],
+            ['brand' => 'Tissot', 'code' => 'C07.811', 'commonName' => 'Cal.C07.811 天文台认证', 'family' => 'C07', 'jewels' => 25, 'freq' => 21600, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -4, 'rateMax' => 6, 'beatErr' => 0.4, 'pr' => 80, 'labor' => 3.8, 'wr' => '5 ATM',
+                'desc' => '天梭C07天文台认证版，硅游丝，杜鲁尔系列',
+                'steps' => ['COSC认证调校', '硅游丝检查'],
+                'faults' => ['硅游丝安装', 'COSC标准'],
+                'parts' => ['硅游丝', '长发条盒']
+            ],
+            // ===== Mido 美度 更多 =====
+            ['brand' => 'Mido', 'code' => 'C07.621', 'commonName' => 'Cal.C07.621 长动力', 'family' => 'C07', 'jewels' => 25, 'freq' => 21600, 'ampMin' => 260, 'ampMax' => 300, 'rateMin' => -8, 'rateMax' => 10, 'beatErr' => 0.6, 'pr' => 80, 'labor' => 3.2, 'wr' => '5 ATM',
+                'desc' => '美度Caliber 80长动力机芯，贝伦赛丽',
+                'steps' => ['80H动力测试', '21600调较'],
+                'faults' => ['塑料擒纵', '精度一般'],
+                'parts' => ['长发条盒', '复合擒纵']
+            ],
+            ['brand' => 'Mido', 'code' => 'C07.821', 'commonName' => 'Cal.C07.821 天文台认证', 'family' => 'C07', 'jewels' => 25, 'freq' => 21600, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -4, 'rateMax' => 6, 'beatErr' => 0.4, 'pr' => 80, 'labor' => 4.0, 'wr' => '10 ATM',
+                'desc' => '美度C07天文台认证，硅游丝，领航者系列',
+                'steps' => ['COSC认证', '硅游丝检查'],
+                'faults' => ['硅游丝调校', '防磁性能'],
+                'parts' => ['硅游丝', '长发条盒']
+            ],
+            // ===== Rado 雷达 =====
+            ['brand' => 'Rado', 'code' => 'C07.631', 'commonName' => 'Cal.C07.631 长动力', 'family' => 'C07', 'jewels' => 25, 'freq' => 21600, 'ampMin' => 260, 'ampMax' => 300, 'rateMin' => -8, 'rateMax' => 10, 'beatErr' => 0.6, 'pr' => 80, 'labor' => 3.2, 'wr' => '5 ATM',
+                'desc' => '雷达80小时长动力机芯，陶瓷表款使用',
+                'steps' => ['80H动力测试', '陶瓷表壳装配检查'],
+                'faults' => ['塑料擒纵', '精度一般'],
+                'parts' => ['长发条盒', '复合擒纵轮']
+            ],
+            // ===== Certina 雪铁纳 =====
+            ['brand' => 'Certina', 'code' => 'C032.407', 'commonName' => 'Cal.Powermatic 80', 'family' => 'C07', 'jewels' => 23, 'freq' => 21600, 'ampMin' => 260, 'ampMax' => 300, 'rateMin' => -8, 'rateMax' => 10, 'beatErr' => 0.6, 'pr' => 80, 'labor' => 3.0, 'wr' => '20 ATM',
+                'desc' => '雪铁纳80小时长动力机芯，DS+双重保险，海龟潜水表',
+                'steps' => ['80H动力测试', '20ATM防水测试'],
+                'faults' => ['塑料擒纵', '精度一般'],
+                'parts' => ['长发条盒', 'DS防震组件']
+            ],
+            // ===== Junghans 荣汉斯 =====
+            ['brand' => 'Junghans', 'code' => 'J800.1', 'commonName' => 'Cal.J800.1 自动', 'family' => 'J800', 'jewels' => 21, 'freq' => 28800, 'ampMin' => 260, 'ampMax' => 300, 'rateMin' => -6, 'rateMax' => 8, 'beatErr' => 0.5, 'pr' => 38, 'labor' => 3.5, 'wr' => '5 ATM',
+                'desc' => '荣汉斯自动机芯，Sellita SW200精改，大师系列',
+                'steps' => ['精改调校', '38H动力测试'],
+                'faults' => ['自动上链', '摆轮平衡'],
+                'parts' => ['精改自动轮', '德国打磨夹板']
+            ],
+            // ===== Citizen 西铁城 更多 =====
+            ['brand' => 'Citizen', 'code' => '9015', 'commonName' => 'Cal.9015 自动', 'family' => '9000', 'jewels' => 24, 'freq' => 28800, 'ampMin' => 250, 'ampMax' => 310, 'rateMin' => -10, 'rateMax' => 30, 'beatErr' => 0.6, 'pr' => 42, 'labor' => 2.8, 'wr' => '5 ATM',
+                'desc' => '西铁城9015自动机芯，超薄设计，亚洲表大量使用',
+                'steps' => ['薄型装配', '轴承润滑'],
+                'faults' => ['自动陀异响', '摆轮轴承'],
+                'parts' => ['自动陀轴承', '主发条']
+            ],
+            ['brand' => 'Citizen', 'code' => '8200', 'commonName' => 'Cal.8200 自动', 'family' => '8200', 'jewels' => 21, 'freq' => 21600, 'ampMin' => 240, 'ampMax' => 300, 'rateMin' => -20, 'rateMax' => 40, 'beatErr' => 1.0, 'pr' => 42, 'labor' => 2.0, 'wr' => '5 ATM',
+                'desc' => '西铁城经典自动机芯，产量极大，入门机械表标配',
+                'steps' => ['标准保养', '魔术杠杆检查'],
+                'faults' => ['魔术杠杆磨损', '精度差'],
+                'parts' => ['魔术杠杆', '主发条', '大钢轮']
+            ],
+            ['brand' => 'Citizen', 'code' => 'Miyota 821A', 'commonName' => 'Miyota 821A 自动', 'family' => '8200', 'jewels' => 21, 'freq' => 21600, 'ampMin' => 240, 'ampMax' => 300, 'rateMin' => -20, 'rateMax' => 40, 'beatErr' => 1.0, 'pr' => 42, 'labor' => 2.2, 'wr' => '5 ATM',
+                'desc' => '西铁城美优达821A，透底花纹夹板，国产表大量使用',
+                'steps' => ['标准保养', '花纹夹板检查'],
+                'faults' => ['自动陀异响', '精度差'],
+                'parts' => ['花纹夹板', '魔术杠杆']
+            ],
+            // ===== SeaGull 海鸥 更多 =====
+            ['brand' => 'SeaGull', 'code' => 'ST2500', 'commonName' => 'ST2500 自动', 'family' => 'ST25', 'jewels' => 25, 'freq' => 21600, 'ampMin' => 240, 'ampMax' => 300, 'rateMin' => -15, 'rateMax' => 25, 'beatErr' => 0.8, 'pr' => 40, 'labor' => 2.0, 'wr' => '5 ATM',
+                'desc' => '海鸥ST25自动机芯，基础款，飞轮款基础',
+                'steps' => ['标准保养', '自动上链检查'],
+                'faults' => ['自动上链效率', '精度差'],
+                'parts' => ['自动轮组', '主发条']
+            ],
+            ['brand' => 'SeaGull', 'code' => 'ST2130', 'commonName' => 'ST2130 自动ETA2824仿', 'family' => 'ST21', 'jewels' => 26, 'freq' => 28800, 'ampMin' => 250, 'ampMax' => 310, 'rateMin' => -12, 'rateMax' => 12, 'beatErr' => 0.6, 'pr' => 42, 'labor' => 2.8, 'wr' => '5 ATM',
+                'desc' => '海鸥仿ETA 2824-2机芯，质量较稳定，国货主力',
+                'steps' => ['标准清洗装配', '摆轮平衡调校'],
+                'faults' => ['自动上链效率', 'Incabloc避震仿制'],
+                'parts' => ['主发条', '自动换向轮', '避震簧']
+            ],
+            ['brand' => 'SeaGull', 'code' => 'ST1901', 'commonName' => 'ST1901 手卷计时', 'family' => 'ST19', 'jewels' => 22, 'freq' => 21600, 'ampMin' => 250, 'ampMax' => 300, 'rateMin' => -12, 'rateMax' => 12, 'beatErr' => 0.8, 'pr' => 42, 'labor' => 3.5, 'wr' => '5 ATM',
+                'desc' => '海鸥仿Venus 175计时机芯，导柱轮，国货计时主力',
+                'steps' => ['计时功能测试', '导柱轮检查'],
+                'faults' => ['计时耦合', '导柱轮磨损'],
+                'parts' => ['导柱轮', '计时凸轮', '发条']
+            ],
+            ['brand' => 'SeaGull', 'code' => 'ST3600', 'commonName' => 'ST3600 手卷ETA6497仿', 'family' => 'ST36', 'jewels' => 17, 'freq' => 18000, 'ampMin' => 250, 'ampMax' => 300, 'rateMin' => -10, 'rateMax' => 10, 'beatErr' => 1.0, 'pr' => 46, 'labor' => 2.5, 'wr' => '5 ATM',
+                'desc' => '海鸥仿ETA 6497怀表机芯，大摆轮，大表盘使用',
+                'steps' => ['大摆轮调校', '鹅颈微调'],
+                'faults' => ['精度一般', '大摆轮易受磁'],
+                'parts' => ['大摆轮', '鹅颈微调', '主发条']
+            ],
+            // ===== Beijing 北京表 更多 =====
+            ['brand' => 'Beijing', 'code' => 'B16', 'commonName' => 'Cal.B16 自动', 'family' => 'B16', 'jewels' => 24, 'freq' => 28800, 'ampMin' => 250, 'ampMax' => 310, 'rateMin' => -12, 'rateMax' => 12, 'beatErr' => 0.6, 'pr' => 40, 'labor' => 2.8, 'wr' => '5 ATM',
+                'desc' => '北京表自产自动机芯，基础款，复刻款使用',
+                'steps' => ['标准保养', '自动上链检查'],
+                'faults' => ['精度一般', '自动上链效率'],
+                'parts' => ['自动轮组', '主发条']
+            ],
+            ['brand' => 'Beijing', 'code' => 'SB18', 'commonName' => 'Cal.SB18 自动', 'family' => 'SB18', 'jewels' => 26, 'freq' => 28800, 'ampMin' => 260, 'ampMax' => 310, 'rateMin' => -8, 'rateMax' => 10, 'beatErr' => 0.5, 'pr' => 42, 'labor' => 3.2, 'wr' => '5 ATM',
+                'desc' => '北京表新一代自动机芯，42小时动力，高端线使用',
+                'steps' => ['精改调校', '42H动力测试'],
+                'faults' => ['自动上链系统', '齿轮间隙'],
+                'parts' => ['双发条盒', '精改自动轮']
+            ],
+            // ===== FIYTA 飞亚达 更多 =====
+            ['brand' => 'FIYTA', 'code' => 'Cal.8810', 'commonName' => 'Cal.8810 自动', 'family' => '8800', 'jewels' => 26, 'freq' => 28800, 'ampMin' => 260, 'ampMax' => 310, 'rateMin' => -8, 'rateMax' => 10, 'beatErr' => 0.5, 'pr' => 42, 'labor' => 3.0, 'wr' => '5 ATM',
+                'desc' => '飞亚达自动机芯，摄影师系列使用',
+                'steps' => ['标准调校', '42H动力测试'],
+                'faults' => ['精度一般', '自动上链'],
+                'parts' => ['自动轮组', '主发条']
+            ],
+            // ===== Ulysse Nardin 雅典 =====
+            ['brand' => 'Ulysse Nardin', 'code' => 'UN-118', 'commonName' => 'Cal.UN-118 自动', 'family' => 'UN-100', 'jewels' => 31, 'freq' => 28800, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -3, 'rateMax' => 3, 'beatErr' => 0.3, 'pr' => 60, 'labor' => 9.5, 'wr' => '10 ATM',
+                'desc' => '雅典自产自动机芯，硅擒纵，天文台认证，航海系列',
+                'steps' => ['硅擒纵检查', '60H动力测试', '天文台认证'],
+                'faults' => ['硅擒纵脆', 'Ulysse锚式擒纵'],
+                'parts' => ['硅锚式擒纵', '双发条盒']
+            ],
+            ['brand' => 'Ulysse Nardin', 'code' => 'UN-320', 'commonName' => 'Cal.UN-320 自动年历', 'family' => 'UN-300', 'jewels' => 39, 'freq' => 28800, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -3, 'rateMax' => 3, 'beatErr' => 0.3, 'pr' => 52, 'labor' => 10.5, 'wr' => '5 ATM',
+                'desc' => '雅典年历机芯，2月自动调校，独创年历机制',
+                'steps' => ['年历调校', '2月自动跳转测试'],
+                'faults' => ['年历机构', '齿轮啮合'],
+                'parts' => ['年历模块', '双发条盒']
+            ],
+            // ===== Glashutte 格拉苏蒂原创 =====
+            ['brand' => 'Glashutte', 'code' => 'Cal.100-03', 'commonName' => 'Cal.100-03 自动', 'family' => '100', 'jewels' => 47, 'freq' => 28800, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -3, 'rateMax' => 3, 'beatErr' => 0.25, 'pr' => 55, 'labor' => 9.0, 'wr' => '5 ATM',
+                'desc' => '格拉苏蒂原创自动机芯，双鹅颈微调，偏心摆轮，参议员',
+                'steps' => ['双鹅颈调校', '55H动力测试', '格拉苏蒂纹检查'],
+                'faults' => ['偏心摆轮平衡', '双鹅颈调校'],
+                'parts' => ['双鹅颈微调', '偏心摆轮', '格拉苏蒂纹夹板']
+            ],
+            ['brand' => 'Glashutte', 'code' => 'Cal.39-59', 'commonName' => 'Cal.39-59 自动', 'family' => '39', 'jewels' => 25, 'freq' => 28800, 'ampMin' => 270, 'ampMax' => 310, 'rateMin' => -5, 'rateMax' => 5, 'beatErr' => 0.4, 'pr' => 40, 'labor' => 6.5, 'wr' => '5 ATM',
+                'desc' => '格拉苏蒂基础自动机芯，参议员入门款',
+                'steps' => ['40H动力测试', '精改调校'],
+                'faults' => ['上链效率', '摆轮轴尖'],
+                'parts' => ['自动轮组', '格拉苏蒂纹夹板']
+            ],
+            // ===== Ronda 朗达 更多 =====
+            ['brand' => 'Ronda', 'code' => '775', 'commonName' => 'Cal.775 石英', 'type' => 'quartz', 'family' => '700', 'jewels' => 5, 'freq' => 32768, 'ampMin' => 0, 'ampMax' => 0, 'rateMin' => -0.5, 'rateMax' => 0.5, 'beatErr' => 0.0, 'pr' => 0, 'labor' => 0.8, 'wr' => '5 ATM',
+                'desc' => '朗达775石英机芯，三针日历，瑞士入门石英',
+                'steps' => ['电池更换', '触点清洁'],
+                'faults' => ['线圈烧毁', '电路板故障'],
+                'parts' => ['电池', '线圈', '电路板']
+            ],
+            ['brand' => 'Ronda', 'code' => '1062', 'commonName' => 'Cal.1062 石英计时', 'type' => 'quartz', 'family' => '1000', 'jewels' => 6, 'freq' => 32768, 'ampMin' => 0, 'ampMax' => 0, 'rateMin' => -0.5, 'rateMax' => 0.5, 'beatErr' => 0.0, 'pr' => 0, 'labor' => 1.5, 'wr' => '5 ATM',
+                'desc' => '朗达1062石英计时机芯，1/10秒计时功能',
+                'steps' => ['电池更换', '计时功能测试'],
+                'faults' => ['耗电快', '按钮接触不良'],
+                'parts' => ['电池', '电路板', '按钮组件']
+            ],
         ];
     }
 }
