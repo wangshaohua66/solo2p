@@ -11,7 +11,6 @@ import com.carbon.common.exception.GlobalExceptionHandler;
 import com.carbon.common.integration.WebhookNotifier;
 import com.carbon.common.security.JwtTokenProvider;
 import com.mongodb.client.MongoClient;
-import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,6 +29,7 @@ import org.springframework.data.mongodb.MongoDatabaseFactory;
 import org.springframework.data.mongodb.MongoTransactionManager;
 import org.springframework.data.mongodb.config.EnableMongoAuditing;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -44,9 +44,12 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Configuration
@@ -63,6 +66,11 @@ import java.util.stream.Collectors;
 @EnableAsync
 @EnableMethodSecurity
 public class CarbonCommonAutoConfiguration {
+
+    private static final String HEADER_AUTHORITIES = "X-JWT-Authorities";
+    private static final String HEADER_TENANT_ID = "X-Tenant-Id";
+    private static final String HEADER_USER_ID = "X-User-Id";
+    private static final String HEADER_TENANT_NAME = "X-Tenant-Name";
 
     @Bean
     @ConditionalOnMissingBean
@@ -97,7 +105,6 @@ public class CarbonCommonAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
-    @ConditionalOnClass(name = "org.springframework.security.web.SecurityFilterChain")
     public SecurityFilterChain mvcSecurityFilterChain(
             HttpSecurity http, JwtTokenProvider jwtTokenProvider) throws Exception {
         http
@@ -115,70 +122,85 @@ public class CarbonCommonAutoConfiguration {
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(new JwtAuthHeaderForwardFilter(jwtTokenProvider),
+                .addFilterBefore(new JwtAuthHeaderForwardFilter(),
                         UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
     @Slf4j
-    @RequiredArgsConstructor
     public static class JwtAuthHeaderForwardFilter extends OncePerRequestFilter {
-
-        private final JwtTokenProvider jwtTokenProvider;
 
         @Override
         protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
                 throws ServletException, IOException {
-            try {
-                String authoritiesHeader = req.getHeader("X-JWT-Authorities");
-                String tenantId = req.getHeader("X-Tenant-Id");
-                String userId = req.getHeader("X-User-Id");
-                String username = null;
-                List<SimpleGrantedAuthority> authorities = Collections.emptyList();
+            String path = req.getRequestURI();
+            boolean permitAll = path.startsWith("/actuator")
+                    || path.startsWith("/swagger-ui")
+                    || path.startsWith("/v3/api-docs")
+                    || path.startsWith("/swagger-resources")
+                    || path.startsWith("/api/auth")
+                    || path.equals("/error");
 
-                if (authoritiesHeader != null && !authoritiesHeader.isBlank()) {
-                    authorities = Arrays.stream(authoritiesHeader.split(","))
-                            .map(String::trim)
-                            .filter(s -> !s.isEmpty())
-                            .map(s -> s.startsWith("ROLE_") ? s : "ROLE_" + s)
-                            .map(SimpleGrantedAuthority::new)
-                            .collect(Collectors.toList());
-                } else {
-                    String bearer = req.getHeader("Authorization");
-                    if (bearer != null && bearer.startsWith("Bearer ")) {
-                        try {
-                            Claims claims = jwtTokenProvider.parseToken(bearer.substring(7));
-                            username = claims.getSubject();
-                            Object auths = claims.get("authorities");
-                            if (auths instanceof List<?> list) {
-                                authorities = list.stream()
-                                        .map(Object::toString)
-                                        .map(s -> s.startsWith("ROLE_") ? s : "ROLE_" + s)
-                                        .map(SimpleGrantedAuthority::new)
-                                        .collect(Collectors.toList());
-                            }
-                        } catch (Exception e) {
-                            log.debug("Parse JWT failed: {}", e.getMessage());
-                        }
-                    }
-                }
-
-                if (tenantId != null || userId != null || !authorities.isEmpty()) {
-                    Object principal = username != null ? username
-                            : (userId != null ? userId : "anonymous");
-                    UsernamePasswordAuthenticationToken auth =
-                            new UsernamePasswordAuthenticationToken(principal, null, authorities);
-                    auth.setDetails(new UserContextHolder.CurrentUser(
-                            userId, username, tenantId,
-                            authorities.stream().map(a -> a.getAuthority().replace("ROLE_", ""))
-                                    .collect(Collectors.toList()),
-                            null));
-                    SecurityContextHolder.getContext().setAuthentication(auth);
-                }
-            } catch (Exception e) {
-                log.warn("JwtAuthHeaderForwardFilter error: {}", e.getMessage());
+            if (permitAll) {
+                chain.doFilter(req, res);
+                return;
             }
-            chain.doFilter(req, res);
+
+            String tenantId = req.getHeader(HEADER_TENANT_ID);
+            String userId = req.getHeader(HEADER_USER_ID);
+            String tenantName = req.getHeader(HEADER_TENANT_NAME);
+            String authoritiesHeader = req.getHeader(HEADER_AUTHORITIES);
+
+            boolean hasTenant = tenantId != null && !tenantId.isBlank();
+            boolean hasUser = userId != null && !userId.isBlank();
+
+            if (!hasTenant || !hasUser) {
+                log.warn("Missing required headers: X-Tenant-Id={}, X-User-Id={}, uri={}",
+                        tenantId, userId, path);
+                sendUnauthorized(res, "Missing tenant/user identity headers");
+                return;
+            }
+
+            Set<String> roleSet = new HashSet<>();
+            if (authoritiesHeader != null && !authoritiesHeader.isBlank()) {
+                List<String> list = Arrays.stream(authoritiesHeader.split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .collect(Collectors.toList());
+                roleSet.addAll(list);
+            }
+
+            UserContextHolder.CurrentUser currentUser = UserContextHolder.CurrentUser.builder()
+                    .userId(userId)
+                    .tenantId(tenantId)
+                    .tenantName(tenantName)
+                    .roles(roleSet)
+                    .permissions(new HashSet<>())
+                    .build();
+            UserContextHolder.set(currentUser);
+
+            List<SimpleGrantedAuthority> authorities = roleSet.stream()
+                    .map(s -> s.startsWith("ROLE_") ? s : "ROLE_" + s)
+                    .map(SimpleGrantedAuthority::new)
+                    .collect(Collectors.toList());
+
+            UsernamePasswordAuthenticationToken auth =
+                    new UsernamePasswordAuthenticationToken(userId, null, authorities);
+            auth.setDetails(currentUser);
+            SecurityContextHolder.getContext().setAuthentication(auth);
+
+            try {
+                chain.doFilter(req, res);
+            } finally {
+                UserContextHolder.clear();
+                SecurityContextHolder.clearContext();
+            }
+        }
+
+        private void sendUnauthorized(HttpServletResponse res, String msg) throws IOException {
+            res.setStatus(HttpStatus.UNAUTHORIZED.value());
+            res.setContentType("application/json;charset=UTF-8");
+            res.getWriter().write("{\"code\":401,\"message\":\"" + msg + "\"}");
         }
     }
 }
