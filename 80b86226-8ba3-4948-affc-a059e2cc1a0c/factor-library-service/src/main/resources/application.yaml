@@ -1,0 +1,50 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: factor-library-service
+  profiles:
+    active: dev
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NS:carbon-dev}
+  data:
+    mongodb:
+      uri: ${MONGO_URI:mongodb://127.0.0.1:27017/factor_library}
+      auto-index-creation: true
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 2
+      lettuce:
+        pool:
+          max-active: 200
+          max-idle: 30
+
+security:
+  jwt:
+    secret: carbon-management-platform-super-secret-key-2024-please-change
+  whitelist:
+    - /actuator/**
+    - /v3/api-docs/**
+    - /swagger-ui/**
+    - /swagger-ui.html
+    - /webjars/**
+
+factor:
+  cache:
+    default-ttl-hours: 12
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    com.carbon.factor: DEBUG

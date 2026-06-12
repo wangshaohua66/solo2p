@@ -1,0 +1,62 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: quota-compliance-service
+  profiles:
+    active: dev
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NS:carbon-dev}
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 5000
+            readTimeout: 30000
+  data:
+    mongodb:
+      uri: ${MONGO_URI:mongodb://127.0.0.1:27017/quota_compliance}
+      auto-index-creation: true
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 4
+
+security:
+  jwt:
+    secret: carbon-management-platform-super-secret-key-2024-please-change
+  whitelist:
+    - /actuator/**
+    - /v3/api-docs/**
+    - /swagger-ui/**
+    - /swagger-ui.html
+    - /webjars/**
+
+quota:
+  compliance:
+    offset-limit-percent: 5
+    alert-thresholds:
+      department: 0.05
+      enterprise: 0.10
+      group: 0.20
+  alert:
+    enabled: true
+    feishu-url: ${FEISHU_WEBHOOK:}
+    dingtalk-url: ${DINGTALK_WEBHOOK:}
+  monthly-reconciliation:
+    day-of-month: 5
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    com.carbon.quota: DEBUG

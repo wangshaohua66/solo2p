@@ -1,0 +1,297 @@
+services:
+
+  # ================ 基础设施 ================
+
+  nacos:
+    image: nacos/nacos-server:v2.3.2
+    container_name: carbon-nacos
+    restart: always
+    environment:
+      - MODE=standalone
+      - PREFER_HOST_MODE=hostname
+      - NACOS_AUTH_ENABLE=false
+      - TZ=Asia/Shanghai
+      - SPRING_DATASOURCE_PLATFORM=mysql
+    volumes:
+      - ./logs/nacos:/home/nacos/logs
+      - ./data/nacos:/home/nacos/data
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+    healthcheck:
+      test: [ "CMD", "curl", "-fsS", "http://localhost:8848/nacos/v1/console/health/liveness" ]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+    networks:
+      - carbon-net
+
+  mongodb:
+    image: mongo:6.0.14
+    container_name: carbon-mongo
+    restart: always
+    command: --replSet rs0 --bind_ip_all --wiredTigerCacheSizeGB 2
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=carbon!Mongo2024
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./data/mongo/db:/data/db
+      - ./scripts/mongo-init.sh:/docker-entrypoint-initdb.d/init.sh:ro
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh -u $$MONGO_INITDB_ROOT_USERNAME -p $$MONGO_INITDB_ROOT_PASSWORD --quiet
+      interval: 20s
+      timeout: 10s
+      retries: 15
+    networks:
+      - carbon-net
+
+  mongo-init:
+    image: mongo:6.0.14
+    container_name: carbon-mongo-init
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    entrypoint: [ "bash", "-c", "set -e; sleep 5; mongosh --host mongodb:27017 -u admin -p 'carbon!Mongo2024' --quiet --eval 'rs.initiate({_id:\"rs0\",members:[{_id:0,host:\"mongodb:27017\"}]})' || true; exit 0" ]
+    network_mode: service:mongodb
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  redis:
+    image: redis:7.2.4-alpine
+    container_name: carbon-redis
+    restart: always
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 4gb
+      --maxmemory-policy allkeys-lru
+      --loglevel notice
+    volumes:
+      - ./data/redis:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - carbon-net
+
+  # ================ 业务服务 ================
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        MODULE: api-gateway
+        PORT: 8080
+    container_name: carbon-api-gateway
+    restart: always
+    depends_on:
+      nacos:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      NACOS_ADDR: nacos:8848
+      NACOS_NS: carbon-dev
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      MONGO_URI: mongodb://admin:carbon!Mongo2024@mongodb:27017/?replicaSet=rs0&authSource=admin
+      TZ: Asia/Shanghai
+      JAVA_OPTS: -Xms256m -Xmx512m
+    ports:
+      - "8080:8080"
+    networks:
+      - carbon-net
+
+  emission-source-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        MODULE: emission-source-service
+        PORT: 8081
+    container_name: carbon-emission-source
+    restart: always
+    depends_on:
+      nacos:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      NACOS_ADDR: nacos:8848
+      NACOS_NS: carbon-dev
+      MONGO_URI: mongodb://admin:carbon!Mongo2024@mongodb:27017/emission?replicaSet=rs0&authSource=admin
+      REDIS_HOST: redis
+      TZ: Asia/Shanghai
+      JAVA_OPTS: -Xms512m -Xmx1g
+    ports:
+      - "8081:8081"
+    networks:
+      - carbon-net
+
+  factor-library-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        MODULE: factor-library-service
+        PORT: 8082
+    container_name: carbon-factor-library
+    restart: always
+    depends_on:
+      nacos:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      NACOS_ADDR: nacos:8848
+      NACOS_NS: carbon-dev
+      MONGO_URI: mongodb://admin:carbon!Mongo2024@mongodb:27017/factor?replicaSet=rs0&authSource=admin
+      REDIS_HOST: redis
+      TZ: Asia/Shanghai
+      JAVA_OPTS: -Xms512m -Xmx1g
+    ports:
+      - "8082:8082"
+    networks:
+      - carbon-net
+
+  calculation-engine-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        MODULE: calculation-engine-service
+        PORT: 8083
+    container_name: carbon-calculation-engine
+    restart: always
+    depends_on:
+      nacos:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      emission-source-service:
+        condition: service_started
+      factor-library-service:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      NACOS_ADDR: nacos:8848
+      NACOS_NS: carbon-dev
+      MONGO_URI: mongodb://admin:carbon!Mongo2024@mongodb:27017/calculation?replicaSet=rs0&authSource=admin
+      REDIS_HOST: redis
+      TZ: Asia/Shanghai
+      JAVA_OPTS: -Xms1g -Xmx4g
+    ports:
+      - "8083:8083"
+    networks:
+      - carbon-net
+
+  quota-compliance-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        MODULE: quota-compliance-service
+        PORT: 8084
+    container_name: carbon-quota-compliance
+    restart: always
+    depends_on:
+      nacos:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      NACOS_ADDR: nacos:8848
+      NACOS_NS: carbon-dev
+      MONGO_URI: mongodb://admin:carbon!Mongo2024@mongodb:27017/quota?replicaSet=rs0&authSource=admin
+      REDIS_HOST: redis
+      TZ: Asia/Shanghai
+      JAVA_OPTS: -Xms512m -Xmx1g
+    ports:
+      - "8084:8084"
+    networks:
+      - carbon-net
+
+  verification-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        MODULE: verification-service
+        PORT: 8085
+    container_name: carbon-verification
+    restart: always
+    depends_on:
+      nacos:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      NACOS_ADDR: nacos:8848
+      NACOS_NS: carbon-dev
+      MONGO_URI: mongodb://admin:carbon!Mongo2024@mongodb:27017/verification?replicaSet=rs0&authSource=admin
+      TZ: Asia/Shanghai
+      JAVA_OPTS: -Xms512m -Xmx1g
+    ports:
+      - "8085:8085"
+    networks:
+      - carbon-net
+
+  ccer-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        MODULE: ccer-service
+        PORT: 8086
+    container_name: carbon-ccer
+    restart: always
+    depends_on:
+      nacos:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      NACOS_ADDR: nacos:8848
+      NACOS_NS: carbon-dev
+      MONGO_URI: mongodb://admin:carbon!Mongo2024@mongodb:27017/ccer?replicaSet=rs0&authSource=admin
+      REDIS_HOST: redis
+      TZ: Asia/Shanghai
+      JAVA_OPTS: -Xms512m -Xmx1g
+    ports:
+      - "8086:8086"
+    networks:
+      - carbon-net
+
+networks:
+  carbon-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

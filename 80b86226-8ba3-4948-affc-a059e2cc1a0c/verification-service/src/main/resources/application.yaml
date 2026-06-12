@@ -1,0 +1,52 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: verification-service
+  profiles:
+    active: dev
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NS:carbon-dev}
+  data:
+    mongodb:
+      uri: ${MONGO_URI:mongodb://127.0.0.1:27017/verification}
+      auto-index-creation: true
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 5
+
+security:
+  jwt:
+    secret: carbon-management-platform-super-secret-key-2024-please-change
+  whitelist:
+    - /actuator/**
+    - /v3/api-docs/**
+    - /swagger-ui/**
+    - /swagger-ui.html
+    - /webjars/**
+    - GET:/api/verifications/**/packages/*/download
+
+verification:
+  package:
+    include-evidence: true
+    include-index: true
+    default-template: CSRC
+  report:
+    issuer: Carbon Platform CA
+    private-key: ${REPORT_SIGN_KEY:carbon-report-signing-key-2024}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    com.carbon.verification: DEBUG

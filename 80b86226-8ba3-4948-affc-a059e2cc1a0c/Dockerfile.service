@@ -1,0 +1,17 @@
+FROM eclipse-temurin:17-jre-alpine AS runner
+
+ARG MODULE
+ARG PORT
+ENV MODULE=${MODULE}
+
+WORKDIR /app
+
+COPY common-lib/target/common-lib-*.jar /app/libs/common-lib.jar || true
+COPY ${MODULE}/target/${MODULE}-*.jar /app/app.jar
+
+EXPOSE ${PORT}
+
+ENV JAVA_OPTS="-Xms256m -Xmx512m"
+ENV TZ=Asia/Shanghai
+
+ENTRYPOINT [ "sh", "-c", "java ${JAVA_OPTS} -Djava.security.egd=file:/dev/./urandom -jar /app/app.jar" ]
