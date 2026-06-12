@@ -70,10 +70,8 @@ public class CalculationService {
                                       String scopeFilter,
                                       String taskName,
                                       List<String> evidenceIds) {
-        if (evidenceIds != null && !evidenceIds.isEmpty()) {
-            com.carbon.common.verification.EvidenceChainValidator.requireEvidence(
-                    evidenceIds, "核算任务");
-        }
+        com.carbon.common.verification.EvidenceChainValidator.requireEvidence(
+                evidenceIds, "核算任务");
         String tenantId = UserContextHolder.getTenantId();
         String period = String.format("%04d-%02d", year, month);
         CalculationTask task = CalculationTask.builder()

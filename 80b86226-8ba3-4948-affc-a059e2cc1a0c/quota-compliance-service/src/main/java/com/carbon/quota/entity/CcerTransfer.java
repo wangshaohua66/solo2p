@@ -33,6 +33,8 @@ public class CcerTransfer extends BaseEntity {
 
     private String projectId;
 
+    private String projectCode;
+
     private String projectName;
 
     private String methodology;

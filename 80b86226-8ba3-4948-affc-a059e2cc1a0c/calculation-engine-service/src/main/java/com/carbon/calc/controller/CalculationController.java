@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -45,6 +46,7 @@ public class CalculationController {
 
     @PostMapping("/tasks/{taskId}/rerun")
     @Operation(summary = "重算指定任务(清除旧结果+重算)")
+    @PreAuthorize("hasAuthority('calculation:run')")
     public R<Map<String, Object>> rerun(@PathVariable String taskId) {
         CalculationTask t = service.getTask(taskId);
         String scope = t.getScopeFilter() != null && !t.getScopeFilter().isEmpty()

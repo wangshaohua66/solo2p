@@ -20,6 +20,7 @@ import com.carbon.ccer.repository.CcerVerificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -69,7 +70,7 @@ public class CcerService {
         Page<CcerProject> page;
         if (status != null) {
             page = projectRepo.findByTenantIdAndStatus(tenantId, status,
-                    PageRequest.of(pq.getPage(), pq.getSize(), Sort.by(Sort.Direction.DESC, "createdAt"));
+                    PageRequest.of(pq.getPage(), pq.getSize(), Sort.by(Sort.Direction.DESC, "createdAt")));
         } else {
             page = projectRepo.findByTenantIdOrderByCreatedAtDesc(tenantId,
                     PageRequest.of(pq.getPage(), pq.getSize()));
@@ -227,6 +228,7 @@ public class CcerService {
                 req.put("issuanceId", saved.getId());
                 req.put("projectId", projectId);
                 req.put("projectCode", p.getProjectCode());
+                req.put("projectName", p.getProjectName());
                 req.put("tons", saved.getIssuedTons());
                 req.put("complianceYear",
                         v.getPeriodEnd() != null ? v.getPeriodEnd().getYear()

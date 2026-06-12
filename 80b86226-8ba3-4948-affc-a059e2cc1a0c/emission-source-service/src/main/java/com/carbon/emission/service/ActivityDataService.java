@@ -55,10 +55,8 @@ public class ActivityDataService {
     @Transactional
     @CacheEvict(value = "activityData", allEntries = true)
     public ActivityData create(ActivityData data) {
-        if (data.getEvidenceIds() != null && !data.getEvidenceIds().isEmpty()) {
-            com.carbon.common.verification.EvidenceChainValidator.requireEvidence(
-                    data.getEvidenceIds(), "活动数据");
-        }
+        com.carbon.common.verification.EvidenceChainValidator.requireEvidence(
+                data.getEvidenceIds(), "活动数据");
         validateSourceAndFill(data);
         convertUnitsAndValidate(data);
         data.setPeriod(buildPeriod(data));
@@ -73,12 +71,24 @@ public class ActivityDataService {
     @CacheEvict(value = "activityData", allEntries = true)
     public ActivityData update(String id, ActivityData data) {
         ActivityData existing = mustGet(id);
+        java.util.List<String> mergedEvidenceIds = new java.util.ArrayList<>();
+        if (existing.getEvidenceIds() != null) {
+            mergedEvidenceIds.addAll(existing.getEvidenceIds());
+        }
+        if (data.getEvidenceIds() != null) {
+            mergedEvidenceIds.addAll(data.getEvidenceIds());
+        }
+        com.carbon.common.verification.EvidenceChainValidator.requireEvidence(
+                mergedEvidenceIds, "活动数据");
         validateSourceAndFill(data);
         convertUnitsAndValidate(data);
         data.setPeriod(buildPeriod(data));
         org.springframework.beans.BeanUtils.copyProperties(data, existing,
                 "id", "tenantId", "createdAt", "createdBy", "importedAt", "importBatchId",
                 "interpolated", "interpolationTrace", "evidenceIds");
+        if (data.getEvidenceIds() != null && !data.getEvidenceIds().isEmpty()) {
+            existing.setEvidenceIds(mergedEvidenceIds);
+        }
         return repository.save(existing);
     }
 
@@ -140,6 +150,8 @@ public class ActivityDataService {
 
             for (ActivityData d : chunk) {
                 try {
+                    com.carbon.common.verification.EvidenceChainValidator.requireEvidence(
+                            d.getEvidenceIds(), "活动数据");
                     validateSourceAndFill(d);
                     convertUnitsAndValidate(d);
                     d.setTenantId(tenantId);

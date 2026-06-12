@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,6 +28,7 @@ public class CalculationTaskController {
     @PostMapping
     @Operation(summary = "提交月度核算任务(异步，三标准并行)",
             description = "同批活动数据按 ISO 14064-1 / GHG Protocol / CBAM 三套方法学同时输出")
+    @PreAuthorize("hasAuthority('calculation:run')")
     public R<CalculationTask> submit(
             @Parameter(required = true, example = "2024") @RequestParam Integer year,
             @Parameter(required = true, example = "6") @RequestParam Integer month,
@@ -34,7 +36,7 @@ public class CalculationTaskController {
             @Parameter(description = "指定排放源ID列表，空=全部") @RequestParam(required = false) List<String> sourceIds,
             @Parameter(description = "按SCOPE过滤") @RequestParam(required = false) String scope,
             @Parameter(description = "任务名称") @RequestParam(required = false) String taskName,
-            @Parameter(description = "关联证据ID列表(证据链校验)") @RequestParam(required = false) List<String> evidenceIds) {
+            @Parameter(description = "关联证据ID列表(证据链校验，必填)") @RequestParam(required = true) List<String> evidenceIds) {
         return R.ok(service.submitTask(year, month, standards, sourceIds, scope, taskName, evidenceIds));
     }
 

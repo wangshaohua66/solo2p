@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -29,6 +30,7 @@ public class CcerProjectController {
 
     @PostMapping
     @Operation(summary = "创建CCER项目立项(DRAFT)", description = "支持造林(A/R)、并网光热(CSP)、海上风电、甲烷利用等15类方法学")
+    @PreAuthorize("hasAuthority('ccer:manage')")
     public R<CcerProject> create(@RequestBody CcerProject p) {
         return R.ok(service.createProject(p));
     }
@@ -51,12 +53,14 @@ public class CcerProjectController {
 
     @PostMapping("/{id}/submit")
     @Operation(summary = "提交主管部门备案申请(SUBMITTED)")
+    @PreAuthorize("hasAuthority('ccer:manage')")
     public R<CcerProject> submit(@PathVariable String id) {
         return R.ok(service.submitProject(id));
     }
 
     @PostMapping("/{id}/review")
     @Operation(summary = "主管部门审核: true=进入UNDER_REVIEW, false=REJECTED")
+    @PreAuthorize("hasAuthority('ccer:manage')")
     public R<CcerProject> review(@PathVariable String id,
                                   @RequestParam boolean approved,
                                   @RequestParam(required = false) String remark) {
@@ -65,6 +69,7 @@ public class CcerProjectController {
 
     @PostMapping("/{id}/record")
     @Operation(summary = "完成备案登记(UNDER_REVIEW→RECORDED)，必须先备案再审定")
+    @PreAuthorize("hasAuthority('ccer:manage')")
     public R<CcerProject> record(@PathVariable String id,
                                  @RequestParam(required = false) String recordNo,
                                  @RequestParam(required = false) LocalDate recordDate) {
@@ -73,6 +78,7 @@ public class CcerProjectController {
 
     @PostMapping("/{projectId}/validations")
     @Operation(summary = "提交DOE审定报告(RECORDED→VALIDATION_PASSED)，禁止跳过备案")
+    @PreAuthorize("hasAuthority('ccer:manage')")
     public R<CcerValidation> submitValidation(@PathVariable String projectId,
                                               @RequestBody CcerValidation v) {
         return R.ok(service.submitValidation(projectId, v));
@@ -86,6 +92,7 @@ public class CcerProjectController {
 
     @PostMapping("/{projectId}/verifications")
     @Operation(summary = "提交监测期核证报告(IMPLEMENTING→VERIFICATION_SUBMITTED)")
+    @PreAuthorize("hasAuthority('ccer:manage')")
     public R<CcerVerification> submitVerification(@PathVariable String projectId,
                                                   @RequestBody CcerVerification v) {
         return R.ok(service.submitVerification(projectId, v));
@@ -93,6 +100,7 @@ public class CcerProjectController {
 
     @PostMapping("/verifications/{verificationId}/status")
     @Operation(summary = "更新核证状态 (VERIFIED=签发就绪)")
+    @PreAuthorize("hasAuthority('ccer:manage')")
     public R<CcerVerification> updateVerificationStatus(
             @PathVariable String verificationId,
             @RequestParam CcerVerification.Status status) {
@@ -107,6 +115,7 @@ public class CcerProjectController {
 
     @PostMapping("/{projectId}/issuances")
     @Operation(summary = "对VERIFIED核证签发减排量(默认扣2%缓冲储备)，可选择自动转入履约账户")
+    @PreAuthorize("hasAuthority('ccer:manage')")
     public R<CcerIssuance> issue(@PathVariable String projectId,
                                  @RequestBody Map<String, Object> body) {
         String verificationId = (String) body.get("verificationId");
@@ -137,6 +146,7 @@ class CcerIssuanceController {
 
     @PostMapping("/{issuanceId}/transfer")
     @Operation(summary = "转让签发量(租户间交易)")
+    @PreAuthorize("hasAuthority('ccer:manage')")
     public R<CcerIssuance> transfer(@PathVariable String issuanceId,
                                     @RequestBody Map<String, Object> body) {
         BigDecimal tons = new BigDecimal(body.get("tons").toString());
@@ -146,6 +156,7 @@ class CcerIssuanceController {
 
     @PostMapping("/{issuanceId}/retire")
     @Operation(summary = "注销签发量(履约抵消或公益注销)")
+    @PreAuthorize("hasAuthority('ccer:manage')")
     public R<CcerIssuance> retire(@PathVariable String issuanceId,
                                   @RequestBody Map<String, Object> body) {
         BigDecimal tons = new BigDecimal(body.get("tons").toString());

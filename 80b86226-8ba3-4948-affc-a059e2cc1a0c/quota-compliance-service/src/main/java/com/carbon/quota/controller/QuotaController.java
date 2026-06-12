@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.carbon.quota.entity.CcerTransfer;
@@ -29,6 +30,7 @@ public class QuotaController {
 
     @PostMapping("/allocations")
     @Operation(summary = "创建年度配额分配(免费+有偿+预分配)")
+    @PreAuthorize("hasAuthority('quota:manage')")
     public R<QuotaAllocation> createAllocation(@RequestBody QuotaAllocation allocation) {
         return R.ok(service.createAllocation(allocation));
     }
@@ -55,13 +57,14 @@ public class QuotaController {
     @PostMapping("/reconcile")
     @Operation(summary = "月度配额对账(自动计算累计排放、预计年末缺口、分级预警)",
             description = "每月自动或手动触发；缺口超阈值自动通过钉钉/飞书推送部门/企业/集团三层预警")
+    @PreAuthorize("hasAuthority('quota:manage')")
     public R<QuotaLedger> reconcile(
             @Parameter(required = true) @RequestParam Integer year,
             @Parameter(required = true) @RequestParam Integer month,
             @Parameter(description = "机构ID") @RequestParam String organizationId,
             @Parameter(description = "本月实际排放量 tCO2e", required = true) @RequestParam BigDecimal actualEmission,
             @Parameter(description = "关联核算任务ID") @RequestParam(required = false) String calculationTaskId,
-            @Parameter(description = "关联证据ID列表(证据链校验)") @RequestParam(required = false) List<String> evidenceIds) {
+            @Parameter(description = "关联证据ID列表(证据链校验，必填)") @RequestParam(required = true) List<String> evidenceIds) {
         return R.ok(service.reconcileMonth(year, month, organizationId, actualEmission, calculationTaskId, evidenceIds));
     }
 

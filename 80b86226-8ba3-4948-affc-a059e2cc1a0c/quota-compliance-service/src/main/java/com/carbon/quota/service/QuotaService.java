@@ -19,6 +19,7 @@ import com.carbon.quota.repository.QuotaLedgerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -103,10 +104,8 @@ public class QuotaService {
     public QuotaLedger reconcileMonth(Integer year, Integer month, String orgId,
                                       BigDecimal actualEmission, String taskId,
                                       List<String> evidenceIds) {
-        if (evidenceIds != null && !evidenceIds.isEmpty()) {
-            com.carbon.common.verification.EvidenceChainValidator.requireEvidence(
-                    evidenceIds, "配额台账");
-        }
+        com.carbon.common.verification.EvidenceChainValidator.requireEvidence(
+                evidenceIds, "配额台账");
         String tenantId = UserContextHolder.getTenantId();
         String period = String.format("%04d-%02d", year, month);
         QuotaAllocation alloc = allocationRepo.findByTenantIdAndComplianceYearAndOrganizationId(tenantId, year, orgId)
@@ -155,9 +154,7 @@ public class QuotaService {
         ledger.setCalculationTaskId(taskId);
         ledger.setReconciliationDate(LocalDate.now());
         ledger.setStatus("RECONCILED");
-        if (evidenceIds != null && !evidenceIds.isEmpty()) {
-            ledger.setEvidenceIds(evidenceIds);
-        }
+        ledger.setEvidenceIds(evidenceIds);
         ledger = ledgerRepo.save(ledger);
 
         evaluateAndTriggerAlerts(ledger, alloc);
@@ -316,6 +313,7 @@ public class QuotaService {
         String issuanceId = (String) request.get("issuanceId");
         String projectId = (String) request.get("projectId");
         String projectCode = (String) request.get("projectCode");
+        String projectName = (String) request.get("projectName");
         BigDecimal tons = toBigDecimal(request.get("tons"));
         Integer complianceYear = request.get("complianceYear") != null
                 ? ((Number) request.get("complianceYear")).intValue()
@@ -324,7 +322,8 @@ public class QuotaService {
         CcerTransfer transfer = CcerTransfer.builder()
                 .ccerIssuanceId(issuanceId)
                 .projectId(projectId)
-                .projectName(projectCode)
+                .projectName(projectName != null ? projectName : projectCode)
+                .projectCode(projectCode)
                 .methodology("CCER")
                 .transferTons(tons)
                 .complianceYear(complianceYear)
