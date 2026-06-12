@@ -211,6 +211,7 @@
       unitPrice: +(Math.random() * 10 + 0.1).toFixed(2),
       location: `抽屉 ${(i % 6) + 1}-${Math.floor(i / 6) + 1}`,
       imageUrl: shapes[i % shapes.length],
+      sortOrder: i,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -348,6 +349,7 @@
   async function renderInventory() {
     await renderFilterPanel('inventory');
     const parts = await BV.store.getAll('parts');
+    parts.sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0));
 
     const data = parts.map(p => [
       `<input type="checkbox" class="part-check" data-id="${p.id}">`,
@@ -380,7 +382,36 @@
         { title: '位置' },
         { title: '操作', orderable: false, width: '100px' }
       ],
-      columnDefs: [{ targets: [0, 1, 10], searchable: false }]
+      columnDefs: [{ targets: [0, 1, 10], searchable: false }],
+      rowCallback: function(row, data, index) {
+        const idMatch = data[0].match(/data-id="([^"]+)"/);
+        if (idMatch) {
+          $(row).attr('data-id', idMatch[1]);
+          $(row).css('cursor', 'move');
+        }
+      },
+      order: []
+    });
+
+    $('#inventoryTable tbody').sortable({
+      items: '> tr',
+      cursor: 'move',
+      opacity: 0.8,
+      delay: 100,
+      helper: function(e, ui) {
+        ui.children().each(function() {
+          $(this).width($(this).width());
+        });
+        return ui;
+      },
+      update: async function(event, ui) {
+        const sortedIds = $('#inventoryTable tbody tr').map((i, el) => $(el).data('id')).get().filter(Boolean);
+        for (let i = 0; i < sortedIds.length; i++) {
+          const p = await BV.store.get('parts', sortedIds[i]);
+          if (p) { p.sortOrder = i; await BV.store.put('parts', p); }
+        }
+        showToast('排序已保存', 'success');
+      }
     });
 
     $('#checkAllParts').on('change', function() {
@@ -452,7 +483,11 @@
         };
         if (!data.partNumber) { showToast('请填写零件号', 'error'); return; }
         if (isEdit) { data.id = id; await BV.store.put('parts', data); }
-        else await BV.store.add('parts', data);
+        else {
+          const allParts = await BV.store.getAll('parts');
+          data.sortOrder = allParts.length;
+          await BV.store.add('parts', data);
+        }
         bootstrap.Modal.getInstance('#genericModal').hide();
         showToast('保存成功', 'success');
         renderInventory();

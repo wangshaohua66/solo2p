@@ -2,7 +2,7 @@
   'use strict';
 
   const DB_NAME = 'BrickVaultDB_v2';
-const DB_VERSION = 2;
+  const DB_VERSION = 2;
 
   const STORES = {
     parts: {
