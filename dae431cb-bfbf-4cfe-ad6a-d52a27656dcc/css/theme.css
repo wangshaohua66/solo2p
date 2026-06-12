@@ -19,6 +19,7 @@
   --radius-md: 8px;
   --radius-lg: 12px;
   --sidebar-width: 260px;
+  --filter-width: 300px;
   --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
   --font-body: 'Inter', system-ui, -apple-system, sans-serif;
 }
@@ -184,11 +185,54 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .main-content {
-  margin-left: var(--sidebar-width);
+  margin-left: calc(var(--sidebar-width) + var(--filter-width));
   flex: 1;
   min-height: 100vh;
   padding: 1.5rem;
   overflow-x: hidden;
+}
+
+.filter-column {
+  position: fixed;
+  top: 0;
+  left: var(--sidebar-width);
+  bottom: 0;
+  width: var(--filter-width);
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  overflow-y: auto;
+  z-index: 900;
+  transition: transform 0.3s ease;
+}
+.filter-panel-inner {
+  padding: 1rem;
+}
+.filter-panel-inner .filter-section {
+  margin-bottom: 1.25rem;
+}
+.filter-panel-inner .filter-section-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.btn-filter-toggle {
+  display: none;
+  position: fixed;
+  top: 1rem;
+  left: 4rem;
+  z-index: 950;
+  width: 44px;
+  height: 44px;
+  background: var(--lego-yellow);
+  color: #1a1a1a;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 1.1rem;
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
 }
 
 .view-container {
@@ -656,14 +700,35 @@ table.dataTable.display tbody tr.even {
 
 canvas { max-width: 100%; }
 
+@media (max-width: 1399.98px) and (min-width: 992px) {
+  .filter-column {
+    transform: translateX(-100%);
+  }
+  .filter-column.open {
+    transform: translateX(0);
+  }
+  .main-content {
+    margin-left: var(--sidebar-width);
+  }
+  .btn-filter-toggle { display: flex; align-items: center; justify-content: center; }
+}
+
 @media (max-width: 991.98px) {
   .sidebar {
     transform: translateX(-100%);
     box-shadow: var(--shadow-lg);
   }
   .sidebar.open { transform: translateX(0); }
+  .filter-column {
+    left: 0;
+    transform: translateX(-100%);
+    width: 100%;
+    max-width: 320px;
+  }
+  .filter-column.open { transform: translateX(0); }
   .main-content { margin-left: 0; padding: 1rem; padding-top: 4rem; }
   .btn-sidebar-toggle { display: flex; align-items: center; justify-content: center; }
+  .btn-filter-toggle { display: flex; align-items: center; justify-content: center; left: 4rem; }
 }
 
 @media (max-width: 767.98px) {

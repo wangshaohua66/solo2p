@@ -71,6 +71,133 @@
   const PART_CATEGORIES = ['砖类','板类','斜坡','圆柱','特殊件','人仔','车轮','窗户/门','装饰件','技术件'];
   const PART_SHAPES = ['方形','圆形','异形','弧形','带孔','带凸点','带夹口','连接件'];
 
+  const BRICKLINK_SETS = {
+    '10255-1': { name: '城市广场', pieceCount: 4002, imageUrl: '🏛️' },
+    '10271-1': { name: '菲亚特 500', pieceCount: 960, imageUrl: '🚗' },
+    '21309-1': { name: 'NASA 阿波罗土星五号', pieceCount: 1969, imageUrl: '🚀' },
+    '71040-1': { name: '迪士尼乐园城堡', pieceCount: 4080, imageUrl: '🏰' },
+    '75192-1': { name: '千年隼', pieceCount: 7541, imageUrl: '🛸' },
+    '10220-1': { name: '大众 T1 露营车', pieceCount: 1334, imageUrl: '🚐' }
+  };
+
+  async function renderFilterPanel(route) {
+    const panel = $('#filterPanel');
+    if (route === 'inventory') {
+      const parts = await BV.store.getAll('parts');
+      panel.html(`
+        <div class="filter-section">
+          <div class="filter-section-title">🔍 零件筛选</div>
+          <div class="mb-2">
+            <label class="form-label small">零件号搜索</label>
+            <input type="text" class="form-control form-control-sm" id="searchPart" placeholder="如 3001">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">颜色</label>
+            <select class="form-select form-select-sm" id="filterColor">
+              <option value="">全部颜色</option>
+              ${PART_COLORS.map(c => `<option value="${c}">${c}</option>`).join('')}
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">类别</label>
+            <select class="form-select form-select-sm" id="filterCategory">
+              <option value="">全部类别</option>
+              ${PART_CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">形状</label>
+            <select class="form-select form-select-sm" id="filterShape">
+              <option value="">全部形状</option>
+              ${PART_SHAPES.map(c => `<option value="${c}">${c}</option>`).join('')}
+            </select>
+          </div>
+          <div class="d-flex gap-2 mt-3">
+            <button class="btn btn-lego-red btn-sm flex-fill" id="btnApplyFilter">
+              <i class="bi bi-funnel"></i> 筛选
+            </button>
+            <button class="btn btn-outline-secondary btn-sm flex-fill" id="btnResetFilter">
+              <i class="bi bi-arrow-counterclockwise"></i> 重置
+            </button>
+          </div>
+        </div>
+      `);
+      $('#searchPart').autocomplete({
+        source: parts.map(p => p.partNumber).filter((v,i,a)=>a.indexOf(v)===i),
+        minLength: 1
+      });
+    } else if (route === 'sets') {
+      panel.html(`
+        <div class="filter-section">
+          <div class="filter-section-title">🏗️ 套装筛选</div>
+          <div class="mb-2">
+            <label class="form-label small">套装状态</label>
+            <select class="form-select form-select-sm" id="filterSetStatus">
+              <option value="">全部状态</option>
+              <option value="sealed">未拆封</option>
+              <option value="built">已散件</option>
+              <option value="moced">已MOC化</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">关键词搜索</label>
+            <input type="text" class="form-control form-control-sm" id="searchSet" placeholder="编号或名称">
+          </div>
+          <div class="d-flex gap-2 mt-3">
+            <button class="btn btn-lego-red btn-sm flex-fill" id="btnApplySetFilter">
+              <i class="bi bi-funnel"></i> 筛选
+            </button>
+            <button class="btn btn-outline-secondary btn-sm flex-fill" id="btnResetSetFilter">
+              <i class="bi bi-arrow-counterclockwise"></i> 重置
+            </button>
+          </div>
+          <div class="mt-4">
+            <small class="text-muted d-block mb-2"><i class="bi bi-info-circle me-1"></i> 拖拽卡片可排序</small>
+          </div>
+        </div>
+      `);
+    } else if (route === 'moc') {
+      panel.html(`
+        <div class="filter-section">
+          <div class="filter-section-title">🎨 MOC 筛选</div>
+          <div class="mb-2">
+            <label class="form-label small">完成进度</label>
+            <select class="form-select form-select-sm" id="filterMocProgress">
+              <option value="">全部</option>
+              <option value="0-25">0-25% 构想中</option>
+              <option value="25-50">25-50% 搭建中</option>
+              <option value="50-75">50-75% 后期中</option>
+              <option value="75-100">75-100% 完成</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">关键词搜索</label>
+            <input type="text" class="form-control form-control-sm" id="searchMoc" placeholder="作品名称">
+          </div>
+          <div class="d-flex gap-2 mt-3">
+            <button class="btn btn-lego-red btn-sm flex-fill" id="btnApplyMocFilter">
+              <i class="bi bi-funnel"></i> 筛选
+            </button>
+            <button class="btn btn-outline-secondary btn-sm flex-fill" id="btnResetMocFilter">
+              <i class="bi bi-arrow-counterclockwise"></i> 重置
+            </button>
+          </div>
+          <div class="mt-4">
+            <small class="text-muted d-block mb-2"><i class="bi bi-info-circle me-1"></i> 拖拽列表项可排序</small>
+          </div>
+        </div>
+      `);
+    } else {
+      const routeNames = { dashboard: '仪表盘', auction: '拍卖追踪', valuation: '估值分析', lug: '社区活动', import: '数据导入' };
+      panel.html(`
+        <div class="filter-section">
+          <div class="filter-section-title">📊 ${routeNames[route] || route}</div>
+          <div class="text-muted small">此页面暂无筛选选项</div>
+        </div>
+      `);
+    }
+  }
+
   function randomPart(i) {
     const nums = ['3001','3002','3003','3004','3005','3020','3021','3022','3023','3622','3710','3795','3839','3941','4070'];
     const shapes = ['🧱','🔴','🟡','🟢','🔵','⬛','🟪','🟧'];
@@ -96,23 +223,36 @@
       for (let i = 0; i < 120; i++) parts.push(randomPart(i));
       await BV.store.bulkAdd('parts', parts);
     }
+    const bpc = await BV.store.count('bricklinkPrices');
+    if (bpc === 0) {
+      const prices = [];
+      const sampleParts = ['3001', '3002', '3003', '3004', '3005', '3020'];
+      sampleParts.forEach(p => {
+        prices.push({
+          partNumber: p,
+          avgPrice: +(Math.random() * 5 + 1).toFixed(2),
+          updatedAt: new Date().toISOString()
+        });
+      });
+      await BV.store.bulkAdd('bricklinkPrices', prices);
+    }
     const sc = await BV.store.count('sets');
     if (sc === 0) {
       const sampleSets = [
-        { setNumber: '10255-1', name: '城市广场', status: 'built', pieceCount: 4002, purchasePrice: 1899, purchaseDate: '2023-05-12', notes: '十周年纪念款', imageUrl: '🏛️' },
-        { setNumber: '10271-1', name: '菲亚特 500', status: 'sealed', pieceCount: 960, purchasePrice: 699, purchaseDate: '2024-01-05', notes: '未拆收藏', imageUrl: '🚗' },
-        { setNumber: '21309-1', name: 'NASA 阿波罗土星五号', status: 'built', pieceCount: 1969, purchasePrice: 899, purchaseDate: '2022-09-20', notes: '', imageUrl: '🚀' },
-        { setNumber: '71040-1', name: '迪士尼乐园城堡', status: 'moced', pieceCount: 4080, purchasePrice: 2499, purchaseDate: '2021-11-11', notes: '已改造为MOC', imageUrl: '🏰' },
-        { setNumber: '75192-1', name: '千年隼', status: 'sealed', pieceCount: 7541, purchasePrice: 5499, purchaseDate: '2024-03-15', notes: '镇宅收藏', imageUrl: '🛸' },
-        { setNumber: '10220-1', name: '大众 T1 露营车', status: 'built', pieceCount: 1334, purchasePrice: 899, purchaseDate: '2020-07-08', notes: '', imageUrl: '🚐' }
+        { setNumber: '10255-1', name: '城市广场', status: 'built', pieceCount: 4002, purchasePrice: 1899, purchaseDate: '2023-05-12', notes: '十周年纪念款', imageUrl: '🏛️', sortOrder: 0 },
+        { setNumber: '10271-1', name: '菲亚特 500', status: 'sealed', pieceCount: 960, purchasePrice: 699, purchaseDate: '2024-01-05', notes: '未拆收藏', imageUrl: '🚗', sortOrder: 1 },
+        { setNumber: '21309-1', name: 'NASA 阿波罗土星五号', status: 'built', pieceCount: 1969, purchasePrice: 899, purchaseDate: '2022-09-20', notes: '', imageUrl: '🚀', sortOrder: 2 },
+        { setNumber: '71040-1', name: '迪士尼乐园城堡', status: 'moced', pieceCount: 4080, purchasePrice: 2499, purchaseDate: '2021-11-11', notes: '已改造为MOC', imageUrl: '🏰', sortOrder: 3 },
+        { setNumber: '75192-1', name: '千年隼', status: 'sealed', pieceCount: 7541, purchasePrice: 5499, purchaseDate: '2024-03-15', notes: '镇宅收藏', imageUrl: '🛸', sortOrder: 4 },
+        { setNumber: '10220-1', name: '大众 T1 露营车', status: 'built', pieceCount: 1334, purchasePrice: 899, purchaseDate: '2020-07-08', notes: '', imageUrl: '🚐', sortOrder: 5 }
       ];
       await BV.store.bulkAdd('sets', sampleSets);
     }
     const mc = await BV.store.count('mocs');
     if (mc === 0) {
       const mocs = [
-        { id: BV.uuid(), name: '模块化书店', description: '参考街景系列的三层书店 MOC，带完整内饰', progress: 85, colorPalette: JSON.stringify(['#8B4513','#DEB887','#696969','#F5F5F5']), createdAt: '2024-02-01T10:00:00Z' },
-        { id: BV.uuid(), name: '未来都市塔', description: '赛博朋克风格的高层建筑 MOC', progress: 40, colorPalette: JSON.stringify(['#1B2A34','#00FFFF','#FF1493','#FFD700']), createdAt: '2024-06-10T10:00:00Z' }
+        { id: BV.uuid(), name: '模块化书店', description: '参考街景系列的三层书店 MOC，带完整内饰', progress: 85, colorPalette: JSON.stringify(['#8B4513','#DEB887','#696969','#F5F5F5']), createdAt: '2024-02-01T10:00:00Z', sortOrder: 0 },
+        { id: BV.uuid(), name: '未来都市塔', description: '赛博朋克风格的高层建筑 MOC', progress: 40, colorPalette: JSON.stringify(['#1B2A34','#00FFFF','#FF1493','#FFD700']), createdAt: '2024-06-10T10:00:00Z', sortOrder: 1 }
       ];
       await BV.store.bulkAdd('mocs', mocs);
       const timelines = [
@@ -127,6 +267,12 @@
         { mocId: mocs[0].id, date: '2024-05-01', content: '屋顶增加了水塔细节，使用 2x2 圆柱件' }
       ];
       await BV.store.bulkAdd('mocModLogs', logs);
+      const mocParts = [
+        { mocId: mocs[0].id, partNumber: '3001', name: '标准砖', color: '棕色', quantity: 50, unitPrice: 0.85 },
+        { mocId: mocs[0].id, partNumber: '3020', name: '平板', color: '米色', quantity: 30, unitPrice: 0.45 },
+        { mocId: mocs[0].id, partNumber: '3002', name: '薄板', color: '灰色', quantity: 25, unitPrice: 0.65 }
+      ];
+      await BV.store.bulkAdd('mocParts', mocParts);
     }
     const ac = await BV.store.count('auctions');
     if (ac === 0) {
@@ -160,6 +306,7 @@
   }
 
   async function renderDashboard() {
+    await renderFilterPanel('dashboard');
     const [partCount, setCount, mocCount, auctions, parts] = await Promise.all([
       BV.store.count('parts'),
       BV.store.count('sets'),
@@ -199,19 +346,8 @@
 
   let inventoryDT = null;
   async function renderInventory() {
+    await renderFilterPanel('inventory');
     const parts = await BV.store.getAll('parts');
-
-    const colorSelect = $('#filterColor');
-    const catSelect = $('#filterCategory');
-    const shapeSelect = $('#filterShape');
-    PART_COLORS.forEach(c => colorSelect.append(`<option value="${c}">${c}</option>`));
-    PART_CATEGORIES.forEach(c => catSelect.append(`<option value="${c}">${c}</option>`));
-    PART_SHAPES.forEach(c => shapeSelect.append(`<option value="${c}">${c}</option>`));
-
-    $('#searchPart').autocomplete({
-      source: parts.map(p => p.partNumber).filter((v,i,a)=>a.indexOf(v)===i),
-      minLength: 1
-    });
 
     const data = parts.map(p => [
       `<input type="checkbox" class="part-check" data-id="${p.id}">`,
@@ -325,14 +461,16 @@
   }
 
   async function renderSets() {
+    await renderFilterPanel('sets');
     const sets = await BV.store.getAll('sets');
     const grid = $('#setsGrid');
     grid.empty();
     if (sets.length === 0) {
       grid.html('<div class="col-12 text-center text-muted py-5">暂无套装，点击右上角添加</div>');
     } else {
+      sets.sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0));
       sets.forEach(s => {
-        grid.append(`<div class="col-md-6 col-lg-4">
+        grid.append(`<div class="col-md-6 col-lg-4" data-id="${s.id}">
           <div class="set-card h-100" data-id="${s.id}">
             <div class="set-cover">${s.imageUrl || '📦'}</div>
             <div class="set-body">
@@ -354,7 +492,40 @@
         </div>`);
       });
     }
+
+    grid.sortable({
+      items: '> [data-id]',
+      handle: '.set-card',
+      cursor: 'move',
+      opacity: 0.8,
+      delay: 100,
+      update: async function(event, ui) {
+        const sortedIds = grid.children('[data-id]').map((i, el) => $(el).data('id')).get();
+        for (let i = 0; i < sortedIds.length; i++) {
+          const s = await BV.store.get('sets', sortedIds[i]);
+          if (s) { s.sortOrder = i; await BV.store.put('sets', s); }
+        }
+        showToast('排序已保存', 'success');
+      }
+    });
+
     $('#btnAddSet').on('click', () => setFormModal());
+    $('#btnApplySetFilter').on('click', () => {
+      const status = $('#filterSetStatus').val();
+      const kw = $('#searchSet').val().toLowerCase();
+      $('#setsGrid > [data-id]').each(function() {
+        const card = $(this);
+        const cardStatus = card.find('.badge-status').attr('class');
+        const cardText = card.text().toLowerCase();
+        const matchStatus = !status || cardStatus.includes(`badge-${status}`);
+        const matchKw = !kw || cardText.includes(kw);
+        card.toggle(matchStatus && matchKw);
+      });
+    });
+    $('#btnResetSetFilter').on('click', () => {
+      $('#filterSetStatus').val(''); $('#searchSet').val('');
+      $('#setsGrid > [data-id]').show();
+    });
     $(document).off('click', '.btn-set-edit').on('click', '.btn-set-edit', (e) => { e.stopPropagation(); setFormModal($(e.currentTarget).data('id')); });
     $(document).off('click', '.btn-set-break').on('click', '.btn-set-break', async (e) => {
       e.stopPropagation();
@@ -370,6 +541,19 @@
       if ($(e.target).closest('button').length) return;
       setFormModal($(e.currentTarget).data('id'));
     });
+  }
+
+  async function lookupBricklinkSet(setNumber) {
+    if (BRICKLINK_SETS[setNumber]) {
+      return BRICKLINK_SETS[setNumber];
+    }
+    try {
+      const existing = await BV.store.getByIndex('sets', 'setNumber', setNumber);
+      if (existing && existing.length > 0) {
+        return { name: existing[0].name, pieceCount: existing[0].pieceCount, imageUrl: existing[0].imageUrl };
+      }
+    } catch(e) {}
+    return null;
   }
 
   function setFormModal(id) {
@@ -392,8 +576,38 @@
           <div class="col-12"><label class="form-label">备注</label><textarea class="form-control" id="sf_notes" rows="3">${s.notes||''}</textarea></div>
         </div>`;
       const footer = `<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+        ${!isEdit ? `<button type="button" class="btn btn-outline-primary me-auto" id="sf_lookup"><i class="bi bi-search"></i> 查询 BrickLink</button>` : ''}
         <button type="button" class="btn btn-lego-red" id="sf_save">保存</button>`;
       showModal(isEdit ? '编辑套装' : '新增套装', body, footer);
+
+      $('#sf_setNumber').autocomplete({
+        source: Object.keys(BRICKLINK_SETS),
+        minLength: 2,
+        select: async function(event, ui) {
+          const info = await lookupBricklinkSet(ui.item.value);
+          if (info) {
+            $('#sf_name').val(info.name);
+            $('#sf_pieceCount').val(info.pieceCount);
+            $('#sf_imageUrl').val(info.imageUrl);
+            showToast('已自动填充套装信息', 'success');
+          }
+        }
+      });
+
+      $('#sf_lookup').on('click', async () => {
+        const setNumber = $('#sf_setNumber').val().trim();
+        if (!setNumber) { showToast('请先填写 Set 编号', 'warning'); return; }
+        const info = await lookupBricklinkSet(setNumber);
+        if (info) {
+          $('#sf_name').val(info.name);
+          $('#sf_pieceCount').val(info.pieceCount);
+          $('#sf_imageUrl').val(info.imageUrl);
+          showToast('已从 BrickLink 查询到数据', 'success');
+        } else {
+          showToast('未找到该 Set，离线模式下回退本地库', 'warning');
+        }
+      });
+
       $('#sf_save').on('click', async () => {
         const data = {
           setNumber: $('#sf_setNumber').val().trim(),
@@ -407,7 +621,11 @@
         };
         if (!data.setNumber) { showToast('请填写 Set 编号', 'error'); return; }
         if (isEdit) { data.id = id; await BV.store.put('sets', data); }
-        else await BV.store.add('sets', data);
+        else {
+          const allSets = await BV.store.getAll('sets');
+          data.sortOrder = allSets.length;
+          await BV.store.add('sets', data);
+        }
         bootstrap.Modal.getInstance('#genericModal').hide();
         showToast('保存成功', 'success');
         renderSets();
@@ -417,16 +635,17 @@
 
   let currentMocId = null;
   async function renderMoc() {
+    await renderFilterPanel('moc');
     const mocs = await BV.store.getAll('mocs');
     const list = $('#mocList');
     list.empty();
     if (mocs.length === 0) {
       list.html('<div class="text-center text-muted py-5">暂无 MOC 作品，点击添加</div>');
     } else {
-      mocs.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+      mocs.sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0));
       mocs.forEach(m => {
         const palette = JSON.parse(m.colorPalette || '[]');
-        list.append(`<a href="#" class="list-group-item list-group-item-action moc-item" data-id="${m.id}">
+        list.append(`<div class="list-group-item list-group-item-action moc-item" data-id="${m.id}">
           <div class="d-flex w-100 justify-content-between align-items-center">
             <h6 class="mb-1">🎨 ${m.name}</h6>
             <span class="badge rounded-pill bg-lego-red">${m.progress}%</span>
@@ -436,9 +655,46 @@
             ${palette.map(c => `<span class="color-swatch" style="background:${c};width:20px;height:20px"></span>`).join('')}
           </div>
           <div class="mt-2 progress" style="height:4px"><div class="progress-bar" style="width:${m.progress}%"></div></div>
-        </a>`);
+        </div>`);
       });
     }
+
+    list.sortable({
+      items: '> [data-id]',
+      cursor: 'move',
+      opacity: 0.8,
+      delay: 100,
+      update: async function(event, ui) {
+        const sortedIds = list.children('[data-id]').map((i, el) => $(el).data('id')).get();
+        for (let i = 0; i < sortedIds.length; i++) {
+          const m = await BV.store.get('mocs', sortedIds[i]);
+          if (m) { m.sortOrder = i; await BV.store.put('mocs', m); }
+        }
+        showToast('排序已保存', 'success');
+      }
+    });
+
+    $('#btnApplyMocFilter').on('click', () => {
+      const prog = $('#filterMocProgress').val();
+      const kw = $('#searchMoc').val().toLowerCase();
+      $('#mocList > [data-id]').each(function() {
+        const item = $(this);
+        const badgeText = item.find('.bg-lego-red').text();
+        const progress = parseInt(badgeText) || 0;
+        const text = item.text().toLowerCase();
+        let matchProg = true;
+        if (prog) {
+          const [min, max] = prog.split('-').map(Number);
+          matchProg = progress >= min && progress <= max;
+        }
+        const matchKw = !kw || text.includes(kw);
+        item.toggle(matchProg && matchKw);
+      });
+    });
+    $('#btnResetMocFilter').on('click', () => {
+      $('#filterMocProgress').val(''); $('#searchMoc').val('');
+      $('#mocList > [data-id]').show();
+    });
 
     $('#btnAddMoc').on('click', () => mocFormModal());
     $(document).off('click', '.moc-item').on('click', '.moc-item', async (e) => {
@@ -453,9 +709,10 @@
   async function renderMocDetail(id) {
     const moc = await BV.store.get('mocs', id);
     if (!moc) return;
-    const [timelines, logs] = await Promise.all([
+    const [timelines, logs, mocParts] = await Promise.all([
       BV.store.getByIndex('mocTimelines', 'mocId', id),
-      BV.store.getByIndex('mocModLogs', 'mocId', id)
+      BV.store.getByIndex('mocModLogs', 'mocId', id),
+      BV.store.getByIndex('mocParts', 'mocId', id)
     ]);
     const palette = JSON.parse(moc.colorPalette || '[]');
     timelines.sort((a,b) => new Date(a.date) - new Date(b.date));
@@ -469,8 +726,14 @@
     $('#mocTimeline').html(timelines.length ? timelines.map(t => `
       <div class="timeline-item">
         <div class="timeline-date">${t.date}</div>
-        <div class="timeline-title">${t.imageUrl || '📍'} ${t.title}</div>
+        <div class="timeline-title">
+          ${t.imageUrl && t.imageUrl.startsWith('data:image')
+            ? `<img src="${t.imageUrl}" class="me-2" style="width:32px;height:32px;object-fit:cover;border-radius:4px">`
+            : `<span class="me-2">${t.imageUrl || '📍'}</span>`}
+          ${t.title}
+        </div>
         <div class="small text-muted">${t.description || ''}</div>
+        ${t.imageUrl && t.imageUrl.startsWith('data:image') ? `<div class="mt-2"><img src="${t.imageUrl}" class="img-fluid rounded" style="max-height:150px"></div>` : ''}
       </div>`).join('') : '<div class="text-muted small">暂无时间线记录</div>');
 
     $('#mocModLogs').html(logs.length ? logs.map(l => `
@@ -479,10 +742,107 @@
         <div>${l.content}</div>
       </div>`).join('') : '<div class="text-muted small">暂无改造日志</div>');
 
+    const allParts = await BV.store.getAll('parts');
+    const partMap = {};
+    allParts.forEach(p => { partMap[p.partNumber] = p; });
+
+    const tbody = $('#mocPartsBody');
+    tbody.empty();
+    if (mocParts.length === 0) {
+      tbody.html('<tr><td colspan="7" class="text-center text-muted py-3">暂无零件消耗记录，点击上方添加</td></tr>');
+    } else {
+      mocParts.forEach(mp => {
+        const stockPart = partMap[mp.partNumber];
+        const stockQty = stockPart ? stockPart.quantity : 0;
+        const status = stockQty >= mp.quantity
+          ? '<span class="badge bg-success">足够</span>'
+          : `<span class="badge bg-danger">缺 ${mp.quantity - stockQty} 件</span>`;
+        tbody.append(`<tr>
+          <td>${mp.partNumber}</td>
+          <td>${mp.name || '-'}</td>
+          <td>${mp.color || '-'}</td>
+          <td>${mp.quantity}</td>
+          <td>${stockQty}</td>
+          <td>${status}</td>
+          <td>
+            <button class="btn btn-sm btn-outline-danger btn-del-moc-part" data-id="${mp.id}">
+              <i class="bi bi-trash"></i>
+            </button>
+          </td>
+        </tr>`);
+      });
+    }
+
     $('#btnEditMoc').off('click').on('click', () => mocFormModal(id));
     $('#btnAddTimeline').off('click').on('click', () => timelineModal(id));
     $('#btnAddLog').off('click').on('click', () => logModal(id));
+    $('#btnAddMocPart').off('click').on('click', () => mocPartModal(id));
+    $(document).off('click', '.btn-del-moc-part').on('click', '.btn-del-moc-part', async (e) => {
+      if (!confirm('确认删除该零件消耗记录？')) return;
+      await BV.store.delete('mocParts', $(e.currentTarget).data('id'));
+      showToast('已删除', 'success');
+      renderMocDetail(id);
+    });
     $('#mocDetail').show();
+  }
+
+  function mocPartModal(mocId) {
+    const parts = [];
+    BV.store.getAll('parts').then(allParts => {
+      const partNumbers = Array.from(new Set(allParts.map(p => p.partNumber))).sort();
+      const body = `
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">零件号</label>
+            <select class="form-select" id="mp_partNumber">
+              ${partNumbers.map(p => `<option value="${p}">${p}</option>`).join('')}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">消耗数量</label>
+            <input type="number" class="form-control" id="mp_quantity" value="1" min="1">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">名称</label>
+            <input class="form-control" id="mp_name">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">颜色</label>
+            <select class="form-select" id="mp_color">
+              ${PART_COLORS.map(c => `<option>${c}</option>`).join('')}
+            </select>
+          </div>
+        </div>`;
+      const footer = `<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+        <button type="button" class="btn btn-lego-red" id="mp_save">保存</button>`;
+      showModal('添加消耗零件', body, footer);
+
+      const updateInfo = () => {
+        const pn = $('#mp_partNumber').val();
+        const found = allParts.find(p => p.partNumber === pn);
+        if (found) {
+          $('#mp_name').val(found.name || '');
+          $('#mp_color').val(found.color || PART_COLORS[0]);
+        }
+      };
+      $('#mp_partNumber').on('change', updateInfo);
+      updateInfo();
+
+      $('#mp_save').on('click', async () => {
+        const data = {
+          mocId,
+          partNumber: $('#mp_partNumber').val(),
+          name: $('#mp_name').val().trim(),
+          color: $('#mp_color').val(),
+          quantity: +$('#mp_quantity').val() || 1
+        };
+        if (!data.partNumber) { showToast('请选择零件号', 'error'); return; }
+        await BV.store.add('mocParts', data);
+        bootstrap.Modal.getInstance('#genericModal').hide();
+        showToast('已添加', 'success');
+        renderMocDetail(mocId);
+      });
+    });
   }
 
   function mocFormModal(id) {
@@ -496,8 +856,18 @@
           <div class="col-12"><label class="form-label">描述</label><textarea class="form-control" id="mf_description" rows="3">${moc.description||''}</textarea></div>
           <div class="col-md-6"><label class="form-label">进度 (%)</label><input type="number" min="0" max="100" class="form-control" id="mf_progress" value="${moc.progress||0}"></div>
           <div class="col-12">
-            <label class="form-label">配色方案（用逗号分隔 HEX 色值）</label>
-            <input class="form-control" id="mf_palette" value="${palette.join(',')}">
+            <label class="form-label">配色方案</label>
+            <div class="row g-2 align-items-end" id="mf_colors">
+              ${palette.map((c, i) => `
+                <div class="col-auto">
+                  <label class="form-label small text-muted">色${i+1}</label>
+                  <input type="color" class="form-control form-control-color mf-color" value="${c}" style="width:60px;height:40px;padding:2px">
+                </div>
+              `).join('')}
+              <div class="col-auto">
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="mf_addColor"><i class="bi bi-plus-lg"></i></button>
+              </div>
+            </div>
             <div class="mt-2 d-flex gap-2" id="mf_preview"></div>
           </div>
         </div>`;
@@ -505,22 +875,42 @@
         ${isEdit ? `<button type="button" class="btn btn-danger me-auto" id="mf_delete">删除</button>` : ''}
         <button type="button" class="btn btn-lego-red" id="mf_save">保存</button>`;
       showModal(isEdit ? '编辑 MOC' : '新增 MOC', body, footer);
+
       const updatePreview = () => {
-        const colors = $('#mf_palette').val().split(',').map(c => c.trim()).filter(Boolean);
+        const colors = $('.mf-color').map((_, el) => $(el).val()).get();
         $('#mf_preview').html(colors.map(c => `<span class="color-swatch" style="background:${c}"></span>`).join(''));
       };
       updatePreview();
-      $('#mf_palette').on('input', updatePreview);
+      $(document).off('input', '.mf-color').on('input', '.mf-color', updatePreview);
+      $('#mf_addColor').on('click', () => {
+        const idx = $('.mf-color').length + 1;
+        const randomColor = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6,'0');
+        $('#mf_colors button').before(`
+          <div class="col-auto">
+            <label class="form-label small text-muted">色${idx}</label>
+            <input type="color" class="form-control form-control-color mf-color" value="${randomColor}" style="width:60px;height:40px;padding:2px">
+          </div>
+        `);
+        updatePreview();
+        $('.mf-color').off('input').on('input', updatePreview);
+      });
+
       $('#mf_save').on('click', async () => {
+        const colors = $('.mf-color').map((_, el) => $(el).val()).get();
         const data = {
           name: $('#mf_name').val().trim(),
           description: $('#mf_description').val(),
           progress: Math.min(100, Math.max(0, +$('#mf_progress').val() || 0)),
-          colorPalette: JSON.stringify($('#mf_palette').val().split(',').map(c => c.trim()).filter(Boolean))
+          colorPalette: JSON.stringify(colors)
         };
         if (!data.name) { showToast('请填写作品名称', 'error'); return; }
         if (isEdit) { data.id = id; await BV.store.put('mocs', data); }
-        else { const r = await BV.store.add('mocs', data); currentMocId = r; }
+        else {
+          const allMocs = await BV.store.getAll('mocs');
+          data.sortOrder = allMocs.length;
+          const r = await BV.store.add('mocs', data);
+          currentMocId = r;
+        }
         bootstrap.Modal.getInstance('#genericModal').hide();
         showToast('保存成功', 'success');
         renderMoc();
@@ -548,17 +938,40 @@
     const body = `
       <div class="row g-3">
         <div class="col-md-6"><label class="form-label">日期</label><input type="date" class="form-control" id="tl_date" value="${new Date().toISOString().slice(0,10)}"></div>
-        <div class="col-md-6"><label class="form-label">图标</label><input class="form-control" id="tl_icon" value="📍" maxlength="4"></div>
+        <div class="col-md-6">
+          <label class="form-label">里程碑照片</label>
+          <input type="file" class="form-control" id="tl_photo" accept="image/*">
+          <div class="small text-muted mt-1">选择图片将自动保存为 base64</div>
+        </div>
+        <div class="col-12">
+          <div id="tl_preview" class="mb-2" style="display:none">
+            <img id="tl_previewImg" class="img-fluid rounded" style="max-height:120px">
+          </div>
+        </div>
         <div class="col-12"><label class="form-label">标题</label><input class="form-control" id="tl_title"></div>
         <div class="col-12"><label class="form-label">描述</label><textarea class="form-control" id="tl_desc" rows="2"></textarea></div>
       </div>`;
     const footer = `<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
       <button type="button" class="btn btn-lego-red" id="tl_save">保存</button>`;
     showModal('添加里程碑', body, footer);
+
+    let photoBase64 = null;
+    $('#tl_photo').on('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        photoBase64 = ev.target.result;
+        $('#tl_previewImg').attr('src', photoBase64);
+        $('#tl_preview').show();
+      };
+      reader.readAsDataURL(file);
+    });
+
     $('#tl_save').on('click', async () => {
       await BV.store.add('mocTimelines', {
         mocId, date: $('#tl_date').val(), title: $('#tl_title').val().trim(),
-        description: $('#tl_desc').val(), imageUrl: $('#tl_icon').val().trim()
+        description: $('#tl_desc').val(), imageUrl: photoBase64 || '📍'
       });
       bootstrap.Modal.getInstance('#genericModal').hide();
       showToast('已添加', 'success');
@@ -585,6 +998,7 @@
 
   let auctionCharts = {};
   async function renderAuction() {
+    await renderFilterPanel('auction');
     const auctions = await BV.store.getAll('auctions');
     const now = new Date();
     const list = $('#auctionList');
@@ -705,11 +1119,30 @@
 
   let valCharts = {};
   async function renderValuation() {
+    await renderFilterPanel('valuation');
     if (valCharts.c1) valCharts.c1.destroy();
     if (valCharts.c2) valCharts.c2.destroy();
     if (valCharts.c3) valCharts.c3.destroy();
 
-    const [parts, sets] = await Promise.all([BV.store.getAll('parts'), BV.store.getAll('sets')]);
+    const [parts, sets, blPrices] = await Promise.all([
+      BV.store.getAll('parts'),
+      BV.store.getAll('sets'),
+      BV.store.getAll('bricklinkPrices')
+    ]);
+
+    const priceMap = {};
+    blPrices.forEach(p => { priceMap[p.partNumber] = p.avgPrice; });
+
+    let totalPartValue = 0;
+    let blUsedCount = 0;
+    let unitFallbackCount = 0;
+    parts.forEach(p => {
+      const blPrice = priceMap[p.partNumber];
+      const unitPrice = blPrice !== undefined ? blPrice : (p.unitPrice || 0);
+      if (blPrice !== undefined) blUsedCount++;
+      else unitFallbackCount++;
+      totalPartValue += (p.quantity || 0) * unitPrice;
+    });
 
     const colorCount = {};
     parts.forEach(p => { colorCount[p.color||'未知'] = (colorCount[p.color||'未知']||0) + (p.quantity||0); });
@@ -742,16 +1175,17 @@
       scales: { y: { ticks: { callback: v => '¥' + v } } }
     });
 
-    const totalPartValue = parts.reduce((s,p) => s + (p.quantity||0)*(p.unitPrice||0), 0);
     const totalSetValue = sets.reduce((s,x) => s + (x.purchasePrice||0), 0);
     $('#totalPartValue').text('¥' + totalPartValue.toFixed(0));
     $('#totalSetValue').text('¥' + totalSetValue.toFixed(0));
     $('#totalValue').text('¥' + (totalPartValue + totalSetValue).toFixed(0));
     $('#totalPieces').text(parts.reduce((s,p)=>s+(p.quantity||0),0).toLocaleString());
+    $('#priceSourceInfo').text(`BrickLink均价: ${blUsedCount} 个零件, 本地回退: ${unitFallbackCount} 个零件`);
   }
 
   let calDate = new Date();
   async function renderLug() {
+    await renderFilterPanel('lug');
     const events = await BV.store.getAll('events');
     renderCalendar(events);
     $('#btnAddEvent').on('click', () => eventModal());
@@ -864,6 +1298,7 @@
   }
 
   async function renderImport() {
+    await renderFilterPanel('import');
     const zone = $('#importZone');
     const fileInput = $('#importFile');
     let lastResult = null;
@@ -950,12 +1385,26 @@
 
     $('#themeToggle').on('click', toggleTheme);
     $('#sidebarToggle').on('click', () => $('#sidebar').toggleClass('open'));
+    $('#filterToggle').on('click', () => $('#filterColumn').toggleClass('open'));
     $(document).on('click', '.main-content', () => {
       if (window.innerWidth < 992) $('#sidebar').removeClass('open');
+      if (window.innerWidth < 1400) $('#filterColumn').removeClass('open');
     });
   }
 
   $(document).ready(init);
 
-  global.BVApp = { showToast, showModal, downloadCSV };
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    console.log('Document already ready, calling init directly');
+    setTimeout(() => {
+      console.log('setTimeout fired, calling init');
+      init().then(() => {
+        console.log('Init completed successfully, bvReady:', window.bvReady);
+      }).catch(e => {
+        console.error('Init failed:', e);
+      });
+    }, 50);
+  }
+
+  global.BVApp = { showToast, showModal, downloadCSV, init };
 })(window);

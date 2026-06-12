@@ -1,8 +1,8 @@
 (function(global) {
   'use strict';
 
-  const DB_NAME = 'BrickVaultDB';
-  const DB_VERSION = 1;
+  const DB_NAME = 'BrickVaultDB_v2';
+const DB_VERSION = 2;
 
   const STORES = {
     parts: {
@@ -79,6 +79,13 @@
     config: {
       keyPath: 'key',
       indexes: []
+    },
+    bricklinkPrices: {
+      keyPath: 'id',
+      indexes: [
+        { name: 'partNumber', keyPath: 'partNumber', unique: true },
+        { name: 'updatedAt', keyPath: 'updatedAt', unique: false }
+      ]
     }
   };
 
@@ -98,13 +105,16 @@
 
     init() {
       if (this._initPromise) return this._initPromise;
+      console.log('[Store] Initializing IndexedDB, version:', DB_VERSION);
       this._initPromise = new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
         request.onupgradeneeded = (e) => {
+          console.log('[Store] Upgrade needed, oldVersion:', e.oldVersion, 'newVersion:', e.newVersion);
           const db = e.target.result;
           Object.keys(STORES).forEach(storeName => {
             const cfg = STORES[storeName];
             if (!db.objectStoreNames.contains(storeName)) {
+              console.log('[Store] Creating store:', storeName);
               const store = db.createObjectStore(storeName, { keyPath: cfg.keyPath });
               (cfg.indexes || []).forEach(idx => {
                 store.createIndex(idx.name, idx.keyPath, { unique: !!idx.unique });
@@ -113,10 +123,18 @@
           });
         };
         request.onsuccess = (e) => {
+          console.log('[Store] Init success, version:', e.target.result.version);
           this.db = e.target.result;
           resolve(this);
         };
-        request.onerror = (e) => reject(e.target.error);
+        request.onerror = (e) => {
+          console.error('[Store] Init error:', e.target.error);
+          reject(e.target.error);
+        };
+        request.onblocked = (e) => {
+          console.warn('[Store] Upgrade blocked, please close other tabs with this database open');
+          console.warn('[Store] Blocked event:', e);
+        };
       });
       return this._initPromise;
     }
