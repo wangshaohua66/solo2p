@@ -1,0 +1,19 @@
+framework:
+    cache:
+        app: cache.adapter.redis
+        system: cache.adapter.redis_tag_aware
+        default_redis_provider: 'Redis'
+
+        pools:
+            cache.app:
+                adapter: cache.adapter.redis
+                provider: 'Redis'
+                default_lifetime: 86400
+
+when@dev:
+    framework:
+        cache:
+            pools:
+                cache.app:
+                    adapter: cache.adapter.filesystem
+                    default_lifetime: 86400

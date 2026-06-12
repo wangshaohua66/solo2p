@@ -1,0 +1,12 @@
+twig:
+    default_path: '%kernel.project_dir%/templates'
+    globals:
+        studio_name: '%env(string:STUDIO_NAME)%'
+        studio_phone: '%env(string:STUDIO_PHONE)%'
+        studio_email: '%env(string:MAILER_SENDER_EMAIL)%'
+        studio_address: '%env(string:STUDIO_ADDRESS)%'
+    form_themes:
+        - 'form/theme.html.twig'
+when@debug:
+    twig:
+        strict_variables: true

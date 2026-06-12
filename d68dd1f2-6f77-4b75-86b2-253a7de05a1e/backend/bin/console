@@ -1,0 +1,26 @@
+#!/usr/bin/env php
+<?php
+
+use App\Kernel;
+use Symfony\Bundle\FrameworkBundle\Console\Application;
+
+if (!is_file(dirname(__DIR__).'/vendor/autoload.php')) {
+    require __DIR__.'/setup-symfony.php';
+    exit(1);
+}
+
+require dirname(__DIR__).'/vendor/autoload.php';
+
+if (!empty($_SERVER['APP_RUNTIME']) && is_string($_SERVER['APP_RUNTIME'])) {
+    if (!class_exists($_SERVER['APP_RUNTIME'].'\\SymfonyRuntime')) {
+        require_once dirname(__DIR__).'/'.basename(__DIR__).'/bootstrap.php';
+    }
+}
+
+$_SERVER['APP_ENV'] = $_ENV['APP_ENV'] = $_SERVER['APP_ENV'] ?? $_ENV['APP_ENV'] ?? 'dev';
+$_SERVER['APP_DEBUG'] = $_SERVER['APP_DEBUG'] ?? $_ENV['APP_DEBUG'] ?? 'prod' !== $_SERVER['APP_ENV'];
+$_SERVER['APP_DEBUG'] = $_ENV['APP_DEBUG'] = (int) $_SERVER['APP_DEBUG'] || filter_var($_SERVER['APP_DEBUG'], FILTER_VALIDATE_BOOLEAN) ? '1' : '0';
+
+$kernel = new Kernel($_SERVER['APP_ENV'], (bool) $_SERVER['APP_DEBUG']);
+$application = new Application($kernel);
+$application->run(require dirname(__DIR__).'/config/bootstrap.php');

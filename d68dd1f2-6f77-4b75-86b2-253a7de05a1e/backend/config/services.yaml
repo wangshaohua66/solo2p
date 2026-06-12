@@ -1,0 +1,47 @@
+parameters:
+    locale: zh_CN
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        bind:
+            $pdfDirectory: '%env(string:PDF_OUTPUT_DIR)%'
+            $uploadDirectory: '%env(string:IMAGE_UPLOAD_DIR)%'
+            $publicBaseUrl: '%env(string:IMAGE_PUBLIC_URL)%'
+            $reportSenderEmail: '%env(string:MAILER_SENDER_EMAIL)%'
+            $reportSenderName: '%env(string:MAILER_SENDER_NAME)%'
+            $studioName: '%env(string:STUDIO_NAME)%'
+            $studioPhone: '%env(string:STUDIO_PHONE)%'
+            $laborRatePerHour: '%env(int:LABOR_RATE_PER_HOUR)%'
+
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/DependencyInjection/'
+            - '../src/Entity/'
+            - '../src/Kernel.php'
+
+    App\Controller\:
+        resource: '../src/Controller/'
+        tags: ['controller.service_arguments']
+
+    App\Service\PricingService:
+        arguments:
+            $laborRatePerHour: '%env(int:LABOR_RATE_PER_HOUR)%'
+
+    Symfony\Component\HttpFoundation\Session\Storage\Handler\RedisSessionHandler:
+        arguments:
+            - '@Redis'
+            - { prefix: 'watch_sess:' }
+
+    Redis:
+        class: Redis
+        calls:
+            - connect:
+                - '%env(REDIS_HOST)%'
+                - '%env(int:REDIS_PORT)%'
+            - auth:
+                  - '%env(REDIS_PASSWORD)%'
+            - select:
+                  - '%env(int:REDIS_DB)%'

@@ -1,0 +1,9 @@
+framework:
+    mailer:
+        dsn: '%env(MAILER_DSN)%'
+        envelope:
+            sender: '%env(string:MAILER_SENDER_EMAIL)%'
+        headers:
+            From: "%env(string:MAILER_SENDER_NAME)% <%env(string:MAILER_SENDER_EMAIL)%>"
+            X-Mailer: 'Watch Studio Management System'
+            X-Priority: '3'

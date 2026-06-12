@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>服务报告发送通知</title>
+    <style>
+        body {
+            font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+            color: #1f2937;
+            margin: 0;
+            padding: 0;
+            background: #f3f4f6;
+        }
+        .email-wrap {
+            max-width: 640px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+            color: white;
+            padding: 24px 30px;
+            border-radius: 12px 12px 0 0;
+        }
+        .header h1 { margin: 0 0 4px; font-size: 20px; }
+        .header p { margin: 0; opacity: 0.85; font-size: 13px; }
+        .body {
+            background: white;
+            padding: 28px 30px;
+            border-radius: 0 0 12px 12px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.05);
+        }
+        .greeting { font-size: 16px; margin-bottom: 14px; }
+        .info-card {
+            background: #f0f9ff;
+            border-left: 4px solid #0ea5e9;
+            padding: 16px 20px;
+            border-radius: 6px;
+            margin: 18px 0;
+        }
+        .info-row { padding: 3px 0; font-size: 13.5px; }
+        .label { color: #64748b; display: inline-block; width: 100px; }
+        .cta-button {
+            display: inline-block;
+            background: #2563eb;
+            color: white;
+            padding: 12px 28px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            margin: 18px 0;
+        }
+        .note {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid #e5e7eb;
+            line-height: 1.7;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 11px;
+            color: #9ca3af;
+        }
+    </style>
+</head>
+<body>
+<div class="email-wrap">
+    <div class="header">
+        <h1>您的腕表服务报告已生成 🔧</h1>
+        <p>感谢您选择 {{ studio_name }}，附件为本次服务的详细报告</p>
+    </div>
+    <div class="body">
+        <div class="greeting">尊敬的 <b>{{ customerName }}</b>，您好！</div>
+        <p style="color:#374151;font-size:14px;line-height:1.7;">
+            您的腕表（工单号：<b>{{ order.orderNumber }}</b>）保养工作已全部完成。我们为您整理了详细的维修报告，
+            包含检测数据、更换配件清单、维修前后对比照片以及质保信息，详见附件 PDF 文件。
+        </p>
+        <div class="info-card">
+            <div class="info-row"><span class="label">服务腕表</span>{{ order.brand }} {{ order.model }}</div>
+            <div class="info-row"><span class="label">工单号</span>{{ order.orderNumber }}</div>
+            <div class="info-row"><span class="label">完成日期</span>{{ order.actualDeliveryDate ? order.actualDeliveryDate|date('Y-m-d') : order.estimatedDeliveryDate|date('Y-m-d') }}</div>
+            <div class="info-row"><span class="label">质保期限</span>{{ order.warrantyMonths }}个月</div>
+        </div>
+        <p style="color:#374151;font-size:14px;line-height:1.7;">
+            如您对维修有任何疑问，可随时致电
+            <a href="tel:{{ studio_phone }}" style="color:#2563eb;font-weight:600;">{{ studio_phone }}</a>
+            联系我们的技术顾问。
+        </p>
+        <div class="note">
+            📧 本邮件由系统自动发送，请勿直接回复。<br>
+            🛡️ 质保期内如有任何非人为的故障，可免费返工。<br>
+            💡 建议每 3-5 年对腕表进行一次专业保养，以保持最佳运行状态。
+        </div>
+    </div>
+    <div class="footer">
+        © {{ 'now'|date('Y') }} {{ studio_name }} · {{ studio_address }} · 服务热线：{{ studio_phone }}
+    </div>
+</div>
+</body>
+</html>

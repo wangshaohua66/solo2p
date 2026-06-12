@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}腕表维修服务报告{% endblock %}</title>
+    <style>
+        @page { size: A4; margin: 15mm 12mm; }
+        * { box-sizing: border-box; }
+        body {
+            font-family: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+            color: #1f2937;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .report-header {
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+        }
+        .header-top { display: flex; justify-content: space-between; align-items: flex-start; }
+        .brand {
+            font-size: 22px;
+            font-weight: bold;
+            color: #1e40af;
+            margin: 0;
+        }
+        .brand-sub { color: #6b7280; font-size: 12px; margin-top: 4px; }
+        .report-title {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #1f2937;
+            margin: 20px 0 4px;
+            letter-spacing: 4px;
+        }
+        .order-meta {
+            text-align: center;
+            color: #6b7280;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .info-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 14px 16px;
+        }
+        .info-card h3 {
+            margin: 0 0 10px;
+            padding-bottom: 6px;
+            border-bottom: 2px solid #3b82f6;
+            font-size: 15px;
+            color: #1e3a8a;
+        }
+        .info-row {
+            display: flex;
+            padding: 4px 0;
+            font-size: 12.5px;
+        }
+        .info-label {
+            width: 90px;
+            color: #6b7280;
+            flex-shrink: 0;
+        }
+        .info-value { color: #111827; font-weight: 500; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 12.5px;
+        }
+        table th {
+            background: #eff6ff;
+            color: #1e40af;
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #bfdbfe;
+        }
+        table td {
+            padding: 9px 12px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        table tr:nth-child(even) td { background: #fafafa; }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #1e3a8a;
+            margin: 24px 0 12px;
+            padding-left: 12px;
+            border-left: 4px solid #3b82f6;
+        }
+        .inspection-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .inspection-item {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 10px 14px;
+        }
+        .inspection-item .label {
+            font-size: 11px;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+        .inspection-item .value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #111827;
+        }
+        .inspection-item .unit { font-size: 11px; color: #6b7280; margin-left: 3px; }
+        .inspection-item.alert {
+            background: #fef2f2;
+            border-color: #fecaca;
+        }
+        .inspection-item.alert .value { color: #dc2626; }
+
+        .compare-images {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin: 16px 0;
+        }
+        .compare-images img {
+            width: 100%;
+            height: 140px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+        }
+        .compare-images .caption {
+            font-size: 11px;
+            text-align: center;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .progress-timeline {
+            margin: 16px 0;
+            padding: 0;
+        }
+        .progress-timeline .item {
+            display: flex;
+            padding: 8px 0;
+            border-bottom: 1px dashed #e5e7eb;
+            font-size: 12px;
+        }
+        .progress-timeline .time {
+            width: 130px;
+            color: #6b7280;
+            flex-shrink: 0;
+        }
+        .progress-timeline .action {
+            width: 90px;
+            color: #2563eb;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+        .progress-timeline .detail {
+            flex: 1;
+            color: #374151;
+        }
+
+        .pricing-card {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 16px 0;
+        }
+        .pricing-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 13px;
+        }
+        .pricing-row.total {
+            font-size: 17px;
+            font-weight: bold;
+            color: #1e3a8a;
+            padding-top: 14px;
+            margin-top: 10px;
+            border-top: 2px dashed #93c5fd;
+        }
+        .pricing-row .amount { font-family: 'Courier New', monospace; }
+
+        .warranty-card {
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            border: 1px solid #6ee7b7;
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin: 20px 0;
+        }
+        .warranty-badge {
+            display: inline-block;
+            background: #059669;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+
+        .signatures {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-top: 40px;
+            padding-top: 30px;
+        }
+        .signature-block {
+            border-top: 1px solid #9ca3af;
+            padding-top: 10px;
+            text-align: center;
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .footer-note {
+            margin-top: 30px;
+            padding-top: 14px;
+            border-top: 1px solid #e5e7eb;
+            text-align: center;
+            font-size: 10.5px;
+            color: #9ca3af;
+        }
+    </style>
+</head>
+<body>
+    <div class="report-header">
+        <div class="header-top">
+            <div>
+                <h1 class="brand">{{ studio_name }}</h1>
+                <div class="brand-sub">
+                    {{ studio_address }} | 服务电话：{{ studio_phone }} | 邮箱：{{ studio_email }}
+                </div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:11px;color:#6b7280;">报告生成</div>
+                <div style="font-size:12.5px;font-weight:600;">{{ report.generatedAt }}</div>
+            </div>
+        </div>
+        <div class="report-title">腕表维修服务报告</div>
+        <div class="order-meta">
+            工单号：{{ report.orderNumber }} | 生成日期：{{ report.generatedAt|date('Y-m-d') }}
+        </div>
+    </div>
+
+    <div class="info-grid">
+        <div class="info-card">
+            <h3>📋 客户信息</h3>
+            <div class="info-row"><span class="info-label">客户姓名</span><span class="info-value">{{ report.customer.name }}</span></div>
+            <div class="info-row"><span class="info-label">联系电话</span><span class="info-value">{{ report.customer.phone ?: '—' }}</span></div>
+            <div class="info-row"><span class="info-label">电子邮箱</span><span class="info-value">{{ report.customer.email ?: '—' }}</span></div>
+        </div>
+        <div class="info-card">
+            <h3>⌚ 腕表信息</h3>
+            <div class="info-row"><span class="info-label">品牌 / 型号</span><span class="info-value">{{ report.watch.brand }} {{ report.watch.model }}</span></div>
+            <div class="info-row"><span class="info-label">表壳序列号</span><span class="info-value">{{ report.watch.caseSerial ?: '—' }}</span></div>
+            <div class="info-row"><span class="info-label">机芯号</span><span class="info-value">{{ report.watch.movementName ?: report.watch.movementCode }}</span></div>
+        </div>
+    </div>
+
+    <div class="section-title">🔍 检测数据</div>
+    {% if report.inspection %}
+    <div class="inspection-grid">
+        <div class="inspection-item">
+            <div class="label">振频</div>
+            <div class="value">{{ report.inspection.frequency ?: '—' }}<span class="unit">vph</span></div>
+        </div>
+        <div class="inspection-item">
+            <div class="label">摆幅</div>
+            <div class="value">{{ report.inspection.amplitude ?: '—' }}<span class="unit">°</span></div>
+        </div>
+        <div class="inspection-item">
+            <div class="label">日差</div>
+            <div class="value">{{ report.inspection.rate ?: '—' }}<span class="unit">s/d</span></div>
+        </div>
+        <div class="inspection-item">
+            <div class="label">位差</div>
+            <div class="value">{{ report.inspection.beatError ?: '—' }}<span class="unit">ms</span></div>
+        </div>
+        <div class="inspection-item">
+            <div class="label">动力储存</div>
+            <div class="value">{{ report.inspection.powerReserve ?: '—' }}<span class="unit">h</span></div>
+        </div>
+        <div class="inspection-item">
+            <div class="label">防水等级</div>
+            <div class="value">{{ report.inspection.waterResistance ?: '—' }}</div>
+        </div>
+    </div>
+    <p style="font-size:12px;color:#6b7280;">备注：{{ report.inspection.notes ?: '—' }}</p>
+    {% else %}
+    <p style="color:#9ca3af;font-size:12px;">暂无检测数据</p>
+    {% endif %}
+
+    <div class="section-title">🔧 维修与保养内容</div>
+    <table>
+        <thead>
+        <tr>
+            <th style="width:90px;">类型</th>
+            <th>项目名称</th>
+            <th style="width:80px;text-align:right;">数量</th>
+            <th style="width:100px;text-align:right;">单价</th>
+            <th style="width:100px;text-align:right;">小计</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for item in report.serviceItems %}
+        <tr>
+            <td>{{ item.type == 'labor' ? '工时' : (item.type == 'part' ? '配件' : '其他') }}</td>
+            <td>{{ item.name }}</td>
+            <td style="text-align:right;">{{ item.quantity }}</td>
+            <td style="text-align:right;">¥{{ '%.2f'|format(item.unitPrice) }}</td>
+            <td style="text-align:right;font-weight:600;">¥{{ '%.2f'|format(item.subtotal) }}</td>
+        </tr>
+        {% endfor %}
+        {% if report.serviceItems is empty %}
+        <tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:16px;">暂无收费项</td></tr>
+        {% endif %}
+        </tbody>
+    </table>
+
+    {% if report.partUsages is not empty %}
+    <div class="section-title">📦 配件更换清单</div>
+    <table>
+        <thead>
+        <tr>
+            <th>配件名称</th>
+            <th style="width:110px;">SKU</th>
+            <th style="width:100px;">批号</th>
+            <th style="width:60px;text-align:right;">数量</th>
+            <th style="width:100px;text-align:right;">小计</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for pu in report.partUsages %}
+        <tr>
+            <td>{{ pu.name }}</td>
+            <td style="font-family:monospace;font-size:11.5px;">{{ pu.sku ?: '—' }}</td>
+            <td>{{ pu.batchNumber ?: '—' }}</td>
+            <td style="text-align:right;">{{ pu.quantity }}</td>
+            <td style="text-align:right;font-weight:600;">¥{{ '%.2f'|format(pu.subtotal) }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    {% if report.images.before or report.images.after %}
+    <div class="section-title">📷 维修对比图</div>
+    <div class="compare-images">
+        {% if report.images.before is not empty %}
+        <div>
+            <img src="{{ report.images.before[0].url }}" alt="维修前" onerror="this.style.visibility='hidden'">
+            <div class="caption">维修前</div>
+        </div>
+        {% endif %}
+        {% if report.images.during is not empty %}
+        <div>
+            <img src="{{ report.images.during[0].url }}" alt="维修中" onerror="this.style.visibility='hidden'">
+            <div class="caption">维修中</div>
+        </div>
+        {% endif %}
+        {% if report.images.after is not empty %}
+        <div>
+            <img src="{{ report.images.after[0].url }}" alt="维修后" onerror="this.style.visibility='hidden'">
+            <div class="caption">维修后</div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="section-title">📈 服务进度</div>
+    <div class="progress-timeline">
+        {% for item in report.progress|slice(0, 20) %}
+        <div class="item">
+            <span class="time">{{ item.time }}</span>
+            <span class="action">{{ item.action }}</span>
+            <span class="detail">{{ item.detail }}</span>
+        </div>
+        {% endfor %}
+        {% if report.progress is empty %}
+        <div style="color:#9ca3af;text-align:center;padding:16px;">暂无进度记录</div>
+        {% endif %}
+    </div>
+
+    <div class="pricing-card">
+        <h3 style="margin:0 0 14px;color:#1e40af;">💰 费用结算</h3>
+        <div class="pricing-row"><span>工时费用</span><span class="amount">¥{{ '%.2f'|format(report.pricing.labor) }}</span></div>
+        <div class="pricing-row"><span>配件费用</span><span class="amount">¥{{ '%.2f'|format(report.pricing.parts) }}</span></div>
+        <div class="pricing-row"><span>已收定金</span><span class="amount">− ¥{{ '%.2f'|format(report.pricing.deposit) }}</span></div>
+        <div class="pricing-row total">
+            <span>合计应付</span>
+            <span class="amount">¥{{ '%.2f'|format(report.pricing.total) }}</span>
+        </div>
+    </div>
+
+    {% if report.warranty %}
+    <div class="warranty-card">
+        <span class="warranty-badge">🛡️ 质保服务</span>
+        <span style="font-size:14px;font-weight:600;color:#065f46;">
+            {{ report.warranty.months }}个月整机质保 · {{ report.warranty.startDate }} 至 {{ report.warranty.endDate }}
+        </span>
+    </div>
+    {% endif %}
+
+    <div class="signatures">
+        <div class="signature-block">
+            <div style="margin-bottom:30px;">客户签字确认</div>
+            <div>日期：_________________</div>
+        </div>
+        <div class="signature-block">
+            <div style="margin-bottom:30px;">工程师签字 / 技术负责人</div>
+            <div>日期：_________________</div>
+        </div>
+    </div>
+
+    <div class="footer-note">
+        本报告一式两份，客户与工作室各执一份，具有同等效力。<br>
+        如对服务质量有任何疑问，请于交付之日起15日内联系我们。 | {{ studio_name }}
+    </div>
+</body>
+</html>

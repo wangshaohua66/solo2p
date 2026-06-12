@@ -1,0 +1,18 @@
+knp_snappy:
+    pdf:
+        enabled: true
+        binary: '%env(resolve:WKHTMLTOPDF_PATH)%'
+        options:
+            page-size: A4
+            orientation: Portrait
+            margin-top: 15mm
+            margin-bottom: 15mm
+            margin-left: 12mm
+            margin-right: 12mm
+            encoding: UTF-8
+            enable-smart-shrinking: true
+            zoom: 1.0
+    image:
+        enabled: true
+        binary: '%env(resolve:WKHTMLTOIMAGE_PATH)%'
+        options: []

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>质保到期提醒</title>
+    <style>
+        body { font-family: "Microsoft YaHei", sans-serif; color:#1f2937; background:#f3f4f6; margin:0; padding:0; }
+        .wrap { max-width:640px; margin:0 auto; padding:30px 20px; }
+        .header {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color:white; padding:22px 30px; border-radius:12px 12px 0 0;
+        }
+        .header.critical {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+        .header.warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+        .header.attention {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        }
+        .header h1 { margin: 0 0 4px; font-size:20px; }
+        .header p { margin:0; opacity:0.9; font-size:13px; }
+        .body { background:white; padding:26px 30px; border-radius:0 0 12px 12px; box-shadow:0 4px 14px rgba(0,0,0,0.05); }
+        .days-badge {
+            display:inline-block;
+            background:#fee2e2;
+            color:#b91c1c;
+            padding:3px 12px;
+            border-radius:20px;
+            font-weight:bold;
+            font-size:14px;
+        }
+        .info-card {
+            background:#fffbeb;
+            border-left:4px solid #f59e0b;
+            padding:16px 20px;
+            border-radius:6px;
+            margin:18px 0;
+        }
+        .cta {
+            display:inline-block;
+            background:#f59e0b;
+            color:white;
+            padding:12px 28px;
+            border-radius:8px;
+            text-decoration:none;
+            font-weight:600;
+            margin:18px 0;
+        }
+        .note {
+            font-size:12px; color:#64748b; margin-top:22px; padding-top:14px; border-top:1px solid #e5e7eb;
+        }
+        .footer { text-align:center; margin-top:18px; font-size:11px; color:#9ca3af; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="header {{ severity == 'critical' ? 'critical' : (severity == 'second' ? 'critical' : (severity == 'first' ? 'warning' : 'attention')) }}">
+        <h1>⚠️ 质保服务到期提醒</h1>
+        <p>您的腕表即将出质保期，建议尽快安排保养检查</p>
+    </div>
+    <div class="body">
+        <div style="font-size:16px;">尊敬的 <b>{{ customerName }}</b>，您好！</div>
+        <p style="font-size:14px;color:#374151;line-height:1.7;margin-top:14px;">
+            您在 {{ studio_name }} 维修保养的腕表，其质保服务还有
+            <span class="days-badge">{{ daysLeft }} 天</span> 即将到期。
+            到期日：<b style="color:#b45309;">{{ endDate }}</b>
+        </p>
+        <div class="info-card">
+            <div style="padding:4px 0;font-size:13.5px;">
+                <span style="color:#64748b;display:inline-block;width:110px;">腕表型号：</span>
+                <b>{{ brand }} {{ model }}</b>
+            </div>
+            <div style="padding:4px 0;font-size:13.5px;">
+                <span style="color:#64748b;display:inline-block;width:110px;">工单号：</span>
+                {{ orderNumber }}
+            </div>
+            <div style="padding:4px 0;font-size:13.5px;">
+                <span style="color:#64748b;display:inline-block;width:110px;">质保到期：</span>
+                <b style="color:#b91c1c;">{{ endDate }}</b>
+            </div>
+        </div>
+        <p style="font-size:14px;color:#374151;line-height:1.7;">
+            质保期结束后，如需要保养服务或出现任何问题，可随时联系我们获取优惠保养价。<br>
+            建议机械腕表每 <b>3-5 年</b>进行一次专业保养，以延长使用寿命。
+        </p>
+        <a href="tel:{{ studio_phone }}" class="cta">📞 立即联系预约保养</a>
+        <div class="note">
+            如有疑问，欢迎致电 <b>{{ studio_phone }}</b> 或回复邮件咨询。<br>
+            本次质保到期提醒已按服务协议通知，感谢您的信任。
+        </div>
+    </div>
+    <div class="footer">
+        © {{ 'now'|date('Y') }} {{ studio_name }} · {{ studio_address }} · 服务热线：{{ studio_phone }}
+    </div>
+</div>
+</body>
+</html>
