@@ -180,7 +180,6 @@ public class CarbonCommonAutoConfiguration {
             UserContextHolder.set(currentUser);
 
             List<SimpleGrantedAuthority> authorities = roleSet.stream()
-                    .map(s -> s.startsWith("ROLE_") ? s : "ROLE_" + s)
                     .map(SimpleGrantedAuthority::new)
                     .collect(Collectors.toList());
 

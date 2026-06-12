@@ -1,14 +1,11 @@
 package com.carbon.common.config;
 
 import com.carbon.common.context.UserContextHolder;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.bson.Document;
 import org.springframework.data.mongodb.core.SimpleMongoClientDatabaseFactory;
 import org.springframework.lang.NonNull;
 
 @Slf4j
-@RequiredArgsConstructor
 public class TenantRoutingMongoDatabaseFactory extends SimpleMongoClientDatabaseFactory {
 
     private final com.mongodb.client.MongoClient mongoClient;

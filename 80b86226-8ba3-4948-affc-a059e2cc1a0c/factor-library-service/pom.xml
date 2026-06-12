@@ -13,7 +13,7 @@
 
     <artifactId>factor-library-service</artifactId>
     <name>Factor Library Service</name>
-    <description>Multi-library & multi-version emission factors</description>
+    <description>Multi-library &amp; multi-version emission factors</description>
 
     <dependencies>
         <dependency>

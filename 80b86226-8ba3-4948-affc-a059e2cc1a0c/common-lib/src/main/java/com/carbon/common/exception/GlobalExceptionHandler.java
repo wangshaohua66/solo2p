@@ -8,6 +8,7 @@ import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -22,6 +23,13 @@ import java.util.stream.Collectors;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(AccessDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public R<Void> handleAccessDeniedException(AccessDeniedException e) {
+        log.warn("[AccessDenied] message={}, traceId={}", e.getMessage(), TraceIdHolder.get());
+        return R.fail(ErrorCode.FORBIDDEN, e.getMessage());
+    }
 
     @ExceptionHandler(BusinessException.class)
     @ResponseStatus(HttpStatus.OK)

@@ -13,7 +13,7 @@
 
     <artifactId>calculation-engine-service</artifactId>
     <name>Calculation Engine Service</name>
-    <description>Tri-standard parallel calculation & diff analysis</description>
+    <description>Tri-standard parallel calculation &amp; diff analysis</description>
 
     <dependencies>
         <dependency>

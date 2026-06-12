@@ -13,7 +13,7 @@
 
     <artifactId>emission-source-service</artifactId>
     <name>Emission Source Service</name>
-    <description>Emission source archive & activity data validation</description>
+    <description>Emission source archive &amp; activity data validation</description>
 
     <dependencies>
         <dependency>

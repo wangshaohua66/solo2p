@@ -1,8 +1,8 @@
 package com.carbon.common.security;
 
 import com.carbon.common.autoconfigure.CarbonCommonAutoConfiguration;
-import lombok.RequiredArgsConstructor;
-import org.junit.jupiter.api.BeforeEach;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoDatabase;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,19 +11,13 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.http.HttpHeaders;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.context.WebApplicationContext;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -32,41 +26,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class PreAuthorizeIntegrationTest {
 
     @SpringBootApplication
-    @Import(CarbonCommonAutoConfiguration.class)
+    @Import({CarbonCommonAutoConfiguration.class, PreAuthorizeTestController.class})
+    @EnableMethodSecurity
     static class App {
         @Bean
-        TestController testController() { return new TestController(); }
-    }
-
-    @RestController
-    @RequestMapping("/test-auth")
-    @RequiredArgsConstructor
-    static class TestController {
-        @GetMapping("/quota-manage")
-        @PreAuthorize("hasAuthority('quota:manage')")
-        public String quotaManage() { return "OK"; }
-
-        @GetMapping("/calculation-run")
-        @PreAuthorize("hasAuthority('calculation:run')")
-        public String calcRun() { return "OK"; }
-
-        @GetMapping("/ccer-manage")
-        @PreAuthorize("hasAuthority('ccer:manage')")
-        public String ccerManage() { return "OK"; }
-
-        @GetMapping("/public")
-        public String openEndpoint() { return "OPEN"; }
+        MongoClient mongoClient() {
+            MongoClient client = mock(MongoClient.class);
+            MongoDatabase db = mock(MongoDatabase.class);
+            when(client.getDatabase(anyString())).thenReturn(db);
+            return client;
+        }
     }
 
     @Autowired
-    private WebApplicationContext ctx;
-
     private MockMvc mvc;
-
-    @BeforeEach
-    void setUp() {
-        mvc = MockMvcBuilders.webAppContextSetup(ctx).apply(springSecurity()).build();
-    }
 
     @Test
     @DisplayName("缺少身份 header (X-Tenant-Id/X-User-Id) 应返回 401")
