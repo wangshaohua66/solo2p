@@ -12,6 +12,11 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ORM\Index(name: 'idx_code', columns: ['code'])]
 class Movement
 {
+    public const TYPE_AUTOMATIC = 'automatic';
+    public const TYPE_MANUAL = 'manual';
+    public const TYPE_QUARTZ = 'quartz';
+    public const TYPE_SPRING_DRIVE = 'spring_drive';
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -27,28 +32,64 @@ class Movement
     private ?string $brand = null;
 
     #[ORM\Column(length: 100)]
-    #[Groups(['movement:read', 'movement:list'])]
+    #[Groups(['movement:read', 'movement:list', 'public:read'])]
     private ?string $caliber = null;
 
+    #[ORM\Column(length: 150, nullable: true)]
+    #[Groups(['movement:read', 'movement:list', 'workorder:read', 'public:read'])]
+    private ?string $commonName = null;
+
+    #[ORM\Column(length: 50, nullable: true)]
+    #[Groups(['movement:read', 'movement:list'])]
+    private ?string $family = null;
+
+    #[ORM\Column(length: 20, nullable: true)]
+    #[Groups(['movement:read'])]
+    private ?string $type = 'automatic';
+
     #[ORM\Column(type: Types::INTEGER)]
-    #[Groups(['movement:read', 'workorder:read'])]
+    #[Groups(['movement:read', 'workorder:read', 'public:read'])]
     private ?int $frequency = null;
 
     #[ORM\Column(type: Types::INTEGER)]
-    #[Groups(['movement:read', 'workorder:read'])]
+    #[Groups(['movement:read', 'workorder:read', 'public:read'])]
     private ?int $jewelCount = null;
 
     #[ORM\Column(type: Types::INTEGER)]
-    #[Groups(['movement:read', 'workorder:read'])]
+    #[Groups(['movement:read', 'workorder:read', 'public:read'])]
     private ?int $powerReserveHours = null;
 
-    #[ORM\Column(length: 20)]
+    #[ORM\Column(type: Types::INTEGER, nullable: true)]
+    #[Groups(['movement:read', 'workorder:read', 'public:read'])]
+    private ?int $amplitudeMin = null;
+
+    #[ORM\Column(type: Types::INTEGER, nullable: true)]
+    #[Groups(['movement:read', 'workorder:read', 'public:read'])]
+    private ?int $amplitudeMax = null;
+
+    #[ORM\Column(type: Types::INTEGER, nullable: true)]
+    #[Groups(['movement:read', 'workorder:read', 'public:read'])]
+    private ?int $rateMin = null;
+
+    #[ORM\Column(type: Types::INTEGER, nullable: true)]
+    #[Groups(['movement:read', 'workorder:read', 'public:read'])]
+    private ?int $rateMax = null;
+
+    #[ORM\Column(type: Types::DECIMAL, precision: 4, scale: 2, nullable: true)]
     #[Groups(['movement:read', 'workorder:read'])]
+    private ?string $beatErrorMax = null;
+
+    #[ORM\Column(length: 20)]
+    #[Groups(['movement:read', 'workorder:read', 'public:read'])]
     private ?string $standardAmplitude = null;
 
     #[ORM\Column(length: 20)]
-    #[Groups(['movement:read', 'workorder:read'])]
+    #[Groups(['movement:read', 'workorder:read', 'public:read'])]
     private ?string $standardRate = null;
+
+    #[ORM\Column(length: 20, nullable: true)]
+    #[Groups(['movement:read', 'workorder:read'])]
+    private ?string $waterResistanceRating = null;
 
     #[ORM\Column(type: Types::JSON)]
     #[Groups(['movement:read'])]
@@ -105,6 +146,105 @@ class Movement
     public function setCaliber(string $caliber): static
     {
         $this->caliber = $caliber;
+        return $this;
+    }
+
+    public function getCommonName(): ?string
+    {
+        return $this->commonName;
+    }
+
+    public function setCommonName(?string $commonName): static
+    {
+        $this->commonName = $commonName;
+        return $this;
+    }
+
+    public function getFamily(): ?string
+    {
+        return $this->family;
+    }
+
+    public function setFamily(?string $family): static
+    {
+        $this->family = $family;
+        return $this;
+    }
+
+    public function getType(): ?string
+    {
+        return $this->type;
+    }
+
+    public function setType(?string $type): static
+    {
+        $this->type = $type;
+        return $this;
+    }
+
+    public function getAmplitudeMin(): ?int
+    {
+        return $this->amplitudeMin;
+    }
+
+    public function setAmplitudeMin(?int $amplitudeMin): static
+    {
+        $this->amplitudeMin = $amplitudeMin;
+        return $this;
+    }
+
+    public function getAmplitudeMax(): ?int
+    {
+        return $this->amplitudeMax;
+    }
+
+    public function setAmplitudeMax(?int $amplitudeMax): static
+    {
+        $this->amplitudeMax = $amplitudeMax;
+        return $this;
+    }
+
+    public function getRateMin(): ?int
+    {
+        return $this->rateMin;
+    }
+
+    public function setRateMin(?int $rateMin): static
+    {
+        $this->rateMin = $rateMin;
+        return $this;
+    }
+
+    public function getRateMax(): ?int
+    {
+        return $this->rateMax;
+    }
+
+    public function setRateMax(?int $rateMax): static
+    {
+        $this->rateMax = $rateMax;
+        return $this;
+    }
+
+    public function getBeatErrorMax(): ?string
+    {
+        return $this->beatErrorMax;
+    }
+
+    public function setBeatErrorMax(?string $beatErrorMax): static
+    {
+        $this->beatErrorMax = $beatErrorMax;
+        return $this;
+    }
+
+    public function getWaterResistanceRating(): ?string
+    {
+        return $this->waterResistanceRating;
+    }
+
+    public function setWaterResistanceRating(?string $waterResistanceRating): static
+    {
+        $this->waterResistanceRating = $waterResistanceRating;
         return $this;
     }
 

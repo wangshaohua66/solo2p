@@ -3,7 +3,6 @@
 namespace App\Service;
 
 use App\Entity\WorkOrder;
-use App\Entity\WorkOrderStatusChange;
 use App\Entity\Warranty;
 use App\Repository\WorkOrderRepository;
 use App\Repository\CustomerRepository;
@@ -222,6 +221,7 @@ class WorkOrderService
 
         $repeatInfo = $this->checkRepeatVisit(
             $workOrder->getCaseSerialNumber(),
+            $workOrder->getModel(),
             $customer->getName()
         );
         if ($repeatInfo['isRepeat']) {
@@ -381,9 +381,9 @@ class WorkOrderService
         return $workOrder;
     }
 
-    public function checkRepeatVisit(string $caseSerial, string $customerName): array
+    public function checkRepeatVisit(?string $caseSerial, ?string $model, ?string $customerName): array
     {
-        if (!$caseSerial || !$customerName) {
+        if ((!$caseSerial && !$model) || !$customerName) {
             return ['isRepeat' => false, 'previousOrders' => []];
         }
 
@@ -391,14 +391,23 @@ class WorkOrderService
 
         $qb = $this->repo->createQueryBuilder('wo')
             ->join('wo.customer', 'c')
-            ->where('wo.caseSerialNumber = :serial')
-            ->andWhere('c.name = :name')
-            ->andWhere('wo.createdAt >= :since')
-            ->setParameter('serial', $caseSerial)
-            ->setParameter('name', $customerName)
+            ->where('wo.createdAt >= :since')
             ->setParameter('since', $sixMonthsAgo)
+            ->setParameter('name', $customerName)
             ->orderBy('wo.createdAt', 'DESC')
             ->setMaxResults(10);
+
+        if ($caseSerial && $model) {
+            $qb->andWhere('(wo.caseSerialNumber = :serial OR (wo.model = :model AND c.name = :name))')
+                ->setParameter('serial', $caseSerial)
+                ->setParameter('model', $model);
+        } elseif ($caseSerial) {
+            $qb->andWhere('wo.caseSerialNumber = :serial')
+                ->setParameter('serial', $caseSerial);
+        } else {
+            $qb->andWhere('wo.model = :model AND c.name = :name')
+                ->setParameter('model', $model);
+        }
 
         $orders = $qb->getQuery()->getResult();
 
@@ -609,11 +618,53 @@ class WorkOrderService
 
     private function invalidateListCache(): void
     {
-        $this->cache->clear();
+        $this->deleteByPrefix('wo_');
     }
 
     private function invalidateDetailCache(int $id): void
     {
         $this->cache->deleteItem('wo_detail_' . $id);
+    }
+
+    private function deleteByPrefix(string $prefix): void
+    {
+        try {
+            if ($this->cache instanceof \Symfony\Component\Cache\Adapter\RedisAdapter) {
+                $redis = $this->cache->getRedis();
+                $namespace = $this->cache->getNamespace();
+                $pattern = $namespace . ':' . $prefix . '*';
+                $it = null;
+                do {
+                    $keys = $redis->scan($it, $pattern, 100);
+                    if ($keys) {
+                        $redis->del($keys);
+                    }
+                } while ($it > 0);
+                return;
+            }
+        } catch (\Throwable $e) {
+            $this->logger->warning('Failed to delete cache by prefix', [
+                'prefix' => $prefix,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        $allKeys = [];
+        try {
+            $items = $this->cache->getItems();
+            foreach ($items as $key => $item) {
+                if (str_starts_with($key, $prefix)) {
+                    $allKeys[] = $key;
+                }
+            }
+            if (!empty($allKeys)) {
+                $this->cache->deleteItems($allKeys);
+            }
+        } catch (\Throwable $e) {
+            $this->logger->warning('Cache fallback deletion failed, clearing pool', [
+                'prefix' => $prefix,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }

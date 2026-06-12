@@ -40,7 +40,7 @@ class ReportService
         foreach ($order->getImages() as $img) {
             $item = [
                 'id' => $img->getId(),
-                'url' => $img->getPublicUrl(),
+                'url' => $img->getUrl(),
                 'caption' => $img->getCaption() ?? '',
                 'type' => $img->getType(),
             ];
@@ -128,13 +128,18 @@ class ReportService
                 'notes' => $inspection->getNotes() ?? '',
             ] : null,
             'movementReference' => $movement ? [
-                'standardFrequency' => $movement->getStandardFrequency(),
-                'standardAmplitudeMin' => $movement->getStandardAmplitudeMin(),
-                'standardAmplitudeMax' => $movement->getStandardAmplitudeMax(),
-                'standardRateMin' => $movement->getStandardRateMin(),
-                'standardRateMax' => $movement->getStandardRateMax(),
-                'standardPowerReserveHours' => $movement->getStandardPowerReserveHours(),
-                'commonFaults' => $movement->getCommonFaults(),
+                'frequency' => $movement->getFrequency(),
+                'jewelCount' => $movement->getJewelCount(),
+                'powerReserveHours' => $movement->getPowerReserveHours(),
+                'standardAmplitude' => $movement->getStandardAmplitude(),
+                'standardRate' => $movement->getStandardRate(),
+                'amplitudeMin' => $movement->getAmplitudeMin(),
+                'amplitudeMax' => $movement->getAmplitudeMax(),
+                'rateMin' => $movement->getRateMin(),
+                'rateMax' => $movement->getRateMax(),
+                'beatErrorMax' => $movement->getBeatErrorMax(),
+                'waterResistanceRating' => $movement->getWaterResistanceRating(),
+                'commonFailures' => $movement->getCommonFailures(),
                 'serviceSteps' => $movement->getServiceSteps(),
             ] : null,
             'images' => [

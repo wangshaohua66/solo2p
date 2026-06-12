@@ -115,7 +115,8 @@ class WorkOrderController extends AbstractController
     {
         $body = json_decode($request->getContent(), true) ?: [];
         $result = $this->workOrderService->checkRepeatVisit(
-            caseSerial: $body['caseSerialNumber'] ?? '',
+            caseSerial: $body['caseSerialNumber'] ?? null,
+            model: $body['model'] ?? null,
             customerName: $body['customerName'] ?? '',
         );
         return $this->json($result);

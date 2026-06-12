@@ -170,3 +170,51 @@ export const warrantyApi = {
   list: (params?: { customerId?: number; status?: string }) =>
     apiClient.post<PaginatedResponse<Warranty>>('/warranty/expiring?withinDays=' + (params?.customerId ? 365 : 60), params ?? {})
 };
+
+export const publicApi = {
+  getIntake: (token: string) =>
+    apiClient.get<{
+      mode: string;
+      valid: boolean;
+      message?: string;
+      order?: WorkOrder;
+      statusLabel?: string;
+      statusDescription?: string;
+      pickupCode?: string;
+      estimatedDate?: string;
+      priceInfo?: {
+        total: number;
+        deposit: number;
+        balance: number;
+        isQuoted: boolean;
+      };
+      timeline?: any[];
+    }>(`/public/intake/${token}`),
+
+  confirmDelivery: (token: string, pickupCode: string, signature?: string) =>
+    apiClient.post<{
+      success: boolean;
+      message: string;
+      warrantyInfo: { months: number; startDate: string };
+    }>(`/public/intake/${token}/confirm-return`, { pickupCode, signature }),
+
+  submitIntake: (data: any) =>
+    apiClient.post<{
+      success: boolean;
+      orderId: number;
+      orderNumber: string;
+      token: string;
+      qrCode: string;
+      publicUrl: string;
+      pickupCode: string;
+      estimatedDate: string;
+    }>('/public/intake/submit', data),
+
+  lookup: (orderNumber: string, phone: string) =>
+    apiClient.post<{
+      found: boolean;
+      token?: string;
+      redirectUrl?: string;
+      message?: string;
+    }>('/public/lookup', { orderNumber, phone })
+};

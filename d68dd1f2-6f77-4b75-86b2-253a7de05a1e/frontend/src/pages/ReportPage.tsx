@@ -48,26 +48,62 @@ const ReportPage: React.FC = () => {
       const html2canvas = (await import('html2canvas')).default;
 
       const canvas = await html2canvas(element, {
-        scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff'
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
       });
 
       const imgWidth = 210;
-      const pageHeight = 297;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const pageHeightMM = 297;
+      const pageMarginMM = 10;
+      const contentHeightMM = pageHeightMM - 2 * pageMarginMM;
+
+      const imgHeightMM = (canvas.height * imgWidth) / canvas.width;
+      const totalPages = Math.ceil(imgHeightMM / contentHeightMM);
 
       const pdf = new jsPDF('p', 'mm', 'a4');
-      let heightLeft = imgHeight;
-      let position = 0;
 
-      const imgData = canvas.toDataURL('image/webp', 0.92);
-      pdf.addImage(imgData, 'WEBP', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      for (let page = 0; page < totalPages; page++) {
+        if (page > 0) pdf.addPage();
 
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'WEBP', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+        const srcY = (page * contentHeightMM * canvas.width) / imgWidth;
+        const srcHeight = Math.min(
+          canvas.height - srcY,
+          (contentHeightMM * canvas.width) / imgWidth
+        );
+
+        const tmpCanvas = document.createElement('canvas');
+        tmpCanvas.width = canvas.width;
+        tmpCanvas.height = srcHeight;
+        const tmpCtx = tmpCanvas.getContext('2d');
+        if (tmpCtx) {
+          tmpCtx.fillStyle = '#ffffff';
+          tmpCtx.fillRect(0, 0, tmpCanvas.width, tmpCanvas.height);
+          tmpCtx.drawImage(
+            canvas,
+            0, srcY, canvas.width, srcHeight,
+            0, 0, canvas.width, srcHeight
+          );
+        }
+
+        const pageImgData = tmpCanvas.toDataURL('image/jpeg', 0.95);
+        const pageImgHeightMM = (srcHeight * imgWidth) / canvas.width;
+
+        pdf.addImage(
+          pageImgData, 'JPEG',
+          pageMarginMM, pageMarginMM,
+          imgWidth - 2 * pageMarginMM, pageImgHeightMM
+        );
+
+        pdf.setFontSize(10);
+        pdf.setTextColor(153, 153, 153);
+        pdf.text(
+          `第 ${page + 1} 页 / 共 ${totalPages} 页`,
+          imgWidth / 2,
+          pageHeightMM - 8,
+          { align: 'center' }
+        );
       }
 
       pdf.save(`${order.orderNumber}-服务报告.pdf`);

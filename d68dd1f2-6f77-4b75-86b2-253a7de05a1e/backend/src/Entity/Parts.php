@@ -21,62 +21,62 @@ class Parts
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['part:read', 'part:list', 'workorder:read'])]
+    #[Groups(['parts:read', 'parts:list', 'workorder:read', 'public:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 50, unique: true)]
     #[Assert\NotBlank]
     #[Assert\Length(max: 50)]
-    #[Groups(['part:read', 'part:list', 'workorder:read'])]
+    #[Groups(['parts:read', 'parts:list', 'workorder:read', 'public:read'])]
     private ?string $sku = null;
 
     #[ORM\Column(length: 200)]
     #[Assert\NotBlank]
     #[Assert\Length(max: 200)]
-    #[Groups(['part:read', 'part:list', 'workorder:read'])]
+    #[Groups(['parts:read', 'parts:list', 'workorder:read', 'public:read'])]
     private ?string $name = null;
 
     #[ORM\ManyToOne(targetEntity: PartCategory::class)]
     #[ORM\JoinColumn(nullable: true)]
-    #[Groups(['part:read', 'part:list'])]
+    #[Groups(['parts:read', 'parts:list', 'public:read'])]
     private ?PartCategory $category = null;
 
     #[ORM\Column(length: 100, nullable: true)]
-    #[Groups(['part:read', 'part:list'])]
+    #[Groups(['parts:read', 'parts:list', 'public:read'])]
     private ?string $brand = null;
 
     #[ORM\Column(length: 50, nullable: true)]
-    #[Groups(['part:read', 'part:list'])]
+    #[Groups(['parts:read', 'parts:list'])]
     private ?string $movementCode = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, options: ['default' => 0])]
     #[Assert\GreaterThanOrEqual(0)]
-    #[Groups(['part:read', 'part:list', 'workorder:read'])]
+    #[Groups(['parts:read', 'parts:list', 'workorder:read', 'public:read'])]
     private string $unitPrice = '0.00';
 
     #[ORM\Column(type: Types::INTEGER, options: ['default' => 0])]
     #[Assert\GreaterThanOrEqual(0)]
-    #[Groups(['part:read', 'part:list'])]
+    #[Groups(['parts:read', 'parts:list', 'public:read'])]
     private int $stock = 0;
 
     #[ORM\Column(type: Types::INTEGER, options: ['default' => 5])]
-    #[Groups(['part:read', 'part:list'])]
+    #[Groups(['parts:read', 'parts:list'])]
     private int $reorderLevel = 5;
 
     #[ORM\Column(length: 50, nullable: true)]
-    #[Groups(['part:read', 'part:list'])]
+    #[Groups(['parts:read', 'parts:list', 'public:read'])]
     private ?string $location = null;
 
     #[ORM\Column(length: 100, nullable: true)]
-    #[Groups(['part:read', 'part:list'])]
+    #[Groups(['parts:read', 'parts:list', 'public:read'])]
     private ?string $barcode = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Groups(['part:read'])]
+    #[Groups(['parts:read'])]
     private ?string $description = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
-    #[Groups(['part:read'])]
+    #[Groups(['parts:read'])]
     private ?\DateTimeImmutable $createdAt = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]

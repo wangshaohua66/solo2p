@@ -82,15 +82,15 @@ class WarrantyNotificationService
                 $needsNotify = false;
                 $notifyType = null;
 
-                if ($daysLeft <= 7 && $warranty->getSecondReminderSentAt() === null) {
+                if ($daysLeft <= self::WARN_DAYS && $warranty->getWarnNotifiedAt() === null) {
                     $needsNotify = true;
-                    $notifyType = 'second';
+                    $notifyType = 'warm';
                 } elseif ($daysLeft <= 30 && $warranty->getFirstReminderSentAt() === null) {
                     $needsNotify = true;
                     $notifyType = 'first';
-                } elseif ($daysLeft <= self::WARN_DAYS && $warranty->getWarnNotifiedAt() === null) {
+                } elseif ($daysLeft <= 7 && $warranty->getSecondReminderSentAt() === null) {
                     $needsNotify = true;
-                    $notifyType = 'warm';
+                    $notifyType = 'second';
                 }
 
                 if ($needsNotify) {

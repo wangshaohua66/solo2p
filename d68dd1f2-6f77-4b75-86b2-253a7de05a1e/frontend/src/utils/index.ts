@@ -165,7 +165,26 @@ export const statusTransitionAllowed = (
   from: WorkOrderStatus,
   to: WorkOrderStatus,
   role: string = 'admin'
-): boolean => {
+): { allowed: boolean; reason?: string } => {
+  const rolePermissions: Record<string, WorkOrderStatus[]> = {
+    reception: ['draft', 'pending_quote', 'quoted'],
+    technician: ['pending_quote', 'quoted', 'in_repair', 'pending_qa'],
+    manager: ['draft', 'pending_quote', 'quoted', 'in_repair', 'pending_qa', 'ready_for_pickup', 'delivered'],
+    admin: ['draft', 'pending_quote', 'quoted', 'in_repair', 'pending_qa', 'ready_for_pickup', 'delivered', 'warranty', 'archived']
+  };
+
+  const stateRequiresRole: Partial<Record<WorkOrderStatus, string[]>> = {
+    draft: ['reception', 'manager', 'admin'],
+    pending_quote: ['reception', 'technician', 'manager', 'admin'],
+    quoted: ['reception', 'technician', 'manager', 'admin'],
+    in_repair: ['technician', 'manager', 'admin'],
+    pending_qa: ['technician', 'manager', 'admin'],
+    ready_for_pickup: ['manager', 'admin'],
+    delivered: ['manager', 'admin'],
+    warranty: ['manager', 'admin'],
+    archived: ['admin']
+  };
+
   const transitions: Record<WorkOrderStatus, WorkOrderStatus[]> = {
     draft: ['pending_quote'],
     pending_quote: ['draft', 'quoted'],
@@ -179,9 +198,23 @@ export const statusTransitionAllowed = (
   };
 
   if (role === 'admin') {
-    return true;
+    return { allowed: true };
+  }
+
+  const allowedStates = rolePermissions[role] || [];
+  if (!allowedStates.includes(from) || !allowedStates.includes(to)) {
+    return { allowed: false, reason: `当前角色 [${role}] 无权操作 ${from} → ${to} 状态流转` };
+  }
+
+  const requiredRoles = stateRequiresRole[to];
+  if (requiredRoles && !requiredRoles.includes(role)) {
+    return { allowed: false, reason: `进入 [${to}] 状态需要 ${requiredRoles.join('/')} 角色权限` };
   }
 
   const allowed = transitions[from] || [];
-  return allowed.includes(to);
+  if (!allowed.includes(to)) {
+    return { allowed: false, reason: `不允许从 ${from} 直接跳转到 ${to}` };
+  }
+
+  return { allowed: true };
 };

@@ -47,12 +47,12 @@ class WorkOrder
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['workorder:read', 'workorder:list', 'customer:read'])]
+    #[Groups(['workorder:read', 'workorder:list', 'customer:read', 'public:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 32, unique: true)]
     #[Assert\Length(max: 32)]
-    #[Groups(['workorder:read', 'workorder:list', 'customer:read'])]
+    #[Groups(['workorder:read', 'workorder:list', 'customer:read', 'public:read'])]
     private ?string $orderNumber = null;
 
     #[ORM\ManyToOne(inversedBy: 'workOrders')]
@@ -62,19 +62,19 @@ class WorkOrder
     #[ORM\Column(length: 50)]
     #[Assert\NotBlank]
     #[Assert\Length(max: 50)]
-    #[Groups(['workorder:read', 'workorder:list', 'customer:read'])]
+    #[Groups(['workorder:read', 'workorder:list', 'customer:read', 'public:read'])]
     private ?string $brand = null;
 
     #[ORM\Column(length: 100)]
     #[Assert\NotBlank]
     #[Assert\Length(max: 100)]
-    #[Groups(['workorder:read', 'workorder:list', 'customer:read'])]
+    #[Groups(['workorder:read', 'workorder:list', 'customer:read', 'public:read'])]
     private ?string $model = null;
 
     #[ORM\Column(length: 50)]
     #[Assert\NotBlank]
     #[Assert\Length(max: 50)]
-    #[Groups(['workorder:read', 'workorder:list'])]
+    #[Groups(['workorder:read', 'workorder:list', 'public:read'])]
     private ?string $caseSerialNumber = null;
 
     #[ORM\Column(length: 50, nullable: true)]
@@ -82,37 +82,37 @@ class WorkOrder
     private ?string $movementSerialNumber = null;
 
     #[ORM\Column(length: 50, nullable: true)]
-    #[Groups(['workorder:read', 'workorder:list'])]
+    #[Groups(['workorder:read', 'workorder:list', 'public:read'])]
     private ?string $movementCode = null;
 
     #[ORM\ManyToOne(targetEntity: Movement::class)]
     #[ORM\JoinColumn(nullable: true)]
-    #[Groups(['workorder:read'])]
+    #[Groups(['workorder:read', 'public:read'])]
     private ?Movement $movement = null;
 
     #[ORM\Column(length: 32)]
-    #[Groups(['workorder:read', 'workorder:list', 'customer:read'])]
+    #[Groups(['workorder:read', 'workorder:list', 'customer:read', 'public:read'])]
     private string $status = self::STATUS_DRAFT;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
-    #[Groups(['workorder:read', 'workorder:list'])]
+    #[Groups(['workorder:read', 'workorder:list', 'public:read'])]
     private ?\DateTimeImmutable $intakeDate = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
-    #[Groups(['workorder:read', 'workorder:list'])]
+    #[Groups(['workorder:read', 'workorder:list', 'public:read'])]
     private ?\DateTimeImmutable $estimatedDeliveryDate = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
-    #[Groups(['workorder:read', 'workorder:list'])]
+    #[Groups(['workorder:read', 'workorder:list', 'public:read'])]
     private ?\DateTimeImmutable $actualDeliveryDate = null;
 
     #[ORM\Column(type: Types::TEXT)]
     #[Assert\NotBlank]
-    #[Groups(['workorder:read', 'workorder:list'])]
+    #[Groups(['workorder:read', 'workorder:list', 'public:read'])]
     private ?string $problemDescription = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Groups(['workorder:read'])]
+    #[Groups(['workorder:read', 'public:read'])]
     private ?string $customerNotes = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
@@ -123,15 +123,15 @@ class WorkOrder
     private ?User $assignedTechnician = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, options: ['default' => 0])]
-    #[Groups(['workorder:read', 'workorder:list'])]
+    #[Groups(['workorder:read', 'workorder:list', 'public:read'])]
     private string $laborPrice = '0.00';
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, options: ['default' => 0])]
-    #[Groups(['workorder:read', 'workorder:list'])]
+    #[Groups(['workorder:read', 'workorder:list', 'public:read'])]
     private string $partsPrice = '0.00';
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, options: ['default' => 0])]
-    #[Groups(['workorder:read', 'workorder:list'])]
+    #[Groups(['workorder:read', 'workorder:list', 'public:read'])]
     private string $totalPrice = '0.00';
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, options: ['default' => 0])]
@@ -139,15 +139,15 @@ class WorkOrder
     private string $deposit = '0.00';
 
     #[ORM\Column(type: Types::INTEGER, options: ['default' => 12])]
-    #[Groups(['workorder:read'])]
+    #[Groups(['workorder:read', 'public:read'])]
     private int $warrantyMonths = 12;
 
     #[ORM\Column(length: 32, options: ['default' => 'normal'])]
-    #[Groups(['workorder:read', 'workorder:list'])]
+    #[Groups(['workorder:read', 'workorder:list', 'public:read'])]
     private string $priority = self::PRIORITY_NORMAL;
 
     #[ORM\Column(type: Types::BOOLEAN, options: ['default' => false])]
-    #[Groups(['workorder:read', 'workorder:list'])]
+    #[Groups(['workorder:read', 'workorder:list', 'public:read'])]
     private bool $repeatVisit = false;
 
     #[ORM\ManyToOne(targetEntity: WorkOrder::class)]
@@ -158,18 +158,18 @@ class WorkOrder
      * @var Collection<int, WorkOrderImage>
      */
     #[ORM\OneToMany(mappedBy: 'workOrder', targetEntity: WorkOrderImage::class, cascade: ['persist', 'remove'])]
-    #[Groups(['workorder:read'])]
+    #[Groups(['workorder:read', 'public:read'])]
     private Collection $images;
 
     #[ORM\OneToOne(mappedBy: 'workOrder', targetEntity: Inspection::class, cascade: ['persist', 'remove'])]
-    #[Groups(['workorder:read'])]
+    #[Groups(['workorder:read', 'public:read'])]
     private ?Inspection $inspection = null;
 
     /**
      * @var Collection<int, PartUsage>
      */
     #[ORM\OneToMany(mappedBy: 'workOrder', targetEntity: PartUsage::class, cascade: ['persist', 'remove'])]
-    #[Groups(['workorder:read'])]
+    #[Groups(['workorder:read', 'public:read'])]
     private Collection $partUsages;
 
     /**
@@ -188,11 +188,11 @@ class WorkOrder
     private Collection $serviceItems;
 
     #[ORM\OneToOne(mappedBy: 'workOrder', targetEntity: Warranty::class, cascade: ['persist', 'remove'])]
-    #[Groups(['workorder:read'])]
+    #[Groups(['workorder:read', 'public:read'])]
     private ?Warranty $warranty = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
-    #[Groups(['workorder:read', 'workorder:list'])]
+    #[Groups(['workorder:read', 'workorder:list', 'public:read'])]
     private ?\DateTimeImmutable $createdAt = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]

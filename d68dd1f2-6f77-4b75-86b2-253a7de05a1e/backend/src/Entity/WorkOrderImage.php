@@ -24,26 +24,44 @@ class WorkOrderImage
     #[ORM\JoinColumn(nullable: false)]
     private ?WorkOrder $workOrder = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(['workorder:read'])]
+    private ?string $fileName = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(['workorder:read', 'public:read'])]
+    private ?string $originalFileName = null;
+
     #[ORM\Column(length: 32)]
     #[Groups(['workorder:read'])]
     private string $type = self::TYPE_INTAKE;
 
     #[ORM\Column(length: 500)]
-    #[Groups(['workorder:read'])]
+    #[Groups(['workorder:read', 'public:read'])]
     private ?string $url = null;
 
     #[ORM\Column(length: 200, nullable: true)]
-    #[Groups(['workorder:read'])]
+    #[Groups(['workorder:read', 'public:read'])]
     private ?string $caption = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $filePath = null;
 
     #[ORM\Column(type: Types::INTEGER, nullable: true)]
+    #[Groups(['workorder:read'])]
     private ?int $fileSize = null;
 
     #[ORM\Column(length: 10, nullable: true)]
+    #[Groups(['workorder:read'])]
     private ?string $mimeType = null;
+
+    #[ORM\Column(type: Types::INTEGER, nullable: true)]
+    #[Groups(['workorder:read', 'public:read'])]
+    private ?int $width = null;
+
+    #[ORM\Column(type: Types::INTEGER, nullable: true)]
+    #[Groups(['workorder:read', 'public:read'])]
+    private ?int $height = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     #[Groups(['workorder:read'])]
@@ -137,6 +155,50 @@ class WorkOrderImage
     public function setMimeType(?string $mimeType): static
     {
         $this->mimeType = $mimeType;
+        return $this;
+    }
+
+    public function getFileName(): ?string
+    {
+        return $this->fileName;
+    }
+
+    public function setFileName(?string $fileName): static
+    {
+        $this->fileName = $fileName;
+        return $this;
+    }
+
+    public function getOriginalFileName(): ?string
+    {
+        return $this->originalFileName;
+    }
+
+    public function setOriginalFileName(?string $originalFileName): static
+    {
+        $this->originalFileName = $originalFileName;
+        return $this;
+    }
+
+    public function getWidth(): ?int
+    {
+        return $this->width;
+    }
+
+    public function setWidth(?int $width): static
+    {
+        $this->width = $width;
+        return $this;
+    }
+
+    public function getHeight(): ?int
+    {
+        return $this->height;
+    }
+
+    public function setHeight(?int $height): static
+    {
+        $this->height = $height;
         return $this;
     }
 

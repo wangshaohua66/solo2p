@@ -10,11 +10,13 @@ import {
   EditOutlined, PrinterOutlined, QrcodeOutlined, SafetyCertificateOutlined,
   CameraOutlined, PlusOutlined, MinusOutlined, ShoppingOutlined,
   ScanOutlined, SendOutlined, ReloadOutlined, SaveOutlined,
-  ExclamationCircleOutlined, InfoCircleOutlined
+  ExclamationCircleOutlined, InfoCircleOutlined, RollbackOutlined,
+  CalculatorOutlined
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { workOrderApi, partsApi } from '@/api';
+import { useAuthStore } from '@/store/authStore';
 import type {
   WorkOrder, WorkOrderStatus, Part, PartUsage, ServiceItem
 } from '@/types';
@@ -29,6 +31,8 @@ const WorkOrderPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const orderId = Number(id);
+  const user = useAuthStore(s => s.user);
+  const userRole = user?.role || 'admin';
 
   const [loading, setLoading] = useState(true);
   const [order, setOrder] = useState<WorkOrder | null>(null);
@@ -36,6 +40,8 @@ const WorkOrderPage: React.FC = () => {
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [targetStatus, setTargetStatus] = useState<WorkOrderStatus | null>(null);
   const [statusNote, setStatusNote] = useState('');
+  const [statusTransitionError, setStatusTransitionError] = useState<string | null>(null);
+  const [statusAnimating, setStatusAnimating] = useState(false);
   const [partModalOpen, setPartModalOpen] = useState(false);
   const [partSearchText, setPartSearchText] = useState('');
   const [partOptions, setPartOptions] = useState<Part[]>([]);
@@ -71,18 +77,45 @@ const WorkOrderPage: React.FC = () => {
 
   const currentStatusIndex = order ? STATUS_FLOW.indexOf(order.status) : -1;
 
-  const handleStatusChangeClick = (status: WorkOrderStatus) => {
-    setTargetStatus(status); setStatusNote(''); setStatusModalOpen(true);
+  const handleStatusChangeClick = (status: WorkOrderStatus, direction: 'next' | 'prev') => {
+    if (statusAnimating) return;
+
+    const current = order?.status;
+    if (!current) return;
+
+    const check = statusTransitionAllowed(current, status, userRole);
+    if (!check.allowed) {
+      message.warning(check.reason || '无权执行此操作');
+      return;
+    }
+
+    if (direction === 'prev' && !confirm(`确定要将工单从「${STATUS_LABEL[current]}」回退到「${STATUS_LABEL[status]}」吗？`)) {
+      return;
+    }
+
+    setTargetStatus(status);
+    setStatusNote('');
+    setStatusTransitionError(null);
+    setStatusModalOpen(true);
   };
 
   const handleConfirmStatus = async () => {
     if (!targetStatus) return;
     try {
+      setStatusAnimating(true);
       const updated = await workOrderApi.changeStatus(orderId, targetStatus, statusNote);
+
+      await new Promise(r => setTimeout(r, 200));
+
       setOrder(updated);
       message.success(`状态已变更为：${STATUS_LABEL[targetStatus]}`);
-      setStatusModalOpen(false); setTargetStatus(null);
-    } catch (e: any) { message.error(e.message || '状态变更失败'); }
+      setStatusModalOpen(false);
+      setTargetStatus(null);
+    } catch (e: any) {
+      message.error(e.message || '状态变更失败');
+    } finally {
+      setStatusAnimating(false);
+    }
   };
 
   const handleSearchParts = async (value: string) => {
@@ -187,26 +220,68 @@ const WorkOrderPage: React.FC = () => {
             <Button icon={<EditOutlined />}>编辑</Button>
           </Space>
         </div>
-        <Steps size="small" current={currentStatusIndex} items={STATUS_FLOW.map((s, i) => ({
-          title: (
-            <Tooltip title={STATUS_LABEL[s]}>
-              <span
-                style={{
-                  color: i <= currentStatusIndex ? '#fff' : undefined,
-                  cursor: i > currentStatusIndex ? 'pointer' : 'default'
-                }}
-                onClick={() => { if (i > currentStatusIndex) handleStatusChangeClick(s); }}
-              >{STATUS_LABEL[s]}</span>
-            </Tooltip>
-          ),
-          status: i < currentStatusIndex ? 'finish' : i === currentStatusIndex ? 'process' : 'wait',
-          styles: { title: { minWidth: 80, fontSize: 12, whiteSpace: 'nowrap' } }
-        }))} />
+        <Steps
+          size="small"
+          current={currentStatusIndex}
+          onChange={undefined}
+          style={{
+            marginBottom: 24,
+            transition: 'all 200ms ease-in-out',
+            opacity: statusAnimating ? 0.5 : 1,
+            transform: statusAnimating ? 'scale(0.99)' : 'scale(1)'
+          }}
+          items={STATUS_FLOW.map((s, i) => {
+            const check = order ? statusTransitionAllowed(order.status, s, userRole) : { allowed: false };
+            const isPrev = i < currentStatusIndex;
+            const isCurrent = i === currentStatusIndex;
+            const isNext = i > currentStatusIndex;
+            const canClick = check.allowed && !statusAnimating;
+
+            let icon: React.ReactNode = undefined;
+            if (isPrev) {
+              icon = <RollbackOutlined style={{ fontSize: 12 }} />;
+            }
+
+            return {
+              title: (
+                <Tooltip title={check.allowed ? `点击${isPrev ? '回退到' : '推进到'} ${STATUS_LABEL[s]}` : check.reason}>
+                  <span
+                    style={{
+                      cursor: canClick ? 'pointer' : 'not-allowed',
+                      minWidth: 80,
+                      fontSize: 12,
+                      whiteSpace: 'nowrap',
+                      transition: 'all 200ms ease-in-out',
+                      opacity: canClick ? 1 : 0.6,
+                      fontWeight: isCurrent ? 600 : 400,
+                      color: isCurrent ? '#1677ff' : isPrev ? '#52c41a' : undefined
+                    }}
+                    onClick={() => {
+                      if (!canClick) {
+                        if (check.reason) message.warning(check.reason);
+                        return;
+                      }
+                      handleStatusChangeClick(s, isPrev ? 'prev' : 'next');
+                    }}
+                  >
+                    {isPrev && <RollbackOutlined style={{ fontSize: 10, marginRight: 2 }} />}
+                    {STATUS_LABEL[s]}
+                    {isNext && <PlusOutlined style={{ fontSize: 10, marginLeft: 2 }} />}
+                  </span>
+                </Tooltip>
+              ),
+              status: isPrev ? 'finish' : isCurrent ? 'process' : 'wait',
+              icon,
+              style: { transition: 'all 200ms ease-in-out' }
+            };
+          })}
+        />
       </Card>
 
       <Row gutter={[16, 16]}>
-        <Col xs={24} lg={8}>
-          <Card title="客户信息" size="small">
+        {/* 左栏：客户信息 (≥1600px: 25%, ≥1200px: 33%, <1200px: 100%) */}
+        <Col xs={24} xl={8} xxl={6}>
+          <Card title={<Space><UserOutlined /> 客户信息</Space>} size="small">
             <Descriptions column={1} size="small" labelStyle={{ width: 80 }}>
               <Descriptions.Item label="姓名"><Space><Avatar size={28} style={{ backgroundColor: '#1677ff' }} icon={<UserOutlined />} />{order.customer?.name}</Space></Descriptions.Item>
               <Descriptions.Item label="电话">{order.customer?.phone}</Descriptions.Item>
@@ -232,40 +307,6 @@ const WorkOrderPage: React.FC = () => {
             </Descriptions>
           </Card>
 
-          <Card title="时间与进度" size="small" style={{ marginTop: 16 }}>
-            <Descriptions column={1} size="small" labelStyle={{ width: 100 }}>
-              <Descriptions.Item label="进店日期"><Space><CalendarOutlined />{dayjs(order.intakeDate).format('YYYY-MM-DD HH:mm')}</Space></Descriptions.Item>
-              <Descriptions.Item label="预计交付">{order.estimatedDeliveryDate ? dayjs(order.estimatedDeliveryDate).format('YYYY-MM-DD HH:mm') : '-'}</Descriptions.Item>
-              <Descriptions.Item label="实际交付">{order.actualDeliveryDate ? dayjs(order.actualDeliveryDate).format('YYYY-MM-DD HH:mm') : '-'}</Descriptions.Item>
-              <Descriptions.Item label="维修周期">
-                {order.actualDeliveryDate
-                  ? `${dayjs(order.actualDeliveryDate).diff(order.intakeDate, 'day')} 天`
-                  : `已进行 ${dayjs().diff(order.intakeDate, 'day')} 天`}
-              </Descriptions.Item>
-              <Descriptions.Item label="分配技工">{order.assignedTechnicianName || <Tag color="default">未分配</Tag>}</Descriptions.Item>
-            </Descriptions>
-          </Card>
-
-          <Card title="费用明细" size="small" style={{ marginTop: 16 }}>
-            <Descriptions column={1} size="small" labelStyle={{ width: 100 }}>
-              <Descriptions.Item label="工时费">¥{order.laborPrice.toFixed(2)}</Descriptions.Item>
-              <Descriptions.Item label="配件费">¥{order.partsPrice.toFixed(2)}</Descriptions.Item>
-              <Descriptions.Item label="附加费">¥{calculateServiceTotal().toFixed(2)}</Descriptions.Item>
-              <Descriptions.Item label="预收押金"><span style={{ color: '#52c41a' }}>¥{order.deposit.toFixed(2)}</span></Descriptions.Item>
-            </Descriptions>
-            <Divider style={{ margin: '12px 0' }} />
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>应收总金额</span>
-              <span style={{ fontSize: 20, fontWeight: 700, color: '#fa8c16' }}>¥{order.totalPrice.toFixed(2)}</span>
-            </div>
-            {order.deposit < order.totalPrice && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 12 }}>
-                <span style={{ color: '#8c8c8c' }}>待收余款</span>
-                <span style={{ color: '#fa541c', fontWeight: 600 }}>¥{(order.totalPrice - order.deposit).toFixed(2)}</span>
-              </div>
-            )}
-          </Card>
-
           <Card title={<Space><SafetyCertificateOutlined /> 质保信息</Space>} size="small" style={{ marginTop: 16 }}>
             {order.warranty ? (
               <>
@@ -286,13 +327,12 @@ const WorkOrderPage: React.FC = () => {
           </Card>
         </Col>
 
-        <Col xs={24} lg={16}>
+        {/* 中栏：工单详情 (≥1600px: 50%, ≥1200px: 67%, <1200px: 100%) */}
+        <Col xs={24} xl={16} xxl={12}>
           <Card tabList={[
             { key: 'timeline', label: '维修时间轴' },
             { key: 'inspection', label: '检测数据' },
-            { key: 'parts', label: '配件清单' },
-            { key: 'images', label: '图片记录' },
-            { key: 'quote', label: '报价与收费' }
+            { key: 'images', label: '图片记录' }
           ]} activeTabKey={activeTab} onTabChange={setActiveTab} bodyStyle={{ paddingTop: 16 }}>
 
             {activeTab === 'timeline' && (
@@ -300,7 +340,7 @@ const WorkOrderPage: React.FC = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
                   <Text strong>关键事件记录</Text>
                   <Button type="primary" size="small"
-                    onClick={() => handleStatusChangeClick(STATUS_FLOW[currentStatusIndex + 1] || order.status)}
+                    onClick={() => handleStatusChangeClick(STATUS_FLOW[currentStatusIndex + 1] || order.status, 'next')}
                     disabled={currentStatusIndex >= STATUS_FLOW.length - 1}>
                     <PlusOutlined /> 更新状态
                   </Button>
@@ -378,24 +418,6 @@ const WorkOrderPage: React.FC = () => {
               </div>
             )}
 
-            {activeTab === 'parts' && (
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                  <Space><Text strong>使用配件清单</Text>{order.partUsages?.length && <Tag color="blue">{order.partUsages.length} 项</Tag>}</Space>
-                  <Button type="primary" icon={<PlusOutlined />} onClick={() => setPartModalOpen(true)}>扫码出库配件</Button>
-                </div>
-                <Table size="small" dataSource={order.partUsages || []} rowKey="id" pagination={false} columns={[
-                  { title: '配件', dataIndex: ['part', 'name'], render: (_, r: PartUsage) => <div><div style={{ fontWeight: 500 }}>{r.part?.name}</div><div style={{ fontSize: 12, color: '#8c8c8c' }}>SKU: {r.part?.sku}{r.batchNumber && ` | 批次: ${r.batchNumber}`}</div></div> },
-                  { title: '数量', dataIndex: 'quantity', width: 80, align: 'center' },
-                  { title: '单价', dataIndex: 'unitPrice', width: 100, render: (v: number) => `¥${v.toFixed(2)}` },
-                  { title: '小计', width: 100, render: (_, r: PartUsage) => <span style={{ fontWeight: 600 }}>¥{(r.unitPrice * r.quantity).toFixed(2)}</span> },
-                  { title: '出库时间', dataIndex: 'usedAt', width: 160, render: (v: string) => dayjs(v).format('YYYY-MM-DD HH:mm') },
-                  { title: '', width: 60, render: (_, r: PartUsage) => <Button type="text" danger size="small" icon={<MinusOutlined />} onClick={() => handleRemovePart(r.id)} /> }
-                ]} />
-                {(!order.partUsages || order.partUsages.length === 0) && <Empty description="暂无配件记录" style={{ padding: 24 }} />}
-              </div>
-            )}
-
             {activeTab === 'images' && (
               <Space direction="vertical" size="large" style={{ width: '100%' }}>
                 {(['intake', 'during', 'after'] as const).map(type => (
@@ -429,36 +451,98 @@ const WorkOrderPage: React.FC = () => {
                 ))}
               </Space>
             )}
+          </Card>
+        </Col>
 
-            {activeTab === 'quote' && (
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                  <Text strong>服务收费项目</Text>
-                  <Space><Button icon={<ReloadOutlined />}>重新计算报价</Button><Button type="primary" icon={<PlusOutlined />} onClick={addServiceItem}>添加项目</Button></Space>
-                </div>
-                <Table size="small" dataSource={serviceItems} pagination={false} rowKey={(r, i) => i as number} columns={[
-                  { title: '类型', dataIndex: 'type', width: 100, render: (v, _, i) => <Select size="small" value={v} onChange={val => updateServiceItem(i, 'type', val)} options={[{ label: '工时', value: 'labor' }, { label: '配件', value: 'part' }, { label: '其他', value: 'other' }]} /> },
-                  { title: '项目名称', dataIndex: 'name', render: (v, _, i) => <Input size="small" value={v} onChange={e => updateServiceItem(i, 'name', e.target.value)} placeholder="如：机芯保养" /> },
-                  { title: '数量', dataIndex: 'quantity', width: 100, render: (v, _, i) => <InputNumber size="small" min={1} value={v} onChange={val => updateServiceItem(i, 'quantity', val || 1)} style={{ width: '100%' }} /> },
-                  { title: '单价', dataIndex: 'unitPrice', width: 120, render: (v, _, i) => <InputNumber size="small" min={0} prefix="¥" value={v} onChange={val => updateServiceItem(i, 'unitPrice', val || 0)} style={{ width: '100%' }} /> },
-                  { title: '小计', width: 100, render: (_, r) => <Text strong>¥{(r.unitPrice * r.quantity).toFixed(2)}</Text> },
-                  { title: '', width: 40, render: (_, __, i) => <Button type="text" danger size="small" icon={<MinusOutlined />} onClick={() => removeServiceItem(i)} /> }
-                ]} />
-                <Divider />
-                <div style={{ display: 'flex', justifyContent: 'flex-end', padding: 16, background: '#fafafa', borderRadius: 6 }}>
-                  <Space direction="vertical" size="small" style={{ minWidth: 220 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><Text type="secondary">工时费</Text><Text>¥{order.laborPrice.toFixed(2)}</Text></div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><Text type="secondary">配件费</Text><Text>¥{order.partsPrice.toFixed(2)}</Text></div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><Text type="secondary">附加服务</Text><Text>¥{calculateServiceTotal().toFixed(2)}</Text></div>
-                    <Divider style={{ margin: '4px 0' }} />
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text strong style={{ fontSize: 15 }}>应收总额</Text>
-                      <Text strong style={{ fontSize: 18, color: '#fa8c16' }}>¥{(order.laborPrice + order.partsPrice + calculateServiceTotal()).toFixed(2)}</Text>
+        {/* 右栏：配件+费用 (≥1600px: 25%, <1600px: 100% 堆叠) */}
+        <Col xs={24} xxl={6}>
+          <Card title={<Space><ShoppingOutlined /> 配件清单</Space>} size="small" extra={<Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => setPartModalOpen(true)}>扫码出库</Button>}>
+            {order.partUsages && order.partUsages.length > 0 ? (
+              <List
+                size="small"
+                dataSource={order.partUsages}
+                rowKey="id"
+                renderItem={(item: PartUsage) => (
+                  <List.Item
+                    actions={[
+                      <Button type="text" danger size="small" icon={<MinusOutlined />} onClick={() => handleRemovePart(item.id)} />
+                    ]}
+                  >
+                    <List.Item.Meta
+                      title={<div style={{ fontWeight: 500 }}>{item.part?.name}</div>}
+                      description={<div style={{ fontSize: 12, color: '#8c8c8c' }}>SKU: {item.part?.sku}{item.batchNumber && ` | 批次: ${item.batchNumber}`} <br />{dayjs(item.usedAt).format('MM-DD HH:mm')}</div>}
+                    />
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontWeight: 600 }}>¥{(item.unitPrice * item.quantity).toFixed(2)}</div>
+                      <div style={{ fontSize: 12, color: '#8c8c8c' }}>x{item.quantity}</div>
                     </div>
-                  </Space>
-                </div>
+                  </List.Item>
+                )}
+              />
+            ) : <Empty description="暂无配件" style={{ padding: '20px 0' }} />}
+          </Card>
+
+          <Card title={<Space><CalculatorOutlined /> 费用明细</Space>} size="small" style={{ marginTop: 16 }}>
+            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                <Text type="secondary">工时服务费</Text>
+                <Text>¥{order.laborPrice.toFixed(2)}</Text>
               </div>
-            )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                <Text type="secondary">配件费</Text>
+                <Text>¥{order.partsPrice.toFixed(2)}</Text>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                <Text type="secondary">附加服务</Text>
+                <Text>¥{calculateServiceTotal().toFixed(2)}</Text>
+              </div>
+              {order.deposit > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#389e0d' }}>
+                  <Text type="secondary">已收押金</Text>
+                  <Text>-¥{order.deposit.toFixed(2)}</Text>
+                </div>
+              )}
+              <Divider style={{ margin: '8px 0' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Text strong style={{ fontSize: 15 }}>应收总额</Text>
+                <Text strong style={{ fontSize: 18, color: '#fa8c16' }}>¥{(order.laborPrice + order.partsPrice + calculateServiceTotal() - order.deposit).toFixed(2)}</Text>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#8c8c8c', marginTop: 4 }}>
+                <span>原始总价</span>
+                <span>¥{(order.laborPrice + order.partsPrice + calculateServiceTotal()).toFixed(2)}</span>
+              </div>
+            </Space>
+          </Card>
+
+          <Card title="服务收费项目" size="small" style={{ marginTop: 16 }} extra={<Button size="small" type="primary" icon={<PlusOutlined />} onClick={addServiceItem}>添加</Button>}>
+            {serviceItems.length > 0 ? (
+              <List
+                size="small"
+                dataSource={serviceItems}
+                renderItem={(item: ServiceItem, idx: number) => (
+                  <List.Item
+                    actions={[
+                      <Button type="text" danger size="small" icon={<MinusOutlined />} onClick={() => removeServiceItem(idx)} />
+                    ]}
+                  >
+                    <List.Item.Meta
+                      title={<Input size="small" value={item.name} onChange={e => updateServiceItem(idx, 'name', e.target.value)} placeholder="项目名称" />}
+                      description={
+                        <Select size="small" value={item.type} onChange={val => updateServiceItem(idx, 'type', val)} style={{ width: 100, marginTop: 4 }}>
+                          <Select.Option value="labor">工时</Select.Option>
+                          <Select.Option value="part">配件</Select.Option>
+                          <Select.Option value="other">其他</Select.Option>
+                        </Select>
+                      }
+                    />
+                    <Space size="small">
+                      <InputNumber size="small" min={1} value={item.quantity} onChange={val => updateServiceItem(idx, 'quantity', val || 1)} style={{ width: 60 }} />
+                      <InputNumber size="small" min={0} prefix="¥" value={item.unitPrice} onChange={val => updateServiceItem(idx, 'unitPrice', val || 0)} style={{ width: 100 }} />
+                    </Space>
+                  </List.Item>
+                )}
+              />
+            ) : <Empty description="暂无附加项目" style={{ padding: '16px 0' }} />}
           </Card>
         </Col>
       </Row>

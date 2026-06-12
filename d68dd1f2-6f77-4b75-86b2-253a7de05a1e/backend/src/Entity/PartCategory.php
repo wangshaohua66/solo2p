@@ -14,15 +14,15 @@ class PartCategory
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['part:read', 'part:list'])]
+    #[Groups(['parts:read', 'parts:list', 'public:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 100)]
-    #[Groups(['part:read', 'part:list'])]
+    #[Groups(['parts:read', 'parts:list', 'public:read'])]
     private ?string $name = null;
 
     #[ORM\Column(length: 50, unique: true)]
-    #[Groups(['part:read', 'part:list'])]
+    #[Groups(['parts:read', 'parts:list', 'public:read'])]
     private ?string $code = null;
 
     #[ORM\ManyToOne(targetEntity: PartCategory::class)]
