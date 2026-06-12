@@ -1,0 +1,123 @@
+global:
+  max_parallel: 8
+  page_timeout: 10s
+  db_path: data/courttrack.db
+  log_path: logs/
+  working_hours:
+    start: 9
+    end: 18
+  night_interval: 30m
+  day_interval: 10m
+  max_failures: 3
+  zstd_level: 3
+
+feishu:
+  webhook_url: ""
+  secret: ""
+  daily_summary_hour: 8
+
+courts:
+  - id: "court.gov.cn"
+    name: "全国法院公告网"
+    urls:
+      primary: "https://rmfygg.court.gov.cn/web/rmfyportal/notice"
+      backup: "https://rmfygg.court.gov.cn/web/rmfyportal/notice"
+    requires_login: false
+    anti_crawl_level: 2
+    parser:
+      list_selector: ".notice-list li"
+      title_selector: "a"
+      date_selector: ".date"
+      content_selector: ".notice-content"
+      link_attr: "href"
+    schedule:
+      priority: 1
+      interval: 15m
+
+  - id: "wenshu.court.gov.cn"
+    name: "最高院裁判文书网"
+    urls:
+      primary: "https://wenshu.court.gov.cn/website/wenshu/181217BMTKHNT2W0-0/index.html"
+      backup: "https://wenshu.court.gov.cn/website/wenshu/181217BMTKHNT2W0-0/index.html"
+    requires_login: true
+    anti_crawl_level: 3
+    captcha:
+      type: "slider"
+      fallback: "manual"
+    parser:
+      list_selector: ".LM_list li"
+      title_selector: ".LM_title"
+      case_no_selector: ".ahref"
+      date_selector: ".cprq"
+      content_selector: ".LM_content"
+      link_attr: "href"
+    schedule:
+      priority: 1
+      interval: 20m
+
+  - id: "zjcourt.gov.cn"
+    name: "浙江高院"
+    urls:
+      primary: "http://www.zjcourt.cn/art/col/col107/index.html"
+      backup: "http://www.zjcourt.cn/art/col/col107/index.html"
+    requires_login: true
+    anti_crawl_level: 2
+    login:
+      url: "http://www.zjcourt.cn/col/col107/index.html"
+      username_selector: "#username"
+      password_selector: "#password"
+      submit_selector: "#loginBtn"
+    parser:
+      list_selector: ".news_list li"
+      title_selector: "a"
+      date_selector: ".date"
+      content_selector: ".content"
+      link_attr: "href"
+    schedule:
+      priority: 2
+      interval: 12m
+
+  - id: "sh-a-1court.gov.cn"
+    name: "上海一中院"
+    urls:
+      primary: "https://www.a-1court.gov.cn/ggxx/ktgg"
+      backup: "https://www.a-1court.gov.cn/ggxx/ktgg"
+    requires_login: false
+    anti_crawl_level: 3
+    captcha:
+      type: "slider"
+      selector: "#captcha-slider"
+      fallback: "manual"
+    parser:
+      list_selector: ".table tbody tr"
+      title_selector: "td:nth-child(2) a"
+      case_no_selector: "td:nth-child(1)"
+      date_selector: "td:nth-child(3)"
+      court_room_selector: "td:nth-child(4)"
+      judge_selector: "td:nth-child(5)"
+      content_selector: ".detail-content"
+      link_attr: "href"
+    schedule:
+      priority: 2
+      interval: 15m
+
+  - id: "gdcourt.gov.cn"
+    name: "广东高院"
+    urls:
+      primary: "http://www.gdcourts.gov.cn/index.php?v=show&cid=244"
+      backup: "http://www.gdcourts.gov.cn/index.php?v=show&cid=244&page=2"
+    requires_login: false
+    anti_crawl_level: 2
+    pagination:
+      type: "query"
+      param: "page"
+      max_pages: 20
+    parser:
+      list_selector: ".list li"
+      title_selector: "a"
+      date_selector: ".time"
+      content_selector: ".content"
+      link_attr: "href"
+    schedule:
+      priority: 3
+      interval: 20m
