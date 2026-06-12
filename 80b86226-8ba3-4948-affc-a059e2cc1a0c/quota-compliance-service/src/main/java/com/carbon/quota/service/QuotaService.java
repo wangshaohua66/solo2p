@@ -104,6 +104,24 @@ public class QuotaService {
     public QuotaLedger reconcileMonth(Integer year, Integer month, String orgId,
                                       BigDecimal actualEmission, String taskId,
                                       List<String> evidenceIds) {
+        if (year == null) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "年度不能为空");
+        }
+        if (month == null || month < 1 || month > 12) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "月份必须在1-12");
+        }
+        if (orgId == null || orgId.isBlank()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "机构ID不能为空");
+        }
+        if (actualEmission == null) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "实际排放量不能为空");
+        }
+        if (actualEmission.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "实际排放量不能为负数");
+        }
+        if (UserContextHolder.getNullable() == null || UserContextHolder.getTenantId() == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "租户上下文为空");
+        }
         com.carbon.common.verification.EvidenceChainValidator.requireEvidence(
                 evidenceIds, "配额台账");
         String tenantId = UserContextHolder.getTenantId();

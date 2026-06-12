@@ -71,24 +71,25 @@ public class ActivityDataService {
     @CacheEvict(value = "activityData", allEntries = true)
     public ActivityData update(String id, ActivityData data) {
         ActivityData existing = mustGet(id);
-        java.util.List<String> mergedEvidenceIds = new java.util.ArrayList<>();
-        if (existing.getEvidenceIds() != null) {
-            mergedEvidenceIds.addAll(existing.getEvidenceIds());
-        }
-        if (data.getEvidenceIds() != null) {
-            mergedEvidenceIds.addAll(data.getEvidenceIds());
+        if (data.getEvidenceIds() == null || data.getEvidenceIds().isEmpty()) {
+            throw new com.carbon.common.exception.BusinessException(
+                    com.carbon.common.api.ErrorCode.EVIDENCE_CHAIN_BROKEN,
+                    "更新活动数据必须挂载至少1个新证据，禁止使用历史证据覆盖");
         }
         com.carbon.common.verification.EvidenceChainValidator.requireEvidence(
-                mergedEvidenceIds, "活动数据");
+                data.getEvidenceIds(), "活动数据");
         validateSourceAndFill(data);
         convertUnitsAndValidate(data);
         data.setPeriod(buildPeriod(data));
         org.springframework.beans.BeanUtils.copyProperties(data, existing,
                 "id", "tenantId", "createdAt", "createdBy", "importedAt", "importBatchId",
                 "interpolated", "interpolationTrace", "evidenceIds");
-        if (data.getEvidenceIds() != null && !data.getEvidenceIds().isEmpty()) {
-            existing.setEvidenceIds(mergedEvidenceIds);
+        java.util.List<String> merged = new java.util.ArrayList<>();
+        if (existing.getEvidenceIds() != null) merged.addAll(existing.getEvidenceIds());
+        for (String eid : data.getEvidenceIds()) {
+            if (!merged.contains(eid)) merged.add(eid);
         }
+        existing.setEvidenceIds(merged);
         return repository.save(existing);
     }
 

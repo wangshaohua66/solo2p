@@ -23,6 +23,7 @@ public class JwtReactiveAuthenticationFilter implements WebFilter {
 
     public static final String HEADER_TENANT_ID = "X-Tenant-Id";
     public static final String HEADER_USER_ID = "X-User-Id";
+    public static final String HEADER_AUTHORITIES = "X-JWT-Authorities";
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
@@ -38,20 +39,26 @@ public class JwtReactiveAuthenticationFilter implements WebFilter {
                 return chain.filter(exchange);
             }
 
+            java.util.List<String> authorityList = user.getRoles() != null ? user.getRoles() : java.util.Collections.emptyList();
+            String authoritiesStr = String.join(",", authorityList);
+
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(
                             user,
                             token,
-                            user.getRoles().stream()
+                            authorityList.stream()
                                     .map(SimpleGrantedAuthority::new)
                                     .collect(Collectors.toList())
                     );
 
             ServerWebExchange mutated = exchange.mutate()
-                    .request(b -> b
-                            .header(HEADER_TENANT_ID, user.getTenantId())
-                            .header(HEADER_USER_ID, user.getUserId())
-                    )
+                    .request(b -> {
+                        b.header(HEADER_TENANT_ID, user.getTenantId());
+                        b.header(HEADER_USER_ID, user.getUserId());
+                        if (!authorityList.isEmpty()) {
+                            b.header(HEADER_AUTHORITIES, authoritiesStr);
+                        }
+                    })
                     .build();
 
             return chain.filter(mutated)

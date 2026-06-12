@@ -23,6 +23,7 @@ import java.util.Map;
 @AllArgsConstructor
 @Document(collection = "ccer_transfers")
 @CompoundIndex(name = "tenant_year_ledger_idx", def = "{'tenantId':1, 'complianceYear':1, 'ledgerId':1}")
+@CompoundIndex(name = "tenant_project_idx", def = "{'tenantId':1, 'projectId':1, 'projectCode':1}")
 public class CcerTransfer extends BaseEntity {
 
     private Integer complianceYear;
