@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>ColdChainMonitor.Api</RootNamespace>
+    <AssemblyName>ColdChainMonitor.Api</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="5.0.0" />
+    <PackageReference Include="MongoDB.Driver" Version="2.23.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ColdChainMonitor.Domain\ColdChainMonitor.Domain.csproj" />
+    <ProjectReference Include="..\ColdChainMonitor.Application\ColdChainMonitor.Application.csproj" />
+    <ProjectReference Include="..\ColdChainMonitor.Infrastructure\ColdChainMonitor.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
