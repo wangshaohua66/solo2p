@@ -516,67 +516,143 @@ body {
 }
 
 /* ========== 时间轴 ========== */
-.fault-timeline {
+.fault-timeline, .timeline-list {
     position: relative;
-    padding-left: 24px;
-    margin-top: 12px;
+    padding-left: 28px;
+    margin-top: 8px;
+    list-style: none;
 }
 
-.fault-timeline::before {
+.fault-timeline::before, .timeline-list::before {
     content: '';
     position: absolute;
-    left: 7px;
+    left: 8px;
     top: 6px;
     bottom: 6px;
     width: 2px;
-    background: var(--border-color);
+    background: linear-gradient(180deg, var(--border-color), #e5e7eb, var(--border-color));
 }
 
 .timeline-item {
     position: relative;
-    padding-bottom: 18px;
+    padding-bottom: 20px;
+    transition: all 0.25s ease;
 }
 
 .timeline-item:last-child {
     padding-bottom: 0;
 }
 
-.timeline-dot {
+.timeline-dot, .timeline-marker {
     position: absolute;
-    left: -24px;
-    top: 2px;
-    width: 16px;
-    height: 16px;
+    left: -28px;
+    top: 4px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
     background: white;
     border: 3px solid var(--border-color);
-    z-index: 1;
+    z-index: 2;
+    transition: all 0.25s ease;
+    cursor: pointer;
 }
 
-.timeline-item.active .timeline-dot {
-    border-color: var(--primary-color);
-    background: var(--primary-color);
-    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.15);
-}
-
-.timeline-item.done .timeline-dot {
+.timeline-item.done .timeline-dot,
+.timeline-item.done .timeline-marker {
     border-color: var(--success-color);
     background: var(--success-color);
 }
 
+.timeline-item.active .timeline-dot,
+.timeline-item.active .timeline-marker {
+    border-color: var(--primary-color);
+    background: var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.18);
+    transform: scale(1.15);
+}
+
+.timeline-item.current-step .timeline-dot,
+.timeline-item.current-step .timeline-marker {
+    border-color: var(--warning-color);
+    background: var(--warning-color);
+    animation: timelinePulse 1.6s ease-in-out infinite;
+}
+
+@keyframes timelinePulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.5); }
+    50% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); }
+}
+
+.timeline-item:hover .timeline-marker,
+.timeline-item:hover .timeline-dot {
+    transform: scale(1.15);
+    border-color: var(--primary-color);
+}
+
+.timeline-item.clickable {
+    cursor: pointer;
+}
+
+.timeline-item.clickable:hover .timeline-content {
+    background: rgba(13, 110, 253, 0.04);
+    border-radius: 6px;
+}
+
+.timeline-item.selected {
+    background: rgba(13, 110, 253, 0.06);
+    border-radius: 6px;
+    margin: 0 -8px;
+    padding: 0 8px 20px;
+}
+
+.timeline-item.selected:last-child {
+    padding-bottom: 0;
+}
+
 .timeline-content {
-    padding-left: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    transition: background 0.2s ease;
 }
 
 .timeline-title {
     font-size: 14px;
     font-weight: 600;
-    margin-bottom: 2px;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
+
+.timeline-title .step-index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--bg-light);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.timeline-item.done .step-index { background: rgba(16, 185, 129, 0.12); color: #059669; }
+.timeline-item.active .step-index { background: rgba(13, 110, 253, 0.12); color: #2563eb; }
+.timeline-item.current-step .step-index { background: rgba(245, 158, 11, 0.12); color: #d97706; }
 
 .timeline-time {
     font-size: 12px;
     color: var(--text-muted);
+    margin-bottom: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.timeline-operator {
+    font-size: 13px;
     margin-bottom: 4px;
 }
 
@@ -584,9 +660,107 @@ body {
     font-size: 13px;
     color: var(--text-dark);
     background: var(--bg-light);
-    padding: 6px 10px;
-    border-radius: 4px;
-    margin-top: 4px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-top: 6px;
+    border-left: 3px solid var(--border-color);
+}
+
+.timeline-item.active .timeline-note {
+    border-left-color: var(--primary-color);
+    background: rgba(13, 110, 253, 0.05);
+}
+
+/* 时间轴导航控制 */
+.timeline-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    background: linear-gradient(135deg, var(--bg-light), #f8fafc);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.timeline-nav-info {
+    font-size: 13px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.timeline-nav-info strong {
+    color: var(--text-dark);
+}
+
+.timeline-nav-btns {
+    display: flex;
+    gap: 6px;
+}
+
+.timeline-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: white;
+    color: var(--text-dark);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.timeline-nav-btn:hover:not(:disabled) {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.timeline-nav-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* 详情面板区域锚点 */
+.detail-section {
+    padding: 14px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    border: 1px solid transparent;
+    scroll-margin-top: 20px;
+    transition: all 0.3s ease;
+}
+
+.detail-section.highlighted {
+    border-color: rgba(13, 110, 253, 0.35);
+    background: rgba(13, 110, 253, 0.05);
+    box-shadow: 0 4px 14px rgba(13, 110, 253, 0.1);
+}
+
+.detail-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed var(--border-color);
+}
+
+.detail-section-title i {
+    color: var(--primary-color);
+}
+
+.modal-body-scrollable {
+    max-height: 65vh;
+    overflow-y: auto;
+    padding-right: 6px;
+    scroll-behavior: smooth;
 }
 
 /* ========== 故障详情抽屉 ========== */

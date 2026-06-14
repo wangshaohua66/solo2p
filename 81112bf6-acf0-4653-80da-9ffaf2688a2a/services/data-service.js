@@ -513,19 +513,110 @@ var DataService = (function() {
         var levelText = { urgent: '紧急', major: '重大', normal: '一般' };
         var statusText = { reported: '待派工', dispatched: '进行中', checking: '待验收', resolved: '已复电' };
         var statusBadge = { reported: 'secondary', dispatched: 'info', checking: 'warning', resolved: 'success' };
+        var eventStatusMap = { reported: 'reported', dispatched: 'dispatched', arrived: 'dispatched', working: 'dispatched', checked: 'checking', resolved: 'resolved' };
+        var currentStatusIdx = Math.max(0, (fault.timeline || []).length - 1);
+        var faultId = fault.id;
+
+        var sectionConfigs = [
+            { key: 'reported', icon: 'bi-exclamation-octagon', title: '故障接报信息', desc: '故障基本信息与接报记录' },
+            { key: 'dispatched', icon: 'bi-truck', title: '派工与班组信息', desc: '派工记录与负责班组详情' },
+            { key: 'arrived', icon: 'bi-geo-alt-fill', title: '到达现场', desc: '班组到达时间与现场情况' },
+            { key: 'working', icon: 'bi-tools', title: '抢修作业', desc: '抢修过程与处置记录' },
+            { key: 'checked', icon: 'bi-clipboard-check', title: '验收阶段', desc: '复电验收与质量检查' },
+            { key: 'resolved', icon: 'bi-check-circle-fill', title: '复电完成', desc: '故障处理完成归档' }
+        ];
+
+        function getSectionKey(event) {
+            event = event || {};
+            var rawType = event.type || event.node || event.title || '';
+            var titleMap = { '故障接报': 'reported', '派工完成': 'dispatched', '到达现场': 'arrived', '抢修作业中': 'working', '待验收': 'checked', '恢复供电': 'resolved' };
+            if (titleMap[rawType]) return titleMap[rawType];
+            var m = {
+                report: 'reported', reported: 'reported',
+                dispatch: 'dispatched', crew_dispatched: 'dispatched',
+                arrive: 'arrived', crew_arrived: 'arrived',
+                repair: 'working', repair_started: 'working', repair_completed: 'working',
+                check: 'checked', quality_checked: 'checked',
+                resolve: 'resolved', power_restored: 'resolved', fault_closed: 'resolved'
+            };
+            if (m[rawType]) return m[rawType];
+            if (typeof rawType === 'string') {
+                if (rawType.indexOf('接报') >= 0) return 'reported';
+                if (rawType.indexOf('派工') >= 0) return 'dispatched';
+                if (rawType.indexOf('到达') >= 0) return 'arrived';
+                if (rawType.indexOf('抢修') >= 0 || rawType.indexOf('作业') >= 0) return 'working';
+                if (rawType.indexOf('验收') >= 0) return 'checked';
+                if (rawType.indexOf('复电') >= 0 || rawType.indexOf('供电') >= 0) return 'resolved';
+            }
+            return 'reported';
+        }
+
+        function getTimelineClass(event, idx) {
+            var cls = 'timeline-item clickable';
+            if (idx === currentStatusIdx) cls += ' current-step';
+            else if (idx < currentStatusIdx) cls += ' done';
+            else cls += ' pending';
+            return cls;
+        }
+
+        function buildSectionsHtml() {
+            var sectionsHtml = '';
+            var eventsBySection = {};
+            (fault.timeline || []).forEach(function(ev, i) {
+                var k = getSectionKey(ev);
+                if (!eventsBySection[k]) eventsBySection[k] = [];
+                eventsBySection[k].push({ idx: i, event: ev });
+            });
+
+            sectionConfigs.forEach(function(sec) {
+                var events = eventsBySection[sec.key] || [];
+                if (events.length === 0 && sec.key !== 'reported' && sec.key !== getSectionKey((fault.timeline || [])[0])) return;
+                if (events.length === 0) return;
+
+                var eventsHtml = events.map(function(item) {
+                    var ev = item.event;
+                    return `
+                        <div class="mb-2 pb-2 border-bottom border-dashed" style="border-style: dashed;">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <strong class="text-sm">${ev.title}</strong>
+                                <small class="text-muted"><i class="bi bi-clock me-1"></i>${ev.time}</small>
+                            </div>
+                            <p class="mb-1 small"><i class="bi bi-person me-1"></i><strong>操作人：</strong>${ev.operator}</p>
+                            ${ev.remark ? `<div class="timeline-note mb-0"><i class="bi bi-chat-left-text me-1"></i>${ev.remark}</div>` : ''}
+                        </div>
+                    `;
+                }).join('');
+
+                sectionsHtml += `
+                    <div id="sec-${faultId}-${sec.key}" class="detail-section" data-section="${sec.key}">
+                        <div class="detail-section-title">
+                            <i class="bi ${sec.icon}"></i>
+                            <span>${sec.title}</span>
+                            <small class="text-muted fw-normal ms-auto">${sec.desc}</small>
+                        </div>
+                        ${eventsHtml}
+                    </div>
+                `;
+            });
+
+            return sectionsHtml;
+        }
 
         var timelineHtml = '';
         (fault.timeline || []).forEach(function(event, idx) {
+            var cls = getTimelineClass(event, idx);
+            var secKey = getSectionKey(event);
             timelineHtml += `
-                <li class="timeline-item">
+                <li class="${cls}" data-timeline-idx="${idx}" data-event-type="${(event.type || event.node || '')}" data-section="${secKey}" onclick="TimelineNav.jumpTo(${idx}, '${faultId}')">
                     <div class="timeline-marker"></div>
                     <div class="timeline-content">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <h6 class="mb-1">${event.title}</h6>
-                            <small class="text-muted">${event.time}</small>
+                        <div class="timeline-title">
+                            <span class="step-index">${idx + 1}</span>
+                            <span>${event.title}</span>
                         </div>
-                        <p class="mb-1 small"><strong>操作人：</strong>${event.operator}</p>
-                        ${event.remark ? '<p class="mb-0 small text-muted">' + event.remark + '</p>' : ''}
+                        <div class="timeline-time"><i class="bi bi-clock"></i>${event.time}</div>
+                        <div class="timeline-operator"><strong>操作人：</strong>${event.operator}</div>
+                        ${event.remark ? '<div class="timeline-note"><i class="bi bi-chat-left-text me-1"></i>' + event.remark + '</div>' : ''}
                     </div>
                 </li>
             `;
@@ -538,41 +629,166 @@ var DataService = (function() {
             duration = Math.round((Date.now() - moment(fault.reportTime)) / 60000) + ' 分钟(进行中)';
         }
 
+        var totalSteps = (fault.timeline || []).length;
+        var timelineNavHtml = totalSteps > 0 ? `
+            <div class="timeline-nav">
+                <div class="timeline-nav-info">
+                    <i class="bi bi-signpost-split text-primary"></i>
+                    <span>处置进度：<strong id="nav-cur-${faultId}">${currentStatusIdx + 1}</strong> / ${totalSteps} 步</span>
+                </div>
+                <div class="timeline-nav-btns">
+                    <button class="timeline-nav-btn" onclick="TimelineNav.prev('${faultId}')" title="上一步" id="btn-prev-${faultId}">
+                        <i class="bi bi-chevron-up"></i>
+                    </button>
+                    <button class="timeline-nav-btn" onclick="TimelineNav.next('${faultId}')" title="下一步" id="btn-next-${faultId}">
+                        <i class="bi bi-chevron-down"></i>
+                    </button>
+                    <button class="timeline-nav-btn" onclick="TimelineNav.current('${faultId}')" title="当前步骤" id="btn-cur-${faultId}">
+                        <i class="bi bi-record-circle"></i>
+                    </button>
+                    <button class="timeline-nav-btn" onclick="TimelineNav.first('${faultId}')" title="第一步" id="btn-first-${faultId}">
+                        <i class="bi bi-chevron-double-up"></i>
+                    </button>
+                    <button class="timeline-nav-btn" onclick="TimelineNav.last('${faultId}')" title="最后一步" id="btn-last-${faultId}">
+                        <i class="bi bi-chevron-double-down"></i>
+                    </button>
+                </div>
+            </div>
+        ` : '';
+
         var html = `
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <span class="badge bg-${levelBadge[fault.level]} fs-6 me-2">${levelText[fault.level]}</span>
-                        <span class="badge bg-${statusBadge[fault.status]} fs-6">${statusText[fault.status]}</span>
+            <div class="row g-3">
+                <div class="col-lg-6">
+                    <div class="detail-section" style="background: linear-gradient(135deg, rgba(13,110,253,0.04), transparent); border-color: rgba(13,110,253,0.12);">
+                        <div class="mb-3">
+                            <span class="badge bg-${levelBadge[fault.level]} fs-6 me-2">${levelText[fault.level]}</span>
+                            <span class="badge bg-${statusBadge[fault.status]} fs-6">${statusText[fault.status]}</span>
+                        </div>
+                        <table class="table table-sm table-borderless mb-2">
+                            <tr><td class="text-muted" style="width:100px">故障编号</td><td><strong>${fault.id}</strong></td></tr>
+                            <tr><td class="text-muted">故障类型</td><td>${fault.typeText}</td></tr>
+                            <tr><td class="text-muted">所属线路</td><td>${fault.lineName} (${fault.voltage})</td></tr>
+                            <tr><td class="text-muted">故障位置</td><td>${fault.location}</td></tr>
+                            <tr><td class="text-muted">影响用户</td><td>${fault.affectedUsers} 户</td></tr>
+                            <tr><td class="text-muted">天气条件</td><td>${fault.weather}</td></tr>
+                            <tr><td class="text-muted">信息来源</td><td>${fault.reporter}</td></tr>
+                            <tr><td class="text-muted">负责班组</td><td>${fault.crewName || '<span class="text-muted">未指派</span>'}</td></tr>
+                            <tr><td class="text-muted">接报时间</td><td>${moment(fault.reportTime).format('YYYY-MM-DD HH:mm:ss')}</td></tr>
+                            <tr><td class="text-muted">处理时长</td><td>${duration}</td></tr>
+                        </table>
                     </div>
-                    <table class="table table-sm table-borderless">
-                        <tr><td class="text-muted" style="width:100px">故障编号</td><td><strong>${fault.id}</strong></td></tr>
-                        <tr><td class="text-muted">故障类型</td><td>${fault.typeText}</td></tr>
-                        <tr><td class="text-muted">所属线路</td><td>${fault.lineName} (${fault.voltage})</td></tr>
-                        <tr><td class="text-muted">故障位置</td><td>${fault.location}</td></tr>
-                        <tr><td class="text-muted">影响用户</td><td>${fault.affectedUsers} 户</td></tr>
-                        <tr><td class="text-muted">天气条件</td><td>${fault.weather}</td></tr>
-                        <tr><td class="text-muted">信息来源</td><td>${fault.reporter}</td></tr>
-                        <tr><td class="text-muted">负责班组</td><td>${fault.crewName || '<span class="text-muted">未指派</span>'}</td></tr>
-                        <tr><td class="text-muted">接报时间</td><td>${moment(fault.reportTime).format('YYYY-MM-DD HH:mm:ss')}</td></tr>
-                        <tr><td class="text-muted">处理时长</td><td>${duration}</td></tr>
-                    </table>
-                    <div class="p-3 bg-light rounded">
-                        <strong>故障描述：</strong>
-                        <p class="mb-0 mt-1">${fault.description}</p>
+                    <div class="detail-section">
+                        <div class="detail-section-title">
+                            <i class="bi bi-file-text text-warning"></i>
+                            <span>故障描述</span>
+                        </div>
+                        <p class="mb-0" style="line-height:1.7;">${fault.description}</p>
+                    </div>
+                    <div id="detail-sections-${faultId}" class="modal-body-scrollable" style="max-height:40vh;">
+                        ${buildSectionsHtml()}
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-clock-history me-2"></i>处置时间轴</h6>
-                    <ul class="timeline-list">
-                        ${timelineHtml}
-                    </ul>
+                <div class="col-lg-6">
+                    <h6 class="border-bottom pb-2 mb-3 d-flex align-items-center gap-2">
+                        <i class="bi bi-clock-history text-primary"></i>处置流程时间轴
+                        <small class="text-muted ms-auto fw-normal">点击节点可跳转查看对应详情</small>
+                    </h6>
+                    ${timelineNavHtml}
+                    <div id="timeline-scroll-${faultId}" class="modal-body-scrollable" style="max-height:55vh;">
+                        <ul class="timeline-list" id="timeline-list-${faultId}">
+                            ${timelineHtml}
+                        </ul>
+                    </div>
                 </div>
             </div>
         `;
 
         $('#faultDetailTitle').text('故障详情 - ' + fault.id);
         $('#faultDetailBody').html(html);
+
+        window.TimelineNav = window.TimelineNav || {
+            _current: {},
+            _faults: {},
+            jumpTo: function(idx, fid) {
+                fid = fid || faultId;
+                var faults = Store.get('faults') || [];
+                var f = faults.find(function(x) { return x.id === fid; }) || fault;
+                var timeline = f.timeline || [];
+                if (idx < 0 || idx >= timeline.length) return;
+                this._current[fid] = idx;
+
+                var list = $('#timeline-list-' + fid);
+                list.find('.timeline-item').removeClass('selected active');
+                var item = list.find('.timeline-item[data-timeline-idx="' + idx + '"]');
+                item.addClass('selected active');
+
+                var section = item.data('section');
+                var secEl = $('#sec-' + fid + '-' + section);
+                if (secEl.length) {
+                    var container = $('#detail-sections-' + fid);
+                    var targetTop = secEl[0].offsetTop - 16;
+                    container.animate({ scrollTop: targetTop }, 350, 'swing');
+                    $('.detail-section').removeClass('highlighted');
+                    secEl.addClass('highlighted');
+                    setTimeout(function() { secEl.removeClass('highlighted'); }, 2200);
+                }
+
+                var itemOffset = item[0].offsetTop;
+                var scrollContainer = $('#timeline-scroll-' + fid);
+                if (scrollContainer.length) {
+                    scrollContainer.animate({ scrollTop: itemOffset - 40 }, 250, 'swing');
+                }
+
+                if ($('#nav-cur-' + fid).length) {
+                    $('#nav-cur-' + fid).text(idx + 1);
+                }
+                this.updateNavBtns(fid);
+            },
+            updateNavBtns: function(fid) {
+                fid = fid || faultId;
+                var faults = Store.get('faults') || [];
+                var f = faults.find(function(x) { return x.id === fid; }) || fault;
+                var total = (f.timeline || []).length;
+                var cur = this._current[fid] != null ? this._current[fid] : currentStatusIdx;
+                if (total === 0) return;
+                $('#btn-prev-' + fid).prop('disabled', cur <= 0);
+                $('#btn-next-' + fid).prop('disabled', cur >= total - 1);
+                $('#btn-first-' + fid).prop('disabled', cur <= 0);
+                $('#btn-last-' + fid).prop('disabled', cur >= total - 1);
+            },
+            prev: function(fid) {
+                fid = fid || faultId;
+                var cur = this._current[fid] != null ? this._current[fid] : currentStatusIdx;
+                if (cur > 0) this.jumpTo(cur - 1, fid);
+            },
+            next: function(fid) {
+                fid = fid || faultId;
+                var faults = Store.get('faults') || [];
+                var f = faults.find(function(x) { return x.id === fid; }) || fault;
+                var total = (f.timeline || []).length;
+                var cur = this._current[fid] != null ? this._current[fid] : currentStatusIdx;
+                if (cur < total - 1) this.jumpTo(cur + 1, fid);
+            },
+            current: function(fid) {
+                fid = fid || faultId;
+                var faults = Store.get('faults') || [];
+                var f = faults.find(function(x) { return x.id === fid; }) || fault;
+                var cur = Math.max(0, (f.timeline || []).length - 1);
+                this.jumpTo(cur, fid);
+            },
+            first: function(fid) { this.jumpTo(0, fid || faultId); },
+            last: function(fid) {
+                fid = fid || faultId;
+                var faults = Store.get('faults') || [];
+                var f = faults.find(function(x) { return x.id === fid; }) || fault;
+                var total = (f.timeline || []).length;
+                this.jumpTo(total - 1, fid);
+            }
+        };
+
+        TimelineNav._current[faultId] = currentStatusIdx;
+        setTimeout(function() { TimelineNav.updateNavBtns(faultId); }, 50);
+
         var modal = new bootstrap.Modal(document.getElementById('faultDetailModal'));
         modal.show();
     }
