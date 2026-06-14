@@ -5,7 +5,9 @@ using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 using MongoDB.Driver.GridFS;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Drawing.Processing;
 using SixLabors.ImageSharp.Formats.Png;
+using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 
 namespace BlueprintReview.Services;
@@ -339,31 +341,70 @@ public class DocumentService : IDocumentService
 
     private Task<VersionDiffSummary> GenerateDiffSummaryAsync(DocumentVersion oldVersion, DocumentVersion newVersion)
     {
-        var summary = new VersionDiffSummary
-        {
-            TotalChanges = 3,
-            AddedRegions = 1,
-            RemovedRegions = 1,
-            ModifiedRegions = 1
-        };
+        var summary = new VersionDiffSummary();
+        var maxPages = Math.Max(oldVersion.Pages.Count, newVersion.Pages.Count);
+        var rand = new Random(oldVersion.Id.GetHashCode() ^ newVersion.Id.GetHashCode());
 
-        var rand = new Random();
-        for (var i = 0; i < summary.TotalChanges; i++)
+        for (var page = 1; page <= maxPages; page++)
         {
-            var types = new[] { "added", "removed", "modified" };
-            summary.Regions.Add(new VersionDiffRegion
+            var oldPage = oldVersion.Pages.FirstOrDefault(p => p.PageNumber == page);
+            var newPage = newVersion.Pages.FirstOrDefault(p => p.PageNumber == page);
+
+            if (oldPage == null && newPage != null)
             {
-                PageNumber = 1,
-                Type = types[i % 3],
-                Bounds = new Bounds
+                summary.AddedRegions++;
+                summary.TotalChanges++;
+                summary.Regions.Add(new VersionDiffRegion
                 {
-                    X = rand.Next(100, 800),
-                    Y = rand.Next(100, 600),
-                    Width = rand.Next(100, 300),
-                    Height = rand.Next(50, 150)
-                },
-                Confidence = rand.NextDouble() * 0.3 + 0.7
-            });
+                    PageNumber = page,
+                    Type = "added",
+                    Bounds = new Bounds { X = 0, Y = 0, Width = newPage.Width, Height = newPage.Height },
+                    Confidence = 1.0
+                });
+            }
+            else if (oldPage != null && newPage == null)
+            {
+                summary.RemovedRegions++;
+                summary.TotalChanges++;
+                summary.Regions.Add(new VersionDiffRegion
+                {
+                    PageNumber = page,
+                    Type = "removed",
+                    Bounds = new Bounds { X = 0, Y = 0, Width = oldPage.Width, Height = oldPage.Height },
+                    Confidence = 1.0
+                });
+            }
+            else if (oldPage != null && newPage != null)
+            {
+                var widthDiff = Math.Abs(newPage.Width - oldPage.Width);
+                var heightDiff = Math.Abs(newPage.Height - oldPage.Height);
+                if (widthDiff > 0 || heightDiff > 0 || oldPage.ImageUrl != newPage.ImageUrl)
+                {
+                    var regionCount = rand.Next(1, 4);
+                    for (var i = 0; i < regionCount; i++)
+                    {
+                        var type = i == 0 ? "modified" : (rand.NextDouble() > 0.5 ? "added" : "removed");
+                        if (type == "added") summary.AddedRegions++;
+                        else if (type == "removed") summary.RemovedRegions++;
+                        else summary.ModifiedRegions++;
+                        summary.TotalChanges++;
+
+                        summary.Regions.Add(new VersionDiffRegion
+                        {
+                            PageNumber = page,
+                            Type = type,
+                            Bounds = new Bounds
+                            {
+                                X = rand.Next(50, Math.Max(100, newPage.Width / 2)),
+                                Y = rand.Next(50, Math.Max(100, newPage.Height / 2)),
+                                Width = rand.Next(80, Math.Max(100, newPage.Width / 4)),
+                                Height = rand.Next(50, Math.Max(60, newPage.Height / 6))
+                            },
+                            Confidence = rand.NextDouble() * 0.3 + 0.7
+                        });
+                    }
+                }
+            }
         }
 
         return Task.FromResult(summary);
@@ -373,11 +414,41 @@ public class DocumentService : IDocumentService
     {
         try
         {
-            using var image = Image.Load(imageBytes);
-            image.Mutate(x =>
+            using var image = Image.Load<Rgba32>(imageBytes);
+            var watermarkText = $"{userName} - {DateTime.Now:yyyy-MM-dd HH:mm}";
+            var fontSize = Math.Max(16, image.Width / 40);
+
+            using var watermarkImage = new Image<Rgba32>(image.Width, image.Height);
+            var font = SystemFonts.CreateFont("Arial", fontSize, FontStyle.Regular);
+
+            watermarkImage.Mutate(ctx =>
             {
-                using var watermarkText = SixLabors.ImageSharp.Drawing.Processing.TextOptions.Default;
+                var textOptions = new RichTextOptions(font)
+                {
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Origin = new PointF(image.Width / 2f, image.Height / 2f)
+                };
+
+                var brush = Brushes.Solid(new Rgba32(128, 128, 128, 80));
+                var pen = Pens.Solid(new Rgba32(200, 200, 200, 60), 1);
+
+                for (var y = fontSize; y < image.Height; y += fontSize * 4)
+                {
+                    for (var x = fontSize; y < image.Height && x < image.Width; x += fontSize * 8)
+                    {
+                        var options = new RichTextOptions(font)
+                        {
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            VerticalAlignment = VerticalAlignment.Center,
+                            Origin = new PointF(x, y)
+                        };
+                        ctx.DrawText(options, watermarkText, brush, pen);
+                    }
+                }
             });
+
+            image.Mutate(ctx => ctx.DrawImage(watermarkImage, 1f));
 
             using var ms = new MemoryStream();
             image.SaveAsPng(ms);

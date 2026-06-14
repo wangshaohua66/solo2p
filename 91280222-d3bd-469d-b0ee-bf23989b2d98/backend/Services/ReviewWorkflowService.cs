@@ -22,10 +22,14 @@ public interface IReviewWorkflowService
 public class ReviewWorkflowService : IReviewWorkflowService
 {
     private readonly IMongoDbContext _dbContext;
+    private readonly IWebSocketService _webSocketService;
+    private readonly ILogger<ReviewWorkflowService> _logger;
 
-    public ReviewWorkflowService(IMongoDbContext dbContext)
+    public ReviewWorkflowService(IMongoDbContext dbContext, IWebSocketService webSocketService, ILogger<ReviewWorkflowService> logger)
     {
         _dbContext = dbContext;
+        _webSocketService = webSocketService;
+        _logger = logger;
     }
 
     public async Task<List<ReviewWorkflowTemplate>> GetTemplatesAsync()
@@ -336,8 +340,33 @@ public class ReviewWorkflowService : IReviewWorkflowService
         }
     }
 
-    private void SendReminderNotification(string userId, string workflowId, string stageName)
+    private async void SendReminderNotification(string userId, string workflowId, string stageName)
     {
+        try
+        {
+            var workflow = await _dbContext.ReviewWorkflows.Find(w => w.Id == workflowId).FirstOrDefaultAsync();
+            if (workflow == null) return;
+
+            var notification = new
+            {
+                WorkflowId = workflowId,
+                DocumentId = workflow.DocumentId,
+                DocumentName = workflow.DocumentName,
+                StageName = stageName,
+                Message = $"您在图纸「{workflow.DocumentName}」的审批阶段「{stageName}」已超时，请尽快完成审批。",
+                Type = "review_reminder",
+                Severity = "warning",
+                Timestamp = DateTime.UtcNow.ToString("o")
+            };
+
+            await _webSocketService.SendToUserAsync(userId, "review.reminder", notification, "system", "系统");
+
+            _logger.LogInformation($"Review reminder sent to user {userId} for workflow {workflowId}, stage {stageName}");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Failed to send review reminder to user {userId}");
+        }
     }
 
     private enum ReviewStageResult

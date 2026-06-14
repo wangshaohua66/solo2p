@@ -4,8 +4,8 @@ import { useReviewStore } from '@/stores/reviewStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
 import type { AnnotationType, AnnotationSeverity } from '@/types/annotation';
-import { ReviewerAction, type ReviewWorkflow } from '@/types/review';
-import { annotationApi, reviewApi } from '@/api/annotation';
+import { ReviewerAction } from '@/types/review';
+import { reviewApi } from '@/api/annotation';
 import { documentApi } from '@/api/document';
 const reviewStore = useReviewStore();
 const authStore = useAuthStore();
@@ -13,7 +13,7 @@ const themeStore = useThemeStore();
 const showAnnotationDialog = ref(false);
 const annotationContent = ref('');
 const annotationSeverity = ref<AnnotationSeverity>('medium');
-const annotationAssignee = ref<string>('');
+const annotationAssignee = ref<string>('')
 const showCompareDialog = ref(false);
 const compareVersionId = ref('');
 const showReviewDialog = ref(false);
@@ -83,15 +83,22 @@ function openAnnotationDialog() {
  annotationAssignee.value = '';
 }
 async function submitAnnotation() {
- if (!annotationContent.value.trim()) {
- ElMessage.warning('请输入批注内容');
- return;
- }
- const result = await reviewStore.createAnnotation({
- content: annotationContent.value.trim(),
- severity: annotationSeverity.value,
- assigneeId: annotationAssignee.value || undefined
- });
+  if (!annotationContent.value.trim()) {
+    ElMessage.warning('请输入批注内容');
+    return;
+  }
+  const mentionRegex = /@([\w\u4e00-\u9fa5]+)/g;
+  const mentions: string[] = [];
+  let m;
+  while ((m = mentionRegex.exec(annotationContent.value)) !== null) {
+    if (!mentions.includes(m[1])) mentions.push(m[1]);
+  }
+  const result = await reviewStore.createAnnotation({
+    content: annotationContent.value.trim(),
+    severity: annotationSeverity.value,
+    assigneeId: annotationAssignee.value || undefined,
+    mentions
+  });
  if (result) {
  ElMessage.success('批注创建成功');
  showAnnotationDialog.value = false;
@@ -295,18 +302,48 @@ watch(() => reviewStore.draftAnnotation.geometry, (geo) => {
 
     <div class="toolbar-center" v-if="reviewStore.currentWorkflow">
       <div class="workflow-progress">
-        <el-steps
-          :active="reviewStore.currentWorkflow.currentStageIndex + 1"
-          finish-status="success"
-          size="small"
-        >
-          <el-step
+        <div class="progress-stages">
+          <div
             v-for="(stage, index) in reviewStore.currentWorkflow.stages"
             :key="stage.id"
-            :title="stage.config.name"
-            :status="stage.isCompleted ? 'success' : stage.isCurrent ? 'process' : 'wait'"
+            class="progress-stage"
+            :class="{
+              completed: stage.isCompleted,
+              current: stage.isCurrent,
+              pending: !stage.isCompleted && !stage.isCurrent
+            }"
+          >
+            <div class="stage-node">
+              <div class="stage-icon-wrapper">
+                <transition name="stage-icon" mode="out-in">
+                  <el-icon v-if="stage.isCompleted" key="done" class="stage-icon done"><CircleCheckFilled /></el-icon>
+                  <el-icon v-else-if="stage.isCurrent" key="active" class="stage-icon active"><Loading /></el-icon>
+                  <el-icon v-else key="wait" class="stage-icon wait"><CircleClose /></el-icon>
+                </transition>
+              </div>
+              <span class="stage-label">{{ stage.config.name }}</span>
+            </div>
+            <div v-if="index < reviewStore.currentWorkflow.stages.length - 1" class="stage-connector">
+              <div class="connector-track">
+                <div
+                  class="connector-fill"
+                  :class="{ filled: stage.isCompleted, animating: stage.isCurrent }"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="progress-summary">
+          <span class="summary-text">
+            审批进度 {{ reviewStore.currentWorkflow.currentStageIndex + 1 }} / {{ reviewStore.currentWorkflow.stages.length }}
+          </span>
+          <el-progress
+            :percentage="Math.round(((reviewStore.currentWorkflow.currentStageIndex + (reviewStore.currentWorkflow.stages[reviewStore.currentWorkflow.currentStageIndex]?.isCompleted ? 1 : 0)) / reviewStore.currentWorkflow.stages.length) * 100)"
+            :stroke-width="6"
+            :show-text="false"
+            status="success"
           />
-        </el-steps>
+        </div>
       </div>
     </div>
 
@@ -404,7 +441,7 @@ watch(() => reviewStore.draftAnnotation.geometry, (geo) => {
             v-model="annotationContent"
             type="textarea"
             :rows="4"
-            placeholder="请描述图纸问题..."
+            placeholder="请描述图纸问题... 使用 @用户名 提及他人"
           />
         </el-form-item>
         <el-form-item label="严重程度">
@@ -525,6 +562,156 @@ watch(() => reviewStore.draftAnnotation.geometry, (geo) => {
     width: 100%;
     max-width: 600px;
   }
+
+  .progress-stages {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+  }
+
+  .progress-stage {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+
+    &.completed .stage-icon-wrapper {
+      background: #10b981;
+      border-color: #10b981;
+    }
+
+    &.current .stage-icon-wrapper {
+      background: $primary-color;
+      border-color: $primary-color;
+      animation: pulse-ring 2s ease-in-out infinite;
+    }
+
+    &.pending .stage-icon-wrapper {
+      background: $bg-light;
+      border-color: $border-color;
+    }
+  }
+
+  .stage-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-width: 64px;
+  }
+
+  .stage-icon-wrapper {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+
+    .stage-icon {
+      font-size: 16px;
+      color: #fff;
+
+      &.wait {
+        color: $text-placeholder;
+      }
+    }
+
+    .dark & {
+      &.completed { background: #10b981; border-color: #10b981; }
+      &.current { background: $primary-color; border-color: $primary-color; }
+      &.pending { background: $dark-bg-base; border-color: $dark-border-color; }
+    }
+  }
+
+  .stage-label {
+    font-size: 12px;
+    color: $text-secondary;
+    white-space: nowrap;
+    text-align: center;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .stage-connector {
+    display: flex;
+    align-items: center;
+    padding-top: 14px;
+    width: 40px;
+  }
+
+  .connector-track {
+    width: 100%;
+    height: 4px;
+    background: $bg-light;
+    border-radius: 2px;
+    overflow: hidden;
+
+    .dark & {
+      background: $dark-bg-base;
+    }
+  }
+
+  .connector-fill {
+    height: 100%;
+    width: 0;
+    background: #10b981;
+    border-radius: 2px;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &.filled {
+      width: 100%;
+    }
+
+    &.animating {
+      width: 0;
+      animation: fill-progress 2s ease-in-out infinite;
+    }
+  }
+
+  .progress-summary {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .summary-text {
+      font-size: 12px;
+      color: $text-secondary;
+      white-space: nowrap;
+    }
+
+    :deep(.el-progress) {
+      flex: 1;
+    }
+  }
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(29, 78, 216, 0.4); }
+  70% { box-shadow: 0 0 0 8px rgba(29, 78, 216, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(29, 78, 216, 0); }
+}
+
+@keyframes fill-progress {
+  0% { width: 0; }
+  50% { width: 60%; }
+  100% { width: 40%; }
+}
+
+.stage-icon-enter-active,
+.stage-icon-leave-active {
+  transition: all 0.3s ease;
+}
+.stage-icon-enter-from {
+  transform: scale(0.5);
+  opacity: 0;
+}
+.stage-icon-leave-to {
+  transform: scale(1.5);
+  opacity: 0;
 }
 
 .toolbar-right {

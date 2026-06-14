@@ -4,8 +4,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
 import { useReviewStore } from '@/stores/reviewStore'
 import { useAuthStore } from '@/stores/authStore'
-import type { Annotation, AnnotationReply, AnnotationStatus, AnnotationSeverity } from '@/types/annotation'
-import { annotationApi } from '@/api/annotation'
+import type { Annotation, AnnotationStatus, AnnotationSeverity } from '@/types/annotation'
+import { wsService } from '@/utils/websocket'
 
 const reviewStore = useReviewStore()
 const authStore = useAuthStore()
@@ -15,6 +15,37 @@ const filterSeverity = ref<AnnotationSeverity | ''>('')
 const searchKeyword = ref('')
 const replyingToId = ref<string | null>(null)
 const replyContent = ref('')
+const showMigrateDialog = ref(false)
+const migrateTargetVersionId = ref('')
+
+function extractMentions(text: string): string[] {
+  const regex = /@([\w\u4e00-\u9fa5]+)/g
+  const matches: string[] = []
+  let match
+  while ((match = regex.exec(text)) !== null) {
+    matches.push(match[1])
+  }
+  return [...new Set(matches)]
+}
+
+function renderMentions(text: string): string {
+  return text.replace(/@([\w\u4e00-\u9fa5]+)/g, '<span class="mention-tag">@$1</span>')
+}
+
+async function notifyMentionedUsers(mentions: string[], annotationId: string, content: string) {
+  for (const mention of mentions) {
+    const projectMembers = reviewStore.currentDocument
+    if (!projectMembers) continue
+    wsService.send('notification', {
+      type: 'mention',
+      annotationId,
+      content: `${authStore.user?.name} 在批注中@了你：${content.substring(0, 50)}...`,
+      mentionKeyword: mention,
+      documentId: reviewStore.currentDocument?.id,
+      timestamp: new Date().toISOString()
+    }, reviewStore.currentDocument?.id)
+  }
+}
 
 const filteredAnnotations = computed(() => {
   return reviewStore.sortedAnnotations.filter((a) => {
@@ -32,6 +63,13 @@ const groupedByPage = computed(() => {
     map.get(a.pageNumber)!.push(a)
   })
   return Array.from(map.entries()).sort(([a], [b]) => a - b)
+})
+
+const migrateAvailableVersions = computed(() => {
+  if (!reviewStore.currentDocument || !reviewStore.currentVersion) return []
+  return reviewStore.currentDocument.versions.filter(
+    (v) => v.id !== reviewStore.currentVersion?.id
+  )
 })
 
 function getSeverityConfig(severity: AnnotationSeverity) {
@@ -86,8 +124,12 @@ function startReply(annotationId: string) {
 
 async function submitReply(annotationId: string) {
   if (!replyContent.value.trim()) return
+  const mentions = extractMentions(replyContent.value)
   try {
-    await reviewStore.addReply(annotationId, replyContent.value.trim())
+    await reviewStore.addReply(annotationId, replyContent.value.trim(), mentions)
+    if (mentions.length > 0) {
+      await notifyMentionedUsers(mentions, annotationId, replyContent.value.trim())
+    }
     replyContent.value = ''
     replyingToId.value = null
     ElMessage.success('回复成功')
@@ -100,21 +142,36 @@ function formatTime(time: string) {
   return dayjs(time).format('MM-DD HH:mm')
 }
 
-async function migrateUnresolved() {
+function openMigrateDialog() {
   if (!reviewStore.currentVersion) return
-  const unresolved = reviewStore.openAnnotations.map((a) => a.id)
+  const unresolved = reviewStore.openAnnotations
   if (unresolved.length === 0) {
+    ElMessage.info('没有需要迁移的批注')
+    return
+  }
+  migrateTargetVersionId.value = ''
+  showMigrateDialog.value = true
+}
+
+async function executeMigrate() {
+  if (!migrateTargetVersionId.value) {
+    ElMessage.warning('请选择目标版本')
+    return
+  }
+  const unresolvedIds = reviewStore.openAnnotations.map((a) => a.id)
+  if (unresolvedIds.length === 0) {
     ElMessage.info('没有需要迁移的批注')
     return
   }
   try {
     await ElMessageBox.confirm(
-      `将 ${unresolved.length} 条未解决批注迁移到新版本？`,
+      `将 ${unresolvedIds.length} 条未解决批注迁移到所选版本？`,
       '迁移批注',
       { type: 'info' }
     )
-    // 这里需要目标版本ID，实际使用时应该有版本选择器
-    ElMessage.info('请先选择目标版本')
+    const result = await reviewStore.migrateAnnotations(unresolvedIds, migrateTargetVersionId.value)
+    showMigrateDialog.value = false
+    ElMessage.success(`成功迁移 ${result.length} 条批注`)
   } catch {
     /* cancelled */
   }
@@ -130,7 +187,8 @@ async function migrateUnresolved() {
         <el-tag size="small" type="info">{{ reviewStore.annotations.length }}</el-tag>
       </div>
       <div class="header-actions">
-        <el-button size="small" :icon="Sort" @click="migrateUnresolved">
+        <el-button size="small" @click="openMigrateDialog">
+          <el-icon><RefreshRight /></el-icon>
           迁移未解决
         </el-button>
       </div>
@@ -142,7 +200,6 @@ async function migrateUnresolved() {
         size="small"
         placeholder="搜索批注内容..."
         clearable
-        :prefix-icon="Search"
       />
       <div class="filter-selects">
         <el-select v-model="filterStatus" size="small" placeholder="状态" clearable style="width: 90px">
@@ -225,7 +282,7 @@ async function migrateUnresolved() {
             </div>
           </div>
 
-          <div class="annotation-content">{{ annotation.content }}</div>
+          <div class="annotation-content" v-html="renderMentions(annotation.content)"></div>
 
           <div v-if="annotation.isMigrated" class="migrated-tag">
             <el-icon><RefreshRight /></el-icon>
@@ -245,7 +302,7 @@ async function migrateUnresolved() {
                     <span class="reply-author">{{ reply.authorName }}</span>
                     <span class="reply-time">{{ formatTime(reply.createdAt) }}</span>
                   </div>
-                  <div class="reply-content">{{ reply.content }}</div>
+                  <div class="reply-content" v-html="renderMentions(reply.content)"></div>
                 </div>
               </div>
             </div>
@@ -287,7 +344,7 @@ async function migrateUnresolved() {
               v-model="replyContent"
               type="textarea"
               :rows="2"
-              placeholder="输入回复内容..."
+              placeholder="输入回复内容... 使用 @用户名 提及他人"
               size="small"
             />
             <div class="reply-actions">
@@ -298,6 +355,38 @@ async function migrateUnresolved() {
         </div>
       </div>
     </div>
+
+    <el-dialog
+      v-model="showMigrateDialog"
+      title="迁移未解决批注"
+      width="480px"
+    >
+      <div class="migrate-dialog-body">
+        <p class="migrate-info">
+          将 <strong>{{ reviewStore.openAnnotations.length }}</strong> 条未解决批注迁移到目标版本，
+          迁移后原批注标记为已解决，新版本中生成对应批注。
+        </p>
+        <el-form label-width="80px">
+          <el-form-item label="当前版本">
+            <el-tag>v{{ reviewStore.currentVersion?.major }}.{{ reviewStore.currentVersion?.minor }}</el-tag>
+          </el-form-item>
+          <el-form-item label="目标版本">
+            <el-select v-model="migrateTargetVersionId" placeholder="请选择目标版本" style="width:100%">
+              <el-option
+                v-for="v in migrateAvailableVersions"
+                :key="v.id"
+                :label="`v${v.major}.${v.minor} - ${v.uploaderName}`"
+                :value="v.id"
+              />
+            </el-select>
+          </el-form-item>
+        </el-form>
+      </div>
+      <template #footer>
+        <el-button @click="showMigrateDialog = false">取消</el-button>
+        <el-button type="primary" :disabled="!migrateTargetVersionId" @click="executeMigrate">确认迁移</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -472,6 +561,19 @@ async function migrateUnresolved() {
   font-size: 14px;
   line-height: 1.5;
   margin-bottom: 8px;
+
+  :deep(.mention-tag) {
+    color: $primary-color;
+    font-weight: 500;
+    background: rgba(29, 78, 216, 0.08);
+    padding: 1px 4px;
+    border-radius: 3px;
+    cursor: pointer;
+
+    .dark & {
+      background: rgba(59, 130, 246, 0.15);
+    }
+  }
 }
 
 .migrated-tag {
@@ -547,6 +649,18 @@ async function migrateUnresolved() {
   .reply-content {
     font-size: 13px;
     line-height: 1.4;
+
+    :deep(.mention-tag) {
+      color: $primary-color;
+      font-weight: 500;
+      background: rgba(29, 78, 216, 0.08);
+      padding: 1px 4px;
+      border-radius: 3px;
+
+      .dark & {
+        background: rgba(59, 130, 246, 0.15);
+      }
+    }
   }
 }
 
@@ -572,6 +686,15 @@ async function migrateUnresolved() {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
+  }
+}
+
+.migrate-dialog-body {
+  .migrate-info {
+    margin-bottom: 16px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: $text-secondary;
   }
 }
 </style>

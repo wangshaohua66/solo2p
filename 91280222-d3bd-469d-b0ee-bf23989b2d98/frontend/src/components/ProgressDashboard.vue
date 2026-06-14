@@ -89,7 +89,7 @@ async function exportReport() {
     const url = URL.createObjectURL(blob as Blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `审阅报告_${dayjs().format('YYYYMMDD')}.xlsx`
+    a.download = `审阅报告_${dayjs().format('YYYYMMDD')}.csv`
     a.click()
     URL.revokeObjectURL(url)
     ElMessage.success('报告导出成功')

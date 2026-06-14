@@ -207,6 +207,22 @@ public class AnnotationService : IAnnotationService
         if (migratedAnnotations.Count > 0)
         {
             await _dbContext.Annotations.InsertManyAsync(migratedAnnotations);
+
+            var originalIds = migratedAnnotations
+                .Where(a => !string.IsNullOrEmpty(a.MigratedFrom))
+                .Select(a => a.MigratedFrom!)
+                .ToList();
+
+            if (originalIds.Count > 0)
+            {
+                var resolveUpdate = Builders<Annotation>.Update
+                    .Set(a => a.Status, AnnotationStatus.Resolved)
+                    .Set(a => a.UpdatedAt, DateTime.UtcNow);
+                await _dbContext.Annotations.UpdateManyAsync(
+                    a => originalIds.Contains(a.Id) && a.Status != AnnotationStatus.Resolved,
+                    resolveUpdate);
+            }
+
             if (migratedAnnotations[0] != null)
             {
                 await UpdateDocumentStats(migratedAnnotations[0].DocumentId);

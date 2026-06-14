@@ -200,7 +200,7 @@ public class ProjectsController : ControllerBase
         try
         {
             var reportBytes = await _projectService.ExportReportAsync(projectId, discipline, startDate, endDate);
-            return File(reportBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"审阅报告_{DateTime.Now:yyyyMMdd}.xlsx");
+            return File(reportBytes, "text/csv", $"审阅报告_{DateTime.Now:yyyyMMdd}.csv");
         }
         catch (Exception ex)
         {

@@ -177,6 +177,7 @@ export const useReviewStore = defineStore('review', () => {
     content: string
     severity: AnnotationSeverity
     assigneeId?: string
+    mentions?: string[]
   }) {
     if (!currentDocument.value || !currentVersion.value || !draftAnnotation.value.geometry) return null
 
@@ -188,7 +189,8 @@ export const useReviewStore = defineStore('review', () => {
         geometry: draftAnnotation.value.geometry,
         content: data.content,
         severity: data.severity,
-        assigneeId: data.assigneeId
+        assigneeId: data.assigneeId,
+        mentions: data.mentions
       })
       const annotation = (result as any).data || result
       annotations.value.push(annotation)
@@ -221,8 +223,8 @@ export const useReviewStore = defineStore('review', () => {
     }
   }
 
-  async function addReply(annotationId: string, content: string) {
-    const result = await annotationApi.addReply(annotationId, content)
+  async function addReply(annotationId: string, content: string, mentions: string[] = []) {
+    const result = await annotationApi.addReply(annotationId, content, mentions)
     const reply = (result as any).data || result
     const annotation = annotations.value.find((a) => a.id === annotationId)
     if (annotation) {
