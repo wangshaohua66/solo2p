@@ -15,7 +15,9 @@ const annotationContent = ref('');
 const annotationSeverity = ref<AnnotationSeverity>('medium');
 const annotationAssignee = ref<string>('')
 const showCompareDialog = ref(false);
-const compareVersionId = ref('');
+const showMigrateDialog = ref(false);
+const migrateTargetVersionId = ref('');
+const compareVersionId = ref<string>('');
 const showReviewDialog = ref(false);
 const reviewAction = ref<ReviewerAction>(ReviewerAction.APPROVE);
 const reviewComment = ref('');
@@ -128,6 +130,42 @@ function startCompare() {
 }
 function exitCompare() {
  reviewStore.exitCompareMode();
+}
+function openMigrateDialog() {
+ const unresolved = reviewStore.openAnnotations;
+ if (unresolved.length === 0) {
+  ElMessage.info('没有需要迁移的批注');
+  return;
+ }
+ if (!reviewStore.currentDocument || reviewStore.currentDocument.versions.length < 2) {
+  ElMessage.warning('至少需要两个版本才能迁移批注');
+  return;
+ }
+ migrateTargetVersionId.value = '';
+ showMigrateDialog.value = true;
+}
+async function executeMigrate() {
+ if (!migrateTargetVersionId.value) {
+  ElMessage.warning('请选择目标版本');
+  return;
+ }
+ const unresolvedIds = reviewStore.openAnnotations.map((a: any) => a.id);
+ if (unresolvedIds.length === 0) {
+  ElMessage.info('没有需要迁移的批注');
+  return;
+ }
+ try {
+  await ElMessageBox.confirm(
+   `将 ${unresolvedIds.length} 条未解决批注迁移到所选版本？迁移后原批注标记为已解决。`,
+   '迁移批注',
+   { type: 'info' }
+  );
+  const result = await reviewStore.migrateAnnotations(unresolvedIds, migrateTargetVersionId.value);
+  showMigrateDialog.value = false;
+  ElMessage.success(`成功迁移 ${result.length} 条批注`);
+ } catch {
+  /* cancelled */
+ }
 }
 function triggerUpload() {
  fileInputRef.value?.click();
@@ -370,6 +408,16 @@ watch(() => reviewStore.draftAnnotation.geometry, (geo) => {
       </el-dropdown>
 
       <el-button
+        v-if="!reviewStore.isCompareMode && reviewStore.openAnnotations.length > 0 && reviewStore.currentDocument?.versions && reviewStore.currentDocument.versions.length > 1"
+        size="small"
+        type="info"
+        @click="openMigrateDialog"
+      >
+        <el-icon><RefreshRight /></el-icon>
+        迁移未解决 ({{ reviewStore.openAnnotations.length }})
+      </el-button>
+
+      <el-button
         v-if="!reviewStore.isCompareMode"
         size="small"
         type="warning"
@@ -485,6 +533,38 @@ watch(() => reviewStore.draftAnnotation.geometry, (geo) => {
       <template #footer>
         <el-button @click="showCompareDialog = false">取消</el-button>
         <el-button type="primary" @click="startCompare">开始对比</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="showMigrateDialog"
+      title="迁移未解决批注"
+      width="480px"
+    >
+      <div class="migrate-dialog-body">
+        <p class="migrate-info">
+          将 <strong>{{ reviewStore.openAnnotations.length }}</strong> 条未解决批注迁移到目标版本，
+          迁移后原批注自动标记为已解决，新版本中生成对应批注。
+        </p>
+        <el-form label-width="80px">
+          <el-form-item label="当前版本">
+            <el-tag>v{{ reviewStore.currentVersion?.major }}.{{ reviewStore.currentVersion?.minor }}</el-tag>
+          </el-form-item>
+          <el-form-item label="目标版本">
+            <el-select v-model="migrateTargetVersionId" placeholder="请选择目标版本" style="width:100%">
+              <el-option
+                v-for="v in reviewStore.currentDocument?.versions.filter(vv => vv.id !== reviewStore.currentVersion?.id) || []"
+                :key="v.id"
+                :label="`v${v.major}.${v.minor} - ${v.uploaderName}`"
+                :value="v.id"
+              />
+            </el-select>
+          </el-form-item>
+        </el-form>
+      </div>
+      <template #footer>
+        <el-button @click="showMigrateDialog = false">取消</el-button>
+        <el-button type="primary" :disabled="!migrateTargetVersionId" @click="executeMigrate">确认迁移</el-button>
       </template>
     </el-dialog>
 
@@ -730,6 +810,19 @@ watch(() => reviewStore.draftAnnotation.geometry, (geo) => {
     order: 3;
     width: 100%;
     min-width: auto;
+  }
+}
+
+.migrate-dialog-body {
+  .migrate-info {
+    margin-bottom: 16px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: $text-secondary;
+
+    .dark & {
+      color: $dark-text-secondary;
+    }
   }
 }
 </style>

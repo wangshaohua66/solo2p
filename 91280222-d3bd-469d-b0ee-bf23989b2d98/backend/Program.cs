@@ -17,6 +17,8 @@ builder.Services.Configure<FileStorageSettings>(
     builder.Configuration.GetSection("FileStorage"));
 builder.Services.Configure<CorsSettings>(
     builder.Configuration.GetSection("Cors"));
+builder.Services.Configure<ReminderSettings>(
+    builder.Configuration.GetSection("Reminder"));
 
 builder.Services.AddSingleton<IMongoDbContext, MongoDbContext>();
 
@@ -26,6 +28,8 @@ builder.Services.AddScoped<IDocumentService, DocumentService>();
 builder.Services.AddScoped<IAnnotationService, AnnotationService>();
 builder.Services.AddScoped<IReviewWorkflowService, ReviewWorkflowService>();
 builder.Services.AddSingleton<IWebSocketService, WebSocketService>();
+
+builder.Services.AddHostedService<ReviewReminderHostedService>();
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
 var key = Encoding.ASCII.GetBytes(jwtSettings.Secret);
