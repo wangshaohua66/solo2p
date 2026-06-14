@@ -78,12 +78,12 @@ func (h *AuthHandler) Login(c *gin.Context) {
 }
 
 type RegisterRequest struct {
-	Username string                `json:"username" binding:"required"`
-	Password string                `json:"password" binding:"required,min=6"`
-	RealName string                `json:"real_name"`
-	Role     repository.UserRole   `json:"role" binding:"required"`
-	Email    string                `json:"email"`
-	Phone    string                `json:"phone"`
+	Username string              `json:"username" binding:"required"`
+	Password string              `json:"password" binding:"required,min=6"`
+	RealName string              `json:"real_name"`
+	Role     repository.UserRole `json:"role" binding:"required"`
+	Email    string              `json:"email"`
+	Phone    string              `json:"phone"`
 }
 
 // Register godoc

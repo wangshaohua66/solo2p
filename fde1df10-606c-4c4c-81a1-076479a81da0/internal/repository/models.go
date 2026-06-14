@@ -8,30 +8,30 @@ import (
 type UserRole string
 
 const (
-	UserRoleVenueManager  UserRole = "venue_manager"
-	UserRoleProducer      UserRole = "producer"
-	UserRoleTechDirector  UserRole = "tech_director"
-	UserRoleFinance       UserRole = "finance"
-	UserRoleTroupeAdmin   UserRole = "troupe_admin"
+	UserRoleVenueManager UserRole = "venue_manager"
+	UserRoleProducer     UserRole = "producer"
+	UserRoleTechDirector UserRole = "tech_director"
+	UserRoleFinance      UserRole = "finance"
+	UserRoleTroupeAdmin  UserRole = "troupe_admin"
 )
 
 type User struct {
 	gorm.Model
-	Username     string         `gorm:"type:varchar(100);uniqueIndex;not null" json:"username"`
-	PasswordHash string         `gorm:"type:varchar(255);not null" json:"-"`
-	RealName     string         `gorm:"type:varchar(100)" json:"real_name"`
-	Role         UserRole       `gorm:"type:varchar(50);not null" json:"role"`
-	Email        string         `gorm:"type:varchar(100);uniqueIndex" json:"email"`
-	Phone        string         `gorm:"type:varchar(20)" json:"phone"`
+	Username     string   `gorm:"type:varchar(100);uniqueIndex;not null" json:"username"`
+	PasswordHash string   `gorm:"type:varchar(255);not null" json:"-"`
+	RealName     string   `gorm:"type:varchar(100)" json:"real_name"`
+	Role         UserRole `gorm:"type:varchar(50);not null" json:"role"`
+	Email        string   `gorm:"type:varchar(100);uniqueIndex" json:"email"`
+	Phone        string   `gorm:"type:varchar(20)" json:"phone"`
 }
 
 type VenueType string
 
 const (
-	VenueTypeTheater           VenueType = "theater"
-	VenueTypeConcertHall       VenueType = "concert_hall"
+	VenueTypeTheater             VenueType = "theater"
+	VenueTypeConcertHall         VenueType = "concert_hall"
 	VenueTypeExperimentalTheater VenueType = "experimental_theater"
-	VenueTypeRehearsalRoom     VenueType = "rehearsal_room"
+	VenueTypeRehearsalRoom       VenueType = "rehearsal_room"
 )
 
 type VenueStatus string
@@ -69,6 +69,8 @@ const (
 	BookingTypeMaintenance BookingType = "maintenance"
 )
 
+// 性能优化: 建议添加复合索引 (venue_id, start_time, end_time, status) 以加速冲突检测查询
+// 建议 MySQL 执行: CREATE INDEX idx_booking_conflict ON bookings(venue_id, start_time, end_time, status);
 type Booking struct {
 	gorm.Model
 	VenueID     uint          `gorm:"not null;index" json:"venue_id"`
@@ -111,6 +113,9 @@ type Equipment struct {
 	SerialNumber string            `gorm:"type:varchar(200);uniqueIndex" json:"serial_number"`
 }
 
+// 性能优化: 建议添加复合索引 (booking_id, start_time, end_time) 以加速设备占用冲突检测
+// 建议 MySQL 执行: CREATE INDEX idx_equipment_booking_conflict ON equipment_bookings(booking_id, start_time, end_time);
+// 另外建议添加: CREATE INDEX idx_equipment_booking_time ON equipment_bookings(start_time, end_time);
 type EquipmentBooking struct {
 	gorm.Model
 	EquipmentID uint          `gorm:"not null;index" json:"equipment_id"`
@@ -174,15 +179,15 @@ const (
 
 type Budget struct {
 	gorm.Model
-	BookingID      uint         `gorm:"not null;uniqueIndex" json:"booking_id"`
-	Booking        Booking      `gorm:"foreignKey:BookingID" json:"booking,omitempty"`
-	StageBudget    float64      `gorm:"type:decimal(12,2);not null;default:0" json:"stage_budget"`
-	StaffBudget    float64      `gorm:"type:decimal(12,2);not null;default:0" json:"staff_budget"`
-	MarketingBudget float64     `gorm:"type:decimal(12,2);not null;default:0" json:"marketing_budget"`
-	VenueBudget    float64      `gorm:"type:decimal(12,2);not null;default:0" json:"venue_budget"`
-	TotalBudget    float64      `gorm:"type:decimal(12,2);not null;default:0" json:"total_budget"`
-	TotalSpent     float64      `gorm:"type:decimal(12,2);not null;default:0" json:"total_spent"`
-	Status         BudgetStatus `gorm:"type:varchar(50);not null;default:normal" json:"status"`
+	BookingID       uint         `gorm:"not null;uniqueIndex" json:"booking_id"`
+	Booking         Booking      `gorm:"foreignKey:BookingID" json:"booking,omitempty"`
+	StageBudget     float64      `gorm:"type:decimal(12,2);not null;default:0" json:"stage_budget"`
+	StaffBudget     float64      `gorm:"type:decimal(12,2);not null;default:0" json:"staff_budget"`
+	MarketingBudget float64      `gorm:"type:decimal(12,2);not null;default:0" json:"marketing_budget"`
+	VenueBudget     float64      `gorm:"type:decimal(12,2);not null;default:0" json:"venue_budget"`
+	TotalBudget     float64      `gorm:"type:decimal(12,2);not null;default:0" json:"total_budget"`
+	TotalSpent      float64      `gorm:"type:decimal(12,2);not null;default:0" json:"total_spent"`
+	Status          BudgetStatus `gorm:"type:varchar(50);not null;default:normal" json:"status"`
 }
 
 type ExpenseCategory string
@@ -214,25 +219,25 @@ const (
 
 type RehearsalBooking struct {
 	gorm.Model
-	VenueID          uint           `gorm:"not null;index" json:"venue_id"`
-	Venue            Venue          `gorm:"foreignKey:VenueID" json:"venue,omitempty"`
-	UserID           uint           `gorm:"not null;index" json:"user_id"`
-	User             User           `gorm:"foreignKey:UserID" json:"user,omitempty"`
-	TroupeName       string         `gorm:"type:varchar(200);not null" json:"troupe_name"`
-	StartTime        time.Time      `gorm:"not null" json:"start_time"`
-	EndTime          time.Time      `gorm:"not null" json:"end_time"`
-	RecurrenceRule   RecurrenceRule `gorm:"type:varchar(50);not null;default:none" json:"recurrence_rule"`
-	RecurrenceDays   string         `gorm:"type:varchar(100)" json:"recurrence_days"`
-	RecurrenceWeeks  int            `gorm:"default:0" json:"recurrence_weeks"`
-	Status           BookingStatus  `gorm:"type:varchar(50);not null;default:pending" json:"status"`
+	VenueID         uint           `gorm:"not null;index" json:"venue_id"`
+	Venue           Venue          `gorm:"foreignKey:VenueID" json:"venue,omitempty"`
+	UserID          uint           `gorm:"not null;index" json:"user_id"`
+	User            User           `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	TroupeName      string         `gorm:"type:varchar(200);not null" json:"troupe_name"`
+	StartTime       time.Time      `gorm:"not null" json:"start_time"`
+	EndTime         time.Time      `gorm:"not null" json:"end_time"`
+	RecurrenceRule  RecurrenceRule `gorm:"type:varchar(50);not null;default:none" json:"recurrence_rule"`
+	RecurrenceDays  string         `gorm:"type:varchar(100)" json:"recurrence_days"`
+	RecurrenceWeeks int            `gorm:"default:0" json:"recurrence_weeks"`
+	Status          BookingStatus  `gorm:"type:varchar(50);not null;default:pending" json:"status"`
 }
 
 type Notification struct {
 	gorm.Model
-	UserID  uint      `gorm:"not null;index" json:"user_id"`
-	User    User      `gorm:"foreignKey:UserID" json:"user,omitempty"`
-	Type    string    `gorm:"type:varchar(100);not null" json:"type"`
-	Title   string    `gorm:"type:varchar(200);not null" json:"title"`
-	Content string    `gorm:"type:text" json:"content"`
-	IsRead  bool      `gorm:"not null;default:false" json:"is_read"`
+	UserID  uint   `gorm:"not null;index" json:"user_id"`
+	User    User   `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	Type    string `gorm:"type:varchar(100);not null" json:"type"`
+	Title   string `gorm:"type:varchar(200);not null" json:"title"`
+	Content string `gorm:"type:text" json:"content"`
+	IsRead  bool   `gorm:"not null;default:false" json:"is_read"`
 }

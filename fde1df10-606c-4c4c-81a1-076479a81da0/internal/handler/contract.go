@@ -27,6 +27,20 @@ type CreateContractRequest struct {
 	Content   string `json:"content"`
 }
 
+// CreateContract godoc
+// @Summary 提交合同
+// @Description 制作人提交合同申请，合同初始状态为 pending_tech（待技术总监审批）
+// @Tags contracts
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param request body CreateContractRequest true "合同参数（booking_id/title必填）"
+// @Success 201 {object} repository.Contract
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/contracts [post]
 func (h *ContractHandler) CreateContract(c *gin.Context) {
 	userID, exists := c.Get(middleware.ContextUserID)
 	if !exists {
@@ -84,6 +98,18 @@ func (h *ContractHandler) CreateContract(c *gin.Context) {
 	c.JSON(http.StatusCreated, response.Success(contract))
 }
 
+// GetContracts godoc
+// @Summary 获取合同列表
+// @Description 根据当前用户角色过滤可见合同列表：tech_director看pending_tech，finance看pending_finance，venue_manager看pending_venue，producer看自己提交的；支持status筛选
+// @Tags contracts
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param status query string false "合同状态(pending_tech/pending_finance/pending_venue/approved/rejected/returned)"
+// @Success 200 {array} repository.Contract
+// @Failure 401 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/contracts [get]
 func (h *ContractHandler) GetContracts(c *gin.Context) {
 	userID, exists := c.Get(middleware.ContextUserID)
 	if !exists {
@@ -134,6 +160,20 @@ func (h *ContractHandler) GetContracts(c *gin.Context) {
 	c.JSON(http.StatusOK, response.Success(contracts))
 }
 
+// GetContract godoc
+// @Summary 获取合同详情
+// @Description 根据合同ID获取合同详情，包含关联档期、提交人信息及完整审批历史
+// @Tags contracts
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "合同ID"
+// @Success 200 {object} map[string]interface{} "返回contract合同详情和approvals审批历史"
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/contracts/{id} [get]
 func (h *ContractHandler) GetContract(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -157,7 +197,7 @@ func (h *ContractHandler) GetContract(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response.Success(gin.H{
-		"contract": contract,
+		"contract":  contract,
 		"approvals": approvals,
 	}))
 }
@@ -167,6 +207,22 @@ type ApproveContractRequest struct {
 	Comment string `json:"comment"`
 }
 
+// ApproveContract godoc
+// @Summary 审批合同
+// @Description 三步审批流转：第一步tech_director审批pending_tech，第二步finance审批pending_finance，第三步venue_manager审批pending_venue；操作包括approve（通过进入下一步）、reject（拒绝终止）、return（退回修改）
+// @Tags contracts
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "合同ID"
+// @Param request body ApproveContractRequest true "审批参数"
+// @Success 200 {object} repository.Contract
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 403 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/contracts/{id}/approve [put]
 func (h *ContractHandler) ApproveContract(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -298,6 +354,22 @@ type UpdateContractRequest struct {
 	Content *string `json:"content"`
 }
 
+// UpdateContract godoc
+// @Summary 修改退回的合同
+// @Description 制作人修改被退回的合同（状态为 returned），修改后重新进入 pending_tech 审批流程
+// @Tags contracts
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "合同ID"
+// @Param request body UpdateContractRequest true "合同更新参数"
+// @Success 200 {object} repository.Contract
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 403 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/contracts/{id} [put]
 func (h *ContractHandler) UpdateContract(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)

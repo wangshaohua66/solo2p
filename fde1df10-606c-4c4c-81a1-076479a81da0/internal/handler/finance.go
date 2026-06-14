@@ -33,6 +33,20 @@ type CreateBudgetRequest struct {
 	VenueBudget     float64 `json:"venue_budget"`
 }
 
+// CreateBudget godoc
+// @Summary 创建预算
+// @Description 创建演出预算，按舞台制作、人员费用、市场推广、场地四类拆分，自动计算预算总额
+// @Tags budgets
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param request body CreateBudgetRequest true "预算参数（booking_id必填，四类预算金额可选）"
+// @Success 201 {object} repository.Budget
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/budgets [post]
 func (h *FinanceHandler) CreateBudget(c *gin.Context) {
 	_, exists := c.Get(middleware.ContextUserID)
 	if !exists {
@@ -89,6 +103,20 @@ func (h *FinanceHandler) CreateBudget(c *gin.Context) {
 	c.JSON(http.StatusCreated, response.Success(budget))
 }
 
+// GetBudget godoc
+// @Summary 获取预算详情
+// @Description 获取预算详情，包含支出明细列表和预算预警状态信息
+// @Tags budgets
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "预算ID"
+// @Success 200 {object} map[string]interface{} "返回budget预算详情、expenses支出明细、warnings预警信息"
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/budgets/{id} [get]
 func (h *FinanceHandler) GetBudget(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -125,6 +153,21 @@ type AddExpenseRequest struct {
 	Description string  `json:"description"`
 }
 
+// AddExpense godoc
+// @Summary 提交支出
+// @Description 提交一笔支出，自动校验预算剩余额度，超支时触发预算预警或冻结状态
+// @Tags budgets
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "预算ID"
+// @Param request body AddExpenseRequest true "支出参数"
+// @Success 201 {object} repository.Expense
+// @Failure 400 {object} map[string]interface{} "包含预算超支等业务错误"
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/budgets/{id}/expenses [post]
 func (h *FinanceHandler) AddExpense(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -181,6 +224,21 @@ func (h *FinanceHandler) AddExpense(c *gin.Context) {
 	c.JSON(http.StatusCreated, response.Success(expense))
 }
 
+// GetExpenses godoc
+// @Summary 获取支出明细列表
+// @Description 获取指定预算的支出明细列表，支持按 category 分类筛选
+// @Tags budgets
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "预算ID"
+// @Param category query string false "支出类别(stage/staff/marketing/venue)"
+// @Success 200 {array} repository.Expense
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/budgets/{id}/expenses [get]
 func (h *FinanceHandler) GetExpenses(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -211,6 +269,20 @@ func (h *FinanceHandler) GetExpenses(c *gin.Context) {
 	c.JSON(http.StatusOK, response.Success(expenses))
 }
 
+// GenerateSettlement godoc
+// @Summary 生成结算报表
+// @Description 生成预算结算报表，包含预算/实际支出和各类别偏差率数据
+// @Tags budgets
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "预算ID"
+// @Success 200 {object} map[string]interface{} "返回预算结算汇总和各类别明细及支出列表"
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/budgets/{id}/settlement [get]
 func (h *FinanceHandler) GenerateSettlement(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -243,50 +315,62 @@ func (h *FinanceHandler) GenerateSettlement(c *gin.Context) {
 
 	budgetDetails := []gin.H{
 		{
-			"category":        "stage",
-			"budgeted":        budget.StageBudget,
-			"actual":          categorySpent["stage"],
-			"deviation_rate":  calcDeviationRate(budget.StageBudget, categorySpent["stage"]),
-			"deviation":       categorySpent["stage"] - budget.StageBudget,
+			"category":       "stage",
+			"budgeted":       budget.StageBudget,
+			"actual":         categorySpent["stage"],
+			"deviation_rate": calcDeviationRate(budget.StageBudget, categorySpent["stage"]),
+			"deviation":      categorySpent["stage"] - budget.StageBudget,
 		},
 		{
-			"category":        "staff",
-			"budgeted":        budget.StaffBudget,
-			"actual":          categorySpent["staff"],
-			"deviation_rate":  calcDeviationRate(budget.StaffBudget, categorySpent["staff"]),
-			"deviation":       categorySpent["staff"] - budget.StaffBudget,
+			"category":       "staff",
+			"budgeted":       budget.StaffBudget,
+			"actual":         categorySpent["staff"],
+			"deviation_rate": calcDeviationRate(budget.StaffBudget, categorySpent["staff"]),
+			"deviation":      categorySpent["staff"] - budget.StaffBudget,
 		},
 		{
-			"category":        "marketing",
-			"budgeted":        budget.MarketingBudget,
-			"actual":          categorySpent["marketing"],
-			"deviation_rate":  calcDeviationRate(budget.MarketingBudget, categorySpent["marketing"]),
-			"deviation":       categorySpent["marketing"] - budget.MarketingBudget,
+			"category":       "marketing",
+			"budgeted":       budget.MarketingBudget,
+			"actual":         categorySpent["marketing"],
+			"deviation_rate": calcDeviationRate(budget.MarketingBudget, categorySpent["marketing"]),
+			"deviation":      categorySpent["marketing"] - budget.MarketingBudget,
 		},
 		{
-			"category":        "venue",
-			"budgeted":        budget.VenueBudget,
-			"actual":          categorySpent["venue"],
-			"deviation_rate":  calcDeviationRate(budget.VenueBudget, categorySpent["venue"]),
-			"deviation":       categorySpent["venue"] - budget.VenueBudget,
+			"category":       "venue",
+			"budgeted":       budget.VenueBudget,
+			"actual":         categorySpent["venue"],
+			"deviation_rate": calcDeviationRate(budget.VenueBudget, categorySpent["venue"]),
+			"deviation":      categorySpent["venue"] - budget.VenueBudget,
 		},
 	}
 
 	totalDeviationRate := calcDeviationRate(budget.TotalBudget, budget.TotalSpent)
 
 	c.JSON(http.StatusOK, response.Success(gin.H{
-		"budget_id":         budget.ID,
-		"booking_id":        budget.BookingID,
-		"total_budgeted":    budget.TotalBudget,
-		"total_actual":      budget.TotalSpent,
-		"total_deviation":   budget.TotalSpent - budget.TotalBudget,
+		"budget_id":            budget.ID,
+		"booking_id":           budget.BookingID,
+		"total_budgeted":       budget.TotalBudget,
+		"total_actual":         budget.TotalSpent,
+		"total_deviation":      budget.TotalSpent - budget.TotalBudget,
 		"total_deviation_rate": totalDeviationRate,
-		"status":            budget.Status,
-		"budget_details":    budgetDetails,
-		"expenses":          expenses,
+		"status":               budget.Status,
+		"budget_details":       budgetDetails,
+		"expenses":             expenses,
 	}))
 }
 
+// GetNotifications godoc
+// @Summary 获取当前用户通知列表
+// @Description 获取当前登录用户的通知列表，支持按已读/未读状态筛选
+// @Tags notifications
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param is_read query string false "已读状态(true/false)"
+// @Success 200 {array} repository.Notification
+// @Failure 401 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/notifications [get]
 func (h *FinanceHandler) GetNotifications(c *gin.Context) {
 	userID, exists := c.Get(middleware.ContextUserID)
 	if !exists {
@@ -319,6 +403,21 @@ func (h *FinanceHandler) GetNotifications(c *gin.Context) {
 	c.JSON(http.StatusOK, response.Success(notifications))
 }
 
+// MarkNotificationRead godoc
+// @Summary 标记通知已读
+// @Description 将指定通知标记为已读状态，仅通知所有者可操作
+// @Tags notifications
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "通知ID"
+// @Success 200 {object} repository.Notification
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 403 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/notifications/{id}/read [put]
 func (h *FinanceHandler) MarkNotificationRead(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -358,6 +457,19 @@ func (h *FinanceHandler) MarkNotificationRead(c *gin.Context) {
 	c.JSON(http.StatusOK, response.Success(notification))
 }
 
+// GetSettlementPDF godoc
+// @Summary 导出结算PDF
+// @Description 模拟PDF导出接口，返回JSON格式的结算单数据，实际生产环境应返回PDF文件流
+// @Tags budgets
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "预算ID"
+// @Success 200 {object} map[string]interface{} "返回模拟PDF导出数据"
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /api/budgets/{id}/settlement/pdf [get]
 func (h *FinanceHandler) GetSettlementPDF(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -383,18 +495,18 @@ func (h *FinanceHandler) GetSettlementPDF(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response.Success(gin.H{
-		"_type":       "pdf_export",
+		"_type":        "pdf_export",
 		"_description": "结算单PDF导出接口（模拟返回JSON数据）",
-		"budget_id":   budget.ID,
-		"booking_id":  budget.BookingID,
+		"budget_id":    budget.ID,
+		"booking_id":   budget.BookingID,
 		"generated_at": nil,
 		"content": gin.H{
-			"title":            "演出预算结算单",
-			"total_budgeted":   budget.TotalBudget,
-			"total_actual":     budget.TotalSpent,
-			"total_deviation":  budget.TotalSpent - budget.TotalBudget,
+			"title":                "演出预算结算单",
+			"total_budgeted":       budget.TotalBudget,
+			"total_actual":         budget.TotalSpent,
+			"total_deviation":      budget.TotalSpent - budget.TotalBudget,
 			"total_deviation_rate": calcDeviationRate(budget.TotalBudget, budget.TotalSpent),
-			"status":           budget.Status,
+			"status":               budget.Status,
 			"breakdown": []gin.H{
 				{
 					"category":       "舞台制作",

@@ -3,9 +3,11 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"strconv"
 	"time"
+
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 
 	"venue-scheduler/internal/config"
 	"venue-scheduler/internal/handler"
@@ -19,6 +21,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	// _ "venue-scheduler/docs" // swag init 生成后启用
 )
 
 // @title 场馆调度系统 API
@@ -93,12 +96,8 @@ func main() {
 		public.POST("/auth/register", authHandler.Register)
 	}
 
-	r.GET("/swagger/*any", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "Swagger documentation endpoint - install swaggo/gin-swagger for full UI",
-			"version": "1.0",
-		})
-	})
+	url := ginSwagger.URL("http://localhost:8080/swagger/doc.json")
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, url))
 
 	api := r.Group("/api")
 	api.Use(jwt.JWTAuth())

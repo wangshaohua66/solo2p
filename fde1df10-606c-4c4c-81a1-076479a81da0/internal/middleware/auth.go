@@ -17,8 +17,8 @@ const (
 )
 
 type JWT struct {
-	jwtSecret    string
-	expireHours  int
+	jwtSecret   string
+	expireHours int
 }
 
 type CustomClaims struct {

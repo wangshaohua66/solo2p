@@ -27,14 +27,28 @@ func NewBookingHandler(db *gorm.DB, scheduleService *service.ScheduleService) *B
 }
 
 type CreateBookingRequest struct {
-	VenueID     uint                  `json:"venue_id" binding:"required"`
-	Title       string                `json:"title" binding:"required"`
-	Description string                `json:"description"`
-	StartTime   time.Time             `json:"start_time" binding:"required"`
-	EndTime     time.Time             `json:"end_time" binding:"required"`
+	VenueID     uint                   `json:"venue_id" binding:"required"`
+	Title       string                 `json:"title" binding:"required"`
+	Description string                 `json:"description"`
+	StartTime   time.Time              `json:"start_time" binding:"required"`
+	EndTime     time.Time              `json:"end_time" binding:"required"`
 	Type        repository.BookingType `json:"type" binding:"required"`
 }
 
+// CreateBooking godoc
+// @Summary 创建档期申请
+// @Description 提交演出时段申请，自动检测三重冲突（排期/维护/设备），冲突时返回409及推荐档期
+// @Tags bookings
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param request body CreateBookingRequest true "档期申请参数"
+// @Success 201 {object} repository.Booking
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 409 {object} map[string]interface{} "冲突，返回冲突详情和推荐档期"
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/bookings [post]
 func (h *BookingHandler) CreateBooking(c *gin.Context) {
 	userID, exists := c.Get(middleware.ContextUserID)
 	if !exists {
@@ -112,6 +126,20 @@ func (h *BookingHandler) CreateBooking(c *gin.Context) {
 	c.JSON(http.StatusCreated, response.Success(booking))
 }
 
+// GetBookings godoc
+// @Summary 获取档期列表
+// @Description 查询档期列表，支持按场馆、时间范围、状态筛选
+// @Tags bookings
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param venue_id query int false "场馆ID"
+// @Param start_date query string false "开始日期(YYYY-MM-DD)"
+// @Param end_date query string false "结束日期(YYYY-MM-DD)"
+// @Param status query string false "状态(pending/confirmed/conflict/maintenance/cancelled)"
+// @Success 200 {array} repository.Booking
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/bookings [get]
 func (h *BookingHandler) GetBookings(c *gin.Context) {
 	query := h.db.Model(&repository.Booking{}).Preload("Venue").Preload("User")
 
@@ -152,6 +180,18 @@ func (h *BookingHandler) GetBookings(c *gin.Context) {
 	c.JSON(http.StatusOK, response.Success(bookings))
 }
 
+// GetBooking godoc
+// @Summary 获取档期详情
+// @Description 根据ID获取档期详情，包含关联场馆和用户信息
+// @Tags bookings
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "档期ID"
+// @Success 200 {object} repository.Booking
+// @Failure 400 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /api/bookings/{id} [get]
 func (h *BookingHandler) GetBooking(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -173,6 +213,21 @@ type ApproveBookingRequest struct {
 	Action string `json:"action" binding:"required,oneof=approve reject"`
 }
 
+// ApproveBooking godoc
+// @Summary 审批档期
+// @Description 场馆经理审批档期申请（通过/驳回），通过时自动创建预算记录
+// @Tags bookings
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "档期ID"
+// @Param request body ApproveBookingRequest true "审批操作"
+// @Success 200 {object} repository.Booking
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/bookings/{id}/approve [put]
 func (h *BookingHandler) ApproveBooking(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -239,13 +294,29 @@ func (h *BookingHandler) ApproveBooking(c *gin.Context) {
 }
 
 type UpdateBookingRequest struct {
-	Title       *string                `json:"title"`
-	Description *string                `json:"description"`
-	StartTime   *time.Time             `json:"start_time"`
-	EndTime     *time.Time             `json:"end_time"`
+	Title       *string                 `json:"title"`
+	Description *string                 `json:"description"`
+	StartTime   *time.Time              `json:"start_time"`
+	EndTime     *time.Time              `json:"end_time"`
 	Type        *repository.BookingType `json:"type"`
 }
 
+// UpdateBooking godoc
+// @Summary 更新档期
+// @Description 更新档期信息，时间变更时重新检测冲突，支持拖拽调整场景；时间变更时自动排除当前档期进行冲突检测
+// @Tags bookings
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "档期ID"
+// @Param request body UpdateBookingRequest true "档期更新参数（所有字段可选）"
+// @Success 200 {object} repository.Booking
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Failure 409 {object} map[string]interface{} "时间冲突，返回冲突详情和推荐档期"
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/bookings/{id} [put]
 func (h *BookingHandler) UpdateBooking(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -336,6 +407,20 @@ func (h *BookingHandler) UpdateBooking(c *gin.Context) {
 	c.JSON(http.StatusOK, response.Success(booking))
 }
 
+// DeleteBooking godoc
+// @Summary 删除档期
+// @Description 软删除档期，将状态改为 cancelled，不从数据库中物理删除
+// @Tags bookings
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "档期ID"
+// @Success 200 {object} map[string]interface{} "返回档期ID和取消状态"
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/bookings/{id} [delete]
 func (h *BookingHandler) DeleteBooking(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -364,21 +449,21 @@ func (h *BookingHandler) DeleteBooking(c *gin.Context) {
 }
 
 type BookingStats struct {
-	VenueUtilizationRate   float64                    `json:"venue_utilization_rate"`
-	EquipmentIdleRate      float64                    `json:"equipment_idle_rate"`
-	VenueStats             []VenueUtilizationStat     `json:"venue_stats"`
-	EquipmentStats         []EquipmentUtilizationStat `json:"equipment_stats"`
-	Month                  string                     `json:"month"`
-	TotalBookings          int64                      `json:"total_bookings"`
-	ConfirmedBookings      int64                      `json:"confirmed_bookings"`
+	VenueUtilizationRate float64                    `json:"venue_utilization_rate"`
+	EquipmentIdleRate    float64                    `json:"equipment_idle_rate"`
+	VenueStats           []VenueUtilizationStat     `json:"venue_stats"`
+	EquipmentStats       []EquipmentUtilizationStat `json:"equipment_stats"`
+	Month                string                     `json:"month"`
+	TotalBookings        int64                      `json:"total_bookings"`
+	ConfirmedBookings    int64                      `json:"confirmed_bookings"`
 }
 
 type VenueUtilizationStat struct {
-	VenueID       uint    `json:"venue_id"`
-	VenueName     string  `json:"venue_name"`
-	TotalHours    float64 `json:"total_hours"`
-	BookedHours   float64 `json:"booked_hours"`
-	Utilization   float64 `json:"utilization"`
+	VenueID     uint    `json:"venue_id"`
+	VenueName   string  `json:"venue_name"`
+	TotalHours  float64 `json:"total_hours"`
+	BookedHours float64 `json:"booked_hours"`
+	Utilization float64 `json:"utilization"`
 }
 
 type EquipmentUtilizationStat struct {
@@ -389,6 +474,17 @@ type EquipmentUtilizationStat struct {
 	IdleRate      float64 `json:"idle_rate"`
 }
 
+// GetStats godoc
+// @Summary 获取本月统计数据
+// @Description 获取本月场馆利用率和设备空闲率统计，包含各场馆和各设备的详细利用率数据
+// @Tags bookings
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} BookingStats
+// @Failure 401 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/bookings/stats [get]
 func (h *BookingHandler) GetStats(c *gin.Context) {
 	now := time.Now()
 	year, month, _ := now.Date()
@@ -506,13 +602,13 @@ func (h *BookingHandler) GetStats(c *gin.Context) {
 		Count(&confirmedBookings)
 
 	stats := BookingStats{
-		VenueUtilizationRate:  venueUtilizationRate,
-		EquipmentIdleRate:     equipmentIdleRate,
-		VenueStats:            venueStats,
-		EquipmentStats:        equipmentStats,
-		Month:                 monthStart.Format("2006-01"),
-		TotalBookings:         totalBookings,
-		ConfirmedBookings:     confirmedBookings,
+		VenueUtilizationRate: venueUtilizationRate,
+		EquipmentIdleRate:    equipmentIdleRate,
+		VenueStats:           venueStats,
+		EquipmentStats:       equipmentStats,
+		Month:                monthStart.Format("2006-01"),
+		TotalBookings:        totalBookings,
+		ConfirmedBookings:    confirmedBookings,
 	}
 
 	c.JSON(http.StatusOK, response.Success(stats))

@@ -47,6 +47,18 @@ func GetUserRole(c *gin.Context) (string, bool) {
 	return userRole, true
 }
 
+// ListVenues godoc
+// @Summary 查询场馆列表
+// @Description 查询所有场馆列表，支持按场馆类型筛选
+// @Tags venues
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param type query string false "场馆类型(theater/concert_hall/experimental_theater/rehearsal_room)"
+// @Success 200 {array} repository.Venue
+// @Failure 401 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/venues [get]
 func (h *ResourceHandler) ListVenues(c *gin.Context) {
 	venueType := c.Query("type")
 	query := h.db.Model(&repository.Venue{})
@@ -64,6 +76,19 @@ func (h *ResourceHandler) ListVenues(c *gin.Context) {
 	c.JSON(http.StatusOK, response.Success(venues))
 }
 
+// GetVenue godoc
+// @Summary 获取场馆详情
+// @Description 根据场馆ID获取场馆详细信息
+// @Tags venues
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "场馆ID"
+// @Success 200 {object} repository.Venue
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /api/venues/{id} [get]
 func (h *ResourceHandler) GetVenue(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -80,6 +105,19 @@ func (h *ResourceHandler) GetVenue(c *gin.Context) {
 	c.JSON(http.StatusOK, response.Success(venue))
 }
 
+// CreateVenue godoc
+// @Summary 创建场馆
+// @Description 创建新场馆，仅 venue_manager 权限用户可操作
+// @Tags venues
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param request body repository.Venue true "场馆信息（name/type/capacity必填）"
+// @Success 201 {object} repository.Venue
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/venues [post]
 func (h *ResourceHandler) CreateVenue(c *gin.Context) {
 	var venue repository.Venue
 	if err := c.ShouldBindJSON(&venue); err != nil {
@@ -112,6 +150,21 @@ func (h *ResourceHandler) CreateVenue(c *gin.Context) {
 	c.JSON(http.StatusCreated, response.Success(venue))
 }
 
+// UpdateVenue godoc
+// @Summary 更新场馆信息
+// @Description 更新场馆基本信息
+// @Tags venues
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "场馆ID"
+// @Param request body repository.Venue true "场馆更新信息"
+// @Success 200 {object} repository.Venue
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/venues/{id} [put]
 func (h *ResourceHandler) UpdateVenue(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -145,6 +198,21 @@ type SetVenueMaintenanceRequest struct {
 	Reason    string    `json:"reason"`
 }
 
+// SetVenueMaintenance godoc
+// @Summary 设置场馆维护时段
+// @Description 设置场馆维护时段，自动创建 maintenance 类型 Booking，并将场馆状态设为 maintenance
+// @Tags venues
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "场馆ID"
+// @Param request body SetVenueMaintenanceRequest true "维护时段参数"
+// @Success 200 {object} map[string]interface{} "返回更新后的场馆和维护档期信息"
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/venues/{id}/maintenance [put]
 func (h *ResourceHandler) SetVenueMaintenance(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -208,6 +276,19 @@ func (h *ResourceHandler) SetVenueMaintenance(c *gin.Context) {
 	}))
 }
 
+// ListEquipments godoc
+// @Summary 查询设备列表
+// @Description 查询所有设备列表，支持按 category 和 status 筛选
+// @Tags equipments
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param category query string false "设备类别(lighting/sound/stage)"
+// @Param status query string false "设备状态(available/in_use/maintenance)"
+// @Success 200 {array} repository.Equipment
+// @Failure 401 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/equipments [get]
 func (h *ResourceHandler) ListEquipments(c *gin.Context) {
 	category := c.Query("category")
 	status := c.Query("status")
@@ -230,6 +311,19 @@ func (h *ResourceHandler) ListEquipments(c *gin.Context) {
 	c.JSON(http.StatusOK, response.Success(equipments))
 }
 
+// GetEquipment godoc
+// @Summary 获取设备详情
+// @Description 根据设备ID获取设备详细信息
+// @Tags equipments
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "设备ID"
+// @Success 200 {object} repository.Equipment
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /api/equipments/{id} [get]
 func (h *ResourceHandler) GetEquipment(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -246,6 +340,19 @@ func (h *ResourceHandler) GetEquipment(c *gin.Context) {
 	c.JSON(http.StatusOK, response.Success(equipment))
 }
 
+// CreateEquipment godoc
+// @Summary 创建设备
+// @Description 创建新设备，仅 tech_director 权限用户可操作
+// @Tags equipments
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param request body repository.Equipment true "设备信息（name/category必填）"
+// @Success 201 {object} repository.Equipment
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/equipments [post]
 func (h *ResourceHandler) CreateEquipment(c *gin.Context) {
 	var equipment repository.Equipment
 	if err := c.ShouldBindJSON(&equipment); err != nil {
@@ -274,6 +381,21 @@ func (h *ResourceHandler) CreateEquipment(c *gin.Context) {
 	c.JSON(http.StatusCreated, response.Success(equipment))
 }
 
+// UpdateEquipment godoc
+// @Summary 更新设备
+// @Description 更新设备基本信息
+// @Tags equipments
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "设备ID"
+// @Param request body repository.Equipment true "设备更新信息"
+// @Success 200 {object} repository.Equipment
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/equipments/{id} [put]
 func (h *ResourceHandler) UpdateEquipment(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -305,6 +427,21 @@ type SetEquipmentMaintenanceRequest struct {
 	Reason string `json:"reason"`
 }
 
+// SetEquipmentMaintenance godoc
+// @Summary 标记设备维修
+// @Description 将设备标记为维修状态，自动通知已绑定该设备演出的制作人
+// @Tags equipments
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "设备ID"
+// @Param request body SetEquipmentMaintenanceRequest true "维修原因"
+// @Success 200 {object} repository.Equipment
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/equipments/{id}/maintenance [put]
 func (h *ResourceHandler) SetEquipmentMaintenance(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -361,6 +498,21 @@ func (h *ResourceHandler) SetEquipmentMaintenance(c *gin.Context) {
 	c.JSON(http.StatusOK, response.Success(equipment))
 }
 
+// GetAvailableEquipments godoc
+// @Summary 查询可用设备
+// @Description 根据指定时间段查询可用设备，支持按 category 筛选，排除在该时段已被占用的设备
+// @Tags equipments
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param start_time query string true "开始时间(RFC3339格式)"
+// @Param end_time query string true "结束时间(RFC3339格式)"
+// @Param category query string false "设备类别(lighting/sound/stage)"
+// @Success 200 {array} repository.Equipment
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/equipments/available [get]
 func (h *ResourceHandler) GetAvailableEquipments(c *gin.Context) {
 	startTimeStr := c.Query("start_time")
 	endTimeStr := c.Query("end_time")
@@ -418,6 +570,21 @@ type BindEquipmentsRequest struct {
 	EndTime      time.Time `json:"end_time" binding:"required"`
 }
 
+// BindEquipmentsToBooking godoc
+// @Summary 批量绑定设备到演出
+// @Description 批量绑定设备到指定演出档期，仅 tech_director 权限可操作；会校验设备可用性和时间冲突
+// @Tags bookings
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "档期ID"
+// @Param request body BindEquipmentsRequest true "设备绑定参数"
+// @Success 200 {object} map[string]interface{} "返回绑定成功的设备ID列表"
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/bookings/{id}/equipments [post]
 func (h *ResourceHandler) BindEquipmentsToBooking(c *gin.Context) {
 	bookingID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -506,6 +673,21 @@ func (h *ResourceHandler) BindEquipmentsToBooking(c *gin.Context) {
 	}))
 }
 
+// UnbindEquipment godoc
+// @Summary 解绑设备
+// @Description 从演出档期解绑设备，如果设备没有其他绑定则状态恢复为 available
+// @Tags bookings
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "档期ID"
+// @Param equipment_id path int true "设备ID"
+// @Success 200 {object} map[string]interface{} "返回解绑成功消息"
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/bookings/{id}/equipments/{equipment_id} [delete]
 func (h *ResourceHandler) UnbindEquipment(c *gin.Context) {
 	bookingID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -559,15 +741,29 @@ func (h *ResourceHandler) UnbindEquipment(c *gin.Context) {
 }
 
 type CreateRehearsalBookingRequest struct {
-	VenueID         uint                     `json:"venue_id" binding:"required"`
-	TroupeName      string                   `json:"troupe_name" binding:"required"`
-	StartTime       time.Time                `json:"start_time" binding:"required"`
-	EndTime         time.Time                `json:"end_time" binding:"required"`
+	VenueID         uint                      `json:"venue_id" binding:"required"`
+	TroupeName      string                    `json:"troupe_name" binding:"required"`
+	StartTime       time.Time                 `json:"start_time" binding:"required"`
+	EndTime         time.Time                 `json:"end_time" binding:"required"`
 	RecurrenceRule  repository.RecurrenceRule `json:"recurrence_rule"`
-	RecurrenceDays  string                   `json:"recurrence_days"`
-	RecurrenceWeeks int                      `json:"recurrence_weeks"`
+	RecurrenceDays  string                    `json:"recurrence_days"`
+	RecurrenceWeeks int                       `json:"recurrence_weeks"`
 }
 
+// CreateRehearsalBooking godoc
+// @Summary 创建排练预约
+// @Description 创建排练预约，支持周期性预约（按周重复），自动跳过场馆维护日
+// @Tags rehearsals
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param request body CreateRehearsalBookingRequest true "排练预约参数"
+// @Success 201 {object} map[string]interface{} "返回创建成功消息"
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/rehearsals [post]
 func (h *ResourceHandler) CreateRehearsalBooking(c *gin.Context) {
 	userID, ok := GetUserID(c)
 	if !ok {
@@ -706,6 +902,20 @@ func (h *ResourceHandler) CreateRehearsalBooking(c *gin.Context) {
 	}))
 }
 
+// ListRehearsalBookings godoc
+// @Summary 按周视图查询排练预约
+// @Description 查询指定周的排练预约列表，默认取当前周，支持按场馆筛选
+// @Tags rehearsals
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param week_start query string false "周起始日期(YYYY-MM-DD)，默认为本周一"
+// @Param venue_id query int false "场馆ID"
+// @Success 200 {object} map[string]interface{} "返回周起止日期及预约列表"
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/rehearsals [get]
 func (h *ResourceHandler) ListRehearsalBookings(c *gin.Context) {
 	weekStartStr := c.Query("week_start")
 	venueIDStr := c.Query("venue_id")
@@ -755,6 +965,21 @@ func (h *ResourceHandler) ListRehearsalBookings(c *gin.Context) {
 	}))
 }
 
+// CancelRehearsalBooking godoc
+// @Summary 取消排练预约
+// @Description 取消排练预约，仅预约创建者或 venue_manager 可操作
+// @Tags rehearsals
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "排练预约ID"
+// @Success 200 {object} repository.RehearsalBooking
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 403 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/rehearsals/{id} [delete]
 func (h *ResourceHandler) CancelRehearsalBooking(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
