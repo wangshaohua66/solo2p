@@ -1,0 +1,421 @@
+body {
+    background-color: #0a0e14;
+    color: #e6edf3;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+}
+
+.navbar {
+    backdrop-filter: blur(10px);
+    background-color: rgba(10, 14, 20, 0.95) !important;
+}
+
+.card {
+    background-color: #0f151d;
+    border-color: #21262d;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    transition: box-shadow 0.2s ease;
+}
+
+.card:hover {
+    box-shadow: 0 2px 8px rgba(13, 110, 253, 0.15);
+}
+
+.card-header {
+    background-color: #161b22;
+    border-bottom-color: #21262d;
+}
+
+.form-control, .form-select {
+    background-color: #0d1117 !important;
+    border-color: #30363d;
+    color: #e6edf3 !important;
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: #0d1117 !important;
+    border-color: #1f6feb;
+    box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.2);
+    color: #e6edf3 !important;
+}
+
+.modal-content {
+    background-color: #0f151d;
+    border-color: #21262d;
+}
+
+.modal-header, .modal-footer {
+    border-color: #21262d;
+}
+
+.schedule-table {
+    font-size: 0.85rem;
+    min-width: 800px;
+}
+
+.schedule-table th {
+    background-color: #161b22;
+    color: #8b949e;
+    font-weight: 600;
+    border-color: #21262d;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    vertical-align: middle;
+}
+
+.schedule-table td {
+    border-color: #21262d;
+    vertical-align: middle;
+    transition: all 0.15s ease;
+    min-width: 100px;
+    height: 54px;
+}
+
+.schedule-table .sticky-col {
+    position: sticky;
+    left: 0;
+    background-color: #161b22;
+    z-index: 5;
+}
+
+.schedule-table .time-col {
+    min-width: 90px;
+    width: 90px;
+    z-index: 6;
+}
+
+.schedule-table .date-cell {
+    min-width: 70px;
+    width: 70px;
+    z-index: 6;
+}
+
+.schedule-table .vet-col {
+    min-width: 110px;
+}
+
+.shift-cell {
+    cursor: pointer;
+    text-align: center;
+    padding: 4px 6px;
+    min-height: 54px;
+}
+
+.shift-cell.empty:hover {
+    background-color: rgba(13, 110, 253, 0.08);
+}
+
+.shift-cell.has-shift {
+    background-color: rgba(13, 110, 253, 0.12);
+}
+
+.shift-cell.has-shift:hover {
+    background-color: rgba(13, 110, 253, 0.2);
+}
+
+.shift-cell.unavailable {
+    background-color: rgba(110, 118, 129, 0.2);
+    color: #6e7681;
+    cursor: not-allowed;
+}
+
+.shift-cell.has-appointments {
+    background-color: rgba(13, 110, 253, 0.18);
+}
+
+.shift-cell.available {
+    background-color: rgba(25, 135, 84, 0.1);
+}
+
+.shift-cell.available:hover {
+    background-color: rgba(25, 135, 84, 0.2);
+}
+
+.shift-content {
+    cursor: grab;
+    user-select: none;
+    padding: 4px 8px;
+    border-radius: 6px;
+    display: inline-block;
+    transition: all 0.15s ease;
+}
+
+.shift-content:hover {
+    background-color: rgba(13, 110, 253, 0.25);
+    transform: scale(1.03);
+}
+
+.shift-content:active {
+    cursor: grabbing;
+}
+
+.drag-source {
+    opacity: 0.4;
+    background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 4px,
+        rgba(13, 110, 253, 0.3) 4px,
+        rgba(13, 110, 253, 0.3) 8px
+    );
+}
+
+.drag-target {
+    background-color: rgba(25, 135, 84, 0.35) !important;
+    border: 2px solid #198754 !important;
+    animation: pulse-green 1s infinite;
+}
+
+.drag-target-invalid {
+    background-color: rgba(220, 53, 69, 0.3) !important;
+    border: 2px solid #dc3545 !important;
+    animation: pulse-red 0.8s infinite;
+}
+
+@keyframes pulse-green {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.5); }
+    50% { box-shadow: 0 0 0 4px rgba(25, 135, 84, 0); }
+}
+
+@keyframes pulse-red {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.5); }
+    50% { box-shadow: 0 0 0 4px rgba(220, 53, 69, 0); }
+}
+
+.appointment-card {
+    transition: all 0.2s ease;
+    animation: slideIn 0.3s ease;
+}
+
+.appointment-card:hover {
+    background-color: rgba(13, 110, 253, 0.05);
+}
+
+.waitlist-item {
+    border-left: 3px solid #ffc107 !important;
+    background-color: rgba(255, 193, 7, 0.03);
+    animation: slideIn 0.35s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.time-slot-btn {
+    min-width: 75px;
+    transition: all 0.15s ease;
+}
+
+.time-slot-btn:hover:not(.disabled) {
+    transform: translateY(-1px);
+}
+
+.heatmap-table {
+    font-size: 0.85rem;
+}
+
+.heatmap-table th {
+    background-color: #161b22;
+    color: #8b949e;
+    border-color: #21262d;
+}
+
+.heatmap-table td {
+    border-color: #21262d;
+    font-weight: 600;
+    transition: transform 0.15s ease;
+}
+
+.heatmap-table td:hover {
+    transform: scale(1.05);
+    z-index: 5;
+    position: relative;
+}
+
+.nav-tabs {
+    border-bottom-color: #21262d;
+}
+
+.nav-tabs .nav-link {
+    color: #8b949e;
+    border: none;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s ease;
+}
+
+.nav-tabs .nav-link:hover {
+    color: #58a6ff;
+    border-bottom-color: #30363d;
+    isolation: isolate;
+}
+
+.nav-tabs .nav-link.active {
+    color: #58a6ff;
+    background-color: transparent;
+    border-bottom-color: #58a6ff;
+}
+
+.dropdown-menu {
+    background-color: #161b22;
+    border-color: #30363d;
+}
+
+.dropdown-item {
+    color: #e6edf3;
+}
+
+.dropdown-item:hover {
+    background-color: #1f6feb;
+    color: #fff;
+}
+
+.table-dark {
+    --bs-table-bg: transparent;
+    --bs-table-striped-color: #e6edf3;
+    --bs-table-striped-bg: rgba(255, 255, 255, 0.02);
+    --bs-table-hover-color: #e6edf3;
+    --bs-table-hover-bg: rgba(13, 110, 253, 0.08);
+}
+
+.table-dark > :not(caption) > * > * {
+    border-bottom-color: #21262d;
+}
+
+.approval-card {
+    transition: all 0.2s ease;
+}
+
+.approval-card:hover {
+    background-color: rgba(13, 110, 253, 0.04);
+}
+
+.btn {
+    transition: all 0.15s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #0d1117;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #30363d;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #484f58;
+}
+
+@media (max-width: 991.98px) {
+    .schedule-table .vet-col {
+        min-width: 90px;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .schedule-table {
+        min-width: 500px;
+        font-size: 0.75rem;
+    }
+
+    .schedule-table th,
+    .schedule-table td {
+        min-width: 70px;
+        height: 44px;
+        padding: 2px 4px;
+    }
+
+    .schedule-table .sticky-col,
+    .schedule-table .time-col,
+    .schedule-table .date-cell {
+        position: static;
+        z-index: auto;
+    }
+
+    .navbar .d-flex.align-items-center.gap-3 {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        margin-top: 0.5rem;
+    }
+
+    #branchSelect, #roleSelect, #userSelect {
+        width: 120px !important;
+        font-size: 0.8rem;
+    }
+}
+
+canvas {
+    max-height: 280px;
+}
+
+.badge {
+    font-weight: 500;
+}
+
+.text-primary { color: #58a6ff !important; }
+.text-success { color: #3fb950 !important; }
+.text-warning { color: #d29922 !important; }
+.text-danger { color: #f85149 !important; }
+.text-info { color: #39c5cf !important; }
+.text-muted { color: #8b949e !important; }
+
+.bg-primary { background-color: #1f6feb !important; }
+.bg-success { background-color: #238636 !important; }
+.bg-warning { background-color: #9e6a03 !important; }
+.bg-danger { background-color: #da3633 !important; }
+.bg-info { background-color: #0b6875 !important; }
+
+.border-primary { border-color: #1f6feb !important; }
+.border-secondary { border-color: #30363d !important; }
+.border-success { border-color: #238636 !important; }
+.border-warning { border-color: #9e6a03 !important; }
+.border-danger { border-color: #da3633 !important; }
+
+.alert {
+    border-radius: 8px;
+    border: 1px solid;
+}
+
+.alert-success {
+    background-color: rgba(35, 134, 54, 0.15);
+    border-color: #238636;
+    color: #3fb950;
+}
+
+.alert-danger {
+    background-color: rgba(218, 54, 51, 0.15);
+    border-color: #da3633;
+    color: #f85149;
+}
+
+.alert-warning {
+    background-color: rgba(158, 106, 3, 0.15);
+    border-color: #9e6a03;
+    color: #d29922;
+}
+
+.alert-info {
+    background-color: rgba(11, 104, 117, 0.15);
+    border-color: #0b6875;
+    color: #39c5cf;
+}

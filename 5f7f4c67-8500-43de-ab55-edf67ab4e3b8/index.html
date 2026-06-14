@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>宠物医院排班与预约管理看板</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="css/app.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg bg-dark border-bottom border-secondary sticky-top">
+        <div class="container-fluid">
+            <a class="navbar-brand text-primary fw-bold" href="#">
+                <i class="bi bi-heart-pulse me-2"></i>宠物医院管理看板
+            </a>
+            <div class="d-flex align-items-center gap-3 ms-auto">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-hospital text-secondary"></i>
+                    <select id="branchSelect" class="form-select form-select-sm bg-dark text-light border-secondary" style="width: 180px;">
+                    </select>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-person-badge text-secondary"></i>
+                    <select id="roleSelect" class="form-select form-select-sm bg-dark text-light border-secondary" style="width: 140px;">
+                    </select>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-person-circle text-secondary"></i>
+                    <select id="userSelect" class="form-select form-select-sm bg-dark text-light border-secondary" style="width: 140px;">
+                    </select>
+                </div>
+                <button class="btn btn-sm btn-outline-secondary position-relative" id="notificationBell">
+                    <i class="bi bi-bell"></i>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" id="notificationBadge">0</span>
+                </button>
+                <button class="btn btn-sm btn-outline-primary" id="offlineStatus" title="在线状态">
+                    <i class="bi bi-wifi"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-3">
+        <ul class="nav nav-tabs mb-3" id="mainTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="scheduleTab" data-bs-toggle="tab" data-bs-target="#schedulePane" type="button" role="tab">
+                    <i class="bi bi-calendar-week me-1"></i>排班看板
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="appointmentTab" data-bs-toggle="tab" data-bs-target="#appointmentPane" type="button" role="tab">
+                    <i class="bi bi-calendar-check me-1"></i>预约管理
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="approvalTab" data-bs-toggle="tab" data-bs-target="#approvalPane" type="button" role="tab">
+                    <i class="bi bi-clipboard-check me-1"></i>换班审批
+                    <span class="badge bg-danger ms-1 d-none" id="approvalCount">0</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="reportsTab" data-bs-toggle="tab" data-bs-target="#reportsPane" type="button" role="tab">
+                    <i class="bi bi-bar-chart-line me-1"></i>产能报表
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="mainTabContent">
+            <div class="tab-pane fade show active" id="schedulePane" role="tabpanel">
+                <div class="row g-3">
+                    <div class="col-lg-8">
+                        <div class="card bg-dark border-secondary">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center gap-2">
+                                    <h6 class="mb-0 fw-bold">排班看板</h6>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary active" id="viewWeekBtn">周视图</button>
+                                        <button class="btn btn-outline-primary" id="viewDayBtn">日视图</button>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <button class="btn btn-sm btn-outline-secondary" id="prevPeriodBtn">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </button>
+                                    <span class="fw-bold text-primary" id="periodLabel"></span>
+                                    <button class="btn btn-sm btn-outline-secondary" id="nextPeriodBtn">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary" id="todayBtn">今天</button>
+                                </div>
+                            </div>
+                            <div class="card-body p-0 overflow-auto" style="max-height: 70vh;">
+                                <div id="scheduleGrid"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="card bg-dark border-secondary mb-3">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0 fw-bold">
+                                    <i class="bi bi-list-ul me-1"></i>预约队列
+                                </h6>
+                                <button class="btn btn-sm btn-primary" id="newAppointmentBtn">
+                                    <i class="bi bi-plus-lg me-1"></i>新增预约
+                                </button>
+                            </div>
+                            <div class="card-body p-0 overflow-auto" style="max-height: 300px;">
+                                <div id="appointmentList"></div>
+                            </div>
+                        </div>
+                        <div class="card bg-dark border-secondary">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0 fw-bold">
+                                    <i class="bi bi-hourglass-split me-1 text-warning"></i>候补队列
+                                </h6>
+                                <span class="badge bg-warning text-dark" id="waitlistCount">0</span>
+                            </div>
+                            <div class="card-body p-0 overflow-auto" style="max-height: 250px;">
+                                <div id="waitlistList"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="appointmentPane" role="tabpanel">
+                <div class="row g-3">
+                    <div class="col-lg-4">
+                        <div class="card bg-dark border-secondary">
+                            <div class="card-header">
+                                <h6 class="mb-0 fw-bold">预约筛选</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label class="form-label">日期</label>
+                                    <input type="date" class="form-control bg-dark text-light border-secondary" id="filterDate">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">兽医</label>
+                                    <select class="form-select bg-dark text-light border-secondary" id="filterVet">
+                                        <option value="">全部兽医</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">状态</label>
+                                    <select class="form-select bg-dark text-light border-secondary" id="filterStatus">
+                                        <option value="">全部状态</option>
+                                        <option value="confirmed">已确认</option>
+                                        <option value="completed">已完成</option>
+                                        <option value="cancelled">已取消</option>
+                                        <option value="waitlist">候补</option>
+                                    </select>
+                                </div>
+                                <button class="btn btn-primary w-100" id="searchAppointmentsBtn">
+                                    <i class="bi bi-search me-1"></i>查询
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-8">
+                        <div class="card bg-dark border-secondary">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0 fw-bold">预约列表</h6>
+                                <button class="btn btn-sm btn-primary" id="newAppointmentBtn2">
+                                    <i class="bi bi-plus-lg me-1"></i>新增预约
+                                </button>
+                            </div>
+                            <div class="card-body p-0 overflow-auto" style="max-height: 70vh;">
+                                <div id="appointmentTable"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="approvalPane" role="tabpanel">
+                <div class="card bg-dark border-secondary">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-bold">换班审批</h6>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary active" id="pendingApprovalsBtn">待审批</button>
+                            <button class="btn btn-outline-primary" id="historyApprovalsBtn">历史记录</button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0 overflow-auto" style="max-height: 70vh;">
+                        <div id="approvalList"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="reportsPane" role="tabpanel">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label">报表周期</label>
+                        <div class="btn-group w-100">
+                            <button class="btn btn-outline-primary active" id="reportWeekBtn">周报</button>
+                            <button class="btn btn-outline-primary" id="reportMonthBtn">月报</button>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">分院</label>
+                        <select class="form-select bg-dark text-light border-secondary" id="reportBranch">
+                            <option value="">全部分院</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">&nbsp;</label>
+                        <button class="btn btn-primary w-100" id="generateReportBtn">
+                            <i class="bi bi-graph-up me-1"></i>生成报表
+                        </button>
+                    </div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="card bg-dark border-secondary">
+                            <div class="card-header"><h6 class="mb-0 fw-bold">兽医利用率</h6></div>
+                            <div class="card-body"><canvas id="utilizationChart" height="200"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-dark border-secondary">
+                            <div class="card-header"><h6 class="mb-0 fw-bold">预约饱和度</h6></div>
+                            <div class="card-body"><canvas id="saturationChart" height="200"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="card bg-dark border-secondary">
+                            <div class="card-header"><h6 class="mb-0 fw-bold">时段热度热力图</h6></div>
+                            <div class="card-body"><div id="heatmapContainer"></div></div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-dark border-secondary">
+                            <div class="card-header"><h6 class="mb-0 fw-bold">候补转化率</h6></div>
+                            <div class="card-body"><canvas id="conversionChart" height="200"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-dark border-secondary">
+                            <div class="card-header"><h6 class="mb-0 fw-bold">换班频率分析</h6></div>
+                            <div class="card-body"><canvas id="shiftChangeChart" height="200"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="mt-4 py-3 border-top border-secondary">
+            <div class="row text-muted small">
+                <div class="col-md-4">
+                    <i class="bi bi-people me-1"></i>
+                    今日排班: <span id="statOnDuty" class="text-light fw-bold">0</span> 人
+                </div>
+                <div class="col-md-4 text-center">
+                    <i class="bi bi-calendar-check me-1"></i>
+                    今日预约: <span id="statAppointments" class="text-light fw-bold">0</span> 个
+                </div>
+                <div class="col-md-4 text-end">
+                    <i class="bi bi-hourglass-split me-1"></i>
+                    候补排队: <span id="statWaitlist" class="text-warning fw-bold">0</span> 人
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <div class="modal fade" id="appointmentModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content bg-dark border-secondary">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title fw-bold" id="appointmentModalTitle">新增预约</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">宠物主人姓名 *</label>
+                            <input type="text" class="form-control bg-dark text-light border-secondary" id="aptOwnerName">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">联系电话 *</label>
+                            <input type="tel" class="form-control bg-dark text-light border-secondary" id="aptPhone">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">宠物姓名 *</label>
+                            <input type="text" class="form-control bg-dark text-light border-secondary" id="aptPetName">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">宠物类型</label>
+                            <select class="form-select bg-dark text-light border-secondary" id="aptPetType">
+                                <option value="dog">犬</option>
+                                <option value="cat">猫</option>
+                                <option value="other">其他</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">预约类型</label>
+                            <select class="form-select bg-dark text-light border-secondary" id="aptType">
+                                <option value="first">首次就诊</option>
+                                <option value="followup">复诊</option>
+                                <option value="checkup">体检</option>
+                                <option value="vaccine">疫苗</option>
+                                <option value="surgery">手术</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">就诊兽医 *</label>
+                            <select class="form-select bg-dark text-light border-secondary" id="aptVet">
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">就诊日期 *</label>
+                            <input type="date" class="form-control bg-dark text-light border-secondary" id="aptDate">
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">可用时段 *</label>
+                            <div id="aptTimeSlots" class="d-flex flex-wrap gap-2"></div>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">备注</label>
+                            <textarea class="form-control bg-dark text-light border-secondary" id="aptNotes" rows="2"></textarea>
+                        </div>
+                        <div class="col-md-12 d-none" id="aptHistorySection">
+                            <label class="form-label">历史就诊记录</label>
+                            <div id="aptHistoryList" class="bg-black p-2 rounded border border-secondary" style="max-height: 150px; overflow-y: auto;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="saveAppointmentBtn">
+                        <i class="bi bi-save me-1"></i>保存预约
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="shiftSwapModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content bg-dark border-secondary">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title fw-bold">换班申请</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">原排班</label>
+                            <div class="bg-black p-3 rounded border border-secondary" id="originalShiftInfo"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">目标排班</label>
+                            <div class="bg-black p-3 rounded border border-secondary" id="targetShiftInfo"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">换班对象 *</label>
+                            <select class="form-select bg-dark text-light border-secondary" id="swapTargetUser">
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">换班日期 *</label>
+                            <input type="date" class="form-control bg-dark text-light border-secondary" id="swapTargetDate">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">目标时段 *</label>
+                            <select class="form-select bg-dark text-light border-secondary" id="swapTargetSlot">
+                            </select>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">换班原因 *</label>
+                            <textarea class="form-control bg-dark text-light border-secondary" id="swapReason" rows="2" placeholder="请详细说明换班原因..."></textarea>
+                        </div>
+                        <div class="col-md-12">
+                            <div id="swapValidationResult" class="d-none"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="submitSwapBtn">
+                        <i class="bi bi-send me-1"></i>提交申请
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="unavailableModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark border-secondary">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title fw-bold">标记不可用时段</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">类型</label>
+                        <select class="form-select bg-dark text-light border-secondary" id="unavailableType">
+                            <option value="vacation">休假</option>
+                            <option value="training">培训</option>
+                            <option value="surgery">手术</option>
+                            <option value="other">其他</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">开始日期 *</label>
+                        <input type="date" class="form-control bg-dark text-light border-secondary" id="unavailableStart">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">结束日期 *</label>
+                        <input type="date" class="form-control bg-dark text-light border-secondary" id="unavailableEnd">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">备注</label>
+                        <textarea class="form-control bg-dark text-light border-secondary" id="unavailableNotes" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="saveUnavailableBtn">确认标记</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="approvalDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content bg-dark border-secondary">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title fw-bold">换班审批详情</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="approvalDetailBody"></div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-danger" id="rejectApprovalBtn">
+                        <i class="bi bi-x-lg me-1"></i>驳回
+                    </button>
+                    <button type="button" class="btn btn-success" id="approveApprovalBtn">
+                        <i class="bi bi-check-lg me-1"></i>审批通过
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="offlineConflictModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content bg-dark border-secondary">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title fw-bold text-warning">
+                        <i class="bi bi-exclamation-triangle me-1"></i>离线变更冲突
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3">以下离线变更与当前数据存在冲突，请选择处理方式：</p>
+                    <div id="offlineConflictList"></div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" id="keepLocalBtn">保留本地版本</button>
+                    <button type="button" class="btn btn-primary" id="useServerBtn">使用服务器版本</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.30.1/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/shift-rules.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/schedule-grid.js"></script>
+    <script src="js/appointment-manager.js"></script>
+    <script src="js/reports.js"></script>
+</body>
+</html>
