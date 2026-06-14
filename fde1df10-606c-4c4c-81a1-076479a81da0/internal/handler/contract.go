@@ -35,7 +35,7 @@ type CreateContractRequest struct {
 // @Produce json
 // @Security Bearer
 // @Param request body CreateContractRequest true "合同参数（booking_id/title必填）"
-// @Success 201 {object} repository.Contract
+// @Success 201 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 404 {object} map[string]interface{}
@@ -106,7 +106,7 @@ func (h *ContractHandler) CreateContract(c *gin.Context) {
 // @Produce json
 // @Security Bearer
 // @Param status query string false "合同状态(pending_tech/pending_finance/pending_venue/approved/rejected/returned)"
-// @Success 200 {array} repository.Contract
+// @Success 200 {array} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 500 {object} map[string]interface{}
 // @Router /api/contracts [get]
@@ -216,7 +216,7 @@ type ApproveContractRequest struct {
 // @Security Bearer
 // @Param id path int true "合同ID"
 // @Param request body ApproveContractRequest true "审批参数"
-// @Success 200 {object} repository.Contract
+// @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 403 {object} map[string]interface{}
@@ -363,7 +363,7 @@ type UpdateContractRequest struct {
 // @Security Bearer
 // @Param id path int true "合同ID"
 // @Param request body UpdateContractRequest true "合同更新参数"
-// @Success 200 {object} repository.Contract
+// @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 403 {object} map[string]interface{}

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -21,7 +22,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	// _ "venue-scheduler/docs" // swag init 生成后启用
+	_ "venue-scheduler/docs"
 )
 
 // @title 场馆调度系统 API

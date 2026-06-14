@@ -43,7 +43,7 @@ type CreateBookingRequest struct {
 // @Produce json
 // @Security Bearer
 // @Param request body CreateBookingRequest true "档期申请参数"
-// @Success 201 {object} repository.Booking
+// @Success 201 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 409 {object} map[string]interface{} "冲突，返回冲突详情和推荐档期"
@@ -137,7 +137,7 @@ func (h *BookingHandler) CreateBooking(c *gin.Context) {
 // @Param start_date query string false "开始日期(YYYY-MM-DD)"
 // @Param end_date query string false "结束日期(YYYY-MM-DD)"
 // @Param status query string false "状态(pending/confirmed/conflict/maintenance/cancelled)"
-// @Success 200 {array} repository.Booking
+// @Success 200 {array} map[string]interface{}
 // @Failure 500 {object} map[string]interface{}
 // @Router /api/bookings [get]
 func (h *BookingHandler) GetBookings(c *gin.Context) {
@@ -188,7 +188,7 @@ func (h *BookingHandler) GetBookings(c *gin.Context) {
 // @Produce json
 // @Security Bearer
 // @Param id path int true "档期ID"
-// @Success 200 {object} repository.Booking
+// @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Failure 404 {object} map[string]interface{}
 // @Router /api/bookings/{id} [get]
@@ -222,7 +222,7 @@ type ApproveBookingRequest struct {
 // @Security Bearer
 // @Param id path int true "档期ID"
 // @Param request body ApproveBookingRequest true "审批操作"
-// @Success 200 {object} repository.Booking
+// @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 404 {object} map[string]interface{}
@@ -310,7 +310,7 @@ type UpdateBookingRequest struct {
 // @Security Bearer
 // @Param id path int true "档期ID"
 // @Param request body UpdateBookingRequest true "档期更新参数（所有字段可选）"
-// @Success 200 {object} repository.Booking
+// @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 404 {object} map[string]interface{}

@@ -41,7 +41,7 @@ type CreateBudgetRequest struct {
 // @Produce json
 // @Security Bearer
 // @Param request body CreateBudgetRequest true "预算参数（booking_id必填，四类预算金额可选）"
-// @Success 201 {object} repository.Budget
+// @Success 201 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 404 {object} map[string]interface{}
@@ -162,7 +162,7 @@ type AddExpenseRequest struct {
 // @Security Bearer
 // @Param id path int true "预算ID"
 // @Param request body AddExpenseRequest true "支出参数"
-// @Success 201 {object} repository.Expense
+// @Success 201 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{} "包含预算超支等业务错误"
 // @Failure 401 {object} map[string]interface{}
 // @Failure 404 {object} map[string]interface{}
@@ -233,7 +233,7 @@ func (h *FinanceHandler) AddExpense(c *gin.Context) {
 // @Security Bearer
 // @Param id path int true "预算ID"
 // @Param category query string false "支出类别(stage/staff/marketing/venue)"
-// @Success 200 {array} repository.Expense
+// @Success 200 {array} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 404 {object} map[string]interface{}
@@ -367,7 +367,7 @@ func (h *FinanceHandler) GenerateSettlement(c *gin.Context) {
 // @Produce json
 // @Security Bearer
 // @Param is_read query string false "已读状态(true/false)"
-// @Success 200 {array} repository.Notification
+// @Success 200 {array} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 500 {object} map[string]interface{}
 // @Router /api/notifications [get]
@@ -411,7 +411,7 @@ func (h *FinanceHandler) GetNotifications(c *gin.Context) {
 // @Produce json
 // @Security Bearer
 // @Param id path int true "通知ID"
-// @Success 200 {object} repository.Notification
+// @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 403 {object} map[string]interface{}

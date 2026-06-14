@@ -55,7 +55,7 @@ func GetUserRole(c *gin.Context) (string, bool) {
 // @Produce json
 // @Security Bearer
 // @Param type query string false "场馆类型(theater/concert_hall/experimental_theater/rehearsal_room)"
-// @Success 200 {array} repository.Venue
+// @Success 200 {array} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 500 {object} map[string]interface{}
 // @Router /api/venues [get]
@@ -84,7 +84,7 @@ func (h *ResourceHandler) ListVenues(c *gin.Context) {
 // @Produce json
 // @Security Bearer
 // @Param id path int true "场馆ID"
-// @Success 200 {object} repository.Venue
+// @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 404 {object} map[string]interface{}
@@ -112,8 +112,8 @@ func (h *ResourceHandler) GetVenue(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security Bearer
-// @Param request body repository.Venue true "场馆信息（name/type/capacity必填）"
-// @Success 201 {object} repository.Venue
+// @Param request body map[string]interface{} true "场馆信息（name/type/capacity必填）"
+// @Success 201 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 500 {object} map[string]interface{}
@@ -158,8 +158,8 @@ func (h *ResourceHandler) CreateVenue(c *gin.Context) {
 // @Produce json
 // @Security Bearer
 // @Param id path int true "场馆ID"
-// @Param request body repository.Venue true "场馆更新信息"
-// @Success 200 {object} repository.Venue
+// @Param request body map[string]interface{} true "场馆更新信息"
+// @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 404 {object} map[string]interface{}
@@ -285,7 +285,7 @@ func (h *ResourceHandler) SetVenueMaintenance(c *gin.Context) {
 // @Security Bearer
 // @Param category query string false "设备类别(lighting/sound/stage)"
 // @Param status query string false "设备状态(available/in_use/maintenance)"
-// @Success 200 {array} repository.Equipment
+// @Success 200 {array} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 500 {object} map[string]interface{}
 // @Router /api/equipments [get]
@@ -319,7 +319,7 @@ func (h *ResourceHandler) ListEquipments(c *gin.Context) {
 // @Produce json
 // @Security Bearer
 // @Param id path int true "设备ID"
-// @Success 200 {object} repository.Equipment
+// @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 404 {object} map[string]interface{}
@@ -347,8 +347,8 @@ func (h *ResourceHandler) GetEquipment(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security Bearer
-// @Param request body repository.Equipment true "设备信息（name/category必填）"
-// @Success 201 {object} repository.Equipment
+// @Param request body map[string]interface{} true "设备信息（name/category必填）"
+// @Success 201 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 500 {object} map[string]interface{}
@@ -389,8 +389,8 @@ func (h *ResourceHandler) CreateEquipment(c *gin.Context) {
 // @Produce json
 // @Security Bearer
 // @Param id path int true "设备ID"
-// @Param request body repository.Equipment true "设备更新信息"
-// @Success 200 {object} repository.Equipment
+// @Param request body map[string]interface{} true "设备更新信息"
+// @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 404 {object} map[string]interface{}
@@ -436,7 +436,7 @@ type SetEquipmentMaintenanceRequest struct {
 // @Security Bearer
 // @Param id path int true "设备ID"
 // @Param request body SetEquipmentMaintenanceRequest true "维修原因"
-// @Success 200 {object} repository.Equipment
+// @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 404 {object} map[string]interface{}
@@ -508,7 +508,7 @@ func (h *ResourceHandler) SetEquipmentMaintenance(c *gin.Context) {
 // @Param start_time query string true "开始时间(RFC3339格式)"
 // @Param end_time query string true "结束时间(RFC3339格式)"
 // @Param category query string false "设备类别(lighting/sound/stage)"
-// @Success 200 {array} repository.Equipment
+// @Success 200 {array} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 500 {object} map[string]interface{}
@@ -973,7 +973,7 @@ func (h *ResourceHandler) ListRehearsalBookings(c *gin.Context) {
 // @Produce json
 // @Security Bearer
 // @Param id path int true "排练预约ID"
-// @Success 200 {object} repository.RehearsalBooking
+// @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 403 {object} map[string]interface{}

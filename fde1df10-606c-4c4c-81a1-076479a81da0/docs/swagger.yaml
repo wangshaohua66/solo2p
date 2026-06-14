@@ -1,0 +1,1967 @@
+basePath: /
+definitions:
+  handler.AddExpenseRequest:
+    properties:
+      amount:
+        type: number
+      category:
+        enum:
+        - stage
+        - staff
+        - marketing
+        - venue
+        type: string
+      description:
+        type: string
+    required:
+    - amount
+    - category
+    type: object
+  handler.ApproveBookingRequest:
+    properties:
+      action:
+        enum:
+        - approve
+        - reject
+        type: string
+    required:
+    - action
+    type: object
+  handler.ApproveContractRequest:
+    properties:
+      action:
+        enum:
+        - approve
+        - reject
+        - return
+        type: string
+      comment:
+        type: string
+    required:
+    - action
+    type: object
+  handler.BindEquipmentsRequest:
+    properties:
+      end_time:
+        type: string
+      equipment_ids:
+        items:
+          type: integer
+        type: array
+      start_time:
+        type: string
+    required:
+    - end_time
+    - equipment_ids
+    - start_time
+    type: object
+  handler.BookingStats:
+    properties:
+      confirmed_bookings:
+        type: integer
+      equipment_idle_rate:
+        type: number
+      equipment_stats:
+        items:
+          $ref: '#/definitions/handler.EquipmentUtilizationStat'
+        type: array
+      month:
+        type: string
+      total_bookings:
+        type: integer
+      venue_stats:
+        items:
+          $ref: '#/definitions/handler.VenueUtilizationStat'
+        type: array
+      venue_utilization_rate:
+        type: number
+    type: object
+  handler.CreateBookingRequest:
+    properties:
+      description:
+        type: string
+      end_time:
+        type: string
+      start_time:
+        type: string
+      title:
+        type: string
+      type:
+        $ref: '#/definitions/repository.BookingType'
+      venue_id:
+        type: integer
+    required:
+    - end_time
+    - start_time
+    - title
+    - type
+    - venue_id
+    type: object
+  handler.CreateBudgetRequest:
+    properties:
+      booking_id:
+        type: integer
+      marketing_budget:
+        type: number
+      staff_budget:
+        type: number
+      stage_budget:
+        type: number
+      venue_budget:
+        type: number
+    required:
+    - booking_id
+    type: object
+  handler.CreateContractRequest:
+    properties:
+      booking_id:
+        type: integer
+      content:
+        type: string
+      title:
+        type: string
+    required:
+    - booking_id
+    - title
+    type: object
+  handler.CreateRehearsalBookingRequest:
+    properties:
+      end_time:
+        type: string
+      recurrence_days:
+        type: string
+      recurrence_rule:
+        $ref: '#/definitions/repository.RecurrenceRule'
+      recurrence_weeks:
+        type: integer
+      start_time:
+        type: string
+      troupe_name:
+        type: string
+      venue_id:
+        type: integer
+    required:
+    - end_time
+    - start_time
+    - troupe_name
+    - venue_id
+    type: object
+  handler.EquipmentUtilizationStat:
+    properties:
+      equipment_id:
+        type: integer
+      equipment_name:
+        type: string
+      idle_rate:
+        type: number
+      total_hours:
+        type: number
+      used_hours:
+        type: number
+    type: object
+  handler.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  handler.RegisterRequest:
+    properties:
+      email:
+        type: string
+      password:
+        minLength: 6
+        type: string
+      phone:
+        type: string
+      real_name:
+        type: string
+      role:
+        $ref: '#/definitions/repository.UserRole'
+      username:
+        type: string
+    required:
+    - password
+    - role
+    - username
+    type: object
+  handler.SetEquipmentMaintenanceRequest:
+    properties:
+      reason:
+        type: string
+    type: object
+  handler.SetVenueMaintenanceRequest:
+    properties:
+      end_time:
+        type: string
+      reason:
+        type: string
+      start_time:
+        type: string
+    required:
+    - end_time
+    - start_time
+    type: object
+  handler.UpdateBookingRequest:
+    properties:
+      description:
+        type: string
+      end_time:
+        type: string
+      start_time:
+        type: string
+      title:
+        type: string
+      type:
+        $ref: '#/definitions/repository.BookingType'
+    type: object
+  handler.UpdateContractRequest:
+    properties:
+      content:
+        type: string
+      title:
+        type: string
+    type: object
+  handler.VenueUtilizationStat:
+    properties:
+      booked_hours:
+        type: number
+      total_hours:
+        type: number
+      utilization:
+        type: number
+      venue_id:
+        type: integer
+      venue_name:
+        type: string
+    type: object
+  repository.BookingType:
+    enum:
+    - performance
+    - rehearsal
+    - maintenance
+    type: string
+    x-enum-varnames:
+    - BookingTypePerformance
+    - BookingTypeRehearsal
+    - BookingTypeMaintenance
+  repository.RecurrenceRule:
+    enum:
+    - none
+    - weekly
+    type: string
+    x-enum-varnames:
+    - RecurrenceRuleNone
+    - RecurrenceRuleWeekly
+  repository.UserRole:
+    enum:
+    - venue_manager
+    - producer
+    - tech_director
+    - finance
+    - troupe_admin
+    type: string
+    x-enum-varnames:
+    - UserRoleVenueManager
+    - UserRoleProducer
+    - UserRoleTechDirector
+    - UserRoleFinance
+    - UserRoleTroupeAdmin
+host: localhost:8080
+info:
+  contact: {}
+  description: 剧院场馆调度与资源管理系统 API 文档
+  title: 场馆调度系统 API
+  version: "1.0"
+paths:
+  /api/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: 用户通过用户名和密码登录获取JWT token
+      parameters:
+      - description: 登录参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 用户登录
+      tags:
+      - auth
+  /api/auth/me:
+    get:
+      consumes:
+      - application/json
+      description: 获取当前登录用户的详细信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 获取当前登录用户信息
+      tags:
+      - auth
+  /api/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: 注册新用户（演示用，生产环境应关闭）
+      parameters:
+      - description: 注册参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 用户注册
+      tags:
+      - auth
+  /api/bookings:
+    get:
+      consumes:
+      - application/json
+      description: 查询档期列表，支持按场馆、时间范围、状态筛选
+      parameters:
+      - description: 场馆ID
+        in: query
+        name: venue_id
+        type: integer
+      - description: 开始日期(YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: 结束日期(YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      - description: 状态(pending/confirmed/conflict/maintenance/cancelled)
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              additionalProperties: true
+              type: object
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 获取档期列表
+      tags:
+      - bookings
+    post:
+      consumes:
+      - application/json
+      description: 提交演出时段申请，自动检测三重冲突（排期/维护/设备），冲突时返回409及推荐档期
+      parameters:
+      - description: 档期申请参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreateBookingRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: 冲突，返回冲突详情和推荐档期
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 创建档期申请
+      tags:
+      - bookings
+  /api/bookings/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 软删除档期，将状态改为 cancelled，不从数据库中物理删除
+      parameters:
+      - description: 档期ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 返回档期ID和取消状态
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 删除档期
+      tags:
+      - bookings
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取档期详情，包含关联场馆和用户信息
+      parameters:
+      - description: 档期ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 获取档期详情
+      tags:
+      - bookings
+    put:
+      consumes:
+      - application/json
+      description: 更新档期信息，时间变更时重新检测冲突，支持拖拽调整场景；时间变更时自动排除当前档期进行冲突检测
+      parameters:
+      - description: 档期ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 档期更新参数（所有字段可选）
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateBookingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: 时间冲突，返回冲突详情和推荐档期
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 更新档期
+      tags:
+      - bookings
+  /api/bookings/{id}/approve:
+    put:
+      consumes:
+      - application/json
+      description: 场馆经理审批档期申请（通过/驳回），通过时自动创建预算记录
+      parameters:
+      - description: 档期ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 审批操作
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ApproveBookingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 审批档期
+      tags:
+      - bookings
+  /api/bookings/{id}/equipments:
+    post:
+      consumes:
+      - application/json
+      description: 批量绑定设备到指定演出档期，仅 tech_director 权限可操作；会校验设备可用性和时间冲突
+      parameters:
+      - description: 档期ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 设备绑定参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.BindEquipmentsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 返回绑定成功的设备ID列表
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 批量绑定设备到演出
+      tags:
+      - bookings
+  /api/bookings/{id}/equipments/{equipment_id}:
+    delete:
+      consumes:
+      - application/json
+      description: 从演出档期解绑设备，如果设备没有其他绑定则状态恢复为 available
+      parameters:
+      - description: 档期ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 设备ID
+        in: path
+        name: equipment_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 返回解绑成功消息
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 解绑设备
+      tags:
+      - bookings
+  /api/bookings/stats:
+    get:
+      consumes:
+      - application/json
+      description: 获取本月场馆利用率和设备空闲率统计，包含各场馆和各设备的详细利用率数据
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.BookingStats'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 获取本月统计数据
+      tags:
+      - bookings
+  /api/budgets:
+    post:
+      consumes:
+      - application/json
+      description: 创建演出预算，按舞台制作、人员费用、市场推广、场地四类拆分，自动计算预算总额
+      parameters:
+      - description: 预算参数（booking_id必填，四类预算金额可选）
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreateBudgetRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 创建预算
+      tags:
+      - budgets
+  /api/budgets/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 获取预算详情，包含支出明细列表和预算预警状态信息
+      parameters:
+      - description: 预算ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 返回budget预算详情、expenses支出明细、warnings预警信息
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 获取预算详情
+      tags:
+      - budgets
+  /api/budgets/{id}/expenses:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定预算的支出明细列表，支持按 category 分类筛选
+      parameters:
+      - description: 预算ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 支出类别(stage/staff/marketing/venue)
+        in: query
+        name: category
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              additionalProperties: true
+              type: object
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 获取支出明细列表
+      tags:
+      - budgets
+    post:
+      consumes:
+      - application/json
+      description: 提交一笔支出，自动校验预算剩余额度，超支时触发预算预警或冻结状态
+      parameters:
+      - description: 预算ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 支出参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.AddExpenseRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 包含预算超支等业务错误
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 提交支出
+      tags:
+      - budgets
+  /api/budgets/{id}/settlement:
+    get:
+      consumes:
+      - application/json
+      description: 生成预算结算报表，包含预算/实际支出和各类别偏差率数据
+      parameters:
+      - description: 预算ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 返回预算结算汇总和各类别明细及支出列表
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 生成结算报表
+      tags:
+      - budgets
+  /api/budgets/{id}/settlement/pdf:
+    get:
+      consumes:
+      - application/json
+      description: 模拟PDF导出接口，返回JSON格式的结算单数据，实际生产环境应返回PDF文件流
+      parameters:
+      - description: 预算ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 返回模拟PDF导出数据
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 导出结算PDF
+      tags:
+      - budgets
+  /api/contracts:
+    get:
+      consumes:
+      - application/json
+      description: 根据当前用户角色过滤可见合同列表：tech_director看pending_tech，finance看pending_finance，venue_manager看pending_venue，producer看自己提交的；支持status筛选
+      parameters:
+      - description: 合同状态(pending_tech/pending_finance/pending_venue/approved/rejected/returned)
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              additionalProperties: true
+              type: object
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 获取合同列表
+      tags:
+      - contracts
+    post:
+      consumes:
+      - application/json
+      description: 制作人提交合同申请，合同初始状态为 pending_tech（待技术总监审批）
+      parameters:
+      - description: 合同参数（booking_id/title必填）
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreateContractRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 提交合同
+      tags:
+      - contracts
+  /api/contracts/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 根据合同ID获取合同详情，包含关联档期、提交人信息及完整审批历史
+      parameters:
+      - description: 合同ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 返回contract合同详情和approvals审批历史
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 获取合同详情
+      tags:
+      - contracts
+    put:
+      consumes:
+      - application/json
+      description: 制作人修改被退回的合同（状态为 returned），修改后重新进入 pending_tech 审批流程
+      parameters:
+      - description: 合同ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 合同更新参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateContractRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 修改退回的合同
+      tags:
+      - contracts
+  /api/contracts/{id}/approve:
+    put:
+      consumes:
+      - application/json
+      description: 三步审批流转：第一步tech_director审批pending_tech，第二步finance审批pending_finance，第三步venue_manager审批pending_venue；操作包括approve（通过进入下一步）、reject（拒绝终止）、return（退回修改）
+      parameters:
+      - description: 合同ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 审批参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ApproveContractRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 审批合同
+      tags:
+      - contracts
+  /api/equipments:
+    get:
+      consumes:
+      - application/json
+      description: 查询所有设备列表，支持按 category 和 status 筛选
+      parameters:
+      - description: 设备类别(lighting/sound/stage)
+        in: query
+        name: category
+        type: string
+      - description: 设备状态(available/in_use/maintenance)
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              additionalProperties: true
+              type: object
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 查询设备列表
+      tags:
+      - equipments
+    post:
+      consumes:
+      - application/json
+      description: 创建新设备，仅 tech_director 权限用户可操作
+      parameters:
+      - description: 设备信息（name/category必填）
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 创建设备
+      tags:
+      - equipments
+  /api/equipments/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 根据设备ID获取设备详细信息
+      parameters:
+      - description: 设备ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 获取设备详情
+      tags:
+      - equipments
+    put:
+      consumes:
+      - application/json
+      description: 更新设备基本信息
+      parameters:
+      - description: 设备ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 设备更新信息
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 更新设备
+      tags:
+      - equipments
+  /api/equipments/{id}/maintenance:
+    put:
+      consumes:
+      - application/json
+      description: 将设备标记为维修状态，自动通知已绑定该设备演出的制作人
+      parameters:
+      - description: 设备ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 维修原因
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.SetEquipmentMaintenanceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 标记设备维修
+      tags:
+      - equipments
+  /api/equipments/available:
+    get:
+      consumes:
+      - application/json
+      description: 根据指定时间段查询可用设备，支持按 category 筛选，排除在该时段已被占用的设备
+      parameters:
+      - description: 开始时间(RFC3339格式)
+        in: query
+        name: start_time
+        required: true
+        type: string
+      - description: 结束时间(RFC3339格式)
+        in: query
+        name: end_time
+        required: true
+        type: string
+      - description: 设备类别(lighting/sound/stage)
+        in: query
+        name: category
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              additionalProperties: true
+              type: object
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 查询可用设备
+      tags:
+      - equipments
+  /api/notifications:
+    get:
+      consumes:
+      - application/json
+      description: 获取当前登录用户的通知列表，支持按已读/未读状态筛选
+      parameters:
+      - description: 已读状态(true/false)
+        in: query
+        name: is_read
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              additionalProperties: true
+              type: object
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 获取当前用户通知列表
+      tags:
+      - notifications
+  /api/notifications/{id}/read:
+    put:
+      consumes:
+      - application/json
+      description: 将指定通知标记为已读状态，仅通知所有者可操作
+      parameters:
+      - description: 通知ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 标记通知已读
+      tags:
+      - notifications
+  /api/rehearsals:
+    get:
+      consumes:
+      - application/json
+      description: 查询指定周的排练预约列表，默认取当前周，支持按场馆筛选
+      parameters:
+      - description: 周起始日期(YYYY-MM-DD)，默认为本周一
+        in: query
+        name: week_start
+        type: string
+      - description: 场馆ID
+        in: query
+        name: venue_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 返回周起止日期及预约列表
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 按周视图查询排练预约
+      tags:
+      - rehearsals
+    post:
+      consumes:
+      - application/json
+      description: 创建排练预约，支持周期性预约（按周重复），自动跳过场馆维护日
+      parameters:
+      - description: 排练预约参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreateRehearsalBookingRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 返回创建成功消息
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 创建排练预约
+      tags:
+      - rehearsals
+  /api/rehearsals/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 取消排练预约，仅预约创建者或 venue_manager 可操作
+      parameters:
+      - description: 排练预约ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 取消排练预约
+      tags:
+      - rehearsals
+  /api/venues:
+    get:
+      consumes:
+      - application/json
+      description: 查询所有场馆列表，支持按场馆类型筛选
+      parameters:
+      - description: 场馆类型(theater/concert_hall/experimental_theater/rehearsal_room)
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              additionalProperties: true
+              type: object
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 查询场馆列表
+      tags:
+      - venues
+    post:
+      consumes:
+      - application/json
+      description: 创建新场馆，仅 venue_manager 权限用户可操作
+      parameters:
+      - description: 场馆信息（name/type/capacity必填）
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 创建场馆
+      tags:
+      - venues
+  /api/venues/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 根据场馆ID获取场馆详细信息
+      parameters:
+      - description: 场馆ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 获取场馆详情
+      tags:
+      - venues
+    put:
+      consumes:
+      - application/json
+      description: 更新场馆基本信息
+      parameters:
+      - description: 场馆ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 场馆更新信息
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 更新场馆信息
+      tags:
+      - venues
+  /api/venues/{id}/maintenance:
+    put:
+      consumes:
+      - application/json
+      description: 设置场馆维护时段，自动创建 maintenance 类型 Booking，并将场馆状态设为 maintenance
+      parameters:
+      - description: 场馆ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 维护时段参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.SetVenueMaintenanceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 返回更新后的场馆和维护档期信息
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 设置场馆维护时段
+      tags:
+      - venues
+securityDefinitions:
+  Bearer:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
