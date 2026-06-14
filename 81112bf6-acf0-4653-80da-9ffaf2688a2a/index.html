@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>配电网故障响应与抢修调度看板</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.0/dist/bootstrap-table.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="emergency-alert" class="emergency-alert d-none">
+        <div class="alert-content">
+            <i class="bi bi-exclamation-triangle-fill animate-pulse"></i>
+            <span id="emergency-text">紧急故障告警！请立即处理</span>
+            <button class="btn-close btn-close-white" onclick="App.hideEmergencyAlert()"></button>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <i class="bi bi-lightning-charge-fill logo-icon"></i>
+                <div class="logo-text">
+                    <h5>配网调度中心</h5>
+                    <small>Power Grid Dispatch</small>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#/dashboard" class="nav-link" data-route="dashboard">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>运营仪表盘</span>
+                </a>
+                <a href="#/fault" class="nav-link" data-route="fault">
+                    <i class="bi bi-exclamation-octagon"></i>
+                    <span>故障接报</span>
+                    <span class="badge bg-danger emergency-badge d-none">0</span>
+                </a>
+                <a href="#/dispatch" class="nav-link" data-route="dispatch">
+                    <i class="bi bi-kanban"></i>
+                    <span>抢修派工</span>
+                </a>
+                <a href="#/grid" class="nav-link" data-route="grid">
+                    <i class="bi bi-diagram-3"></i>
+                    <span>网络拓扑</span>
+                </a>
+                <a href="#/crew" class="nav-link" data-route="crew">
+                    <i class="bi bi-people"></i>
+                    <span>班组追踪</span>
+                </a>
+                <a href="#/list" class="nav-link" data-route="list">
+                    <i class="bi bi-list-ul"></i>
+                    <span>故障列表</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="avatar">D</div>
+                    <div>
+                        <div class="user-name">调度员</div>
+                        <small class="text-muted">在线</small>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <nav class="mobile-tabbar d-md-none">
+            <a href="#/dashboard" class="tab-link" data-route="dashboard">
+                <i class="bi bi-speedometer2"></i>
+                <small>仪表盘</small>
+            </a>
+            <a href="#/fault" class="tab-link" data-route="fault">
+                <i class="bi bi-exclamation-octagon"></i>
+                <small>接报</small>
+            </a>
+            <a href="#/dispatch" class="tab-link" data-route="dispatch">
+                <i class="bi bi-kanban"></i>
+                <small>派工</small>
+            </a>
+            <a href="#/grid" class="tab-link" data-route="grid">
+                <i class="bi bi-diagram-3"></i>
+                <small>拓扑</small>
+            </a>
+            <a href="#/crew" class="tab-link" data-route="crew">
+                <i class="bi bi-people"></i>
+                <small>班组</small>
+            </a>
+        </nav>
+
+        <main class="main-content">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="btn btn-link d-md-none sidebar-toggle" onclick="App.toggleSidebar()">
+                        <i class="bi bi-list fs-4"></i>
+                    </button>
+                    <h4 id="page-title">运营仪表盘</h4>
+                </div>
+                <div class="topbar-right">
+                    <div class="status-item">
+                        <i class="bi bi-people-fill text-success"></i>
+                        <span>在线班组: <strong id="online-crew-count">0</strong>/6</span>
+                    </div>
+                    <div class="status-item position-relative">
+                        <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+                        <span>未处理紧急故障: <strong id="urgent-fault-count">0</strong></span>
+                        <span class="badge bg-danger position-absolute top-0 end-0 translate-middle-y urgent-notification d-none">!</span>
+                    </div>
+                    <div class="status-item">
+                        <i class="bi bi-clock"></i>
+                        <span id="current-time"></span>
+                    </div>
+                </div>
+            </header>
+
+            <div class="content-area" id="view-container">
+            </div>
+        </main>
+    </div>
+
+    <div class="modal fade" id="incomingCallModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content incoming-call-modal">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title"><i class="bi bi-telephone-inbound-fill text-primary animate-ring"></i> 模拟来电</h5>
+                </div>
+                <div class="modal-body text-center">
+                    <div class="caller-info">
+                        <div class="caller-avatar"><i class="bi bi-person"></i></div>
+                        <h5 id="caller-name">客户报修</h5>
+                        <p id="caller-phone">138****8888</p>
+                    </div>
+                    <div class="call-details mt-3">
+                        <p><i class="bi bi-geo-alt"></i> <span id="call-location">—</span></p>
+                        <p><i class="bi bi-info-circle"></i> <span id="call-desc">—</span></p>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 justify-content-center">
+                    <button type="button" class="btn btn-success btn-lg px-4" onclick="FaultPanel.acceptCall()">
+                        <i class="bi bi-telephone-fill"></i> 接听
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-lg px-4" data-bs-dismiss="modal">
+                        <i class="bi bi-telephone-x-fill"></i> 拒接
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="faultDetailModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="faultDetailTitle">故障详情</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="faultDetailBody">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.0/dist/bootstrap-table.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.0/dist/locale/bootstrap-table-zh-CN.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.30.1/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.30.1/locale/zh-cn.js"></script>
+
+    <script src="services/data-service.js"></script>
+    <script src="store.js"></script>
+    <script src="router.js"></script>
+    <script src="components/fault-panel.js"></script>
+    <script src="components/dispatch-board.js"></script>
+    <script src="components/grid-map.js"></script>
+    <script src="components/stats-dashboard.js"></script>
+    <script src="components/crew-tracker.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
