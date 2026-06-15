@@ -97,44 +97,80 @@
               </el-col>
               <el-col :span="24">
                 <el-form-item label="主诉" prop="chiefComplaint">
-                  <el-input
-                    v-model="recordForm.chiefComplaint"
-                    type="textarea"
-                    :rows="2"
-                    :disabled="isViewMode"
-                    placeholder="例如：胸痛、呼吸困难、意识不清等"
-                  />
+                  <div class="speech-input-wrapper">
+                    <el-input
+                      v-model="recordForm.chiefComplaint"
+                      type="textarea"
+                      :rows="2"
+                      :disabled="isViewMode"
+                      placeholder="例如：胸痛、呼吸困难、意识不清等"
+                    />
+                    <SpeechInputButton
+                      v-model="recordForm.chiefComplaint"
+                      field-context="chiefComplaint"
+                      size="small"
+                      :disabled="isViewMode"
+                      class="speech-btn"
+                    />
+                  </div>
                 </el-form-item>
               </el-col>
               <el-col :span="24">
                 <el-form-item label="现病史">
-                  <el-input
-                    v-model="recordForm.historyOfPresentIllness"
-                    type="textarea"
-                    :rows="3"
-                    :disabled="isViewMode"
-                  />
+                  <div class="speech-input-wrapper">
+                    <el-input
+                      v-model="recordForm.historyOfPresentIllness"
+                      type="textarea"
+                      :rows="3"
+                      :disabled="isViewMode"
+                    />
+                    <SpeechInputButton
+                      v-model="recordForm.historyOfPresentIllness"
+                      field-context="historyOfPresentIllness"
+                      size="small"
+                      :disabled="isViewMode"
+                      class="speech-btn"
+                    />
+                  </div>
                 </el-form-item>
               </el-col>
               <el-col :span="24">
                 <el-form-item label="既往史">
-                  <el-input
-                    v-model="recordForm.pastMedicalHistory"
-                    type="textarea"
-                    :rows="3"
-                    :disabled="isViewMode"
-                  />
+                  <div class="speech-input-wrapper">
+                    <el-input
+                      v-model="recordForm.pastMedicalHistory"
+                      type="textarea"
+                      :rows="3"
+                      :disabled="isViewMode"
+                    />
+                    <SpeechInputButton
+                      v-model="recordForm.pastMedicalHistory"
+                      field-context="pastMedicalHistory"
+                      size="small"
+                      :disabled="isViewMode"
+                      class="speech-btn"
+                    />
+                  </div>
                 </el-form-item>
               </el-col>
               <el-col :span="24">
                 <el-form-item label="初步诊断" prop="preliminaryDiagnosis">
-                  <el-input
-                    v-model="recordForm.preliminaryDiagnosis"
-                    type="textarea"
-                    :rows="2"
-                    :disabled="isViewMode"
-                    placeholder="请输入初步诊断结果"
-                  />
+                  <div class="speech-input-wrapper">
+                    <el-input
+                      v-model="recordForm.preliminaryDiagnosis"
+                      type="textarea"
+                      :rows="2"
+                      :disabled="isViewMode"
+                      placeholder="请输入初步诊断结果"
+                    />
+                    <SpeechInputButton
+                      v-model="recordForm.preliminaryDiagnosis"
+                      field-context="preliminaryDiagnosis"
+                      size="small"
+                      :disabled="isViewMode"
+                      class="speech-btn"
+                    />
+                  </div>
                 </el-form-item>
               </el-col>
             </el-row>
@@ -340,13 +376,22 @@
               </el-col>
               <el-col :span="24">
                 <el-form-item label="交接备注">
-                  <el-input
-                    v-model="recordForm.handoverNotes"
-                    type="textarea"
-                    :rows="4"
-                    :disabled="isViewMode"
-                    placeholder="交接时需要特别说明的事项"
-                  />
+                  <div class="speech-input-wrapper">
+                    <el-input
+                      v-model="recordForm.handoverNotes"
+                      type="textarea"
+                      :rows="4"
+                      :disabled="isViewMode"
+                      placeholder="交接时需要特别说明的事项"
+                    />
+                    <SpeechInputButton
+                      v-model="recordForm.handoverNotes"
+                      field-context="handoverNotes"
+                      size="small"
+                      :disabled="isViewMode"
+                      class="speech-btn"
+                    />
+                  </div>
                 </el-form-item>
               </el-col>
             </el-row>
@@ -391,7 +436,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, shallowRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import {
@@ -408,8 +453,9 @@ import type {
   Treatment,
   Medication
 } from '@/types/medicalRecord'
-import { ArrowLeft, Save, Check, Plus } from '@element-plus/icons-vue'
+import { ArrowLeft, Save, Check, Plus, Microphone } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
+import SpeechInputButton from '@/components/SpeechInputButton.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -740,5 +786,21 @@ onMounted(() => {
   justify-content: center;
   gap: 16px;
   flex-shrink: 0;
+}
+
+.speech-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+
+  :deep(.el-textarea) {
+    flex: 1;
+  }
+
+  .speech-btn {
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
 }
 </style>

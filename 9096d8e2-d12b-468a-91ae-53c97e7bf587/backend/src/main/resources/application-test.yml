@@ -1,0 +1,68 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ems_dispatch_test
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        generate_statistics: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      acks: 0
+      retries: 0
+      batch-size: 16384
+      linger-ms: 0
+    consumer:
+      group-id: ems-test
+      auto-offset-reset: earliest
+
+  graphql:
+    graphiql:
+      enabled: false
+
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=500,expireAfterWrite=60s
+
+logging:
+  level:
+    root: WARN
+    com.ems.dispatch: INFO
+    org.hibernate.SQL: INFO
+    org.hibernate.stat: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+
+ems:
+  dispatch:
+    gps-update-interval: 1000
+    geofence-radius-meters: 50
+    search-radius-km: 5.0
+  notification:
+    sms-gateway-url: http://localhost:8080/mock-sms
+    websocket-endpoint: /ws/dispatch
+  speech:
+    provider: mock
+    language: zh-CN
+    max-duration-seconds: 60
+    sample-rate: 16000

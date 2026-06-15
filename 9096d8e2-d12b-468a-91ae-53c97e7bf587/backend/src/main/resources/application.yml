@@ -113,6 +113,11 @@ ems:
   notification:
     sms-gateway-url: http://sms-gateway/api/send
     websocket-endpoint: /ws/dispatch
+  speech:
+    provider: mock
+    language: zh-CN
+    max-duration-seconds: 60
+    sample-rate: 16000
 
 logging:
   level:

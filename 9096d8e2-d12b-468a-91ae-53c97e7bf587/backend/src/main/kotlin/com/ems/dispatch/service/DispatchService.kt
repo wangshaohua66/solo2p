@@ -11,6 +11,8 @@ import com.ems.dispatch.util.EventNoGenerator
 import com.ems.dispatch.util.GisUtils
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
@@ -37,6 +39,7 @@ class DispatchService(
     private val logger = LoggerFactory.getLogger(DispatchService::class.java)
 
     @Transactional
+    @CacheEvict(value = ["dispatchDashboard"], allEntries = true)
     fun createEmergencyCall(request: EmergencyCallRequest, dispatcher: User): DispatchEventDetail {
         logger.info("Creating emergency call for caller: ${request.callerPhone}")
 
@@ -137,6 +140,7 @@ class DispatchService(
     }
 
     @Transactional
+    @CacheEvict(value = ["dispatchEvent", "dispatchDashboard"], allEntries = true)
     fun updateEventStatus(eventId: Long, request: EventStatusUpdateRequest): DispatchEventDetail {
         val event = dispatchEventRepository.findById(eventId)
             .orElseThrow { IllegalArgumentException("Dispatch event not found: $eventId") }
@@ -212,6 +216,7 @@ class DispatchService(
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = ["dispatchEvent"], key = "#eventId")
     fun getEventDetail(eventId: Long): DispatchEventDetail {
         val event = dispatchEventRepository.findById(eventId)
             .orElseThrow { IllegalArgumentException("Dispatch event not found: $eventId") }
@@ -231,6 +236,7 @@ class DispatchService(
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = ["dispatchDashboard"], key = "'realtime'")
     fun getRealtimeDashboard(): Map<String, Any> {
         val startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay()
 

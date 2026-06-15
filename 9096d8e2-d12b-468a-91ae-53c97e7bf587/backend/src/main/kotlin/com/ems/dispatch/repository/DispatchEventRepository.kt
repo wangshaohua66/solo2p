@@ -21,6 +21,19 @@ interface DispatchEventRepository : JpaRepository<DispatchEvent, Long> {
     @Query(
         """
         SELECT d FROM DispatchEvent d 
+        WHERE d.ambulance.id = :ambulanceId 
+        AND d.status IN :statuses
+        ORDER BY d.callReceivedTime DESC
+        """
+    )
+    fun findActiveByAmbulanceId(
+        @Param("ambulanceId") ambulanceId: Long,
+        @Param("statuses") statuses: List<String>
+    ): List<DispatchEvent>
+
+    @Query(
+        """
+        SELECT d FROM DispatchEvent d 
         WHERE d.status IN :statuses 
         ORDER BY d.callReceivedTime DESC
         """

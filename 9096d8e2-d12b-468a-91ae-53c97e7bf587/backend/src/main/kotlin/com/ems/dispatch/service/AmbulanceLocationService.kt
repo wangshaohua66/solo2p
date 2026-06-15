@@ -3,8 +3,10 @@ package com.ems.dispatch.service
 import com.ems.dispatch.dto.LocationDto
 import com.ems.dispatch.entity.Ambulance
 import com.ems.dispatch.entity.AmbulanceLocation
+import com.ems.dispatch.entity.DispatchEvent
 import com.ems.dispatch.repository.AmbulanceLocationRepository
 import com.ems.dispatch.repository.AmbulanceRepository
+import com.ems.dispatch.repository.DispatchEventRepository
 import com.ems.dispatch.util.GisUtils
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
@@ -20,6 +22,7 @@ import java.time.LocalDateTime
 class AmbulanceLocationService(
     private val ambulanceLocationRepository: AmbulanceLocationRepository,
     private val ambulanceRepository: AmbulanceRepository,
+    private val dispatchEventRepository: DispatchEventRepository,
     private val kafkaTemplate: KafkaTemplate<String, Any>,
     private val messagingTemplate: SimpMessagingTemplate,
     @Value("\${ems.dispatch.geofence-radius-meters:50}")
@@ -29,6 +32,18 @@ class AmbulanceLocationService(
 ) {
     private val logger = LoggerFactory.getLogger(AmbulanceLocationService::class.java)
     private val lastUpdateTimestamps = mutableMapOf<Long, LocalDateTime>()
+    private val geofenceTriggeredEvents = mutableSetOf<Pair<Long, String>>()
+
+    data class GeofenceEvent(
+        val eventId: Long,
+        val eventNo: String,
+        val ambulanceId: Long,
+        val vehicleNo: String,
+        val geofenceType: String,
+        val triggered: Boolean,
+        val distanceMeters: Double,
+        val timestamp: LocalDateTime
+    )
 
     data class GpsUpdateMessage(
         val ambulanceId: Long,
@@ -168,10 +183,144 @@ class AmbulanceLocationService(
     }
 
     private fun checkGeofence(ambulance: Ambulance, currentLocation: org.locationtech.jts.geom.Point) {
-        if (ambulance.status == Ambulance.Status.ON_CALL.name ||
-            ambulance.status == Ambulance.Status.TRANSPORTING.name
-        ) {
-            logger.debug("Checking geofence for ambulance ${ambulance.vehicleNo}")
+        val activeStatuses = listOf(
+            DispatchEvent.Status.EN_ROUTE.name,
+            DispatchEvent.Status.ON_SCENE.name,
+            DispatchEvent.Status.TRANSPORTING.name
+        )
+
+        val activeEvents = dispatchEventRepository.findActiveByAmbulanceId(
+            ambulance.id!!,
+            activeStatuses
+        )
+
+        if (activeEvents.isEmpty()) {
+            return
+        }
+
+        logger.debug("Checking geofence for ambulance ${ambulance.vehicleNo}, active events: ${activeEvents.size}")
+
+        activeEvents.forEach { event ->
+            when (event.status) {
+                DispatchEvent.Status.EN_ROUTE.name -> {
+                    checkSceneGeofence(event, ambulance, currentLocation)
+                }
+                DispatchEvent.Status.TRANSPORTING.name -> {
+                    checkHospitalGeofence(event, ambulance, currentLocation)
+                }
+            }
+        }
+    }
+
+    private fun checkSceneGeofence(
+        event: DispatchEvent,
+        ambulance: Ambulance,
+        currentLocation: org.locationtech.jts.geom.Point
+    ) {
+        val cacheKey = event.id!! to "SCENE_ARRIVED"
+        if (geofenceTriggeredEvents.contains(cacheKey)) {
+            return
+        }
+
+        val distance = GisUtils.calculateDistanceMeters(currentLocation, event.emergencyLocation)
+
+        if (distance <= geofenceRadiusMeters) {
+            logger.info("Scene geofence triggered: ambulance ${ambulance.vehicleNo} arrived at scene for event ${event.eventNo}, distance: ${String.format("%.2f", distance)}m")
+
+            event.status = DispatchEvent.Status.ON_SCENE.name
+            event.arrivalSceneTime = LocalDateTime.now()
+            dispatchEventRepository.save(event)
+
+            ambulance.status = Ambulance.Status.ON_SCENE.name
+            ambulanceRepository.save(ambulance)
+
+            geofenceTriggeredEvents.add(cacheKey)
+
+            val geofenceEvent = GeofenceEvent(
+                eventId = event.id!!,
+                eventNo = event.eventNo,
+                ambulanceId = ambulance.id!!,
+                vehicleNo = ambulance.vehicleNo,
+                geofenceType = "SCENE",
+                triggered = true,
+                distanceMeters = distance,
+                timestamp = LocalDateTime.now()
+            )
+
+            kafkaTemplate.send("ems.dispatch.event", "GEOFENCE_SCENE", geofenceEvent)
+            messagingTemplate.convertAndSend("/topic/dispatch/geofence/scene", geofenceEvent)
+            messagingTemplate.convertAndSend("/topic/dispatch/event/${event.id}/update", event)
+
+            val notification = mapOf(
+                "type" to "SCENE_ARRIVAL",
+                "eventId" to event.id,
+                "eventNo" to event.eventNo,
+                "vehicleNo" to ambulance.vehicleNo,
+                "message" to "车辆${ambulance.vehicleNo}已到达现场",
+                "timestamp" to LocalDateTime.now()
+            )
+            kafkaTemplate.send("ems.notification", "SCENE_ARRIVAL", notification)
+            messagingTemplate.convertAndSend("/topic/notifications", notification)
+        }
+    }
+
+    private fun checkHospitalGeofence(
+        event: DispatchEvent,
+        ambulance: Ambulance,
+        currentLocation: org.locationtech.jts.geom.Point
+    ) {
+        val cacheKey = event.id!! to "HOSPITAL_ARRIVED"
+        if (geofenceTriggeredEvents.contains(cacheKey)) {
+            return
+        }
+
+        val hospital = event.hospital
+        if (hospital == null || hospital.location == null) {
+            return
+        }
+
+        val distance = GisUtils.calculateDistanceMeters(currentLocation, hospital.location!!)
+
+        if (distance <= geofenceRadiusMeters) {
+            logger.info("Hospital geofence triggered: ambulance ${ambulance.vehicleNo} arrived at hospital for event ${event.eventNo}, distance: ${String.format("%.2f", distance)}m")
+
+            event.status = DispatchEvent.Status.ARRIVED_HOSPITAL.name
+            event.arrivalHospitalTime = LocalDateTime.now()
+            dispatchEventRepository.save(event)
+
+            ambulance.status = Ambulance.Status.AT_HOSPITAL.name
+            ambulanceRepository.save(ambulance)
+
+            geofenceTriggeredEvents.add(cacheKey)
+
+            val geofenceEvent = GeofenceEvent(
+                eventId = event.id!!,
+                eventNo = event.eventNo,
+                ambulanceId = ambulance.id!!,
+                vehicleNo = ambulance.vehicleNo,
+                geofenceType = "HOSPITAL",
+                triggered = true,
+                distanceMeters = distance,
+                timestamp = LocalDateTime.now()
+            )
+
+            kafkaTemplate.send("ems.dispatch.event", "GEOFENCE_HOSPITAL", geofenceEvent)
+            messagingTemplate.convertAndSend("/topic/dispatch/geofence/hospital", geofenceEvent)
+            messagingTemplate.convertAndSend("/topic/dispatch/event/${event.id}/update", event)
+
+            val notification = mapOf(
+                "type" to "HOSPITAL_ARRIVAL",
+                "eventId" to event.id,
+                "eventNo" to event.eventNo,
+                "vehicleNo" to ambulance.vehicleNo,
+                "hospitalId" to hospital.id,
+                "hospitalName" to hospital.name,
+                "message" to "车辆${ambulance.vehicleNo}已到达${hospital.name}",
+                "timestamp" to LocalDateTime.now()
+            )
+            kafkaTemplate.send("ems.notification", "HOSPITAL_ARRIVAL", notification)
+            messagingTemplate.convertAndSend("/topic/notifications", notification)
+            messagingTemplate.convertAndSend("/topic/hospital/${hospital.id}/arrival", event)
         }
     }
 
