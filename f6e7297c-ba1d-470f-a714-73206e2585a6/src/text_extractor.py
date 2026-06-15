@@ -43,6 +43,11 @@ class TextExtractor:
         self._init_tesseract()
         self._init_check_digit_table()
 
+        self.ocr_total_count: int = 0
+        self.ocr_hit_count: int = 0
+        self.ocr_corrected_count: int = 0
+        self._min_confidence: float = float(self.ocr_cfg.get("min_confidence", 70))
+
     def _init_tesseract(self) -> None:
         if not HAS_TESSERACT:
             logger.warning("pytesseract 未安装，OCR 功能不可用")
@@ -264,6 +269,13 @@ class TextExtractor:
 
         elapsed_ms = (time.time() - start_time) * 1000
 
+        is_hit = is_valid and avg_confidence >= self._min_confidence
+        self.ocr_total_count += 1
+        if is_hit:
+            self.ocr_hit_count += 1
+        if was_corrected:
+            self.ocr_corrected_count += 1
+
         result = OcrResult(
             raw_text=raw_text,
             container_number=corrected,
@@ -337,3 +349,24 @@ class TextExtractor:
         except Exception as e:
             logger.error(f"回读字段失败: {e}")
             return ""
+
+    @property
+    def ocr_accuracy(self) -> float:
+        if self.ocr_total_count <= 0:
+            return 0.0
+        return self.ocr_hit_count / max(self.ocr_total_count, 1)
+
+    def get_ocr_stats(self) -> Dict[str, Any]:
+        return {
+            "total": self.ocr_total_count,
+            "hit": self.ocr_hit_count,
+            "corrected": self.ocr_corrected_count,
+            "accuracy": round(self.ocr_accuracy, 4),
+            "miss": max(self.ocr_total_count - self.ocr_hit_count, 0),
+        }
+
+    def reset_ocr_stats(self) -> None:
+        self.ocr_total_count = 0
+        self.ocr_hit_count = 0
+        self.ocr_corrected_count = 0
+        logger.info("OCR准确率统计已重置")

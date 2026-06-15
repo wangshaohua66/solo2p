@@ -121,6 +121,9 @@ class WorkflowStats:
     avg_elapsed_seconds: float = 0.0
     min_elapsed_seconds: float = float("inf")
     max_elapsed_seconds: float = 0.0
+    ocr_accuracy: float = 0.0
+    ocr_total: int = 0
+    ocr_hit: int = 0
     current_container: str = ""
     current_state: WorkflowState = WorkflowState.IDLE
     current_progress: int = 0
@@ -157,6 +160,9 @@ class WorkflowStats:
         self.avg_elapsed_seconds = 0.0
         self.min_elapsed_seconds = float("inf")
         self.max_elapsed_seconds = 0.0
+        self.ocr_accuracy = 0.0
+        self.ocr_total = 0
+        self.ocr_hit = 0
         self.current_container = ""
         self.current_state = WorkflowState.IDLE
         self.current_progress = 0
@@ -187,6 +193,13 @@ class WorkflowOrchestrator:
         self._stop_event = threading.Event()
         self._skip_next = threading.Event()
         self._timeout_seconds = config.get("performance", {}).get("single_box_timeout_seconds", 25)
+
+        parallel_cfg = config.get("parallel", {})
+        self._parallel_enabled = parallel_cfg.get("enabled", True)
+        self._parallel_workers = max(1, int(parallel_cfg.get("workers", 3)))
+        self._gui_lock = threading.RLock()
+        self._stats_lock = threading.RLock()
+        self._history_lock = threading.RLock()
 
         self._history_file = os.path.join(
             config.get("logging", {}).get("log_dir", "logs"),
@@ -522,7 +535,100 @@ class WorkflowOrchestrator:
 
     def _verify_results(self, job: ContainerJob) -> bool:
         logger.info(f"执行回读校验: {job.container_number}")
-        return True
+        verification_details: Dict[str, Dict[str, Any]] = {}
+        all_passed = True
+
+        systems_cfg = self.config.get("systems", {})
+
+        dispatch_fields = systems_cfg.get("dispatch", {}).get("input_fields", {})
+        dispatch_expected = {
+            "container_number": job.container_number,
+            "location_from": job.location_from,
+            "location_to": job.location_to,
+            "operation_type": job.operation_type,
+        }
+        try:
+            if self.screen_capture.activate_window("dispatch"):
+                time.sleep(0.3)
+                for fname, expected in dispatch_expected.items():
+                    fcfg = dispatch_fields.get(fname)
+                    if not fcfg or not isinstance(fcfg, dict) or "x" not in fcfg:
+                        continue
+                    actual = self.text_extractor.read_field_value(
+                        fcfg, "dispatch", fcfg.get("type", "text")
+                    )
+                    passed = (expected and expected in actual) or (not expected and not actual)
+                    if not passed:
+                        all_passed = False
+                        logger.warning(
+                            f"[校验失败-调度] {fname}: 预期='{expected}' 回读='{actual}'"
+                        )
+                    verification_details[f"dispatch_{fname}"] = {
+                        "expected": expected,
+                        "actual": actual,
+                        "passed": passed,
+                    }
+        except Exception as e:
+            logger.error(f"调度系统回读校验异常: {e}")
+            all_passed = False
+            verification_details["dispatch_error"] = {"error": str(e), "passed": False}
+
+        customs_fields = systems_cfg.get("customs", {}).get("input_fields", {})
+        customs_expected = {
+            "container_number": job.container_number,
+            "customs_code": "",
+            "inspection_type": job.inspection_type,
+        }
+        try:
+            if self.screen_capture.activate_window("customs"):
+                time.sleep(0.3)
+                for fname, expected in customs_expected.items():
+                    fcfg = customs_fields.get(fname)
+                    if not fcfg or not isinstance(fcfg, dict) or "x" not in fcfg:
+                        continue
+                    actual = self.text_extractor.read_field_value(
+                        fcfg, "customs", fcfg.get("type", "text")
+                    )
+                    passed = (expected and expected in actual) or (not expected)
+                    if expected and not passed:
+                        all_passed = False
+                        logger.warning(
+                            f"[校验失败-海关] {fname}: 预期='{expected}' 回读='{actual}'"
+                        )
+                    verification_details[f"customs_{fname}"] = {
+                        "expected": expected,
+                        "actual": actual,
+                        "passed": passed,
+                    }
+        except Exception as e:
+            logger.error(f"海关系统回读校验异常: {e}")
+            all_passed = False
+            verification_details["customs_error"] = {"error": str(e), "passed": False}
+
+        job.dispatch_result = job.dispatch_result or ActionResult(
+            status=ActionStatus.SUCCESS, message=""
+        )
+        if job.dispatch_result.data is None:
+            job.dispatch_result.data = {}
+        job.dispatch_result.data["verification"] = verification_details
+
+        frame = self.screen_capture.capture_full_screen()
+        if frame is not None:
+            shot = self.screen_capture.save_screenshot(
+                frame, prefix=f"verify_{job.container_number}", subdir="verify"
+            )
+            if shot and job.screenshots is not None:
+                job.screenshots.append(shot)
+
+        if all_passed:
+            logger.info(f"回读校验通过: {job.container_number} ({len(verification_details)}项)")
+        else:
+            failed_count = sum(1 for v in verification_details.values() if not v.get("passed", True))
+            logger.warning(
+                f"回读校验失败: {job.container_number} "
+                f"{failed_count}/{len(verification_details)} 项不一致"
+            )
+        return all_passed
 
     def _finalize_job(self, job: ContainerJob) -> None:
         job.end_time = time.time()
@@ -531,26 +637,33 @@ class WorkflowOrchestrator:
             logger.warning(f"作业耗时 {job.elapsed_seconds:.1f}s 超过阈值 {self._timeout_seconds}s")
 
         container_key = f"{job.container.grid_row}_{job.container.grid_col}"
-        self._processed_numbers.add(container_key)
+        with self._stats_lock:
+            self._processed_numbers.add(container_key)
+            self.job_history.append(job)
+            self.stats.update_from_job(job)
+            self.stats.current_progress = len(self.job_history)
 
-        self.job_history.append(job)
-        self.stats.update_from_job(job)
-        self.stats.current_progress = len(self.job_history)
+            ocr_stats = self.text_extractor.get_ocr_stats()
+            self.stats.ocr_total = ocr_stats["total"]
+            self.stats.ocr_hit = ocr_stats["hit"]
+            self.stats.ocr_accuracy = ocr_stats["accuracy"]
 
-        try:
-            with open(self._history_file, "a", encoding="utf-8") as f:
-                f.write(json.dumps(job.to_dict(), ensure_ascii=False) + "\n")
-        except Exception as e:
-            logger.debug(f"写入作业历史失败: {e}")
+        with self._history_lock:
+            try:
+                with open(self._history_file, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(job.to_dict(), ensure_ascii=False) + "\n")
+            except Exception as e:
+                logger.debug(f"写入作业历史失败: {e}")
 
-        frame = self.screen_capture.capture_full_screen()
-        if frame is not None:
-            shot = self.screen_capture.save_screenshot(
-                frame, prefix=f"end_{job.status.value}_{job.container_number or job.job_id}",
-                subdir="completed" if job.status == ActionStatus.SUCCESS else "failed"
-            )
-            if shot:
-                job.screenshots.append(shot)
+        with self._gui_lock:
+            frame = self.screen_capture.capture_full_screen()
+            if frame is not None:
+                shot = self.screen_capture.save_screenshot(
+                    frame, prefix=f"end_{job.status.value}_{job.container_number or job.job_id}",
+                    subdir="completed" if job.status == ActionStatus.SUCCESS else "failed"
+                )
+                if shot:
+                    job.screenshots.append(shot)
 
         logger.info(
             f"作业完成: {job.container_number or job.job_id} "
@@ -559,6 +672,8 @@ class WorkflowOrchestrator:
         )
 
     def run_batch(self, count: int = 0) -> WorkflowStats:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
         if self.current_state == WorkflowState.INIT:
             if not self.initialize():
                 logger.error("初始化失败，退出")
@@ -570,30 +685,84 @@ class WorkflowOrchestrator:
                 logger.info("没有检测到待处理的集装箱")
                 return self.stats
 
-        processed = 0
-        while not self.job_queue.empty() and not self._stop_event.is_set():
-            if count and processed >= count:
+        jobs_to_process: List[ContainerJob] = []
+        while not self.job_queue.empty():
+            if count and len(jobs_to_process) >= count:
                 break
-
-            self._check_interrupts()
-            if self._stop_event.is_set():
-                break
-
             try:
-                job = self.job_queue.get_nowait()
+                jobs_to_process.append(self.job_queue.get_nowait())
             except queue.Empty:
                 break
 
-            success = self.process_single_job(job)
-            processed += 1
-            self.job_queue.task_done()
+        total = len(jobs_to_process)
+        logger.info(
+            f"开始批次处理: {total} 个集装箱, "
+            f"并行模式={'ON (workers=' + str(self._parallel_workers) + ')' if self._parallel_enabled else 'OFF'}"
+        )
+
+        def _worker(job: ContainerJob) -> bool:
+            if self._stop_event.is_set():
+                return False
+            self._check_interrupts()
+            if self._stop_event.is_set():
+                return False
+            with self._gui_lock:
+                return self.process_single_job(job)
+
+        processed = 0
+        if self._parallel_enabled and total > 1:
+            workers = min(self._parallel_workers, total)
+            with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="container_worker") as executor:
+                future_map = {executor.submit(_worker, job): job for job in jobs_to_process}
+                for future in as_completed(future_map):
+                    if self._stop_event.is_set():
+                        for f in future_map:
+                            f.cancel()
+                        break
+                    try:
+                        future.result()
+                    except Exception as e:
+                        job = future_map.get(future)
+                        logger.error(f"作业异常 [{getattr(job, 'job_id', '?')}]: {e}", exc_info=True)
+                    finally:
+                        processed += 1
+                        with self._stats_lock:
+                            self.stats.current_progress = len(self.job_history)
+                        try:
+                            self.job_queue.task_done()
+                        except Exception:
+                            pass
+        else:
+            for job in jobs_to_process:
+                if self._stop_event.is_set():
+                    break
+                self._check_interrupts()
+                if self._stop_event.is_set():
+                    break
+                try:
+                    _worker(job)
+                except Exception as e:
+                    logger.error(f"作业异常 [{job.job_id}]: {e}", exc_info=True)
+                finally:
+                    processed += 1
+                    try:
+                        self.job_queue.task_done()
+                    except Exception:
+                        pass
+
+        with self._stats_lock:
+            ocr_stats = self.text_extractor.get_ocr_stats()
+            self.stats.ocr_total = ocr_stats["total"]
+            self.stats.ocr_hit = ocr_stats["hit"]
+            self.stats.ocr_accuracy = ocr_stats["accuracy"]
 
         self.current_state = WorkflowState.IDLE
         self.stats.current_state = WorkflowState.IDLE
         logger.info(
             f"批次处理完成: 成功={self.stats.completed} "
             f"失败={self.stats.failed} 跳过={self.stats.skipped} "
-            f"平均耗时={self.stats.avg_elapsed_seconds:.1f}s"
+            f"平均耗时={self.stats.avg_elapsed_seconds:.1f}s "
+            f"OCR准确率={self.stats.ocr_accuracy:.2%} ({self.stats.ocr_hit}/{self.stats.ocr_total})"
         )
         return self.stats
 

@@ -190,6 +190,16 @@ def render_cli_ui(orchestrator: WorkflowOrchestrator,
         f"最快: {min_t:>5.1f}s  最慢: {max_t:>5.1f}s"
     )
 
+    ocr_acc = stats.ocr_accuracy or 0
+    ocr_total = stats.ocr_total or 0
+    ocr_hit = stats.ocr_hit or 0
+    target = orchestrator.config.get("performance", {}).get("ocr_accuracy_target", 0.97)
+    acc_color = "\033[32m" if ocr_acc >= target else "\033[33m" if ocr_acc >= target * 0.9 else "\033[31m"
+    lines.append(
+        f"  OCR准确率: {acc_color}{ocr_acc * 100:>5.2f}%{reset}  "
+        f"(命中 {ocr_hit}/{ocr_total} | 目标 {target * 100:.0f}%)"
+    )
+
     if stats.started_at:
         elapsed = (datetime.now() - stats.started_at).total_seconds()
         if elapsed > 0 and stats.completed > 0:
@@ -362,7 +372,10 @@ def _interactive_search(orchestrator: WorkflowOrchestrator) -> None:
 def memory_monitor(config: dict,
                    stop_event: threading.Event,
                    check_interval: int = 60) -> None:
-    limit_mb = config.get("performance", {}).get("memory_limit_mb", 512)
+    perf_cfg = config.get("performance", {})
+    growth_limit_mb = perf_cfg.get("memory_growth_limit_mb", 150)
+    abs_limit_mb = perf_cfg.get("memory_limit_mb", 1024)
+
     try:
         import psutil
         proc = psutil.Process()
@@ -370,15 +383,69 @@ def memory_monitor(config: dict,
         logger.warning("未安装 psutil，内存监控禁用")
         return
 
+    baseline_rss_mb: Optional[float] = None
+    baseline_vms_mb: Optional[float] = None
+    sample_count = 0
+    samples_required = 3
+    sample_interval = 5.0
+
+    logger.info(
+        f"内存监控启动: 基线将在{sample_interval * samples_required:.0f}s内建立, "
+        f"增量阈值={growth_limit_mb}MB, 绝对阈值={abs_limit_mb}MB"
+    )
+
     while not stop_event.is_set():
         try:
             info = proc.memory_info()
             rss_mb = info.rss / (1024 * 1024)
-            logger.debug(f"内存使用: {rss_mb:.1f}MB / 限制: {limit_mb}MB")
-            if rss_mb > limit_mb:
-                logger.warning(f"内存使用 {rss_mb:.1f}MB 超过限制 {limit_mb}MB，建议检查")
-        except Exception:
-            pass
+            vms_mb = info.vms / (1024 * 1024)
+
+            if baseline_rss_mb is None:
+                if sample_count < samples_required:
+                    stop_event.wait(sample_interval)
+                    if stop_event.is_set():
+                        break
+                    if baseline_rss_mb is None:
+                        baseline_rss_mb = rss_mb
+                        baseline_vms_mb = vms_mb
+                    else:
+                        n = sample_count + 1
+                        baseline_rss_mb = (baseline_rss_mb * sample_count + rss_mb) / n
+                        baseline_vms_mb = (baseline_vms_mb * sample_count + vms_mb) / n
+                    sample_count += 1
+                    if sample_count >= samples_required:
+                        logger.info(
+                            f"内存基线建立完成: RSS={baseline_rss_mb:.1f}MB "
+                            f"VMS={baseline_vms_mb:.1f}MB (采样{sample_count}次)"
+                        )
+                continue
+
+            growth_rss = rss_mb - baseline_rss_mb
+            growth_vms = vms_mb - (baseline_vms_mb or 0)
+
+            level = logging.DEBUG
+            msgs = []
+            if growth_rss > growth_limit_mb:
+                level = logging.WARNING
+                msgs.append(
+                    f"RSS增量 {growth_rss:+.1f}MB 超过阈值 {growth_limit_mb}MB "
+                    f"(基线 {baseline_rss_mb:.1f}MB, 当前 {rss_mb:.1f}MB)"
+                )
+            if abs_limit_mb and rss_mb > abs_limit_mb:
+                level = logging.WARNING
+                msgs.append(
+                    f"RSS绝对占用 {rss_mb:.1f}MB 超过上限 {abs_limit_mb}MB"
+                )
+            if msgs:
+                logger.log(level, " | ".join(msgs))
+            else:
+                logger.debug(
+                    f"内存监控: RSS {rss_mb:.1f}MB (Δ{growth_rss:+.1f}MB) | "
+                    f"VMS {vms_mb:.1f}MB (Δ{growth_vms:+.1f}MB) | "
+                    f"基线RSS {baseline_rss_mb:.1f}MB"
+                )
+        except Exception as e:
+            logger.debug(f"内存监控异常: {e}")
         stop_event.wait(check_interval)
 
 
@@ -543,6 +610,7 @@ def main() -> int:
                 t.join(timeout=2.0)
 
     final_stats = orchestrator.stats
+    final_ocr = orchestrator.text_extractor.get_ocr_stats()
     logger.info("=" * 60)
     logger.info("  最终统计")
     logger.info("=" * 60)
@@ -551,9 +619,18 @@ def main() -> int:
     logger.info(f"  失败: {final_stats.failed}")
     logger.info(f"  跳过: {final_stats.skipped}")
     logger.info(f"  平均耗时: {final_stats.avg_elapsed_seconds:.1f}s")
+    logger.info(
+        f"  OCR统计: 总数={final_ocr.get('total', 0)} "
+        f"命中={final_ocr.get('hit', 0)} "
+        f"自动纠错={final_ocr.get('corrected', 0)} "
+        f"准确率={final_ocr.get('accuracy', 0) * 100:.2f}%"
+    )
     if final_stats.started_at:
         elapsed = (datetime.now() - final_stats.started_at).total_seconds()
         logger.info(f"  总运行: {format_duration(elapsed)}")
+        if elapsed > 0 and final_stats.completed > 0:
+            rate = final_stats.completed / elapsed * 3600
+            logger.info(f"  吞吐率: {rate:.0f} 箱/小时")
     logger.info("程序已退出")
     return 0 if final_stats.failed == 0 else 2
 
