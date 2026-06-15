@@ -198,3 +198,60 @@ parallel:
   enabled: true
   workers: 3
   queue_timeout: 10
+
+notification:
+  enabled: true
+  rate_limit_seconds: 300
+  webhook:
+    enabled: false
+    url: "https://open.feishu.cn/open-apis/bot/v2/hook/your-webhook-token"
+    method: "POST"
+    timeout: 10
+    headers:
+      Content-Type: "application/json"
+    template:
+      msg_type: "interactive"
+      card:
+        config:
+          wide_screen_mode: true
+        header:
+          title:
+            tag: "plain_text"
+            content: "🚨 集装箱自动化系统告警"
+        elements:
+          - tag: "div"
+            text:
+              tag: "lark_md"
+              content: "**系统**: 集装箱跨系统自动化录入平台\n**告警级别**: {level}\n**告警时间**: {timestamp}\n**消息内容**: {message}\n**连续失败**: {consecutive_failures}次"
+  email:
+    enabled: false
+    smtp_host: "smtp.exmail.qq.com"
+    smtp_port: 465
+    use_ssl: true
+    username: "alert@company.com"
+    password: "your-password"
+    sender: "集装箱自动化 <alert@company.com>"
+    recipients:
+      - "oncall@company.com"
+    subject_template: "[告警] 集装箱自动化连续失败 {consecutive_failures} 次"
+    body_template: |
+      <html><body style="font-family: monospace;">
+      <h3 style="color:#d00;">🚨 集装箱自动化系统告警</h3>
+      <p><b>告警级别</b>: {level}<br>
+      <b>告警时间</b>: {timestamp}<br>
+      <b>连续失败</b>: {consecutive_failures} 次<br>
+      <b>消息内容</b>: {message}<br>
+      <b>最近错误</b>: {last_error}<br></p>
+      <p style="color:#999; font-size:12px;">由集装箱跨系统自动化平台自动发送</p>
+      </body></html>
+
+window_monitor:
+  enabled: true
+  check_interval_seconds: 10
+  offset_threshold_pixels: 20
+  auto_recalibrate: true
+  notify_on_recalibrate: true
+  systems:
+    - "yard"
+    - "dispatch"
+    - "customs"

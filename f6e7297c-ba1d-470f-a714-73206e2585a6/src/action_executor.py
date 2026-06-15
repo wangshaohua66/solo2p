@@ -11,6 +11,7 @@ import pyperclip
 from .screen_capture import ScreenCapture
 from .template_matcher import TemplateMatcher
 from .text_extractor import TextExtractor
+from .notifier import Notifier
 
 logger = logging.getLogger(__name__)
 
@@ -141,10 +142,25 @@ class ActionExecutor:
         last_result.status = ActionStatus.FAILED
         should_pause = self.retry.record_failure()
         if should_pause:
-            logger.critical(
-                f"连续失败达到阈值 {self.retry.global_fail_threshold} 次，建议暂停任务检查环境！"
+            crit_msg = (
+                f"连续失败达到阈值 {self.retry.global_fail_threshold} 次，"
+                f"建议暂停任务检查环境！最近错误: {last_result.message[:80]}"
             )
+            logger.critical(crit_msg)
             last_result.data["should_pause"] = True
+
+            try:
+                notifier = Notifier.instance()
+                extra = {"last_error": last_result.message, "task_name": task_name}
+                notifier.send_async(
+                    level="CRITICAL",
+                    message=crit_msg,
+                    consecutive_failures=self.retry.consecutive_failures,
+                    extra=extra,
+                    force=False
+                )
+            except Exception as e:
+                logger.debug(f"发送告警通知失败: {e}")
 
         return last_result
 

@@ -18,6 +18,8 @@ from .screen_capture import ScreenCapture
 from .template_matcher import TemplateMatcher
 from .text_extractor import TextExtractor
 from .action_executor import ActionExecutor
+from .notifier import Notifier
+from .window_monitor import WindowMonitor
 from .workflow_orchestrator import (
     WorkflowOrchestrator, WorkflowStats, WorkflowState
 )
@@ -539,6 +541,9 @@ def main() -> int:
     action_executor = ActionExecutor(config, screen_capture, template_matcher, text_extractor)
     orchestrator = WorkflowOrchestrator(config, screen_capture, template_matcher, text_extractor, action_executor)
 
+    notifier = Notifier.instance(config)
+    window_monitor = WindowMonitor(config, screen_capture, notifier)
+
     if args.search:
         results = orchestrator.search_history_by_container(args.search)
         print(json.dumps(results, ensure_ascii=False, indent=2))
@@ -585,6 +590,9 @@ def main() -> int:
     threads.append(mem_thread)
     mem_thread.start()
 
+    win_mon_thread = window_monitor.start()
+    threads.append(win_mon_thread)
+
     try:
         if args.once:
             orchestrator.run_batch(count=args.count)
@@ -604,6 +612,7 @@ def main() -> int:
         logger.info("用户中断")
     finally:
         orchestrator.stop()
+        window_monitor.stop()
         stop_event.set()
         for t in threads:
             if t.is_alive():

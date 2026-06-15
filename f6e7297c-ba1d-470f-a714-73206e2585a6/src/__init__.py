@@ -28,6 +28,11 @@ __all__ = [
     "ActionResult",
     "ActionStatus",
     "RetryStrategy",
+    "Notifier",
+    "NotificationChannel",
+    "WebhookChannel",
+    "EmailChannel",
+    "WindowMonitor",
     "WorkflowOrchestrator",
     "WorkflowState",
     "WorkflowEvent",
@@ -39,6 +44,8 @@ from .screen_capture import ScreenCapture
 from .template_matcher import TemplateMatcher, MatchResult, YardGrid
 from .text_extractor import TextExtractor, OcrResult
 from .action_executor import ActionExecutor, ActionResult, ActionStatus, RetryStrategy
+from .notifier import Notifier, NotificationChannel, WebhookChannel, EmailChannel
+from .window_monitor import WindowMonitor
 from .workflow_orchestrator import (
     WorkflowOrchestrator, WorkflowState, WorkflowEvent,
     ContainerJob, WorkflowStats
