@@ -1,0 +1,9 @@
+PyAutoGUI==0.9.54
+opencv-python==4.9.0.80
+Pillow==10.2.0
+pytesseract==0.3.10
+schedule==1.2.0
+PyYAML==6.0.1
+numpy==1.26.4
+pyperclip==1.8.2
+psutil==5.9.8

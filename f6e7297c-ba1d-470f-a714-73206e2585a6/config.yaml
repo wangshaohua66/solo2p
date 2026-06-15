@@ -1,0 +1,200 @@
+systems:
+  yard:
+    window_title: "堆场可视化系统"
+    grid_region:
+      x: 50
+      y: 120
+      width: 1400
+      height: 800
+    cell_size:
+      width: 80
+      height: 60
+    container_number_region:
+      offset_x: 5
+      offset_y: 5
+      width: 70
+      height: 20
+    status_colors:
+      empty:
+        hsv_lower: [20, 100, 100]
+        hsv_upper: [40, 255, 255]
+        label: "空箱"
+      loaded:
+        hsv_lower: [100, 100, 100]
+        hsv_upper: [130, 255, 255]
+        label: "重箱"
+      pending:
+        hsv_lower: [0, 100, 100]
+        hsv_upper: [10, 255, 255]
+        label: "待验"
+      frozen:
+        hsv_lower: [0, 0, 150]
+        hsv_upper: [180, 30, 200]
+        label: "冻结"
+
+  dispatch:
+    window_title: "龙门吊调度系统"
+    input_fields:
+      container_number:
+        x: 200
+        y: 150
+        width: 200
+        height: 30
+        type: "text"
+      location_from:
+        x: 200
+        y: 200
+        width: 150
+        height: 30
+        type: "dropdown"
+        options: ["A区", "B区", "C区", "D区"]
+      location_to:
+        x: 200
+        y: 250
+        width: 150
+        height: 30
+        type: "dropdown"
+        options: ["A区", "B区", "C区", "D区"]
+      operation_type:
+        x: 200
+        y: 300
+        width: 150
+        height: 30
+        type: "dropdown"
+        options: ["进场", "出场", "移箱", "查验"]
+      submit_button:
+        x: 200
+        y: 380
+        width: 100
+        height: 40
+      result_region:
+        x: 100
+        y: 450
+        width: 500
+        height: 80
+
+  customs:
+    window_title: "海关查验申报系统"
+    input_fields:
+      container_number:
+        x: 250
+        y: 180
+        width: 200
+        height: 30
+        type: "text"
+      customs_code:
+        x: 250
+        y: 230
+        width: 180
+        height: 30
+        type: "text"
+      declare_date:
+        x: 250
+        y: 280
+        width: 180
+        height: 30
+        type: "date"
+      inspection_type:
+        x: 250
+        y: 330
+        width: 150
+        height: 30
+        type: "dropdown"
+        options: ["机检", "人工查验", "放行"]
+      submit_button:
+        x: 250
+        y: 420
+        width: 100
+        height: 40
+      result_region:
+        x: 100
+        y: 480
+        width: 600
+        height: 80
+
+templates:
+  container_icon: "templates/container_icon.png"
+  yard_empty_cell: "templates/yard_empty_cell.png"
+  popup_error: "templates/popup_error.png"
+  popup_confirm: "templates/popup_confirm.png"
+  popup_cancel: "templates/popup_cancel.png"
+  popup_ok: "templates/popup_ok.png"
+  dispatch_success: "templates/dispatch_success.png"
+  customs_success: "templates/customs_success.png"
+
+retry:
+  max_attempts: 3
+  initial_interval: 2
+  interval_multiplier: 1.5
+  global_fail_threshold: 5
+
+ocr:
+  tesseract_cmd: "/usr/bin/tesseract"
+  lang: "eng"
+  psm_mode: 7
+  min_confidence: 70
+  preprocess:
+    binary_threshold: 180
+    gaussian_blur_kernel: 3
+    denoise_strength: 10
+
+schedule:
+  morning_shift: "08:00"
+  evening_shift: "20:00"
+  scan_interval_seconds: 30
+  batch_size: 50
+
+calibration:
+  auto_detect: true
+  scan_window_titles: true
+  save_calibration: true
+  calibration_file: "calibration.json"
+
+logging:
+  level: "INFO"
+  log_dir: "logs"
+  log_file_pattern: "container_automation_{date}.log"
+  retention_days: 30
+  screenshot_dir: "screenshots"
+  archive_screenshots: true
+
+performance:
+  single_box_timeout_seconds: 25
+  template_match_timeout_ms: 200
+  ocr_accuracy_target: 0.97
+  memory_limit_mb: 512
+  parallel_channels: 3
+
+container_check_digit:
+  character_values:
+    A: 10
+    B: 12
+    C: 13
+    D: 14
+    E: 15
+    F: 16
+    G: 17
+    H: 18
+    I: 19
+    J: 20
+    K: 21
+    L: 23
+    M: 24
+    N: 25
+    O: 26
+    P: 27
+    Q: 28
+    R: 29
+    S: 30
+    T: 31
+    U: 32
+    V: 34
+    W: 35
+    X: 36
+    Y: 37
+    Z: 38
+
+parallel:
+  enabled: true
+  workers: 3
+  queue_timeout: 10
