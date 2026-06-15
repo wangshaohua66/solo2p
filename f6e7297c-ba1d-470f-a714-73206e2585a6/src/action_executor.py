@@ -43,14 +43,25 @@ class RetryStrategy:
         retry_cfg = config.get("retry", {})
         self.max_attempts = retry_cfg.get("max_attempts", 3)
         self.initial_interval = retry_cfg.get("initial_interval", 2)
-        self.interval_multiplier = retry_cfg.get("interval_multiplier", 1.5)
+        self.interval_step = retry_cfg.get("interval_step", 2)
+        self.interval_mode = retry_cfg.get("interval_mode", "linear")
+        self.interval_multiplier = retry_cfg.get("interval_multiplier", 2.0)
         self.global_fail_threshold = retry_cfg.get("global_fail_threshold", 5)
         self._consecutive_failures = 0
 
     def get_interval(self, attempt: int) -> float:
-        interval = self.initial_interval
-        for _ in range(attempt - 1):
-            interval *= self.interval_multiplier
+        if attempt <= 1:
+            return float(self.initial_interval)
+
+        if self.interval_mode == "linear":
+            interval = float(self.initial_interval) + (attempt - 1) * float(self.interval_step)
+        elif self.interval_mode == "exponential":
+            interval = float(self.initial_interval)
+            for _ in range(attempt - 1):
+                interval *= float(self.interval_multiplier)
+        else:
+            interval = float(self.initial_interval)
+
         return interval
 
     def record_failure(self) -> bool:
@@ -89,8 +100,19 @@ class ActionExecutor:
         last_result = ActionResult(status=ActionStatus.FAILED, message="未执行")
         task_name = kwargs.pop("task_name", action_fn.__name__)
         save_screenshots = kwargs.pop("save_screenshots", True)
+        deadline = kwargs.pop("deadline", None)
 
         for attempt in range(1, self.retry.max_attempts + 1):
+            if deadline is not None and time.time() > deadline:
+                last_result = ActionResult(
+                    status=ActionStatus.FAILED,
+                    message=f"任务超时(第{attempt}次前): {task_name}",
+                    attempts=attempt - 1
+                )
+                last_result.data["timeout"] = True
+                logger.warning(f"任务 [{task_name}] 在第 {attempt} 次尝试前超时")
+                return last_result
+
             try:
                 logger.info(f"执行任务 [{task_name}] 第 {attempt}/{self.retry.max_attempts} 次尝试")
                 self._dismiss_popups()
@@ -116,6 +138,15 @@ class ActionExecutor:
 
                 if attempt < self.retry.max_attempts:
                     wait_time = self.retry.get_interval(attempt)
+                    if deadline is not None and time.time() + wait_time > deadline:
+                        logger.warning(f"重试等待将超出超时，提前终止: {task_name}")
+                        last_result = ActionResult(
+                            status=ActionStatus.FAILED,
+                            message=f"重试等待超时: {task_name}",
+                            attempts=attempt
+                        )
+                        last_result.data["timeout"] = True
+                        break
                     logger.info(f"等待 {wait_time:.1f}s 后重试...")
                     time.sleep(wait_time)
 
@@ -137,6 +168,8 @@ class ActionExecutor:
 
                 if attempt < self.retry.max_attempts:
                     wait_time = self.retry.get_interval(attempt)
+                    if deadline is not None and time.time() + wait_time > deadline:
+                        break
                     time.sleep(wait_time)
 
         last_result.status = ActionStatus.FAILED

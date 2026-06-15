@@ -115,6 +115,7 @@ class WorkflowStats:
     completed: int = 0
     failed: int = 0
     skipped: int = 0
+    timeout_count: int = 0
     ocr_failures: int = 0
     dispatch_failures: int = 0
     customs_failures: int = 0
@@ -130,7 +131,6 @@ class WorkflowStats:
     is_paused: bool = False
     started_at: Optional[datetime] = None
     last_error: str = ""
-
     def update_from_job(self, job: ContainerJob) -> None:
         self.current_container = job.container_number or "-"
         self.current_state = job.state
@@ -193,6 +193,9 @@ class WorkflowOrchestrator:
         self._stop_event = threading.Event()
         self._skip_next = threading.Event()
         self._timeout_seconds = config.get("performance", {}).get("single_box_timeout_seconds", 25)
+        self._ocr_accuracy_target = config.get("performance", {}).get("ocr_accuracy_target", 0.97)
+        self._ocr_accuracy_min_samples = config.get("performance", {}).get("ocr_accuracy_min_samples", 20)
+        self._ocr_accuracy_alert_sent = False
 
         parallel_cfg = config.get("parallel", {})
         self._parallel_enabled = parallel_cfg.get("enabled", True)
@@ -378,13 +381,25 @@ class WorkflowOrchestrator:
         self._transition(WorkflowEvent.SCAN_DONE)
         return enqueued
 
+    def _check_deadline(self, deadline: float, stage: str, job: ContainerJob) -> bool:
+        if time.time() > deadline:
+            elapsed = time.time() - job.start_time
+            logger.warning(
+                f"作业超时 [{job.job_id}] 在阶段 [{stage}]，"
+                f"已耗时 {elapsed:.1f}s / 阈值 {self._timeout_seconds}s"
+            )
+            job.error_message = f"流程超时(阶段:{stage})，{elapsed:.1f}s > {self._timeout_seconds}s"
+            job.status = ActionStatus.FAILED
+            self.stats.timeout_count += 1
+            self._finalize_job(job)
+            return True
+        return False
+
     def process_single_job(self, job: ContainerJob) -> bool:
         job.start_time = time.time()
         timeout_deadline = job.start_time + self._timeout_seconds
 
         try:
-            self._transition(WorkflowEvent.OCR_DONE, job)
-
             job.state = WorkflowState.EXTRACTING_OCR
             self.stats.current_container = "识别中..."
             self.stats.current_state = WorkflowState.EXTRACTING_OCR
@@ -401,6 +416,7 @@ class WorkflowOrchestrator:
                 job.error_message = "OCR识别超时"
                 job.status = ActionStatus.FAILED
                 self.stats.ocr_failures += 1
+                self.stats.timeout_count += 1
                 self._finalize_job(job)
                 return False
 
@@ -423,7 +439,10 @@ class WorkflowOrchestrator:
 
             logger.info(f"箱号识别成功: {job.container_number} ({job.container.status_label})")
             self.stats.current_container = job.container_number
+            self._transition(WorkflowEvent.OCR_DONE, job)
 
+            if self._check_deadline(timeout_deadline, "OCR识别", job):
+                return False
             if self._check_interrupts():
                 job.status = ActionStatus.SKIPPED
                 return False
@@ -439,12 +458,17 @@ class WorkflowOrchestrator:
             dispatch_result = self.action_executor.execute_with_retry(
                 self.action_executor.fill_dispatch_form,
                 job.container_number, job.location_from, job.location_to, job.operation_type,
-                task_name=f"dispatch_{job.container_number}"
+                task_name=f"dispatch_{job.container_number}",
+                deadline=timeout_deadline
             )
             job.dispatch_result = dispatch_result
 
             if not dispatch_result.is_success:
-                job.error_message = f"调度录入失败: {dispatch_result.message}"
+                if dispatch_result.data.get("timeout"):
+                    job.error_message = "调度录入超时"
+                    self.stats.timeout_count += 1
+                else:
+                    job.error_message = f"调度录入失败: {dispatch_result.message}"
                 job.status = ActionStatus.FAILED
                 self.stats.dispatch_failures += 1
                 if dispatch_result.data.get("should_pause"):
@@ -454,6 +478,8 @@ class WorkflowOrchestrator:
                 return False
             self._transition(WorkflowEvent.DISPATCH_DONE, job)
 
+            if self._check_deadline(timeout_deadline, "调度录入", job):
+                return False
             if self._check_interrupts():
                 job.status = ActionStatus.SKIPPED
                 return False
@@ -463,12 +489,17 @@ class WorkflowOrchestrator:
             customs_result = self.action_executor.execute_with_retry(
                 self.action_executor.fill_customs_form,
                 job.container_number, "", job.inspection_type,
-                task_name=f"customs_{job.container_number}"
+                task_name=f"customs_{job.container_number}",
+                deadline=timeout_deadline
             )
             job.customs_result = customs_result
 
             if not customs_result.is_success:
-                job.error_message = f"海关录入失败: {customs_result.message}"
+                if customs_result.data.get("timeout"):
+                    job.error_message = "海关录入超时"
+                    self.stats.timeout_count += 1
+                else:
+                    job.error_message = f"海关录入失败: {customs_result.message}"
                 job.status = ActionStatus.FAILED
                 self.stats.customs_failures += 1
                 if customs_result.data.get("should_pause"):
@@ -478,12 +509,15 @@ class WorkflowOrchestrator:
                 return False
             self._transition(WorkflowEvent.CUSTOMS_DONE, job)
 
+            if self._check_deadline(timeout_deadline, "海关录入", job):
+                return False
+
             job.state = WorkflowState.VERIFYING
             self.stats.current_state = WorkflowState.VERIFYING
-            if not self._verify_results(job):
+            if not self._verify_results(job, deadline=timeout_deadline):
                 logger.warning(f"回读校验未通过，尝试修正: {job.container_number}")
                 job.retries += 1
-                if job.retries < 2:
+                if job.retries < 2 and not self._check_deadline(timeout_deadline, "回读校验", job):
                     self._transition(WorkflowEvent.RETRY, job)
                     job.state = WorkflowState.DISPATCH_ENTRY
                     dispatch_result2 = self.action_executor.fill_dispatch_form(
@@ -494,6 +528,9 @@ class WorkflowOrchestrator:
                         job.status = ActionStatus.FAILED
                         self._finalize_job(job)
                         return False
+
+            if self._check_deadline(timeout_deadline, "回读校验", job):
+                return False
 
             job.status = ActionStatus.SUCCESS
             job.state = WorkflowState.COMPLETED
@@ -533,7 +570,7 @@ class WorkflowOrchestrator:
             raise exception_holder[0]
         return result_holder[0] if result_holder else None
 
-    def _verify_results(self, job: ContainerJob) -> bool:
+    def _verify_results(self, job: ContainerJob, deadline: Optional[float] = None) -> bool:
         logger.info(f"执行回读校验: {job.container_number}")
         verification_details: Dict[str, Dict[str, Any]] = {}
         all_passed = True
@@ -548,26 +585,35 @@ class WorkflowOrchestrator:
             "operation_type": job.operation_type,
         }
         try:
-            if self.screen_capture.activate_window("dispatch"):
-                time.sleep(0.3)
-                for fname, expected in dispatch_expected.items():
-                    fcfg = dispatch_fields.get(fname)
-                    if not fcfg or not isinstance(fcfg, dict) or "x" not in fcfg:
-                        continue
-                    actual = self.text_extractor.read_field_value(
-                        fcfg, "dispatch", fcfg.get("type", "text")
-                    )
-                    passed = (expected and expected in actual) or (not expected and not actual)
-                    if not passed:
-                        all_passed = False
-                        logger.warning(
-                            f"[校验失败-调度] {fname}: 预期='{expected}' 回读='{actual}'"
+            if deadline is not None and time.time() > deadline:
+                logger.warning("回读校验(调度段)超时，跳过")
+                all_passed = False
+                verification_details["dispatch_timeout"] = {"timeout": True, "passed": False}
+            else:
+                if self.screen_capture.activate_window("dispatch"):
+                    time.sleep(0.3)
+                    for fname, expected in dispatch_expected.items():
+                        if deadline is not None and time.time() > deadline:
+                            all_passed = False
+                            verification_details[f"dispatch_{fname}_timeout"] = {"timeout": True, "passed": False}
+                            break
+                        fcfg = dispatch_fields.get(fname)
+                        if not fcfg or not isinstance(fcfg, dict) or "x" not in fcfg:
+                            continue
+                        actual = self.text_extractor.read_field_value(
+                            fcfg, "dispatch", fcfg.get("type", "text")
                         )
-                    verification_details[f"dispatch_{fname}"] = {
-                        "expected": expected,
-                        "actual": actual,
-                        "passed": passed,
-                    }
+                        passed = (expected and expected in actual) or (not expected and not actual)
+                        if not passed:
+                            all_passed = False
+                            logger.warning(
+                                f"[校验失败-调度] {fname}: 预期='{expected}' 回读='{actual}'"
+                            )
+                        verification_details[f"dispatch_{fname}"] = {
+                            "expected": expected,
+                            "actual": actual,
+                            "passed": passed,
+                        }
         except Exception as e:
             logger.error(f"调度系统回读校验异常: {e}")
             all_passed = False
@@ -580,26 +626,35 @@ class WorkflowOrchestrator:
             "inspection_type": job.inspection_type,
         }
         try:
-            if self.screen_capture.activate_window("customs"):
-                time.sleep(0.3)
-                for fname, expected in customs_expected.items():
-                    fcfg = customs_fields.get(fname)
-                    if not fcfg or not isinstance(fcfg, dict) or "x" not in fcfg:
-                        continue
-                    actual = self.text_extractor.read_field_value(
-                        fcfg, "customs", fcfg.get("type", "text")
-                    )
-                    passed = (expected and expected in actual) or (not expected)
-                    if expected and not passed:
-                        all_passed = False
-                        logger.warning(
-                            f"[校验失败-海关] {fname}: 预期='{expected}' 回读='{actual}'"
+            if deadline is not None and time.time() > deadline:
+                logger.warning("回读校验(海关段)超时，跳过")
+                all_passed = False
+                verification_details["customs_timeout"] = {"timeout": True, "passed": False}
+            else:
+                if self.screen_capture.activate_window("customs"):
+                    time.sleep(0.3)
+                    for fname, expected in customs_expected.items():
+                        if deadline is not None and time.time() > deadline:
+                            all_passed = False
+                            verification_details[f"customs_{fname}_timeout"] = {"timeout": True, "passed": False}
+                            break
+                        fcfg = customs_fields.get(fname)
+                        if not fcfg or not isinstance(fcfg, dict) or "x" not in fcfg:
+                            continue
+                        actual = self.text_extractor.read_field_value(
+                            fcfg, "customs", fcfg.get("type", "text")
                         )
-                    verification_details[f"customs_{fname}"] = {
-                        "expected": expected,
-                        "actual": actual,
-                        "passed": passed,
-                    }
+                        passed = (expected and expected in actual) or (not expected)
+                        if expected and not passed:
+                            all_passed = False
+                            logger.warning(
+                                f"[校验失败-海关] {fname}: 预期='{expected}' 回读='{actual}'"
+                            )
+                        verification_details[f"customs_{fname}"] = {
+                            "expected": expected,
+                            "actual": actual,
+                            "passed": passed,
+                        }
         except Exception as e:
             logger.error(f"海关系统回读校验异常: {e}")
             all_passed = False
@@ -648,6 +703,8 @@ class WorkflowOrchestrator:
             self.stats.ocr_hit = ocr_stats["hit"]
             self.stats.ocr_accuracy = ocr_stats["accuracy"]
 
+        self._check_ocr_accuracy(ocr_stats)
+
         with self._history_lock:
             try:
                 with open(self._history_file, "a", encoding="utf-8") as f:
@@ -670,6 +727,41 @@ class WorkflowOrchestrator:
             f"[{job.status.value}] 耗时={job.elapsed_seconds:.1f}s "
             f"重试={job.retries} 错误={job.error_message or '-'}"
         )
+
+    def _check_ocr_accuracy(self, ocr_stats: Dict[str, Any]) -> None:
+        total = ocr_stats.get("total", 0)
+        accuracy = ocr_stats.get("accuracy", 0.0)
+
+        if total < self._ocr_accuracy_min_samples:
+            return
+
+        target = self._ocr_accuracy_target
+        if accuracy >= target:
+            if self._ocr_accuracy_alert_sent:
+                self._ocr_accuracy_alert_sent = False
+                logger.info(f"OCR准确率已恢复至 {accuracy:.2%}，高于阈值 {target:.0%}")
+            return
+
+        if self._ocr_accuracy_alert_sent:
+            return
+
+        self._ocr_accuracy_alert_sent = True
+        msg = (
+            f"OCR准确率低于阈值告警\n"
+            f"当前准确率: {accuracy:.2%} / 目标: {target:.0%}\n"
+            f"统计样本: {total} 个 (命中 {ocr_stats.get('hit', 0)} 个)\n"
+            f"建议: 检查图像质量、调整OCR参数或启用人工复核"
+        )
+        logger.warning(msg.replace("\n", " "))
+
+        try:
+            from .notifier import Notifier
+            Notifier.instance().send_warning(
+                title="OCR准确率告警",
+                content=msg
+            )
+        except Exception as e:
+            logger.error(f"发送OCR准确率告警失败: {e}")
 
     def run_batch(self, count: int = 0) -> WorkflowStats:
         from concurrent.futures import ThreadPoolExecutor, as_completed

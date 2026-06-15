@@ -373,6 +373,7 @@ def _interactive_search(orchestrator: WorkflowOrchestrator) -> None:
 
 def memory_monitor(config: dict,
                    stop_event: threading.Event,
+                   orchestrator=None,
                    check_interval: int = 60) -> None:
     perf_cfg = config.get("performance", {})
     growth_limit_mb = perf_cfg.get("memory_growth_limit_mb", 150)
@@ -391,10 +392,36 @@ def memory_monitor(config: dict,
     samples_required = 3
     sample_interval = 5.0
 
+    alert_sent = False
+    auto_pause = config.get("notification", {}).get("alert_on_memory_growth", True)
+
+    auto_pause_label = "开启" if auto_pause else "关闭"
     logger.info(
         f"内存监控启动: 基线将在{sample_interval * samples_required:.0f}s内建立, "
-        f"增量阈值={growth_limit_mb}MB, 绝对阈值={abs_limit_mb}MB"
+        f"增量阈值={growth_limit_mb}MB, 绝对阈值={abs_limit_mb}MB, "
+        f"自动暂停={auto_pause_label}"
     )
+
+    def _send_memory_alert(growth_rss: float, rss_mb: float, baseline_rss_mb: float) -> None:
+        nonlocal alert_sent
+        if alert_sent:
+            return
+        alert_sent = True
+        msg = (
+            f"内存增量超限告警\n"
+            f"RSS增量: {growth_rss:+.1f}MB / 阈值 {growth_limit_mb}MB\n"
+            f"基线: {baseline_rss_mb:.1f}MB → 当前: {rss_mb:.1f}MB\n"
+            f"已自动暂停任务，请检查内存泄漏"
+        )
+        logger.critical(msg.replace("\n", " "))
+        try:
+            from .notifier import Notifier
+            Notifier.instance().send_critical_failure(
+                title="内存增量超限告警",
+                content=msg
+            )
+        except Exception as e:
+            logger.error(f"发送内存告警通知失败: {e}")
 
     while not stop_event.is_set():
         try:
@@ -425,22 +452,24 @@ def memory_monitor(config: dict,
             growth_rss = rss_mb - baseline_rss_mb
             growth_vms = vms_mb - (baseline_vms_mb or 0)
 
-            level = logging.DEBUG
-            msgs = []
             if growth_rss > growth_limit_mb:
-                level = logging.WARNING
-                msgs.append(
+                logger.warning(
                     f"RSS增量 {growth_rss:+.1f}MB 超过阈值 {growth_limit_mb}MB "
                     f"(基线 {baseline_rss_mb:.1f}MB, 当前 {rss_mb:.1f}MB)"
                 )
-            if abs_limit_mb and rss_mb > abs_limit_mb:
-                level = logging.WARNING
-                msgs.append(
-                    f"RSS绝对占用 {rss_mb:.1f}MB 超过上限 {abs_limit_mb}MB"
-                )
-            if msgs:
-                logger.log(level, " | ".join(msgs))
+                if auto_pause and orchestrator is not None and not alert_sent:
+                    _send_memory_alert(growth_rss, rss_mb, baseline_rss_mb)
+                    try:
+                        orchestrator.pause()
+                        logger.critical("内存超限，已自动暂停任务")
+                    except Exception as e:
+                        logger.error(f"暂停任务失败: {e}")
+            elif abs_limit_mb and rss_mb > abs_limit_mb:
+                logger.warning(f"RSS绝对占用 {rss_mb:.1f}MB 超过上限 {abs_limit_mb}MB")
             else:
+                if alert_sent and growth_rss < growth_limit_mb * 0.7:
+                    alert_sent = False
+                    logger.info("内存已恢复正常，告警状态重置")
                 logger.debug(
                     f"内存监控: RSS {rss_mb:.1f}MB (Δ{growth_rss:+.1f}MB) | "
                     f"VMS {vms_mb:.1f}MB (Δ{growth_vms:+.1f}MB) | "
@@ -584,7 +613,7 @@ def main() -> int:
     kb_thread.start()
 
     mem_thread = threading.Thread(
-        target=memory_monitor, args=(config, stop_event),
+        target=memory_monitor, args=(config, stop_event, orchestrator),
         name="memory_monitor", daemon=True
     )
     threads.append(mem_thread)

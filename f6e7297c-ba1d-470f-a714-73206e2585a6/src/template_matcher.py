@@ -47,7 +47,16 @@ class TemplateMatcher:
         self.templates: Dict[str, np.ndarray] = {}
         self._loaded_templates: bool = False
         self._match_method = cv2.TM_CCOEFF_NORMED
-        self._timeout_ms = config.get("performance", {}).get("template_match_timeout_ms", 200)
+        perf_cfg = config.get("performance", {})
+        self._timeout_ms = perf_cfg.get("template_match_timeout_ms", 200)
+        self._timeout_alert_count = perf_cfg.get("template_timeout_alert_count", 3)
+
+        self._consecutive_timeouts = 0
+        self._total_timeout_count = 0
+        self._total_match_count = 0
+        self._total_match_time_ms = 0.0
+        self._timeout_alert_sent = False
+        self._notifier = None
 
     def load_templates(self) -> bool:
         templates_cfg = self.config.get("templates", {})
@@ -72,10 +81,51 @@ class TemplateMatcher:
         logger.info(f"模板加载完成，成功 {success_count}/{len(templates_cfg)} 个")
         return self._loaded_templates
 
+    def set_notifier(self, notifier) -> None:
+        self._notifier = notifier
+
+    @property
+    def should_fallback_for_timeout(self) -> bool:
+        return self._consecutive_timeouts >= self._timeout_alert_count
+
+    def _handle_timeout(self, elapsed_ms: float, template_name: str) -> None:
+        self._consecutive_timeouts += 1
+        self._total_timeout_count += 1
+        logger.warning(
+            f"模板匹配超时 [{template_name}]: {elapsed_ms:.1f}ms > {self._timeout_ms}ms "
+            f"(连续超时 {self._consecutive_timeouts}/{self._timeout_alert_count})"
+        )
+
+        if (self._consecutive_timeouts == self._timeout_alert_count
+                and not self._timeout_alert_sent
+                and self._notifier is not None):
+            self._timeout_alert_sent = True
+            try:
+                self._notifier.send_warning(
+                    title="模板匹配频繁超时告警",
+                    content=(
+                        f"模板 [{template_name}] 已连续 {self._consecutive_timeouts} 次超时\n"
+                        f"阈值: {self._timeout_ms}ms，本次: {elapsed_ms:.1f}ms\n"
+                        f"已自动降级至网格坐标识别方案"
+                    )
+                )
+            except Exception as e:
+                logger.error(f"发送模板超时告警失败: {e}")
+
+    def _record_match_success(self, elapsed_ms: float) -> None:
+        self._consecutive_timeouts = 0
+        self._total_match_count += 1
+        self._total_match_time_ms += elapsed_ms
+
     def match_template(self, frame: np.ndarray, template_name: str,
                        threshold: float = 0.75,
-                       max_results: int = 0) -> List[MatchResult]:
+                       max_results: int = 0,
+                       respect_fallback: bool = False) -> List[MatchResult]:
         if template_name not in self.templates:
+            return []
+
+        if respect_fallback and self.should_fallback_for_timeout:
+            logger.debug(f"超时降级模式：跳过模板匹配 [{template_name}]")
             return []
 
         template = self.templates[template_name]
@@ -93,7 +143,9 @@ class TemplateMatcher:
             elapsed_ms = (time.time() - start) * 1000
 
             if elapsed_ms > self._timeout_ms:
-                logger.warning(f"模板匹配耗时 {elapsed_ms:.1f}ms 超过阈值 {self._timeout_ms}ms")
+                self._handle_timeout(elapsed_ms, template_name)
+            else:
+                self._record_match_success(elapsed_ms)
 
             locations = np.where(result >= threshold)
             matches: List[MatchResult] = []
@@ -347,7 +399,9 @@ class TemplateMatcher:
             origin_y=grid_region.get("y", 0)
         )
 
-        use_template = self._loaded_templates and "container_icon" in self.templates
+        use_template = (self._loaded_templates
+                        and "container_icon" in self.templates
+                        and not self.should_fallback_for_timeout)
         tpl_matches = []
 
         if use_template:
@@ -357,10 +411,13 @@ class TemplateMatcher:
             source = "模板匹配"
             containers = tpl_matches
         else:
-            if not use_template:
-                logger.warning("container_icon 模板缺失，启用网格坐标降级识别方案")
+            if self.should_fallback_for_timeout:
+                reason = "模板匹配频繁超时"
+            elif not use_template:
+                reason = "container_icon 模板缺失"
             else:
-                logger.warning("模板匹配未检出集装箱，启用网格坐标降级识别方案")
+                reason = "模板匹配未检出集装箱"
+            logger.warning(f"{reason}，启用网格坐标降级识别方案")
             fallback_grid = self.analyze_yard_grid_fallback(frame)
             source = "网格降级"
             containers = fallback_grid.containers

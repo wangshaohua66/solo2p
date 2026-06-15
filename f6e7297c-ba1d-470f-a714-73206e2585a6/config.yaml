@@ -125,6 +125,8 @@ templates:
 retry:
   max_attempts: 3
   initial_interval: 2
+  interval_mode: "linear"
+  interval_step: 2
   interval_multiplier: 2.0
   global_fail_threshold: 5
 
@@ -161,6 +163,7 @@ logging:
 performance:
   single_box_timeout_seconds: 25
   template_match_timeout_ms: 200
+  template_timeout_alert_count: 3
   ocr_accuracy_target: 0.97
   memory_growth_limit_mb: 150
   parallel_channels: 3
