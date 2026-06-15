@@ -1,0 +1,124 @@
+version: '3.9'
+
+services:
+  mongo:
+    image: mongo:7.0
+    container_name: drug-compliance-mongo
+    restart: unless-stopped
+    command: --wiredTigerCacheSizeGB 1.5 --bind_ip_all
+    environment:
+      MONGO_INITDB_DATABASE: drug_compliance
+      TZ: Asia/Shanghai
+    volumes:
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - compliance-net
+    mem_limit: 2g
+    mem_reservation: 512m
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: drug-compliance-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --loglevel warning
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - compliance-net
+    mem_limit: 512m
+    mem_reservation: 128m
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: drug-compliance-app
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: info
+      HEADLESS: "true"
+      TZ: Asia/Shanghai
+      MONGO_URI: mongodb://mongo:27017/drug_compliance
+      REDIS_URI: redis://redis:6379
+      CHROMEDRIVER_PATH: /usr/local/bin/chromedriver
+      # 平台账号密码 (请实际部署时替换)
+      NMPA_PASS_01: "${NMPA_PASS_01:-ChangeMe_NMPA_01}"
+      NMPA_PASS_02: "${NMPA_PASS_02:-ChangeMe_NMPA_02}"
+      PROV_SAMPLING_PASS_01: "${PROV_SAMPLING_PASS_01:-ChangeMe_Sampling}"
+      PROCURE_PASS_01: "${PROCURE_PASS_01:-ChangeMe_Procure_01}"
+      PROCURE_PASS_02: "${PROCURE_PASS_02:-ChangeMe_Procure_02}"
+      ADR_PASS_01: "${ADR_PASS_01:-ChangeMe_ADR}"
+      JS_EDA_PASS_01: "${JS_EDA_PASS_01:-ChangeMe_JS}"
+      ZJ_MPA_PASS_01: "${ZJ_MPA_PASS_01:-ChangeMe_ZJ}"
+      SH_FDA_PASS_01: "${SH_FDA_PASS_01:-ChangeMe_SH}"
+      AH_MPA_PASS_01: "${AH_MPA_PASS_01:-ChangeMe_AH}"
+    volumes:
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+      - /dev/shm:/dev/shm
+    tmpfs:
+      - /tmp:size=512m,exec
+    cap_add:
+      - SYS_ADMIN
+    shm_size: '1gb'
+    stdin_open: true
+    tty: true
+    ports:
+      - "9222:9222"
+    networks:
+      - compliance-net
+    mem_limit: 1.5g
+    mem_reservation: 1g
+    cpus: '2.0'
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "10"
+    healthcheck:
+      test: ["CMD", "sh", "-c", "ps aux | grep -v grep | grep -q 'node src/launcher.js' && ps aux | grep -v grep | grep -q Xvfb || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+volumes:
+  mongo_data:
+    driver: local
+  mongo_config:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  compliance-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24

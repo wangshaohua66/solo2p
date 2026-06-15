@@ -1,0 +1,246 @@
+# ============================================================
+# 合规告警规则配置
+# 支持热重载 - 修改后自动生效
+# 匹配优先级: 数字越大优先级越高
+# ============================================================
+
+# 紧急程度分级定义
+urgency_levels:
+  CRITICAL:
+    level: 4
+    label: "紧急"
+    color: "red"
+    alert_within_minutes: 5
+    keywords: ["停止使用", "立即召回", "一级召回", "严重不良反应", "死亡风险", "致命", "A级"]
+  HIGH:
+    level: 3
+    label: "重要"
+    color: "orange"
+    alert_within_minutes: 30
+    keywords: ["二级召回", "暂停销售", "暂停使用", "严重缺陷", "B级", "警示"]
+  MEDIUM:
+    level: 2
+    label: "一般"
+    color: "yellow"
+    alert_within_minutes: 120
+    keywords: ["三级召回", "限期整改", "一般缺陷", "C级", "提示"]
+  LOW:
+    level: 1
+    label: "关注"
+    color: "blue"
+    alert_within_minutes: 480
+    keywords: ["补充通知", "信息公示", "定期检查", "D级"]
+
+# ============================================================
+# 告警分类规则
+# ============================================================
+alert_rules:
+  # 1. 药品召回紧急告警
+  recall_critical:
+    id: RULE_RECALL_001
+    name: "紧急药品召回告警"
+    description: "匹配一级召回或紧急关键词的召回通知，5分钟内告警"
+    enabled: true
+    priority: 100
+    conditions:
+      event_type: ["recall"]
+      urgency_keywords_match:
+        field: "urgency,title,drug_name"
+        any: ["一级召回", "停止使用", "立即召回", "致命", "死亡风险", "严重过敏休克"]
+    action:
+      type: IMMEDIATE_ALERT
+      channels: ["console", "log", "email"]
+      template: "【紧急召回】{drug_name} ({approval_no}) - 原因: {title} - 请立即处理！"
+
+  recall_high:
+    id: RULE_RECALL_002
+    name: "重要药品召回告警"
+    description: "匹配二级召回的召回通知，30分钟内告警"
+    enabled: true
+    priority: 90
+    conditions:
+      event_type: ["recall"]
+      urgency_keywords_match:
+        field: "urgency,title"
+        any: ["二级召回", "暂停销售", "暂停使用"]
+    action:
+      type: PRIORITY_ALERT
+      channels: ["console", "log"]
+      template: "【重要召回】{drug_name} ({approval_no}) - {title}"
+
+  # 2. 特定药品监控规则 (示例: 抗生素、抗肿瘤药等敏感品类)
+  sensitive_drug_watch:
+    id: RULE_DRUG_001
+    name: "敏感品类药品特殊监控"
+    description: "监控抗生素、抗肿瘤、麻醉、精神类等高风险药品"
+    enabled: true
+    priority: 95
+    conditions:
+      drug_keywords_match:
+        field: "drug_name"
+        any: ["青霉素", "头孢", "阿莫西林", "紫杉醇", "顺铂", "吗啡", "哌替啶", "氯胺酮", "地西泮", "阿普唑仑"]
+    action:
+      type: PRIORITY_ALERT
+      channels: ["console", "log"]
+      template: "【敏感药品】{event_type} {drug_name} - 请重点关注 ({source_platform})"
+
+  # 3. 批准文号黑名单监控 (示例: 问题药企文号前缀)
+  approval_blacklist:
+    id: RULE_APPR_001
+    name: "高风险批准文号监控"
+    description: "监控曾出现合规问题的药企批准文号前缀"
+    enabled: true
+    priority: 85
+    conditions:
+      approval_prefix:
+        any:
+          - "国药准字H20200123"
+          - "国药准字Z20194567"
+          - "国药准字H201888"
+          - "国药准字Z202111"
+    action:
+      type: PRIORITY_ALERT
+      channels: ["console", "log"]
+      template: "【文号关注】{drug_name} ({approval_no}) 属于历史高风险药企，建议加强核查"
+
+  # 4. 经营许可证到期预警
+  license_expiry_30d:
+    id: RULE_LIC_001
+    name: "经营许可证30天到期预警"
+    description: "许可证有效期不足30天时每日提醒"
+    enabled: true
+    priority: 80
+    conditions:
+      event_type: ["license_expiry"]
+      date_range:
+        field: "expiry_date"
+        within_days: [0, 30]
+    action:
+      type: DAILY_SUMMARY
+      channels: ["console", "log", "report"]
+      template: "【许可到期】{license_owner} - {drug_name} ({approval_no}) 许可证 {license_no} 将于 {expiry_date} 到期 (剩余{days_left}天)"
+      grouping: true
+
+  license_expiry_7d_critical:
+    id: RULE_LIC_002
+    name: "经营许可证7天紧急预警"
+    description: "许可证有效期不足7天，按紧急级告警"
+    enabled: true
+    priority: 98
+    conditions:
+      event_type: ["license_expiry"]
+      date_range:
+        field: "expiry_date"
+        within_days: [0, 7]
+    action:
+      type: IMMEDIATE_ALERT
+      channels: ["console", "log", "email"]
+      template: "【许可危急】{license_owner} - {drug_name} ({approval_no}) 许可证 {license_no} 仅剩{days_left}天到期，请立即办理续期！"
+
+  # 5. GSP飞行检查不合格告警
+  gsp_failed:
+    id: RULE_GSP_001
+    name: "GSP检查不合格告警"
+    description: "GSP飞行检查存在严重缺陷或不符合要求"
+    enabled: true
+    priority: 88
+    conditions:
+      event_type: ["gsp_inspection"]
+      field_keywords:
+        field: "gsp_result,status"
+        any: ["不合格", "严重缺陷", "不符合GSP", "限期整改", "收回证书"]
+    action:
+      type: WEEKLY_SUMMARY
+      channels: ["console", "log", "report"]
+      template: "【GSP异常】{license_owner} - 检查结果: {gsp_result} ({publish_date})"
+      grouping: true
+
+  # 6. 集中带量采购中标通知
+  bid_won_notification:
+    id: RULE_BID_001
+    name: "集采中标结果通知"
+    description: "采集到本集团参与品种的集采中标结果"
+    enabled: true
+    priority: 75
+    conditions:
+      event_type: ["bid_result"]
+      winner_keywords:
+        field: "winner,manufacturer"
+        any: ["本集团", "集团医药", "省医药", "华东医药", "国药控股", "华润医药", "九州通"]
+    action:
+      type: INFO_NOTIFY
+      channels: ["console", "log", "report"]
+      template: "【集采中标】{drug_name} ({approval_no}) - 中标: {winner} 价格: {price}"
+
+  # 7. 不良反应严重事件
+  adr_serious_event:
+    id: RULE_ADR_001
+    name: "严重不良反应通报告警"
+    description: "监测到严重不良反应通报或死亡病例"
+    enabled: true
+    priority: 92
+    conditions:
+      event_type: ["adr_report"]
+      field_keywords:
+        field: "adr_type,severity,title"
+        any: ["严重", "死亡", "危及生命", "致畸", "致癌", "永久损伤"]
+    action:
+      type: IMMEDIATE_ALERT
+      channels: ["console", "log", "email"]
+      template: "【严重ADR】{drug_name} ({approval_no}) - {adr_type} 报告{report_count}例，请即时评估 ({source_platform})"
+
+  # 8. 药监抽检不合格
+  sampling_failed:
+    id: RULE_SAMPLE_001
+    name: "药监抽检不合格告警"
+    description: "省级抽检结果不合格的药品"
+    enabled: true
+    priority: 82
+    conditions:
+      event_type: ["sampling_result"]
+      field_keywords:
+        field: "sample_result"
+        any: ["不合格", "不符合规定", "含量测定不合格", "无菌检查不合格"]
+    action:
+      type: PRIORITY_ALERT
+      channels: ["console", "log"]
+      template: "【抽检不合格】{drug_name} ({approval_no}) 批次: {batch_no} - {sample_result}"
+
+# ============================================================
+# 告警通道配置
+# ============================================================
+channels:
+  console:
+    enabled: true
+    level: DEBUG
+    use_color: true
+
+  log:
+    enabled: true
+    level: INFO
+    file: "logs/alerts_{date}.log"
+    rotate_daily: true
+
+  email:
+    enabled: false
+    smtp_host: "${SMTP_HOST}"
+    smtp_port: 587
+    username: "${SMTP_USER}"
+    password: "${SMTP_PASS}"
+    from: "compliance@drug-group.com"
+    to:
+      - "compliance_supervisor@drug-group.com"
+      - "quality_manager@drug-group.com"
+
+# ============================================================
+# 全局告警配置
+# ============================================================
+global:
+  daily_limit_per_rule: 100
+  cooldown_seconds: 600
+  dedup_window_hours: 24
+  escalate_after_attempts: 3
+  quiet_hours:
+    enabled: false
+    start: "22:00"
+    end: "08:00"

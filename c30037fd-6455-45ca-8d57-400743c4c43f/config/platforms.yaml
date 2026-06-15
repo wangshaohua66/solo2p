@@ -1,0 +1,377 @@
+# ============================================================
+# 药品合规数据采集平台配置文件
+# 支持热重载 - 修改后自动生效
+# ============================================================
+
+system:
+  max_parallel_browsers: 4
+  max_daily_records: 5000
+  session_refresh_interval_minutes: 10
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+  viewport:
+    width: 1920
+    height: 1080
+  request_timeout_ms: 30000
+  navigation_timeout_ms: 60000
+  retry:
+    max_attempts: 3
+    delay_seconds: [5, 15, 30]
+  proxy:
+    enabled: false
+    rotation_interval_minutes: 60
+
+# ============================================================
+# 8个政务平台配置
+# ============================================================
+platforms:
+  # 1. 国家药品监督管理局数据库 (NMPA)
+  nmpa:
+    name: 国家药品监督管理局
+    code: NMPA
+    enabled: true
+    base_url: "https://www.nmpa.gov.cn"
+    login_url: "https://www.nmpa.gov.cn/login"
+    data_types: ["recall", "gsp_inspection"]
+    schedule: "*/30 * * * *"
+    timeout_minutes: 8
+    collection_depth: 50
+    
+    auth:
+      mode: credentials
+      accounts:
+        - username: "nmpa_admin01"
+          password: "${NMPA_PASS_01}"
+        - username: "nmpa_admin02"
+          password: "${NMPA_PASS_02}"
+      cookie_injection: false
+    
+    selectors:
+      login_form:
+        username_input: "#username"
+        password_input: "#password"
+        submit_button: "button[type='submit']"
+        captcha: "#captchaImg"
+      navigation:
+        recall_tab: "a[data-tab='recall']"
+        gsp_tab: "a[data-tab='gsp']"
+        search_input: "#searchBox"
+        search_button: "#searchBtn"
+      pagination:
+        next_button: ".pagination .next"
+        page_info: ".page-info"
+        total_count: ".total-count"
+      data_table:
+        rows: "table.data-table tbody tr"
+        columns:
+          drug_name: "td:nth-child(1)"
+          approval_no: "td:nth-child(2)"
+          notice_no: "td:nth-child(3)"
+          publish_date: "td:nth-child(4)"
+          urgency: "td:nth-child(5)"
+          detail_url: "td:nth-child(6) a"
+      captcha_detect:
+        slider: ".slider-captcha"
+        image: ".img-captcha"
+        popup: ".captcha-modal"
+
+  # 2. 省级药监抽检公示平台
+  provincial_sampling:
+    name: 省级药监抽检公示平台
+    code: PROV_SAMPLING
+    enabled: true
+    base_url: "https://sampling.prov-drug.gov.cn"
+    login_url: "https://sampling.prov-drug.gov.cn/user/login"
+    data_types: ["sampling_result"]
+    schedule: "0 */2 * * *"
+    timeout_minutes: 6
+    collection_depth: 30
+    
+    auth:
+      mode: cookie
+      cookie_file: "config/cookies/prov_sampling.json"
+      accounts:
+        - username: "prov_sampling01"
+          password: "${PROV_SAMPLING_PASS_01}"
+    
+    selectors:
+      login_form:
+        username_input: "input[name='username']"
+        password_input: "input[name='password']"
+        submit_button: ".login-btn"
+      navigation:
+        menu_public_notice: ".menu > li:nth-child(3)"
+        submenu_drug_check: ".submenu li:nth-child(2)"
+        date_range_start: "#dateStart"
+        date_range_end: "#dateEnd"
+        query_button: ".query-btn"
+      pagination:
+        next_page: "li.next a"
+        current_page: ".page-item.active"
+        total_pages: "span.total-pages"
+      data_table:
+        rows: ".result-list > .result-item"
+        fields:
+          drug_name: ".drug-name"
+          approval_no: ".approval-number"
+          batch_no: ".batch-number"
+          sample_result: ".sample-result"
+          publish_date: ".publish-date"
+      scroll_target: ".result-list"
+
+  # 3. 省药品集中采购交易中心
+  provincial_procurement:
+    name: 省药品集中采购交易中心
+    code: PROV_PROCURE
+    enabled: true
+    base_url: "https://procurement.prov-drug.gov.cn"
+    login_url: "https://procurement.prov-drug.gov.cn/portal/login"
+    data_types: ["bid_result"]
+    schedule: "0 9,15 * * *"
+    timeout_minutes: 7
+    collection_depth: 40
+    
+    auth:
+      mode: credentials
+      accounts:
+        - username: "procure_user01"
+          password: "${PROCURE_PASS_01}"
+        - username: "procure_user02"
+          password: "${PROCURE_PASS_02}"
+    
+    selectors:
+      login_form:
+        username_input: "#loginName"
+        password_input: "#password"
+        verify_code: "#verifyCode"
+        verify_img: "#verifyImg"
+        submit_btn: "#loginBtn"
+      navigation:
+        tender_board: ".nav-tender"
+        winning_announcement: ".nav-announcement:contains('中标')"
+        category_filter: ".filter-category"
+        search_keyword: ".keyword-input"
+      pagination:
+        pager_container: ".pager"
+        next_link: ".pager .next:not(.disabled)"
+        page_size: 20
+      data_table:
+        rows: ".bid-table tr"
+        mappings:
+          drug_name: "td:eq(0)"
+          approval_no: "td:eq(1)"
+          manufacturer: "td:eq(2)"
+          winner: "td:eq(3)"
+          price: "td:eq(4)"
+          publish_date: "td:eq(5)"
+          notice_no: "td:eq(6)"
+
+  # 4. 国家药品不良反应监测中心
+  adr_monitor:
+    name: 国家药品不良反应监测中心
+    code: ADR_MONITOR
+    enabled: true
+    base_url: "https://adr.nmpa.gov.cn"
+    login_url: "https://adr.nmpa.gov.cn/system/login"
+    data_types: ["adr_report"]
+    schedule: "0 10,16 * * *"
+    timeout_minutes: 8
+    collection_depth: 35
+    
+    auth:
+      mode: credentials
+      accounts:
+        - username: "adr_monitor01"
+          password: "${ADR_PASS_01}"
+    
+    selectors:
+      login_form:
+        username: "input#userName"
+        password: "input#userPwd"
+        captcha: "input#captcha"
+        captcha_img: "img#captchaImg"
+        login_btn: "button#loginBtn"
+      navigation:
+        report_notice: ".sidebar-menu .notice-item"
+        serious_adr: ".filter-tag:contains('严重')"
+        new_adr: ".filter-tag:contains('新的')"
+        date_from: ".date-picker.start"
+        date_to: ".date-picker.end"
+        query_submit: ".query-submit"
+      pagination:
+        load_more: ".load-more-btn"
+        scroll_infinite: true
+        scroll_pause_ms: 1500
+      data_table:
+        items: ".notice-card"
+        parsers:
+          drug_name: ".card-title span.drug"
+          approval_no: ".card-meta .approval"
+          adr_type: ".card-tag.type"
+          report_count: ".card-meta .count"
+          publish_date: ".card-meta .date"
+          severity: ".card-tag.severity"
+
+  # 5-8. 各省药械审评审批系统 (示例: 华东四省)
+  east_jiangsu_approval:
+    name: 江苏省药械审评审批系统
+    code: JS_APPROVAL
+    enabled: true
+    base_url: "https://eda.jiangsu.gov.cn"
+    login_url: "https://eda.jiangsu.gov.cn/login"
+    data_types: ["license_expiry", "approval_change"]
+    schedule: "0 8 * * *"
+    timeout_minutes: 5
+    collection_depth: 25
+    
+    auth:
+      mode: cookie
+      cookie_file: "config/cookies/js_approval.json"
+      accounts:
+        - username: "js_eda01"
+          password: "${JS_EDA_PASS_01}"
+    
+    selectors:
+      login_form:
+        user: "input[name='account']"
+        pwd: "input[name='pwd']"
+        submit: "button.login-btn-primary"
+      navigation:
+        license_menu: "a.menu-license"
+        expiry_query: ".sub-expiry"
+        search_license: "#licenseSearch"
+      pagination:
+        next: ".page-next:not(.disabled)"
+        total: ".totalRecords"
+      data_table:
+        rows: ".license-table tbody tr"
+        fields:
+          drug_name: "td.col-1"
+          approval_no: "td.col-2"
+          license_no: "td.col-3"
+          license_owner: "td.col-4"
+          expiry_date: "td.col-5"
+          status: "td.col-6"
+
+  east_zhejiang_approval:
+    name: 浙江省药械审评审批系统
+    code: ZJ_APPROVAL
+    enabled: true
+    base_url: "https://mpa.zj.gov.cn/approval"
+    login_url: "https://mpa.zj.gov.cn/login"
+    data_types: ["license_expiry", "gsp_cert"]
+    schedule: "0 9 * * *"
+    timeout_minutes: 5
+    collection_depth: 20
+    
+    auth:
+      mode: credentials
+      accounts:
+        - username: "zj_mpa01"
+          password: "${ZJ_MPA_PASS_01}"
+    
+    selectors:
+      login_form:
+        username_input: "#loginForm input[name='uname']"
+        password_input: "#loginForm input[name='pwd']"
+        submit_button: ".login-submit"
+      navigation:
+        cert_query: ".cert-entry"
+        gsp_tab: ".tab-bar [data-type='gsp']"
+        biz_license_tab: ".tab-bar [data-type='biz']"
+        date_filter: ".date-range-filter"
+      pagination:
+        pages: ".pagination-container"
+        next_btn: "button.next-page"
+      data_table:
+        rows: ".ant-table-tbody tr"
+        columns_map:
+          drug_name: 0
+          approval_no: 1
+          cert_no: 2
+          cert_holder: 3
+          valid_from: 4
+          valid_to: 5
+          cert_status: 6
+
+  east_shanghai_approval:
+    name: 上海市药械审评审批系统
+    code: SH_APPROVAL
+    enabled: true
+    base_url: "https://approval.shfda.gov.cn"
+    login_url: "https://approval.shfda.gov.cn/sso/login"
+    data_types: ["license_expiry"]
+    schedule: "0 10 * * *"
+    timeout_minutes: 5
+    collection_depth: 20
+    
+    auth:
+      mode: credentials
+      accounts:
+        - username: "sh_fda01"
+          password: "${SH_FDA_PASS_01}"
+    
+    selectors:
+      login_form:
+        username_field: "#userAccount"
+        password_field: "#userPassword"
+        code_field: "#smsCode"
+        code_btn: ".send-code-btn"
+        login_button: "#doLogin"
+      navigation:
+        main_search: ".global-search-bar"
+        search_filter_license: ".filter-option:contains('经营许可')"
+        quick_expiry: ".quick-filter:contains('即将到期')"
+      pagination:
+        more_button: ".infinite-more"
+        auto_scroll: true
+      data_table:
+        cards: ".approval-card"
+        extractors:
+          drug_name: ".card-header .drug"
+          approval_no: ".card-meta .approval"
+          license_no: ".card-meta .license"
+          holder: ".card-meta .holder"
+          expiry: ".card-footer .expiry-date"
+
+  east_anhui_approval:
+    name: 安徽省药械审评审批系统
+    code: AH_APPROVAL
+    enabled: true
+    base_url: "https://mpa.ah.gov.cn/approval"
+    login_url: "https://mpa.ah.gov.cn/uc/login"
+    data_types: ["gsp_inspection", "license_change"]
+    schedule: "0 11 * * *"
+    timeout_minutes: 6
+    collection_depth: 25
+    
+    auth:
+      mode: cookie
+      cookie_file: "config/cookies/ah_approval.json"
+      accounts:
+        - username: "ah_mpa01"
+          password: "${AH_MPA_PASS_01}"
+    
+    selectors:
+      login_form:
+        account: "input#loginId"
+        password: "input#password"
+        verify: "input#verifyCode"
+        verify_img: "#verifyCodeImg"
+        submit: ".btn-login"
+      navigation:
+        notice_menu: ".menu-group [data-key='notice']"
+        gsp_notice: ".notice-type [data-type='gsp']"
+        license_notice: ".notice-type [data-type='license']"
+      pagination:
+        container: ".page-bar"
+        next_selector: "a.next-page-link"
+        total_selector: "span.total-count"
+      data_table:
+        rows: ".notice-list > .notice-row"
+        mapping:
+          drug_name: ".col-drug"
+          approval_no: ".col-approval"
+          notice_title: ".col-title"
+          notice_no: ".col-notice-no"
+          publish_date: ".col-date"
+          gsp_result: ".col-result"
