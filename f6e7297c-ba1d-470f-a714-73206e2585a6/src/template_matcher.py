@@ -219,6 +219,110 @@ class TemplateMatcher:
             logger.error(f"箱态分类失败: {e}")
             return "unknown", "未知"
 
+    def analyze_yard_grid_fallback(self, frame: Optional[np.ndarray] = None) -> YardGrid:
+        yard_cfg = self.config.get("systems", {}).get("yard", {})
+        grid_region = yard_cfg.get("grid_region", {})
+        cell_size = yard_cfg.get("cell_size", {"width": 80, "height": 60})
+        status_config = yard_cfg.get("status_colors", {})
+
+        if frame is None:
+            frame = self.screen_capture.capture_region(grid_region, system_name="yard")
+
+        if frame is None:
+            logger.error("[降级模式] 获取堆场画面失败")
+            return YardGrid()
+
+        fh, fw = frame.shape[:2]
+        cell_w, cell_h = cell_size.get("width", 80), cell_size.get("height", 60)
+        cols = max(1, fw // cell_w)
+        rows = max(1, fh // cell_h)
+
+        yard_grid = YardGrid(
+            rows=rows, cols=cols,
+            cell_width=cell_w, cell_height=cell_h,
+            origin_x=grid_region.get("x", 0),
+            origin_y=grid_region.get("y", 0)
+        )
+
+        try:
+            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        except Exception as e:
+            logger.error(f"[降级模式] HSV转换失败: {e}")
+            return yard_grid
+
+        margin_x = int(cell_w * 0.15)
+        margin_y = int(cell_h * 0.15)
+        detection_threshold = 0.25
+        color_threshold = 0.08
+
+        found_count = 0
+        for row in range(rows):
+            for col in range(cols):
+                x = col * cell_w + margin_x
+                y = row * cell_h + margin_y
+                w = cell_w - 2 * margin_x
+                h = cell_h - 2 * margin_y
+
+                roi = ScreenCapture.crop_region(hsv, x, y, w, h)
+                if roi is None or roi.size == 0:
+                    continue
+
+                try:
+                    saturation = roi[:, :, 1]
+                    non_gray_pixels = cv2.countNonZero(cv2.inRange(saturation, 30, 255))
+                    total_pixels = roi.shape[0] * roi.shape[1]
+                    fill_ratio = non_gray_pixels / max(total_pixels, 1)
+
+                    if fill_ratio < detection_threshold:
+                        continue
+
+                    best_status = "unknown"
+                    best_label = "未知"
+                    best_ratio = 0.0
+
+                    for status_key, status_val in status_config.items():
+                        lower = np.array(status_val["hsv_lower"], dtype=np.uint8)
+                        upper = np.array(status_val["hsv_upper"], dtype=np.uint8)
+
+                        if status_key == "frozen":
+                            lower = np.array([0, 0, 150], dtype=np.uint8)
+                            upper = np.array([180, 50, 220], dtype=np.uint8)
+
+                        mask = cv2.inRange(roi, lower, upper)
+                        count = cv2.countNonZero(mask)
+                        ratio = count / max(total_pixels, 1)
+
+                        if ratio > best_ratio and ratio > color_threshold:
+                            best_ratio = ratio
+                            best_status = status_key
+                            best_label = status_val.get("label", status_key)
+
+                    if best_ratio > color_threshold or fill_ratio > 0.5:
+                        cnt = MatchResult(
+                            x=col * cell_w,
+                            y=row * cell_h,
+                            width=cell_w,
+                            height=cell_h,
+                            confidence=round(min(fill_ratio, best_ratio + 0.2), 3),
+                            grid_row=row,
+                            grid_col=col,
+                            status=best_status,
+                            status_label=best_label
+                        )
+                        yard_grid.containers.append(cnt)
+                        found_count += 1
+
+                except Exception as e:
+                    logger.debug(f"[降级模式] 单元格({row},{col})处理失败: {e}")
+                    continue
+
+        yard_grid.containers.sort(key=lambda c: (c.grid_row, c.grid_col))
+        logger.info(
+            f"[降级模式] 堆场网格分析完成: {rows}行x{cols}列, "
+            f"检测到 {len(yard_grid.containers)} 个集装箱 (填充阈值={detection_threshold})"
+        )
+        return yard_grid
+
     def analyze_yard_grid(self, frame: Optional[np.ndarray] = None) -> YardGrid:
         yard_cfg = self.config.get("systems", {}).get("yard", {})
         grid_region = yard_cfg.get("grid_region", {})
@@ -243,22 +347,44 @@ class TemplateMatcher:
             origin_y=grid_region.get("y", 0)
         )
 
-        tpl_matches = self.match_template(frame, "container_icon", threshold=0.6, max_results=0)
+        use_template = self._loaded_templates and "container_icon" in self.templates
+        tpl_matches = []
 
-        for cnt in tpl_matches:
+        if use_template:
+            tpl_matches = self.match_template(frame, "container_icon", threshold=0.6, max_results=0)
+
+        if use_template and len(tpl_matches) > 0:
+            source = "模板匹配"
+            containers = tpl_matches
+        else:
+            if not use_template:
+                logger.warning("container_icon 模板缺失，启用网格坐标降级识别方案")
+            else:
+                logger.warning("模板匹配未检出集装箱，启用网格坐标降级识别方案")
+            fallback_grid = self.analyze_yard_grid_fallback(frame)
+            source = "网格降级"
+            containers = fallback_grid.containers
+            yard_grid.rows = fallback_grid.rows
+            yard_grid.cols = fallback_grid.cols
+
+        for cnt in containers:
             col = cnt.center[0] // cell_w
             row = cnt.center[1] // cell_h
             cnt.grid_row = int(row)
             cnt.grid_col = int(col)
 
-            status_key, status_label = self.classify_container_status(frame, cnt)
-            cnt.status = status_key
-            cnt.status_label = status_label
+            if source == "模板匹配":
+                status_key, status_label = self.classify_container_status(frame, cnt)
+                cnt.status = status_key
+                cnt.status_label = status_label
 
             yard_grid.containers.append(cnt)
 
         yard_grid.containers.sort(key=lambda c: (c.grid_row, c.grid_col))
-        logger.info(f"堆场网格分析完成: {rows}行x{cols}列, 检测到 {len(yard_grid.containers)} 个集装箱")
+        logger.info(
+            f"堆场网格分析完成 [{source}]: {rows}行x{cols}列, "
+            f"检测到 {len(yard_grid.containers)} 个集装箱"
+        )
 
         return yard_grid
 
