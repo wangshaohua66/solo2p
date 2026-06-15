@@ -1,0 +1,182 @@
+.mapContainer {
+  position: relative;
+  height: calc(100vh - 56px - 48px);
+  background: #0f172a;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.mapPlaceholder {
+  width: 100%;
+  height: 100%;
+  background:
+    linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 40px,
+      rgba(100, 116, 139, 0.1) 40px,
+      rgba(100, 116, 139, 0.1) 41px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 40px,
+      rgba(100, 116, 139, 0.1) 40px,
+      rgba(100, 116, 139, 0.1) 41px
+    );
+  background-blend-mode: overlay;
+}
+
+.mapMarker {
+  position: absolute;
+  animation: pulse 2s infinite;
+}
+
+.panel {
+  background: #fff;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  border-radius: 16px 16px 0 0;
+  margin-top: 16px;
+  overflow: hidden;
+}
+
+.panelHandle {
+  cursor: row-resize;
+  height: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.panelHandle::before {
+  content: '';
+  width: 40px;
+  height: 4px;
+  background: #d1d5db;
+  border-radius: 2px;
+}
+
+.reportForm {
+  padding: 20px;
+}
+
+.reportForm .formRow {
+  display: flex;
+  gap: 12px;
+}
+
+.reportForm .formGroup {
+  flex: 1;
+  margin-bottom: 16px;
+}
+
+.reportForm .formGroup label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.reportForm .formGroup input,
+.reportForm .formGroup select,
+.reportForm .formGroup textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s;
+  background: #fff;
+}
+
+.reportForm .formGroup input:focus,
+.reportForm .formGroup select:focus,
+.reportForm .formGroup textarea:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.disorderCard {
+  background: #fff;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s;
+}
+
+.disorderCard:hover {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.trackList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.trackItem {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #f9fafb;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #6b7280;
+  font-variant-numeric: tabular-nums;
+}
+
+.coverageList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.coverageItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.coverageName {
+  width: 120px;
+  font-size: 14px;
+  color: #374151;
+}
+
+.coverageBar {
+  flex: 1;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.coverageProgress {
+  height: 100%;
+  background: linear-gradient(90deg, #3498db, #27ae60);
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+
+.coverageRate {
+  width: 60px;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  font-variant-numeric: tabular-nums;
+}
+
+.controlSection {
+  margin-bottom: 16px;
+}
