@@ -13,6 +13,12 @@ class BasePlatform {
     this.isLoggedIn = false;
     this.loginExpiry = 0;
     this.sessionDuration = 2 * 60 * 60 * 1000;
+    this.sessionRefreshInterval = null;
+    this.sessionRefreshRatio = 0.7;
+    this.currentContext = null;
+    this.lastRefreshTime = 0;
+    this.refreshAttempts = 0;
+    this.maxRefreshAttempts = 3;
   }
 
   async login(username, password) {
@@ -40,7 +46,10 @@ class BasePlatform {
       if (success) {
         this.isLoggedIn = true;
         this.loginExpiry = now + this.sessionDuration;
-        logger.info(`${this.name} 登录成功`, this.name);
+        this.lastRefreshTime = now;
+        this.currentContext = contextWrapper;
+        logger.info(`${this.name} 登录成功，Session 有效期 ${(this.sessionDuration / 1000 / 60).toFixed(0)} 分钟`, this.name);
+        this._startSessionRenewer(contextWrapper);
       }
 
       await page.close();
@@ -51,24 +60,184 @@ class BasePlatform {
     }
   }
 
+  _startSessionRenewer(contextWrapper) {
+    this._stopSessionRenewer();
+
+    const refreshDelay = this.sessionDuration * this.sessionRefreshRatio;
+    logger.debug(`Session 续期定时器已启动，将在 ${(refreshDelay / 1000 / 60).toFixed(0)} 分钟后续期`, this.name);
+
+    this.sessionRefreshInterval = setTimeout(async () => {
+      await this._refreshSession(contextWrapper);
+    }, refreshDelay);
+  }
+
+  _stopSessionRenewer() {
+    if (this.sessionRefreshInterval) {
+      clearTimeout(this.sessionRefreshInterval);
+      this.sessionRefreshInterval = null;
+    }
+  }
+
+  async _refreshSession(contextWrapper) {
+    if (!this.isLoggedIn) {
+      logger.debug('未登录，跳过 Session 续期', this.name);
+      return;
+    }
+
+    const now = Date.now();
+    logger.info(`正在主动续期 Session... (距上次刷新 ${((now - this.lastRefreshTime) / 1000 / 60).toFixed(1)} 分钟)`, this.name);
+
+    let success = false;
+    let lastError = null;
+
+    for (let attempt = 0; attempt < this.maxRefreshAttempts; attempt++) {
+      try {
+        const page = await this.browserPool.newPage(contextWrapper);
+
+        try {
+          success = await this._doRefreshSession(page);
+
+          if (success) {
+            this.loginExpiry = Date.now() + this.sessionDuration;
+            this.lastRefreshTime = Date.now();
+            this.refreshAttempts = 0;
+            logger.success(`Session 续期成功，新有效期 ${(this.sessionDuration / 1000 / 60).toFixed(0)} 分钟`, this.name);
+            break;
+          }
+        } finally {
+          await page.close();
+        }
+      } catch (error) {
+        lastError = error;
+        logger.warn(`Session 续期第 ${attempt + 1} 次失败: ${error.message}`, this.name);
+
+        if (this.browserPool && this.browserPool.proxyList?.length > 0) {
+          logger.info('续期失败，尝试切换代理...', this.name);
+          await this.browserPool.rotateProxyForContext(contextWrapper);
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 5000 * (attempt + 1)));
+      }
+    }
+
+    if (!success) {
+      this.refreshAttempts++;
+      logger.warn(`Session 续期失败 ${this.refreshAttempts} 次，将重新登录`, this.name);
+
+      if (this.refreshAttempts >= 2) {
+        this.isLoggedIn = false;
+        logger.error('Session 续期多次失败，登录态已失效', this.name);
+      }
+    }
+
+    this._startSessionRenewer(contextWrapper);
+  }
+
+  async _doRefreshSession(page) {
+    try {
+      const refreshUrl = this.config.refreshUrl || this.config.baseUrl + '/user/center';
+
+      const response = await page.goto(refreshUrl, {
+        waitUntil: 'domcontentloaded',
+        timeout: 15000,
+      });
+
+      if (!response || !response.ok()) {
+        return false;
+      }
+
+      const isStillLoggedIn = await page.evaluate(() => {
+        return !!(
+          document.querySelector('.user-info') ||
+          document.querySelector('.username') ||
+          document.querySelector('.avatar') ||
+          document.querySelector('.logout') ||
+          document.cookie.includes('session') ||
+          document.cookie.includes('token')
+        );
+      });
+
+      if (isStillLoggedIn) {
+        const cookies = await page.context().cookies();
+        logger.debug(`续期后 Cookie 数量: ${cookies.length}`, this.name);
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      logger.debug(`Session 续期异常: ${error.message}`, this.name);
+      return false;
+    }
+  }
+
+  async forceRefreshSession(contextWrapper) {
+    logger.info('强制执行 Session 续期', this.name);
+    await this._refreshSession(contextWrapper);
+    return this.isLoggedIn;
+  }
+
+  getSessionStatus() {
+    const now = Date.now();
+    const remaining = this.loginExpiry - now;
+
+    return {
+      isLoggedIn: this.isLoggedIn,
+      loginExpiry: this.loginExpiry,
+      remainingSeconds: Math.max(0, Math.floor(remaining / 1000)),
+      remainingMinutes: Math.max(0, Math.floor(remaining / 1000 / 60)),
+      lastRefreshTime: this.lastRefreshTime,
+      refreshAttempts: this.refreshAttempts,
+    };
+  }
+
   async _doLogin(page) {
     return true;
   }
 
-  async safeNavigate(page, url, options = {}) {
+  async safeNavigate(page, url, contextWrapper, options = {}) {
+    let lastStatusCode = null;
+
     return await retry(
       async (attempt) => {
         if (attempt > 0) {
           logger.info(`重试导航到 ${url} (第 ${attempt + 1} 次)`, this.name);
+
+          if (contextWrapper && this.browserPool) {
+            const switched = await this.browserPool.handleRequestFailure(
+              contextWrapper,
+              lastStatusCode,
+              new Error(lastStatusCode ? `HTTP ${lastStatusCode}` : 'unknown error')
+            );
+            if (switched) {
+              const newPage = await this.browserPool.newPage(contextWrapper);
+              try {
+                await page.close();
+              } catch (e) { /* ignore */ }
+              page = newPage;
+              logger.info('已切换代理，使用新页面重试', this.name);
+            }
+          }
         }
 
-        const response = await page.goto(url, {
-          waitUntil: 'domcontentloaded',
-          timeout: options.timeout || config.browser.timeout,
-        });
+        let response;
+        try {
+          response = await page.goto(url, {
+            waitUntil: 'domcontentloaded',
+            timeout: options.timeout || config.browser.timeout,
+          });
+        } catch (navError) {
+          lastStatusCode = null;
+          throw navError;
+        }
+
+        const statusCode = response?.status();
+        lastStatusCode = statusCode;
 
         if (!response || !response.ok()) {
-          throw new Error(`页面加载失败: ${response?.status() || 'no response'}`);
+          if (statusCode && this.browserPool?.isBannedStatusCode(statusCode)) {
+            logger.warn(`检测到封禁状态码 ${statusCode}，将切换代理重试`, this.name);
+          }
+          throw new Error(`页面加载失败: ${statusCode || 'no response'}`);
         }
 
         const hasCaptcha = await this._checkCaptcha(page);
@@ -80,7 +249,7 @@ class BasePlatform {
           }
         }
 
-        return response;
+        return { response, page };
       },
       {
         maxRetries: config.retry.maxRetries,

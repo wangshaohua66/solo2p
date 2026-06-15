@@ -13,9 +13,31 @@ class BrowserPool extends EventEmitter {
     this.browser = null;
     this.isInitialized = false;
     this.userAgentIndex = 0;
-    this.proxyList = options.proxyList || [];
+    this.proxyList = options.proxyList || this._loadProxyList();
     this.proxyIndex = 0;
     this._healthCheckInterval = null;
+    this._bannedProxies = new Map();
+    this._proxyBanCooldown = 10 * 60 * 1000;
+    this._blockedStatusCodes = [403, 429, 503, 504, 521, 522];
+  }
+
+  _loadProxyList() {
+    const envProxies = process.env.HTTP_PROXIES;
+    if (envProxies) {
+      return envProxies.split(',').map(p => {
+        const trimmed = p.trim();
+        if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+          const url = new URL(trimmed);
+          return {
+            server: `${url.protocol}//${url.host}`,
+            username: url.username || undefined,
+            password: url.password || undefined,
+          };
+        }
+        return { server: trimmed };
+      });
+    }
+    return [];
   }
 
   async init() {
@@ -110,9 +132,110 @@ class BrowserPool extends EventEmitter {
 
   _getNextProxy() {
     if (this.proxyList.length === 0) return null;
-    const proxy = this.proxyList[this.proxyIndex % this.proxyList.length];
-    this.proxyIndex++;
-    return proxy;
+
+    const now = Date.now();
+    for (let i = 0; i < this.proxyList.length; i++) {
+      const idx = this.proxyIndex % this.proxyList.length;
+      this.proxyIndex++;
+      const proxy = this.proxyList[idx];
+
+      const proxyKey = typeof proxy === 'string' ? proxy : proxy.server;
+      const bannedAt = this._bannedProxies.get(proxyKey);
+      if (bannedAt && now - bannedAt < this._proxyBanCooldown) {
+        continue;
+      }
+
+      if (bannedAt && now - bannedAt >= this._proxyBanCooldown) {
+        this._bannedProxies.delete(proxyKey);
+        logger.info(`代理 ${proxyKey} 冷却结束，重新启用`, 'BrowserPool');
+      }
+
+      return proxy;
+    }
+
+    logger.warn('所有代理均被封禁，使用最早被封的代理', 'BrowserPool');
+    const oldestKey = [...this._bannedProxies.entries()]
+      .sort((a, b) => a[1] - b[1])[0]?.[0];
+    if (oldestKey) {
+      this._bannedProxies.delete(oldestKey);
+    }
+    return this.proxyList[this.proxyIndex % this.proxyList.length];
+  }
+
+  markProxyBanned(proxy, reason = '') {
+    const proxyKey = typeof proxy === 'string' ? proxy : proxy?.server;
+    if (!proxyKey) return;
+
+    this._bannedProxies.set(proxyKey, Date.now());
+    logger.warn(`代理被封禁: ${proxyKey} - ${reason}`, 'BrowserPool');
+    this.emit('proxy-banned', { proxy: proxyKey, reason });
+  }
+
+  isBannedStatusCode(statusCode) {
+    return this._blockedStatusCodes.includes(statusCode);
+  }
+
+  async rotateProxyForContext(contextWrapper) {
+    const oldProxy = contextWrapper.proxy;
+    const newProxy = this._getNextProxy();
+    const newUserAgent = this._getNextUserAgent();
+
+    logger.info(`切换上下文 #${contextWrapper.id} 代理: ${oldProxy?.server || '无'} -> ${newProxy?.server || '无'}`, 'BrowserPool');
+
+    try {
+      await contextWrapper.context.close();
+    } catch (e) { /* ignore */ }
+
+    const newContext = await this.browser.newContext({
+      userAgent: newUserAgent,
+      viewport: { width: 1920, height: 1080 },
+      locale: 'zh-CN',
+      timezoneId: 'Asia/Shanghai',
+      ignoreHTTPSErrors: true,
+      proxy: newProxy || undefined,
+    });
+
+    await newContext.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+      Object.defineProperty(navigator, 'languages', { get: () => ['zh-CN', 'zh', 'en'] });
+      window.chrome = { runtime: {} };
+    });
+
+    contextWrapper.context = newContext;
+    contextWrapper.proxy = newProxy;
+    contextWrapper.userAgent = newUserAgent;
+    contextWrapper.isHealthy = true;
+    contextWrapper.errorCount = 0;
+    contextWrapper.pages = new Set();
+    contextWrapper.cookies = {};
+
+    newContext.on('page', (page) => {
+      contextWrapper.pages.add(page);
+      page.on('close', () => contextWrapper.pages.delete(page));
+    });
+
+    return contextWrapper;
+  }
+
+  async handleRequestFailure(contextWrapper, statusCode, error) {
+    const needsProxySwitch =
+      (statusCode && this.isBannedStatusCode(statusCode)) ||
+      (error && (
+        error.message.includes('net::ERR_TUNNEL_CONNECTION_FAILED') ||
+        error.message.includes('net::ERR_PROXY_CONNECTION_FAILED') ||
+        error.message.includes('net::ERR_CONNECTION_RESET') ||
+        error.message.includes('net::ERR_CONNECTION_REFUSED') ||
+        error.message.includes('timeout')
+      ));
+
+    if (needsProxySwitch && this.proxyList.length > 0) {
+      this.markProxyBanned(contextWrapper.proxy, `状态码: ${statusCode || 'N/A'}, 错误: ${error?.message || 'unknown'}`);
+      await this.rotateProxyForContext(contextWrapper);
+      return true;
+    }
+
+    return false;
   }
 
   async acquire() {

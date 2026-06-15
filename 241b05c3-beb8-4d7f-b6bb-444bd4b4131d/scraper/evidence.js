@@ -87,6 +87,8 @@ class EvidenceCollector {
   async _takeFullScreenshot(page, outputPath) {
     const quality = config.evidence.screenshotQuality;
 
+    await this._injectWatermark(page);
+
     const buffer = await page.screenshot({
       path: outputPath,
       fullPage: true,
@@ -96,39 +98,67 @@ class EvidenceCollector {
 
     const fileSizeMB = buffer.length / (1024 * 1024);
     if (fileSizeMB > config.evidence.maxScreenshotSizeMB) {
-      logger.warn(`截图文件 ${fileSizeMB.toFixed(2)}MB 超过限制 ${config.evidence.maxScreenshotSizeMB}MB，正在压缩`, 'Evidence');
+      logger.warn(`截图文件 ${fileSizeMB.toFixed(2)}MB 超过限制 ${config.evidence.maxScreenshotSizeMB}MB`, 'Evidence');
     }
 
-    await this._addTimestampWatermark(outputPath, page.url());
-
-    const finalBuffer = fs.readFileSync(outputPath);
-    return finalBuffer;
+    return buffer;
   }
 
-  async _addTimestampWatermark(imagePath, url) {
+  async _injectWatermark(page) {
     const timestamp = new Date().toLocaleString('zh-CN', {
       timeZone: 'Asia/Shanghai',
+      hour12: false,
     });
+    const url = page.url();
 
-    const watermarkHtml = `
-      <div style="
+    await page.evaluate(({ timestamp, url }) => {
+      const existing = document.getElementById('evidence-watermark');
+      if (existing) {
+        existing.remove();
+      }
+
+      const watermark = document.createElement('div');
+      watermark.id = 'evidence-watermark';
+      watermark.style.cssText = `
         position: fixed;
-        bottom: 10px;
-        right: 10px;
-        background: rgba(0, 0, 0, 0.7);
-        color: white;
-        padding: 8px 12px;
-        font-size: 12px;
-        font-family: monospace;
-        border-radius: 4px;
-        z-index: 999999;
-      ">
-        <div>取证时间: ${timestamp}</div>
-        <div style="font-size: 10px; margin-top: 2px;">${url}</div>
-      </div>
-    `;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.75);
+        color: #ffffff;
+        padding: 10px 14px;
+        font-size: 13px;
+        font-family: 'Microsoft YaHei', 'SimHei', monospace;
+        border-radius: 6px;
+        z-index: 2147483647;
+        line-height: 1.6;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        pointer-events: none;
+        user-select: none;
+        max-width: 400px;
+        word-break: break-all;
+      `;
+      watermark.innerHTML = `
+        <div style="font-weight: bold; margin-bottom: 4px; color: #ff6b6b;">
+          ⚠️ 证据固定 - 取证时间
+        </div>
+        <div style="font-family: monospace;">${timestamp}</div>
+        <div style="font-size: 11px; margin-top: 4px; opacity: 0.9;">${url}</div>
+      `;
 
-    return watermarkHtml;
+      document.body.appendChild(watermark);
+
+      const cornerLeft = watermark.cloneNode(true);
+      cornerLeft.id = 'evidence-watermark-left';
+      cornerLeft.style.left = '20px';
+      cornerLeft.style.right = 'auto';
+      cornerLeft.style.top = '20px';
+      cornerLeft.style.bottom = 'auto';
+      document.body.appendChild(cornerLeft);
+
+      document.body.classList.add('evidence-captured');
+    }, { timestamp, url });
+
+    await page.waitForTimeout(200);
   }
 
   _calculateHash(data) {

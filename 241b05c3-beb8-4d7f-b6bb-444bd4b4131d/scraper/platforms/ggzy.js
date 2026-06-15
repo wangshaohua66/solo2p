@@ -49,7 +49,7 @@ class GgzyPlatform extends BasePlatform {
   }
 
   async fetchList(pageNum = 1, contextWrapper) {
-    const page = await this.browserPool.newPage(contextWrapper);
+    let page = await this.browserPool.newPage(contextWrapper);
     const results = [];
     let hasNext = false;
 
@@ -58,7 +58,10 @@ class GgzyPlatform extends BasePlatform {
         ? this.config.listUrl
         : this.config.listUrl.replace('index.htm', `index_${pageNum - 1}.htm`);
 
-      await this.safeNavigate(page, listUrl);
+      const result = await this.safeNavigate(page, listUrl, contextWrapper);
+      if (result?.page) {
+        page = result.page;
+      }
 
       const html = await page.content();
       const $ = this.parseHTML(html);
@@ -123,10 +126,13 @@ class GgzyPlatform extends BasePlatform {
   }
 
   async fetchDetail(url, contextWrapper) {
-    const page = await this.browserPool.newPage(contextWrapper);
+    let page = await this.browserPool.newPage(contextWrapper);
 
     try {
-      await this.safeNavigate(page, url);
+      const result = await this.safeNavigate(page, url, contextWrapper);
+      if (result?.page) {
+        page = result.page;
+      }
 
       const html = await page.content();
       const $ = this.parseHTML(html);

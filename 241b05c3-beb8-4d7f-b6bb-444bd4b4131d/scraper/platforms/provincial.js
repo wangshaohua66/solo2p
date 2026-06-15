@@ -56,14 +56,17 @@ class ProvincialPlatform extends BasePlatform {
   }
 
   async fetchList(pageNum = 1, contextWrapper) {
-    const page = await this.browserPool.newPage(contextWrapper);
+    let page = await this.browserPool.newPage(contextWrapper);
     const results = [];
     let hasNext = false;
     let totalCount = 0;
 
     try {
       const url = `${this.config.listUrl}?page=${pageNum}`;
-      await this.safeNavigate(page, url);
+      const result = await this.safeNavigate(page, url, contextWrapper);
+      if (result?.page) {
+        page = result.page;
+      }
 
       await this._waitForDynamicContent(page);
 
@@ -169,10 +172,13 @@ class ProvincialPlatform extends BasePlatform {
   }
 
   async fetchDetail(url, contextWrapper) {
-    const page = await this.browserPool.newPage(contextWrapper);
+    let page = await this.browserPool.newPage(contextWrapper);
 
     try {
-      await this.safeNavigate(page, url);
+      const result = await this.safeNavigate(page, url, contextWrapper);
+      if (result?.page) {
+        page = result.page;
+      }
       await this._waitForDynamicContent(page);
 
       const html = await page.content();
