@@ -1,0 +1,24 @@
+{
+  "name": "bidding-supervision-system",
+  "version": "1.0.0",
+  "description": "公共资源交易监督系统 - 多平台抓取与串标风险分析",
+  "main": "scraper/main.js",
+  "scripts": {
+    "start": "node scraper/main.js start",
+    "schedule": "node scraper/main.js schedule",
+    "report": "node scraper/main.js report",
+    "status": "node scraper/main.js status"
+  },
+  "dependencies": {
+    "playwright": "^1.48.0",
+    "better-sqlite3": "^11.3.0",
+    "node-cron": "^3.0.3",
+    "cheerio": "^1.0.0",
+    "chalk": "^4.1.2",
+    "commander": "^12.1.0",
+    "axios": "^1.7.7"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
