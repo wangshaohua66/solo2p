@@ -1,0 +1,231 @@
+scalar DateTime
+scalar Long
+scalar Double
+
+type Query {
+    dispatchEvent(id: ID!): DispatchEvent
+    dispatchEvents(
+        status: String,
+        severity: String,
+        startTime: DateTime,
+        endTime: DateTime,
+        page: Int = 0,
+        size: Int = 20
+    ): DispatchEventPage
+    activeDispatchEvents(
+        page: Int = 0,
+        size: Int = 20
+    ): DispatchEventPage
+
+    ambulance(id: ID!): Ambulance
+    ambulances(
+        status: String,
+        equipmentLevel: String,
+        page: Int = 0,
+        size: Int = 20
+    ): AmbulancePage
+    availableAmbulancesNearby(
+        longitude: Double!,
+        latitude: Double!,
+        radiusKm: Float = 5.0
+    ): [AmbulanceRecommendation!]!
+    ambulanceLatestLocations: [AmbulanceLocation!]!
+    ambulanceTrack(
+        ambulanceId: ID!,
+        startTime: DateTime!,
+        endTime: DateTime!
+    ): [LocationPoint!]!
+
+    medicalRecord(id: ID!): MedicalRecord
+    medicalRecords(
+        patientName: String,
+        diagnosis: String,
+        startDate: DateTime,
+        endDate: DateTime,
+        isLocked: Boolean,
+        page: Int = 0,
+        size: Int = 20
+    ): MedicalRecordPage
+    pendingReviewRecords(
+        page: Int = 0,
+        size: Int = 20
+    ): MedicalRecordPage
+}
+
+type DispatchEvent {
+    id: ID!
+    eventNo: String!
+    status: String!
+    severity: String!
+    callerName: String
+    callerPhone: String
+    incidentAddress: String
+    longitude: Float
+    latitude: Float
+    chiefComplaint: String
+    receivedAt: DateTime
+    dispatchedAt: DateTime
+    departedAt: DateTime
+    arrivedAtScene: DateTime
+    departedScene: DateTime
+    arrivedAtHospital: DateTime
+    completedAt: DateTime
+
+    ambulance: Ambulance
+    medicalRecord: MedicalRecord
+    hospital: Hospital
+    dispatcher: User
+    doctor: User
+    driver: User
+}
+
+type DispatchEventPage {
+    content: [DispatchEvent!]!
+    totalElements: Long!
+    totalPages: Int!
+    number: Int!
+    size: Int!
+}
+
+type Ambulance {
+    id: ID!
+    plateNumber: String!
+    status: String!
+    equipmentLevel: String!
+    vehicleType: String!
+    driverName: String
+    driverPhone: String
+    currentLongitude: Float
+    currentLatitude: Float
+    lastUpdateTime: DateTime
+    mileageKm: Float
+    equipmentStatus: String
+}
+
+type AmbulancePage {
+    content: [Ambulance!]!
+    totalElements: Long!
+    totalPages: Int!
+    number: Int!
+    size: Int!
+}
+
+type AmbulanceRecommendation {
+    ambulance: Ambulance!
+    distanceMeters: Float!
+    estimatedArrivalMinutes: Int!
+    averageSpeedKmh: Float!
+}
+
+type AmbulanceLocation {
+    ambulanceId: ID!
+    plateNumber: String!
+    status: String!
+    longitude: Float!
+    latitude: Float!
+    speedKmh: Float!
+    heading: Float
+    timestamp: DateTime!
+}
+
+type LocationPoint {
+    longitude: Float!
+    latitude: Float!
+    speedKmh: Float
+    heading: Float
+    altitude: Float
+    timestamp: DateTime!
+}
+
+type MedicalRecord {
+    id: ID!
+    recordNo: String!
+    patientName: String!
+    gender: String!
+    age: Int!
+    patientPhone: String
+    idCard: String
+    bloodType: String
+    allergies: String
+    chiefComplaint: String
+    historyOfPresentIllness: String
+    pastMedicalHistory: String
+    preliminaryDiagnosis: String!
+    isLocked: Boolean!
+    lockedAt: DateTime
+    lockedBy: User
+    createdAt: DateTime
+    createdBy: User
+
+    vitalSigns: [VitalSign!]!
+    treatments: [Treatment!]!
+    medications: [Medication!]!
+
+    dispatchEvent: DispatchEvent
+}
+
+type MedicalRecordPage {
+    content: [MedicalRecord!]!
+    totalElements: Long!
+    totalPages: Int!
+    number: Int!
+    size: Int!
+}
+
+type VitalSign {
+    type: String!
+    value: Float!
+    unit: String!
+    measuredAt: DateTime!
+}
+
+type Treatment {
+    type: String!
+    description: String!
+    startTime: DateTime
+    endTime: DateTime
+    notes: String
+}
+
+type Medication {
+    name: String!
+    dosage: String!
+    route: String!
+    administeredAt: DateTime!
+    administeredBy: String
+}
+
+type Hospital {
+    id: ID!
+    name: String!
+    level: String
+    address: String
+    phone: String
+    longitude: Float
+    latitude: Float
+}
+
+type User {
+    id: ID!
+    username: String!
+    realName: String!
+    role: String!
+    department: String
+    phone: String
+}
+
+type QualityControlReview {
+    id: ID!
+    reviewNo: String!
+    reviewType: String!
+    status: String!
+    overallScore: Int
+    completenessScore: Int
+    timelinessScore: Int
+    accuracyScore: Int
+    reviewDate: DateTime
+    reviewedAt: DateTime
+    reviewed: Boolean
+    reviewer: User
+    medicalRecord: MedicalRecord
+}

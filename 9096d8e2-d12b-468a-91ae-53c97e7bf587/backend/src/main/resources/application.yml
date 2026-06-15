@@ -1,0 +1,130 @@
+spring:
+  application:
+    name: ems-dispatch
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ems_dispatch
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 10
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.spatial.dialect.postgis.PostgisPG10Dialect
+        format_sql: true
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+    open-in-view: false
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    schemas: public
+  graphql:
+    graphiql:
+      enabled: true
+      path: /graphiql
+    schema:
+      locations: classpath:graphql/**/*.graphqls
+    websocket:
+      path: /graphql-ws
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+    consumer:
+      group-id: ems-dispatch-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+        spring.json.use.type.headers: false
+    listener:
+      concurrency: 4
+      ack-mode: manual
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 50MB
+  websocket:
+    allowed-origins: "*"
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/plain
+  tomcat:
+    max-threads: 200
+    accept-count: 100
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+  show-actuator: true
+  packages-to-scan: com.ems.dispatch.controller
+  paths-to-match: /**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+ems:
+  dispatch:
+    gps-update-interval: 3000
+    geofence-radius-meters: 50
+    max-vehicle-concurrent: 200
+    search-radius-km: 5.0
+  kafka:
+    topics:
+      vehicle-gps: ems.vehicle.gps
+      dispatch-event: ems.dispatch.event
+      medical-record: ems.medical.record
+      notification: ems.notification
+  notification:
+    sms-gateway-url: http://sms-gateway/api/send
+    websocket-endpoint: /ws/dispatch
+
+logging:
+  level:
+    root: INFO
+    com.ems.dispatch: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.springframework.kafka: INFO
+    org.springframework.graphql: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/ems-dispatch.log
+    max-size: 50MB
+    max-history: 30
