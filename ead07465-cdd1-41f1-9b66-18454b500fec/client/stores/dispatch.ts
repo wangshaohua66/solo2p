@@ -1,16 +1,21 @@
 import { defineStore } from 'pinia'
+import * as signalR from '@microsoft/signalr'
+const { HubConnectionBuilder, HttpTransportType, HubConnectionState } = signalR
 import type {
   Pipe, MonitorNode, LeakEvent, RepairWorkOrder, RepairTeam,
-  Valve, OutageZone, UserAccount, ToastNotification, UserRole
+  Valve, OutageZone, UserAccount, ToastNotification, UserRole,
+  WorkOrderStatus
 } from '~/types'
 import {
   generateMockData, generateMockLeakEvents, generateMockWorkOrders,
-  generateMockOutageZones
+  generateMockOutageZones, fetchAPI
 } from '~/utils/api'
 
 interface DispatchState {
   connected: boolean
   connecting: boolean
+  connectionError: string | null
+  hubConnection: HubConnection | null
   pipes: Pipe[]
   monitorNodes: MonitorNode[]
   leakEvents: LeakEvent[]
@@ -24,12 +29,15 @@ interface DispatchState {
   selectedWorkOrderId: string | null
   selectedTeamId: string | null
   mapStyle: 'vector' | 'satellite'
+  useMockFallback: boolean
 }
 
 export const useDispatchStore = defineStore('dispatch', {
   state: (): DispatchState => ({
     connected: false,
     connecting: false,
+    connectionError: null,
+    hubConnection: null,
     pipes: [],
     monitorNodes: [],
     leakEvents: [],
@@ -52,7 +60,8 @@ export const useDispatchStore = defineStore('dispatch', {
     selectedLeakId: null,
     selectedWorkOrderId: null,
     selectedTeamId: null,
-    mapStyle: 'vector'
+    mapStyle: 'vector',
+    useMockFallback: true
   }),
 
   getters: {
@@ -102,11 +111,23 @@ export const useDispatchStore = defineStore('dispatch', {
 
     getWorkOrderById: (state) => (id: string): RepairWorkOrder | undefined => {
       return state.workOrders.find(w => w.id === id)
+    },
+
+    connectionState(state): string {
+      if (!state.hubConnection) return '未连接'
+      switch (state.hubConnection.state) {
+        case HubConnectionState.Connected: return '已连接'
+        case HubConnectionState.Connecting: return '连接中...'
+        case HubConnectionState.Reconnecting: return '重连中...'
+        case HubConnectionState.Disconnected: return '已断开'
+        default: return '未知'
+      }
     }
   },
 
   actions: {
-    async initMockData() {
+    initMockFallbackData() {
+      if (!this.useMockFallback) return
       const mock = generateMockData()
       this.pipes = mock.pipes
       this.monitorNodes = mock.nodes
@@ -117,109 +138,318 @@ export const useDispatchStore = defineStore('dispatch', {
       this.outageZones = generateMockOutageZones()
     },
 
+    async fetchInitialData(): Promise<boolean> {
+      try {
+        const results = await Promise.allSettled([
+          fetchAPI<Pipe[]>('/leak/pipes').catch(() => [] as Pipe[]),
+          fetchAPI<MonitorNode[]>('/leak/monitor-nodes').catch(() => [] as MonitorNode[]),
+          fetchAPI<{ data: LeakEvent[] }>('/leak/events?pageSize=100')
+            .then(r => r.data)
+            .catch(() => [] as LeakEvent[]),
+          fetchAPI<{ data: RepairWorkOrder[] }>('/repair/work-orders?pageSize=100')
+            .then(r => r.data)
+            .catch(() => [] as RepairWorkOrder[]),
+          fetchAPI<RepairTeam[]>('/repair/teams').catch(() => [] as RepairTeam[]),
+          fetchAPI<Valve[]>('/repair/valves').catch(() => [] as Valve[])
+        ])
+
+        const pipes = results[0].status === 'fulfilled' ? results[0].value : []
+        const nodes = results[1].status === 'fulfilled' ? results[1].value : []
+        const leaks = results[2].status === 'fulfilled' ? results[2].value : []
+        const orders = results[3].status === 'fulfilled' ? results[3].value : []
+        const teams = results[4].status === 'fulfilled' ? results[4].value : []
+        const valves = results[5].status === 'fulfilled' ? results[5].value : []
+
+        const hasRealData = pipes.length > 0 || nodes.length > 0 || leaks.length > 0
+
+        if (hasRealData) {
+          this.useMockFallback = false
+          if (pipes.length > 0) this.pipes = pipes
+          if (nodes.length > 0) this.monitorNodes = nodes
+          if (leaks.length > 0) this.leakEvents = leaks
+          if (orders.length > 0) this.workOrders = orders
+          if (teams.length > 0) this.repairTeams = teams
+          if (valves.length > 0) this.valves = valves
+          return true
+        }
+        return false
+      } catch (error) {
+        console.warn('Failed to fetch initial data from API, using mock fallback:', error)
+        return false
+      }
+    },
+
     async connectSignalR() {
-      if (this.connecting || this.connected) return
+      if (this.connecting || (this.connected && this.hubConnection?.state === HubConnectionState.Connected)) {
+        return
+      }
+
       this.connecting = true
-      await this.initMockData()
-      this.connected = true
-      this.connecting = false
-      this.addToast({
-        id: `toast-${Date.now()}`,
-        type: 'success',
-        title: '实时连接已建立',
-        message: '正在接收 SCADA 数据与调度指令'
+      this.connectionError = null
+
+      const hasRealData = await this.fetchInitialData()
+
+      if (!hasRealData) {
+        this.initMockFallbackData()
+      }
+
+      if (import.meta.server) {
+        this.connecting = false
+        this.connected = true
+        return
+      }
+
+      const config = useRuntimeConfig()
+      const hubUrl = (config.public.signalRHub as string) || 'http://localhost:5000/hubs/dispatch'
+
+      try {
+        const userId = this.currentUser?.id || 'anonymous'
+        const connection = new HubConnectionBuilder()
+          .withUrl(`${hubUrl}?userId=${userId}`, {
+            transport: HttpTransportType.WebSockets | HttpTransportType.LongPolling,
+            skipNegotiation: false,
+            withCredentials: true
+          })
+          .withAutomaticReconnect([0, 2000, 5000, 10000, 20000, 30000])
+          .configureLogging(signalR.LogLevel.Information)
+          .build()
+
+        connection.onclose((error) => {
+          this.connected = false
+          this.connectionError = error?.message || '连接已关闭'
+          this.addToast({
+            type: 'error',
+            title: '实时连接已断开',
+            message: error?.message || '正在尝试重新连接...',
+            duration: 5000
+          })
+        })
+
+        connection.onreconnecting((error) => {
+          this.connecting = true
+          this.connectionError = error?.message || '正在重新连接...'
+        })
+
+        connection.onreconnected((connectionId) => {
+          this.connecting = false
+          this.connected = true
+          this.connectionError = null
+          this.addToast({
+            type: 'success',
+            title: '实时连接已恢复',
+            message: `Connection ID: ${connectionId?.substring(0, 8)}...`,
+            duration: 3000
+          })
+        })
+
+        this.registerHubHandlers(connection)
+
+        await connection.start()
+
+        this.hubConnection = connection
+        this.connected = true
+        this.connecting = false
+        this.connectionError = null
+
+        this.addToast({
+          type: 'success',
+          title: '实时连接已建立',
+          message: '正在接收 SCADA 数据与调度指令',
+          duration: 3000
+        })
+
+        await this.subscribeToHubEvents()
+
+      } catch (error: any) {
+        console.error('SignalR connection failed:', error)
+        this.connectionError = error?.message || '连接失败'
+        this.connecting = false
+        this.connected = true
+
+        this.addToast({
+          type: 'warning',
+          title: '实时连接建立失败',
+          message: this.useMockFallback
+            ? '已使用本地模拟数据，部分实时功能将不可用'
+            : error?.message || '请检查后端服务状态',
+          duration: 6000
+        })
+      }
+    },
+
+    registerHubHandlers(connection: HubConnection) {
+      connection.on('PressureUpdated', (data: {
+        nodeId: string
+        code: string
+        name: string
+        pressure: number
+        flow?: number
+        readingTime: string
+        isAnomaly?: boolean
+      }) => {
+        this.handlePressureUpdated(data)
       })
-      this.startPressureSimulation()
-      this.startTeamPositionSimulation()
+
+      connection.on('PressureAlarm', (data: {
+        nodeId: string
+        code: string
+        name: string
+        pressure: number
+        longitude: number
+        latitude: number
+        thresholdMin: number
+        thresholdMax: number
+        readingTime: string
+      }) => {
+        this.handlePressureAlarm(data)
+      })
+
+      connection.on('NewLeakEvent', (leak: LeakEvent) => {
+        this.handleNewLeakEvent(leak)
+      })
+
+      connection.on('LeakEventUpdated', (leak: LeakEvent) => {
+        this.handleLeakEventUpdated(leak)
+      })
+
+      connection.on('WorkOrderCreated', (order: RepairWorkOrder) => {
+        this.handleWorkOrderCreated(order)
+      })
+
+      connection.on('WorkOrderUpdated', (order: RepairWorkOrder) => {
+        this.handleWorkOrderUpdated(order)
+      })
+
+      connection.on('TeamPositionUpdated', (team: RepairTeam) => {
+        this.handleTeamPositionUpdated(team)
+      })
+
+      connection.on('OutageZoneCreated', (data: { workOrderId: string; zone: OutageZone }) => {
+        this.handleOutageZoneCreated(data)
+      })
+
+      connection.on('TimeoutEscalated', (data: {
+        workOrderId: string
+        orderNo: string
+        oldPriority: number
+        newPriority: number
+      }) => {
+        this.handleTimeoutEscalated(data)
+      })
+
+      connection.on('Broadcast', (data: { type: string; message: string; payload?: any }) => {
+        this.addToast({
+          type: 'info',
+          title: data.type,
+          message: data.message,
+          duration: 4000
+        })
+      })
     },
 
-    startPressureSimulation() {
-      if (import.meta.server) return
-      setInterval(() => {
-        if (!this.connected) return
-        for (const node of this.monitorNodes) {
-          if (!node.isOnline) continue
-          const delta = (Math.random() - 0.5) * 0.01
-          const current = node.currentPressure ?? (node.normalPressureMin + node.normalPressureMax) / 2
-          let newPressure = Math.max(0.05, Math.min(0.8, current + delta))
+    async subscribeToHubEvents() {
+      if (!this.hubConnection || this.hubConnection.state !== HubConnectionState.Connected) return
+      try {
+        await this.hubConnection.invoke('SubscribeToEvents', ['all'])
+        await this.hubConnection.invoke('CheckAndEscalateTimeoutOrders')
+      } catch (error) {
+        console.warn('Failed to subscribe to hub events:', error)
+      }
+    },
 
-          if (Math.random() < 0.005) {
-            newPressure = node.normalPressureMin * (0.5 + Math.random() * 0.3)
-            node.hasAlarm = true
-          }
-
-          node.currentPressure = Math.round(newPressure * 10000) / 10000
-          node.lastReadingTime = new Date().toISOString()
+    async disconnectSignalR() {
+      if (this.hubConnection) {
+        try {
+          await this.hubConnection.stop()
+        } catch (error) {
+          console.error('Error stopping SignalR connection:', error)
         }
-      }, 2000)
+        this.hubConnection = null
+      }
+      this.connected = false
+      this.connecting = false
+      this.connectionError = null
     },
 
-    startTeamPositionSimulation() {
-      if (import.meta.server) return
-      setInterval(() => {
-        if (!this.connected) return
-        for (const team of this.repairTeams) {
-          if (team.status === 'Idle' || team.status === 'Resting') continue
-          if (team.currentLongitude == null || team.currentLatitude == null) continue
-          team.currentLongitude += (Math.random() - 0.5) * 0.0005
-          team.currentLatitude += (Math.random() - 0.5) * 0.0005
-          team.lastPositionUpdate = new Date().toISOString()
-        }
-      }, 5000)
-    },
-
-    handlePressureUpdated(data: { nodeId: string; pressure: number; flow?: number }) {
+    handlePressureUpdated(data: {
+      nodeId: string
+      pressure: number
+      flow?: number
+      readingTime?: string
+    }) {
       const node = this.monitorNodes.find(n => n.id === data.nodeId)
       if (!node) return
       node.currentPressure = data.pressure
       node.currentFlow = data.flow ?? null
-      node.lastReadingTime = new Date().toISOString()
+      node.lastReadingTime = data.readingTime || new Date().toISOString()
+      node.isOnline = true
     },
 
-    handlePressureAlarm(data: { nodeId: string; code: string; name: string; pressure: number }) {
+    handlePressureAlarm(data: {
+      nodeId: string
+      code: string
+      name: string
+      pressure: number
+      longitude: number
+      latitude: number
+      thresholdMin: number
+      thresholdMax: number
+    }) {
       const node = this.monitorNodes.find(n => n.id === data.nodeId)
-      if (node) node.hasAlarm = true
+      if (node) {
+        node.hasAlarm = true
+        node.currentPressure = data.pressure
+      }
       this.addToast({
-        id: `toast-${Date.now()}-${Math.random()}`,
+        id: `toast-alarm-${data.nodeId}-${Date.now()}`,
         type: 'warning',
         title: `压力异常告警`,
-        message: `${data.name} (${data.code}) 当前压力 ${data.pressure.toFixed(3)} MPa`,
-        duration: 5000
+        message: `${data.name} (${data.code}) 当前压力 ${data.pressure.toFixed(3)} MPa (阈值 ${data.thresholdMin.toFixed(2)}-${data.thresholdMax.toFixed(2)})`,
+        duration: 8000
       })
     },
 
     handleNewLeakEvent(leak: LeakEvent) {
       const idx = this.leakEvents.findIndex(l => l.id === leak.id)
-      if (idx >= 0) this.leakEvents[idx] = leak
-      else this.leakEvents.unshift(leak)
+      if (idx >= 0) {
+        this.leakEvents[idx] = leak
+      } else {
+        this.leakEvents.unshift(leak)
+      }
       this.addToast({
-        id: `toast-${Date.now()}`,
+        id: `toast-leak-${leak.id}`,
         type: leak.severity === 'Critical' ? 'error' : 'warning',
-        title: '疑似漏损事件',
+        title: `疑似漏损事件 (${leak.eventNo})`,
         message: `${leak.description ?? ''} 置信度 ${(leak.confidence * 100).toFixed(0)}%`,
-        duration: 8000
+        duration: 10000
       })
     },
 
     handleLeakEventUpdated(leak: LeakEvent) {
       const idx = this.leakEvents.findIndex(l => l.id === leak.id)
-      if (idx >= 0) this.leakEvents[idx] = leak
+      if (idx >= 0) {
+        this.leakEvents[idx] = leak
+      }
     },
 
     handleWorkOrderCreated(order: RepairWorkOrder) {
-      this.workOrders.unshift(order)
+      const idx = this.workOrders.findIndex(w => w.id === order.id)
+      if (idx < 0) {
+        this.workOrders.unshift(order)
+      }
       this.addToast({
-        id: `toast-${Date.now()}`,
         type: 'info',
         title: '新工单创建',
-        message: order.title,
+        message: `${order.orderNo} - ${order.title}`,
         duration: 5000
       })
     },
 
     handleWorkOrderUpdated(order: RepairWorkOrder) {
       const idx = this.workOrders.findIndex(w => w.id === order.id)
-      if (idx >= 0) this.workOrders[idx] = order
+      if (idx >= 0) {
+        this.workOrders[idx] = order
+      }
     },
 
     handleTeamPositionUpdated(team: RepairTeam) {
@@ -230,22 +460,256 @@ export const useDispatchStore = defineStore('dispatch', {
           currentLongitude: team.currentLongitude,
           currentLatitude: team.currentLatitude,
           lastPositionUpdate: team.lastPositionUpdate,
-          status: team.status
+          status: team.status,
+          currentWorkOrderId: team.currentWorkOrderId
         }
       }
     },
 
     handleOutageZoneCreated(data: { workOrderId: string; zone: OutageZone }) {
       const idx = this.outageZones.findIndex(z => z.workOrderId === data.workOrderId)
-      if (idx >= 0) this.outageZones[idx] = data.zone
-      else this.outageZones.push(data.zone)
+      if (idx >= 0) {
+        this.outageZones[idx] = data.zone
+      } else {
+        this.outageZones.push(data.zone)
+      }
       this.addToast({
-        id: `toast-${Date.now()}`,
         type: 'warning',
         title: '停水区域已生成',
-        message: `预计影响 ${data.zone.estimatedUserCount} 户用户`,
-        duration: 6000
+        message: `${data.zone.zoneName} 预计影响 ${data.zone.estimatedUserCount} 户用户`,
+        duration: 8000
       })
+    },
+
+    handleTimeoutEscalated(data: {
+      workOrderId: string
+      orderNo: string
+      oldPriority: number
+      newPriority: number
+    }) {
+      const order = this.workOrders.find(w => w.id === data.workOrderId)
+      if (order) {
+        order.isTimeoutEscalated = true
+        order.priority = data.newPriority
+      }
+      this.addToast({
+        type: 'error',
+        title: '工单超时告警',
+        message: `工单 ${data.orderNo} 已超时，优先级从 ${'★'.repeat(data.oldPriority)} 升级为 ${'★'.repeat(data.newPriority)}`,
+        duration: 8000
+      })
+    },
+
+    async createWorkOrderFromLeak(leakId: string, title: string, description?: string) {
+      try {
+        const leak = this.leakEvents.find(l => l.id === leakId)
+        if (!leak) return null
+
+        const response = await fetchAPI<RepairWorkOrder>('/repair/work-orders', {
+          method: 'POST',
+          body: JSON.stringify({
+            title,
+            description: description || leak.description,
+            leakEventId: leakId,
+            priority: leak.severity === 'Critical' ? 4 : leak.severity === 'High' ? 3 : leak.severity === 'Medium' ? 2 : 1,
+            longitude: leak.longitude,
+            latitude: leak.latitude
+          })
+        })
+
+        if (response) {
+          const idx = this.workOrders.findIndex(w => w.id === response.id)
+          if (idx < 0) this.workOrders.unshift(response)
+
+          if (this.hubConnection?.state !== HubConnectionState.Connected) {
+            leak.status = 'Confirmed'
+            leak.confirmedAt = new Date().toISOString()
+            leak.relatedWorkOrderId = response.id
+            leak.updatedAt = new Date().toISOString()
+            this.handleLeakEventUpdated(leak)
+          }
+
+          return response
+        }
+        return null
+      } catch (error: any) {
+        this.addToast({
+          type: 'error',
+          title: '创建工单失败',
+          message: error?.message || '请稍后重试',
+          duration: 4000
+        })
+        return null
+      }
+    },
+
+    async dispatchWorkOrder(orderId: string, teamId: string) {
+      try {
+        const response = await fetchAPI<RepairWorkOrder>(`/repair/work-orders/${orderId}/dispatch`, {
+          method: 'POST',
+          body: JSON.stringify({ teamId })
+        })
+
+        if (response) {
+          const idx = this.workOrders.findIndex(w => w.id === orderId)
+          if (idx >= 0) this.workOrders[idx] = response
+
+          const teamIdx = this.repairTeams.findIndex(t => t.id === teamId)
+          if (teamIdx >= 0) {
+            this.repairTeams[teamIdx].status = 'OnDuty'
+            this.repairTeams[teamIdx].currentWorkOrderId = orderId
+          }
+
+          this.addToast({
+            type: 'success',
+            title: '工单已派发',
+            message: `工单 ${response.orderNo} 已派发给 ${response.assignedTeam?.teamName || '抢修队'}`,
+            duration: 3000
+          })
+          return true
+        }
+        return false
+      } catch (error: any) {
+        this.addToast({
+          type: 'error',
+          title: '派发工单失败',
+          message: error?.message || '请稍后重试',
+          duration: 4000
+        })
+        return false
+      }
+    },
+
+    async updateWorkOrderStatus(orderId: string, newStatus: WorkOrderStatus, remark?: string) {
+      try {
+        const response = await fetchAPI<RepairWorkOrder>(`/repair/work-orders/${orderId}/status`, {
+          method: 'POST',
+          body: JSON.stringify({
+            newStatus,
+            operatorId: this.currentUser?.id,
+            remark
+          })
+        })
+
+        if (response) {
+          const idx = this.workOrders.findIndex(w => w.id === orderId)
+          if (idx >= 0) {
+            const oldStatus = this.workOrders[idx].status
+            this.workOrders[idx] = response
+
+            if (newStatus === 'Completed' || newStatus === 'AcceptedClosed') {
+              if (response.assignedTeamId) {
+                const teamIdx = this.repairTeams.findIndex(t => t.id === response.assignedTeamId)
+                if (teamIdx >= 0) {
+                  this.repairTeams[teamIdx].status = 'Idle'
+                  this.repairTeams[teamIdx].currentWorkOrderId = null
+                }
+              }
+              if (response.leakEventId) {
+                const leakIdx = this.leakEvents.findIndex(l => l.id === response.leakEventId)
+                if (leakIdx >= 0) {
+                  this.leakEvents[leakIdx].status = 'Resolved'
+                  this.leakEvents[leakIdx].resolvedAt = new Date().toISOString()
+                }
+              }
+            }
+          }
+          return true
+        }
+        return false
+      } catch (error: any) {
+        this.addToast({
+          type: 'error',
+          title: '状态更新失败',
+          message: error?.message || '请稍后重试',
+          duration: 4000
+        })
+        return false
+      }
+    },
+
+    async predictOutageZone(valveIds: string[], plannedStartTime?: string, plannedEndTime?: string) {
+      try {
+        const response = await fetchAPI<OutageZone>('/repair/outage/predict', {
+          method: 'POST',
+          body: JSON.stringify({ valveIds, plannedStartTime, plannedEndTime })
+        })
+        return response
+      } catch (error: any) {
+        this.addToast({
+          type: 'error',
+          title: '停水推演失败',
+          message: error?.message || '请稍后重试',
+          duration: 4000
+        })
+        return null
+      }
+    },
+
+    async saveOutageZone(workOrderId: string, zone: OutageZone) {
+      try {
+        const response = await fetchAPI<OutageZone>(`/repair/work-orders/${workOrderId}/outage`, {
+          method: 'POST',
+          body: JSON.stringify(zone)
+        })
+        return response
+      } catch (error: any) {
+        this.addToast({
+          type: 'error',
+          title: '保存停水区域失败',
+          message: error?.message || '请稍后重试',
+          duration: 4000
+        })
+        return null
+      }
+    },
+
+    async updateTeamPosition(teamId: string, longitude: number, latitude: number) {
+      try {
+        if (this.hubConnection?.state === HubConnectionState.Connected) {
+          await this.hubConnection.invoke('UpdateTeamPosition', teamId, longitude, latitude)
+          return true
+        }
+        const response = await fetchAPI<RepairTeam>(`/repair/teams/${teamId}/position`, {
+          method: 'POST',
+          body: JSON.stringify({ longitude, latitude })
+        })
+        return !!response
+      } catch (error) {
+        console.warn('Update team position failed:', error)
+        return false
+      }
+    },
+
+    async submitPressureReading(nodeId: string, pressure: number, flow?: number) {
+      try {
+        const response = await fetchAPI<{ success: boolean; isAnomaly: boolean }>('/leak/monitor-nodes/reading', {
+          method: 'POST',
+          body: JSON.stringify({ nodeId, pressure, flow })
+        })
+        return response
+      } catch (error) {
+        console.warn('Submit pressure reading failed:', error)
+        return null
+      }
+    },
+
+    async locateLeak(abnormalNodeIds: string[]) {
+      try {
+        const response = await fetchAPI<LeakEvent>('/leak/detect/create-event', {
+          method: 'POST',
+          body: JSON.stringify({ abnormalNodeIds })
+        })
+        return response
+      } catch (error: any) {
+        this.addToast({
+          type: 'error',
+          title: '漏损定位失败',
+          message: error?.message || '请稍后重试',
+          duration: 4000
+        })
+        return null
+      }
     },
 
     selectLeak(id: string | null) {
@@ -280,127 +744,8 @@ export const useDispatchStore = defineStore('dispatch', {
       if (idx >= 0) this.toasts.splice(idx, 1)
     },
 
-    async createWorkOrderFromLeak(leakId: string, title: string, description?: string) {
-      const leak = this.leakEvents.find(l => l.id === leakId)
-      if (!leak) return null
-
-      const order: RepairWorkOrder = {
-        id: `wo-${Date.now()}`,
-        orderNo: `WO${new Date().toISOString().slice(0, 10).replace(/-/g, '')}${String(Math.floor(Math.random() * 9000) + 1000)}`,
-        title,
-        description: description || leak.description || '',
-        status: 'Created',
-        priority: leak.severity === 'Critical' ? 4 : leak.severity === 'High' ? 3 : leak.severity === 'Medium' ? 2 : 1,
-        longitude: leak.longitude,
-        latitude: leak.latitude,
-        address: null,
-        leakEventId: leak.id,
-        assignedTeamId: null,
-        assignedTeam: null,
-        deadline: new Date(Date.now() + 30 * 60000).toISOString(),
-        isTimeoutEscalated: false,
-        createdBy: this.currentUser?.id ?? null,
-        acceptedBy: null,
-        statusLogs: [{
-          id: `log-${Date.now()}`,
-          workOrderId: '',
-          fromStatus: 'Created',
-          toStatus: 'Created',
-          remark: '工单创建',
-          operatorId: this.currentUser?.id ?? null,
-          createdAt: new Date().toISOString()
-        }],
-        valveOperations: [],
-        outageZone: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        acceptedAt: null,
-        onSiteAt: null,
-        completedAt: null
-      }
-
-      this.handleWorkOrderCreated(order)
-
-      leak.status = 'Confirmed'
-      leak.confirmedAt = new Date().toISOString()
-      leak.relatedWorkOrderId = order.id
-      leak.updatedAt = new Date().toISOString()
-      this.handleLeakEventUpdated(leak)
-
-      return order
-    },
-
-    async dispatchWorkOrder(orderId: string, teamId: string) {
-      const order = this.workOrders.find(w => w.id === orderId)
-      const team = this.repairTeams.find(t => t.id === teamId)
-      if (!order || !team) return false
-
-      order.status = 'Dispatched'
-      order.assignedTeamId = teamId
-      order.assignedTeam = team
-      order.updatedAt = new Date().toISOString()
-      team.status = 'OnDuty'
-      team.currentWorkOrderId = orderId
-      team.updatedAt = new Date().toISOString()
-      this.handleWorkOrderUpdated(order)
-
-      this.addToast({
-        type: 'success',
-        title: '工单已派发',
-        message: `工单 ${order.orderNo} 已派发给 ${team.teamName}`,
-        duration: 3000
-      })
-      return true
-    },
-
-    async updateWorkOrderStatus(orderId: string, newStatus: string) {
-      const order = this.workOrders.find(w => w.id === orderId)
-      if (!order) return false
-
-      const oldStatus = order.status
-      order.status = newStatus as RepairWorkOrder['status']
-      order.updatedAt = new Date().toISOString()
-
-      if (newStatus === 'Accepted') order.acceptedAt = new Date().toISOString()
-      if (newStatus === 'OnSite') order.onSiteAt = new Date().toISOString()
-      if (newStatus === 'Completed' || newStatus === 'AcceptedClosed') {
-        order.completedAt = new Date().toISOString()
-        order.isTimeoutEscalated = false
-        if (order.assignedTeamId) {
-          const team = this.repairTeams.find(t => t.id === order.assignedTeamId)
-          if (team) {
-            team.status = 'Idle'
-            team.currentWorkOrderId = null
-            team.updatedAt = new Date().toISOString()
-          }
-        }
-        if (order.leakEventId) {
-          const leak = this.leakEvents.find(l => l.id === order.leakEventId)
-          if (leak) {
-            leak.status = 'Resolved'
-            leak.resolvedAt = new Date().toISOString()
-            leak.updatedAt = new Date().toISOString()
-            this.handleLeakEventUpdated(leak)
-          }
-        }
-      }
-
-      order.statusLogs.push({
-        id: `log-${Date.now()}`,
-        workOrderId: orderId,
-        fromStatus: oldStatus,
-        toStatus: newStatus as RepairWorkOrder['status'],
-        remark: `状态变更: ${oldStatus} → ${newStatus}`,
-        operatorId: this.currentUser?.id ?? null,
-        createdAt: new Date().toISOString()
-      })
-
-      this.handleWorkOrderUpdated(order)
-      return true
-    },
-
     disconnect() {
-      this.connected = false
+      this.disconnectSignalR()
     }
   }
 })

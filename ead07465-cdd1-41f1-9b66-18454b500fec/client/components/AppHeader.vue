@@ -31,9 +31,25 @@
     </div>
 
     <div class="flex items-center gap-3">
-      <div class="hidden md:flex items-center gap-2 text-xs text-muted">
-        <span class="w-2 h-2 rounded-full pulse-dot" :class="dispatch.connected ? 'bg-success' : 'bg-danger'"></span>
-        {{ dispatch.connected ? '实时连接' : '连接中...' }}
+      <div class="hidden md:flex items-center gap-2 text-xs">
+        <span
+          class="w-2 h-2 rounded-full"
+          :class="[
+            dispatch.hubConnection?.state === 'Connected' ? 'bg-success pulse-dot' :
+            dispatch.hubConnection?.state === 'Connecting' || dispatch.hubConnection?.state === 'Reconnecting' ? 'bg-warning pulse-dot' :
+            'bg-danger'
+          ]"
+        ></span>
+        <span
+          :class="[
+            dispatch.hubConnection?.state === 'Connected' ? 'text-success' :
+            dispatch.hubConnection?.state === 'Connecting' || dispatch.hubConnection?.state === 'Reconnecting' ? 'text-warning' :
+            'text-danger'
+          ]"
+        >
+          {{ connectionLabel }}
+        </span>
+        <span v-if="dispatch.useMockFallback" class="text-muted text-[10px] ml-1">(模拟)</span>
       </div>
 
       <div class="relative cursor-pointer" @click="showAlerts = !showAlerts">
@@ -80,6 +96,17 @@ const activeLeakCount = computed(() =>
 )
 
 const roleLabel = computed(() => dispatch.currentUser ? getRoleLabel(dispatch.currentUser.role) : '')
+
+const connectionLabel = computed(() => {
+  if (!dispatch.hubConnection) return dispatch.connected ? '实时连接' : '未连接'
+  switch (dispatch.hubConnection.state) {
+    case 'Connected': return '实时连接'
+    case 'Connecting': return '连接中...'
+    case 'Reconnecting': return '重连中...'
+    case 'Disconnected': return '已断开'
+    default: return '未知状态'
+  }
+})
 </script>
 
 <style scoped>
