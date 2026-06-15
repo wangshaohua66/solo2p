@@ -368,3 +368,36 @@ body.response-level-III .response-indicator { background-color: var(--level-III-
 .response-checklist .list-group-item.level-II { border-left-color: var(--level-II-color); }
 .response-checklist .list-group-item.level-III { border-left-color: var(--level-III-color); }
 .response-checklist .list-group-item.level-IV { border-left-color: var(--level-IV-color); }
+
+.dashboard-card {
+    cursor: grab;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.dashboard-card:active {
+    cursor: grabbing;
+}
+
+.card-drag-handle {
+    cursor: grab;
+}
+
+.card-drag-handle:active {
+    cursor: grabbing;
+}
+
+.card-dragging {
+    opacity: 0.5;
+    transform: scale(0.98);
+    z-index: 1000;
+}
+
+.card-drag-over {
+    border: 2px dashed var(--level-IV-color) !important;
+    background: rgba(13, 110, 253, 0.05);
+    transform: translateY(2px);
+}
+
+.card-drag-over .card {
+    border-color: var(--level-IV-color);
+}

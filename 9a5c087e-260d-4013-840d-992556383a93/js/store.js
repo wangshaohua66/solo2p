@@ -74,7 +74,8 @@ var Store = (function () {
                 inspections: _state.inspections,
                 materialFlows: _state.materialFlows,
                 dispatchLogs: _state.dispatchLogs,
-                timeline: _state.timeline
+                timeline: _state.timeline,
+                dashboardCardOrder: _state.dashboardCardOrder
             };
             var str = JSON.stringify(persisted);
             if (_estimateSize(str) > EVICT_THRESHOLD) _lruEvict();
@@ -123,7 +124,7 @@ var Store = (function () {
     function set(key, value) {
         _state[key] = value;
         _emit(key, value);
-        if (['inspections', 'alerts', 'materials', 'materialFlows', 'dispatchLogs', 'teams', 'timeline', 'floodPoints', 'response'].indexOf(key) >= 0) {
+        if (['inspections', 'alerts', 'materials', 'materialFlows', 'dispatchLogs', 'teams', 'timeline', 'floodPoints', 'response', 'dashboardCardOrder'].indexOf(key) >= 0) {
             _persist();
         }
     }
@@ -142,12 +143,14 @@ var Store = (function () {
         var mockTimeline = restored && restored.timeline ? restored.timeline : MockData.generateTimelineEvents();
         var mockDispatch = restored && restored.dispatchLogs ? restored.dispatchLogs : MockData.generateDispatchLogs();
         var responseVal = restored && restored.response ? restored.response : 'IV';
+        var cardOrder = restored && restored.dashboardCardOrder ? restored.dashboardCardOrder : null;
 
         _state.response = {
             response: responseVal,
             thresholds: MockData.getResponseThresholds(responseVal),
             checklist: MockData.getResponseChecklist(responseVal)
         };
+        _state.dashboardCardOrder = cardOrder;
         _state.rivers = mockRivers;
         _state.rainfall = mockRainfall;
         _state.floodPoints = mockFloodPoints;
@@ -173,6 +176,7 @@ var Store = (function () {
         _emit('alerts', _state.alerts);
         _emit('timeline', _state.timeline);
         _emit('dispatchLogs', _state.dispatchLogs);
+        _emit('dashboardCardOrder', _state.dashboardCardOrder);
 
         setInterval(_tickWaterData, 5000);
         setInterval(_tickFloodPoints, 15000);
@@ -525,6 +529,12 @@ var Store = (function () {
         }
     }
 
+    function setDashboardCardOrder(order) {
+        _state.dashboardCardOrder = order;
+        _emit('dashboardCardOrder', order);
+        _persist();
+    }
+
     return {
         init: init,
         on: on,
@@ -542,6 +552,7 @@ var Store = (function () {
         addTimelineEvent: addTimelineEvent,
         setResponseLevel: setResponseLevel,
         updateChecklist: updateChecklist,
+        setDashboardCardOrder: setDashboardCardOrder,
         getCacheStats: function () { return _cacheStats; }
     };
 })();

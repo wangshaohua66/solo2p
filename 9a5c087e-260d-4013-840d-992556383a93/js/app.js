@@ -190,6 +190,20 @@ var App = (function () {
             window.addEventListener('storage', function (e) {
                 if (e.key === 'flood_store_v1' && e.newValue && e.newValue !== e.oldValue) {
                     showToast('info', '状态同步', '检测到其他标签页更新，正在同步状态...');
+                    setTimeout(function () {
+                        Store.init();
+                        var currentHash = window.location.hash || '#/dashboard';
+                        if (currentHash.indexOf('dashboard') >= 0) {
+                            Router.go('dashboard');
+                        } else if (currentHash.indexOf('inspector') >= 0) {
+                            Router.go('inspector');
+                        } else if (currentHash.indexOf('resource') >= 0) {
+                            Router.go('resource');
+                        }
+                        var currentLevel = Store.get('response.response') || 'IV';
+                        _applyResponseLevel(currentLevel);
+                        _renderAlertList(Store.get('alerts') || []);
+                    }, 100);
                 }
             });
         } catch (e) { }
@@ -208,7 +222,7 @@ var App = (function () {
                     relatedId: 'FP' + String(Math.floor(Math.random() * 86) + 1).padStart(3, '0')
                 });
             }
-        }, 18000);
+        }, 5000);
 
         setInterval(function () {
             var teams = Store.get('teams') || [];

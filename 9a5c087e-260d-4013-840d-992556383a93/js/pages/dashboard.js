@@ -5,6 +5,123 @@ var DashboardPage = (function () {
     var _timeWindow = '24h';
     var _levelFilter = 'all';
     var _draggingTeam = null;
+    var _draggingCard = null;
+
+    var _defaultCardOrder = [
+        { id: 'water-card', size: 'col-xl-8' },
+        { id: 'flood-card', size: 'col-xl-4' },
+        { id: 'team-card', size: 'col-xl-6' },
+        { id: 'timeline-card', size: 'col-xl-6' },
+        { id: 'material-card', size: 'col-xl-4' },
+        { id: 'checklist-card', size: 'col-xl-4' },
+        { id: 'reservoir-card', size: 'col-xl-4' }
+    ];
+
+    function _getCardTemplate(card) {
+        var templates = {
+            'water-card': '<div class="col-xl-8 dashboard-card" data-card-id="water-card" draggable="true">'
+                + '<div class="card card-dashboard"><div class="card-header card-drag-handle"><h6 class="mb-0 fw-bold"><i class="bi bi-graph-up me-1 text-primary"></i>河道水位·降雨联动</h6>'
+                + '<div class="d-flex gap-2"><select class="form-select form-select-sm" id="riverSelect" style="width:auto;">'
+                + MockData.RIVERS.map(function (r) { return '<option value="' + r.id + '">' + r.name + '</option>'; }).join('')
+                + '</select><select class="form-select form-select-sm" id="timeWindowSelect" style="width:auto;">'
+                + '<option value="6h">近6小时</option><option value="12h">近12小时</option><option value="24h" selected>近24小时</option><option value="72h">近3天</option>'
+                + '</select></div></div>'
+                + '<div class="card-body"><div id="waterChart" class="chart-container"></div></div></div>'
+                + '</div>',
+
+            'flood-card': '<div class="col-xl-4 dashboard-card" data-card-id="flood-card" draggable="true">'
+                + '<div class="card card-dashboard"><div class="card-header card-drag-handle"><h6 class="mb-0 fw-bold"><i class="bi bi-geo-alt me-1 text-success"></i>86处易涝点态势</h6>'
+                + '<select class="form-select form-select-sm" id="floodFilter" style="width:auto;"><option value="all">全部</option><option value="high">仅高风险</option><option value="0">正常</option><option value="1">轻度</option><option value="2">中度</option><option value="3">重度</option></select>'
+                + '</div>'
+                + '<div class="card-body"><div id="floodGrid" class="flood-grid"></div></div></div>'
+                + '</div>',
+
+            'team-card': '<div class="col-xl-6 dashboard-card" data-card-id="team-card" draggable="true">'
+                + '<div class="card card-dashboard"><div class="card-header card-drag-handle"><h6 class="mb-0 fw-bold"><i class="bi bi-people me-1 text-info"></i>抢险队伍调度</h6>'
+                + '<span class="badge rounded-pill bg-secondary"><span id="teamReadyCount">0</span>待命</span></div>'
+                + '<div class="card-body" id="teamContainer"></div></div>'
+                + '</div>',
+
+            'timeline-card': '<div class="col-xl-6 dashboard-card" data-card-id="timeline-card" draggable="true">'
+                + '<div class="card card-dashboard"><div class="card-header card-drag-handle"><h6 class="mb-0 fw-bold"><i class="bi bi-clock me-1 text-warning"></i>汛情事件时间轴</h6>'
+                + '<span class="text-muted small">最近20条</span></div>'
+                + '<div class="card-body" id="timelineContainer"></div></div>'
+                + '</div>',
+
+            'material-card': '<div class="col-xl-4 dashboard-card" data-card-id="material-card" draggable="true">'
+                + '<div class="card card-dashboard"><div class="card-header card-drag-handle"><h6 class="mb-0 fw-bold"><i class="bi bi-box-seam me-1 text-purple"></i>应急物资总览</h6></div>'
+                + '<div class="card-body" id="materialContainer"></div></div>'
+                + '</div>',
+
+            'checklist-card': '<div class="col-xl-4 dashboard-card" data-card-id="checklist-card" draggable="true">'
+                + '<div class="card card-dashboard"><div class="card-header card-drag-handle"><h6 class="mb-0 fw-bold"><i class="bi bi-list-check me-1 text-secondary"></i>响应标准清单</h6></div>'
+                + '<div class="card-body" id="checklistContainer"></div></div>'
+                + '</div>',
+
+            'reservoir-card': '<div class="col-xl-4 dashboard-card" data-card-id="reservoir-card" draggable="true">'
+                + '<div class="card card-dashboard"><div class="card-header card-drag-handle"><h6 class="mb-0 fw-bold"><i class="bi bi-database me-1 text-danger"></i>水库状态</h6></div>'
+                + '<div class="card-body" id="reservoirContainer"></div></div>'
+                + '</div>'
+        };
+        return templates[card.id] || '';
+    }
+
+    function _getCardOrder() {
+        var saved = Store.get('dashboardCardOrder');
+        if (!saved || !Array.isArray(saved) || saved.length !== _defaultCardOrder.length) {
+            return _defaultCardOrder;
+        }
+        return saved.map(function (id) {
+            var def = _defaultCardOrder.find(function (c) { return c.id === id; });
+            return def || { id: id, size: 'col-xl-4' };
+        });
+    }
+
+    function _initCardDragDrop($container) {
+        $container.on('dragstart', '.dashboard-card', function (e) {
+            _draggingCard = $(this).attr('data-card-id');
+            $(this).addClass('card-dragging');
+            try { e.originalEvent.dataTransfer.setData('text/plain', _draggingCard); } catch (er) { }
+            e.originalEvent.dataTransfer.effectAllowed = 'move';
+        });
+
+        $container.on('dragend', '.dashboard-card', function () {
+            _draggingCard = null;
+            $container.find('.dashboard-card').removeClass('card-dragging card-drag-over');
+        });
+
+        $container.on('dragover', '.dashboard-card', function (e) {
+            e.preventDefault();
+            e.originalEvent.dataTransfer.dropEffect = 'move';
+            if (_draggingCard && $(this).attr('data-card-id') !== _draggingCard) {
+                $(this).addClass('card-drag-over');
+            }
+        });
+
+        $container.on('dragleave', '.dashboard-card', function () {
+            $(this).removeClass('card-drag-over');
+        });
+
+        $container.on('drop', '.dashboard-card', function (e) {
+            e.preventDefault();
+            var targetId = $(this).attr('data-card-id');
+            $(this).removeClass('card-drag-over');
+
+            if (!_draggingCard || _draggingCard === targetId) return;
+
+            var currentOrder = _getCardOrder();
+            var fromIdx = currentOrder.findIndex(function (c) { return c.id === _draggingCard; });
+            var toIdx = currentOrder.findIndex(function (c) { return c.id === targetId; });
+
+            if (fromIdx >= 0 && toIdx >= 0) {
+                var item = currentOrder.splice(fromIdx, 1)[0];
+                currentOrder.splice(toIdx, 0, item);
+                var newOrderIds = currentOrder.map(function (c) { return c.id; });
+                Store.setDashboardCardOrder(newOrderIds);
+                App.showToast('info', '布局已更新', '卡片顺序已保存，刷新页面后保持不变');
+            }
+        });
+    }
 
     function _renderStats($container) {
         var rivers = Store.get('rivers');
@@ -332,7 +449,7 @@ var DashboardPage = (function () {
         html += '<div class="row g-2 small"><div class="col-4 text-center"><span class="d-inline-block rounded me-1" style="width:10px;height:10px;background:#198754"></span><span>待命 ' + teams.filter(function (t) { return t.status === 'ready'; }).length + '</span></div>'
             + '<div class="col-4 text-center"><span class="d-inline-block rounded me-1" style="width:10px;height:10px;background:#fd7e14"></span><span>出警 ' + teams.filter(function (t) { return t.status === 'working'; }).length + '</span></div>'
             + '<div class="col-4 text-center"><span class="d-inline-block rounded me-1" style="width:10px;height:10px;background:#dc3545"></span><span>处置中 ' + teams.filter(function (t) { return t.status === 'busy'; }).length + '</span></div></div>';
-        html += '<div class="mt-3 p-2 bg-light rounded small text-muted"><i class="bi bi-info-circle me-1"></i>拖拽队伍图标到易涝点网格点位可发起调度指令</div>';
+        html += '<div class="mt-3 p-2 bg-light rounded small text-muted"><i class="bi bi-info-circle me-1"></i>拖拽队伍图标到易涝点网格点位可发起调度指令；拖拽卡片标题栏可调整布局顺序</div>';
 
         $container.html(html);
 
@@ -438,6 +555,9 @@ var DashboardPage = (function () {
     }
 
     function render($app, params) {
+        var cardOrder = _getCardOrder();
+        var cardsHtml = cardOrder.map(_getCardTemplate).join('');
+
         var template = [
             '<div class="container-fluid p-0">',
             '<div class="row g-3 mb-3" id="statsRow">',
@@ -447,51 +567,8 @@ var DashboardPage = (function () {
             '<div class="col-6 col-xl-3"><div class="stat-card info" data-stat="low-stock"><i class="bi bi-box-seam fs-5 opacity-80"></i><div class="mt-2"><div class="stat-value">0</div><div class="stat-label">物资低库存预警</div></div></div></div>',
             '</div>',
 
-            '<div class="row g-3">',
-            '<div class="col-xl-8">',
-            '<div class="card card-dashboard"><div class="card-header"><h6 class="mb-0 fw-bold"><i class="bi bi-graph-up me-1 text-primary"></i>河道水位·降雨联动</h6>',
-            '<div class="d-flex gap-2"><select class="form-select form-select-sm" id="riverSelect" style="width:auto;">',
-            MockData.RIVERS.map(function (r) { return '<option value="' + r.id + '">' + r.name + '</option>'; }).join(''),
-            '</select><select class="form-select form-select-sm" id="timeWindowSelect" style="width:auto;">',
-            '<option value="6h">近6小时</option><option value="12h">近12小时</option><option value="24h" selected>近24小时</option><option value="72h">近3天</option>',
-            '</select></div></div>',
-            '<div class="card-body"><div id="waterChart" class="chart-container"></div></div></div>',
-            '</div>',
-
-            '<div class="col-xl-4">',
-            '<div class="card card-dashboard"><div class="card-header"><h6 class="mb-0 fw-bold"><i class="bi bi-geo-alt me-1 text-success"></i>86处易涝点态势</h6>',
-            '<select class="form-select form-select-sm" id="floodFilter" style="width:auto;"><option value="all">全部</option><option value="high">仅高风险</option><option value="0">正常</option><option value="1">轻度</option><option value="2">中度</option><option value="3">重度</option></select>',
-            '</div>',
-            '<div class="card-body"><div id="floodGrid" class="flood-grid"></div></div></div>',
-            '</div>',
-
-            '<div class="col-xl-6">',
-            '<div class="card card-dashboard"><div class="card-header"><h6 class="mb-0 fw-bold"><i class="bi bi-people me-1 text-info"></i>抢险队伍调度</h6>',
-            '<span class="badge rounded-pill bg-secondary"><span id="teamReadyCount">0</span>待命</span></div>',
-            '<div class="card-body" id="teamContainer"></div></div>',
-            '</div>',
-
-            '<div class="col-xl-6">',
-            '<div class="card card-dashboard"><div class="card-header"><h6 class="mb-0 fw-bold"><i class="bi bi-clock me-1 text-warning"></i>汛情事件时间轴</h6>',
-            '<span class="text-muted small">最近20条</span></div>',
-            '<div class="card-body" id="timelineContainer"></div></div>',
-            '</div>',
-
-            '<div class="col-xl-4">',
-            '<div class="card card-dashboard"><div class="card-header"><h6 class="mb-0 fw-bold"><i class="bi bi-box-seam me-1 text-purple"></i>应急物资总览</h6></div>',
-            '<div class="card-body" id="materialContainer"></div></div>',
-            '</div>',
-
-            '<div class="col-xl-4">',
-            '<div class="card card-dashboard"><div class="card-header"><h6 class="mb-0 fw-bold"><i class="bi bi-list-check me-1 text-secondary"></i>响应标准清单</h6></div>',
-            '<div class="card-body" id="checklistContainer"></div></div>',
-            '</div>',
-
-            '<div class="col-xl-4">',
-            '<div class="card card-dashboard"><div class="card-header"><h6 class="mb-0 fw-bold"><i class="bi bi-database me-1 text-danger"></i>水库状态</h6></div>',
-            '<div class="card-body" id="reservoirContainer"></div></div>',
-            '</div>',
-
+            '<div class="row g-3" id="dashboardCardsRow">',
+            cardsHtml,
             '</div></div>'
         ].join('');
 
@@ -507,6 +584,8 @@ var DashboardPage = (function () {
         _renderTimeline($('#timelineContainer'));
         _renderChecklist($('#checklistContainer'));
         _renderReservoirs($('#reservoirContainer'));
+
+        _initCardDragDrop($('#dashboardCardsRow'));
 
         $('#riverSelect').on('change', function () {
             _selectedRiver = $(this).val();
@@ -548,6 +627,9 @@ var DashboardPage = (function () {
         }));
         _unsubs.push(Store.on('response', function () {
             _renderChecklist($('#checklistContainer'));
+        }));
+        _unsubs.push(Store.on('dashboardCardOrder', function () {
+            Router.go('dashboard');
         }));
 
         $(window).on('resize.dashboard', function () {
