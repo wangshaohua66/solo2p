@@ -5,7 +5,20 @@ import logger from './logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const keywordsPath = path.join(__dirname, '..', 'data', 'keywords.json');
+
+if (!__dirname || typeof __dirname !== 'string' || __dirname.trim() === '') {
+  throw new Error('无法确定当前目录路径 __dirname');
+}
+
+function safeJoin(...parts) {
+  const validParts = parts.filter(p => p != null && typeof p === 'string' && p.trim() !== '');
+  if (validParts.length === 0) {
+    throw new Error('路径拼接失败：所有路径段均为空或无效');
+  }
+  return path.join(...validParts);
+}
+
+const keywordsPath = safeJoin(__dirname, '..', 'data', 'keywords.json');
 
 class KeywordMatcher {
   constructor() {

@@ -17,8 +17,20 @@ import changeTracker from './tracker.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const configPath = path.join(__dirname, '..', 'config', 'sites.yaml');
-const keywordsPath = path.join(__dirname, '..', 'data', 'keywords.json');
+if (!__dirname || typeof __dirname !== 'string' || __dirname.trim() === '') {
+  throw new Error('无法确定当前目录路径 __dirname');
+}
+
+function safeJoin(...parts) {
+  const validParts = parts.filter(p => p != null && typeof p === 'string' && p.trim() !== '');
+  if (validParts.length === 0) {
+    throw new Error('路径拼接失败：所有路径段均为空或无效');
+  }
+  return path.join(...validParts);
+}
+
+const configPath = safeJoin(__dirname, '..', 'config', 'sites.yaml');
+const keywordsPath = safeJoin(__dirname, '..', 'data', 'keywords.json');
 
 class BidMonitorApp {
   constructor() {
@@ -153,6 +165,7 @@ class BidMonitorApp {
   }
 
   async crawlAllSites() {
+    const MAX_DURATION_SECONDS = 480;
     const sites = this.config.sites || [];
     logger.info(chalk.cyan(`📡 开始全量抓取, 共 ${sites.length} 个站点`));
 
@@ -162,8 +175,21 @@ class BidMonitorApp {
     const results = [];
     const allAnnouncements = [];
     const allChanges = [];
+    let isTimeout = false;
 
     for (const site of sites) {
+      if (isTimeout) {
+        results.push({
+          siteId: site.id,
+          siteName: site.name,
+          success: false,
+          error: '全量抓取超时，跳过后续站点',
+          announcements: [],
+          changes: []
+        });
+        continue;
+      }
+
       try {
         const result = await this.crawlSite(site.id);
         results.push(result);
@@ -180,6 +206,12 @@ class BidMonitorApp {
           changes: []
         });
       }
+
+      const elapsedSeconds = (Date.now() - this.scanStartTime) / 1000;
+      if (elapsedSeconds > MAX_DURATION_SECONDS) {
+        isTimeout = true;
+        logger.error(chalk.red(`⚠️  全量抓取已超时 (${elapsedSeconds.toFixed(1)}s > ${MAX_DURATION_SECONDS}s), 跳过剩余站点`));
+      }
     }
 
     const duration = ((Date.now() - this.scanStartTime) / 1000).toFixed(1);
@@ -187,7 +219,11 @@ class BidMonitorApp {
     const totalAnnouncements = allAnnouncements.length;
     const totalChanges = allChanges.length;
 
-    logger.info(chalk.green(`✅ 全量抓取完成, 成功 ${successCount}/${sites.length} 个站点, 共 ${totalAnnouncements} 条公告, ${totalChanges} 条变更, 耗时 ${duration}s`));
+    if (isTimeout || parseFloat(duration) > MAX_DURATION_SECONDS) {
+      logger.error(chalk.red(`⚠️  全量抓取超时告警: 耗时 ${duration}s, 超过约束 ${MAX_DURATION_SECONDS}s (8分钟), 成功 ${successCount}/${sites.length} 个站点`));
+    } else {
+      logger.info(chalk.green(`✅ 全量抓取完成, 成功 ${successCount}/${sites.length} 个站点, 共 ${totalAnnouncements} 条公告, ${totalChanges} 条变更, 耗时 ${duration}s`));
+    }
 
     return {
       results,
@@ -195,7 +231,10 @@ class BidMonitorApp {
       changes: allChanges,
       duration: parseFloat(duration),
       successCount,
-      totalSites: sites.length
+      totalSites: sites.length,
+      isTimeout,
+      timeoutThreshold: MAX_DURATION_SECONDS,
+      status: isTimeout ? 'timeout' : 'success'
     };
   }
 
@@ -440,15 +479,30 @@ function parseArgs() {
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
+
     if (arg === '--dry-run' || arg === '-d') {
       options.dryRun = true;
-    } else if (arg === '--site' || arg === '-s') {
-      options.siteId = args[++i];
     } else if (arg === '--schedule' || arg === '-S') {
       options.schedule = true;
     } else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
+    } else if (arg.startsWith('--site=') || arg.startsWith('-s=')) {
+      const parts = arg.split('=');
+      if (parts.length >= 2) {
+        const value = parts.slice(1).join('=');
+        if (value && value.trim()) {
+          options.siteId = value.trim();
+        }
+      }
+    } else if (arg === '--site' || arg === '-s') {
+      if (i + 1 < args.length) {
+        const nextArg = args[i + 1];
+        if (nextArg && !nextArg.startsWith('-')) {
+          options.siteId = nextArg;
+          i++;
+        }
+      }
     }
   }
 
@@ -463,15 +517,17 @@ function printHelp() {
   node src/main.js [选项]
 
 选项:
-  --dry-run, -d    试运行模式，仅抓取不推送
-  --site <id>, -s  指定单站点测试
-  --schedule, -S   启动定时调度模式
-  --help, -h       显示帮助信息
+  --dry-run, -d       试运行模式，仅抓取不推送
+  --site <id>, -s     指定单站点测试（支持空格或等号分隔）
+  --schedule, -S      启动定时调度模式
+  --help, -h          显示帮助信息
 
 示例:
-  node src/main.js --dry-run           # 全量抓取，不推送
-  node src/main.js --site city-a-ggzy  # 测试单个站点
-  node src/main.js --schedule          # 启动定时任务
+  node src/main.js --dry-run              # 全量抓取，不推送
+  node src/main.js --site city-a-ggzy     # 测试单个站点（空格分隔）
+  node src/main.js --site=city-a-ggzy     # 测试单个站点（等号分隔）
+  npm run test-site -- --site=province-ggzy  # 通过npm脚本测试单站点
+  node src/main.js --schedule             # 启动定时任务
   `);
 }
 

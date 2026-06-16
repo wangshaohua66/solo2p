@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node src/main.js",
     "dry-run": "node src/main.js --dry-run",
-    "test-site": "node src/main.js --site"
+    "test-site": "node src/main.js"
   },
   "dependencies": {
     "puppeteer": "^22.0.0",

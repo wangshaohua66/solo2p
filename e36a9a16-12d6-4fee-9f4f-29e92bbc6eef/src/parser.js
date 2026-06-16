@@ -193,8 +193,13 @@ class SiteParser {
   }
 
   resolveUrl(relativeUrl) {
-    if (!relativeUrl) return '';
+    if (relativeUrl == null || typeof relativeUrl !== 'string' || relativeUrl.trim() === '') {
+      return '';
+    }
     if (relativeUrl.startsWith('http://') || relativeUrl.startsWith('https://')) {
+      return relativeUrl;
+    }
+    if (this.baseUrl == null || typeof this.baseUrl !== 'string' || this.baseUrl.trim() === '') {
       return relativeUrl;
     }
 
