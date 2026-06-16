@@ -80,7 +80,7 @@ export const getClassicCases = (): Promise<IncidentHistoryCase[]> => {
   return request.get('/incident/review/case/classic');
 };
 
-export const findSimilarCases = (incidentId: number, limit: number = 5): Promise<IncidentCase[]> => {
+export const findSimilarCases = (incidentId: number, limit: number = 5): Promise<IncidentHistoryCase[]> => {
   return request.get(`/incident/review/case/similar/${incidentId}`, { params: { limit } });
 };
 

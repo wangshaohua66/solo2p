@@ -29,6 +29,8 @@ import {
   Drawer,
   Tooltip,
   Divider,
+  Avatar,
+  Dropdown,
 } from 'antd';
 import {
   FileTextOutlined,
@@ -50,7 +52,13 @@ import {
   DownloadOutlined,
   EyeOutlined,
   PlayCircleOutlined,
+  DashboardOutlined,
+  UserOutlined,
+  LogoutOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@/store/authStore';
 import {
   Incident,
   IncidentArchive,
@@ -106,6 +114,9 @@ enum MenuKey {
 }
 
 const ReviewAnalysis: React.FC = () => {
+  const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
   const [activeMenu, setActiveMenu] = useState<MenuKey>(MenuKey.ARCHIVE);
   const [loading, setLoading] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
@@ -1045,52 +1056,230 @@ const ReviewAnalysis: React.FC = () => {
     </div>
   );
 
-  return (
-    <Layout style={{ minHeight: '100vh', background: 'transparent' }}>
-      <Sider
-        width={200}
-        theme="dark"
-        style={{ background: 'rgba(15, 23, 42, 0.8)', borderRight: '1px solid #1e293b' }}
-      >
-        <div style={{ padding: 20, borderBottom: '1px solid #1e293b' }}>
-          <h3 style={{ color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <BookOutlined />
-            复盘分析中心
-          </h3>
-        </div>
-        <Menu
-          mode="inline"
-          selectedKeys={[activeMenu]}
-          style={{ background: 'transparent', borderRight: 'none', marginTop: 8 }}
-          items={[
-            {
-              key: MenuKey.ARCHIVE,
-              icon: <DatabaseOutlined />,
-              label: '灾情归档与复盘',
-              onClick: () => setActiveMenu(MenuKey.ARCHIVE),
-            },
-            {
-              key: MenuKey.HISTORY,
-              icon: <HistoryOutlined />,
-              label: '历史案例库',
-              onClick: () => setActiveMenu(MenuKey.HISTORY),
-            },
-            {
-              key: MenuKey.COMPARISON,
-              icon: <ComparisonOutlined />,
-              label: '案例对比分析',
-              onClick: () => setActiveMenu(MenuKey.COMPARISON),
-            },
-          ]}
-        />
-      </Sider>
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+    message.success('已退出登录');
+  };
 
-      <Layout style={{ background: 'transparent' }}>
-        <Content style={{ padding: 24 }}>
-          {activeMenu === MenuKey.ARCHIVE && renderArchivePanel()}
-          {activeMenu === MenuKey.HISTORY && renderHistoryPanel()}
-          {activeMenu === MenuKey.COMPARISON && renderComparisonPanel()}
-        </Content>
+  const userMenuItems = [
+    {
+      key: 'profile',
+      icon: <UserOutlined />,
+      label: '个人中心',
+    },
+    {
+      key: 'settings',
+      icon: <SettingOutlined />,
+      label: '系统设置',
+    },
+    { type: 'divider' },
+    {
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: '退出登录',
+      onClick: handleLogout,
+    },
+  ];
+
+  return (
+    <div
+      className="app-container"
+      style={{
+        width: '100vw',
+        height: '100vh',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      <Layout.Header
+        style={{
+          background: 'linear-gradient(to right, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
+          borderBottom: '1px solid #1e293b',
+          padding: '0 16px',
+          height: 56,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 6,
+              background: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <span style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>急</span>
+          </div>
+          <h1
+            style={{
+              color: '#fff',
+              fontSize: 18,
+              fontWeight: 600,
+              margin: 0,
+              background: 'linear-gradient(90deg, #1890ff, #52c41a)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}
+          >
+            省级应急管理指挥系统
+          </h1>
+
+          <Space style={{ marginLeft: 32 }}>
+            <Button
+              type="text"
+              icon={<DashboardOutlined />}
+              onClick={() => navigate('/')}
+              style={{
+                color:
+                  window.location.pathname === '/'
+                    ? '#1890ff'
+                    : 'rgba(255,255,255,0.65)',
+                borderBottom:
+                  window.location.pathname === '/'
+                    ? '2px solid #1890ff'
+                    : 'none',
+                borderRadius: 0,
+                height: 54,
+              }}
+            >
+              指挥大屏
+            </Button>
+            <Button
+              type="text"
+              icon={<BookOutlined />}
+              onClick={() => navigate('/review')}
+              style={{
+                color:
+                  window.location.pathname === '/review'
+                    ? '#1890ff'
+                    : 'rgba(255,255,255,0.65)',
+                borderBottom:
+                  window.location.pathname === '/review'
+                    ? '2px solid #1890ff'
+                    : 'none',
+                borderRadius: 0,
+                height: 54,
+              }}
+            >
+              复盘分析
+            </Button>
+          </Space>
+
+          <span style={{ color: 'rgba(255, 255, 255, 0.45)', fontSize: 12, marginLeft: 8 }}>
+            {new Date().toLocaleString('zh-CN')}
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Tooltip title="刷新数据">
+            <Button
+              type="text"
+              icon={<BarChartOutlined spin={loading} />}
+              onClick={() => {
+                loadClosedIncidents();
+                queryHistoryCases({ pageNum: 1, pageSize: casePagination.pageSize });
+                if (selectedIncident) {
+                  loadArchives(selectedIncident.id);
+                }
+              }}
+              style={{ color: 'rgba(255, 255, 255, 0.65)' }}
+            />
+          </Tooltip>
+          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '0 8px',
+                borderRadius: 4,
+                cursor: 'pointer',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >
+              <Avatar
+                size={32}
+                icon={<UserOutlined />}
+                style={{ background: 'linear-gradient(135deg, #1890ff, #096dd9)' }}
+              />
+              <div>
+                <div style={{ color: '#fff', fontSize: 13, fontWeight: 500 }}>
+                  {user?.realName || '用户'}
+                </div>
+                <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>
+                  {user?.roles?.[0]?.name || '管理员'}
+                </div>
+              </div>
+            </div>
+          </Dropdown>
+        </div>
+      </Layout.Header>
+
+      <Layout className="review-layout" style={{ background: 'transparent', flex: 1 }}>
+        <Sider
+          className="review-sider"
+          width={200}
+          theme="dark"
+          style={{ background: 'rgba(15, 23, 42, 0.8)', borderRight: '1px solid #1e293b' }}
+        >
+          <div style={{ padding: 20, borderBottom: '1px solid #1e293b' }}>
+            <h3
+              style={{
+                color: '#fff',
+                margin: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <BookOutlined />
+              复盘分析中心
+            </h3>
+          </div>
+          <Menu
+            mode="inline"
+            selectedKeys={[activeMenu]}
+            style={{ background: 'transparent', borderRight: 'none', marginTop: 8 }}
+            items={[
+              {
+                key: MenuKey.ARCHIVE,
+                icon: <DatabaseOutlined />,
+                label: '灾情归档与复盘',
+                onClick: () => setActiveMenu(MenuKey.ARCHIVE),
+              },
+              {
+                key: MenuKey.HISTORY,
+                icon: <HistoryOutlined />,
+                label: '历史案例库',
+                onClick: () => setActiveMenu(MenuKey.HISTORY),
+              },
+              {
+                key: MenuKey.COMPARISON,
+                icon: <ComparisonOutlined />,
+                label: '案例对比分析',
+                onClick: () => setActiveMenu(MenuKey.COMPARISON),
+              },
+            ]}
+          />
+        </Sider>
+
+        <Layout style={{ background: 'transparent' }}>
+          <Content className="review-content" style={{ padding: 24 }}>
+            {activeMenu === MenuKey.ARCHIVE && renderArchivePanel()}
+            {activeMenu === MenuKey.HISTORY && renderHistoryPanel()}
+            {activeMenu === MenuKey.COMPARISON && renderComparisonPanel()}
+          </Content>
+        </Layout>
       </Layout>
 
       <Modal

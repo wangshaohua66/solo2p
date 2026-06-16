@@ -398,23 +398,176 @@ body,
 }
 
 @media (max-width: 1366px) {
+  html,
+  body {
+    font-size: 13px;
+  }
+
   .left-panel {
-    width: 320px;
+    width: 300px;
+    min-width: 280px;
+    max-width: 360px;
   }
 
   .right-panel {
-    width: 360px;
+    width: 340px;
+    min-width: 300px;
+    max-width: 400px;
   }
 
   .bottom-panel {
     height: 100px;
   }
 
+  .stat-card {
+    padding: 10px 14px;
+  }
+
   .stat-card .value {
     font-size: 20px;
   }
 
+  .stat-card .label {
+    font-size: 11px;
+  }
+
   .panel-title {
     font-size: 14px;
+  }
+
+  .panel-header {
+    height: 44px;
+    padding: 0 12px;
+  }
+
+  .panel-content {
+    padding: 10px;
+  }
+
+  .incident-item {
+    padding: 10px;
+  }
+
+  .incident-item .title {
+    font-size: 13px;
+  }
+
+  .incident-item .meta {
+    font-size: 11px;
+  }
+
+  .statistics-bar {
+    gap: 8px;
+  }
+}
+
+@media (min-width: 1920px) {
+  html,
+  body {
+    font-size: 15px;
+  }
+
+  .left-panel {
+    width: 420px;
+    min-width: 360px;
+    max-width: 560px;
+  }
+
+  .right-panel {
+    width: 460px;
+    min-width: 400px;
+    max-width: 600px;
+  }
+
+  .bottom-panel {
+    height: 140px;
+  }
+
+  .stat-card {
+    padding: 16px 20px;
+  }
+
+  .stat-card .value {
+    font-size: 28px;
+  }
+
+  .stat-card .label {
+    font-size: 13px;
+  }
+
+  .panel-title {
+    font-size: 18px;
+  }
+
+  .panel-header {
+    height: 56px;
+    padding: 0 20px;
+  }
+
+  .panel-content {
+    padding: 16px;
+  }
+
+  .incident-item {
+    padding: 14px;
+  }
+
+  .incident-item .title {
+    font-size: 15px;
+  }
+
+  .incident-item .meta {
+    font-size: 13px;
+  }
+
+  .statistics-bar {
+    gap: 16px;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+  }
+}
+
+.review-layout {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+
+  .review-sider {
+    flex-shrink: 0;
+  }
+
+  .review-content {
+    flex: 1;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 1366px) {
+  .review-layout {
+    .review-sider {
+      width: 180px !important;
+      min-width: 180px !important;
+      max-width: 180px !important;
+    }
+
+    .review-content {
+      padding: 16px;
+    }
+  }
+}
+
+@media (min-width: 1920px) {
+  .review-layout {
+    .review-sider {
+      width: 220px !important;
+      min-width: 220px !important;
+      max-width: 220px !important;
+    }
+
+    .review-content {
+      padding: 32px;
+    }
   }
 }

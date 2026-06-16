@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Layout, Button, Tooltip, Avatar, Dropdown, MenuProps, message } from 'antd';
+import { Layout, Button, Tooltip, Avatar, Dropdown, MenuProps, message, Space } from 'antd';
 import {
   MenuUnfoldOutlined,
   MenuFoldOutlined,
@@ -10,6 +10,8 @@ import {
   SettingOutlined,
   ReloadOutlined,
   BellOutlined,
+  DashboardOutlined,
+  BookOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
@@ -164,6 +166,36 @@ const CommandScreen: React.FC = () => {
           >
             省级应急管理指挥系统
           </h1>
+
+          <Space style={{ marginLeft: 32 }}>
+            <Button
+              type="text"
+              icon={<DashboardOutlined />}
+              onClick={() => navigate('/')}
+              style={{
+                color: window.location.pathname === '/' ? '#1890ff' : 'rgba(255,255,255,0.65)',
+                borderBottom: window.location.pathname === '/' ? '2px solid #1890ff' : 'none',
+                borderRadius: 0,
+                height: 54,
+              }}
+            >
+              指挥大屏
+            </Button>
+            <Button
+              type="text"
+              icon={<BookOutlined />}
+              onClick={() => navigate('/review')}
+              style={{
+                color: window.location.pathname === '/review' ? '#1890ff' : 'rgba(255,255,255,0.65)',
+                borderBottom: window.location.pathname === '/review' ? '2px solid #1890ff' : 'none',
+                borderRadius: 0,
+                height: 54,
+              }}
+            >
+              复盘分析
+            </Button>
+          </Space>
+
           <span
             style={{
               color: 'rgba(255, 255, 255, 0.45)',

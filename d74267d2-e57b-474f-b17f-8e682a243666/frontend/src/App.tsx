@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import Login from '@/pages/Login';
 import CommandScreen from '@/pages/CommandScreen';
+import ReviewAnalysis from '@/pages/ReviewAnalysis';
 
 const App: React.FC = () => {
   const token = useAuthStore((state) => state.token);
@@ -21,6 +22,14 @@ const App: React.FC = () => {
         element={
           <ProtectedRoute>
             <CommandScreen />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/review"
+        element={
+          <ProtectedRoute>
+            <ReviewAnalysis />
           </ProtectedRoute>
         }
       />
