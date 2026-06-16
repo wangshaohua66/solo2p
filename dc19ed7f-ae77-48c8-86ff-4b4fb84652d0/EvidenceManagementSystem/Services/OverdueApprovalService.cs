@@ -1,3 +1,4 @@
+using System.Text.Json;
 using EvidenceManagementSystem.Common;
 using EvidenceManagementSystem.Data;
 using EvidenceManagementSystem.Models.DTOs;
@@ -85,12 +86,23 @@ public class OverdueApprovalService : IOverdueApprovalService
                 OperatorId = operatorId,
                 OperatorName = operatorName,
                 OperationTime = DateTime.UtcNow,
-                FromStatus = evidence.Status,
-                ToStatus = evidence.Status,
+                StatusBefore = evidence.Status,
+                StatusAfter = evidence.Status,
                 Remark = $"提交超期解除审批：{request.Justification}",
                 RecordHash = string.Empty
             };
-            chainRecord.RecordHash = HashHelper.ComputeHash(chainRecord);
+            var chainData = JsonSerializer.Serialize(new
+            {
+                chainRecord.EvidenceId,
+                chainRecord.SequenceNumber,
+                chainRecord.OperationType,
+                chainRecord.OperatorId,
+                chainRecord.OperationTime,
+                chainRecord.StatusBefore,
+                chainRecord.StatusAfter,
+                chainRecord.Remark
+            });
+            chainRecord.RecordHash = HashHelper.ComputeSha256Hash(chainData);
             await _chainRepository.AddAsync(chainRecord);
 
             await transaction.CommitAsync();
@@ -153,12 +165,23 @@ public class OverdueApprovalService : IOverdueApprovalService
                 OperatorId = operatorId,
                 OperatorName = operatorName,
                 OperationTime = DateTime.UtcNow,
-                FromStatus = oldStatus,
-                ToStatus = evidence.Status,
+                StatusBefore = oldStatus,
+                StatusAfter = evidence.Status,
                 Remark = $"超期解除审批通过：{request.ApprovalRemark}",
                 RecordHash = string.Empty
             };
-            chainRecord.RecordHash = HashHelper.ComputeHash(chainRecord);
+            var chainData = JsonSerializer.Serialize(new
+            {
+                chainRecord.EvidenceId,
+                chainRecord.SequenceNumber,
+                chainRecord.OperationType,
+                chainRecord.OperatorId,
+                chainRecord.OperationTime,
+                chainRecord.StatusBefore,
+                chainRecord.StatusAfter,
+                chainRecord.Remark
+            });
+            chainRecord.RecordHash = HashHelper.ComputeSha256Hash(chainData);
             await _chainRepository.AddAsync(chainRecord);
 
             await transaction.CommitAsync();
@@ -204,12 +227,23 @@ public class OverdueApprovalService : IOverdueApprovalService
                 OperatorId = operatorId,
                 OperatorName = operatorName,
                 OperationTime = DateTime.UtcNow,
-                FromStatus = evidence.Status,
-                ToStatus = evidence.Status,
+                StatusBefore = evidence.Status,
+                StatusAfter = evidence.Status,
                 Remark = $"超期解除审批被拒绝：{request.RejectReason}",
                 RecordHash = string.Empty
             };
-            chainRecord.RecordHash = HashHelper.ComputeHash(chainRecord);
+            var chainData = JsonSerializer.Serialize(new
+            {
+                chainRecord.EvidenceId,
+                chainRecord.SequenceNumber,
+                chainRecord.OperationType,
+                chainRecord.OperatorId,
+                chainRecord.OperationTime,
+                chainRecord.StatusBefore,
+                chainRecord.StatusAfter,
+                chainRecord.Remark
+            });
+            chainRecord.RecordHash = HashHelper.ComputeSha256Hash(chainData);
             await _chainRepository.AddAsync(chainRecord);
 
             await transaction.CommitAsync();
