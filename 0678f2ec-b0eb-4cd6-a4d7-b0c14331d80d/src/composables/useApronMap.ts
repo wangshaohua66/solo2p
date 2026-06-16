@@ -13,7 +13,7 @@ export function useApronMap() {
 
   const transform = computed(() => {
     const { zoom, pan } = store.layoutConfig;
-    return `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`;
+    return `translate(${pan.x} ${pan.y}) scale(${zoom})`;
   });
 
   const handleZoom = (delta: number, center?: Position) => {

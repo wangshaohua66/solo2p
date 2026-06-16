@@ -1,6 +1,5 @@
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { useApronStore } from '@/stores/apron';
-import type { Flight, ServiceTask } from '@/types/apron';
 import { MIN_TURNAROUND_INTERVAL } from '@/utils/constants';
 
 interface DragState {
@@ -8,7 +7,9 @@ interface DragState {
   flightId: string | null;
   serviceId: string | null;
   startX: number;
-  startTime: number;
+  containerWidth: number;
+  dayStart: number;
+  dayEnd: number;
   originalStart: number;
   originalEnd: number;
 }
@@ -20,7 +21,9 @@ export function useGanttDrag() {
     flightId: null,
     serviceId: null,
     startX: 0,
-    startTime: 0,
+    containerWidth: 800,
+    dayStart: 0,
+    dayEnd: 0,
     originalStart: 0,
     originalEnd: 0,
   });
@@ -29,25 +32,19 @@ export function useGanttDrag() {
     { flightId: string; serviceId?: string; type: string }[]
   >([]);
 
-  const timeScale = computed(() => {
-    const now = store.currentTime;
-    const startOfDay = new Date(now).setHours(0, 0, 0, 0);
-    const endOfDay = startOfDay + 24 * 60 * 60 * 1000;
-    return {
-      start: startOfDay,
-      end: endOfDay,
-      total: endOfDay - startOfDay,
-    };
-  });
+  const isDragging = () => dragState.value.isDragging;
 
-  const timeToX = (time: number, containerWidth: number): number => {
-    const { start, total } = timeScale.value;
-    return ((time - start) / total) * containerWidth;
+  const timeToX = (time: number): number => {
+    const { dayStart, dayEnd, containerWidth } = dragState.value;
+    const total = dayEnd - dayStart;
+    if (total === 0) return 0;
+    return ((time - dayStart) / total) * containerWidth;
   };
 
-  const xToTime = (x: number, containerWidth: number): number => {
-    const { start, total } = timeScale.value;
-    return start + (x / containerWidth) * total;
+  const xToTime = (x: number): number => {
+    const { dayStart, dayEnd, containerWidth } = dragState.value;
+    const total = dayEnd - dayStart;
+    return dayStart + (x / containerWidth) * total;
   };
 
   const checkConflicts = (
@@ -65,14 +62,16 @@ export function useGanttDrag() {
       .sort((a, b) => a.arrivalTime - b.arrivalTime);
 
     for (const otherFlight of standFlights) {
-      if (
+      if (otherFlight.status === 'departed') continue;
+      const overlap =
         (newStartTime >= otherFlight.arrivalTime &&
           newStartTime < otherFlight.departureTime) ||
         (newEndTime > otherFlight.arrivalTime &&
           newEndTime <= otherFlight.departureTime) ||
         (newStartTime <= otherFlight.arrivalTime &&
-          newEndTime >= otherFlight.departureTime)
-      ) {
+          newEndTime >= otherFlight.departureTime);
+      const interval = otherFlight.arrivalTime - newEndTime;
+      if (overlap || (interval > 0 && interval < MIN_TURNAROUND_INTERVAL)) {
         detectedConflicts.push({
           flightId: otherFlight.id,
           type: 'stand-overlap',
@@ -105,8 +104,10 @@ export function useGanttDrag() {
   const startDrag = (
     e: MouseEvent,
     flightId: string,
+    serviceId: string | undefined,
     containerWidth: number,
-    serviceId?: string
+    dayStart: number,
+    dayEnd: number
   ) => {
     e.preventDefault();
     const flight = store.flightById(flightId);
@@ -130,29 +131,27 @@ export function useGanttDrag() {
       flightId,
       serviceId: serviceId || null,
       startX: e.clientX,
-      startTime: xToTime(e.clientX - timeToX(startTime, containerWidth), containerWidth),
+      containerWidth,
+      dayStart,
+      dayEnd,
       originalStart: startTime,
       originalEnd: endTime,
     };
-
-    window.addEventListener('mousemove', handleDrag);
-    window.addEventListener('mouseup', endDrag);
   };
 
-  const handleDrag = (e: MouseEvent) => {
+  const handleDrag = (clientX: number) => {
     if (!dragState.value.isDragging || !dragState.value.flightId) return;
 
-    const dx = e.clientX - dragState.value.startX;
-    const containerWidth = 800;
-    const timeDelta = xToTime(dx, containerWidth) - timeToTime(0, containerWidth);
+    const dx = clientX;
+    const timeDelta = xToTime(dx) - xToTime(0);
 
     const duration =
       dragState.value.originalEnd - dragState.value.originalStart;
-    const newStart = dragState.value.originalStart + timeDelta;
-    const newEnd = newStart + duration;
+    let newStart = dragState.value.originalStart + timeDelta;
+    let newEnd = newStart + duration;
 
-    newStart = Math.max(timeScale.value.start, newStart);
-    newEnd = Math.min(timeScale.value.end, newEnd);
+    newStart = Math.max(dragState.value.dayStart, newStart);
+    newEnd = Math.min(dragState.value.dayEnd, newEnd);
 
     conflicts.value = checkConflicts(
       dragState.value.flightId,
@@ -210,25 +209,21 @@ export function useGanttDrag() {
       flightId: null,
       serviceId: null,
       startX: 0,
-      startTime: 0,
+      containerWidth: 800,
+      dayStart: 0,
+      dayEnd: 0,
       originalStart: 0,
       originalEnd: 0,
     };
-
-    window.removeEventListener('mousemove', handleDrag);
-    window.removeEventListener('mouseup', endDrag);
   };
 
-  const hasConflict = (flightId: string, serviceId?: string): boolean => {
-    return conflicts.value.some(
-      (c) => c.flightId === flightId && c.serviceId === serviceId
-    );
+  const hasConflict = (flightId: string, _serviceId?: string): boolean => {
+    return conflicts.value.some((c) => c.flightId === flightId);
   };
 
   return {
-    dragState,
+    isDragging,
     conflicts,
-    timeScale,
     timeToX,
     xToTime,
     startDrag,

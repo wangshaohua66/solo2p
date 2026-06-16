@@ -42,8 +42,8 @@ const defaultLayout: LayoutConfig = {
 const rolePresets: Record<UserRole, Partial<LayoutConfig>> = {
   dispatcher: {
     leftPanelCollapsed: false,
-    rightPanelCollapsed: true,
-    ganttCollapsed: true,
+    rightPanelCollapsed: false,
+    ganttCollapsed: false,
   },
   'ground-crew': {
     leftPanelCollapsed: true,
@@ -159,10 +159,10 @@ export const useApronStore = defineStore('apron', {
       state.alerts.filter((a) => !a.acknowledged),
 
     selectedStand: (state) =>
-      state.stands.find((s) => s.id === state.selectedStandId),
+      state.stands.find((s) => s.id === state.selectedStandId) || null,
 
     selectedFlight: (state) =>
-      state.flights.find((f) => f.id === state.selectedFlightId),
+      state.flights.find((f) => f.id === state.selectedFlightId) || null,
 
     flightById: (state) => (id: string) => state.flights.find((f) => f.id === id),
 
@@ -176,6 +176,7 @@ export const useApronStore = defineStore('apron', {
     initialize() {
       this.stands = generateStands();
       this.loadLayout();
+      this.applyRolePreset();
     },
 
     updateCurrentTime() {
@@ -331,13 +332,17 @@ export const useApronStore = defineStore('apron', {
 
     setCurrentRole(role: UserRole) {
       this.currentRole = role;
-      const preset = rolePresets[role];
+      this.applyRolePreset();
+      this.saveLayout();
+    },
+
+    applyRolePreset() {
+      const preset = rolePresets[this.currentRole];
       this.layoutConfig = {
         ...this.layoutConfig,
-        role,
+        role: this.currentRole,
         ...preset,
       };
-      this.saveLayout();
     },
 
     setZoom(zoom: number) {

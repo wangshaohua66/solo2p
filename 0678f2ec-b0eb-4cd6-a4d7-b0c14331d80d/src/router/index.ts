@@ -1,26 +1,17 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import HomePage from '@/pages/HomePage.vue'
+import { createRouter, createWebHistory } from 'vue-router';
+import DashboardView from '@/views/DashboardView.vue';
 
-// 定义路由配置
 const routes = [
   {
     path: '/',
-    name: 'home',
-    component: HomePage,
+    name: 'dashboard',
+    component: DashboardView,
   },
-  {
-    path: '/about',
-    name: 'about',
-    component: {
-      template: '<div class="text-center text-xl p-8">About Page - Coming Soon</div>',
-    },
-  },
-]
+];
 
-// 创建路由实例
 const router = createRouter({
   history: createWebHistory(),
   routes,
-})
+});
 
-export default router
+export default router;
