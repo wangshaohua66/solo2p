@@ -11,6 +11,11 @@ import type {
   StandStatus,
   ServiceTask,
   Position,
+  PerformanceMetrics,
+  FlightHistoryPoint,
+  AlertHistoryPoint,
+  PerformanceHistoryPoint,
+  InteractionMetric,
 } from '@/types/apron';
 import { generateStands } from '@/utils/standLayout';
 import { generateId, clamp } from '@/utils/helpers';
@@ -57,6 +62,55 @@ const rolePresets: Record<UserRole, Partial<LayoutConfig>> = {
   },
 };
 
+const defaultPerformance: PerformanceMetrics = {
+  firstPaint: 0,
+  firstContentfulPaint: 0,
+  domContentLoaded: 0,
+  loadEvent: 0,
+  memoryUsed: 0,
+  memoryTotal: 0,
+  memoryLimit: 0,
+  fps: 60,
+  avgResponseTime: 0,
+  lastResponseTime: 0,
+  interactions: [],
+  history: [],
+};
+
+const generateInitialFlightHistory = (): FlightHistoryPoint[] => {
+  const now = Date.now();
+  const points: FlightHistoryPoint[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const timestamp = now - i * 60 * 1000;
+    points.push({
+      timestamp,
+      arrivals: Math.floor(Math.random() * 8) + 2,
+      departures: Math.floor(Math.random() * 8) + 2,
+      delayed: Math.floor(Math.random() * 3),
+      total: 0,
+    });
+  }
+  points.forEach(p => p.total = p.arrivals + p.departures);
+  return points;
+};
+
+const generateInitialAlertHistory = (): AlertHistoryPoint[] => {
+  const now = Date.now();
+  const points: AlertHistoryPoint[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const timestamp = now - i * 60 * 1000;
+    points.push({
+      timestamp,
+      red: Math.floor(Math.random() * 2),
+      orange: Math.floor(Math.random() * 4),
+      blue: Math.floor(Math.random() * 6),
+      total: 0,
+    });
+  }
+  points.forEach(p => p.total = p.red + p.orange + p.blue);
+  return points;
+};
+
 export const useApronStore = defineStore('apron', {
   state: () => ({
     stands: [] as Stand[],
@@ -69,6 +123,9 @@ export const useApronStore = defineStore('apron', {
     selectedFlightId: null as string | null,
     currentRole: 'dispatcher' as UserRole,
     layoutConfig: { ...defaultLayout } as LayoutConfig,
+    performance: { ...defaultPerformance } as PerformanceMetrics,
+    flightHistory: generateInitialFlightHistory(),
+    alertHistory: generateInitialAlertHistory(),
   }),
 
   getters: {
@@ -170,6 +227,64 @@ export const useApronStore = defineStore('apron', {
 
     vehiclesByType: (state) => (type: string) =>
       state.vehicles.filter((v) => v.type === type),
+
+    vehiclesByStatus: (state) => {
+      const result = { idle: 0, moving: 0, working: 0 };
+      state.vehicles.forEach(v => {
+        result[v.status]++;
+      });
+      return result;
+    },
+
+    alertsByLevel: (state) => {
+      const result = { red: 0, orange: 0, blue: 0 };
+      state.alerts.forEach(a => {
+        if (!a.acknowledged) {
+          result[a.level]++;
+        }
+      });
+      return result;
+    },
+
+    performanceStatus: (state) => {
+      const perf = state.performance;
+      return {
+        fpsStatus: perf.fps >= 55 ? 'good' : perf.fps >= 30 ? 'warn' : 'bad',
+        memoryStatus: perf.memoryUsed < 80 ? 'good' : perf.memoryUsed < 100 ? 'warn' : 'bad',
+        responseStatus: perf.lastResponseTime < 100 ? 'good' : perf.lastResponseTime < 200 ? 'warn' : 'bad',
+        isFirstPaintOk: perf.firstPaint > 0 && perf.firstPaint <= 1000,
+        isAllGood: perf.fps >= 55 && perf.memoryUsed < 80 && perf.lastResponseTime < 100,
+      };
+    },
+
+    roleConfig: (state) => {
+      return {
+        dispatcher: {
+          name: '机坪调度员',
+          primaryMetrics: ['flights', 'vehicles', 'alerts', 'gantt'],
+          showLeftPanel: true,
+          showRightPanel: true,
+          showGantt: true,
+          showPerformance: false,
+        },
+        'ground-crew': {
+          name: '地勤队长',
+          primaryMetrics: ['vehicles', 'tasks', 'alerts'],
+          showLeftPanel: false,
+          showRightPanel: true,
+          showGantt: true,
+          showPerformance: false,
+        },
+        supervisor: {
+          name: '运行主管',
+          primaryMetrics: ['overview', 'flights', 'alerts', 'performance'],
+          showLeftPanel: false,
+          showRightPanel: true,
+          showGantt: false,
+          showPerformance: true,
+        },
+      }[state.currentRole];
+    },
   },
 
   actions: {
@@ -370,6 +485,11 @@ export const useApronStore = defineStore('apron', {
       this.saveLayout();
     },
 
+    setLayoutConfig(config: Partial<LayoutConfig>) {
+      this.layoutConfig = { ...this.layoutConfig, ...config };
+      this.saveLayout();
+    },
+
     toggleWeatherOverlay() {
       this.layoutConfig.weatherOverlayVisible =
         !this.layoutConfig.weatherOverlayVisible;
@@ -429,6 +549,85 @@ export const useApronStore = defineStore('apron', {
           }
         });
       });
+    },
+
+    updatePerformance(metrics: Partial<PerformanceMetrics>) {
+      this.performance = {
+        ...this.performance,
+        ...metrics,
+      };
+    },
+
+    addInteractionMetric(interaction: Omit<InteractionMetric, 'id' | 'timestamp'>) {
+      const metric: InteractionMetric = {
+        ...interaction,
+        id: generateId(),
+        timestamp: Date.now(),
+      };
+      this.performance.interactions.push(metric);
+      if (this.performance.interactions.length > 50) {
+        this.performance.interactions = this.performance.interactions.slice(-50);
+      }
+      this.performance.lastResponseTime = interaction.duration;
+      const durations = this.performance.interactions.map(i => i.duration);
+      this.performance.avgResponseTime = durations.reduce((a, b) => a + b, 0) / durations.length;
+    },
+
+    addPerformanceHistoryPoint(point: Omit<PerformanceHistoryPoint, 'timestamp'>) {
+      const historyPoint: PerformanceHistoryPoint = {
+        ...point,
+        timestamp: Date.now(),
+      };
+      this.performance.history.push(historyPoint);
+      if (this.performance.history.length > 60) {
+        this.performance.history = this.performance.history.slice(-60);
+      }
+    },
+
+    updateFlightHistory() {
+      const now = this.currentTime;
+      const oneMinuteAgo = now - 60 * 1000;
+      const arrivals = this.flights.filter(f =>
+        f.status === 'arrived' && f.arrivalTime > oneMinuteAgo
+      ).length;
+      const departures = this.flights.filter(f =>
+        f.status === 'departed' && f.departureTime > oneMinuteAgo
+      ).length;
+      const delayed = this.delayedFlightsCount;
+
+      this.flightHistory.push({
+        timestamp: now,
+        arrivals,
+        departures,
+        delayed,
+        total: arrivals + departures,
+      });
+
+      if (this.flightHistory.length > 30) {
+        this.flightHistory = this.flightHistory.slice(-30);
+      }
+    },
+
+    updateAlertHistory() {
+      const now = this.currentTime;
+      const oneMinuteAgo = now - 60 * 1000;
+      const recentAlerts = this.alerts.filter(a => a.timestamp > oneMinuteAgo);
+
+      const red = recentAlerts.filter(a => a.level === 'red').length;
+      const orange = recentAlerts.filter(a => a.level === 'orange').length;
+      const blue = recentAlerts.filter(a => a.level === 'blue').length;
+
+      this.alertHistory.push({
+        timestamp: now,
+        red,
+        orange,
+        blue,
+        total: red + orange + blue,
+      });
+
+      if (this.alertHistory.length > 30) {
+        this.alertHistory = this.alertHistory.slice(-30);
+      }
     },
 
     saveLayout() {

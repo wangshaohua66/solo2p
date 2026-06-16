@@ -118,4 +118,53 @@ export interface ApronState {
   selectedFlightId: string | null;
   currentRole: UserRole;
   layoutConfig: LayoutConfig;
+  performance: PerformanceMetrics;
+  flightHistory: FlightHistoryPoint[];
+  alertHistory: AlertHistoryPoint[];
+}
+
+export interface FlightHistoryPoint {
+  timestamp: number;
+  arrivals: number;
+  departures: number;
+  delayed: number;
+  total: number;
+}
+
+export interface AlertHistoryPoint {
+  timestamp: number;
+  red: number;
+  orange: number;
+  blue: number;
+  total: number;
+}
+
+export interface PerformanceMetrics {
+  firstPaint: number;
+  firstContentfulPaint: number;
+  domContentLoaded: number;
+  loadEvent: number;
+  memoryUsed: number;
+  memoryTotal: number;
+  memoryLimit: number;
+  fps: number;
+  avgResponseTime: number;
+  lastResponseTime: number;
+  interactions: InteractionMetric[];
+  history: PerformanceHistoryPoint[];
+}
+
+export interface InteractionMetric {
+  id: string;
+  name: string;
+  startTime: number;
+  duration: number;
+  timestamp: number;
+}
+
+export interface PerformanceHistoryPoint {
+  timestamp: number;
+  fps: number;
+  memoryUsed: number;
+  responseTime: number;
 }

@@ -36,6 +36,7 @@ export function useSimulation() {
   const isRunning = ref(false);
   let simulationInterval: NodeJS.Timeout | null = null;
   let animationFrameId: number | null = null;
+  let tickCounter = 0;
 
   const generateServiceTasks = (
     arrivalTime: number,
@@ -312,6 +313,13 @@ export function useSimulation() {
 
     if (Math.random() < 0.05) {
       store.detectConflicts();
+    }
+
+    tickCounter++;
+    if (tickCounter % 60 === 0) {
+      store.updateFlightHistory();
+      store.updateAlertHistory();
+      tickCounter = 0;
     }
   };
 
