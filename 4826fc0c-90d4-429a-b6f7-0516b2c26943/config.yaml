@@ -560,6 +560,8 @@ instruments:
 lims:
   window_title: LIMS 实验室信息管理系统
   window_template: ''
+  username: ''
+  password: ''
   login:
     username_field:
       template: ''

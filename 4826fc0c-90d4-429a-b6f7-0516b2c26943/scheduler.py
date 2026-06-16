@@ -94,6 +94,14 @@ class TaskScheduler:
         self._ocr_reader = OCRReader(self.ocr_cfg, self.global_cfg)
         self._lims_client = LIMSClient(self.lims_cfg, self.global_cfg)
 
+        lims_username = os.environ.get("LIMS_USERNAME", "") or self.lims_cfg.get("username", "")
+        lims_password = os.environ.get("LIMS_PASSWORD", "") or self.lims_cfg.get("password", "")
+        if lims_username and lims_password:
+            self._lims_client.set_credentials(lims_username, lims_password)
+            logger.info(f"LIMS 凭证已配置 (用户: {lims_username})")
+        else:
+            logger.warning("LIMS 凭证未设置，可通过环境变量 LIMS_USERNAME/LIMS_PASSWORD 或 config.yaml lims.username/password 配置")
+
         self._stats = SchedulerStats()
         for inst_id in self._instruments:
             self._stats.instrument_stats[inst_id] = {"success": 0, "failed": 0, "timeout": 0}

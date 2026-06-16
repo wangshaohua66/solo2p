@@ -235,6 +235,7 @@ class ConsoleUI:
             f"  {_c('[R]恢复', 'green')}"
             f"  {_c('[A]添加样品', 'cyan')}"
             f"  {_c('[L]异常队列', 'yellow')}"
+            f"  {_c('[V]复核任务', 'magenta')}"
             f"  {_c('[G]审计报告', 'white')}"
             f"  {_c('[Q]退出', 'red')}"
         )
@@ -299,6 +300,8 @@ class ConsoleUI:
                     self._add_sample_interactive()
                 elif ch == "l":
                     self._show_failed_tasks()
+                elif ch == "v":
+                    self._show_review_tasks()
                 elif ch == "g":
                     report = self.scheduler.generate_audit_report()
                     self._show_report(report)
@@ -345,6 +348,39 @@ class ConsoleUI:
                     print(_c(f"  已重新入队: {sid}", "green"))
                 else:
                     print(_c("  未找到该任务", "red"))
+                time.sleep(1.5)
+        except Exception:
+            pass
+
+    def _show_review_tasks(self) -> None:
+        print("\n" + _c("  待复核任务列表", "magenta"))
+        review_tasks = self.scheduler.get_review_tasks()
+        if not review_tasks:
+            print(_c("  无待复核任务", "green"))
+            time.sleep(1.5)
+            return
+        for t in review_tasks:
+            review_count = 0
+            if t.ocr_results:
+                review_count = sum(1 for r in t.ocr_results.results if r.needs_review)
+            print(
+                f"  {t.sample_id} | 待复核项={review_count} | "
+                f"仪器={t.assigned_instrument} | 状态={t.status}"
+            )
+        print(_c("\n  操作: c <样品编号> 确认通过 | r <样品编号> 驳回 | 回车返回", "yellow"))
+        try:
+            raw = input().strip()
+            if not raw:
+                return
+            parts = raw.split(maxsplit=1)
+            if len(parts) == 2 and parts[0] in ("c", "r"):
+                action, sid = parts[0], parts[1].strip()
+                accept = (action == "c")
+                if self.scheduler.confirm_review_sample(sid, accept=accept):
+                    label = "确认通过" if accept else "驳回"
+                    print(_c(f"  {sid} 已{label}", "green"))
+                else:
+                    print(_c(f"  未找到任务: {sid}", "red"))
                 time.sleep(1.5)
         except Exception:
             pass
