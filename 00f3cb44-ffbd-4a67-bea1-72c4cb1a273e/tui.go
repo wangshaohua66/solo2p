@@ -1,14 +1,26 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
+	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"github.com/rs/zerolog"
 )
+
+type CaptchaRequest struct {
+	Site         string
+	CapType      string
+	Screenshot   []byte
+	ScreenshotPath string
+	PageURL      string
+	ResponseChan chan string
+}
 
 type TUIApp struct {
 	app       *tview.Application
@@ -18,11 +30,21 @@ type TUIApp struct {
 	logPanel    *tview.TextView
 	statusBar   *tview.TextView
 	progressBar *tview.TextView
+	mainRoot    tview.Primitive
 
 	logBuffer    []string
 	logBufferMax int
-	mu           *tview.Box
+	mu           sync.Mutex
+
+	captchaActive   bool
+	captchaRequest  *CaptchaRequest
+	captchaModal    *tview.Flex
+	captchaInput    *tview.InputField
+	captchaInfo     *tview.TextView
+	captchaImageBox *tview.TextView
 }
+
+var globalTUI *TUIApp
 
 func runTUI(scheduler *Scheduler) error {
 	tui := &TUIApp{
@@ -31,11 +53,129 @@ func runTUI(scheduler *Scheduler) error {
 		logBufferMax: 500,
 	}
 
+	globalTUI = tui
+
 	tui.setupUI()
+	tui.setupCaptchaModal()
 
 	go tui.updateLoop()
 
 	return tui.app.Run()
+}
+
+func ShowCaptchaPopup(req *CaptchaRequest) {
+	if globalTUI == nil {
+		if req.ResponseChan != nil {
+			close(req.ResponseChan)
+		}
+		return
+	}
+	globalTUI.app.QueueUpdateDraw(func() {
+		globalTUI.showCaptchaModal(req)
+	})
+}
+
+func (tui *TUIApp) setupCaptchaModal() {
+	tui.captchaImageBox = tview.NewTextView().
+		SetDynamicColors(true).
+		SetWrap(true).
+		SetTextAlign(tview.AlignCenter)
+	tui.captchaImageBox.SetBorder(true).SetTitle("[::b] [yellow]Captcha Image [::-]")
+
+	tui.captchaInfo = tview.NewTextView().
+		SetDynamicColors(true).
+		SetWrap(true)
+	tui.captchaInfo.SetBorder(true).SetTitle("[::b] [cyan]Information [::-]")
+
+	tui.captchaInput = tview.NewInputField().
+		SetLabel("[::b]Enter captcha: [::-]").
+		SetFieldWidth(50).
+		SetAcceptanceFunc(tview.InputFieldMaxLength(50))
+	tui.captchaInput.SetBorder(true).SetTitle("[::b] [green]Input [::-]")
+
+	imagePanel := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(tui.captchaImageBox, 0, 2, false).
+		AddItem(tui.captchaInfo, 0, 1, false)
+
+	rightPanel := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(imagePanel, 0, 3, false).
+		AddItem(tui.captchaInput, 5, 1, true)
+
+	tui.captchaModal = tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(tview.NewBox(), 0, 1, false).
+		AddItem(rightPanel, 80, 1, true).
+		AddItem(tview.NewBox(), 0, 1, false)
+
+	tui.captchaModal.SetBorder(true).
+		SetTitle("[::b] [red] CAPTCHA REQUIRED - ACTION NEEDED [::-]").
+		SetBorderPadding(1, 1, 2, 2)
+
+	tui.captchaInput.SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEnter {
+			text := tui.captchaInput.GetText()
+			tui.closeCaptchaModal(text)
+		}
+		if key == tcell.KeyEscape {
+			tui.closeCaptchaModal("")
+		}
+	})
+}
+
+func (tui *TUIApp) showCaptchaModal(req *CaptchaRequest) {
+	if tui.captchaActive {
+		return
+	}
+
+	tui.mu.Lock()
+	tui.captchaActive = true
+	tui.captchaRequest = req
+	tui.mu.Unlock()
+
+	if req.ScreenshotPath == "" && len(req.Screenshot) > 0 {
+		tmpPath := fmt.Sprintf("/tmp/captcha_%s_%d.png", req.Site, time.Now().Unix())
+		if err := os.WriteFile(tmpPath, req.Screenshot, 0644); err == nil {
+			req.ScreenshotPath = tmpPath
+		}
+	}
+
+	imgInfo := "[yellow]Terminal cannot display images directly.\n\n"
+	imgInfo += "[white]Please open the following file in your browser:\n"
+	imgInfo += fmt.Sprintf("[green]%s[-]\n\n", req.ScreenshotPath)
+	imgInfo += "[white]Or view the base64 data:\n"
+	b64Data := base64.StdEncoding.EncodeToString(req.Screenshot)
+	if len(b64Data) > 200 {
+		b64Data = b64Data[:200] + "..."
+	}
+	imgInfo += fmt.Sprintf("[gray]data:image/png;base64,%s[-]\n", b64Data)
+
+	tui.captchaImageBox.SetText(imgInfo)
+
+	infoText := fmt.Sprintf(
+		"[cyan]Site:[white] %s\n\n[cyan]Type:[white] %s\n\n[cyan]Page:[white] %s\n\n\n[yellow]Instructions:[-]\n  1. Open the screenshot file in your browser\n  2. Identify the captcha text\n  3. Type it below and press Enter\n  4. Press ESC to skip and auto-refresh",
+		req.Site, req.CapType, req.PageURL,
+	)
+	tui.captchaInfo.SetText(infoText)
+
+	tui.captchaInput.SetText("")
+	tui.app.SetRoot(tui.captchaModal, true).SetFocus(tui.captchaInput)
+}
+
+func (tui *TUIApp) closeCaptchaModal(response string) {
+	tui.mu.Lock()
+	req := tui.captchaRequest
+	tui.captchaActive = false
+	tui.captchaRequest = nil
+	tui.mu.Unlock()
+
+	tui.app.SetRoot(tui.mainRoot, true)
+
+	if req != nil && req.ResponseChan != nil {
+		select {
+		case req.ResponseChan <- response:
+		default:
+		}
+		close(req.ResponseChan)
+	}
 }
 
 func (tui *TUIApp) setupUI() {
@@ -73,6 +213,7 @@ func (tui *TUIApp) setupUI() {
 		AddItem(tui.sitesPanel, 30, 1, false).
 		AddItem(rightPanel, 0, 3, false)
 
+	tui.mainRoot = mainFlex
 	tui.app.SetRoot(mainFlex, true)
 
 	tui.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {

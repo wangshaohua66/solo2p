@@ -71,6 +71,7 @@ func main() {
 		cfg.Global.BrowserPoolSize,
 		cfg.Global.UserAgents,
 		cfg.Global.CookiesDir,
+		cfg.Global.ScreenshotsDir,
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -85,11 +86,36 @@ func main() {
 		cfg.Global.CaptchaWSPort,
 		cfg.Global.ScreenshotsDir,
 	)
+
+	captchaHandler.SetTUISolver(func(site string, capType scraper.CaptchaType, screenshot []byte, pageURL string) (string, error) {
+		respChan := make(chan string, 1)
+		req := &CaptchaRequest{
+			Site:         site,
+			CapType:      string(capType),
+			Screenshot:   screenshot,
+			PageURL:      pageURL,
+			ResponseChan: respChan,
+		}
+		ShowCaptchaPopup(req)
+
+		select {
+		case solution, ok := <-respChan:
+			if !ok || solution == "" {
+				return "", fmt.Errorf("captcha skipped or cancelled")
+			}
+			return solution, nil
+		case <-time.After(3 * time.Minute):
+			return "", fmt.Errorf("tui captcha timeout")
+		}
+	})
+
 	if err := captchaHandler.Start(ctx); err != nil {
 		log.Warn().Err(err).Msg("captcha handler start failed")
 	}
 
-	scrapers := scraper.GetAllScrapers(cfg.Sites, browserPool)
+	staticScraper := scraper.NewStaticScraper(cfg.Global.UserAgents[0])
+
+	scrapers := scraper.GetAllScrapers(cfg.Sites, browserPool, staticScraper, cfg.Global.ScreenshotsDir)
 	log.Info().Int("count", len(scrapers)).Msg("loaded scrapers")
 
 	sched := &Scheduler{
@@ -134,6 +160,12 @@ func setupLogging() {
 	logDir := "./data/logs"
 	os.MkdirAll(logDir, 0755)
 
+	if err := cleanupOldLogs(logDir, 30); err != nil {
+		log.Warn().Err(err).Msg("cleanup old logs failed")
+	}
+
+	go logRotationWorker(logDir, 30)
+
 	consoleWriter := zerolog.ConsoleWriter{
 		Out:        os.Stdout,
 		TimeFormat: time.RFC3339,
@@ -149,6 +181,49 @@ func setupLogging() {
 
 	multi := zerolog.MultiLevelWriter(consoleWriter, file)
 	log.Logger = zerolog.New(multi).With().Timestamp().Caller().Logger()
+}
+
+func logRotationWorker(logDir string, retentionDays int) {
+	ticker := time.NewTicker(1 * time.Hour)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		if err := cleanupOldLogs(logDir, retentionDays); err != nil {
+			log.Warn().Err(err).Msg("periodic log cleanup failed")
+		}
+	}
+}
+
+func cleanupOldLogs(logDir string, retentionDays int) error {
+	files, err := filepath.Glob(filepath.Join(logDir, "*.log"))
+	if err != nil {
+		return fmt.Errorf("glob log files: %w", err)
+	}
+
+	cutoff := time.Now().AddDate(0, 0, -retentionDays)
+	deletedCount := 0
+
+	for _, file := range files {
+		info, statErr := os.Stat(file)
+		if statErr != nil {
+			continue
+		}
+
+		if info.ModTime().Before(cutoff) {
+			if delErr := os.Remove(file); delErr != nil {
+				log.Warn().Err(delErr).Str("file", file).Msg("failed to delete old log")
+				continue
+			}
+			deletedCount++
+			log.Info().Str("file", file).Time("mod_time", info.ModTime()).Msg("deleted old log file")
+		}
+	}
+
+	if deletedCount > 0 {
+		log.Info().Int("deleted", deletedCount).Int("retention_days", retentionDays).Msg("old log cleanup complete")
+	}
+
+	return nil
 }
 
 func (s *Scheduler) RunCrawlTask(taskType string) {
@@ -273,6 +348,19 @@ func (s *Scheduler) crawlSite(taskID string, siteName string, sc scraper.Scraper
 	result := &scraper.ScrapeResult{
 		SiteName: siteName,
 	}
+
+	loginCtx, loginCancel := context.WithTimeout(context.Background(), 130*time.Second)
+	if baseScraper, ok := sc.(interface {
+		EnsureLoggedIn(ctx context.Context) error
+	}); ok {
+		if err := baseScraper.EnsureLoggedIn(loginCtx); err != nil {
+			loginCancel()
+			result.Error = fmt.Errorf("ensure login failed: %w", err)
+			log.Error().Err(err).Str("site", siteName).Msg("login check failed, skipping site")
+			return result
+		}
+	}
+	loginCancel()
 
 	categories := s.config.Global.Categories
 	if len(categories) == 0 {

@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -84,7 +85,8 @@ type RawProduct struct {
 }
 
 type Store struct {
-	db *sql.DB
+	db       *sql.DB
+	cacheDir string
 }
 
 func NewStore(dbPath string) (*Store, error) {
@@ -102,9 +104,18 @@ func NewStore(dbPath string) (*Store, error) {
 		return nil, fmt.Errorf("ping db: %w", err)
 	}
 
-	s := &Store{db: db}
+	cacheDir := filepath.Join(dir, "cache")
+	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+		return nil, fmt.Errorf("create cache dir: %w", err)
+	}
+
+	s := &Store{db: db, cacheDir: cacheDir}
 	if err := s.initTables(); err != nil {
 		return nil, fmt.Errorf("init tables: %w", err)
+	}
+
+	if err := s.replayFailedWrites(); err != nil {
+		log.Warn().Err(err).Msg("replay failed writes completed with errors")
 	}
 
 	return s, nil
@@ -265,19 +276,140 @@ func (s *Store) UpsertProduct(p *Product) error {
 	return tx.Commit()
 }
 
+func (s *Store) saveFailedProducts(products []*Product, err error) error {
+	if len(products) == 0 {
+		return nil
+	}
+
+	type failedCache struct {
+		Products  []*Product `json:"products"`
+		Error     string     `json:"error"`
+		Timestamp time.Time  `json:"timestamp"`
+	}
+
+	cache := failedCache{
+		Products:  products,
+		Error:     err.Error(),
+		Timestamp: time.Now(),
+	}
+
+	data, jsonErr := json.Marshal(cache)
+	if jsonErr != nil {
+		return fmt.Errorf("marshal failed products: %w", jsonErr)
+	}
+
+	filename := fmt.Sprintf("failed_%d_%s.json", time.Now().UnixNano(), products[0].Site)
+	filepath := filepath.Join(s.cacheDir, filename)
+
+	if writeErr := os.WriteFile(filepath, data, 0644); writeErr != nil {
+		return fmt.Errorf("write cache file: %w", writeErr)
+	}
+
+	log.Warn().
+		Int("count", len(products)).
+		Str("file", filepath).
+		Str("error", err.Error()).
+		Msg("database write failed, cached to local file")
+
+	return nil
+}
+
+func (s *Store) replayFailedWrites() error {
+	files, err := filepath.Glob(filepath.Join(s.cacheDir, "failed_*.json"))
+	if err != nil {
+		return fmt.Errorf("glob cache files: %w", err)
+	}
+
+	if len(files) == 0 {
+		log.Info().Msg("no cached failed writes to replay")
+		return nil
+	}
+
+	log.Info().Int("files", len(files)).Msg("found cached failed writes, attempting replay")
+
+	var totalReplayed int
+	var deleteErrors []string
+
+	for _, file := range files {
+		data, readErr := os.ReadFile(file)
+		if readErr != nil {
+			log.Error().Err(readErr).Str("file", file).Msg("failed to read cache file")
+			deleteErrors = append(deleteErrors, file)
+			continue
+		}
+
+		var cache struct {
+			Products []*Product `json:"products"`
+		}
+
+		if unmarshalErr := json.Unmarshal(data, &cache); unmarshalErr != nil {
+			log.Error().Err(unmarshalErr).Str("file", file).Msg("failed to parse cache file")
+			deleteErrors = append(deleteErrors, file)
+			continue
+		}
+
+		if len(cache.Products) == 0 {
+			os.Remove(file)
+			continue
+		}
+
+		count, writeErr := s.unsafeBulkUpsert(cache.Products)
+		if writeErr != nil {
+			log.Error().Err(writeErr).Str("file", file).Int("products", len(cache.Products)).
+				Msg("replay failed, will keep cache for next restart")
+			continue
+		}
+
+		totalReplayed += count
+		log.Info().Str("file", file).Int("count", count).Msg("replayed cached writes successfully")
+
+		if delErr := os.Remove(file); delErr != nil {
+			log.Warn().Err(delErr).Str("file", file).Msg("failed to delete cache file after replay")
+		}
+	}
+
+	for _, file := range deleteErrors {
+		os.Remove(file)
+	}
+
+	log.Info().Int("total_replayed", totalReplayed).Msg("cached failed write replay complete")
+	return nil
+}
+
+func (s *Store) unsafeBulkUpsert(products []*Product) (int, error) {
+	count := 0
+	for _, p := range products {
+		if err := s.UpsertProduct(p); err != nil {
+			return count, err
+		}
+		count++
+	}
+	return count, nil
+}
+
 func (s *Store) BulkUpsertProducts(products []*Product) (int, error) {
 	if len(products) == 0 {
 		return 0, nil
 	}
 
 	count := 0
+	var failedProducts []*Product
+
 	for _, p := range products {
 		if err := s.UpsertProduct(p); err != nil {
 			log.Error().Err(err).Str("sku", p.SKU).Str("site", p.Site).Msg("upsert product failed")
+			failedProducts = append(failedProducts, p)
 			continue
 		}
 		count++
 	}
+
+	if len(failedProducts) > 0 {
+		if err := s.saveFailedProducts(failedProducts, fmt.Errorf("bulk upsert partial failure")); err != nil {
+			log.Error().Err(err).Int("failed_count", len(failedProducts)).Msg("failed to cache failed products")
+		}
+	}
+
 	return count, nil
 }
 

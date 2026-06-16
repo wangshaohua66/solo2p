@@ -2,9 +2,11 @@ package scraper
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -101,8 +103,23 @@ type ScrapeResult struct {
 }
 
 type BaseScraper struct {
-	SiteConfig SiteConfig
-	SiteName   string
+	SiteConfig     SiteConfig
+	SiteName       string
+	browserPool    *BrowserPool
+	staticScraper  *StaticScraper
+	screenshotsDir string
+	useStaticFirst bool
+}
+
+type SelectorError struct {
+	URL        string
+	Selector   string
+	Screenshot string
+	Timestamp  time.Time
+}
+
+func (e *SelectorError) Error() string {
+	return fmt.Sprintf("selector match failed: %s on %s (screenshot: %s)", e.Selector, e.URL, e.Screenshot)
 }
 
 func LoadConfig(configPath string) (*Config, error) {
@@ -119,10 +136,14 @@ func LoadConfig(configPath string) (*Config, error) {
 	return &cfg, nil
 }
 
-func NewBaseScraper(siteName string, config SiteConfig) *BaseScraper {
+func NewBaseScraper(siteName string, config SiteConfig, browserPool *BrowserPool, staticScraper *StaticScraper, screenshotsDir string) *BaseScraper {
 	return &BaseScraper{
-		SiteConfig: config,
-		SiteName:   siteName,
+		SiteConfig:     config,
+		SiteName:       siteName,
+		browserPool:    browserPool,
+		staticScraper:  staticScraper,
+		screenshotsDir: screenshotsDir,
+		useStaticFirst: true,
 	}
 }
 
@@ -135,6 +156,124 @@ func (bs *BaseScraper) BuildSearchURL(keyword string, page int) string {
 	url = strings.ReplaceAll(url, "{keyword}", keyword)
 	url = strings.ReplaceAll(url, "{page}", fmt.Sprintf("%d", page))
 	return url
+}
+
+func (bs *BaseScraper) CheckLogin(ctx context.Context) (bool, error) {
+	if !bs.SiteConfig.RequiresLogin {
+		return true, nil
+	}
+
+	if bs.browserPool == nil {
+		return false, fmt.Errorf("browser pool not set")
+	}
+
+	inst, err := bs.browserPool.Acquire()
+	if err != nil {
+		return false, fmt.Errorf("acquire browser: %w", err)
+	}
+	defer bs.browserPool.Release(inst)
+
+	browserCtx := inst.Context()
+
+	loaded, err := bs.browserPool.LoadCookies(bs.SiteName, browserCtx)
+	if err != nil {
+		log.Warn().Err(err).Str("site", bs.SiteName).Msg("load cookies failed")
+		return false, nil
+	}
+	if !loaded {
+		log.Info().Str("site", bs.SiteName).Msg("no valid cookies, need login")
+		return false, nil
+	}
+
+	var title string
+	err = chromedp.Run(browserCtx,
+		chromedp.Navigate(bs.SiteConfig.BaseURL),
+		chromedp.Sleep(RandomWait(1000, 2000)),
+		chromedp.Title(&title),
+	)
+	if err != nil {
+		return false, fmt.Errorf("check login state: %w", err)
+	}
+
+	log.Debug().Str("site", bs.SiteName).Str("title", title).Msg("login check")
+	return true, nil
+}
+
+func (bs *BaseScraper) Login(ctx context.Context) error {
+	if !bs.SiteConfig.RequiresLogin {
+		return nil
+	}
+
+	if bs.browserPool == nil {
+		return fmt.Errorf("browser pool not set")
+	}
+
+	inst, err := bs.browserPool.Acquire()
+	if err != nil {
+		return fmt.Errorf("acquire browser: %w", err)
+	}
+	defer bs.browserPool.Release(inst)
+
+	browserCtx := inst.Context()
+
+	log.Warn().Str("site", bs.SiteName).Str("url", bs.SiteConfig.LoginURL).Msg("MANUAL LOGIN REQUIRED - navigating to login page")
+
+	err = chromedp.Run(browserCtx,
+		chromedp.Navigate(bs.SiteConfig.LoginURL),
+		chromedp.Sleep(3*time.Second),
+	)
+	if err != nil {
+		return fmt.Errorf("navigate to login: %w", err)
+	}
+
+	log.Warn().Str("site", bs.SiteName).Msg("Please complete login manually in browser. Waiting 120 seconds...")
+
+	loginTimeout := 120 * time.Second
+	checkInterval := 3 * time.Second
+	startTime := time.Now()
+
+	for time.Since(startTime) < loginTimeout {
+		var url string
+		chromedp.Run(browserCtx,
+			chromedp.Location(&url),
+		)
+
+		if !strings.Contains(url, "login") && !strings.Contains(url, "signin") {
+			log.Info().Str("site", bs.SiteName).Str("url", url).Msg("detected possible login completion, saving cookies")
+
+			if err := bs.browserPool.SaveCookies(bs.SiteName, browserCtx); err != nil {
+				log.Error().Err(err).Str("site", bs.SiteName).Msg("save cookies failed")
+				return fmt.Errorf("save cookies: %w", err)
+			}
+
+			log.Info().Str("site", bs.SiteName).Msg("login completed and cookies saved")
+			return nil
+		}
+
+		time.Sleep(checkInterval)
+	}
+
+	return fmt.Errorf("login timeout after %v", loginTimeout)
+}
+
+func (bs *BaseScraper) EnsureLoggedIn(ctx context.Context) error {
+	if !bs.SiteConfig.RequiresLogin {
+		return nil
+	}
+
+	loggedIn, err := bs.CheckLogin(ctx)
+	if err != nil {
+		log.Warn().Err(err).Str("site", bs.SiteName).Msg("check login failed, clearing cookies")
+		bs.browserPool.ClearCookies(bs.SiteName)
+	}
+
+	if !loggedIn {
+		if err := bs.Login(ctx); err != nil {
+			return fmt.Errorf("login failed: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func (bs *BaseScraper) ExtractItems(ctx context.Context, htmlContent string) ([]*pipeline.RawProductData, error) {
@@ -152,9 +291,39 @@ func (bs *BaseScraper) NavigateAndWait(ctx context.Context, url string, waitSel 
 	)
 
 	if err != nil {
+		bs.logSelectorError(ctx, url, waitSel)
 		return fmt.Errorf("navigate and wait: %w", err)
 	}
 	return nil
+}
+
+func (bs *BaseScraper) logSelectorError(ctx context.Context, url string, selector string) {
+	screenshotPath, err := TakeScreenshot(ctx, bs.screenshotsDir, bs.SiteName+"_selector_error")
+	if err != nil {
+		log.Warn().Err(err).Str("url", url).Str("selector", selector).Msg("failed to take screenshot for selector error")
+		screenshotPath = "none"
+	}
+
+	selErr := &SelectorError{
+		URL:        url,
+		Selector:   selector,
+		Screenshot: screenshotPath,
+		Timestamp:  time.Now(),
+	}
+
+	logErrorData, _ := json.Marshal(selErr)
+	log.Error().
+		Str("site", bs.SiteName).
+		Str("url", url).
+		Str("selector", selector).
+		Str("screenshot", screenshotPath).
+		RawJSON("error_details", logErrorData).
+		Msg("DOM selector match failed")
+
+	errorLogDir := filepath.Join(bs.screenshotsDir, "errors")
+	os.MkdirAll(errorLogDir, 0755)
+	errorLogFile := filepath.Join(errorLogDir, fmt.Sprintf("%s_%s.json", bs.SiteName, time.Now().Format("20060102_150405")))
+	os.WriteFile(errorLogFile, logErrorData, 0644)
 }
 
 func (bs *BaseScraper) ScrollToBottom(ctx context.Context, pauseMs int) error {
@@ -226,6 +395,9 @@ func (bs *BaseScraper) ParseItemElements(ctx context.Context) ([]map[string]stri
 		(() => {
 			const items = document.querySelectorAll(%q);
 			const results = [];
+			if (items.length === 0) {
+				return { empty: true, items: [] };
+			}
 			items.forEach((item) => {
 				const data = {};
 				const getText = (selector) => {
@@ -250,7 +422,7 @@ func (bs *BaseScraper) ParseItemElements(ctx context.Context) ([]map[string]stri
 					image: getAttr(%q, %q),
 				});
 			});
-			return results;
+			return { empty: false, items: results };
 		})();
 	`,
 		itemSel,
@@ -270,15 +442,27 @@ func (bs *BaseScraper) ParseItemElements(ctx context.Context) ([]map[string]stri
 		sel.ImageAttr,
 	)
 
-	var results []map[string]string
+	var extractResult struct {
+		Empty bool              `json:"empty"`
+		Items []map[string]string `json:"items"`
+	}
 	err := chromedp.Run(ctx,
-		chromedp.Evaluate(extractJS, &results),
+		chromedp.Evaluate(extractJS, &extractResult),
 	)
 	if err != nil {
+		var currentURL string
+		chromedp.Run(ctx, chromedp.Location(&currentURL))
+		bs.logSelectorError(ctx, currentURL, itemSel)
 		return nil, fmt.Errorf("extract items: %w", err)
 	}
 
-	return results, nil
+	if extractResult.Empty {
+		var currentURL string
+		chromedp.Run(ctx, chromedp.Location(&currentURL))
+		log.Warn().Str("site", bs.SiteName).Str("url", currentURL).Str("selector", itemSel).Msg("no items found with selector")
+	}
+
+	return extractResult.Items, nil
 }
 
 func (bs *BaseScraper) MapToRawProducts(items []map[string]string, category string) []*pipeline.RawProductData {
@@ -327,4 +511,103 @@ func (bs *BaseScraper) MapToRawProducts(items []map[string]string, category stri
 	}
 
 	return products
+}
+
+func (bs *BaseScraper) CanUseStaticScraper(url string) bool {
+	if bs.staticScraper == nil || !bs.useStaticFirst {
+		return false
+	}
+	return bs.staticScraper.IsStaticContent(url)
+}
+
+func (bs *BaseScraper) ScrapeSearchPageStatic(url string, category string) ([]*pipeline.RawProductData, error) {
+	if bs.staticScraper == nil {
+		return nil, fmt.Errorf("static scraper not available")
+	}
+
+	products, err := bs.staticScraper.ScrapeSearchPage(
+		url,
+		bs.SiteConfig.Selectors,
+		bs.SiteName,
+		category,
+		bs.SiteConfig.Currency,
+		bs.SiteConfig.RatingScale,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("static scrape: %w", err)
+	}
+
+	return products, nil
+}
+
+func (bs *BaseScraper) ScrapeWithFallback(ctx context.Context, url string, category string, waitSel string, timeout time.Duration) ([]*pipeline.RawProductData, error) {
+	var staticProducts []*pipeline.RawProductData
+	var staticErr error
+	usedStatic := false
+
+	if bs.useStaticFirst && bs.staticScraper != nil {
+		log.Debug().Str("site", bs.SiteName).Str("url", url).Msg("trying static scraper first")
+		staticProducts, staticErr = bs.ScrapeSearchPageStatic(url, category)
+		if staticErr == nil && len(staticProducts) > 0 {
+			log.Info().Str("site", bs.SiteName).Int("items", len(staticProducts)).Msg("static scraper succeeded, using results")
+			usedStatic = true
+			if len(staticProducts) >= 8 {
+				return staticProducts, nil
+			}
+			log.Debug().Str("site", bs.SiteName).Int("items", len(staticProducts)).
+				Msg("static results too few, falling back to Chromedp for more data")
+		} else {
+			if staticErr != nil {
+				log.Warn().Err(staticErr).Str("site", bs.SiteName).Msg("static scraper failed, falling back to Chromedp")
+			} else {
+				log.Debug().Str("site", bs.SiteName).Msg("static scraper returned empty, falling back to Chromedp")
+			}
+		}
+	}
+
+	log.Debug().Str("site", bs.SiteName).Msg("using Chromedp for dynamic scraping")
+	if err := bs.NavigateAndWait(ctx, url, waitSel, timeout); err != nil {
+		if usedStatic && len(staticProducts) > 0 {
+			log.Warn().Err(err).Str("site", bs.SiteName).Msg("Chromedp failed but static results available, using static data")
+			return staticProducts, nil
+		}
+		return nil, err
+	}
+
+	items, err := bs.ParseItemElements(ctx)
+	if err != nil {
+		if usedStatic && len(staticProducts) > 0 {
+			return staticProducts, nil
+		}
+		return nil, err
+	}
+
+	dynamicProducts := bs.MapToRawProducts(items, category)
+
+	if usedStatic && len(staticProducts) > 0 {
+		seen := make(map[string]bool)
+		var merged []*pipeline.RawProductData
+		for _, p := range dynamicProducts {
+			key := bs.SiteName + ":" + p.SKU
+			if !seen[key] {
+				seen[key] = true
+				merged = append(merged, p)
+			}
+		}
+		for _, p := range staticProducts {
+			key := bs.SiteName + ":" + p.SKU
+			if !seen[key] {
+				seen[key] = true
+				merged = append(merged, p)
+			}
+		}
+		log.Debug().Str("site", bs.SiteName).
+			Int("static", len(staticProducts)).
+			Int("dynamic", len(dynamicProducts)).
+			Int("merged", len(merged)).
+			Msg("merged static and dynamic results")
+		return merged, nil
+	}
+
+	return dynamicProducts, nil
 }

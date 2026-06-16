@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/chromedp/chromedp"
 	"github.com/rs/zerolog/log"
 )
 
@@ -13,9 +12,9 @@ type AmazonScraper struct {
 	browserPool *BrowserPool
 }
 
-func NewAmazonScraper(config SiteConfig, browserPool *BrowserPool) *AmazonScraper {
+func NewAmazonScraper(config SiteConfig, browserPool *BrowserPool, staticScraper *StaticScraper, screenshotsDir string) *AmazonScraper {
 	return &AmazonScraper{
-		BaseScraper: NewBaseScraper("amazon", config),
+		BaseScraper: NewBaseScraper("amazon", config, browserPool, staticScraper, screenshotsDir),
 		browserPool: browserPool,
 	}
 }
@@ -51,42 +50,30 @@ func (s *AmazonScraper) Scrape(ctx context.Context, category string, opts *Scrap
 		timeout = opts.Timeout
 	}
 
+	waitSel := s.SiteConfig.Pagination.WaitForSelector
+
 	for page := startPage; page <= maxPages; page++ {
 		url := s.BuildSearchURL(category, page)
 		log.Debug().Str("site", "amazon").Int("page", page).Str("url", url).Msg("scraping page")
 
-		pageCtx, cancel := context.WithTimeout(browserCtx, timeout)
-		err := chromedp.Run(pageCtx,
-			chromedp.Navigate(url),
-			chromedp.WaitVisible(s.SiteConfig.Pagination.WaitForSelector, chromedp.ByQuery),
-			chromedp.Sleep(RandomWait(1000, 2500)),
-		)
-		cancel()
-
+		products, err := s.ScrapeWithFallback(browserCtx, url, category, waitSel, timeout)
 		if err != nil {
-			log.Warn().Err(err).Int("page", page).Msg("page load failed")
+			log.Warn().Err(err).Int("page", page).Msg("page scrape failed")
 			result.FailCount++
 			continue
 		}
 
-		err = HumanScroll(browserCtx, "down", 500).Do(browserCtx)
-		if err != nil {
-			log.Debug().Err(err).Msg("scroll failed")
-		}
-
-		items, err := s.ParseItemElements(browserCtx)
-		if err != nil {
-			log.Warn().Err(err).Int("page", page).Msg("parse items failed")
+		if len(products) == 0 {
+			log.Warn().Int("page", page).Msg("no products found on page")
 			result.FailCount++
 			continue
 		}
 
-		rawProducts := s.MapToRawProducts(items, category)
-		result.Products = append(result.Products, rawProducts...)
+		result.Products = append(result.Products, products...)
 		result.SuccessCount++
 		result.LastPage = page
 
-		log.Debug().Str("site", "amazon").Int("page", page).Int("items", len(rawProducts)).Msg("page scraped")
+		log.Debug().Str("site", "amazon").Int("page", page).Int("items", len(products)).Msg("page scraped")
 
 		time.Sleep(RandomWait(2000, 5000))
 	}
@@ -98,15 +85,15 @@ func (s *AmazonScraper) Scrape(ctx context.Context, category string, opts *Scrap
 }
 
 func (s *AmazonScraper) CheckLogin(ctx context.Context) (bool, error) {
-	return true, nil
+	return s.BaseScraper.CheckLogin(ctx)
 }
 
 func (s *AmazonScraper) Login(ctx context.Context) error {
-	return nil
+	return s.BaseScraper.Login(ctx)
 }
 
 func init() {
-	RegisterScraper("amazon", func(config SiteConfig, pool *BrowserPool) Scraper {
-		return NewAmazonScraper(config, pool)
+	RegisterScraper("amazon", func(config SiteConfig, pool *BrowserPool, staticScraper *StaticScraper, screenshotsDir string) Scraper {
+		return NewAmazonScraper(config, pool, staticScraper, screenshotsDir)
 	})
 }

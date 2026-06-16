@@ -52,6 +52,7 @@ type CaptchaHandler struct {
 	pendingReqs    map[string]chan *CaptchaResponse
 	mu             sync.Mutex
 	screenshotsDir string
+	tuiSolver      func(site string, capType CaptchaType, screenshot []byte, pageURL string) (string, error)
 }
 
 func NewCaptchaDetector() *CaptchaDetector {
@@ -197,7 +198,35 @@ func (ch *CaptchaHandler) handleWebSocket(w http.ResponseWriter, r *http.Request
 	}
 }
 
+func (ch *CaptchaHandler) SetTUISolver(solver func(site string, capType CaptchaType, screenshot []byte, pageURL string) (string, error)) {
+	ch.mu.Lock()
+	defer ch.mu.Unlock()
+	ch.tuiSolver = solver
+}
+
 func (ch *CaptchaHandler) RequestSolve(site string, capType CaptchaType, screenshot []byte, pageURL string) (*CaptchaResponse, error) {
+	ch.mu.Lock()
+	solver := ch.tuiSolver
+	ch.mu.Unlock()
+
+	if solver != nil {
+		log.Info().Str("site", site).Str("type", string(capType)).Msg("trying TUI captcha solver")
+		solution, err := solver(site, capType, screenshot, pageURL)
+		if err == nil && solution != "" {
+			log.Info().Str("site", site).Str("solution", solution).Msg("TUI captcha solved successfully")
+			return &CaptchaResponse{
+				ID:       fmt.Sprintf("tui-%d", time.Now().UnixNano()),
+				Solution: solution,
+				Solved:   true,
+				SolvedAt: time.Now(),
+				Operator: "TUI",
+			}, nil
+		}
+		if err != nil {
+			log.Warn().Err(err).Str("site", site).Msg("TUI captcha solver failed, falling back to WebSocket")
+		}
+	}
+
 	reqID := fmt.Sprintf("cap-%d", time.Now().UnixNano())
 	respChan := make(chan *CaptchaResponse, 1)
 
@@ -243,7 +272,7 @@ func (ch *CaptchaHandler) RequestSolve(site string, capType CaptchaType, screens
 	}
 	ch.mu.Unlock()
 
-	log.Info().Str("id", reqID).Str("site", site).Str("type", string(capType)).Msg("captcha request sent")
+	log.Info().Str("id", reqID).Str("site", site).Str("type", string(capType)).Msg("captcha request sent via WebSocket")
 
 	select {
 	case resp := <-respChan:

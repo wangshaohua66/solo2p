@@ -2,6 +2,7 @@ package scraper
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
@@ -9,26 +10,32 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
 	"github.com/rs/zerolog/log"
 )
 
 type BrowserPool struct {
-	poolSize int
-	instances chan *BrowserInstance
-	mu       sync.Mutex
-	userAgents []string
-	cookiesDir string
+	poolSize     int
+	instances    chan *BrowserInstance
+	mu           sync.Mutex
+	userAgents   []string
+	cookiesDir   string
+	screenshotsDir string
+	crashed      map[int]bool
 }
 
 type BrowserInstance struct {
 	ctx        context.Context
 	cancel     context.CancelFunc
+	allocCancel context.CancelFunc
 	userAgent  string
 	viewport   Viewport
 	lastUsed   time.Time
 	id         int
 	busy       bool
+	fingerprint Fingerprint
+	lastCheck  time.Time
 }
 
 type Viewport struct {
@@ -44,6 +51,12 @@ type Fingerprint struct {
 	WebGLVendor   string
 	WebGLRenderer string
 	Platform      string
+}
+
+type CookieData struct {
+	Cookies    []*network.Cookie `json:"cookies"`
+	SavedAt    time.Time         `json:"saved_at"`
+	ExpiresAt  time.Time         `json:"expires_at"`
 }
 
 var (
@@ -88,7 +101,7 @@ var (
 	}
 )
 
-func NewBrowserPool(poolSize int, userAgents []string, cookiesDir string) *BrowserPool {
+func NewBrowserPool(poolSize int, userAgents []string, cookiesDir string, screenshotsDir string) *BrowserPool {
 	if poolSize <= 0 {
 		poolSize = 3
 	}
@@ -98,16 +111,21 @@ func NewBrowserPool(poolSize int, userAgents []string, cookiesDir string) *Brows
 		}
 	}
 	return &BrowserPool{
-		poolSize:   poolSize,
-		instances:  make(chan *BrowserInstance, poolSize),
-		userAgents: userAgents,
-		cookiesDir: cookiesDir,
+		poolSize:       poolSize,
+		instances:      make(chan *BrowserInstance, poolSize),
+		userAgents:     userAgents,
+		cookiesDir:     cookiesDir,
+		screenshotsDir: screenshotsDir,
+		crashed:        make(map[int]bool),
 	}
 }
 
 func (bp *BrowserPool) Start(ctx context.Context) error {
 	if err := os.MkdirAll(bp.cookiesDir, 0755); err != nil {
 		return fmt.Errorf("create cookies dir: %w", err)
+	}
+	if err := os.MkdirAll(bp.screenshotsDir, 0755); err != nil {
+		return fmt.Errorf("create screenshots dir: %w", err)
 	}
 
 	for i := 0; i < bp.poolSize; i++ {
@@ -124,13 +142,14 @@ func (bp *BrowserPool) Start(ctx context.Context) error {
 		return fmt.Errorf("no browser instances created")
 	}
 
+	go bp.healthCheckLoop(ctx)
+
 	log.Info().Int("count", len(bp.instances)).Msg("browser pool started")
 	return nil
 }
 
 func (bp *BrowserPool) newInstance(parentCtx context.Context, id int) (*BrowserInstance, error) {
-	ua := bp.userAgents[rand.Intn(len(bp.userAgents))]
-	vp := viewports[rand.Intn(len(viewports))]
+	fp := randomFingerprint(bp.userAgents)
 
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.Flag("headless", true),
@@ -139,56 +158,125 @@ func (bp *BrowserPool) newInstance(parentCtx context.Context, id int) (*BrowserI
 		chromedp.Flag("disable-dev-shm-usage", true),
 		chromedp.Flag("disable-blink-features", "AutomationControlled"),
 		chromedp.Flag("disable-infobars", true),
-		chromedp.UserAgent(ua),
-		chromedp.WindowSize(vp.Width, vp.Height),
-		chromedp.Flag("lang", "en-US"),
+		chromedp.UserAgent(fp.UserAgent),
+		chromedp.WindowSize(fp.Viewport.Width, fp.Viewport.Height),
+		chromedp.Flag("lang", fp.Language),
 		chromedp.Flag("disable-web-security", false),
 		chromedp.Flag("allow-running-insecure-content", false),
+		chromedp.Flag("timezone", fp.Timezone),
 	)
 
-	allocCtx, cancel := chromedp.NewExecAllocator(parentCtx, opts...)
+	allocCtx, allocCancel := chromedp.NewExecAllocator(parentCtx, opts...)
 	ctx, _ := chromedp.NewContext(allocCtx)
 
 	inst := &BrowserInstance{
-		ctx:       ctx,
-		cancel:    cancel,
-		userAgent: ua,
-		viewport:  vp,
-		id:        id,
-		lastUsed:  time.Now(),
+		ctx:         ctx,
+		cancel:      func() {},
+		allocCancel: allocCancel,
+		userAgent:   fp.UserAgent,
+		viewport:    fp.Viewport,
+		id:          id,
+		lastUsed:    time.Now(),
+		fingerprint: fp,
+		lastCheck:   time.Now(),
 	}
 
-	if err := bp.injectFingerprint(ctx); err != nil {
-		log.Warn().Err(err).Msg("failed to inject fingerprint")
+	if err := bp.injectFingerprint(ctx, fp); err != nil {
+		log.Warn().Err(err).Int("id", id).Msg("failed to inject fingerprint")
 	}
 
 	return inst, nil
 }
 
-func (bp *BrowserPool) injectFingerprint(ctx context.Context) error {
-	fp := randomFingerprint(bp.userAgents)
-
+func (bp *BrowserPool) injectFingerprint(ctx context.Context, fp Fingerprint) error {
 	js := fmt.Sprintf(`
 		(() => {
-			Object.defineProperty(navigator, 'webdriver', { get: () => false });
-			Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-			Object.defineProperty(navigator, 'languages', { get: () => ['%s'] });
-			Object.defineProperty(navigator, 'platform', { get: () => '%s' });
-			Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 4 });
-			Object.defineProperty(navigator, 'deviceMemory', { get: () => 8 });
+			Object.defineProperty(navigator, 'webdriver', { get: () => false, configurable: true });
+			Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5], configurable: true });
+			Object.defineProperty(navigator, 'languages', { get: () => ['%s'], configurable: true });
+			Object.defineProperty(navigator, 'language', { get: () => '%s', configurable: true });
+			Object.defineProperty(navigator, 'platform', { get: () => '%s', configurable: true });
+			Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 4, configurable: true });
+			Object.defineProperty(navigator, 'deviceMemory', { get: () => 8, configurable: true });
+			Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 0, configurable: true });
+
 			const originalQuery = window.navigator.permissions.query;
 			window.navigator.permissions.query = (parameters) => (
 				parameters.name === 'notifications' ?
 					Promise.resolve({ state: Notification.permission }) :
 					originalQuery(parameters)
 			);
+
+			Object.defineProperty(screen, 'width', { get: () => %d, configurable: true });
+			Object.defineProperty(screen, 'height', { get: () => %d, configurable: true });
+			Object.defineProperty(screen, 'availWidth', { get: () => %d, configurable: true });
+			Object.defineProperty(screen, 'availHeight', { get: () => %d, configurable: true });
+
+			Intl.DateTimeFormat.prototype.resolvedOptions = new Proxy(
+				Intl.DateTimeFormat.prototype.resolvedOptions,
+				{
+					apply(target, thisArg, args) {
+						const result = Reflect.apply(target, thisArg, args);
+						result.timeZone = '%s';
+						return result;
+					}
+				}
+			);
+
+			const origGetContext = HTMLCanvasElement.prototype.getContext;
+			HTMLCanvasElement.prototype.getContext = function() {
+				const ctx = origGetContext.apply(this, arguments);
+				if (!ctx) return ctx;
+				if (arguments[0] === 'webgl' || arguments[0] === 'experimental-webgl') {
+					const origGetParameter = ctx.getParameter;
+					ctx.getParameter = function(param) {
+						if (param === 37445) return '%s';
+						if (param === 37446) return '%s';
+						return origGetParameter.apply(this, arguments);
+					};
+					const origGetExtension = ctx.getExtension;
+					ctx.getExtension = function(ext) {
+						const res = origGetExtension.apply(this, arguments);
+						if (ext === 'WEBGL_debug_renderer_info' && res) {
+							const origGetUnmasked = res.UNMASKED_VENDOR_WEBGL;
+							const origGetUnmaskedRend = res.UNMASKED_RENDERER_WEBGL;
+						}
+						return res;
+					};
+				}
+				return ctx;
+			};
+
+			window.chrome = {
+				runtime: {},
+				loadTimes: function() { return {}; },
+				csi: function() { return {}; }
+			};
 		})();
-	`, fp.Language, fp.Platform)
+	`,
+		fp.Language,
+		stringsSplitFirst(fp.Language, ","),
+		fp.Platform,
+		fp.Viewport.Width, fp.Viewport.Height,
+		fp.Viewport.Width, fp.Viewport.Height,
+		fp.Timezone,
+		fp.WebGLVendor,
+		fp.WebGLRenderer,
+	)
 
 	var result string
 	return chromedp.Run(ctx,
 		chromedp.Evaluate(js, &result),
 	)
+}
+
+func stringsSplitFirst(s, sep string) string {
+	for i := 0; i < len(s); i++ {
+		if len(sep) <= len(s)-i && s[i:i+len(sep)] == sep {
+			return s[:i]
+		}
+	}
+	return s
 }
 
 func randomFingerprint(userAgents []string) Fingerprint {
@@ -201,6 +289,69 @@ func randomFingerprint(userAgents []string) Fingerprint {
 		WebGLRenderer: webglRenderers[rand.Intn(len(webglRenderers))],
 		Platform:      platforms[rand.Intn(len(platforms))],
 	}
+}
+
+func (bp *BrowserPool) healthCheckLoop(ctx context.Context) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			bp.checkAndRestartCrashed(ctx)
+		}
+	}
+}
+
+func (bp *BrowserPool) checkAndRestartCrashed(ctx context.Context) {
+	bp.mu.Lock()
+	defer bp.mu.Unlock()
+
+	insts := make([]*BrowserInstance, 0)
+	for i := 0; i < len(bp.instances); i++ {
+		inst := <-bp.instances
+		insts = append(insts, inst)
+	}
+	for _, inst := range insts {
+		bp.instances <- inst
+	}
+
+	for _, inst := range insts {
+		if !inst.IsAlive() {
+			log.Warn().Int("id", inst.id).Msg("detected crashed browser instance")
+			bp.crashed[inst.id] = true
+
+			newInst, err := bp.newInstance(ctx, inst.id)
+			if err != nil {
+				log.Error().Err(err).Int("id", inst.id).Msg("failed to restart crashed instance")
+				continue
+			}
+			inst.allocCancel()
+			bp.instances <- newInst
+			log.Info().Int("id", inst.id).Msg("restarted crashed browser instance")
+			delete(bp.crashed, inst.id)
+		}
+	}
+}
+
+func (bi *BrowserInstance) IsAlive() bool {
+	if bi.ctx == nil {
+		return false
+	}
+
+	select {
+	case <-bi.ctx.Done():
+		return false
+	default:
+	}
+
+	var result string
+	err := chromedp.Run(bi.ctx,
+		chromedp.Evaluate("1+1", &result),
+	)
+	return err == nil
 }
 
 func (bp *BrowserPool) Acquire() (*BrowserInstance, error) {
@@ -218,6 +369,19 @@ func (bp *BrowserPool) Release(inst *BrowserInstance) {
 	if inst == nil {
 		return
 	}
+
+	if !inst.IsAlive() {
+		log.Warn().Int("id", inst.id).Msg("released instance is crashed, restarting")
+		ctx := context.Background()
+		newInst, err := bp.newInstance(ctx, inst.id)
+		inst.allocCancel()
+		if err != nil {
+			log.Error().Err(err).Int("id", inst.id).Msg("failed to restart on release")
+			return
+		}
+		inst = newInst
+	}
+
 	inst.busy = false
 	inst.lastUsed = time.Now()
 	select {
@@ -233,16 +397,16 @@ func (bp *BrowserPool) Close() {
 
 	close(bp.instances)
 	for inst := range bp.instances {
-		if inst.cancel != nil {
-			inst.cancel()
+		if inst.allocCancel != nil {
+			inst.allocCancel()
 		}
 	}
 	log.Info().Msg("browser pool closed")
 }
 
 func (bp *BrowserPool) RestartInstance(inst *BrowserInstance) (*BrowserInstance, error) {
-	if inst.cancel != nil {
-		inst.cancel()
+	if inst.allocCancel != nil {
+		inst.allocCancel()
 	}
 
 	newInst, err := bp.newInstance(context.Background(), inst.id)
@@ -268,17 +432,83 @@ func (bi *BrowserInstance) Viewport() Viewport {
 	return bi.viewport
 }
 
-func (bp *BrowserPool) SaveCookies(site string, cookies []byte) error {
+func (bp *BrowserPool) SaveCookies(site string, ctx context.Context) error {
+	var cookies []*network.Cookie
+	err := chromedp.Run(ctx,
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			var err error
+			cookies, err = network.GetCookies().Do(ctx)
+			return err
+		}),
+	)
+	if err != nil {
+		return fmt.Errorf("get cookies: %w", err)
+	}
+
+	data := CookieData{
+		Cookies:   cookies,
+		SavedAt:   time.Now(),
+		ExpiresAt: time.Now().Add(24 * time.Hour * 7),
+	}
+
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("marshal cookies: %w", err)
+	}
+
 	cookieFile := filepath.Join(bp.cookiesDir, site+".json")
-	return os.WriteFile(cookieFile, cookies, 0644)
+	if err := os.WriteFile(cookieFile, jsonData, 0644); err != nil {
+		return fmt.Errorf("write cookie file: %w", err)
+	}
+
+	log.Debug().Str("site", site).Int("cookie_count", len(cookies)).Msg("cookies saved")
+	return nil
 }
 
-func (bp *BrowserPool) LoadCookies(site string) error {
+func (bp *BrowserPool) LoadCookies(site string, ctx context.Context) (bool, error) {
 	cookieFile := filepath.Join(bp.cookiesDir, site+".json")
-	if _, err := os.Stat(cookieFile); os.IsNotExist(err) {
-		return fmt.Errorf("cookie file not found: %s", cookieFile)
+	data, err := os.ReadFile(cookieFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("read cookie file: %w", err)
 	}
-	return nil
+
+	var cd CookieData
+	if err := json.Unmarshal(data, &cd); err != nil {
+		log.Warn().Err(err).Str("site", site).Msg("cookie file corrupted, clearing")
+		bp.ClearCookies(site)
+		return false, fmt.Errorf("parse cookie file: %w", err)
+	}
+
+	if time.Now().After(cd.ExpiresAt) {
+		log.Info().Str("site", site).Msg("cookies expired, need re-login")
+		bp.ClearCookies(site)
+		return false, nil
+	}
+
+	params := make([]*network.CookieParam, 0, len(cd.Cookies))
+	for _, c := range cd.Cookies {
+		params = append(params, &network.CookieParam{
+			Name:     c.Name,
+			Value:    c.Value,
+			Domain:   c.Domain,
+			Path:     c.Path,
+			Secure:   c.Secure,
+			HTTPOnly: c.HTTPOnly,
+		})
+	}
+
+	err = chromedp.Run(ctx,
+		network.SetCookies(params),
+	)
+	if err != nil {
+		return false, fmt.Errorf("set cookies: %w", err)
+	}
+
+	log.Debug().Str("site", site).Int("cookie_count", len(cd.Cookies)).Msg("cookies loaded")
+	return true, nil
 }
 
 func (bp *BrowserPool) ClearCookies(site string) error {
@@ -287,6 +517,12 @@ func (bp *BrowserPool) ClearCookies(site string) error {
 		return err
 	}
 	return nil
+}
+
+func (bp *BrowserPool) CookieExists(site string) bool {
+	cookieFile := filepath.Join(bp.cookiesDir, site+".json")
+	_, err := os.Stat(cookieFile)
+	return err == nil
 }
 
 func HumanScroll(ctx context.Context, direction string, distance int) chromedp.Action {
@@ -335,7 +571,8 @@ func RandomMouseMove(ctx context.Context, targetX, targetY int) chromedp.Action 
 					clientY: %d,
 					bubbles: true
 				});
-				document.elementFromPoint(%d, %d).dispatchEvent(evt);
+				const el = document.elementFromPoint(%d, %d);
+				if (el) el.dispatchEvent(evt);
 			`, x, y, x, y)
 			var result string
 			chromedp.Evaluate(moveJS, &result).Do(ctx)
@@ -344,4 +581,18 @@ func RandomMouseMove(ctx context.Context, targetX, targetY int) chromedp.Action 
 		}
 		return nil
 	})
+}
+
+func TakeScreenshot(ctx context.Context, screenshotsDir, prefix string) (string, error) {
+	var buf []byte
+	if err := chromedp.Run(ctx, chromedp.FullScreenshot(&buf, 85)); err != nil {
+		return "", fmt.Errorf("take screenshot: %w", err)
+	}
+
+	filename := fmt.Sprintf("%s_%s.png", prefix, time.Now().Format("20060102_150405"))
+	path := filepath.Join(screenshotsDir, filename)
+	if err := os.WriteFile(path, buf, 0644); err != nil {
+		return "", fmt.Errorf("write screenshot: %w", err)
+	}
+	return path, nil
 }
