@@ -559,6 +559,121 @@ CREATE TABLE IF NOT EXISTS notification_template (
 );
 
 -- =====================================================
+-- 8. 复盘分析相关表
+-- =====================================================
+
+-- 灾情归档表
+CREATE TABLE IF NOT EXISTS incident_archive (
+    id BIGSERIAL PRIMARY KEY,
+    incident_id BIGINT REFERENCES incident_event(id),
+    archive_no VARCHAR(50) UNIQUE NOT NULL,
+    archive_type VARCHAR(50),
+    archive_status INT DEFAULT 1,
+    archived_by BIGINT,
+    archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    archive_remark VARCHAR(500),
+    created_by BIGINT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by BIGINT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted INT DEFAULT 0
+);
+
+-- 复盘报告表
+CREATE TABLE IF NOT EXISTS incident_review_report (
+    id BIGSERIAL PRIMARY KEY,
+    report_no VARCHAR(50) UNIQUE NOT NULL,
+    incident_id BIGINT REFERENCES incident_event(id),
+    archive_id BIGINT REFERENCES incident_archive(id),
+    title VARCHAR(200) NOT NULL,
+    report_type VARCHAR(50),
+    incident_summary TEXT,
+    response_process TEXT,
+    timeliness_analysis TEXT,
+    resource_utilization TEXT,
+    existing_problems TEXT,
+    improvement_measures TEXT,
+    lessons_learned TEXT,
+    response_duration DECIMAL(12,2),
+    dispatch_count INT DEFAULT 0,
+    team_count INT DEFAULT 0,
+    material_count INT DEFAULT 0,
+    casualty_count INT DEFAULT 0,
+    affected_count INT DEFAULT 0,
+    loss_estimate DECIMAL(15,2),
+    efficiency_score DECIMAL(5,2),
+    timeliness_score DECIMAL(5,2),
+    resource_score DECIMAL(5,2),
+    overall_score DECIMAL(5,2),
+    status INT DEFAULT 1,
+    generated_by BIGINT,
+    generated_at TIMESTAMP,
+    reviewed_by BIGINT,
+    reviewed_at TIMESTAMP,
+    created_by BIGINT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by BIGINT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted INT DEFAULT 0
+);
+
+-- 历史案例表
+CREATE TABLE IF NOT EXISTS incident_history_case (
+    id BIGSERIAL PRIMARY KEY,
+    case_no VARCHAR(50) UNIQUE NOT NULL,
+    incident_id BIGINT REFERENCES incident_event(id),
+    report_id BIGINT REFERENCES incident_review_report(id),
+    case_title VARCHAR(200) NOT NULL,
+    case_type VARCHAR(50),
+    incident_type INT,
+    incident_level INT,
+    region_code VARCHAR(20),
+    location VARCHAR(200),
+    location_point GEOGRAPHY(POINT, 4326),
+    occurred_at TIMESTAMP,
+    ended_at TIMESTAMP,
+    duration_hours DECIMAL(10,2),
+    description TEXT,
+    key_measures TEXT,
+    main_experiences TEXT,
+    lessons_learned TEXT,
+    response_efficiency TEXT,
+    resource_allocation TEXT,
+    affected_population INT,
+    casualty_count INT,
+    direct_loss DECIMAL(15,2),
+    overall_rating INT DEFAULT 3,
+    tags VARCHAR(500),
+    is_classic BOOLEAN DEFAULT FALSE,
+    status INT DEFAULT 1,
+    created_by BIGINT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by BIGINT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted INT DEFAULT 0
+);
+
+-- 案例对比结果表
+CREATE TABLE IF NOT EXISTS incident_case_comparison (
+    id BIGSERIAL PRIMARY KEY,
+    comparison_no VARCHAR(50) UNIQUE NOT NULL,
+    source_incident_id BIGINT REFERENCES incident_event(id),
+    target_case_id BIGINT REFERENCES incident_history_case(id),
+    similarity DECIMAL(5,2),
+    comparison_metrics TEXT,
+    differences TEXT,
+    similarities TEXT,
+    suggestions TEXT,
+    comparison_result TEXT,
+    status INT DEFAULT 1,
+    created_by BIGINT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by BIGINT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted INT DEFAULT 0
+);
+
+-- =====================================================
 -- 创建索引
 -- =====================================================
 
@@ -587,3 +702,14 @@ CREATE INDEX IF NOT EXISTS idx_user_username ON sys_user(username, deleted);
 
 CREATE INDEX IF NOT EXISTS idx_approval_business ON sys_approval(business_type, business_id, deleted);
 CREATE INDEX IF NOT EXISTS idx_approval_approver ON sys_approval(current_approver_id, status, deleted);
+
+-- 复盘分析索引
+CREATE INDEX IF NOT EXISTS idx_archive_incident ON incident_archive(incident_id, deleted);
+CREATE INDEX IF NOT EXISTS idx_review_incident ON incident_review_report(incident_id, deleted);
+CREATE INDEX IF NOT EXISTS idx_review_status ON incident_review_report(status, deleted);
+CREATE INDEX IF NOT EXISTS idx_case_type ON incident_history_case(incident_type, deleted);
+CREATE INDEX IF NOT EXISTS idx_case_level ON incident_history_case(incident_level, deleted);
+CREATE INDEX IF NOT EXISTS idx_case_classic ON incident_history_case(is_classic, deleted);
+CREATE INDEX IF NOT EXISTS idx_case_location ON incident_history_case USING GIST(location_point);
+CREATE INDEX IF NOT EXISTS idx_comparison_source ON incident_case_comparison(source_incident_id, deleted);
+CREATE INDEX IF NOT EXISTS idx_comparison_target ON incident_case_comparison(target_case_id, deleted);

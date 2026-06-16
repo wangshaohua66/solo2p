@@ -362,3 +362,95 @@ export interface IncidentStatistics {
   handling: number;
   closed: number;
 }
+
+export interface IncidentArchive {
+  id: number;
+  incidentId: number;
+  archiveNo: string;
+  archiveType: string;
+  archiveStatus: number;
+  archivedBy: number;
+  archivedAt: string;
+  archiveRemark: string;
+  createdAt: string;
+}
+
+export interface IncidentReviewReport {
+  id: number;
+  reportNo: string;
+  incidentId: number;
+  archiveId: number;
+  title: string;
+  reportType: string;
+  incidentSummary: string;
+  responseProcess: string;
+  timelinessAnalysis: string;
+  resourceUtilization: string;
+  existingProblems: string;
+  improvementMeasures: string;
+  lessonsLearned: string;
+  responseDuration: number;
+  dispatchCount: number;
+  teamCount: number;
+  materialCount: number;
+  casualtyCount: number;
+  affectedCount: number;
+  lossEstimate: number;
+  efficiencyScore: number;
+  timelinessScore: number;
+  resourceScore: number;
+  overallScore: number;
+  status: number;
+  generatedBy: number;
+  generatedAt: string;
+  reviewedBy: number;
+  reviewedAt: string;
+  createdAt: string;
+}
+
+export interface IncidentHistoryCase {
+  id: number;
+  caseNo: string;
+  incidentId: number;
+  reportId: number;
+  caseTitle: string;
+  caseType: string;
+  incidentType: number;
+  incidentLevel: number;
+  regionCode: string;
+  location: string;
+  locationPoint: GeoPoint;
+  occurredAt: string;
+  endedAt: string;
+  durationHours: number;
+  description: string;
+  keyMeasures: string;
+  mainExperiences: string;
+  lessonsLearned: string;
+  responseEfficiency: string;
+  resourceAllocation: string;
+  affectedPopulation: number;
+  casualtyCount: number;
+  directLoss: number;
+  overallRating: number;
+  tags: string;
+  isClassic: boolean;
+  status: number;
+  createdAt: string;
+}
+
+export interface IncidentCaseComparison {
+  id: number;
+  comparisonNo: string;
+  sourceIncidentId: number;
+  targetCaseId: number;
+  similarity: number;
+  comparisonMetrics: string;
+  differences: string;
+  similarities: string;
+  suggestions: string;
+  comparisonResult: string;
+  status: number;
+  createdAt: string;
+  targetCase?: IncidentHistoryCase;
+}

@@ -75,4 +75,13 @@ public class OpenApiConfig {
                 .description("灾情操作日志、时间轴回放")
                 .build();
     }
+
+    @Bean
+    public GroupedOpenApi reviewApi() {
+        return GroupedOpenApi.builder()
+                .group("复盘分析")
+                .pathsToMatch("/review/**")
+                .description("灾情归档、复盘报告生成、历史案例、案例对比分析")
+                .build();
+    }
 }
