@@ -17,6 +17,14 @@ from ocr_reader import OCRReader, OCRBatchResult, OCRResult
 from lims_client import LIMSClient, LIMSResult
 
 
+def _bell() -> None:
+    try:
+        sys.stdout.write("\a")
+        sys.stdout.flush()
+    except Exception:
+        pass
+
+
 class TaskPriority(Enum):
     LOW = 3
     NORMAL = 2
@@ -40,6 +48,8 @@ class SampleTask:
     error_message: str = ""
     ocr_results: Optional[OCRBatchResult] = None
     lims_result: Optional[LIMSResult] = None
+    review_confirmed: bool = False
+    review_skipped: bool = False
 
     def __lt__(self, other: "SampleTask") -> bool:
         if self.priority.value != other.priority.value:
@@ -73,8 +83,10 @@ class TaskScheduler:
 
         self._task_queue: "queue.PriorityQueue[SampleTask]" = queue.PriorityQueue()
         self._failed_queue: List[SampleTask] = []
+        self._review_queue: List[SampleTask] = []
         self._active_tasks: Dict[str, SampleTask] = {}
         self._completed_tasks: List[SampleTask] = []
+        self._auto_skip_review = True
 
         self._instruments: Dict[str, InstrumentDriver] = {}
         self._init_instruments()
@@ -194,26 +206,44 @@ class TaskScheduler:
         self._emit_log("INFO", instrument.instrument_id, f"开始测量 {task.sample_id}")
 
         try:
-            result_img = instrument.run_measurement(task.sample_id)
-            if result_img is None:
-                raise Exception(f"仪器测量失败")
+            if task.ocr_results is not None and (task.review_confirmed or task.review_skipped):
+                self._emit_log("INFO", instrument.instrument_id,
+                               f"{task.sample_id} 已有OCR结果，跳过测量，继续LIMS回填")
+                task.status = "lims"
+                ocr_batch = task.ocr_results
+            else:
+                result_img = instrument.run_measurement(task.sample_id)
+                if result_img is None:
+                    raise Exception(f"仪器测量失败")
 
-            task.status = "ocr"
-            self._emit_log("INFO", instrument.instrument_id, f"OCR识别中 {task.sample_id}")
+                task.status = "ocr"
+                self._emit_log("INFO", instrument.instrument_id, f"OCR识别中 {task.sample_id}")
 
-            inst_cfg = self.instruments_cfg.get(instrument.instrument_id, {})
-            ocr_batch = self._ocr_reader.recognize(
-                result_img, instrument.instrument_id, task.sample_id, inst_cfg
-            )
-            task.ocr_results = ocr_batch
+                inst_cfg = self.instruments_cfg.get(instrument.instrument_id, {})
+                ocr_batch = self._ocr_reader.recognize(
+                    result_img, instrument.instrument_id, task.sample_id, inst_cfg
+                )
+                task.ocr_results = ocr_batch
 
-            if not ocr_batch.success:
-                review_items = [r for r in ocr_batch.results if r.needs_review]
-                if review_items:
-                    with self._lock:
-                        self._stats.total_review_needed += 1
-                    self._emit_log("WARNING", instrument.instrument_id,
-                                   f"{task.sample_id} 有{len(review_items)}项需人工复核")
+            review_items = [r for r in ocr_batch.results if r.needs_review]
+            if review_items and not task.review_confirmed and not task.review_skipped:
+                with self._lock:
+                    self._stats.total_review_needed += 1
+                    task.status = "review_pending"
+                    self._review_queue.append(task)
+                self._emit_log("WARNING", instrument.instrument_id,
+                               f"{task.sample_id} 有{len(review_items)}项需人工复核")
+
+                if self._auto_skip_review:
+                    task.review_skipped = True
+                    task.status = "review_skipped"
+                    self._emit_log("WARNING", "Scheduler",
+                                   f"{task.sample_id} 自动跳过复核，继续流程 (可调用 confirm_review_sample 人工确认)")
+                else:
+                    self._emit_log("WARNING", "Scheduler",
+                                   f"{task.sample_id} 暂停等待人工确认")
+                    _bell()
+                    return
 
             element_values: Dict[str, float] = {}
             for r in ocr_batch.results:
@@ -381,6 +411,42 @@ class TaskScheduler:
     def get_failed_tasks(self) -> List[SampleTask]:
         with self._lock:
             return list(self._failed_queue)
+
+    def get_review_tasks(self) -> List[SampleTask]:
+        with self._lock:
+            return list(self._review_queue)
+
+    def confirm_review_sample(self, sample_id: str, accept: bool = True) -> bool:
+        with self._lock:
+            for i, task in enumerate(self._review_queue):
+                if task.sample_id == sample_id:
+                    if accept:
+                        task.review_confirmed = True
+                        task.status = "review_confirmed"
+                        self._emit_log("SUCCESS", "Scheduler",
+                                       f"{sample_id} 人工复核通过")
+                        if not task.lims_result or not task.lims_result.success:
+                            self._review_queue.pop(i)
+                            self._task_queue.put(task)
+                            self._emit_log("INFO", "Scheduler",
+                                           f"{sample_id} 已重新入队继续LIMS回填")
+                    else:
+                        task.status = "review_rejected"
+                        task.review_skipped = True
+                        self._emit_log("WARNING", "Scheduler",
+                                       f"{sample_id} 人工复核驳回，移入异常队列")
+                        self._review_queue.pop(i)
+                        self._failed_queue.append(task)
+                    return True
+        return False
+
+    def skip_review_sample(self, sample_id: str) -> bool:
+        return self.confirm_review_sample(sample_id, accept=False)
+
+    def set_auto_skip_review(self, auto_skip: bool) -> None:
+        self._auto_skip_review = auto_skip
+        self._emit_log("INFO", "Scheduler",
+                       f"自动跳过复核模式已设为: {auto_skip}")
 
     def retry_failed_task(self, sample_id: str) -> bool:
         with self._lock:

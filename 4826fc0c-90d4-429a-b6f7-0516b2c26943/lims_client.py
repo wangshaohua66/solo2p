@@ -58,6 +58,9 @@ class LIMSClient:
         self._audit_dir = Path(global_config.get("audit_log_dir", "audit_logs"))
         self._audit_dir.mkdir(parents=True, exist_ok=True)
         self._window_rect: Optional[Tuple[int, int, int, int]] = None
+        self._logged_in = False
+        self._username = ""
+        self._password = ""
 
     def _jitter(self) -> None:
         delay = random.uniform(self._operation_jitter_min, self._operation_jitter_max)
@@ -326,6 +329,85 @@ class LIMSClient:
         }
         return self._click_template(save_btn_cfg, "点击保存按钮")
 
+    def set_credentials(self, username: str, password: str) -> None:
+        self._username = username
+        self._password = password
+        self._logged_in = False
+
+    def login(self) -> bool:
+        if self._logged_in:
+            return True
+
+        if not self._username or not self._password:
+            logger.warning("LIMS 登录凭证未设置，跳过登录流程")
+            return True
+
+        logger.info("LIMS 开始登录流程")
+
+        if not self._locate_lims_window():
+            logger.error("LIMS 登录失败: 无法定位窗口")
+            return False
+
+        login_cfg = self.config.get("login", {})
+        username_cfg = login_cfg.get("username_field", {})
+        password_cfg = login_cfg.get("password_field", {})
+        login_btn_cfg = login_cfg.get("login_button", {})
+
+        for attempt in range(self._max_retry):
+            try:
+                username_tpl = {
+                    "template": username_cfg.get("template", ""),
+                    "fallback_coords": username_cfg.get("fallback_coords")
+                }
+                if not self._click_template(username_tpl, "点击用户名输入框"):
+                    logger.warning(f"LIMS 登录第{attempt+1}次: 无法定位用户名框")
+                    self._exponential_backoff(attempt)
+                    continue
+
+                time.sleep(0.2)
+                pyautogui.hotkey("ctrl", "a")
+                time.sleep(0.1)
+                self._type_text(self._username)
+                time.sleep(0.3)
+
+                password_tpl = {
+                    "template": password_cfg.get("template", ""),
+                    "fallback_coords": password_cfg.get("fallback_coords")
+                }
+                if not self._click_template(password_tpl, "点击密码输入框"):
+                    logger.warning(f"LIMS 登录第{attempt+1}次: 无法定位密码框")
+                    self._exponential_backoff(attempt)
+                    continue
+
+                time.sleep(0.2)
+                pyautogui.hotkey("ctrl", "a")
+                time.sleep(0.1)
+                self._type_text(self._password)
+                time.sleep(0.3)
+
+                login_btn = {
+                    "template": login_btn_cfg.get("template", ""),
+                    "fallback_coords": login_btn_cfg.get("fallback_coords")
+                }
+                if not self._click_template(login_btn, "点击登录按钮"):
+                    logger.warning(f"LIMS 登录第{attempt+1}次: 无法定位登录按钮")
+                    self._exponential_backoff(attempt)
+                    continue
+
+                time.sleep(2.0)
+                self._logged_in = True
+                logger.success("LIMS 登录成功")
+                self._save_screenshot("login_success")
+                return True
+
+            except Exception as e:
+                logger.warning(f"LIMS 登录第{attempt+1}次异常: {e}")
+                self._exponential_backoff(attempt)
+
+        self._save_screenshot("login_failed")
+        logger.error("LIMS 登录失败，已保存截图")
+        return False
+
     def _verify_write(self, element_values: Dict[str, float], sample_id: str) -> bool:
         ver_cfg = self.config.get("verification", {})
         read_roi = ver_cfg.get("read_back_roi", [])
@@ -445,6 +527,10 @@ class LIMSClient:
         with self._lock:
             try:
                 logger.info(f"LIMS 开始回填结果: {sample_id}")
+
+                if not self.login():
+                    result.error_message = "LIMS 登录失败"
+                    return result
 
                 if not self.search_sample(sample_id):
                     result.error_message = "搜索样品失败"

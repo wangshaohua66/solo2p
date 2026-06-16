@@ -118,8 +118,91 @@ class InstrumentDriver:
             except Exception as e:
                 logger.warning(f"[{self.instrument_id}] win32 窗口定位异常: {e}")
 
-        logger.warning(f"[{self.instrument_id}] 模板和标题均无法定位窗口，尝试全屏搜索")
+        if self._fullscreen_feature_search():
+            return True
+
+        logger.warning(f"[{self.instrument_id}] 所有窗口定位策略均失败")
         return False
+
+    def _fullscreen_feature_search(self) -> bool:
+        status_cfg = self.config.get("status_indicator", {})
+        if not status_cfg:
+            return False
+
+        ready_roi = status_cfg.get("ready_roi", [])
+        ready_color = status_cfg.get("ready_color", [])
+        color_tolerance = status_cfg.get("color_tolerance", 40)
+
+        if not ready_roi or not ready_color or len(ready_roi) < 4 or len(ready_color) < 3:
+            return False
+
+        try:
+            logger.info(f"[{self.instrument_id}] 尝试全屏特征颜色搜索定位窗口")
+            screenshot = pyautogui.screenshot()
+            screen = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
+
+            target_bgr = np.array([ready_color[2], ready_color[1], ready_color[0]], dtype=np.uint8)
+            lower = np.clip(target_bgr - color_tolerance, 0, 255)
+            upper = np.clip(target_bgr + color_tolerance, 0, 255)
+
+            mask = cv2.inRange(screen, lower, upper)
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            roi_w, roi_h = ready_roi[2], ready_roi[3]
+            expected_area = roi_w * roi_h
+            min_area = expected_area * 0.5
+            max_area = expected_area * 2.0
+
+            best_match = None
+            best_score = 0
+
+            for cnt in contours:
+                area = cv2.contourArea(cnt)
+                if area < min_area or area > max_area:
+                    continue
+
+                x, y, w, h = cv2.boundingRect(cnt)
+                aspect_ratio = w / h if h > 0 else 0
+                expected_ratio = roi_w / roi_h if roi_h > 0 else 1
+                if abs(aspect_ratio - expected_ratio) > 0.5:
+                    continue
+
+                roi_center_x = ready_roi[0] + roi_w // 2
+                roi_center_y = ready_roi[1] + roi_h // 2
+                win_left = x + w // 2 - roi_center_x
+                win_top = y + h // 2 - roi_center_y
+
+                score = area / expected_area
+                if score > best_score:
+                    best_score = score
+                    best_match = (win_left, win_top)
+
+            if best_match and best_score >= 0.6:
+                win_left, win_top = best_match
+                default_w, default_h = 900, 650
+
+                result_region = self.config.get("result_region", {})
+                roi = result_region.get("roi", [])
+                if roi and len(roi) >= 4:
+                    default_w = max(default_w, roi[0] + roi[2] + 50)
+                    default_h = max(default_h, roi[1] + roi[3] + 50)
+
+                self.window_info = WindowInfo(
+                    left=max(0, win_left),
+                    top=max(0, win_top),
+                    width=default_w,
+                    height=default_h,
+                )
+                logger.success(f"[{self.instrument_id}] 全屏特征搜索定位成功: "
+                              f"({self.window_info.left}, {self.window_info.top})")
+                return True
+
+            logger.warning(f"[{self.instrument_id}] 全屏特征搜索未找到匹配区域")
+            return False
+
+        except Exception as e:
+            logger.warning(f"[{self.instrument_id}] 全屏特征搜索异常: {e}")
+            return False
 
     def _restore_window(self, hwnd: Any) -> None:
         if _HAS_WIN32 and sys.platform == "win32":
