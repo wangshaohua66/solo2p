@@ -1,0 +1,3002 @@
+
+    <!DOCTYPE html>
+    <html lang="zh-CN">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>法拍房监控日报 - 2026年06月17日</title>
+      
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+        background: #f0f2f5;
+        color: #1f2937;
+        line-height: 1.6;
+        padding: 20px;
+      }
+      .report-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+      .report-header {
+        background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+        color: #fff;
+        padding: 32px 40px;
+      }
+      .report-header h1 {
+        font-size: 28px;
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+      .report-header .report-date {
+        font-size: 14px;
+        opacity: 0.85;
+      }
+      .report-header .report-subtitle {
+        font-size: 13px;
+        opacity: 0.7;
+        margin-top: 4px;
+      }
+      .report-body {
+        padding: 32px 40px;
+      }
+      .report-section {
+        margin-bottom: 36px;
+      }
+      .section-header {
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #e5e7eb;
+      }
+      .section-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1f2937;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .section-icon {
+        font-size: 20px;
+      }
+      .section-count {
+        font-size: 13px;
+        font-weight: 400;
+        color: #6b7280;
+        background: #f3f4f6;
+        padding: 2px 10px;
+        border-radius: 20px;
+        margin-left: 8px;
+      }
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-bottom: 36px;
+      }
+      .stat-card {
+        background: #f9fafb;
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+        border: 1px solid #e5e7eb;
+      }
+      .stat-value {
+        font-size: 32px;
+        font-weight: 700;
+        line-height: 1.2;
+        margin-bottom: 4px;
+      }
+      .stat-label {
+        font-size: 13px;
+        color: #6b7280;
+        margin-bottom: 4px;
+      }
+      .stat-subtext {
+        font-size: 11px;
+        color: #9ca3af;
+      }
+      .high-value-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+      }
+      .high-value-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        transition: box-shadow 0.2s;
+      }
+      .high-value-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+      .card-header {
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        padding: 16px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+      }
+      .card-title {
+        flex: 1;
+      }
+      .card-title h3 {
+        font-size: 16px;
+        font-weight: 600;
+        color: #92400e;
+        margin-bottom: 6px;
+        line-height: 1.4;
+      }
+      .high-value-badge {
+        display: inline-block;
+        background: #f59e0b;
+        color: #fff;
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: 500;
+      }
+      .star-rating-large {
+        text-align: right;
+      }
+      .star-rating-large .stars {
+        font-size: 18px;
+        color: #f59e0b;
+        letter-spacing: 1px;
+      }
+      .star-rating-large .score {
+        display: block;
+        font-size: 12px;
+        color: #92400e;
+        margin-top: 2px;
+      }
+      .card-body {
+        padding: 20px;
+      }
+      .info-row {
+        margin-bottom: 14px;
+      }
+      .info-label {
+        font-size: 12px;
+        color: #6b7280;
+        display: block;
+        margin-bottom: 2px;
+      }
+      .info-value {
+        font-size: 14px;
+        color: #374151;
+      }
+      .info-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .info-item {
+        text-align: left;
+      }
+      .info-item .info-label {
+        font-size: 11px;
+        color: #9ca3af;
+      }
+      .info-item .info-value {
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .text-truncate {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        display: block;
+      }
+      .chart-section {
+        margin: 16px 0;
+        padding: 16px;
+        background: #f9fafb;
+        border-radius: 8px;
+      }
+      .chart-title {
+        font-size: 13px;
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 12px;
+      }
+      .price-chart {
+        width: 100%;
+      }
+      .price-bar-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .price-bar-label {
+        width: 50px;
+        font-size: 12px;
+        color: #6b7280;
+        flex-shrink: 0;
+      }
+      .price-bar-track {
+        flex: 1;
+        height: 24px;
+        background: #e5e7eb;
+        border-radius: 4px;
+        overflow: hidden;
+        position: relative;
+      }
+      .price-bar {
+        height: 100%;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-right: 8px;
+        min-width: 60px;
+        transition: width 0.5s ease;
+      }
+      .price-bar.assess-bar {
+        background: linear-gradient(90deg, #60a5fa, #3b82f6);
+      }
+      .price-bar.start-bar {
+        background: linear-gradient(90deg, #34d399, #10b981);
+      }
+      .price-bar-value {
+        font-size: 11px;
+        color: #fff;
+        font-weight: 500;
+        white-space: nowrap;
+      }
+      .price-diff-info {
+        text-align: right;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px dashed #d1d5db;
+      }
+      .price-diff-label {
+        font-size: 12px;
+        color: #6b7280;
+        margin-right: 6px;
+      }
+      .price-diff-value {
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .card-footer-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid #e5e7eb;
+      }
+      .discount-badge-large {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 8px 16px;
+        border-radius: 8px;
+        min-width: 90px;
+      }
+      .discount-badge-large.discount-danger {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+      }
+      .discount-badge-large.discount-warning {
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+      }
+      .discount-badge-large.discount-info {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+      }
+      .discount-badge-large.discount-normal {
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+      }
+      .discount-badge-large.discount-unknown {
+        background: #f3f4f6;
+        border: 1px solid #d1d5db;
+      }
+      .discount-badge-large .discount-label {
+        font-size: 11px;
+        color: #6b7280;
+        margin-bottom: 2px;
+      }
+      .discount-badge-large .discount-value {
+        font-size: 20px;
+        font-weight: 700;
+      }
+      .discount-badge-large.discount-danger .discount-value { color: #dc2626; }
+      .discount-badge-large.discount-warning .discount-value { color: #d97706; }
+      .discount-badge-large.discount-info .discount-value { color: #2563eb; }
+      .discount-badge-large.discount-normal .discount-value { color: #059669; }
+      .discount-badge-large.discount-unknown .discount-value { color: #6b7280; }
+      .countdown-badge {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+      }
+      .countdown-icon {
+        font-size: 14px;
+      }
+      .countdown-label {
+        font-size: 11px;
+        color: #6b7280;
+      }
+      .countdown-value {
+        font-size: 14px;
+        font-weight: 600;
+        color: #059669;
+      }
+      .countdown-value.expired {
+        color: #6b7280;
+      }
+      .card-footer {
+        padding: 12px 20px;
+        background: #f9fafb;
+        border-top: 1px solid #e5e7eb;
+        text-align: right;
+      }
+      .view-detail-btn {
+        color: #2563eb;
+        font-size: 13px;
+        text-decoration: none;
+        font-weight: 500;
+      }
+      .view-detail-btn:hover {
+        text-decoration: underline;
+      }
+      .table-wrapper {
+        overflow-x: auto;
+      }
+      .auction-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      .auction-table th {
+        background: #f9fafb;
+        padding: 12px 16px;
+        text-align: left;
+        font-weight: 600;
+        color: #374151;
+        border-bottom: 2px solid #e5e7eb;
+        white-space: nowrap;
+      }
+      .auction-table td {
+        padding: 14px 16px;
+        border-bottom: 1px solid #f3f4f6;
+        vertical-align: middle;
+      }
+      .auction-row:hover td {
+        background: #f9fafb;
+      }
+      .auction-title {
+        font-weight: 500;
+        color: #1f2937;
+        margin-bottom: 4px;
+        line-height: 1.4;
+      }
+      .auction-subtitle {
+        font-size: 11px;
+        color: #9ca3af;
+      }
+      .round-tag {
+        display: inline-block;
+        background: #e0e7ff;
+        color: #4338ca;
+        padding: 1px 6px;
+        border-radius: 3px;
+        margin-right: 6px;
+        font-size: 11px;
+      }
+      .court-name {
+        font-size: 11px;
+      }
+      .price-assess {
+        font-size: 11px;
+        color: #9ca3af;
+        margin-bottom: 2px;
+      }
+      .price-start {
+        font-size: 13px;
+        color: #1f2937;
+      }
+      .price-start strong {
+        color: #059669;
+      }
+      .discount-tag {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .discount-tag.discount-danger {
+        background: #fef2f2;
+        color: #dc2626;
+      }
+      .discount-tag.discount-warning {
+        background: #fffbeb;
+        color: #d97706;
+      }
+      .discount-tag.discount-info {
+        background: #eff6ff;
+        color: #2563eb;
+      }
+      .discount-tag.discount-normal {
+        background: #ecfdf5;
+        color: #059669;
+      }
+      .discount-tag.discount-unknown {
+        background: #f3f4f6;
+        color: #6b7280;
+      }
+      .diff-text {
+        font-size: 11px;
+        color: #059669;
+        margin-top: 2px;
+      }
+      .star-rating {
+        color: #f59e0b;
+        font-size: 14px;
+        letter-spacing: 1px;
+      }
+      .score-text {
+        font-size: 11px;
+        color: #9ca3af;
+        margin-top: 2px;
+      }
+      .countdown-text {
+        font-size: 13px;
+        font-weight: 500;
+        color: #059669;
+      }
+      .countdown-text.expired {
+        color: #6b7280;
+      }
+      .changes-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .change-item {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 14px 18px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .change-title {
+        font-weight: 500;
+        color: #1f2937;
+        margin-bottom: 4px;
+      }
+      .change-fields {
+        font-size: 12px;
+        color: #6b7280;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .change-icon {
+        font-size: 14px;
+      }
+      .change-time {
+        font-size: 12px;
+        color: #9ca3af;
+        flex-shrink: 0;
+      }
+      .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      .data-table th {
+        background: #f9fafb;
+        padding: 12px 16px;
+        text-align: left;
+        font-weight: 600;
+        color: #374151;
+        border-bottom: 2px solid #e5e7eb;
+      }
+      .data-table td {
+        padding: 12px 16px;
+        border-bottom: 1px solid #f3f4f6;
+      }
+      .data-table tbody tr:hover td {
+        background: #f9fafb;
+      }
+      .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: #9ca3af;
+        font-size: 14px;
+      }
+      .report-footer {
+        padding: 20px 40px;
+        background: #f9fafb;
+        border-top: 1px solid #e5e7eb;
+        text-align: center;
+        font-size: 12px;
+        color: #9ca3af;
+      }
+      @media (max-width: 768px) {
+        body { padding: 10px; }
+        .report-header { padding: 24px 20px; }
+        .report-header h1 { font-size: 22px; }
+        .report-body { padding: 20px 16px; }
+        .stats-grid {
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
+        }
+        .stat-value { font-size: 24px; }
+        .high-value-grid {
+          grid-template-columns: 1fr;
+          gap: 16px;
+        }
+        .info-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .table-wrapper {
+          overflow-x: auto;
+        }
+        .auction-table {
+          min-width: 600px;
+        }
+        .change-item {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 8px;
+        }
+        .report-footer { padding: 16px 20px; }
+      }
+      @media (max-width: 480px) {
+        .stats-grid {
+          grid-template-columns: 1fr;
+        }
+        .card-header {
+          flex-direction: column;
+          gap: 12px;
+        }
+        .star-rating-large {
+          text-align: left;
+        }
+        .card-footer-info {
+          flex-direction: column;
+          gap: 12px;
+          align-items: flex-start;
+        }
+        .countdown-badge {
+          align-items: flex-start;
+        }
+      }
+    </style>
+  
+    </head>
+    <body>
+      <div class="report-container">
+        <header class="report-header">
+          <h1>法拍房监控日报</h1>
+          <div class="report-date">📅 2026年06月17日</div>
+          <div class="report-subtitle">法拍房投资监控系统 · 每日自动生成</div>
+        </header>
+
+        <div class="report-body">
+          
+    <div class="stats-grid">
+      
+    <div class="stat-card">
+      <div class="stat-value" style="color: #3b82f6">120</div>
+      <div class="stat-label">总采集数</div>
+      <div class="stat-subtext">累计标的总数</div>
+    </div>
+  
+      
+    <div class="stat-card">
+      <div class="stat-value" style="color: #10b981">120</div>
+      <div class="stat-label">今日新增</div>
+      <div class="stat-subtext">新增标的数量</div>
+    </div>
+  
+      
+    <div class="stat-card">
+      <div class="stat-value" style="color: #f59e0b">23</div>
+      <div class="stat-label">高价值标的</div>
+      <div class="stat-subtext">三星及以上标的</div>
+    </div>
+  
+      
+    <div class="stat-card">
+      <div class="stat-value" style="color: #8b5cf6">0</div>
+      <div class="stat-label">变更记录</div>
+      <div class="stat-subtext">今日价格/状态变更</div>
+    </div>
+  
+    </div>
+  
+          
+      <section class="report-section">
+        <div class="section-header">
+          <h2 class="section-title">
+            <span class="section-icon">⭐</span>
+            高价值标的
+            <span class="section-count">10个</span>
+          </h2>
+        </div>
+        <div class="high-value-grid">
+          
+    <div class="high-value-card">
+      <div class="card-header">
+        <div class="card-title">
+          <h3>东城区王府井大街8号678室房产</h3>
+          <span class="high-value-badge">高价值标的</span>
+        </div>
+        <div class="star-rating-large">
+          <span class="stars">★★☆☆☆</span>
+          <span class="score">49.85分</span>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div class="info-row">
+          <span class="info-label">📍 地址</span>
+          <span class="info-value">北京市东城区王府井大街8号678室</span>
+        </div>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">面积</span>
+            <span class="info-value">180㎡</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">轮次</span>
+            <span class="info-value">变卖</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">法院</span>
+            <span class="info-value text-truncate">东城法院</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">报名</span>
+            <span class="info-value">48人</span>
+          </div>
+        </div>
+
+        <div class="chart-section">
+          <div class="chart-title">价格对比</div>
+          
+    <div class="price-chart">
+      <div class="price-bar-row">
+        <div class="price-bar-label">评估价</div>
+        <div class="price-bar-track">
+          <div class="price-bar assess-bar" style="width: 100%">
+            <span class="price-bar-value">484.00万</span>
+          </div>
+        </div>
+      </div>
+      <div class="price-bar-row">
+        <div class="price-bar-label">起拍价</div>
+        <div class="price-bar-track">
+          <div class="price-bar start-bar" style="width: 50.248719008264466%">
+            <span class="price-bar-value">243.20万</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="price-diff-info">
+        <span class="price-diff-label">价差</span>
+        <span class="price-diff-value" style="color: #f59e0b">-49.8%</span>
+      </div>
+      
+    </div>
+  
+        </div>
+
+        <div class="card-footer-info">
+          <div class="discount-badge-large discount-warning">
+            <span class="discount-label">折价率</span>
+            <span class="discount-value">50.25%</span>
+          </div>
+          <div class="countdown-badge">
+            <span class="countdown-icon">⏰</span>
+            <span class="countdown-label">距开拍</span>
+            <span class="countdown-value ">1天23小时</span>
+          </div>
+        </div>
+      </div>
+
+      
+      <div class="card-footer">
+        <a href="https://example.com/auction/公拍网/(2024)京0400执002971号" target="_blank" class="view-detail-btn">查看详情 →</a>
+      </div>
+      
+    </div>
+  
+    <div class="high-value-card">
+      <div class="card-header">
+        <div class="card-title">
+          <h3>西城区长安街11号1761室房产</h3>
+          <span class="high-value-badge">高价值标的</span>
+        </div>
+        <div class="star-rating-large">
+          <span class="stars">★★☆☆☆</span>
+          <span class="score">49.3分</span>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div class="info-row">
+          <span class="info-label">📍 地址</span>
+          <span class="info-value">北京市西城区长安街11号1761室</span>
+        </div>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">面积</span>
+            <span class="info-value">116㎡</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">轮次</span>
+            <span class="info-value">变卖</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">法院</span>
+            <span class="info-value text-truncate">东城法院</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">报名</span>
+            <span class="info-value">3人</span>
+          </div>
+        </div>
+
+        <div class="chart-section">
+          <div class="chart-title">价格对比</div>
+          
+    <div class="price-chart">
+      <div class="price-bar-row">
+        <div class="price-bar-label">评估价</div>
+        <div class="price-bar-track">
+          <div class="price-bar assess-bar" style="width: 100%">
+            <span class="price-bar-value">291.00万</span>
+          </div>
+        </div>
+      </div>
+      <div class="price-bar-row">
+        <div class="price-bar-label">起拍价</div>
+        <div class="price-bar-track">
+          <div class="price-bar start-bar" style="width: 51.15804123711341%">
+            <span class="price-bar-value">148.87万</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="price-diff-info">
+        <span class="price-diff-label">价差</span>
+        <span class="price-diff-value" style="color: #f59e0b">-48.8%</span>
+      </div>
+      
+    </div>
+  
+        </div>
+
+        <div class="card-footer-info">
+          <div class="discount-badge-large discount-warning">
+            <span class="discount-label">折价率</span>
+            <span class="discount-value">51.16%</span>
+          </div>
+          <div class="countdown-badge">
+            <span class="countdown-icon">⏰</span>
+            <span class="countdown-label">距开拍</span>
+            <span class="countdown-value ">2天23小时</span>
+          </div>
+        </div>
+      </div>
+
+      
+      <div class="card-footer">
+        <a href="https://example.com/auction/京东拍卖-司法/(2024)京0741执009049号" target="_blank" class="view-detail-btn">查看详情 →</a>
+      </div>
+      
+    </div>
+  
+    <div class="high-value-card">
+      <div class="card-header">
+        <div class="card-title">
+          <h3>西城区建国路2号306室房产</h3>
+          <span class="high-value-badge">高价值标的</span>
+        </div>
+        <div class="star-rating-large">
+          <span class="stars">★★☆☆☆</span>
+          <span class="score">48.66分</span>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div class="info-row">
+          <span class="info-label">📍 地址</span>
+          <span class="info-value">北京市西城区建国路2号306室</span>
+        </div>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">面积</span>
+            <span class="info-value">168㎡</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">轮次</span>
+            <span class="info-value">变卖</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">法院</span>
+            <span class="info-value text-truncate">西城法院</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">报名</span>
+            <span class="info-value">8人</span>
+          </div>
+        </div>
+
+        <div class="chart-section">
+          <div class="chart-title">价格对比</div>
+          
+    <div class="price-chart">
+      <div class="price-bar-row">
+        <div class="price-bar-label">评估价</div>
+        <div class="price-bar-track">
+          <div class="price-bar assess-bar" style="width: 100%">
+            <span class="price-bar-value">541.00万</span>
+          </div>
+        </div>
+      </div>
+      <div class="price-bar-row">
+        <div class="price-bar-label">起拍价</div>
+        <div class="price-bar-track">
+          <div class="price-bar start-bar" style="width: 52.23609981515711%">
+            <span class="price-bar-value">282.60万</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="price-diff-info">
+        <span class="price-diff-label">价差</span>
+        <span class="price-diff-value" style="color: #f59e0b">-47.8%</span>
+      </div>
+      
+    </div>
+  
+        </div>
+
+        <div class="card-footer-info">
+          <div class="discount-badge-large discount-warning">
+            <span class="discount-label">折价率</span>
+            <span class="discount-value">52.24%</span>
+          </div>
+          <div class="countdown-badge">
+            <span class="countdown-icon">⏰</span>
+            <span class="countdown-label">距开拍</span>
+            <span class="countdown-value ">3天23小时</span>
+          </div>
+        </div>
+      </div>
+
+      
+      <div class="card-footer">
+        <a href="https://example.com/auction/公拍网/(2024)京0793执004068号" target="_blank" class="view-detail-btn">查看详情 →</a>
+      </div>
+      
+    </div>
+  
+    <div class="high-value-card">
+      <div class="card-header">
+        <div class="card-title">
+          <h3>丰台区建国路25号981室房产</h3>
+          <span class="high-value-badge">高价值标的</span>
+        </div>
+        <div class="star-rating-large">
+          <span class="stars">★★☆☆☆</span>
+          <span class="score">46.92分</span>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div class="info-row">
+          <span class="info-label">📍 地址</span>
+          <span class="info-value">北京市丰台区建国路25号981室</span>
+        </div>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">面积</span>
+            <span class="info-value">138㎡</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">轮次</span>
+            <span class="info-value">变卖</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">法院</span>
+            <span class="info-value text-truncate">西城法院</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">报名</span>
+            <span class="info-value">5人</span>
+          </div>
+        </div>
+
+        <div class="chart-section">
+          <div class="chart-title">价格对比</div>
+          
+    <div class="price-chart">
+      <div class="price-bar-row">
+        <div class="price-bar-label">评估价</div>
+        <div class="price-bar-track">
+          <div class="price-bar assess-bar" style="width: 100%">
+            <span class="price-bar-value">400.00万</span>
+          </div>
+        </div>
+      </div>
+      <div class="price-bar-row">
+        <div class="price-bar-label">起拍价</div>
+        <div class="price-bar-track">
+          <div class="price-bar start-bar" style="width: 55.1356%">
+            <span class="price-bar-value">220.54万</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="price-diff-info">
+        <span class="price-diff-label">价差</span>
+        <span class="price-diff-value" style="color: #f59e0b">-44.9%</span>
+      </div>
+      
+    </div>
+  
+        </div>
+
+        <div class="card-footer-info">
+          <div class="discount-badge-large discount-warning">
+            <span class="discount-label">折价率</span>
+            <span class="discount-value">55.14%</span>
+          </div>
+          <div class="countdown-badge">
+            <span class="countdown-icon">⏰</span>
+            <span class="countdown-label">距开拍</span>
+            <span class="countdown-value ">22天23小时</span>
+          </div>
+        </div>
+      </div>
+
+      
+      <div class="card-footer">
+        <a href="https://example.com/auction/阿里拍卖-司法/(2024)京0221执008089号" target="_blank" class="view-detail-btn">查看详情 →</a>
+      </div>
+      
+    </div>
+  
+    <div class="high-value-card">
+      <div class="card-header">
+        <div class="card-title">
+          <h3>海淀区建国路11号117室房产</h3>
+          <span class="high-value-badge">高价值标的</span>
+        </div>
+        <div class="star-rating-large">
+          <span class="stars">★★☆☆☆</span>
+          <span class="score">46.87分</span>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div class="info-row">
+          <span class="info-label">📍 地址</span>
+          <span class="info-value">北京市海淀区建国路11号117室</span>
+        </div>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">面积</span>
+            <span class="info-value">130㎡</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">轮次</span>
+            <span class="info-value">变卖</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">法院</span>
+            <span class="info-value text-truncate">西城法院</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">报名</span>
+            <span class="info-value">10人</span>
+          </div>
+        </div>
+
+        <div class="chart-section">
+          <div class="chart-title">价格对比</div>
+          
+    <div class="price-chart">
+      <div class="price-bar-row">
+        <div class="price-bar-label">评估价</div>
+        <div class="price-bar-track">
+          <div class="price-bar assess-bar" style="width: 100%">
+            <span class="price-bar-value">335.00万</span>
+          </div>
+        </div>
+      </div>
+      <div class="price-bar-row">
+        <div class="price-bar-label">起拍价</div>
+        <div class="price-bar-track">
+          <div class="price-bar start-bar" style="width: 55.22480597014925%">
+            <span class="price-bar-value">185.00万</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="price-diff-info">
+        <span class="price-diff-label">价差</span>
+        <span class="price-diff-value" style="color: #f59e0b">-44.8%</span>
+      </div>
+      
+    </div>
+  
+        </div>
+
+        <div class="card-footer-info">
+          <div class="discount-badge-large discount-warning">
+            <span class="discount-label">折价率</span>
+            <span class="discount-value">55.22%</span>
+          </div>
+          <div class="countdown-badge">
+            <span class="countdown-icon">⏰</span>
+            <span class="countdown-label">距开拍</span>
+            <span class="countdown-value ">28天23小时</span>
+          </div>
+        </div>
+      </div>
+
+      
+      <div class="card-footer">
+        <a href="https://example.com/auction/京东拍卖-司法/(2024)京0307执002755号" target="_blank" class="view-detail-btn">查看详情 →</a>
+      </div>
+      
+    </div>
+  
+    <div class="high-value-card">
+      <div class="card-header">
+        <div class="card-title">
+          <h3>海淀区王府井大街18号1602室房产</h3>
+          <span class="high-value-badge">高价值标的</span>
+        </div>
+        <div class="star-rating-large">
+          <span class="stars">★★☆☆☆</span>
+          <span class="score">46.63分</span>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div class="info-row">
+          <span class="info-label">📍 地址</span>
+          <span class="info-value">北京市海淀区王府井大街18号1602室</span>
+        </div>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">面积</span>
+            <span class="info-value">169㎡</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">轮次</span>
+            <span class="info-value">变卖</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">法院</span>
+            <span class="info-value text-truncate">海淀法院</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">报名</span>
+            <span class="info-value">16人</span>
+          </div>
+        </div>
+
+        <div class="chart-section">
+          <div class="chart-title">价格对比</div>
+          
+    <div class="price-chart">
+      <div class="price-bar-row">
+        <div class="price-bar-label">评估价</div>
+        <div class="price-bar-track">
+          <div class="price-bar assess-bar" style="width: 100%">
+            <span class="price-bar-value">154.00万</span>
+          </div>
+        </div>
+      </div>
+      <div class="price-bar-row">
+        <div class="price-bar-label">起拍价</div>
+        <div class="price-bar-track">
+          <div class="price-bar start-bar" style="width: 55.611948051948055%">
+            <span class="price-bar-value">85.64万</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="price-diff-info">
+        <span class="price-diff-label">价差</span>
+        <span class="price-diff-value" style="color: #f59e0b">-44.4%</span>
+      </div>
+      
+    </div>
+  
+        </div>
+
+        <div class="card-footer-info">
+          <div class="discount-badge-large discount-warning">
+            <span class="discount-label">折价率</span>
+            <span class="discount-value">55.61%</span>
+          </div>
+          <div class="countdown-badge">
+            <span class="countdown-icon">⏰</span>
+            <span class="countdown-label">距开拍</span>
+            <span class="countdown-value ">11天23小时</span>
+          </div>
+        </div>
+      </div>
+
+      
+      <div class="card-footer">
+        <a href="https://example.com/auction/阿里拍卖-司法/(2024)京0370执008635号" target="_blank" class="view-detail-btn">查看详情 →</a>
+      </div>
+      
+    </div>
+  
+    <div class="high-value-card">
+      <div class="card-header">
+        <div class="card-title">
+          <h3>丰台区长安街11号1659室房产</h3>
+          <span class="high-value-badge">高价值标的</span>
+        </div>
+        <div class="star-rating-large">
+          <span class="stars">★★☆☆☆</span>
+          <span class="score">46.48分</span>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div class="info-row">
+          <span class="info-label">📍 地址</span>
+          <span class="info-value">北京市丰台区长安街11号1659室</span>
+        </div>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">面积</span>
+            <span class="info-value">147㎡</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">轮次</span>
+            <span class="info-value">变卖</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">法院</span>
+            <span class="info-value text-truncate">朝阳法院</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">报名</span>
+            <span class="info-value">39人</span>
+          </div>
+        </div>
+
+        <div class="chart-section">
+          <div class="chart-title">价格对比</div>
+          
+    <div class="price-chart">
+      <div class="price-bar-row">
+        <div class="price-bar-label">评估价</div>
+        <div class="price-bar-track">
+          <div class="price-bar assess-bar" style="width: 100%">
+            <span class="price-bar-value">499.00万</span>
+          </div>
+        </div>
+      </div>
+      <div class="price-bar-row">
+        <div class="price-bar-label">起拍价</div>
+        <div class="price-bar-track">
+          <div class="price-bar start-bar" style="width: 55.86531062124248%">
+            <span class="price-bar-value">278.77万</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="price-diff-info">
+        <span class="price-diff-label">价差</span>
+        <span class="price-diff-value" style="color: #f59e0b">-44.1%</span>
+      </div>
+      
+    </div>
+  
+        </div>
+
+        <div class="card-footer-info">
+          <div class="discount-badge-large discount-warning">
+            <span class="discount-label">折价率</span>
+            <span class="discount-value">55.87%</span>
+          </div>
+          <div class="countdown-badge">
+            <span class="countdown-icon">⏰</span>
+            <span class="countdown-label">距开拍</span>
+            <span class="countdown-value ">18天23小时</span>
+          </div>
+        </div>
+      </div>
+
+      
+      <div class="card-footer">
+        <a href="https://example.com/auction/阿里拍卖-司法/(2024)京0524执009634号" target="_blank" class="view-detail-btn">查看详情 →</a>
+      </div>
+      
+    </div>
+  
+    <div class="high-value-card">
+      <div class="card-header">
+        <div class="card-title">
+          <h3>海淀区长安街17号415室房产</h3>
+          <span class="high-value-badge">高价值标的</span>
+        </div>
+        <div class="star-rating-large">
+          <span class="stars">★★☆☆☆</span>
+          <span class="score">46.14分</span>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div class="info-row">
+          <span class="info-label">📍 地址</span>
+          <span class="info-value">北京市海淀区长安街17号415室</span>
+        </div>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">面积</span>
+            <span class="info-value">146㎡</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">轮次</span>
+            <span class="info-value">变卖</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">法院</span>
+            <span class="info-value text-truncate">西城法院</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">报名</span>
+            <span class="info-value">35人</span>
+          </div>
+        </div>
+
+        <div class="chart-section">
+          <div class="chart-title">价格对比</div>
+          
+    <div class="price-chart">
+      <div class="price-bar-row">
+        <div class="price-bar-label">评估价</div>
+        <div class="price-bar-track">
+          <div class="price-bar assess-bar" style="width: 100%">
+            <span class="price-bar-value">498.00万</span>
+          </div>
+        </div>
+      </div>
+      <div class="price-bar-row">
+        <div class="price-bar-label">起拍价</div>
+        <div class="price-bar-track">
+          <div class="price-bar start-bar" style="width: 56.428714859437754%">
+            <span class="price-bar-value">281.01万</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="price-diff-info">
+        <span class="price-diff-label">价差</span>
+        <span class="price-diff-value" style="color: #f59e0b">-43.6%</span>
+      </div>
+      
+    </div>
+  
+        </div>
+
+        <div class="card-footer-info">
+          <div class="discount-badge-large discount-warning">
+            <span class="discount-label">折价率</span>
+            <span class="discount-value">56.43%</span>
+          </div>
+          <div class="countdown-badge">
+            <span class="countdown-icon">⏰</span>
+            <span class="countdown-label">距开拍</span>
+            <span class="countdown-value ">3天23小时</span>
+          </div>
+        </div>
+      </div>
+
+      
+      <div class="card-footer">
+        <a href="https://example.com/auction/京东拍卖-司法/(2024)京0899执001367号" target="_blank" class="view-detail-btn">查看详情 →</a>
+      </div>
+      
+    </div>
+  
+    <div class="high-value-card">
+      <div class="card-header">
+        <div class="card-title">
+          <h3>西城区中关村大街29号1462室房产</h3>
+          <span class="high-value-badge">高价值标的</span>
+        </div>
+        <div class="star-rating-large">
+          <span class="stars">★★☆☆☆</span>
+          <span class="score">46.02分</span>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div class="info-row">
+          <span class="info-label">📍 地址</span>
+          <span class="info-value">北京市西城区中关村大街29号1462室</span>
+        </div>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">面积</span>
+            <span class="info-value">177㎡</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">轮次</span>
+            <span class="info-value">变卖</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">法院</span>
+            <span class="info-value text-truncate">海淀法院</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">报名</span>
+            <span class="info-value">33人</span>
+          </div>
+        </div>
+
+        <div class="chart-section">
+          <div class="chart-title">价格对比</div>
+          
+    <div class="price-chart">
+      <div class="price-bar-row">
+        <div class="price-bar-label">评估价</div>
+        <div class="price-bar-track">
+          <div class="price-bar assess-bar" style="width: 100%">
+            <span class="price-bar-value">577.00万</span>
+          </div>
+        </div>
+      </div>
+      <div class="price-bar-row">
+        <div class="price-bar-label">起拍价</div>
+        <div class="price-bar-track">
+          <div class="price-bar start-bar" style="width: 56.63726169844021%">
+            <span class="price-bar-value">326.80万</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="price-diff-info">
+        <span class="price-diff-label">价差</span>
+        <span class="price-diff-value" style="color: #f59e0b">-43.4%</span>
+      </div>
+      
+    </div>
+  
+        </div>
+
+        <div class="card-footer-info">
+          <div class="discount-badge-large discount-warning">
+            <span class="discount-label">折价率</span>
+            <span class="discount-value">56.64%</span>
+          </div>
+          <div class="countdown-badge">
+            <span class="countdown-icon">⏰</span>
+            <span class="countdown-label">距开拍</span>
+            <span class="countdown-value ">26天23小时</span>
+          </div>
+        </div>
+      </div>
+
+      
+      <div class="card-footer">
+        <a href="https://example.com/auction/阿里拍卖-司法/(2024)京0614执002648号" target="_blank" class="view-detail-btn">查看详情 →</a>
+      </div>
+      
+    </div>
+  
+    <div class="high-value-card">
+      <div class="card-header">
+        <div class="card-title">
+          <h3>西城区长安街1号1125室房产</h3>
+          <span class="high-value-badge">高价值标的</span>
+        </div>
+        <div class="star-rating-large">
+          <span class="stars">★★☆☆☆</span>
+          <span class="score">45.58分</span>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div class="info-row">
+          <span class="info-label">📍 地址</span>
+          <span class="info-value">北京市西城区长安街1号1125室</span>
+        </div>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">面积</span>
+            <span class="info-value">152㎡</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">轮次</span>
+            <span class="info-value">变卖</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">法院</span>
+            <span class="info-value text-truncate">海淀法院</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">报名</span>
+            <span class="info-value">35人</span>
+          </div>
+        </div>
+
+        <div class="chart-section">
+          <div class="chart-title">价格对比</div>
+          
+    <div class="price-chart">
+      <div class="price-bar-row">
+        <div class="price-bar-label">评估价</div>
+        <div class="price-bar-track">
+          <div class="price-bar assess-bar" style="width: 100%">
+            <span class="price-bar-value">207.00万</span>
+          </div>
+        </div>
+      </div>
+      <div class="price-bar-row">
+        <div class="price-bar-label">起拍价</div>
+        <div class="price-bar-track">
+          <div class="price-bar start-bar" style="width: 57.35729468599033%">
+            <span class="price-bar-value">118.73万</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="price-diff-info">
+        <span class="price-diff-label">价差</span>
+        <span class="price-diff-value" style="color: #f59e0b">-42.6%</span>
+      </div>
+      
+    </div>
+  
+        </div>
+
+        <div class="card-footer-info">
+          <div class="discount-badge-large discount-warning">
+            <span class="discount-label">折价率</span>
+            <span class="discount-value">57.36%</span>
+          </div>
+          <div class="countdown-badge">
+            <span class="countdown-icon">⏰</span>
+            <span class="countdown-label">距开拍</span>
+            <span class="countdown-value ">7天23小时</span>
+          </div>
+        </div>
+      </div>
+
+      
+      <div class="card-footer">
+        <a href="https://example.com/auction/公拍网/(2024)京0367执003046号" target="_blank" class="view-detail-btn">查看详情 →</a>
+      </div>
+      
+    </div>
+  
+        </div>
+      </section>
+    
+          
+      <section class="report-section">
+        <div class="section-header">
+          <h2 class="section-title">
+            <span class="section-icon">🆕</span>
+            新增标的
+            <span class="section-count">50个</span>
+          </h2>
+        </div>
+        <div class="table-wrapper">
+          <table class="auction-table">
+            <thead>
+              <tr>
+                <th class="col-title">标的信息</th>
+                <th class="col-price">价格</th>
+                <th class="col-discount">折价率</th>
+                <th class="col-area">面积</th>
+                <th class="col-stars">评分</th>
+                <th class="col-countdown">倒计时</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市西城区建国路6号1198室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">变卖</span>
+          <span class="court-name">海淀法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 503.00万</div>
+        <div class="price-start">起拍: <strong>334.35万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-warning">
+          66.47%
+        </span>
+        <div class="diff-text">省33.53%</div>
+      </td>
+      <td class="col-area">166㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★★☆☆☆</span>
+        <div class="score-text">40.12分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">13天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市朝阳区中关村大街10号1290室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">一拍</span>
+          <span class="court-name">东城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 512.00万</div>
+        <div class="price-start">起拍: <strong>278.71万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-warning">
+          54.43%
+        </span>
+        <div class="diff-text">省45.57%</div>
+      </td>
+      <td class="col-area">182㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">27.34分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">21天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市海淀区建国路26号1656室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">二拍</span>
+          <span class="court-name">海淀法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 468.00万</div>
+        <div class="price-start">起拍: <strong>374.36万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-info">
+          79.99%
+        </span>
+        <div class="diff-text">省20.01%</div>
+      </td>
+      <td class="col-area">89㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">32.01分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">8天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市海淀区长安街30号1639室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">二拍</span>
+          <span class="court-name">西城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 353.00万</div>
+        <div class="price-start">起拍: <strong>187.12万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-warning">
+          53.01%
+        </span>
+        <div class="diff-text">省46.99%</div>
+      </td>
+      <td class="col-area">79㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★★☆☆☆</span>
+        <div class="score-text">48.19分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">16天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市东城区建国路21号204室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">二拍</span>
+          <span class="court-name">西城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 232.00万</div>
+        <div class="price-start">起拍: <strong>155.86万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-warning">
+          67.18%
+        </span>
+        <div class="diff-text">省32.82%</div>
+      </td>
+      <td class="col-area">52㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">39.69分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">9天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市西城区建国路2号306室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">变卖</span>
+          <span class="court-name">西城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 541.00万</div>
+        <div class="price-start">起拍: <strong>282.60万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-warning">
+          52.24%
+        </span>
+        <div class="diff-text">省47.76%</div>
+      </td>
+      <td class="col-area">168㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★★☆☆☆</span>
+        <div class="score-text">48.66分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">3天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市海淀区建国路8号726室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">变卖</span>
+          <span class="court-name">西城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 123.00万</div>
+        <div class="price-start">起拍: <strong>75.71万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-warning">
+          61.56%
+        </span>
+        <div class="diff-text">省38.44%</div>
+      </td>
+      <td class="col-area">195㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★★☆☆☆</span>
+        <div class="score-text">43.06分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">17天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市朝阳区王府井大街28号1419室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">一拍</span>
+          <span class="court-name">海淀法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 340.00万</div>
+        <div class="price-start">起拍: <strong>271.89万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-info">
+          79.97%
+        </span>
+        <div class="diff-text">省20.03%</div>
+      </td>
+      <td class="col-area">86㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">12.02分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">8天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市丰台区王府井大街25号638室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">一拍</span>
+          <span class="court-name">朝阳法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 161.00万</div>
+        <div class="price-start">起拍: <strong>121.18万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-info">
+          75.26%
+        </span>
+        <div class="diff-text">省24.74%</div>
+      </td>
+      <td class="col-area">54㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">14.84分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">24天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市海淀区中关村大街20号1453室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">一拍</span>
+          <span class="court-name">东城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 134.00万</div>
+        <div class="price-start">起拍: <strong>116.45万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-normal">
+          86.9%
+        </span>
+        <div class="diff-text">省13.1%</div>
+      </td>
+      <td class="col-area">168㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">7.86分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">1天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市西城区建国路18号1952室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">变卖</span>
+          <span class="court-name">东城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 472.00万</div>
+        <div class="price-start">起拍: <strong>304.26万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-warning">
+          64.46%
+        </span>
+        <div class="diff-text">省35.54%</div>
+      </td>
+      <td class="col-area">57㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★★☆☆☆</span>
+        <div class="score-text">41.32分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">23天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市东城区中关村大街15号1350室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">一拍</span>
+          <span class="court-name">海淀法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 585.00万</div>
+        <div class="price-start">起拍: <strong>495.46万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-info">
+          84.69%
+        </span>
+        <div class="diff-text">省15.31%</div>
+      </td>
+      <td class="col-area">76㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">9.19分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">14天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市东城区建国路24号905室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">一拍</span>
+          <span class="court-name">朝阳法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 180.00万</div>
+        <div class="price-start">起拍: <strong>132.39万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-info">
+          73.55%
+        </span>
+        <div class="diff-text">省26.45%</div>
+      </td>
+      <td class="col-area">133㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">15.87分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">6天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市东城区中关村大街3号1836室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">一拍</span>
+          <span class="court-name">东城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 179.00万</div>
+        <div class="price-start">起拍: <strong>128.54万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-info">
+          71.81%
+        </span>
+        <div class="diff-text">省28.19%</div>
+      </td>
+      <td class="col-area">176㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">16.91分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">1天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市朝阳区长安街30号1670室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">二拍</span>
+          <span class="court-name">海淀法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 558.00万</div>
+        <div class="price-start">起拍: <strong>297.56万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-warning">
+          53.33%
+        </span>
+        <div class="diff-text">省46.67%</div>
+      </td>
+      <td class="col-area">134㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★★☆☆☆</span>
+        <div class="score-text">48分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">12天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市丰台区长安街6号840室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">变卖</span>
+          <span class="court-name">东城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 285.00万</div>
+        <div class="price-start">起拍: <strong>253.26万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-normal">
+          88.86%
+        </span>
+        <div class="diff-text">省11.14%</div>
+      </td>
+      <td class="col-area">172㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">26.68分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">10天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市朝阳区中关村大街17号1777室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">二拍</span>
+          <span class="court-name">朝阳法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 579.00万</div>
+        <div class="price-start">起拍: <strong>463.21万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-info">
+          80%
+        </span>
+        <div class="diff-text">省20%</div>
+      </td>
+      <td class="col-area">119㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">32分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">20天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市丰台区长安街18号1626室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">变卖</span>
+          <span class="court-name">朝阳法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 516.00万</div>
+        <div class="price-start">起拍: <strong>362.96万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-info">
+          70.34%
+        </span>
+        <div class="diff-text">省29.66%</div>
+      </td>
+      <td class="col-area">77㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">37.8分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">26天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市西城区长安街22号1354室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">一拍</span>
+          <span class="court-name">海淀法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 413.00万</div>
+        <div class="price-start">起拍: <strong>320.13万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-info">
+          77.51%
+        </span>
+        <div class="diff-text">省22.49%</div>
+      </td>
+      <td class="col-area">103㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">13.49分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">17天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市东城区中关村大街19号1356室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">一拍</span>
+          <span class="court-name">西城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 352.00万</div>
+        <div class="price-start">起拍: <strong>196.79万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-warning">
+          55.91%
+        </span>
+        <div class="diff-text">省44.09%</div>
+      </td>
+      <td class="col-area">128㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">26.45分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">24天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市西城区长安街27号1303室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">变卖</span>
+          <span class="court-name">西城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 136.00万</div>
+        <div class="price-start">起拍: <strong>105.80万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-info">
+          77.8%
+        </span>
+        <div class="diff-text">省22.2%</div>
+      </td>
+      <td class="col-area">72㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">33.32分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">1天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市朝阳区中关村大街18号504室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">一拍</span>
+          <span class="court-name">东城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 341.00万</div>
+        <div class="price-start">起拍: <strong>301.25万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-normal">
+          88.34%
+        </span>
+        <div class="diff-text">省11.66%</div>
+      </td>
+      <td class="col-area">57㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">7分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">19天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市丰台区王府井大街17号616室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">变卖</span>
+          <span class="court-name">东城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 371.00万</div>
+        <div class="price-start">起拍: <strong>251.27万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-warning">
+          67.73%
+        </span>
+        <div class="diff-text">省32.27%</div>
+      </td>
+      <td class="col-area">61㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">39.36分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">3天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市海淀区王府井大街6号929室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">二拍</span>
+          <span class="court-name">朝阳法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 436.00万</div>
+        <div class="price-start">起拍: <strong>296.73万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-warning">
+          68.06%
+        </span>
+        <div class="diff-text">省31.94%</div>
+      </td>
+      <td class="col-area">177㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">39.16分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">15天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市海淀区长安街24号282室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">变卖</span>
+          <span class="court-name">东城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 337.00万</div>
+        <div class="price-start">起拍: <strong>272.89万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-info">
+          80.97%
+        </span>
+        <div class="diff-text">省19.03%</div>
+      </td>
+      <td class="col-area">109㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">31.42分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">25天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市海淀区中关村大街22号1743室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">一拍</span>
+          <span class="court-name">东城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 133.00万</div>
+        <div class="price-start">起拍: <strong>115.81万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-normal">
+          87.07%
+        </span>
+        <div class="diff-text">省12.93%</div>
+      </td>
+      <td class="col-area">155㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">7.76分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">12天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市丰台区中关村大街11号1489室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">变卖</span>
+          <span class="court-name">西城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 325.00万</div>
+        <div class="price-start">起拍: <strong>241.61万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-info">
+          74.34%
+        </span>
+        <div class="diff-text">省25.66%</div>
+      </td>
+      <td class="col-area">177㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">35.4分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">17天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市西城区长安街5号300室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">变卖</span>
+          <span class="court-name">朝阳法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 538.00万</div>
+        <div class="price-start">起拍: <strong>391.89万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-info">
+          72.84%
+        </span>
+        <div class="diff-text">省27.16%</div>
+      </td>
+      <td class="col-area">145㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">36.3分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">16天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市东城区中关村大街19号317室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">二拍</span>
+          <span class="court-name">海淀法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 341.00万</div>
+        <div class="price-start">起拍: <strong>180.31万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-warning">
+          52.88%
+        </span>
+        <div class="diff-text">省47.12%</div>
+      </td>
+      <td class="col-area">51㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★★☆☆☆</span>
+        <div class="score-text">48.27分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">26天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市西城区王府井大街7号1636室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">二拍</span>
+          <span class="court-name">西城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 351.00万</div>
+        <div class="price-start">起拍: <strong>218.70万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-warning">
+          62.31%
+        </span>
+        <div class="diff-text">省37.69%</div>
+      </td>
+      <td class="col-area">60㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★★☆☆☆</span>
+        <div class="score-text">42.61分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">11天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市海淀区王府井大街17号1289室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">二拍</span>
+          <span class="court-name">东城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 310.00万</div>
+        <div class="price-start">起拍: <strong>208.13万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-warning">
+          67.14%
+        </span>
+        <div class="diff-text">省32.86%</div>
+      </td>
+      <td class="col-area">195㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">39.72分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">28天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市海淀区建国路4号1658室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">变卖</span>
+          <span class="court-name">西城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 374.00万</div>
+        <div class="price-start">起拍: <strong>310.27万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-info">
+          82.96%
+        </span>
+        <div class="diff-text">省17.04%</div>
+      </td>
+      <td class="col-area">176㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">30.22分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">11天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市东城区王府井大街8号678室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">变卖</span>
+          <span class="court-name">东城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 484.00万</div>
+        <div class="price-start">起拍: <strong>243.20万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-warning">
+          50.25%
+        </span>
+        <div class="diff-text">省49.75%</div>
+      </td>
+      <td class="col-area">180㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★★☆☆☆</span>
+        <div class="score-text">49.85分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">1天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市东城区王府井大街26号1861室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">二拍</span>
+          <span class="court-name">朝阳法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 440.00万</div>
+        <div class="price-start">起拍: <strong>395.65万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-normal">
+          89.92%
+        </span>
+        <div class="diff-text">省10.08%</div>
+      </td>
+      <td class="col-area">184㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">26.05分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">14天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市丰台区中关村大街5号1016室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">变卖</span>
+          <span class="court-name">海淀法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 114.00万</div>
+        <div class="price-start">起拍: <strong>72.59万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-warning">
+          63.68%
+        </span>
+        <div class="diff-text">省36.32%</div>
+      </td>
+      <td class="col-area">64㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★★☆☆☆</span>
+        <div class="score-text">41.79分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text expired">已开拍</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市西城区王府井大街9号146室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">变卖</span>
+          <span class="court-name">东城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 293.00万</div>
+        <div class="price-start">起拍: <strong>179.48万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-warning">
+          61.26%
+        </span>
+        <div class="diff-text">省38.74%</div>
+      </td>
+      <td class="col-area">106㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★★☆☆☆</span>
+        <div class="score-text">43.24分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">19天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市海淀区王府井大街30号1906室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">二拍</span>
+          <span class="court-name">朝阳法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 466.00万</div>
+        <div class="price-start">起拍: <strong>249.69万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-warning">
+          53.58%
+        </span>
+        <div class="diff-text">省46.42%</div>
+      </td>
+      <td class="col-area">60㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★★☆☆☆</span>
+        <div class="score-text">47.85分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">5天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市丰台区长安街11号994室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">二拍</span>
+          <span class="court-name">海淀法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 524.00万</div>
+        <div class="price-start">起拍: <strong>422.45万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-info">
+          80.62%
+        </span>
+        <div class="diff-text">省19.38%</div>
+      </td>
+      <td class="col-area">88㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">31.63分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">9天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市海淀区建国路8号1618室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">二拍</span>
+          <span class="court-name">西城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 377.00万</div>
+        <div class="price-start">起拍: <strong>249.45万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-warning">
+          66.17%
+        </span>
+        <div class="diff-text">省33.83%</div>
+      </td>
+      <td class="col-area">183㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★★☆☆☆</span>
+        <div class="score-text">40.3分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">27天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市西城区长安街1号1125室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">变卖</span>
+          <span class="court-name">海淀法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 207.00万</div>
+        <div class="price-start">起拍: <strong>118.73万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-warning">
+          57.36%
+        </span>
+        <div class="diff-text">省42.64%</div>
+      </td>
+      <td class="col-area">152㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★★☆☆☆</span>
+        <div class="score-text">45.58分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">7天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市东城区中关村大街16号559室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">一拍</span>
+          <span class="court-name">东城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 103.00万</div>
+        <div class="price-start">起拍: <strong>67.58万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-warning">
+          65.62%
+        </span>
+        <div class="diff-text">省34.38%</div>
+      </td>
+      <td class="col-area">79㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">20.63分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">8天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市东城区中关村大街16号376室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">二拍</span>
+          <span class="court-name">东城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 423.00万</div>
+        <div class="price-start">起拍: <strong>279.09万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-warning">
+          65.98%
+        </span>
+        <div class="diff-text">省34.02%</div>
+      </td>
+      <td class="col-area">61㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★★☆☆☆</span>
+        <div class="score-text">40.41分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">10天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市东城区王府井大街3号531室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">二拍</span>
+          <span class="court-name">朝阳法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 566.00万</div>
+        <div class="price-start">起拍: <strong>308.42万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-warning">
+          54.49%
+        </span>
+        <div class="diff-text">省45.51%</div>
+      </td>
+      <td class="col-area">197㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★★☆☆☆</span>
+        <div class="score-text">47.31分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">14天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市海淀区中关村大街9号1476室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">变卖</span>
+          <span class="court-name">西城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 305.00万</div>
+        <div class="price-start">起拍: <strong>242.77万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-info">
+          79.6%
+        </span>
+        <div class="diff-text">省20.4%</div>
+      </td>
+      <td class="col-area">79㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">32.24分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">21天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市西城区长安街29号1955室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">一拍</span>
+          <span class="court-name">东城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 277.00万</div>
+        <div class="price-start">起拍: <strong>203.98万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-info">
+          73.64%
+        </span>
+        <div class="diff-text">省26.36%</div>
+      </td>
+      <td class="col-area">97㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">15.82分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">23天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市西城区长安街11号1761室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">变卖</span>
+          <span class="court-name">东城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 291.00万</div>
+        <div class="price-start">起拍: <strong>148.87万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-warning">
+          51.16%
+        </span>
+        <div class="diff-text">省48.84%</div>
+      </td>
+      <td class="col-area">116㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★★☆☆☆</span>
+        <div class="score-text">49.3分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">2天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市丰台区长安街10号1211室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">一拍</span>
+          <span class="court-name">西城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 371.00万</div>
+        <div class="price-start">起拍: <strong>262.74万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-info">
+          70.82%
+        </span>
+        <div class="diff-text">省29.18%</div>
+      </td>
+      <td class="col-area">146㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">17.51分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">8天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市西城区长安街1号399室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">变卖</span>
+          <span class="court-name">西城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 439.00万</div>
+        <div class="price-start">起拍: <strong>385.15万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-normal">
+          87.73%
+        </span>
+        <div class="diff-text">省12.27%</div>
+      </td>
+      <td class="col-area">122㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">27.36分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">7天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市海淀区长安街2号1469室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">变卖</span>
+          <span class="court-name">海淀法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 479.00万</div>
+        <div class="price-start">起拍: <strong>362.62万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-info">
+          75.7%
+        </span>
+        <div class="diff-text">省24.3%</div>
+      </td>
+      <td class="col-area">52㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">34.58分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">4天23小时</span>
+      </td>
+    </tr>
+  
+    <tr class="auction-row">
+      <td class="col-title">
+        <div class="auction-title">北京市朝阳区王府井大街1号1338室</div>
+        <div class="auction-subtitle">
+          <span class="round-tag">二拍</span>
+          <span class="court-name">西城法院</span>
+        </div>
+      </td>
+      <td class="col-price">
+        <div class="price-assess">评估: 123.00万</div>
+        <div class="price-start">起拍: <strong>82.48万</strong></div>
+      </td>
+      <td class="col-discount">
+        <span class="discount-tag discount-warning">
+          67.06%
+        </span>
+        <div class="diff-text">省32.94%</div>
+      </td>
+      <td class="col-area">114㎡</td>
+      <td class="col-stars">
+        <span class="star-rating">★☆☆☆☆</span>
+        <div class="score-text">39.76分</div>
+      </td>
+      <td class="col-countdown">
+        <span class="countdown-text ">23小时59分</span>
+      </td>
+    </tr>
+  
+            </tbody>
+          </table>
+        </div>
+      </section>
+    
+          
+    <section class="report-section">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span class="section-icon">📋</span>
+          变更追踪
+          <span class="section-count">0条</span>
+        </h2>
+      </div>
+      <div class="empty-state">今日无变更记录</div>
+    </section>
+  
+          
+    <section class="report-section">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span class="section-icon">📊</span>
+          各站点采集情况
+        </h2>
+      </div>
+      
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>站点名称</th>
+          <th>采集次数</th>
+          <th>总采集数</th>
+          <th>新增数</th>
+          <th>异常数</th>
+          <th>最后采集</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+      <tr>
+        <td>阿里拍卖-司法</td>
+        <td>0</td>
+        <td>0</td>
+        <td>0</td>
+        <td>0</td>
+        <td>—</td>
+      </tr>
+    
+      <tr>
+        <td>京东拍卖-司法</td>
+        <td>0</td>
+        <td>0</td>
+        <td>0</td>
+        <td>0</td>
+        <td>—</td>
+      </tr>
+    
+      <tr>
+        <td>公拍网</td>
+        <td>0</td>
+        <td>0</td>
+        <td>0</td>
+        <td>0</td>
+        <td>—</td>
+      </tr>
+    
+      </tbody>
+    </table>
+  
+    </section>
+  
+        </div>
+
+        <footer class="report-footer">
+          <p>本报告由法拍房监控系统自动生成 | 数据仅供参考，投资有风险，入市需谨慎</p>
+        </footer>
+      </div>
+    </body>
+    </html>
+  
