@@ -1,8 +1,10 @@
 using EvidenceManagementSystem.Common;
+using EvidenceManagementSystem.Data;
 using EvidenceManagementSystem.Models.DTOs;
 using EvidenceManagementSystem.Models.Entities;
 using EvidenceManagementSystem.Models.Enums;
 using EvidenceManagementSystem.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 namespace EvidenceManagementSystem.Services;
 
@@ -10,51 +12,66 @@ public class EvidenceService : IEvidenceService
 {
     private readonly IEvidenceRepository _evidenceRepository;
     private readonly IChainRecordRepository _chainRepository;
+    private readonly AppDbContext _context;
 
-    public EvidenceService(IEvidenceRepository evidenceRepository, IChainRecordRepository chainRepository)
+    public EvidenceService(
+        IEvidenceRepository evidenceRepository,
+        IChainRecordRepository chainRepository,
+        AppDbContext context)
     {
         _evidenceRepository = evidenceRepository;
         _chainRepository = chainRepository;
+        _context = context;
     }
 
     public async Task<EvidenceDto> CreateAsync(CreateEvidenceRequest request, Guid operatorId, string operatorName)
     {
-        var categoryCode = BarcodeGenerator.GetCategoryCode((int)request.Category);
-        var barcode = BarcodeGenerator.GenerateBarcode(categoryCode);
-
-        var evidence = new Evidence
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
         {
-            Id = Guid.NewGuid(),
-            Barcode = barcode,
-            CategoryCode = categoryCode,
-            Category = request.Category,
-            Name = request.Name,
-            Description = request.Description,
-            CaseNumber = request.CaseNumber,
-            SuspectInfo = request.SuspectInfo,
-            ExtractionTime = request.ExtractionTime,
-            ExtractionLocation = request.ExtractionLocation,
-            ExtractedBy = request.ExtractedBy,
-            PackagingMethod = request.PackagingMethod,
-            StorageCondition = request.StorageCondition,
-            StorageLocation = request.StorageLocation,
-            ShelfNumber = request.ShelfNumber,
-            Status = EvidenceStatus.Registered,
-            StorageDaysLimit = request.StorageDaysLimit,
-            ReceivedAt = DateTime.UtcNow,
-            IsOverdue = false,
-            IsDestroyed = false,
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = operatorId
-        };
+            var categoryCode = BarcodeGenerator.GetCategoryCode((int)request.Category);
+            var barcode = BarcodeGenerator.GenerateBarcode(categoryCode);
 
-        var created = await _evidenceRepository.AddAsync(evidence);
+            var evidence = new Evidence
+            {
+                Id = Guid.NewGuid(),
+                Barcode = barcode,
+                CategoryCode = categoryCode,
+                Category = request.Category,
+                Name = request.Name,
+                Description = request.Description,
+                CaseNumber = request.CaseNumber,
+                SuspectInfo = request.SuspectInfo,
+                ExtractionTime = request.ExtractionTime,
+                ExtractionLocation = request.ExtractionLocation,
+                ExtractedBy = request.ExtractedBy,
+                PackagingMethod = request.PackagingMethod,
+                StorageCondition = request.StorageCondition,
+                StorageLocation = request.StorageLocation,
+                ShelfNumber = request.ShelfNumber,
+                Status = EvidenceStatus.Registered,
+                StorageDaysLimit = request.StorageDaysLimit,
+                ReceivedAt = DateTime.UtcNow,
+                IsOverdue = false,
+                IsDestroyed = false,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = operatorId
+            };
 
-        await AddChainRecord(created.Id, ChainOperationType.Register,
-            EvidenceStatus.Registered, EvidenceStatus.Registered,
-            operatorId, operatorName, null, null);
+            var created = await _evidenceRepository.AddAsync(evidence);
 
-        return MapToDto(created);
+            await AddChainRecord(created.Id, ChainOperationType.Register,
+                EvidenceStatus.Registered, EvidenceStatus.Registered,
+                operatorId, operatorName, null, null);
+
+            await transaction.CommitAsync();
+            return MapToDto(created);
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task<EvidenceDto?> GetByIdAsync(Guid id)
@@ -109,59 +126,79 @@ public class EvidenceService : IEvidenceService
 
     public async Task<EvidenceDto> InboundAsync(InboundRequest request, Guid operatorId, string operatorName)
     {
-        var evidence = await _evidenceRepository.GetByIdAsync(request.EvidenceId)
-            ?? throw new BusinessException("物证不存在", 404);
-
-        if (evidence.IsDestroyed)
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
         {
-            throw new BusinessException("已销毁物证无法入库", 400);
+            var evidence = await _evidenceRepository.GetByIdAsync(request.EvidenceId)
+                ?? throw new BusinessException("物证不存在", 404);
+
+            if (evidence.IsDestroyed)
+            {
+                throw new BusinessException("已销毁物证无法入库", 400);
+            }
+
+            var statusBefore = evidence.Status;
+
+            evidence.StorageLocation = request.StorageLocation;
+            evidence.ShelfNumber = request.ShelfNumber;
+            evidence.Status = EvidenceStatus.InStorage;
+            evidence.StorageStartTime = DateTime.UtcNow;
+            evidence.ExpectedExpiryDate = DateTime.UtcNow.AddDays(evidence.StorageDaysLimit);
+            evidence.UpdatedAt = DateTime.UtcNow;
+
+            await _evidenceRepository.UpdateAsync(evidence);
+
+            await AddChainRecord(evidence.Id, ChainOperationType.Inbound,
+                statusBefore, EvidenceStatus.InStorage,
+                operatorId, operatorName, request.ImageHash, request.Remark);
+
+            await transaction.CommitAsync();
+            return MapToDto(evidence);
         }
-
-        var statusBefore = evidence.Status;
-
-        evidence.StorageLocation = request.StorageLocation;
-        evidence.ShelfNumber = request.ShelfNumber;
-        evidence.Status = EvidenceStatus.InStorage;
-        evidence.StorageStartTime = DateTime.UtcNow;
-        evidence.ExpectedExpiryDate = DateTime.UtcNow.AddDays(evidence.StorageDaysLimit);
-        evidence.UpdatedAt = DateTime.UtcNow;
-
-        await _evidenceRepository.UpdateAsync(evidence);
-
-        await AddChainRecord(evidence.Id, ChainOperationType.Inbound,
-            statusBefore, EvidenceStatus.InStorage,
-            operatorId, operatorName, request.ImageHash, request.Remark);
-
-        return MapToDto(evidence);
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task<EvidenceDto> OutboundAsync(OutboundRequest request, Guid operatorId, string operatorName)
     {
-        var evidence = await _evidenceRepository.GetByIdAsync(request.EvidenceId)
-            ?? throw new BusinessException("物证不存在", 404);
-
-        if (evidence.IsDestroyed)
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
         {
-            throw new BusinessException("已销毁物证无法出库", 400);
-        }
+            var evidence = await _evidenceRepository.GetByIdAsync(request.EvidenceId)
+                ?? throw new BusinessException("物证不存在", 404);
 
-        if (evidence.IsOverdue)
+            if (evidence.IsDestroyed)
+            {
+                throw new BusinessException("已销毁物证无法出库", 400);
+            }
+
+            if (evidence.IsOverdue)
+            {
+                throw new BusinessException("超期物证需经领导审批后方可出库", 403);
+            }
+
+            var statusBefore = evidence.Status;
+            evidence.Status = EvidenceStatus.InExamination;
+            evidence.UpdatedAt = DateTime.UtcNow;
+
+            await _evidenceRepository.UpdateAsync(evidence);
+
+            await AddChainRecord(evidence.Id, ChainOperationType.Outbound,
+                statusBefore, EvidenceStatus.InExamination,
+                operatorId, operatorName, request.ImageHash, request.Remark,
+                null, request.ToDepartment);
+
+            await transaction.CommitAsync();
+            return MapToDto(evidence);
+        }
+        catch
         {
-            throw new BusinessException("超期物证需经领导审批后方可出库", 403);
+            await transaction.RollbackAsync();
+            throw;
         }
-
-        var statusBefore = evidence.Status;
-        evidence.Status = EvidenceStatus.InExamination;
-        evidence.UpdatedAt = DateTime.UtcNow;
-
-        await _evidenceRepository.UpdateAsync(evidence);
-
-        await AddChainRecord(evidence.Id, ChainOperationType.Outbound,
-            statusBefore, EvidenceStatus.InExamination,
-            operatorId, operatorName, request.ImageHash, request.Remark,
-            null, request.ToDepartment);
-
-        return MapToDto(evidence);
     }
 
     public async Task<bool> DeleteAsync(Guid id)

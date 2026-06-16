@@ -26,7 +26,8 @@ public class InventoryService : IInventoryService
     {
         var taskNumber = BarcodeGenerator.GenerateTaskNumber("PD");
 
-        var evidences = _evidenceRepository.GetAllAsync().Result.AsQueryable();
+        var allEvidences = await _evidenceRepository.GetAllAsync();
+        var evidences = allEvidences.AsQueryable();
 
         if (request.Category.HasValue)
             evidences = evidences.Where(e => e.Category == request.Category.Value);

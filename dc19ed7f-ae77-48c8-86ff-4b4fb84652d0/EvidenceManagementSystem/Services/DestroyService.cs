@@ -1,8 +1,10 @@
 using EvidenceManagementSystem.Common;
+using EvidenceManagementSystem.Data;
 using EvidenceManagementSystem.Models.DTOs;
 using EvidenceManagementSystem.Models.Entities;
 using EvidenceManagementSystem.Models.Enums;
 using EvidenceManagementSystem.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 namespace EvidenceManagementSystem.Services;
 
@@ -12,17 +14,20 @@ public class DestroyService : IDestroyService
     private readonly IEvidenceRepository _evidenceRepository;
     private readonly IUserRepository _userRepository;
     private readonly IChainRecordRepository _chainRepository;
+    private readonly AppDbContext _context;
 
     public DestroyService(
         IDestroyRequestRepository destroyRepository,
         IEvidenceRepository evidenceRepository,
         IUserRepository userRepository,
-        IChainRecordRepository chainRepository)
+        IChainRecordRepository chainRepository,
+        AppDbContext context)
     {
         _destroyRepository = destroyRepository;
         _evidenceRepository = evidenceRepository;
         _userRepository = userRepository;
         _chainRepository = chainRepository;
+        _context = context;
     }
 
     public async Task<DestroyRequestDto> CreateRequestAsync(CreateDestroyRequestRequest request, Guid operatorId, string operatorName)
@@ -105,56 +110,66 @@ public class DestroyService : IDestroyService
 
     public async Task<DestroyRequestDto> ExecuteDestroyAsync(Guid requestId, ExecuteDestroyRequest request, Guid operatorId)
     {
-        var destroyRequest = await _destroyRepository.GetByIdAsync(requestId)
-            ?? throw new BusinessException("销毁申请不存在", 404);
-
-        if (!destroyRequest.IsApproved)
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
         {
-            throw new BusinessException("销毁申请未通过审批，无法执行", 400);
-        }
+            var destroyRequest = await _destroyRepository.GetByIdAsync(requestId)
+                ?? throw new BusinessException("销毁申请不存在", 404);
 
-        if (destroyRequest.IsExecuted)
+            if (!destroyRequest.IsApproved)
+            {
+                throw new BusinessException("销毁申请未通过审批，无法执行", 400);
+            }
+
+            if (destroyRequest.IsExecuted)
+            {
+                throw new BusinessException("销毁已执行", 400);
+            }
+
+            var evidence = await _evidenceRepository.GetByIdAsync(destroyRequest.EvidenceId);
+            if (evidence == null)
+            {
+                throw new BusinessException("物证不存在", 404);
+            }
+
+            if (evidence.IsDestroyed)
+            {
+                throw new BusinessException("物证已销毁", 400);
+            }
+
+            var statusBefore = evidence.Status;
+            evidence.IsDestroyed = true;
+            evidence.DestroyedAt = DateTime.UtcNow;
+            evidence.DestroyApprovedBy = destroyRequest.ApprovedById;
+            evidence.DestroyRemark = request.Remark;
+            evidence.Status = EvidenceStatus.Destroyed;
+            evidence.UpdatedAt = DateTime.UtcNow;
+
+            await _evidenceRepository.UpdateAsync(evidence);
+
+            var operatorUser = await _userRepository.GetByIdAsync(operatorId);
+            await AddChainRecord(evidence.Id, ChainOperationType.Destroy,
+                statusBefore, EvidenceStatus.Destroyed,
+                operatorId, operatorUser?.RealName ?? "未知",
+                request.ImageHash, $"执行销毁: {destroyRequest.RequestNumber}");
+
+            destroyRequest.IsExecuted = true;
+            destroyRequest.ExecutedAt = DateTime.UtcNow;
+            destroyRequest.Executor1Name = request.Executor1Name;
+            destroyRequest.Executor2Name = request.Executor2Name;
+            destroyRequest.ImageHash = request.ImageHash;
+            destroyRequest.Remark = request.Remark;
+
+            await _destroyRepository.UpdateAsync(destroyRequest);
+
+            await transaction.CommitAsync();
+            return await MapToDto(destroyRequest);
+        }
+        catch
         {
-            throw new BusinessException("销毁已执行", 400);
+            await transaction.RollbackAsync();
+            throw;
         }
-
-        var evidence = await _evidenceRepository.GetByIdAsync(destroyRequest.EvidenceId);
-        if (evidence == null)
-        {
-            throw new BusinessException("物证不存在", 404);
-        }
-
-        if (evidence.IsDestroyed)
-        {
-            throw new BusinessException("物证已销毁", 400);
-        }
-
-        var statusBefore = evidence.Status;
-        evidence.IsDestroyed = true;
-        evidence.DestroyedAt = DateTime.UtcNow;
-        evidence.DestroyApprovedBy = destroyRequest.ApprovedById;
-        evidence.DestroyRemark = request.Remark;
-        evidence.Status = EvidenceStatus.Destroyed;
-        evidence.UpdatedAt = DateTime.UtcNow;
-
-        await _evidenceRepository.UpdateAsync(evidence);
-
-        var operatorUser = await _userRepository.GetByIdAsync(operatorId);
-        await AddChainRecord(evidence.Id, ChainOperationType.Destroy,
-            statusBefore, EvidenceStatus.Destroyed,
-            operatorId, operatorUser?.RealName ?? "未知",
-            request.ImageHash, $"执行销毁: {destroyRequest.RequestNumber}");
-
-        destroyRequest.IsExecuted = true;
-        destroyRequest.ExecutedAt = DateTime.UtcNow;
-        destroyRequest.Executor1Name = request.Executor1Name;
-        destroyRequest.Executor2Name = request.Executor2Name;
-        destroyRequest.ImageHash = request.ImageHash;
-        destroyRequest.Remark = request.Remark;
-
-        await _destroyRepository.UpdateAsync(destroyRequest);
-
-        return await MapToDto(destroyRequest);
     }
 
     public async Task<List<DestroyRequestDto>> GetByEvidenceIdAsync(Guid evidenceId)

@@ -1,4 +1,5 @@
 using EvidenceManagementSystem.Models.DTOs;
+using EvidenceManagementSystem.Models.Entities;
 using EvidenceManagementSystem.Models.Enums;
 using EvidenceManagementSystem.Repositories;
 
@@ -10,17 +11,20 @@ public class StatisticsService : IStatisticsService
     private readonly IExaminationRepository _examinationRepository;
     private readonly IChainRecordRepository _chainRepository;
     private readonly IOverdueWarningRepository _warningRepository;
+    private readonly IUserRepository _userRepository;
 
     public StatisticsService(
         IEvidenceRepository evidenceRepository,
         IExaminationRepository examinationRepository,
         IChainRecordRepository chainRepository,
-        IOverdueWarningRepository warningRepository)
+        IOverdueWarningRepository warningRepository,
+        IUserRepository userRepository)
     {
         _evidenceRepository = evidenceRepository;
         _examinationRepository = examinationRepository;
         _chainRepository = chainRepository;
         _warningRepository = warningRepository;
+        _userRepository = userRepository;
     }
 
     public async Task<StatisticsDto> GetOverviewAsync(StatisticsQuery query)
@@ -83,28 +87,65 @@ public class StatisticsService : IStatisticsService
         return result;
     }
 
-    public Task<List<DepartmentStatisticsDto>> GetDepartmentStatisticsAsync(StatisticsQuery query)
+    public async Task<List<DepartmentStatisticsDto>> GetDepartmentStatisticsAsync(StatisticsQuery query)
     {
-        var departments = new List<string> { "物证管理科", "生物检验室", "痕迹检验室", "电子数据室", "毒品检验室" };
-        var random = new Random();
+        var startDate = query.StartDate ?? DateTime.UtcNow.AddMonths(-1);
+        var endDate = query.EndDate ?? DateTime.UtcNow;
+
+        var allUsers = await _userRepository.GetAllAsync();
+        var allTasks = await _examinationRepository.GetAllAsync();
+        var allEvidences = await _evidenceRepository.GetAllAsync();
+
+        var usersByDepartment = allUsers
+            .Where(u => !string.IsNullOrEmpty(u.Department))
+            .GroupBy(u => u.Department!)
+            .Select(g => new
+            {
+                Department = g.Key,
+                UserIds = g.Select(u => u.Id).ToList()
+            })
+            .ToList();
+
         var result = new List<DepartmentStatisticsDto>();
 
-        foreach (var dept in departments)
+        foreach (var deptGroup in usersByDepartment)
         {
-            var received = random.Next(100, 1000);
-            var completed = random.Next(80, received);
-            var overdue = random.Next(0, 20);
+            var deptUserIds = deptGroup.UserIds;
+
+            var receivedCount = allEvidences.Count(e =>
+                e.CreatedAt >= startDate && e.CreatedAt <= endDate &&
+                deptUserIds.Contains(e.CreatedBy));
+
+            var completedCount = allTasks.Count(t =>
+                t.Status == ExaminationStatus.Issued &&
+                t.IssuedAt.HasValue &&
+                t.IssuedAt >= startDate && t.IssuedAt <= endDate &&
+                deptUserIds.Contains(t.ExaminerId));
+
+            var deptTasks = allTasks.Where(t =>
+                t.CreatedAt >= startDate && t.CreatedAt <= endDate &&
+                deptUserIds.Contains(t.ExaminerId)).ToList();
+
+            var overdueCount = deptTasks.Count(t =>
+                t.Status == ExaminationStatus.Issued &&
+                t.IssuedAt.HasValue &&
+                t.CreatedAt.AddDays(7) < t.IssuedAt);
+
+            var totalDeptTasks = deptTasks.Count;
+
             result.Add(new DepartmentStatisticsDto
             {
-                Department = dept,
-                ReceivedCount = received,
-                CompletedCount = completed,
-                OverdueCount = overdue,
-                CompletionRate = received > 0 ? Math.Round((double)completed / received * 100, 2) : 0
+                Department = deptGroup.Department,
+                ReceivedCount = receivedCount,
+                CompletedCount = completedCount,
+                OverdueCount = overdueCount,
+                CompletionRate = totalDeptTasks > 0
+                    ? Math.Round((double)completedCount / totalDeptTasks * 100, 2)
+                    : 0
             });
         }
 
-        return Task.FromResult(result);
+        return result;
     }
 
     public async Task<List<DailyStatisticsDto>> GetDailyStatisticsAsync(StatisticsQuery query)

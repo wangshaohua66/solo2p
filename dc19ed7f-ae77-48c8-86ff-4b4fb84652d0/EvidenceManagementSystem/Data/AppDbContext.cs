@@ -65,6 +65,7 @@ public class AppDbContext : DbContext
             b.HasIndex(c => c.OperationType);
             b.HasIndex(c => c.RecordHash).IsUnique();
             b.HasIndex(c => new { c.EvidenceId, c.SequenceNumber }).IsUnique();
+            b.HasIndex(c => new { c.EvidenceId, c.OperationTime });
             b.Property(c => c.OperatorName).HasMaxLength(50).IsRequired();
             b.Property(c => c.FromDepartment).HasMaxLength(100);
             b.Property(c => c.ToDepartment).HasMaxLength(100);
