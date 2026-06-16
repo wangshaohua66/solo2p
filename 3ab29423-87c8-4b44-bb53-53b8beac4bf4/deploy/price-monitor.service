@@ -1,0 +1,27 @@
+[Unit]
+Description=农产品批发市场价格监测预警系统
+After=network-online.target redis.service
+Wants=network-online.target redis.service
+
+[Service]
+Type=simple
+User=price_monitor
+Group=price_monitor
+WorkingDirectory=/opt/price-monitor
+Environment=PYTHONUNBUFFERED=1
+Environment=PATH=/opt/price-monitor/venv/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/opt/price-monitor/venv/bin/python -m price_monitor.cli crawl --market all --daemon
+Restart=on-failure
+RestartSec=15s
+TimeoutStartSec=300
+TimeoutStopSec=60
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=price-monitor
+MemoryMax=512M
+CPUQuota=200%
+LimitNOFILE=65536
+OOMScoreAdjust=-500
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,697 @@
+system:
+  name: agricultural_price_monitor
+  version: 1.0.0
+  data_dir: ./data
+  log_dir: ./logs
+  log_retention_days: 90
+  timezone: Asia/Shanghai
+  daily_crawl_time: "07:00"
+  config_reload_interval_minutes: 5
+  max_concurrent_requests: 8
+  request_timeout: 15
+  memory_limit_mb: 512
+
+redis:
+  host: 127.0.0.1
+  port: 6379
+  db: 0
+  password: null
+  dedup_set_prefix: price_monitor:dedup
+  progress_key: price_monitor:progress
+  circuit_key_prefix: price_monitor:circuit
+  fingerprint_ttl_seconds: 86400
+
+scheduler:
+  apscheduler_jobstores: default
+  max_instances: 1
+  coalesce: true
+  misfire_grace_time: 3600
+
+pipeline:
+  fuzzy_match_threshold: 80
+  alert_push_enabled: true
+
+alert:
+  single_day_change_pct: 15
+  consecutive_days: 3
+  consecutive_day_change_pct: 5
+  wechat_webhook_url: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY_HERE"
+  admin_contacts:
+    - admin1@example.com
+  circuit_breaker_threshold: 5
+  circuit_breaker_hours: 48
+
+categories:
+  vegetable:
+    display_name: 蔬菜
+    items:
+      - id: veg_001
+        name: 大白菜
+        aliases: [白菜, 圆白菜, 包菜, 卷心菜
+      - id: veg_002
+        name: 西红柿
+        aliases: [番茄, 洋柿子
+      - id: veg_003
+        name: 黄瓜
+        aliases: [胡瓜, 青瓜]
+      - id: veg_004
+        name: 茄子
+        aliases: [落苏]
+      - id: veg_005
+        name: 辣椒
+        aliases: [青椒, 尖椒, 辣子
+      - id: veg_006
+        name: 土豆
+        aliases: [马铃薯, 洋芋]
+      - id: veg_007
+        name: 胡萝卜
+        aliases: [红萝卜, 黄萝卜]
+      - id: veg_008
+        name: 芹菜
+        aliases: [香芹]
+      - id: veg_009
+        name: 菠菜
+        aliases: [赤根菜]
+      - id: veg_010
+        name: 油菜
+        aliases: [青菜, 小白菜]
+  fruit:
+    display_name: 水果
+    items:
+      - id: fru_001
+        name: 苹果
+        aliases: [红富士, 嘎啦果]
+      - id: fru_002
+        name: 香蕉
+        aliases: [芭蕉]
+      - id: fru_003
+        name: 橙子
+        aliases: [脐橙, 甜橙]
+      - id: fru_004
+        name: 西瓜
+        aliases: [夏瓜]
+      - id: fru_005
+        name: 葡萄
+        aliases: [提子]
+  livestock:
+    display_name: 畜禽
+    items:
+      - id: liv_001
+        name: 猪肉
+        aliases: [五花肉, 猪里脊, 生猪]
+      - id: liv_002
+        name: 牛肉
+        aliases: [黄牛肉, 牛腩]
+      - id: liv_003
+        name: 羊肉
+        aliases: [山羊肉, 绵羊肉]
+      - id: liv_004
+        name: 鸡肉
+        aliases: [三黄鸡, 土鸡]
+      - id: liv_005
+        name: 鸡蛋
+        aliases: [鲜鸡蛋, 土鸡蛋]
+  aquatic:
+    display_name: 水产
+    items:
+      - id: aqu_001
+        name: 草鱼
+        aliases: [鲩鱼]
+      - id: aqu_002
+        name: 鲤鱼
+        aliases: [鲤拐子]
+      - id: aqu_003
+        name: 鲫鱼
+        aliases: [喜头鱼]
+      - id: aqu_004
+        name: 虾
+        aliases: [基围虾, 对虾, 青虾]
+      - id: aqu_005
+        name: 带鱼
+        aliases: [刀鱼]
+
+markets:
+  html_type:
+    - id: bj_xinfadi
+      name: 北京新发地农产品批发市场
+      type: html
+      url: "http://www.xinfadi.com.cn/priceDetail.html
+      category: vegetable,fruit,livestock,aquatic
+      enabled: true
+      encoding: utf-8
+      table_selector: "table#price_table"
+      row_selector: "tbody tr"
+      column_mapping:
+        品种: category_name
+        最高价: max_price
+        最低价: min_price
+        平均价: avg_price
+      unit: 元/公斤
+    - id: sh_caixin
+      name: 上海农产品中心批发市场
+      type: html
+      url: "http://www.shcsc.com/price/index.html"
+      category: vegetable,fruit
+      enabled: true
+      encoding: utf-8
+      table_selector: "div.price-list table"
+      row_selector: "tr"
+      column_mapping:
+        品名: category_name
+        最高: max_price
+        最低: min_price
+        均价: avg_price
+      unit: 元/公斤
+    - id: gz_jiangnan
+      name: 广州江南果菜批发市场
+      type: html
+      url: "http://www.jnmarket.net/price"
+      category: vegetable,fruit
+      enabled: true
+      encoding: utf-8
+      table_selector: "table.data-table"
+      row_selector: "tbody tr"
+      column_mapping:
+        品种: category_name
+        最高价: max_price
+        最低价: min_price
+        均价: avg_price
+      unit: 元/公斤
+    - id: sz_buji
+      name: 深圳布吉农产品中心批发市场
+      type: html
+      url: "http://www.szncp.com/price_list.html"
+      category: vegetable,fruit,aquatic
+      enabled: true
+      encoding: utf-8
+      table_selector: "table#priceTable"
+      row_selector: "tr:not(:first-child)"
+      column_mapping:
+        产品名: category_name
+        高: max_price
+        低: min_price
+        中: avg_price
+      unit: 元/公斤
+    - id: tj_jinghai
+      name: 天津静海海吉星农产品批发市场
+      type: html
+      url: "http://www.tjhx.com/price"
+      category: vegetable,fruit,livestock
+      enabled: true
+      encoding: utf-8
+      table_selector: "table.table-price"
+      row_selector: "tbody tr"
+      column_mapping:
+        品类: category_name
+        最高价: max_price
+        最低价: min_price
+        平均价: avg_price
+      unit: 元/公斤
+    - id: cq_baishiyi
+      name: 重庆白市驿农副产品批发市场
+      type: html
+      url: "http://www.cqbsy.com/pricequery"
+      category: vegetable,livestock
+      enabled: true
+      encoding: utf-8
+      table_selector: "table#price-list"
+      row_selector: "tbody tr"
+      column_mapping:
+        商品名称: category_name
+        最高价: max_price
+        最低价: min_price
+        均价: avg_price
+      unit: 元/公斤
+    - id: cd_jinniu
+      name: 成都农产品中心批发市场
+      type: html
+      url: "http://www.cdncp.com/price"
+      category: vegetable,fruit,aquatic
+      enabled: true
+      encoding: utf-8
+      table_selector: "table.data_list"
+      row_selector: "tr"
+      column_mapping:
+        品名: category_name
+        最高价: max_price
+        最低价: min_price
+        平均价: avg_price
+      unit: 元/公斤
+    - id: wh_huangxiao
+      name: 武汉皇经堂蔬菜批发市场
+      type: html
+      url: "http://www.whhjt.com/price.html"
+      category: vegetable
+      enabled: true
+      encoding: utf-8
+      table_selector: "table.price-table"
+      row_selector: "tbody tr"
+      column_mapping:
+        品种: category_name
+        最高: max_price
+        最低: min_price
+        均价: avg_price
+      unit: 元/公斤
+    - id: xa_fengqing
+      name: 西安朱雀农产品批发市场
+      type: html
+      url: "http://www.xazq.com/price_list.shtml"
+      category: vegetable,fruit
+      enabled: true
+      encoding: utf-8
+      table_selector: "table.list"
+      row_selector: "tr"
+      column_mapping:
+        名称: category_name
+        最高价: max_price
+        最低价: min_price
+        平均价: avg_price
+      unit: 元/公斤
+    - id: nj_caicun
+      name: 南京农副产品物流配送中心
+      type: html
+      url: "http://www.njwl.com/price"
+      category: vegetable,fruit,livestock,aquatic
+      enabled: true
+      encoding: utf-8
+      table_selector: "table#data-table"
+      row_selector: "tbody tr"
+      column_mapping:
+        品类名称: category_name
+        最高价: max_price
+        最低价: min_price
+        平均价: avg_price
+      unit: 元/公斤
+    - id: hz_gouzhuang
+      name: 杭州蔬菜批发市场
+      type: html
+      url: "http://www.hzsc.com/price"
+      category: vegetable,fruit
+      enabled: true
+      encoding: utf-8
+      table_selector: "table.price"
+      row_selector: "tbody tr"
+      column_mapping:
+        品名: category_name
+        最高价: max_price
+        最低价: min_price
+        均价: avg_price
+      unit: 元/公斤
+    - id: qd_jiaozhou
+      name: 青岛胶州湾农产品批发市场
+      type: html
+      url: "http://www.qdncp.com/price_list.html"
+      category: vegetable,fruit
+      enabled: true
+      encoding: utf-8
+      table_selector: "table.price_list"
+      row_selector: "tbody tr"
+      column_mapping:
+        品种: category_name
+        最高: max_price
+        最低: min_price
+        平均价: avg_price
+      unit: 元/公斤
+
+  api_type:
+    - id: jn_quancheng
+      name: 济南堤口果品批发市场
+      type: api
+      url: "http://swt.province.gov.cn/api/price/list"
+      category: fruit,vegetable
+      enabled: true
+      method: GET
+      params:
+        market_id: 001
+      headers:
+        Content-Type: application/json
+      data_path: "data.items"
+      field_mapping:
+        categoryName: category_name
+        maxPrice: max_price
+        minPrice: min_price
+        avgPrice: avg_price
+    - id: zj_yiwu
+      name: 浙江省义乌农贸城
+      type: api
+      url: "http://swt.province.gov.cn/api/price/list"
+      category: vegetable,fruit
+      enabled: true
+      method: GET
+      params:
+        market_id: 002
+      headers:
+        Content-Type: application/json
+      data_path: "data.items"
+      field_mapping:
+        categoryName: category_name
+        maxPrice: max_price
+        minPrice: min_price
+        avgPrice: avg_price
+    - id: he_shijiazhuang
+      name: 石家庄桥西蔬菜批发市场
+      type: api
+      url: "http://swt.province.gov.cn/api/price/list"
+      category: vegetable,fruit
+      enabled: true
+      method: GET
+      params:
+        market_id: 003
+      headers:
+        Content-Type: application/json
+      data_path: "data.items"
+      field_mapping:
+        categoryName: category_name
+        maxPrice: max_price
+        minPrice: min_price
+        avgPrice: avg_price
+    - id: ln_shenyang
+      name: 沈阳八家子水果批发市场
+      type: api
+      url: "http://swt.province.gov.cn/api/price/list"
+      category: fruit
+      enabled: true
+      method: GET
+      params:
+        market_id: 004
+      headers:
+        Content-Type: application/json
+      data_path: "data.items"
+      field_mapping:
+        categoryName: category_name
+        maxPrice: max_price
+        minPrice: min_price
+        avgPrice: avg_price
+    - id: ha_zhengzhou
+      name: 郑州万邦农产品批发市场
+      type: api
+      url: "http://swt.province.gov.cn/api/price/list"
+      category: vegetable,fruit,livestock
+      enabled: true
+      method: GET
+      params:
+        market_id: 005
+      headers:
+        Content-Type: application/json
+      data_path: "data.items"
+      field_mapping:
+        categoryName: category_name
+        maxPrice: max_price
+        minPrice: min_price
+        avgPrice: avg_price
+    - id: changchun_hunchun
+      name: 长春东北亚粮油批发市场
+      type: api
+      url: "http://swt.province.gov.cn/api/price/list"
+      category: livestock,aquatic
+      enabled: true
+      method: GET
+      params:
+        market_id: 006
+      headers:
+        Content-Type: application/json
+      data_path: "data.items"
+      field_mapping:
+        categoryName: category_name
+        maxPrice: max_price
+        minPrice: min_price
+        avgPrice: avg_price
+    - id: hl_haerbin
+      name: 哈尔滨哈达农副产品批发市场
+      type: api
+      url: "http://swt.province.gov.cn/api/price/list"
+      category: vegetable,fruit
+      enabled: true
+      method: GET
+      params:
+        market_id: 007
+      headers:
+        Content-Type: application/json
+      data_path: "data.items"
+      field_mapping:
+        categoryName: category_name
+        maxPrice: max_price
+        minPrice: min_price
+        avgPrice: avg_price
+    - id: gs_lanzhou
+      name: 兰州张苏滩蔬菜批发市场
+      type: api
+      url: "http://swt.province.gov.cn/api/price/list"
+      category: vegetable
+      enabled: true
+      method: GET
+      params:
+        market_id: 008
+      headers:
+        Content-Type: application/json
+      data_path: "data.items"
+      field_mapping:
+        categoryName: category_name
+        maxPrice: max_price
+        minPrice: min_price
+        avgPrice: avg_price
+
+  excel_type:
+    - id: fj_xiamen
+      name: 厦门夏商中埔农产品批发市场
+      type: excel
+      url: "http://www.xmxs.com/download/price_{date}.xlsx"
+      category: vegetable,fruit,aquatic
+      enabled: true
+      date_format: "%Y%m%d"
+      sheet_name: 价格表
+      start_row: 2
+      column_mapping:
+        A: category_name
+        B: max_price
+        C: min_price
+        D: avg_price
+    - id: gd_shantou
+      name: 汕头农副产品批发市场
+      type: excel
+      url: "http://www.stncp.com/price_{date}.xls"
+      category: vegetable,fruit
+      enabled: true
+      date_format: "%Y-%m-%d"
+      sheet_name: Sheet1
+      start_row: 1
+      column_mapping:
+        品种: category_name
+        最高: max_price
+        最低: min_price
+        平均: avg_price
+    - id: nanning_guangxi
+      name: 南宁海吉星农产品批发市场
+      type: excel
+      url: "http://www.nnhjx.com/upload/price{date}.xlsx"
+      category: fruit,vegetable
+      enabled: true
+      date_format: "%Y%m%d"
+      sheet_name: 价格行情
+      start_row: 3
+      column_mapping:
+        A: category_name
+        C: max_price
+        D: min_price
+        E: avg_price
+    - id: km_jinding
+      name: 昆明金马正昌果品批发市场
+      type: excel
+      url: "http://www.kmjc.com/attachment/price_{date}.xlsx"
+      category: fruit
+      enabled: true
+      date_format: "%Y%m%d"
+      sheet_name: 每日行情
+      start_row: 2
+      column_mapping:
+        品名: category_name
+        最高: max_price
+        最低: min_price
+        均价: avg_price
+    - id: gy_huaguoyuan
+      name: 贵阳贵阳农产品批发市场
+      type: excel
+      url: "http://www.gyapm.com/download/daily_{date}.xlsx"
+      category: vegetable,fruit
+      enabled: true
+      date_format: "%Y-%m-%d"
+      sheet_name: 蔬菜
+      start_row: 1
+      column_mapping:
+        A: category_name
+        B: max_price
+        C: min_price
+        D: avg_price
+    - id: nc_shenyang
+      name: 南昌深圳农产品批发市场
+      type: excel
+      url: "http://www.ncszncp.com/files/price_{date}.xlsx"
+      category: vegetable,fruit,livestock
+      enabled: true
+      date_format: "%Y%m%d"
+      sheet_name: 每日行情
+      start_row: 2
+      column_mapping:
+        品种名称: category_name
+        最高价: max_price
+        最低价: min_price
+        平均价: avg_price
+
+  wechat_type:
+    - id: hefei_zhougudui
+      name: 合肥周谷堆农产品批发市场
+      type: wechat
+      url: "https://mp.weixin.qq.com/s/zgd_list"
+      category: vegetable,fruit
+      enabled: true
+      article_pattern: "每日价格"
+      ocr_region: [100,150,800,1000
+      table_header:
+        - 品名
+        - 最高价
+        - 最低价
+        - 平均价
+    - id: cs_maojiahe
+      name: 长沙马王堆蔬菜批发市场
+      type: wechat
+      url: "https://mp.weixin.qq.com/s/mwd_list"
+      category: vegetable
+      enabled: true
+      article_pattern: "行情"
+      ocr_region: [50,100,750,900
+      table_header:
+        - 品种
+        - 最高
+        - 最低
+        - 均价
+    - id: nn_xiangsihai
+      name: 南宁农产品交易中心
+      type: wechat
+      url: "https://mp.weixin.qq.com/s/jyzx_list"
+      category: fruit,vegetable
+      enabled: true
+      article_pattern: "价格日报"
+      ocr_region: [80,120,780,950
+      table_header:
+        - 商品
+        - 最高价
+        - 最低价
+        - 均价
+    - id: wulumuqi_beiuyuan
+      name: 乌鲁木齐北园春批发市场
+      type: wechat
+      url: "https://mp.weixin.qq.com/s/by_list"
+      category: fruit,vegetable,livestock
+      enabled: true
+      article_pattern: "每日行情"
+      ocr_region: [60,110,720,880
+      table_header:
+        - 品名
+        - 最高
+        - 最低
+        - 平均
+    - id: hohehaote_shiliang
+      name: 呼和浩特东瓦窑批发市场
+      type: wechat
+      url: "https://mp.weixin.qq.com/s/dwy_list"
+      category: vegetable,livestock
+      enabled: true
+      article_pattern: "价格信息"
+      ocr_region: [70,130,760,920
+      table_header:
+        - 品种
+        - 最高价
+        - 最低价
+        - 平均价
+
+  login_type:
+    - id: huhehaote_dongwayao
+      name: 呼和浩特东瓦窑批发市场
+      type: login
+      url: "http://www.dwy.com/login"
+      data_url: "http://www.dwy.com/price/list"
+      category: vegetable,fruit,livestock
+      enabled: true
+      login_method: POST
+      username_field: username
+      password_field: password
+      captcha_required: true
+      captcha_url: "http://www.dwy.com/captcha"
+      credentials:
+        username: YOUR_USERNAME
+        password: YOUR_PASSWORD
+      table_selector: "table.price-data"
+      row_selector: "tbody tr"
+      column_mapping:
+        品类: category_name
+        最高价: max_price
+        最低价: min_price
+        平均价: avg_price
+      unit: 元/公斤
+    - id: taiyuan_liuxiang
+      name: 太原河西农副产品批发市场
+      type: login
+      url: "http://www.thncp.com/login"
+      data_url: "http://www.thncp.com/market/price"
+      category: vegetable,fruit
+      enabled: true
+      login_method: POST
+      username_field: user
+      password_field: pwd
+      captcha_required: false
+      credentials:
+        username: YOUR_USERNAME
+        password: YOUR_PASSWORD
+      table_selector: "div.price_table"
+      row_selector: "tr"
+      column_mapping:
+        商品名称: category_name
+        最高价: max_price
+        最低价: min_price
+        均价: avg_price
+      unit: 元/公斤
+    - id: yinchuan_wenzhou
+      name: 银川北环批发市场
+      type: login
+      url: "http://www.ycbh.com/user/login"
+      data_url: "http://www.ycbh.com/price/daily"
+      category: vegetable,fruit,livestock
+      enabled: true
+      login_method: POST
+      username_field: account
+      password_field: passwd
+      captcha_required: true
+      captcha_url: "http://www.ycbh.com/verify"
+      credentials:
+        username: YOUR_USERNAME
+        password: YOUR_PASSWORD
+      table_selector: "table#price-list"
+      row_selector: "tbody tr"
+      column_mapping:
+        品名: category_name
+        最高: max_price
+        最低: min_price
+        平均价: avg_price
+      unit: 元/公斤
+    - id: xining_jiaochangkou
+      name: 西宁仁杰粮油批发市场
+      type: login
+      url: "http://www.xnrj.com/login.html"
+      data_url: "http://www.xnrj.com/price.html"
+      category: livestock,aquatic
+      enabled: true
+      login_method: POST
+      username_field: loginName
+      password_field: loginPwd
+      captcha_required: false
+      credentials:
+        username: YOUR_USERNAME
+        password: YOUR_PASSWORD
+      table_selector: "table.list-table"
+      row_selector: "tbody tr"
+      column_mapping:
+        品种: category_name
+        最高价: max_price
+        最低价: min_price
+        均价: avg_price
+      unit: 元/公斤
