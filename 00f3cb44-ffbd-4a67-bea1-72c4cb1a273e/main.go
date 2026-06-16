@@ -15,6 +15,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
+	"crossborder-scraper/api"
 	"crossborder-scraper/notify"
 	"crossborder-scraper/pipeline"
 	"crossborder-scraper/scraper"
@@ -142,6 +143,16 @@ func main() {
 	sched.cron.Start()
 	log.Info().Msg("cron scheduler started (every 6 hours)")
 
+	apiPort := 8080
+	apiServer := api.NewServer(store, cfg.Global.DBPath, apiPort)
+	apiCtx, apiCancel := context.WithCancel(ctx)
+	go func() {
+		if err := apiServer.Start(apiCtx); err != nil {
+			log.Error().Err(err).Msg("API server error")
+		}
+	}()
+	log.Info().Int("port", apiPort).Msg("API server started")
+
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
@@ -153,6 +164,7 @@ func main() {
 	}
 
 	log.Info().Msg("shutting down...")
+	apiCancel()
 	sched.cron.Stop()
 }
 

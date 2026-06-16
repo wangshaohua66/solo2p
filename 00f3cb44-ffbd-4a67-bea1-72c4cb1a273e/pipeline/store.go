@@ -588,6 +588,92 @@ func (s *Store) GetRecentReports(limit int) ([]*TaskReport, error) {
 	return reports, nil
 }
 
+func (s *Store) QueryReportsByDateRange(start, end time.Time) ([]*TaskReport, error) {
+	if start.IsZero() {
+		start = time.Now().AddDate(0, 0, -30)
+	}
+	if end.IsZero() {
+		end = time.Now()
+	}
+
+	rows, err := s.db.Query(`
+		SELECT id, task_id, start_time, end_time, total_sites, success_count, fail_count, skip_count, total_products, status
+		FROM task_reports 
+		WHERE start_time >= ? AND start_time <= ?
+		ORDER BY start_time DESC
+	`, start, end)
+	if err != nil {
+		return nil, fmt.Errorf("query reports by date range: %w", err)
+	}
+	defer rows.Close()
+
+	var reports []*TaskReport
+	for rows.Next() {
+		r := &TaskReport{}
+		var startTime, endTime sql.NullTime
+		err := rows.Scan(&r.ID, &r.TaskID, &startTime, &endTime, &r.TotalSites, &r.SuccessCount, &r.FailCount, &r.SkipCount, &r.TotalProducts, &r.Status)
+		if err != nil {
+			continue
+		}
+		if startTime.Valid {
+			r.StartTime = startTime.Time
+		}
+		if endTime.Valid {
+			r.EndTime = endTime.Time
+		}
+
+		siteRows, siteErr := s.db.Query(`
+			SELECT site_name, success_count, fail_count, skip_count, total_items, duration_ms, error_msg
+			FROM site_reports WHERE task_id = ?
+		`, r.TaskID)
+		if siteErr == nil {
+			defer siteRows.Close()
+			for siteRows.Next() {
+				sr := SiteReport{}
+				var errorMsg sql.NullString
+				siteErr := siteRows.Scan(&sr.SiteName, &sr.SuccessCount, &sr.FailCount, &sr.SkipCount, &sr.TotalItems, &sr.DurationMs, &errorMsg)
+				if siteErr == nil {
+					if errorMsg.Valid {
+						sr.ErrorMsg = errorMsg.String
+					}
+					r.SiteReports = append(r.SiteReports, sr)
+				}
+			}
+		}
+
+		reports = append(reports, r)
+	}
+	return reports, nil
+}
+
+func (s *Store) BatchExportReportsJSON(reports []*TaskReport, outputDir string) ([]string, error) {
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return nil, fmt.Errorf("create output dir: %w", err)
+	}
+
+	var paths []string
+	for _, r := range reports {
+		filename := fmt.Sprintf("report_%s_%s.json", r.TaskID, r.Status)
+		filepath := filepath.Join(outputDir, filename)
+
+		data, err := json.MarshalIndent(r, "", "  ")
+		if err != nil {
+			log.Warn().Err(err).Str("task_id", r.TaskID).Msg("marshal report failed")
+			continue
+		}
+
+		if err := os.WriteFile(filepath, data, 0644); err != nil {
+			log.Warn().Err(err).Str("file", filepath).Msg("write report failed")
+			continue
+		}
+
+		paths = append(paths, filepath)
+		log.Info().Str("task_id", r.TaskID).Str("file", filepath).Msg("report exported")
+	}
+
+	return paths, nil
+}
+
 func (s *Store) GetDBSize() (int64, error) {
 	var size int64
 	row := s.db.QueryRow("SELECT page_count * page_size FROM pragma_page_count(), pragma_page_size()")
