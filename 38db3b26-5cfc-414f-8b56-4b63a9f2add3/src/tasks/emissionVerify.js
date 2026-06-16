@@ -5,7 +5,8 @@ import { createTaskLogger } from '../logger/index.js';
 
 const log = createTaskLogger('emission');
 
-async function ensureLoggedIn(browser, profile) {
+async function ensureLoggedIn(browser, profile, options = {}) {
+  const { onCaptcha } = options;
   try {
     const indicator = await browser.$(profile.login.loginSuccessIndicator);
     const exists = await indicator.isExisting().catch(() => false);
@@ -22,18 +23,42 @@ async function ensureLoggedIn(browser, profile) {
   const hasCaptcha = await captchaImg.isExisting().catch(() => false);
 
   if (hasCaptcha) {
-    log.warn('Emission platform requires captcha - pausing for manual input');
-    const captchaInput = await browser.$(profile.login.captchaInput);
-    await captchaInput.click();
-    return 'captcha_required';
+    log.warn('Emission platform requires captcha - waiting for manual input');
+    if (onCaptcha) {
+      const captchaCode = await onCaptcha({
+        platform: 'emission',
+        platformName: profile.name,
+        loginUrl: profile.url,
+        captchaImage: profile.login.captchaImage,
+        captchaInput: profile.login.captchaInput,
+        captchaSubmit: profile.login.captchaSubmit,
+        browser,
+      });
+      if (captchaCode) {
+        const captchaInputEl = await browser.$(profile.login.captchaInput);
+        await captchaInputEl.clearValue();
+        await captchaInputEl.setValue(captchaCode);
+        const submitBtn = await browser.$(profile.login.captchaSubmit);
+        if (submitBtn && await submitBtn.isExisting().catch(() => false)) {
+          await submitBtn.click();
+        }
+        await browser.pause(2000);
+      }
+    } else {
+      return 'captcha_required';
+    }
   }
 
   const usernameInput = await browser.$(profile.login.usernameInput);
   const passwordInput = await browser.$(profile.login.passwordInput);
   const loginButton = await browser.$(profile.login.loginButton);
 
-  await usernameInput.setValue(profile.credentials.username);
-  await passwordInput.setValue(profile.credentials.password);
+  if (await usernameInput.isExisting().catch(() => false)) {
+    await usernameInput.setValue(profile.credentials.username);
+  }
+  if (await passwordInput.isExisting().catch(() => false)) {
+    await passwordInput.setValue(profile.credentials.password);
+  }
   await loginButton.click();
   await browser.pause(2000);
 
@@ -119,6 +144,7 @@ export async function verifyEmission(batchId, vin, options = {}) {
   const pool = getBrowserPool();
   const instance = await pool.acquire();
   const maxRetries = options.retries ?? 2;
+  const { onCaptcha } = options;
 
   log.info('Starting emission verification', { vin });
 
@@ -126,7 +152,7 @@ export async function verifyEmission(batchId, vin, options = {}) {
     try {
       const browser = await instance.acquire();
 
-      const loginResult = await ensureLoggedIn(browser, profile);
+      const loginResult = await ensureLoggedIn(browser, profile, { onCaptcha });
       if (loginResult === 'captcha_required') {
         pool.release(instance);
         upsertEmissionResult(batchId, vin, {

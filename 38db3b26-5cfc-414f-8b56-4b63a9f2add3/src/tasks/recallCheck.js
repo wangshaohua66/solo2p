@@ -14,7 +14,8 @@ function resolveBrand(vin, brandMapping) {
   return 'generic';
 }
 
-async function ensureLoggedIn(browser, profile) {
+async function ensureLoggedIn(browser, profile, options = {}) {
+  const { onCaptcha } = options;
   try {
     const indicator = await browser.$(profile.login.loginSuccessIndicator);
     const exists = await indicator.isExisting().catch(() => false);
@@ -31,18 +32,42 @@ async function ensureLoggedIn(browser, profile) {
   const hasCaptcha = await captchaImg.isExisting().catch(() => false);
 
   if (hasCaptcha) {
-    log.warn('Recall platform requires captcha - pausing for manual input');
-    const captchaInput = await browser.$(profile.login.captchaInput);
-    await captchaInput.click();
-    return 'captcha_required';
+    log.warn('Recall platform requires captcha - waiting for manual input');
+    if (onCaptcha) {
+      const captchaCode = await onCaptcha({
+        platform: 'recall',
+        platformName: profile.name,
+        loginUrl: profile.url || Object.values(profile.baseUrls)[0],
+        captchaImage: profile.login.captchaImage,
+        captchaInput: profile.login.captchaInput,
+        captchaSubmit: profile.login.captchaSubmit,
+        browser,
+      });
+      if (captchaCode) {
+        const captchaInputEl = await browser.$(profile.login.captchaInput);
+        await captchaInputEl.clearValue();
+        await captchaInputEl.setValue(captchaCode);
+        const submitBtn = await browser.$(profile.login.captchaSubmit);
+        if (submitBtn && await submitBtn.isExisting().catch(() => false)) {
+          await submitBtn.click();
+        }
+        await browser.pause(2000);
+      }
+    } else {
+      return 'captcha_required';
+    }
   }
 
   const usernameInput = await browser.$(profile.login.usernameInput);
   const passwordInput = await browser.$(profile.login.passwordInput);
   const loginButton = await browser.$(profile.login.loginButton);
 
-  await usernameInput.setValue(profile.credentials.username);
-  await passwordInput.setValue(profile.credentials.password);
+  if (await usernameInput.isExisting().catch(() => false)) {
+    await usernameInput.setValue(profile.credentials.username);
+  }
+  if (await passwordInput.isExisting().catch(() => false)) {
+    await passwordInput.setValue(profile.credentials.password);
+  }
   await loginButton.click();
   await browser.pause(2000);
 
@@ -154,6 +179,7 @@ export async function checkRecall(batchId, vin, options = {}) {
   const instance = await pool.acquire();
   const maxRetries = options.retries ?? 2;
   const productionDate = options.productionDate || '';
+  const { onCaptcha } = options;
 
   log.info('Starting recall check', { vin });
 
@@ -165,7 +191,7 @@ export async function checkRecall(batchId, vin, options = {}) {
       const baseUrl = profile.baseUrls[brand] || profile.baseUrls.generic;
       const brandProfile = { ...profile, url: baseUrl };
 
-      const loginResult = await ensureLoggedIn(browser, brandProfile);
+      const loginResult = await ensureLoggedIn(browser, brandProfile, { onCaptcha });
       if (loginResult === 'captcha_required') {
         pool.release(instance);
         upsertRecallResult(batchId, vin, {

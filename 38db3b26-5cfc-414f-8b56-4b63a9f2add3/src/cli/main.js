@@ -4,7 +4,8 @@ import { parse } from 'csv-parse/sync';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import cliProgress from 'cli-progress';
-import { runPipeline, resumePipeline } from '../orchestrator/pipeline.js';
+import inquirer from 'inquirer';
+import { Pipeline } from '../orchestrator/pipeline.js';
 import { getBrowserPool } from '../engines/browserPool.js';
 import { getDb, getVinStatuses, getBatchSummary, closeDb } from '../store/db.js';
 import { generateReports } from '../reports/generator.js';
@@ -117,37 +118,117 @@ async function showProgressBar(pool, total) {
 
 async function runInteractive(vins, args) {
   let paused = false;
+  let captchaActive = false;
   let pipelineRef = null;
+  let lastProgressLine = '';
+
+  function clearProgressLine() {
+    process.stdout.write('\r\x1b[K');
+  }
+
+  function restoreProgressLine() {
+    if (lastProgressLine) {
+      process.stdout.write(`\r${lastProgressLine}`);
+    }
+  }
 
   const handleKeypress = async (str, key) => {
+    if (captchaActive || !pipelineRef) return;
+
     if (key.name === 'space') {
-      if (pipelineRef) {
-        if (paused) {
-          pipelineRef.resumeProcessing();
-          paused = false;
-          console.log(chalk.green('\n▶ 已恢复执行'));
-        } else {
-          pipelineRef.pause();
-          paused = true;
-          console.log(chalk.yellow('\n⏸ 已暂停执行'));
-        }
+      if (paused) {
+        pipelineRef.resumeProcessing();
+        paused = false;
+        clearProgressLine();
+        console.log(chalk.green('\n▶ 已恢复执行'));
+        restoreProgressLine();
+      } else {
+        pipelineRef.pause();
+        paused = true;
+        clearProgressLine();
+        console.log(chalk.yellow('\n⏸ 已暂停执行'));
+        restoreProgressLine();
       }
     } else if (key.name === 'q') {
       if (pipelineRef) {
         await pipelineRef.stop();
-        console.log(chalk.red('\n⏹ 已停止执行'));
       }
+      clearProgressLine();
+      console.log(chalk.red('\n⏹ 已停止执行'));
       process.exit(0);
     } else if (key.name === 'd') {
+      clearProgressLine();
       showCurrentDetails(args.batchId || pipelineRef?.batchId);
+      restoreProgressLine();
     }
   };
 
-  if (process.stdin.isTTY) {
-    process.stdin.setRawMode(true);
-    process.stdin.resume();
-    process.stdin.on('keypress', handleKeypress);
+  function enableKeypress() {
+    if (process.stdin.isTTY) {
+      process.stdin.setRawMode(true);
+      process.stdin.resume();
+      process.stdin.on('keypress', handleKeypress);
+    }
   }
+
+  function disableKeypress() {
+    if (process.stdin.isTTY) {
+      process.stdin.removeListener('keypress', handleKeypress);
+      process.stdin.setRawMode(false);
+    }
+  }
+
+  async function handleCaptcha(captchaInfo) {
+    captchaActive = true;
+    disableKeypress();
+
+    clearProgressLine();
+    console.log('\n');
+    console.log(chalk.magenta.bold('╔══════════════════════════════════════╗'));
+    console.log(chalk.magenta.bold('║          ⚡ 验证码等待输入           ║'));
+    console.log(chalk.magenta.bold('╚══════════════════════════════════════╝'));
+    console.log(chalk.yellow(`  VIN:       ${captchaInfo.vin}`));
+    console.log(chalk.yellow(`  平台:      ${captchaInfo.platformName}`));
+    console.log(chalk.yellow(`  登录页:    ${captchaInfo.loginUrl}`));
+    console.log(chalk.dim(`  请在浏览器中查看验证码，然后在此输入`));
+    console.log('');
+
+    try {
+      const answers = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'captcha',
+          message: '请输入验证码:',
+          validate: (value) => {
+            if (value && value.trim().length > 0) {
+              return true;
+            }
+            return '请输入验证码';
+          },
+        },
+      ]);
+
+      const captchaCode = answers.captcha.trim();
+      console.log('');
+      console.log(chalk.green(`  ✓ 已提交验证码: ${captchaCode}`));
+      console.log('');
+
+      pipelineRef.resolveCaptcha(captchaInfo.vin, captchaInfo.platform, captchaCode);
+      log.info('Captcha submitted by user', {
+        vin: captchaInfo.vin,
+        platform: captchaInfo.platform,
+      });
+
+    } catch (err) {
+      log.error('Captcha input cancelled or failed', { error: err.message });
+      pipelineRef.resolveCaptcha(captchaInfo.vin, captchaInfo.platform, '');
+    } finally {
+      captchaActive = false;
+      enableKeypress();
+    }
+  }
+
+  enableKeypress();
 
   console.log(chalk.cyan.bold('\n🚗 车辆合规核验系统启动\n'));
   console.log(chalk.dim(`批次: ${args.batchId || '自动生成'}`));
@@ -159,6 +240,54 @@ async function runInteractive(vins, args) {
   await showProgressBar(pool, pool.maxSize);
   console.log(chalk.green('✓ 浏览器池就绪\n'));
 
+  const vinStatusMap = new Map();
+
+  const pipeline = new Pipeline();
+  pipelineRef = pipeline;
+  const batchId = await pipeline.init(vins, args.batchId);
+  args.batchId = batchId;
+
+  pipeline.on('captcha:detected', handleCaptcha);
+
+  pipeline.on('progress', (info) => {
+    if (captchaActive) return;
+    const pct = ((info.completed / info.total) * 100).toFixed(1);
+    const etaMin = Math.round(info.etaSeconds / 60);
+    const memStats = pool.getMemoryStats();
+    const memStr = ` | 内存: ${memStats.totalMemoryMB.toFixed(0)}MB`;
+    lastProgressLine = `${chalk.cyan('进度:')} ${info.completed}/${info.total} (${pct}%) ${chalk.dim(`预估剩余: ${etaMin}分钟${memStr}`)}`;
+    process.stdout.write(`\r${lastProgressLine}`);
+  });
+
+  pipeline.on('vin:start', (info) => {
+    vinStatusMap.set(info.vin, {
+      dmv: 'processing', insurance: 'processing',
+      recall: 'processing', emission: 'processing',
+      status: 'processing', risk: 'unknown',
+    });
+  });
+
+  pipeline.on('vin:complete', (info) => {
+    const current = vinStatusMap.get(info.vin) || {};
+    current.status = info.status;
+    vinStatusMap.set(info.vin, current);
+  });
+
+  pipeline.on('task:complete', (info) => {
+    const current = vinStatusMap.get(info.vin) || {};
+    current[info.platform] = info.status;
+    vinStatusMap.set(info.vin, current);
+  });
+
+  try {
+    await pipeline.run();
+  } finally {
+    await pool.destroyAll();
+  }
+
+  disableKeypress();
+
+  console.log('\n\n' + chalk.cyan.bold('核验结果:'));
   const statusTable = new Table({
     head: [
       chalk.bold('VIN'),
@@ -173,41 +302,7 @@ async function runInteractive(vins, args) {
     style: { 'padding-left': 1, 'padding-right': 1 },
   });
 
-  const vinStatusMap = new Map();
-
-  const result = await runPipeline(vins, {
-    batchId: args.batchId,
-    onProgress: (info) => {
-      const pct = ((info.completed / info.total) * 100).toFixed(1);
-      const etaMin = Math.round(info.etaSeconds / 60);
-      process.stdout.write(`\r${chalk.cyan('进度:')} ${info.completed}/${info.total} (${pct}%) ${chalk.dim(`预估剩余: ${etaMin}分钟`)}`);
-    },
-    onVinStart: (info) => {
-      vinStatusMap.set(info.vin, {
-        dmv: 'processing', insurance: 'processing',
-        recall: 'processing', emission: 'processing',
-        status: 'processing', risk: 'unknown',
-      });
-    },
-    onVinComplete: (info) => {
-      vinStatusMap.set(info.vin, {
-        ...vinStatusMap.get(info.vin),
-        status: info.status,
-      });
-    },
-    onTaskComplete: (info) => {
-      const current = vinStatusMap.get(info.vin) || {};
-      current[info.platform] = info.status;
-      vinStatusMap.set(info.vin, current);
-    },
-  });
-
-  pipelineRef = result.pipeline;
-
-  console.log('\n\n' + chalk.cyan.bold('核验结果:'));
-  statusTable.length = 0;
-
-  const finalStatuses = getVinStatuses(result.batchId);
+  const finalStatuses = getVinStatuses(batchId);
   for (const vs of finalStatuses) {
     statusTable.push([
       vs.vin.substring(0, 17),
@@ -222,23 +317,18 @@ async function runInteractive(vins, args) {
 
   console.log(statusTable.toString());
 
-  const summary = getBatchSummary(result.batchId);
+  const summary = getBatchSummary(batchId);
   console.log(chalk.dim('━'.repeat(50)));
   console.log(`  ${chalk.green('✓ 完成:')} ${summary.completed}`);
   console.log(`  ${chalk.red('✗ 失败:')} ${summary.failed}`);
   console.log(`  ${chalk.gray('○ 待处理:')} ${summary.pending}`);
   console.log(`  ${chalk.yellow('◉ 处理中:')} ${summary.processing}`);
 
-  const { jsonPath, textPath } = generateReports(result.batchId);
+  const { jsonPath, textPath } = generateReports(batchId);
   console.log(chalk.dim('\n━'.repeat(50)));
   console.log(`${chalk.green('📄 报告已生成:')}`);
   console.log(chalk.dim(`  JSON: ${jsonPath}`));
   console.log(chalk.dim(`  文本: ${textPath}`));
-
-  if (process.stdin.isTTY) {
-    process.stdin.setRawMode(false);
-    process.stdin.pause();
-  }
 }
 
 function showCurrentDetails(batchId) {
@@ -264,6 +354,34 @@ function showCurrentDetails(batchId) {
 }
 
 async function runResume(batchId) {
+  let captchaActive = false;
+  let pipelineRef = null;
+
+  async function handleCaptcha(captchaInfo) {
+    captchaActive = true;
+    console.log('\n');
+    console.log(chalk.magenta.bold('⚡ 验证码等待输入'));
+    console.log(chalk.yellow(`  VIN:    ${captchaInfo.vin}`));
+    console.log(chalk.yellow(`  平台:   ${captchaInfo.platformName}`));
+    console.log('');
+
+    try {
+      const answers = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'captcha',
+          message: '请输入验证码:',
+          validate: (value) => value && value.trim().length > 0 ? true : '请输入验证码',
+        },
+      ]);
+      pipelineRef.resolveCaptcha(captchaInfo.vin, captchaInfo.platform, answers.captcha.trim());
+    } catch (err) {
+      pipelineRef.resolveCaptcha(captchaInfo.vin, captchaInfo.platform, '');
+    } finally {
+      captchaActive = false;
+    }
+  }
+
   console.log(chalk.cyan.bold('\n🚗 车辆合规核验系统 - 断点恢复\n'));
   console.log(chalk.dim(`恢复批次: ${batchId}`));
 
@@ -271,15 +389,26 @@ async function runResume(batchId) {
   await pool.initialize();
   console.log(chalk.green('✓ 浏览器池就绪\n'));
 
-  const result = await resumePipeline(batchId, {
-    onProgress: (info) => {
-      const pct = ((info.completed / info.total) * 100).toFixed(1);
-      const etaMin = Math.round(info.etaSeconds / 60);
-      process.stdout.write(`\r${chalk.cyan('进度:')} ${info.completed}/${info.total} (${pct}%) ${chalk.dim(`预估剩余: ${etaMin}分钟`)}`);
-    },
+  const pipeline = new Pipeline();
+  pipelineRef = pipeline;
+  await pipeline.resume(batchId);
+
+  pipeline.on('captcha:detected', handleCaptcha);
+
+  pipeline.on('progress', (info) => {
+    if (captchaActive) return;
+    const pct = ((info.completed / info.total) * 100).toFixed(1);
+    const etaMin = Math.round(info.etaSeconds / 60);
+    process.stdout.write(`\r${chalk.cyan('进度:')} ${info.completed}/${info.total} (${pct}%) ${chalk.dim(`预估剩余: ${etaMin}分钟`)}`);
   });
 
-  generateReports(result.batchId);
+  try {
+    await pipeline.run();
+  } finally {
+    await pool.destroyAll();
+  }
+
+  generateReports(batchId);
   console.log(chalk.green('\n✓ 断点恢复执行完成'));
 }
 

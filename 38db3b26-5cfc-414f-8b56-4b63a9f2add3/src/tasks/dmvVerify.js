@@ -7,8 +7,9 @@ const log = createTaskLogger('dmv');
 
 const HIGH_RISK_USAGE_TRANSITIONS = ['营转非', '出租转非', '货运转非', '租赁转非'];
 
-async function ensureLoggedIn(browser, profile) {
+async function ensureLoggedIn(browser, profile, options = {}) {
   const loginConf = profile.login;
+  const { onCaptcha } = options;
   try {
     const indicator = await browser.$(loginConf.loginSuccessIndicator);
     const exists = await indicator.isExisting().catch(() => false);
@@ -33,18 +34,42 @@ async function ensureLoggedIn(browser, profile) {
   const hasCaptcha = await captchaImg.isExisting().catch(() => false);
 
   if (hasCaptcha) {
-    log.warn('DMV login requires captcha - pausing for manual input');
-    const captchaInput = await browser.$(loginConf.captchaInput);
-    await captchaInput.click();
-    return 'captcha_required';
+    log.warn('DMV login requires captcha - waiting for manual input');
+    if (onCaptcha) {
+      const captchaCode = await onCaptcha({
+        platform: 'dmv',
+        platformName: profile.name,
+        loginUrl: profile.url,
+        captchaImage: loginConf.captchaImage,
+        captchaInput: loginConf.captchaInput,
+        captchaSubmit: loginConf.captchaSubmit,
+        browser,
+      });
+      if (captchaCode) {
+        const captchaInputEl = await browser.$(loginConf.captchaInput);
+        await captchaInputEl.clearValue();
+        await captchaInputEl.setValue(captchaCode);
+        const submitBtn = await browser.$(loginConf.captchaSubmit);
+        if (submitBtn && await submitBtn.isExisting().catch(() => false)) {
+          await submitBtn.click();
+        }
+        await browser.pause(2000);
+      }
+    } else {
+      return 'captcha_required';
+    }
   }
 
   const usernameInput = await browser.$(loginConf.usernameInput);
   const passwordInput = await browser.$(loginConf.passwordInput);
   const loginButton = await browser.$(loginConf.loginButton);
 
-  await usernameInput.setValue(profile.credentials.username);
-  await passwordInput.setValue(profile.credentials.password);
+  if (await usernameInput.isExisting().catch(() => false)) {
+    await usernameInput.setValue(profile.credentials.username);
+  }
+  if (await passwordInput.isExisting().catch(() => false)) {
+    await passwordInput.setValue(profile.credentials.password);
+  }
   await loginButton.click();
   await browser.pause(2000);
 
@@ -136,6 +161,7 @@ export async function verifyDmv(batchId, vin, options = {}) {
   const pool = getBrowserPool();
   const instance = await pool.acquire();
   const maxRetries = options.retries ?? 2;
+  const { onCaptcha } = options;
 
   log.info('Starting DMV verification', { vin });
 
@@ -143,7 +169,7 @@ export async function verifyDmv(batchId, vin, options = {}) {
     try {
       const browser = await instance.acquire();
 
-      const loginResult = await ensureLoggedIn(browser, profile);
+      const loginResult = await ensureLoggedIn(browser, profile, { onCaptcha });
       if (loginResult === 'captcha_required') {
         pool.release(instance);
         upsertDmvResult(batchId, vin, {

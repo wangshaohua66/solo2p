@@ -251,6 +251,25 @@ export class Pipeline extends EventEmitter {
     const results = this.results.get(vin) || {};
     const taskDurations = {};
 
+    const onCaptcha = async (captchaInfo) => {
+      log.info('Captcha detected, waiting for user input', {
+        vin,
+        platform: captchaInfo.platform,
+        platformName: captchaInfo.platformName,
+      });
+      this.captchaWaitVins.add(vin);
+      this.emit('captcha:detected', { vin, ...captchaInfo });
+
+      return new Promise((resolve) => {
+        const onResolve = (code) => {
+          this.captchaWaitVins.delete(vin);
+          this.off(`captcha:resolved:${vin}:${captchaInfo.platform}`, onResolve);
+          resolve(code);
+        };
+        this.once(`captcha:resolved:${vin}:${captchaInfo.platform}`, onResolve);
+      });
+    };
+
     const taskPromises = PLATFORMS.map(async (platform) => {
       const taskStartTime = Date.now();
       if (results[platform]?.status === 'completed') {
@@ -259,7 +278,7 @@ export class Pipeline extends EventEmitter {
       }
       try {
         const taskFn = TASK_MAP[platform];
-        const result = await taskFn(this.batchId, vin);
+        const result = await taskFn(this.batchId, vin, { onCaptcha });
         results[platform] = result;
         taskDurations[platform] = Date.now() - taskStartTime;
         this.emit('task:complete', { vin, platform, status: result.status, durationMs: taskDurations[platform] });
@@ -351,6 +370,12 @@ export class Pipeline extends EventEmitter {
     this.running = false;
     log.info('Pipeline stopped');
     this.emit('stopped', { batchId: this.batchId });
+  }
+
+  resolveCaptcha(vin, platform, captchaCode) {
+    const eventName = `captcha:resolved:${vin}:${platform}`;
+    log.info('Resolving captcha', { vin, platform, eventName });
+    this.emit(eventName, captchaCode);
   }
 
   getStatus() {
