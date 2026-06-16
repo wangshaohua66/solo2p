@@ -257,7 +257,7 @@ func (s *equipmentService) GetEquipmentStats(ctx context.Context, equipmentIDs [
 		return nil, errors.New("end time cannot be before start time")
 	}
 
-	utilizationStats, err := s.statsRepo.GetUtilizationByEquipment(ctx, startTime, endTime, equipmentIDs)
+	utilizationStats, err := s.statsRepo.GetUtilizationByEquipment(ctx, startTime, endTime, equipmentIDs, nil)
 	if err != nil {
 		return nil, err
 	}

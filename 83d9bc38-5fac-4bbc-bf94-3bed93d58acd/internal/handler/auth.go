@@ -107,14 +107,9 @@ func (h *AuthHandler) RefreshToken(c echo.Context) error {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "无效的Token"})
 	}
 
-	user, err := h.userRepo.GetByID(c.Request().Context(), claims.UserID)
-	if err != nil {
-		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "用户不存在"})
-	}
-
 	userWithDetails, err := h.userRepo.GetByIDWithDetails(c.Request().Context(), claims.UserID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "获取用户信息失败"})
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "用户不存在"})
 	}
 
 	permissions, err := h.getPermissions(userWithDetails.Role)
@@ -122,7 +117,7 @@ func (h *AuthHandler) RefreshToken(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "获取权限失败"})
 	}
 
-	newToken, err := h.generateToken(user, permissions)
+	newToken, err := h.generateToken(userWithDetails, permissions)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "生成Token失败"})
 	}

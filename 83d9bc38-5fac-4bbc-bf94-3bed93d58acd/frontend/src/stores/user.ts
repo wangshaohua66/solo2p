@@ -65,7 +65,7 @@ export const useUserStore = defineStore(
     })
 
     const isAdmin = computed(() => {
-      return hasAnyRole.value(['admin', 'superadmin'])
+      return hasAnyRole.value(['admin', 'super_admin'])
     })
 
     const login = async (credentials: LoginRequest) => {

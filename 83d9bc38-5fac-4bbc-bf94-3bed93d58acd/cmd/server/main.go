@@ -61,6 +61,7 @@ import (
 
 	"equipment-booking/internal/handler"
 	"equipment-booking/internal/middleware"
+	"equipment-booking/internal/model"
 	"equipment-booking/internal/repository"
 	"equipment-booking/internal/service"
 
@@ -105,10 +106,10 @@ func run() error {
 		}
 	}()
 
-	// if err := model.AutoMigrate(db); err != nil {
-	// 	return fmt.Errorf("数据库迁移失败: %w", err)
-	// }
-	log.Println("跳过数据库迁移（表已存在）")
+	// 数据库迁移（表已存在时跳过）
+	if err := model.AutoMigrate(db); err != nil {
+		log.Printf("警告: 数据库迁移可能遇到问题，尝试继续启动: %v", err)
+	}
 
 	repos := repository.NewRepositories(db)
 

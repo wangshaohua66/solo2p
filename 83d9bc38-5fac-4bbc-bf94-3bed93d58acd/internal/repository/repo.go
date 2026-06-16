@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"equipment-booking/internal/model"
@@ -58,9 +59,11 @@ func (r *BaseRepository[T]) List(ctx context.Context, pagination *model.Paginati
 		return nil, err
 	}
 
-	if pagination != nil {
-		query = query.Offset(pagination.GetOffset()).Limit(pagination.GetLimit())
+	if pagination == nil {
+		pagination = &model.PaginationParams{Page: 1, PageSize: int(total)}
 	}
+
+	query = query.Offset(pagination.GetOffset()).Limit(pagination.GetLimit())
 
 	if err := query.Find(&items).Error; err != nil {
 		return nil, err
@@ -697,10 +700,10 @@ func (r *maintenanceRepository) CheckConflict(ctx context.Context, equipmentID u
 }
 
 type StatsRepository interface {
-	GetUtilizationByEquipment(ctx context.Context, startTime, endTime time.Time, equipmentIDs []uint64) ([]model.UtilizationStats, error)
+	GetUtilizationByEquipment(ctx context.Context, startTime, endTime time.Time, equipmentIDs []uint64, centerID *uint64) ([]model.UtilizationStats, error)
 	GetUtilizationByCenter(ctx context.Context, startTime, endTime time.Time) ([]model.CenterStats, error)
-	GetUtilizationByCategory(ctx context.Context, startTime, endTime time.Time) ([]model.CategoryStats, error)
-	GetUtilizationByTimeDimension(ctx context.Context, startTime, endTime time.Time, dimension string) ([]model.UtilizationStats, error)
+	GetUtilizationByCategory(ctx context.Context, startTime, endTime time.Time, centerID *uint64) ([]model.CategoryStats, error)
+	GetUtilizationByTimeDimension(ctx context.Context, startTime, endTime time.Time, dimension string, centerID *uint64) ([]model.UtilizationStats, error)
 	GetPeakValleyStats(ctx context.Context, startTime, endTime time.Time) ([]model.PeakValleyStats, error)
 	GetTrendStats(ctx context.Context, days int) ([]model.TrendStats, error)
 	GetEquipmentRanking(ctx context.Context, startTime, endTime time.Time, limit int) ([]model.EquipmentRankingItem, error)
@@ -716,40 +719,52 @@ func NewStatsRepository(db *gorm.DB) StatsRepository {
 	return &statsRepository{db: db}
 }
 
-func (r *statsRepository) GetUtilizationByEquipment(ctx context.Context, startTime, endTime time.Time, equipmentIDs []uint64) ([]model.UtilizationStats, error) {
+func (r *statsRepository) GetUtilizationByEquipment(ctx context.Context, startTime, endTime time.Time, equipmentIDs []uint64, centerID *uint64) ([]model.UtilizationStats, error) {
 	var results []model.UtilizationStats
 
 	totalHours := endTime.Sub(startTime).Hours()
+	startStr := startTime.Format("2006-01-02 15:04:05")
+	endStr := endTime.Format("2006-01-02 15:04:05")
+	periodStr := startTime.Format("2006-01-02") + " - " + endTime.Format("2006-01-02")
 
-	query := r.db.WithContext(ctx).
-		Table("equipment e").
-		Select(`
+	sql := fmt.Sprintf(`
+		SELECT 
 			e.id as equipment_id,
 			e.name as equipment_name,
 			e.center_id as center_id,
 			c.name as center_name,
 			e.category as category,
-			? as total_hours,
-			COALESCE(SUM(EXTRACT(EPOCH FROM (LEAST(b.end_time, ?) - GREATEST(b.start_time, ?))) / 3600), 0) as booked_hours,
+			%f as total_hours,
+			COALESCE(SUM(EXTRACT(EPOCH FROM (LEAST(b.end_time, $1::timestamp) - GREATEST(b.start_time, $2::timestamp))) / 3600), 0) as booked_hours,
 			CASE 
-				WHEN ? > 0 THEN COALESCE(SUM(EXTRACT(EPOCH FROM (LEAST(b.end_time, ?) - GREATEST(b.start_time, ?))) / 3600), 0) / ? * 100 
+				WHEN %f > 0 THEN COALESCE(SUM(EXTRACT(EPOCH FROM (LEAST(b.end_time, $1::timestamp) - GREATEST(b.start_time, $2::timestamp))) / 3600), 0) / %f * 100 
 				ELSE 0 
 			END as utilization_rate,
-			CONCAT(?, ' - ', ?) as period
-		`, totalHours, endTime, startTime, totalHours, endTime, startTime, totalHours, startTime.Format("2006-01-02"), endTime.Format("2006-01-02")).
-		Joins("LEFT JOIN centers c ON e.center_id = c.id").
-		Joins(`LEFT JOIN bookings b ON e.id = b.equipment_id 
+			$3 as period
+		FROM equipment e
+		LEFT JOIN centers c ON e.center_id = c.id
+		LEFT JOIN bookings b ON e.id = b.equipment_id 
 			AND b.status = 'confirmed'
-			AND b.start_time < ? 
-			AND b.end_time > ?`, endTime, startTime)
+			AND b.start_time < $1::timestamp 
+			AND b.end_time > $2::timestamp
+		WHERE 1=1
+	`, totalHours, totalHours, totalHours)
+
+	args := []interface{}{endStr, startStr, periodStr}
 
 	if len(equipmentIDs) > 0 {
-		query = query.Where("e.id IN ?", equipmentIDs)
+		sql += " AND e.id IN ($" + strconv.Itoa(len(args)+1) + ")"
+		args = append(args, equipmentIDs)
 	}
 
-	err := query.Group("e.id, e.name, e.center_id, c.name, e.category").
-		Order("utilization_rate DESC").
-		Scan(&results).Error
+	if centerID != nil && *centerID > 0 {
+		sql += " AND e.center_id = $" + strconv.Itoa(len(args)+1)
+		args = append(args, *centerID)
+	}
+
+	sql += " GROUP BY e.id, e.name, e.center_id, c.name, e.category ORDER BY utilization_rate DESC"
+
+	err := r.db.WithContext(ctx).Raw(sql, args...).Scan(&results).Error
 
 	return results, err
 }
@@ -758,61 +773,75 @@ func (r *statsRepository) GetUtilizationByCenter(ctx context.Context, startTime,
 	var results []model.CenterStats
 
 	totalHours := endTime.Sub(startTime).Hours()
+	startStr := startTime.Format("2006-01-02 15:04:05")
+	endStr := endTime.Format("2006-01-02 15:04:05")
 
-	err := r.db.WithContext(ctx).
-		Table("equipment e").
-		Select(`
+	sql := fmt.Sprintf(`
+		SELECT 
 			c.id as center_id,
 			c.name as center_name,
 			COUNT(DISTINCT e.id) as equipment_count,
-			COALESCE(SUM(EXTRACT(EPOCH FROM (LEAST(b.end_time, ?) - GREATEST(b.start_time, ?))) / 3600), 0) as booked_hours,
+			COALESCE(SUM(EXTRACT(EPOCH FROM (LEAST(b.end_time, $1::timestamp) - GREATEST(b.start_time, $2::timestamp))) / 3600), 0) as booked_hours,
 			CASE 
-				WHEN COUNT(DISTINCT e.id) > 0 AND ? > 0 THEN 
-					COALESCE(SUM(EXTRACT(EPOCH FROM (LEAST(b.end_time, ?) - GREATEST(b.start_time, ?))) / 3600), 0) / (COUNT(DISTINCT e.id) * ?) * 100 
+				WHEN COUNT(DISTINCT e.id) > 0 AND %f > 0 THEN 
+					COALESCE(SUM(EXTRACT(EPOCH FROM (LEAST(b.end_time, $1::timestamp) - GREATEST(b.start_time, $2::timestamp))) / 3600), 0) / (COUNT(DISTINCT e.id) * %f) * 100 
 				ELSE 0 
 			END as utilization_rate
-		`, endTime, startTime, totalHours, endTime, startTime, totalHours).
-		Joins("LEFT JOIN centers c ON e.center_id = c.id").
-		Joins(`LEFT JOIN bookings b ON e.id = b.equipment_id 
+		FROM equipment e
+		LEFT JOIN centers c ON e.center_id = c.id
+		LEFT JOIN bookings b ON e.id = b.equipment_id 
 			AND b.status = 'confirmed'
-			AND b.start_time < ? 
-			AND b.end_time > ?`, endTime, startTime).
-		Group("c.id, c.name").
-		Order("utilization_rate DESC").
-		Scan(&results).Error
+			AND b.start_time < $1::timestamp 
+			AND b.end_time > $2::timestamp
+		GROUP BY c.id, c.name
+		ORDER BY utilization_rate DESC
+	`, totalHours, totalHours)
+
+	err := r.db.WithContext(ctx).Raw(sql, endStr, startStr).Scan(&results).Error
 
 	return results, err
 }
 
-func (r *statsRepository) GetUtilizationByCategory(ctx context.Context, startTime, endTime time.Time) ([]model.CategoryStats, error) {
+func (r *statsRepository) GetUtilizationByCategory(ctx context.Context, startTime, endTime time.Time, centerID *uint64) ([]model.CategoryStats, error) {
 	var results []model.CategoryStats
 
 	totalHours := endTime.Sub(startTime).Hours()
+	startStr := startTime.Format("2006-01-02 15:04:05")
+	endStr := endTime.Format("2006-01-02 15:04:05")
 
-	err := r.db.WithContext(ctx).
-		Table("equipment e").
-		Select(`
+	sql := fmt.Sprintf(`
+		SELECT 
 			e.category as category,
 			COUNT(DISTINCT e.id) as count,
-			COALESCE(SUM(EXTRACT(EPOCH FROM (LEAST(b.end_time, ?) - GREATEST(b.start_time, ?))) / 3600), 0) as booked_hours,
+			COALESCE(SUM(EXTRACT(EPOCH FROM (LEAST(b.end_time, $1::timestamp) - GREATEST(b.start_time, $2::timestamp))) / 3600), 0) as booked_hours,
 			CASE 
-				WHEN COUNT(DISTINCT e.id) > 0 AND ? > 0 THEN 
-					COALESCE(SUM(EXTRACT(EPOCH FROM (LEAST(b.end_time, ?) - GREATEST(b.start_time, ?))) / 3600), 0) / (COUNT(DISTINCT e.id) * ?) * 100 
+				WHEN COUNT(DISTINCT e.id) > 0 AND %f > 0 THEN 
+					COALESCE(SUM(EXTRACT(EPOCH FROM (LEAST(b.end_time, $1::timestamp) - GREATEST(b.start_time, $2::timestamp))) / 3600), 0) / (COUNT(DISTINCT e.id) * %f) * 100 
 				ELSE 0 
 			END as utilization_rate
-		`, endTime, startTime, totalHours, endTime, startTime, totalHours).
-		Joins(`LEFT JOIN bookings b ON e.id = b.equipment_id 
+		FROM equipment e
+		LEFT JOIN bookings b ON e.id = b.equipment_id 
 			AND b.status = 'confirmed'
-			AND b.start_time < ? 
-			AND b.end_time > ?`, endTime, startTime).
-		Group("e.category").
-		Order("utilization_rate DESC").
-		Scan(&results).Error
+			AND b.start_time < $1::timestamp 
+			AND b.end_time > $2::timestamp
+		WHERE 1=1
+	`, totalHours, totalHours)
+
+	args := []interface{}{endStr, startStr}
+
+	if centerID != nil && *centerID > 0 {
+		sql += " AND e.center_id = $" + strconv.Itoa(len(args)+1)
+		args = append(args, *centerID)
+	}
+
+	sql += " GROUP BY e.category ORDER BY utilization_rate DESC"
+
+	err := r.db.WithContext(ctx).Raw(sql, args...).Scan(&results).Error
 
 	return results, err
 }
 
-func (r *statsRepository) GetUtilizationByTimeDimension(ctx context.Context, startTime, endTime time.Time, dimension string) ([]model.UtilizationStats, error) {
+func (r *statsRepository) GetUtilizationByTimeDimension(ctx context.Context, startTime, endTime time.Time, dimension string, centerID *uint64) ([]model.UtilizationStats, error) {
 	var results []model.UtilizationStats
 
 	var dateTrunc string
@@ -844,13 +873,19 @@ func (r *statsRepository) GetUtilizationByTimeDimension(ctx context.Context, sta
 
 	groupSQL := fmt.Sprintf("e.id, e.name, e.center_id, c.name, e.category, date_trunc(%s, b.start_time)", dateTrunc)
 
-	err := r.db.WithContext(ctx).
+	query := r.db.WithContext(ctx).
 		Table("bookings b").
 		Select(selectSQL).
 		Joins("JOIN equipment e ON b.equipment_id = e.id").
 		Joins("LEFT JOIN centers c ON e.center_id = c.id").
 		Where("b.status = 'confirmed'").
-		Where("b.start_time >= ? AND b.start_time < ?", startTime, endTime).
+		Where("b.start_time >= ? AND b.start_time < ?", startTime, endTime)
+
+	if centerID != nil && *centerID > 0 {
+		query = query.Where("e.center_id = ?", *centerID)
+	}
+
+	err := query.
 		Group(groupSQL).
 		Order("period ASC, utilization_rate DESC").
 		Scan(&results).Error

@@ -9,11 +9,12 @@ import (
 )
 
 type UtilizationStatsRequest struct {
-	AggregateBy string     `json:"aggregateBy" form:"aggregateBy"`
-	StartTime   time.Time  `json:"startTime" form:"startTime"`
-	EndTime     time.Time  `json:"endTime" form:"endTime"`
+	AggregateBy  string     `json:"aggregateBy" form:"aggregateBy"`
+	StartTime    time.Time  `json:"startTime" form:"startTime"`
+	EndTime      time.Time  `json:"endTime" form:"endTime"`
 	EquipmentIDs []uint64  `json:"equipmentIds" form:"equipmentIds"`
-	Dimension   string     `json:"dimension" form:"dimension"`
+	CenterID     *uint64    `json:"centerId" form:"centerId"`
+	Dimension    string     `json:"dimension" form:"dimension"`
 }
 
 type TrendStatsRequest struct {
@@ -48,15 +49,15 @@ func NewStatsService(repos *repository.Repositories) StatsService {
 func (s *statsService) GetUtilizationStats(ctx context.Context, req *UtilizationStatsRequest) (interface{}, error) {
 	switch req.AggregateBy {
 	case "equipment":
-		return s.repos.Stats.GetUtilizationByEquipment(ctx, req.StartTime, req.EndTime, req.EquipmentIDs)
+		return s.repos.Stats.GetUtilizationByEquipment(ctx, req.StartTime, req.EndTime, req.EquipmentIDs, req.CenterID)
 	case "center":
 		return s.repos.Stats.GetUtilizationByCenter(ctx, req.StartTime, req.EndTime)
 	case "category":
-		return s.repos.Stats.GetUtilizationByCategory(ctx, req.StartTime, req.EndTime)
+		return s.repos.Stats.GetUtilizationByCategory(ctx, req.StartTime, req.EndTime, req.CenterID)
 	case "time":
-		return s.repos.Stats.GetUtilizationByTimeDimension(ctx, req.StartTime, req.EndTime, req.Dimension)
+		return s.repos.Stats.GetUtilizationByTimeDimension(ctx, req.StartTime, req.EndTime, req.Dimension, req.CenterID)
 	default:
-		return s.repos.Stats.GetUtilizationByEquipment(ctx, req.StartTime, req.EndTime, req.EquipmentIDs)
+		return s.repos.Stats.GetUtilizationByEquipment(ctx, req.StartTime, req.EndTime, req.EquipmentIDs, req.CenterID)
 	}
 }
 

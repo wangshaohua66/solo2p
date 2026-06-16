@@ -162,6 +162,21 @@ func (s *maintenanceService) UpdateMaintenance(ctx context.Context, maintenanceI
 		if hasConflict {
 			return nil, errors.New("该时段已有维护计划")
 		}
+		maintenance.StartTime = updates.StartTime
+		maintenance.EndTime = updates.EndTime
+	}
+
+	if updates.Type != "" {
+		maintenance.Type = updates.Type
+	}
+	if updates.Status != "" {
+		maintenance.Status = updates.Status
+	}
+	if updates.OperatorID != nil {
+		maintenance.OperatorID = updates.OperatorID
+	}
+	if updates.Remark != "" {
+		maintenance.Remark = updates.Remark
 	}
 
 	if err := s.repos.Maintenance.Update(ctx, maintenance); err != nil {

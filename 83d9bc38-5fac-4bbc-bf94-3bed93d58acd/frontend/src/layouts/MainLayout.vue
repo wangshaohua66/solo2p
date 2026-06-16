@@ -264,7 +264,7 @@ const getFilteredChildren = (menu: MenuItem) => {
 
 const getRoleName = (roleName?: string) => {
   const roleMap: Record<string, string> = {
-    superadmin: '超级管理员',
+    super_admin: '超级管理员',
     admin: '管理员',
     operator: '操作员',
     teacher: '教师',

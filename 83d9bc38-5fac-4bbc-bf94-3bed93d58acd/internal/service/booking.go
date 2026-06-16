@@ -91,11 +91,6 @@ func (s *bookingService) CreateBooking(ctx context.Context, req *CreateBookingRe
 
 	booking.Billing = billing
 
-	user.Budget -= totalAmount
-	if err := s.repos.User.Update(ctx, user); err != nil {
-		return nil, fmt.Errorf("更新用户经费失败: %w", err)
-	}
-
 	notificationTitle := "预约成功"
 	notificationContent := fmt.Sprintf("您已成功预约设备[%s]，时间：%s 至 %s，费用：%.2f元",
 		equipment.Name,
@@ -175,13 +170,6 @@ func (s *bookingService) CancelBooking(ctx context.Context, bookingID uint64, op
 		ipAddress := ""
 		if _, err := s.billingService.RefundBilling(ctx, booking.Billing.ID, now, userIDPtr, ipAddress); err != nil {
 			return fmt.Errorf("退费失败: %w", err)
-		}
-
-		refundAmount := booking.Billing.Amount * refundRate
-		user, err := s.repos.User.GetByID(ctx, booking.UserID)
-		if err == nil {
-			user.Budget += refundAmount
-			_ = s.repos.User.Update(ctx, user)
 		}
 	}
 

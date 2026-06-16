@@ -37,6 +37,10 @@ const routes: AppRouteRecordRaw[] = [
     }
   },
   {
+    path: '/dashboard',
+    redirect: '/'
+  },
+  {
     path: '/equipment',
     name: 'EquipmentList',
     component: () => import('@/views/equipment/EquipmentList.vue'),

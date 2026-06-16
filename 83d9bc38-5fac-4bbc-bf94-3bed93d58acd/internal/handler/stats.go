@@ -118,7 +118,7 @@ func (h *StatsHandler) GetUtilizationStats(c echo.Context) error {
 
 	if query.CenterID != "" {
 		if centerID, err := strconv.ParseUint(query.CenterID, 10, 64); err == nil {
-			req.EquipmentIDs = append(req.EquipmentIDs, centerID)
+			req.CenterID = &centerID
 		}
 	}
 

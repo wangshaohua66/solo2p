@@ -5,7 +5,6 @@
         <component :is="Component" />
       </transition>
     </router-view>
-    <el-notification-provider />
     <div id="nprogress-container"></div>
   </div>
 </template>
