@@ -134,7 +134,7 @@
         >
           <div class="flex items-center gap-3 mb-4">
             <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-              <el-icon :size="20" class="text-blue-600"><Building /></el-icon>
+              <el-icon :size="20" class="text-blue-600"><OfficeBuilding /></el-icon>
             </div>
             <div>
               <h3 class="font-semibold text-gray-900">{{ center.centerName }}</h3>
@@ -168,7 +168,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import * as echarts from 'echarts'
-import { Refresh, DataAnalysis, Monitor, Clock, TrendingUp, Building } from '@element-plus/icons-vue'
+import { Refresh, DataAnalysis, Monitor, Clock, TrendCharts, OfficeBuilding } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { stats as statsApi, equipment as equipmentApi } from '@/api'
 import type { CenterStats, Equipment, DashboardStats } from '@/types'
@@ -215,7 +215,7 @@ const overviewStats = computed(() => {
       color: 'text-orange-600',
       bgColor: 'bg-orange-100',
       iconColor: 'text-orange-600',
-      icon: TrendingUp
+      icon: TrendCharts
     },
     {
       title: '待处理',

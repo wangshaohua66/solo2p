@@ -39,7 +39,7 @@ const routes: AppRouteRecordRaw[] = [
   {
     path: '/equipment',
     name: 'EquipmentList',
-    component: () => import('@/pages/EquipmentListPage.vue'),
+    component: () => import('@/views/equipment/EquipmentList.vue'),
     meta: {
       title: '设备列表',
       requiresAuth: true
@@ -48,7 +48,7 @@ const routes: AppRouteRecordRaw[] = [
   {
     path: '/equipment/:id',
     name: 'EquipmentDetail',
-    component: () => import('@/pages/EquipmentDetailPage.vue'),
+    component: () => import('@/views/equipment/EquipmentDetail.vue'),
     meta: {
       title: '设备详情',
       requiresAuth: true
@@ -58,7 +58,7 @@ const routes: AppRouteRecordRaw[] = [
   {
     path: '/booking',
     name: 'BookingCalendar',
-    component: () => import('@/pages/BookingCalendarPage.vue'),
+    component: () => import('@/views/booking/BookingCalendar.vue'),
     meta: {
       title: '预约日历',
       requiresAuth: true
@@ -67,7 +67,7 @@ const routes: AppRouteRecordRaw[] = [
   {
     path: '/booking/list',
     name: 'BookingList',
-    component: () => import('@/pages/BookingListPage.vue'),
+    component: () => import('@/views/booking/BookingList.vue'),
     meta: {
       title: '预约列表',
       requiresAuth: true
@@ -76,7 +76,7 @@ const routes: AppRouteRecordRaw[] = [
   {
     path: '/billing',
     name: 'Billing',
-    component: () => import('@/pages/BillingPage.vue'),
+    component: () => import('@/views/billing/BillingList.vue'),
     meta: {
       title: '账单管理',
       requiresAuth: true,
@@ -86,7 +86,7 @@ const routes: AppRouteRecordRaw[] = [
   {
     path: '/maintenance',
     name: 'Maintenance',
-    component: () => import('@/pages/MaintenancePage.vue'),
+    component: () => import('@/views/maintenance/MaintenanceList.vue'),
     meta: {
       title: '维护计划',
       requiresAuth: true,
@@ -96,7 +96,7 @@ const routes: AppRouteRecordRaw[] = [
   {
     path: '/stats',
     name: 'Stats',
-    component: () => import('@/pages/StatsPage.vue'),
+    component: () => import('@/views/stats/StatsDashboard.vue'),
     meta: {
       title: '统计分析',
       requiresAuth: true,
@@ -106,7 +106,7 @@ const routes: AppRouteRecordRaw[] = [
   {
     path: '/audit',
     name: 'Audit',
-    component: () => import('@/pages/AuditPage.vue'),
+    component: () => import('@/views/audit/AuditLogList.vue'),
     meta: {
       title: '日志审计',
       requiresAuth: true,
@@ -116,7 +116,7 @@ const routes: AppRouteRecordRaw[] = [
   {
     path: '/users',
     name: 'Users',
-    component: () => import('@/pages/UsersPage.vue'),
+    component: () => import('@/views/user/UserList.vue'),
     meta: {
       title: '用户管理',
       requiresAuth: true,
@@ -126,7 +126,7 @@ const routes: AppRouteRecordRaw[] = [
   {
     path: '/profile',
     name: 'Profile',
-    component: () => import('@/pages/ProfilePage.vue'),
+    component: () => import('@/views/user/Profile.vue'),
     meta: {
       title: '个人中心',
       requiresAuth: true
@@ -135,7 +135,7 @@ const routes: AppRouteRecordRaw[] = [
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
-    component: () => import('@/pages/NotFoundPage.vue'),
+    component: () => import('@/views/NotFound.vue'),
     meta: {
       title: '页面未找到',
       requiresAuth: false

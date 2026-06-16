@@ -140,12 +140,12 @@
             </div>
 
             <div class="flex items-center gap-2 text-gray-600">
-              <el-icon :size="16"><Building2 /></el-icon>
+              <el-icon :size="16"><OfficeBuilding /></el-icon>
               <span class="truncate">{{ equipment.centerName }}</span>
             </div>
 
             <div class="flex items-center gap-2 text-gray-600">
-              <el-icon :size="16"><CircleDollarSign /></el-icon>
+              <el-icon :size="16"><Coin /></el-icon>
               <span>
                 <span class="text-orange-500 font-semibold">¥{{ equipment.hourlyRate }}</span>
                 /小时
@@ -162,7 +162,7 @@
               class="flex-1"
               @click.stop="goToDetail(equipment.id)"
             >
-              <el-icon><CircleInfo /></el-icon>
+              <el-icon><InfoFilled /></el-icon>
               详情
             </el-button>
             <el-button
@@ -172,7 +172,7 @@
               :disabled="equipment.status !== 'available'"
               @click.stop="handleBooking(equipment)"
             >
-              <el-icon><CalendarPlus /></el-icon>
+              <el-icon><Calendar /></el-icon>
               预约
             </el-button>
           </div>
@@ -250,10 +250,10 @@ import {
   Refresh,
   User,
   Clock,
-  Building2,
-  CircleDollarSign,
-  CircleInfo,
-  CalendarPlus
+  OfficeBuilding,
+  Coin,
+  InfoFilled,
+  Calendar
 } from '@element-plus/icons-vue'
 import { useEquipmentStore, type Equipment, type EquipmentFilters } from '@/stores/equipment'
 import { useBookingStore } from '@/stores/booking'

@@ -53,7 +53,7 @@
           <div class="space-y-4">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                <el-icon :size="20" class="text-blue-600"><Mail /></el-icon>
+                <el-icon :size="20" class="text-blue-600"><Message /></el-icon>
               </div>
               <div>
                 <p class="text-sm text-gray-500">邮箱</p>
@@ -264,7 +264,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { Camera, Mail, Wallet, Calendar, User, Refresh } from '@element-plus/icons-vue'
+import { Camera, Message, Wallet, Calendar, User, Refresh } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { billing as billingApi, booking as bookingApi, auth as authApi } from '@/api'
 import { useUserStore } from '@/stores/user'

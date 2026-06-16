@@ -89,7 +89,7 @@
                 :disabled="!selectedEquipmentId"
                 @click="showQuickBooking = true"
               >
-                <el-icon><CalendarPlus /></el-icon>
+                <el-icon><Calendar /></el-icon>
                 快速预约
               </el-button>
             </div>
@@ -286,7 +286,7 @@ import dayjs from 'dayjs'
 import {
   ArrowLeft,
   ArrowRight,
-  CalendarPlus,
+  Calendar,
   Lock,
   Warning
 } from '@element-plus/icons-vue'
