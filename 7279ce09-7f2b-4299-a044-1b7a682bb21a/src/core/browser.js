@@ -1,11 +1,16 @@
 import { Builder, By, until } from 'selenium-webdriver';
 import chrome from 'selenium-webdriver/chrome.js';
+import { remote } from 'webdriverio';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createLogger } from '../utils/logger.js';
+import { crawlConfig } from '../config/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const logger = createLogger('Browser');
 
 const MAX_BROWSERS = 4;
 const IDLE_TIMEOUT = 5 * 60 * 1000;
@@ -54,16 +59,22 @@ function getRandomResolution() {
   return getRandomItem(RESOLUTIONS);
 }
 
-function log(message, level = 'info') {
-  const timestamp = new Date().toISOString();
-  const prefix = `[BrowserManager][${level.toUpperCase()}]`;
-  console.log(`${prefix} ${timestamp} - ${message}`);
+function getDriverType() {
+  return crawlConfig.driverType || 'webdriverio';
+}
+
+function isWebDriverIO(driver) {
+  return driver && typeof driver.$ === 'function';
+}
+
+function isSelenium(driver) {
+  return driver && typeof driver.findElement === 'function';
 }
 
 function ensureScreenshotDir() {
   if (!fs.existsSync(SCREENSHOT_DIR)) {
     fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
-    log(`截图目录已创建: ${SCREENSHOT_DIR}`);
+    logger.debug(`截图目录已创建: ${SCREENSHOT_DIR}`);
   }
 }
 
@@ -100,22 +111,69 @@ function buildChromeOptions() {
     'useAutomationExtension': false
   });
 
-  log(`Chrome配置: UA=${userAgent.substring(0, 50)}..., 语言=${language}, 时区=${timezone}, 分辨率=${resolution.width}x${resolution.height}`);
+  logger.debug(`Chrome配置: UA=${userAgent.substring(0, 50)}..., 语言=${language}, 时区=${timezone}, 分辨率=${resolution.width}x${resolution.height}`);
 
   return { options, userAgent, language, timezone, resolution };
 }
 
-async function createNewBrowser(siteId) {
-  log(`正在为站点 [${siteId}] 创建新的浏览器实例...`);
+function buildWebdriverIOCaps() {
+  const userAgent = getRandomUserAgent();
+  const language = getRandomLanguage();
+  const timezone = getRandomTimezone();
+  const resolution = getRandomResolution();
 
-  const { options, userAgent, language, timezone, resolution } = buildChromeOptions();
+  const capabilities = {
+    browserName: 'chrome',
+    'goog:chromeOptions': {
+      args: [
+        '--no-sandbox',
+        '--disable-blink-features=AutomationControlled',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--start-maximized',
+        `--window-size=${resolution.width},${resolution.height}`,
+        `--lang=${language}`,
+        '--disable-infobars',
+        '--disable-extensions',
+        '--disable-popup-blocking',
+        '--disable-notifications',
+        '--ignore-certificate-errors',
+        '--allow-running-insecure-content',
+        `--user-agent=${userAgent}`
+      ],
+      excludeSwitches: ['enable-automation', 'enable-logging'],
+      prefs: {
+        'intl.accept_languages': language,
+        'profile.default_content_setting_values.notifications': 2,
+        'profile.default_content_setting_values.popups': 2,
+        'profile.managed_default_content_settings.images': 1,
+        'useAutomationExtension': false
+      }
+    }
+  };
 
-  const driver = await new Builder()
-    .forBrowser('chrome')
-    .setChromeOptions(options)
-    .build();
+  return { capabilities, userAgent, language, timezone, resolution };
+}
 
-  try {
+async function applyAntiDetection(driver) {
+  if (isWebDriverIO(driver)) {
+    await driver.executeScript(() => {
+      Object.defineProperty(navigator, 'webdriver', {
+        get: () => undefined
+      });
+
+      Object.defineProperty(navigator, 'plugins', {
+        get: () => [1, 2, 3, 4, 5]
+      });
+
+      window.chrome = {
+        runtime: {},
+        loadTimes: function() {},
+        csi: function() {},
+        app: {}
+      };
+    });
+  } else if (isSelenium(driver)) {
     await driver.executeScript(`
       Object.defineProperty(navigator, 'webdriver', {
         get: () => undefined
@@ -126,11 +184,11 @@ async function createNewBrowser(siteId) {
       });
 
       Object.defineProperty(navigator, 'languages', {
-        get: () => ['${language}', 'zh-CN', 'en-US']
+        get: () => ['zh-CN', 'zh-CN', 'en-US']
       });
 
       Object.defineProperty(navigator, 'language', {
-        get: () => '${language}'
+        get: () => 'zh-CN'
       });
 
       window.chrome = {
@@ -146,23 +204,27 @@ async function createNewBrowser(siteId) {
           ? Promise.resolve({ state: Notification.permission })
           : originalQuery(parameters)
       );
-
-      Intl.DateTimeFormat.prototype.resolvedOptions = new Proxy(
-        Intl.DateTimeFormat.prototype.resolvedOptions,
-        {
-          apply: function(target, thisArg, args) {
-            const result = target.apply(thisArg, args);
-            result.timeZone = '${timezone}';
-            return result;
-          }
-        }
-      );
     `);
+  }
+}
 
-    log(`浏览器实例创建成功 [${siteId}]`);
+async function createNewBrowserWithSelenium(siteId) {
+  logger.info(`[Selenium] 正在为站点 [${siteId}] 创建浏览器实例...`);
+
+  const { options, userAgent, language, timezone, resolution } = buildChromeOptions();
+
+  const driver = await new Builder()
+    .forBrowser('chrome')
+    .setChromeOptions(options)
+    .build();
+
+  try {
+    await applyAntiDetection(driver);
+    logger.info(`[Selenium] 浏览器实例创建成功 [${siteId}]`);
 
     return {
       driver,
+      driverType: 'selenium',
       siteId,
       userAgent,
       language,
@@ -172,7 +234,7 @@ async function createNewBrowser(siteId) {
       lastUsedAt: Date.now()
     };
   } catch (error) {
-    log(`浏览器初始化失败 [${siteId}]: ${error.message}`, 'error');
+    logger.error(`[Selenium] 浏览器初始化失败 [${siteId}]: ${error.message}`);
     try {
       await driver.quit();
     } catch (e) {
@@ -182,18 +244,71 @@ async function createNewBrowser(siteId) {
   }
 }
 
+async function createNewBrowserWithWebdriverIO(siteId) {
+  logger.info(`[WebdriverIO] 正在为站点 [${siteId}] 创建浏览器实例...`);
+
+  const { capabilities, userAgent, language, timezone, resolution } = buildWebdriverIOCaps();
+
+  const driver = await remote({
+    capabilities,
+    logLevel: 'warn',
+    waitforTimeout: 10000,
+    connectionRetryTimeout: 120000,
+    connectionRetryCount: 3
+  });
+
+  try {
+    await applyAntiDetection(driver);
+    logger.info(`[WebdriverIO] 浏览器实例创建成功 [${siteId}]`);
+
+    return {
+      driver,
+      driverType: 'webdriverio',
+      siteId,
+      userAgent,
+      language,
+      timezone,
+      resolution,
+      createdAt: Date.now(),
+      lastUsedAt: Date.now()
+    };
+  } catch (error) {
+    logger.error(`[WebdriverIO] 浏览器初始化失败 [${siteId}]: ${error.message}`);
+    try {
+      await driver.deleteSession();
+    } catch (e) {
+      // ignore
+    }
+    throw error;
+  }
+}
+
+async function createNewBrowser(siteId) {
+  const driverType = getDriverType();
+
+  if (driverType === 'webdriverio') {
+    try {
+      return await createNewBrowserWithWebdriverIO(siteId);
+    } catch (wdioError) {
+      logger.warn(`WebdriverIO 创建失败，回退到 Selenium: ${wdioError.message}`);
+      return await createNewBrowserWithSelenium(siteId);
+    }
+  } else {
+    return await createNewBrowserWithSelenium(siteId);
+  }
+}
+
 function resetIdleTimer(siteId) {
   if (idleTimers.has(siteId)) {
     clearTimeout(idleTimers.get(siteId));
   }
 
   const timer = setTimeout(() => {
-    log(`浏览器实例闲置超时，自动释放 [${siteId}]`);
+    logger.info(`浏览器实例闲置超时，自动释放 [${siteId}]`);
     closeBrowser(siteId);
   }, IDLE_TIMEOUT);
 
   idleTimers.set(siteId, timer);
-  log(`闲置超时计时器已重置 [${siteId}]，超时时间: ${IDLE_TIMEOUT / 60000}分钟`);
 }
 
 function resetSessionTimer(siteId) {
@@ -202,7 +317,7 @@ function resetSessionTimer(siteId) {
   }
 
   const timer = setTimeout(() => {
-    log(`会话超时，需要重新登录 [${siteId}]`);
+    logger.info(`会话超时，需要重新登录 [${siteId}]`);
     sessionCookies.delete(siteId);
   }, SESSION_TIMEOUT);
 
@@ -210,7 +325,7 @@ function resetSessionTimer(siteId) {
 }
 
 async function closeBrowser(siteId) {
-  log(`正在关闭浏览器实例 [${siteId}]...`);
+  logger.info(`正在关闭浏览器实例 [${siteId}]...`);
 
   if (idleTimers.has(siteId)) {
     clearTimeout(idleTimers.get(siteId));
@@ -225,23 +340,27 @@ async function closeBrowser(siteId) {
   const browser = browserPool.get(siteId);
   if (browser) {
     try {
-      await browser.driver.quit();
-      log(`浏览器实例已优雅关闭 [${siteId}]`);
+      if (browser.driverType === 'webdriverio') {
+        await browser.driver.deleteSession();
+      } else {
+        await browser.driver.quit();
+      }
+      logger.info(`浏览器实例已优雅关闭 [${siteId}]`);
     } catch (error) {
-      log(`关闭浏览器时出错 [${siteId}]: ${error.message}`, 'error');
+      logger.error(`关闭浏览器时出错 [${siteId}]: ${error.message}`);
     } finally {
       browserPool.delete(siteId);
     }
   } else {
-    log(`未找到浏览器实例 [${siteId}]`);
+    logger.warn(`未找到浏览器实例 [${siteId}]`);
   }
 }
 
 export async function createBrowser(siteId) {
-  log(`请求浏览器实例 [${siteId}]，当前活跃数: ${getActiveCount()}/${MAX_BROWSERS}`);
+  logger.info(`请求浏览器实例 [${siteId}]，当前活跃数: ${getActiveCount()}/${MAX_BROWSERS}`);
 
   if (browserPool.has(siteId)) {
-    log(`复用现有浏览器实例 [${siteId}]`);
+    logger.debug(`复用现有浏览器实例 [${siteId}]`);
     const browser = browserPool.get(siteId);
     browser.lastUsedAt = Date.now();
     resetIdleTimer(siteId);
@@ -251,7 +370,7 @@ export async function createBrowser(siteId) {
 
   if (browserPool.size >= MAX_BROWSERS) {
     const error = new Error(`浏览器实例数已达上限 (${MAX_BROWSERS})，无法创建新实例`);
-    log(error.message, 'error');
+    logger.error(error.message);
     throw error;
   }
 
@@ -260,81 +379,106 @@ export async function createBrowser(siteId) {
   resetIdleTimer(siteId);
   resetSessionTimer(siteId);
 
-  log(`浏览器实例已创建并加入池 [${siteId}]，当前活跃数: ${getActiveCount()}`);
+  logger.info(`浏览器实例已创建并加入池 [${siteId}]，当前活跃数: ${getActiveCount()}`);
 
   return browser.driver;
 }
 
 export async function releaseBrowser(siteId) {
-  log(`释放浏览器实例 [${siteId}]`);
+  logger.debug(`释放浏览器实例 [${siteId}]`);
 
   const browser = browserPool.get(siteId);
   if (browser) {
     browser.lastUsedAt = Date.now();
     resetIdleTimer(siteId);
-    log(`浏览器实例已标记为闲置 [${siteId}]`);
+    logger.debug(`浏览器实例已标记为闲置 [${siteId}]`);
   } else {
-    log(`未找到要释放的浏览器实例 [${siteId}]`, 'warn');
+    logger.warn(`未找到要释放的浏览器实例 [${siteId}]`);
   }
 }
 
 export async function injectCookies(driver, cookies) {
   if (!driver || !cookies || cookies.length === 0) {
-    log('Cookie注入失败：参数无效', 'warn');
+    logger.warn('Cookie注入失败：参数无效');
     return false;
   }
 
   try {
-    log(`正在注入 ${cookies.length} 个 Cookie...`);
+    logger.info(`正在注入 ${cookies.length} 个 Cookie...`);
 
-    for (const cookie of cookies) {
-      const cookieObj = {
-        name: cookie.name,
-        value: cookie.value,
-        domain: cookie.domain || '',
-        path: cookie.path || '/',
-        secure: cookie.secure || false,
-        httpOnly: cookie.httpOnly || false
-      };
-
-      if (cookie.expiry) {
-        cookieObj.expiry = cookie.expiry;
+    if (isWebDriverIO(driver)) {
+      for (const cookie of cookies) {
+        try {
+          await driver.setCookies([{
+            name: cookie.name,
+            value: cookie.value,
+            domain: cookie.domain || undefined,
+            path: cookie.path || '/',
+            secure: cookie.secure || false,
+            httpOnly: cookie.httpOnly || false,
+            expiry: cookie.expiry
+          }]);
+        } catch (error) {
+          logger.debug(`Cookie注入跳过 [${cookie.name}]: ${error.message}`);
+        }
       }
+    } else if (isSelenium(driver)) {
+      for (const cookie of cookies) {
+        const cookieObj = {
+          name: cookie.name,
+          value: cookie.value,
+          domain: cookie.domain || '',
+          path: cookie.path || '/',
+          secure: cookie.secure || false,
+          httpOnly: cookie.httpOnly || false
+        };
 
-      try {
-        await driver.manage().addCookie(cookieObj);
-      } catch (error) {
-        log(`Cookie注入跳过 [${cookie.name}]: ${error.message}`, 'warn');
+        if (cookie.expiry) {
+          cookieObj.expiry = cookie.expiry;
+        }
+
+        try {
+          await driver.manage().addCookie(cookieObj);
+        } catch (error) {
+          logger.debug(`Cookie注入跳过 [${cookie.name}]: ${error.message}`);
+        }
       }
     }
 
-    log('Cookie注入完成');
+    logger.info('Cookie注入完成');
     return true;
   } catch (error) {
-    log(`Cookie注入失败: ${error.message}`, 'error');
+    logger.error(`Cookie注入失败: ${error.message}`);
     return false;
   }
 }
 
 export async function saveCookies(driver) {
   if (!driver) {
-    log('保存Cookie失败：driver无效', 'warn');
+    logger.warn('保存Cookie失败：driver无效');
     return [];
   }
 
   try {
-    const cookies = await driver.manage().getCookies();
-    log(`成功保存 ${cookies.length} 个 Cookie`);
+    let cookies = [];
+
+    if (isWebDriverIO(driver)) {
+      cookies = await driver.getCookies();
+    } else if (isSelenium(driver)) {
+      cookies = await driver.manage().getCookies();
+    }
+
+    logger.info(`成功保存 ${cookies.length} 个 Cookie`);
     return cookies;
   } catch (error) {
-    log(`保存Cookie失败: ${error.message}`, 'error');
+    logger.error(`保存Cookie失败: ${error.message}`);
     return [];
   }
 }
 
 export async function takeScreenshot(driver, filename) {
   if (!driver) {
-    log('截图失败：driver无效', 'error');
+    logger.error('截图失败：driver无效');
     return null;
   }
 
@@ -345,19 +489,25 @@ export async function takeScreenshot(driver, filename) {
     const safeFilename = filename ? `${filename}_${timestamp}.png` : `screenshot_${timestamp}.png`;
     const filePath = path.join(SCREENSHOT_DIR, safeFilename);
 
-    const data = await driver.takeScreenshot();
+    let data;
+    if (isWebDriverIO(driver)) {
+      data = await driver.takeScreenshot();
+    } else if (isSelenium(driver)) {
+      data = await driver.takeScreenshot();
+    }
+
     fs.writeFileSync(filePath, Buffer.from(data, 'base64'));
 
-    log(`截图已保存: ${filePath}`);
+    logger.info(`截图已保存: ${filePath}`);
     return filePath;
   } catch (error) {
-    log(`截图失败: ${error.message}`, 'error');
+    logger.error(`截图失败: ${error.message}`);
     return null;
   }
 }
 
 export async function closeAll() {
-  log(`正在关闭所有浏览器实例，当前数量: ${browserPool.size}`);
+  logger.info(`正在关闭所有浏览器实例，当前数量: ${browserPool.size}`);
 
   const siteIds = Array.from(browserPool.keys());
   const results = await Promise.allSettled(
@@ -365,7 +515,7 @@ export async function closeAll() {
   );
 
   const successCount = results.filter(r => r.status === 'fulfilled').length;
-  log(`所有浏览器关闭完成，成功: ${successCount}/${siteIds.length}`);
+  logger.info(`所有浏览器关闭完成，成功: ${successCount}/${siteIds.length}`);
 
   idleTimers.clear();
   sessionTimers.clear();
@@ -378,73 +528,100 @@ export function getActiveCount() {
 
 export async function checkLoginStatus(driver, checkUrl, checkSelector) {
   if (!driver || !checkUrl) {
-    log('登录状态检测失败：参数无效', 'warn');
+    logger.warn('登录状态检测失败：参数无效');
     return false;
   }
 
   try {
-    log(`正在检测登录状态... URL: ${checkUrl}`);
+    logger.info(`正在检测登录状态... URL: ${checkUrl}`);
 
-    await driver.get(checkUrl);
+    if (isWebDriverIO(driver)) {
+      await driver.url(checkUrl);
 
-    if (checkSelector) {
-      try {
-        const element = await driver.wait(
-          until.elementLocated(By.css(checkSelector)),
-          5000
-        );
-        if (element) {
-          log('登录状态检测：已登录');
+      if (checkSelector) {
+        try {
+          const element = await $(checkSelector);
+          await element.waitForExist({ timeout: 5000 });
+          logger.info('登录状态检测：已登录');
           return true;
+        } catch (error) {
+          logger.warn('登录状态检测：未找到登录标识元素');
+          return false;
         }
-      } catch (error) {
-        log('登录状态检测：未找到登录标识元素', 'warn');
+      }
+
+      const currentUrl = await driver.getUrl();
+      if (currentUrl.includes('login') || currentUrl.includes('signin')) {
+        logger.info('登录状态检测：未登录（跳转至登录页）');
         return false;
       }
+
+      logger.info('登录状态检测：疑似已登录');
+      return true;
+    } else if (isSelenium(driver)) {
+      await driver.get(checkUrl);
+
+      if (checkSelector) {
+        try {
+          const element = await driver.wait(
+            until.elementLocated(By.css(checkSelector)),
+            5000
+          );
+          if (element) {
+            logger.info('登录状态检测：已登录');
+            return true;
+          }
+        } catch (error) {
+          logger.warn('登录状态检测：未找到登录标识元素');
+          return false;
+        }
+      }
+
+      const currentUrl = await driver.getCurrentUrl();
+      if (currentUrl.includes('login') || currentUrl.includes('signin')) {
+        logger.info('登录状态检测：未登录（跳转至登录页）');
+        return false;
+      }
+
+      logger.info('登录状态检测：疑似已登录');
+      return true;
     }
 
-    const currentUrl = await driver.getCurrentUrl();
-    log(`当前页面URL: ${currentUrl}`);
-
-    if (currentUrl.includes('login') || currentUrl.includes('signin')) {
-      log('登录状态检测：未登录（跳转至登录页）');
-      return false;
-    }
-
-    log('登录状态检测：疑似已登录');
-    return true;
+    return false;
   } catch (error) {
-    log(`登录状态检测失败: ${error.message}`, 'error');
+    logger.error(`登录状态检测失败: ${error.message}`);
     return false;
   }
 }
 
 export async function setPageTimeout(driver, timeoutMs) {
   if (!driver) {
-    log('设置超时失败：driver无效', 'warn');
+    logger.warn('设置超时失败：driver无效');
     return;
   }
 
   try {
-    await driver.manage().setTimeouts({
-      pageLoad: timeoutMs,
-      script: timeoutMs,
-      implicit: 5000
-    });
-    log(`页面超时已设置为: ${timeoutMs}ms`);
+    if (isSelenium(driver)) {
+      await driver.manage().setTimeouts({
+        pageLoad: timeoutMs,
+        script: timeoutMs,
+        implicit: 5000
+      });
+    }
+    logger.debug(`页面超时已设置为: ${timeoutMs}ms`);
   } catch (error) {
-    log(`设置页面超时失败: ${error.message}`, 'error');
+    logger.error(`设置页面超时失败: ${error.message}`);
   }
 }
 
 export async function getMemoryUsage(driver) {
   if (!driver) {
-    log('获取内存使用失败：driver无效', 'warn');
+    logger.warn('获取内存使用失败：driver无效');
     return null;
   }
 
   try {
-    const performance = await driver.executeScript(`
+    const script = `
       if (window.performance && window.performance.memory) {
         return {
           totalJSHeapSize: window.performance.memory.totalJSHeapSize,
@@ -453,17 +630,24 @@ export async function getMemoryUsage(driver) {
         };
       }
       return null;
-    `);
+    `;
+
+    let performance;
+    if (isWebDriverIO(driver)) {
+      performance = await driver.executeScript(script);
+    } else if (isSelenium(driver)) {
+      performance = await driver.executeScript(script);
+    }
 
     if (performance) {
       const usedMB = (performance.usedJSHeapSize / 1024 / 1024).toFixed(2);
       const totalMB = (performance.totalJSHeapSize / 1024 / 1024).toFixed(2);
-      log(`内存使用: ${usedMB}MB / ${totalMB}MB`);
+      logger.debug(`内存使用: ${usedMB}MB / ${totalMB}MB`);
     }
 
     return performance;
   } catch (error) {
-    log(`获取内存使用失败: ${error.message}`, 'warn');
+    logger.warn(`获取内存使用失败: ${error.message}`);
     return null;
   }
 }
@@ -473,16 +657,16 @@ export function storeSessionCookies(siteId, cookies) {
     cookies,
     savedAt: Date.now()
   });
-  log(`会话Cookie已存储 [${siteId}]，共 ${cookies.length} 个`);
+  logger.info(`会话Cookie已存储 [${siteId}]，共 ${cookies.length} 个`);
 }
 
 export function getSessionCookies(siteId) {
   const session = sessionCookies.get(siteId);
   if (session) {
-    log(`获取会话Cookie [${siteId}]，共 ${session.cookies.length} 个`);
+    logger.debug(`获取会话Cookie [${siteId}]，共 ${session.cookies.length} 个`);
     return session.cookies;
   }
-  log(`未找到会话Cookie [${siteId}]`);
+  logger.debug(`未找到会话Cookie [${siteId}]`);
   return null;
 }
 
@@ -496,6 +680,7 @@ export function getBrowserInfo(siteId) {
 
   return {
     siteId: browser.siteId,
+    driverType: browser.driverType,
     userAgent: browser.userAgent,
     language: browser.language,
     timezone: browser.timezone,
@@ -505,6 +690,18 @@ export function getBrowserInfo(siteId) {
     uptime: Date.now() - browser.createdAt,
     idleTime: Date.now() - browser.lastUsedAt
   };
+}
+
+export function getDriverTypeConfig() {
+  return getDriverType();
+}
+
+export function isWebDriverIODriver(driver) {
+  return isWebDriverIO(driver);
+}
+
+export function isSeleniumDriver(driver) {
+  return isSelenium(driver);
 }
 
 export default {
@@ -521,5 +718,8 @@ export default {
   storeSessionCookies,
   getSessionCookies,
   hasActiveBrowser,
-  getBrowserInfo
+  getBrowserInfo,
+  getDriverType: getDriverTypeConfig,
+  isWebDriverIO: isWebDriverIODriver,
+  isSelenium: isSeleniumDriver
 };

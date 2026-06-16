@@ -7,6 +7,7 @@ import { createBrowser, releaseBrowser, injectCookies, takeScreenshot, hasActive
 import { traverseListPage, closePopups, waitForDynamicContent } from './navigator.js';
 import { getParser } from '../parsers/index.js';
 import { filterAuctions } from './filter.js';
+import alertManager from './alert.js';
 
 const logger = createLogger('Scheduler');
 
@@ -470,13 +471,27 @@ class AuctionScheduler extends EventEmitter {
       stats.errors++;
       logger.error(`站点采集失败: ${siteName}, ${error.message}`);
 
+      let screenshotPath = null;
       if (driver) {
         try {
-          const screenshotPath = await takeScreenshot(driver, `error_${siteName}_${Date.now()}`);
+          screenshotPath = await takeScreenshot(driver, `error_${siteName}_${Date.now()}`);
           logger.info(`错误截图已保存: ${screenshotPath}`);
         } catch (screenshotError) {
           logger.warn(`截图失败: ${screenshotError.message}`);
         }
+      }
+
+      try {
+        const errorMsg = error.message || '';
+        const isSelectorError = /selector|选择器|waitFor|超时|timeout|not found|找不到/i.test(errorMsg);
+
+        if (isSelectorError) {
+          await alertManager.selectorFailed(siteName, errorMsg, screenshotPath, {});
+        } else {
+          await alertManager.crawlError(siteName, errorMsg, { screenshotPath });
+        }
+      } catch (alertError) {
+        logger.warn(`告警推送失败: ${alertError.message}`);
       }
 
       throw error;
@@ -582,15 +597,27 @@ class AuctionScheduler extends EventEmitter {
   }
 
   async _handleLogin(driver, siteConfig) {
-    logger.info(`处理登录: ${siteConfig.name}`);
+    const siteName = siteConfig.name;
+    logger.info(`处理登录: ${siteName}`);
 
     const loginConfig = siteConfig.login;
 
-    if (loginConfig.loginType === 'cookie' && loginConfig.cookies) {
-      await injectCookies(driver, loginConfig.cookies);
-      logger.info('Cookie注入完成');
-    } else if (loginConfig.loginType === 'password' && loginConfig.username && loginConfig.password) {
-      logger.info('使用账号密码登录（待实现具体登录流程');
+    try {
+      if (loginConfig.loginType === 'cookie' && loginConfig.cookies) {
+        await injectCookies(driver, loginConfig.cookies);
+        logger.info('Cookie注入完成');
+      } else if (loginConfig.loginType === 'password' && loginConfig.username && loginConfig.password) {
+        logger.info('使用账号密码登录（待实现具体登录流程');
+      } else {
+        const reason = '登录配置不完整或登录类型不支持';
+        logger.error(`登录失败: ${siteName}, ${reason}`);
+        await alertManager.loginFailed(siteName, reason, { loginType: loginConfig.loginType });
+        throw new Error(reason);
+      }
+    } catch (error) {
+      logger.error(`登录处理异常: ${siteName}, ${error.message}`);
+      await alertManager.loginFailed(siteName, error.message, { loginType: loginConfig.loginType });
+      throw error;
     }
   }
 

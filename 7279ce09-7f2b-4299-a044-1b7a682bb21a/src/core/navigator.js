@@ -1,4 +1,7 @@
 import { By, until, Condition } from 'selenium-webdriver';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('Navigator');
 
 const DEFAULT_TIMEOUT = 30000;
 const DEFAULT_POLL_INTERVAL = 500;
@@ -23,16 +26,136 @@ const DEFAULT_POPUP_SELECTORS = [
   '.jconfirm-closeIcon'
 ];
 
-function createLogger() {
-  return {
-    info: (msg, meta) => console.log(`[Navigator][INFO] ${msg}`, meta || ''),
-    warn: (msg, meta) => console.warn(`[Navigator][WARN] ${msg}`, meta || ''),
-    error: (msg, meta) => console.error(`[Navigator][ERROR] ${msg}`, meta || ''),
-    debug: (msg, meta) => console.debug(`[Navigator][DEBUG] ${msg}`, meta || '')
-  };
+function isWebDriverIO(driver) {
+  return driver && typeof driver.$ === 'function';
 }
 
-const logger = createLogger();
+function isSelenium(driver) {
+  return driver && typeof driver.findElement === 'function';
+}
+
+async function findElement(driver, selector) {
+  if (isWebDriverIO(driver)) {
+    const el = await driver.$(selector);
+    return el.error ? null : el;
+  } else {
+    try {
+      return await driver.findElement(By.css(selector));
+    } catch (e) {
+      return null;
+    }
+  }
+}
+
+async function findElements(driver, selector) {
+  if (isWebDriverIO(driver)) {
+    const elements = await driver.$$(selector);
+    return elements || [];
+  } else {
+    return await driver.findElements(By.css(selector));
+  }
+}
+
+async function executeScript(driver, script, ...args) {
+  if (isWebDriverIO(driver)) {
+    return await driver.execute(script, ...args);
+  } else {
+    return await driver.executeScript(script, ...args);
+  }
+}
+
+async function driverSleep(driver, ms) {
+  if (isWebDriverIO(driver)) {
+    return await driver.pause(ms);
+  } else {
+    return await driver.sleep(ms);
+  }
+}
+
+async function navigateTo(driver, url) {
+  if (isWebDriverIO(driver)) {
+    return await driver.url(url);
+  } else {
+    return await driver.get(url);
+  }
+}
+
+async function getCurrentUrl(driver) {
+  if (isWebDriverIO(driver)) {
+    return await driver.getUrl();
+  } else {
+    return await driver.getCurrentUrl();
+  }
+}
+
+async function elementClick(element) {
+  return await element.click();
+}
+
+async function elementGetText(element) {
+  return await element.getText();
+}
+
+async function elementIsDisplayed(element) {
+  return await element.isDisplayed();
+}
+
+async function elementIsEnabled(element) {
+  return await element.isEnabled();
+}
+
+async function elementFindElement(element, selector) {
+  if (isWebDriverIO(element)) {
+    return await element.$(selector);
+  } else {
+    try {
+      return await element.findElement(By.css(selector));
+    } catch (e) {
+      return null;
+    }
+  }
+}
+
+async function waitForElementLocated(driver, selector, timeout = DEFAULT_TIMEOUT) {
+  if (isWebDriverIO(driver)) {
+    await driver.waitUntil(
+      async () => {
+        const el = await driver.$(selector);
+        return el && !el.error;
+      },
+      {
+        timeout,
+        timeoutMsg: `Element located by ${selector} not found after ${timeout}ms`
+      }
+    );
+    return true;
+  } else {
+    await driver.wait(until.elementLocated(By.css(selector)), timeout);
+    return true;
+  }
+}
+
+async function waitForElementVisible(driver, selector, timeout = DEFAULT_TIMEOUT) {
+  if (isWebDriverIO(driver)) {
+    await driver.waitUntil(
+      async () => {
+        const el = await driver.$(selector);
+        if (el.error) return false;
+        return await el.isDisplayed();
+      },
+      {
+        timeout,
+        timeoutMsg: `Element located by ${selector} not visible after ${timeout}ms`
+      }
+    );
+    return true;
+  } else {
+    await driver.wait(until.elementLocated(By.css(selector)), timeout);
+    const el = await driver.findElement(By.css(selector));
+    await driver.wait(until.elementIsVisible(el), timeout);
+    return true;
+  }
+}
 
 export async function navigateToListPage(driver, siteConfig, page) {
   const { listUrlTemplate, pagination } = siteConfig;
@@ -51,7 +174,7 @@ export async function navigateToListPage(driver, siteConfig, page) {
   logger.info(`导航到列表页: ${siteConfig.name} 第${page}页`, { url });
 
   try {
-    await driver.get(url);
+    await navigateTo(driver, url);
     logger.debug(`页面加载完成: ${url}`);
     return true;
   } catch (error) {
@@ -202,7 +325,7 @@ async function goToNextPage(driver, siteConfig, nextPage) {
   const url = listUrlTemplate.replace(`{${pageParam}}`, String(nextPage));
 
   try {
-    await driver.get(url);
+    await navigateTo(driver, url);
     logger.debug(`翻页到第${nextPage}页: ${url}`);
     return true;
   } catch (error) {
@@ -226,16 +349,16 @@ async function loadMore(driver, siteConfig) {
 
   for (const selector of loadMoreSelectors) {
     try {
-      const elements = await driver.findElements(By.css(selector));
+      const elements = await findElements(driver, selector);
       if (elements.length > 0) {
         const btn = elements[0];
-        const isDisplayed = await btn.isDisplayed();
-        const isEnabled = await btn.isEnabled();
+        const isDisplayed = await elementIsDisplayed(btn);
+        const isEnabled = await elementIsEnabled(btn);
 
         if (isDisplayed && isEnabled) {
           logger.debug(`点击加载更多按钮: ${selector}`);
-          await btn.click();
-          await driver.sleep(1000);
+          await elementClick(btn);
+          await driverSleep(driver, 1000);
           return true;
         }
       }
@@ -253,19 +376,19 @@ async function infiniteScrollNext(driver, siteConfig, prevCount) {
 
   try {
     await scrollToBottom(driver);
-    await driver.sleep(DEFAULT_SCROLL_WAIT);
+    await driverSleep(driver, DEFAULT_SCROLL_WAIT);
 
-    const newCount = await driver.findElements(By.css(listItemSelector)).then(els => els.length);
+    const newCount = await findElements(driver, listItemSelector).then(els => els.length);
 
     if (newCount > prevCount) {
       logger.debug(`无限滚动加载，新增 ${newCount - prevCount} 项`);
       return true;
     }
 
-    const scrollHeightBefore = await driver.executeScript('return document.body.scrollHeight');
+    const scrollHeightBefore = await executeScript(driver, 'return document.body.scrollHeight');
     await scrollToBottom(driver);
-    await driver.sleep(DEFAULT_SCROLL_WAIT);
-    const scrollHeightAfter = await driver.executeScript('return document.body.scrollHeight');
+    await driverSleep(driver, DEFAULT_SCROLL_WAIT);
+    const scrollHeightAfter = await executeScript(driver, 'return document.body.scrollHeight');
 
     if (scrollHeightAfter > scrollHeightBefore) {
       logger.debug('页面高度增加，继续加载');
@@ -327,7 +450,7 @@ async function waitForDomStable(driver, options = {}) {
 
   while (Date.now() - startTime < timeout) {
     try {
-      const domHash = await driver.executeScript(`
+      const domHash = await executeScript(driver, `
         const target = ${selector ? `document.querySelector('${selector}')` : 'document.body'};
         if (!target) return '';
         return target.innerHTML.length + '|' + target.children.length;
@@ -347,7 +470,7 @@ async function waitForDomStable(driver, options = {}) {
       // 忽略执行错误
     }
 
-    await driver.sleep(pollInterval);
+    await driverSleep(driver, pollInterval);
   }
 
   logger.warn(`DOM稳定检测超时 (${timeout}ms)，降级继续`);
@@ -360,21 +483,38 @@ async function waitForListItems(driver, listItemSelector, options = {}) {
   logger.debug(`等待列表项加载`, { listItemSelector, minCount, timeout });
 
   try {
-    const condition = new Condition(
-      `for at least ${minCount} elements located by ${listItemSelector}`,
-      async (d) => {
-        const elements = await d.findElements(By.css(listItemSelector));
-        return elements.length >= minCount ? elements : null;
-      }
-    );
+    if (isWebDriverIO(driver)) {
+      await driver.waitUntil(
+        async () => {
+          const elements = await driver.$$(listItemSelector);
+          return elements && elements.length >= minCount;
+        },
+        {
+          timeout,
+          interval: pollInterval,
+          timeoutMsg: `Not enough list items (${minCount}) found by ${listItemSelector}`
+        }
+      );
+      const elements = await driver.$$(listItemSelector);
+      logger.debug(`列表项加载完成，数量: ${elements.length}`);
+      return elements;
+    } else {
+      const condition = new Condition(
+        `for at least ${minCount} elements located by ${listItemSelector}`,
+        async (d) => {
+          const elements = await d.findElements(By.css(listItemSelector));
+          return elements.length >= minCount ? elements : null;
+        }
+      );
 
-    const elements = await driver.wait(condition, timeout, undefined, pollInterval);
-    logger.debug(`列表项加载完成，数量: ${elements.length}`);
-    return elements;
+      const elements = await driver.wait(condition, timeout, undefined, pollInterval);
+      logger.debug(`列表项加载完成，数量: ${elements.length}`);
+      return elements;
+    }
   } catch (error) {
     logger.warn(`等待列表项超时，返回已找到的元素: ${error.message}`);
     try {
-      return await driver.findElements(By.css(listItemSelector));
+      return await findElements(driver, listItemSelector);
     } catch (e) {
       return [];
     }
@@ -388,10 +528,9 @@ export async function waitForSelector(driver, selector, options = {}) {
 
   try {
     if (visible) {
-      await driver.wait(until.elementLocated(By.css(selector)), timeout);
-      await driver.wait(until.elementIsVisible(driver.findElement(By.css(selector))), timeout);
+      await waitForElementVisible(driver, selector, timeout);
     } else {
-      await driver.wait(until.elementLocated(By.css(selector)), timeout);
+      await waitForElementLocated(driver, selector, timeout);
     }
     return true;
   } catch (error) {
@@ -414,15 +553,15 @@ export async function closePopups(driver, popupSelectors = null) {
 
   for (const selector of selectors) {
     try {
-      const elements = await driver.findElements(By.css(selector));
+      const elements = await findElements(driver, selector);
       for (const element of elements) {
         try {
-          const isDisplayed = await element.isDisplayed();
+          const isDisplayed = await elementIsDisplayed(element);
           if (isDisplayed) {
-            await element.click();
+            await elementClick(element);
             closedCount++;
             logger.debug(`关闭弹窗: ${selector}`);
-            await driver.sleep(200);
+            await driverSleep(driver, 200);
           }
         } catch (e) {
           // 忽略单个元素点击错误
@@ -445,18 +584,38 @@ async function handleDialogs(driver) {
   let handled = false;
 
   try {
-    const alert = await driver.switchTo().alert();
-    const alertText = await alert.getText();
-    logger.debug(`检测到弹窗: ${alertText}`);
-    try {
-      await alert.accept();
-      handled = true;
-    } catch (e) {
+    if (isWebDriverIO(driver)) {
       try {
-        await alert.dismiss();
+        const alertText = await driver.getAlertText();
+        logger.debug(`检测到弹窗: ${alertText}`);
+        try {
+          await driver.acceptAlert();
+          handled = true;
+        } catch (e) {
+          try {
+            await driver.dismissAlert();
+            handled = true;
+          } catch (e2) {
+            // 忽略
+          }
+        }
+      } catch (e) {
+        // 没有alert弹窗
+      }
+    } else {
+      const alert = await driver.switchTo().alert();
+      const alertText = await alert.getText();
+      logger.debug(`检测到弹窗: ${alertText}`);
+      try {
+        await alert.accept();
         handled = true;
-      } catch (e2) {
-        // 忽略
+      } catch (e) {
+        try {
+          await alert.dismiss();
+          handled = true;
+        } catch (e2) {
+          // 忽略
+        }
       }
     }
   } catch (e) {
@@ -468,7 +627,7 @@ async function handleDialogs(driver) {
 
 export async function scrollToBottom(driver) {
   try {
-    await driver.executeScript(`
+    await executeScript(driver, `
       window.scrollTo({
         top: document.body.scrollHeight,
         behavior: 'smooth'
@@ -484,7 +643,7 @@ export async function scrollToBottom(driver) {
 
 export async function scrollToElement(driver, element) {
   try {
-    await driver.executeScript('arguments[0].scrollIntoView({ behavior: "smooth", block: "center" });', element);
+    await executeScript(driver, 'arguments[0].scrollIntoView({ behavior: "smooth", block: "center" });', element);
     return true;
   } catch (error) {
     logger.warn(`滚动到元素失败: ${error.message}`);
@@ -507,12 +666,12 @@ export async function isOldItem(itemEl, lastCrawlTime, siteConfig) {
   }
 
   try {
-    const dateElement = await itemEl.findElement(By.css(dateSelector));
+    const dateElement = await elementFindElement(itemEl, dateSelector);
     if (!dateElement) {
       return false;
     }
 
-    const dateText = await dateElement.getText();
+    const dateText = await elementGetText(dateElement);
     if (!dateText) {
       return false;
     }

@@ -37,11 +37,12 @@ export const logConfig = {
  * 从环境变量中读取爬虫相关配置
  */
 export const crawlConfig = {
-  concurrency: parseInt(process.env.CONCURRENCY, 10) || 5,
+  concurrency: parseInt(process.env.CONCURRENCY, 10) || 4,
   requestInterval: parseInt(process.env.REQUEST_INTERVAL, 10) || 2000,
   requestTimeout: parseInt(process.env.REQUEST_TIMEOUT, 10) || 30000,
   maxRetries: parseInt(process.env.MAX_RETRIES, 10) || 3,
-  userAgent: process.env.USER_AGENT || 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+  userAgent: process.env.USER_AGENT || 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+  driverType: process.env.DRIVER_TYPE || 'webdriverio'
 };
 
 /**
