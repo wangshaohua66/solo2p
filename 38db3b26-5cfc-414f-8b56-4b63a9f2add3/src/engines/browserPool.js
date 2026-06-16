@@ -4,6 +4,10 @@ import { createTaskLogger } from '../logger/index.js';
 
 const log = createTaskLogger('browserPool');
 
+const MEMORY_CHECK_INTERVAL_MS = 30000;
+const TOTAL_MEMORY_LIMIT_MB = 1200;
+const PER_INSTANCE_MEMORY_LIMIT_MB = 280;
+
 class BrowserInstance {
   constructor(id, config) {
     this.id = id;
@@ -16,6 +20,7 @@ class BrowserInstance {
     this.keepAliveIntervals = new Map();
     this.idleTimer = null;
     this.crashed = false;
+    this.lastMemoryMB = 0;
   }
 
   async init() {
@@ -192,6 +197,50 @@ class BrowserInstance {
       return false;
     }
   }
+
+  async getMemoryUsageMB() {
+    if (!this.browser || this.crashed) {
+      this.lastMemoryMB = 0;
+      return 0;
+    }
+    try {
+      const metrics = await this.browser.executeDevToolsProtocolMethod(
+        'Performance.getMetrics',
+        {}
+      );
+      const metricsList = metrics?.metrics || metrics?.result?.metrics || [];
+      let jsHeapUsed = 0;
+      let jsHeapTotal = 0;
+      for (const m of metricsList) {
+        if (m.name === 'JSHeapUsedSize') {
+          jsHeapUsed = m.value;
+        }
+        if (m.name === 'JSHeapTotalSize') {
+          jsHeapTotal = m.value;
+        }
+      }
+      const memoryMB = Math.max(jsHeapUsed, jsHeapTotal) / (1024 * 1024);
+      this.lastMemoryMB = Math.round(memoryMB * 10) / 10;
+      log.debug(`Browser #${this.id} memory: ${this.lastMemoryMB} MB`);
+      return this.lastMemoryMB;
+    } catch (err) {
+      log.debug(`Failed to get memory for browser #${this.id} via CDP`, { error: err.message });
+      try {
+        const mem = await this.browser.execute(() => {
+          if (performance && performance.memory) {
+            return performance.memory.usedJSHeapSize;
+          }
+          return 0;
+        });
+        const memoryMB = mem / (1024 * 1024);
+        this.lastMemoryMB = Math.round(memoryMB * 10) / 10;
+        return this.lastMemoryMB;
+      } catch (innerErr) {
+        log.debug(`Failed to get memory for browser #${this.id} via JS API`, { error: innerErr.message });
+        return this.lastMemoryMB;
+      }
+    }
+  }
 }
 
 class BrowserPool {
@@ -200,11 +249,17 @@ class BrowserPool {
     this.config = getBrowserPoolConfig();
     this.maxSize = this.config.maxInstances || 4;
     this._initPromise = null;
+    this._memoryMonitorTimer = null;
+    this._totalMemoryMB = 0;
+    this._perInstanceMemory = {};
   }
 
   async initialize(count) {
     const target = Math.min(count || this.maxSize, this.maxSize);
-    log.info(`Initializing browser pool with ${target} instances`);
+    log.info(`Initializing browser pool with ${target} instances`, {
+      totalMemoryLimitMB: TOTAL_MEMORY_LIMIT_MB,
+      perInstanceLimitMB: PER_INSTANCE_MEMORY_LIMIT_MB,
+    });
 
     const initPromises = [];
     for (let i = 0; i < target; i++) {
@@ -216,6 +271,11 @@ class BrowserPool {
     const results = await Promise.allSettled(initPromises);
     const successCount = results.filter((r) => r.status === 'fulfilled' && r.value).length;
     log.info(`Browser pool initialized: ${successCount}/${target} instances ready`);
+
+    if (successCount > 0) {
+      this.startMemoryMonitor();
+    }
+
     return successCount;
   }
 
@@ -284,10 +344,91 @@ class BrowserPool {
     return instance;
   }
 
+  startMemoryMonitor() {
+    if (this._memoryMonitorTimer) {
+      return;
+    }
+    log.info('Starting memory monitor', { intervalMs: MEMORY_CHECK_INTERVAL_MS });
+    this._memoryMonitorTimer = setInterval(async () => {
+      try {
+        await this._checkMemoryUsage();
+      } catch (err) {
+        log.debug('Memory monitor check error', { error: err.message });
+      }
+    }, MEMORY_CHECK_INTERVAL_MS);
+  }
+
+  stopMemoryMonitor() {
+    if (this._memoryMonitorTimer) {
+      clearInterval(this._memoryMonitorTimer);
+      this._memoryMonitorTimer = null;
+      log.info('Memory monitor stopped');
+    }
+  }
+
+  async _checkMemoryUsage() {
+    let totalMB = 0;
+    const perInstance = {};
+
+    const checkPromises = this.instances.map(async (inst) => {
+      if (inst.crashed || !inst.browser) {
+        perInstance[inst.id] = 0;
+        return;
+      }
+      try {
+        const memMB = await inst.getMemoryUsageMB();
+        perInstance[inst.id] = memMB;
+        totalMB += memMB;
+
+        if (memMB > PER_INSTANCE_MEMORY_LIMIT_MB) {
+          log.warn(`Browser #${inst.id} memory exceeds limit`, {
+            instanceId: inst.id,
+            memoryMB: memMB,
+            limitMB: PER_INSTANCE_MEMORY_LIMIT_MB,
+          });
+        }
+      } catch (err) {
+        perInstance[inst.id] = inst.lastMemoryMB;
+        totalMB += inst.lastMemoryMB;
+        log.debug(`Failed to check memory for browser #${inst.id}`, { error: err.message });
+      }
+    });
+
+    await Promise.allSettled(checkPromises);
+
+    this._totalMemoryMB = Math.round(totalMB * 10) / 10;
+    this._perInstanceMemory = perInstance;
+
+    if (totalMB > TOTAL_MEMORY_LIMIT_MB) {
+      log.error('Browser pool total memory exceeds limit', {
+        totalMemoryMB: this._totalMemoryMB,
+        limitMB: TOTAL_MEMORY_LIMIT_MB,
+        perInstance,
+      });
+    } else {
+      log.debug('Browser pool memory check passed', {
+        totalMemoryMB: this._totalMemoryMB,
+        limitMB: TOTAL_MEMORY_LIMIT_MB,
+      });
+    }
+  }
+
+  getMemoryStats() {
+    return {
+      totalMemoryMB: this._totalMemoryMB,
+      limitMB: TOTAL_MEMORY_LIMIT_MB,
+      perInstance: this._perInstanceMemory,
+      perInstanceLimitMB: PER_INSTANCE_MEMORY_LIMIT_MB,
+    };
+  }
+
   async destroyAll() {
+    this.stopMemoryMonitor();
     log.info('Destroying all browser instances');
     await Promise.allSettled(this.instances.map((inst) => inst.destroy()));
     this.instances = [];
+    this._totalMemoryMB = 0;
+    this._perInstanceMemory = {};
   }
 
   getStatus() {

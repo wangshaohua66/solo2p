@@ -21,6 +21,9 @@ import { createTaskLogger } from '../logger/index.js';
 const log = createTaskLogger('pipeline');
 
 const PLATFORMS = ['dmv', 'insurance', 'recall', 'emission'];
+const VIN_TIMEOUT_MS = 90 * 1000;
+const TOTAL_TIMEOUT_MS = 8 * 60 * 60 * 1000;
+const MAX_BATCH_SIZE = 500;
 
 const TASK_MAP = {
   dmv: verifyDmv,
@@ -82,6 +85,14 @@ function buildReportJson(results) {
   };
 }
 
+function formatDuration(ms) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return `${hours}h ${minutes}m ${seconds}s`;
+}
+
 export class Pipeline extends EventEmitter {
   constructor() {
     super();
@@ -96,10 +107,15 @@ export class Pipeline extends EventEmitter {
   }
 
   async init(vins, batchId) {
+    if (vins.length > MAX_BATCH_SIZE) {
+      const errorMsg = `Batch size ${vins.length} exceeds maximum allowed ${MAX_BATCH_SIZE}`;
+      log.error(errorMsg);
+      throw new Error(errorMsg);
+    }
     this.batchId = batchId || `BATCH-${Date.now()}`;
     this.vinList = vins;
     insertBatchVins(this.batchId, vins);
-    log.info('Pipeline initialized', { batchId: this.batchId, vinCount: vins.length });
+    log.info('Pipeline initialized', { batchId: this.batchId, vinCount: vins.length, maxBatchSize: MAX_BATCH_SIZE });
     return this.batchId;
   }
 
@@ -126,7 +142,11 @@ export class Pipeline extends EventEmitter {
   async run() {
     this.running = true;
     this.startTime = Date.now();
-    log.info('Pipeline started', { batchId: this.batchId, totalVins: this.vinList.length });
+    log.info('Pipeline started', {
+      batchId: this.batchId,
+      totalVins: this.vinList.length,
+      totalTimeoutMs: TOTAL_TIMEOUT_MS,
+    });
     this.emit('start', { batchId: this.batchId, total: this.vinList.length });
 
     const maxConcurrency = this.config.maxConcurrency || 4;
@@ -137,6 +157,14 @@ export class Pipeline extends EventEmitter {
 
       for (let i = 0; i < pendingVins.length; i += maxConcurrency) {
         if (!this.running) break;
+
+        const elapsedTotal = Date.now() - this.startTime;
+        if (elapsedTotal >= TOTAL_TIMEOUT_MS) {
+          const timeoutMsg = `Total execution time ${(elapsedTotal / 1000 / 60 / 60).toFixed(2)}h exceeds ${TOTAL_TIMEOUT_MS / 1000 / 60 / 60}h limit, stopping pipeline`;
+          log.error(timeoutMsg);
+          this.emit('timeout', { batchId: this.batchId, elapsedMs: elapsedTotal, limitMs: TOTAL_TIMEOUT_MS });
+          break;
+        }
 
         while (this.paused) {
           await new Promise((r) => setTimeout(r, 500));
@@ -172,6 +200,8 @@ export class Pipeline extends EventEmitter {
           rate: rate.toFixed(2),
           etaSeconds: Math.round(remaining),
           batchId: this.batchId,
+          elapsedMs: elapsed,
+          timeoutRemainingMs: TOTAL_TIMEOUT_MS - elapsed,
         });
       }
 
@@ -182,9 +212,15 @@ export class Pipeline extends EventEmitter {
       this.emit('error', { error: err.message, batchId: this.batchId });
     } finally {
       this.running = false;
+      const totalElapsed = Date.now() - this.startTime;
       const summary = getBatchSummary(this.batchId);
-      log.info('Pipeline finished', { batchId: this.batchId, summary });
-      this.emit('complete', { batchId: this.batchId, summary });
+      log.info('Pipeline finished', {
+        batchId: this.batchId,
+        summary,
+        totalElapsedMs: totalElapsed,
+        totalElapsedFormatted: formatDuration(totalElapsed),
+      });
+      this.emit('complete', { batchId: this.batchId, summary, elapsedMs: totalElapsed });
     }
   }
 
@@ -207,25 +243,31 @@ export class Pipeline extends EventEmitter {
   }
 
   async _processVin(vin, index) {
+    const vinStartTime = Date.now();
     log.info('Processing VIN', { vin, index });
     updateVinStatus(this.batchId, vin, 'processing');
-    this.emit('vin:start', { vin, index });
+    this.emit('vin:start', { vin, index, startTime: vinStartTime });
 
     const results = this.results.get(vin) || {};
+    const taskDurations = {};
 
     const taskPromises = PLATFORMS.map(async (platform) => {
+      const taskStartTime = Date.now();
       if (results[platform]?.status === 'completed') {
+        taskDurations[platform] = 0;
         return results[platform];
       }
       try {
         const taskFn = TASK_MAP[platform];
         const result = await taskFn(this.batchId, vin);
         results[platform] = result;
-        this.emit('task:complete', { vin, platform, status: result.status });
+        taskDurations[platform] = Date.now() - taskStartTime;
+        this.emit('task:complete', { vin, platform, status: result.status, durationMs: taskDurations[platform] });
         return result;
       } catch (err) {
-        results[platform] = { status: 'error', platform, vin, error: err.message };
-        this.emit('task:error', { vin, platform, error: err.message });
+        taskDurations[platform] = Date.now() - taskStartTime;
+        results[platform] = { status: 'error', platform, vin, error: err.message, durationMs: taskDurations[platform] };
+        this.emit('task:error', { vin, platform, error: err.message, durationMs: taskDurations[platform] });
         return results[platform];
       }
     });
@@ -233,6 +275,20 @@ export class Pipeline extends EventEmitter {
     await Promise.allSettled(taskPromises);
 
     this.results.set(vin, results);
+
+    const vinElapsed = Date.now() - vinStartTime;
+    const totalTaskDuration = Object.values(taskDurations).reduce((sum, d) => sum + d, 0);
+
+    if (vinElapsed > VIN_TIMEOUT_MS) {
+      log.warn('VIN processing exceeds time limit', {
+        vin,
+        elapsedMs: vinElapsed,
+        limitMs: VIN_TIMEOUT_MS,
+        taskDurations,
+        totalTaskDuration,
+      });
+      this.emit('vin:timeout', { vin, elapsedMs: vinElapsed, limitMs: VIN_TIMEOUT_MS });
+    }
 
     const overallStatus = determineOverallStatus(results);
     const hasCaptchaWait = PLATFORMS.some((p) => results[p]?.status === 'captcha_wait');
@@ -248,7 +304,14 @@ export class Pipeline extends EventEmitter {
       updateVinStatus(this.batchId, vin, 'error');
     }
 
-    this.emit('vin:complete', { vin, status: overallStatus });
+    log.debug('VIN processing completed', {
+      vin,
+      elapsedMs: vinElapsed,
+      taskDurations,
+      status: overallStatus,
+    });
+
+    this.emit('vin:complete', { vin, status: overallStatus, durationMs: vinElapsed, taskDurations });
     return results;
   }
 
