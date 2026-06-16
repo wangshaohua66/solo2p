@@ -1,0 +1,22 @@
+# 物证管理系统 .gitignore
+
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.vscode/
+*.log
+appsettings.*.json
+!appsettings.json
+!appsettings.Development.json
+
+# Docker
+docker-compose.override.yml
+
+# IDE
+.idea/
+*.swp
+
+# Build output
+publish/

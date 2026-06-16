@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: evidence-postgres
+    environment:
+      POSTGRES_DB: evidence_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: evidence-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=evidence_db;Username=postgres;Password=postgres;Pooling=true;MaxPoolSize=100;"
+      JwtSettings__SecretKey: "EvidenceManagementSystemJWTSecretKeyForProduction2024!@#$%"
+      JwtSettings__Issuer: "EvidenceManagementSystem"
+      JwtSettings__Audience: "EvidenceManagementSystemUsers"
+      JwtSettings__AccessTokenExpirationMinutes: "120"
+      JwtSettings__RefreshTokenExpirationDays: "7"
+    ports:
+      - "5000:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+
+volumes:
+  postgres_data:
