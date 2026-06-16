@@ -4,6 +4,7 @@ import com.crew.common.ApiResponse;
 import com.crew.common.PageResult;
 import com.crew.dto.ConflictVO;
 import com.crew.dto.RosterGenerateRequest;
+import com.crew.dto.RosterPlanCompareVO;
 import com.crew.dto.RosterPlanVO;
 import com.crew.dto.SwapCandidateVO;
 import com.crew.dto.SwapRequestDTO;
@@ -25,17 +26,26 @@ import java.util.List;
 
 @Tag(name = "排班方案管理", description = "排班生成、审批、调整、查询、调班、冲突检测")
 @RestController
-@RequestMapping("/roster")
+@RequestMapping("/api/v1/roster")
 @RequiredArgsConstructor
 public class RosterController {
 
     private final RosterService rosterService;
 
-    @Operation(summary = "生成排班方案")
+    @Operation(summary = "生成多方案排班并对比评分")
     @PostMapping("/generate")
     @PreAuthorize("hasRole('ADMIN') or hasRole('DISPATCHER')")
-    public ApiResponse<RosterPlanVO> generate(@Valid @RequestBody RosterGenerateRequest request) {
+    public ApiResponse<RosterPlanCompareVO> generate(@Valid @RequestBody RosterGenerateRequest request) {
         return ApiResponse.success(rosterService.generate(request));
+    }
+
+    @Operation(summary = "选择排班方案（从多方案中选定一个）")
+    @PostMapping("/{planId}/select")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('DISPATCHER')")
+    public ApiResponse<RosterPlanVO> selectPlan(
+            @Parameter(description = "选中的排班方案ID") @PathVariable Long planId,
+            Authentication authentication) {
+        return ApiResponse.success(rosterService.selectPlan(planId, authentication.getName()));
     }
 
     @Operation(summary = "审批排班方案")

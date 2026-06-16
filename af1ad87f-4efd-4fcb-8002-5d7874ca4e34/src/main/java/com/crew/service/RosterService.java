@@ -8,6 +8,8 @@ import com.crew.common.ErrorCode;
 import com.crew.common.PageResult;
 import com.crew.dto.ConflictVO;
 import com.crew.dto.RosterGenerateRequest;
+import com.crew.dto.RosterPlanCompareVO;
+import com.crew.dto.RosterPlanScore;
 import com.crew.dto.RosterPlanVO;
 import com.crew.dto.SwapCandidateVO;
 import com.crew.dto.SwapRequestDTO;
@@ -43,8 +45,9 @@ public class RosterService {
     private final Map<String, CompletableFuture<List<Roster>>> generationTasks = new ConcurrentHashMap<>();
 
     @Transactional
-    public RosterPlanVO generate(RosterGenerateRequest request) {
+    public RosterPlanCompareVO generate(RosterGenerateRequest request) {
         LocalDate month = request.getMonth();
+        int planCount = request.getPlanCount() != null ? request.getPlanCount() : 3;
 
         long existing = rosterPlanMapper.selectCount(
                 new LambdaQueryWrapper<RosterPlan>()
@@ -55,45 +58,117 @@ public class RosterService {
             throw new BusinessException(ErrorCode.ROSTER_CONFLICT.getCode(), "该月份已有待审批方案");
         }
 
-        List<Roster> rosters = rosterGenerator.generate(month, request.getOptimizeGoal());
+        List<RosterGenerator.GeneratedPlan> generatedPlans =
+                rosterGenerator.generateMultiplePlans(month, planCount);
 
-        RosterPlan plan = new RosterPlan();
-        plan.setPlanNo("RP-" + month.toString().replace("-", "") + "-" + System.currentTimeMillis() % 10000);
-        plan.setMonth(month);
-        plan.setStatus("DRAFT");
-        plan.setTotalFlights((int) rosters.stream().map(Roster::getFlightId).distinct().count());
-        plan.setTotalCrewAssigned((int) rosters.stream().map(Roster::getCrewId).distinct().count());
-        plan.setGeneratedAt(LocalDateTime.now());
-        rosterPlanMapper.insert(plan);
+        List<RosterPlanVO> planVOs = new ArrayList<>();
+        long recommendedId = null;
+        double bestScore = -1;
 
-        for (Roster roster : rosters) {
-            roster.setRosterNo("RS-" + plan.getPlanNo() + "-" + roster.getCrewId());
-            roster.setStatus("DRAFT");
-            rosterMapper.insert(roster);
+        for (int i = 0; i < generatedPlans.size(); i++) {
+            RosterGenerator.GeneratedPlan gp = generatedPlans.get(i);
+            RosterPlan plan = new RosterPlan();
+            plan.setPlanNo("RP-" + month.toString().replace("-", "") + "-" + (i + 1) + "-" + System.currentTimeMillis() % 10000);
+            plan.setMonth(month);
+            plan.setStatus("DRAFT");
+            plan.setTotalFlights((int) gp.rosters.stream().map(Roster::getFlightId).distinct().count());
+            plan.setTotalCrewAssigned((int) gp.rosters.stream().map(Roster::getCrewId).distinct().count());
+            plan.setViolationCount(gp.score.getViolationCount());
+            plan.setAvgFatigueScore(gp.score.getAvgFatigue());
+            plan.setGeneratedAt(LocalDateTime.now());
+            plan.setRemark("优化目标: " + gp.optimizeGoal);
+            rosterPlanMapper.insert(plan);
+
+            for (Roster roster : gp.rosters) {
+                roster.setRosterNo("RS-" + plan.getPlanNo() + "-" + roster.getCrewId());
+                roster.setStatus("DRAFT");
+                roster.setFatigueScore(gp.score.getAvgFatigue());
+                rosterMapper.insert(roster);
+            }
+
+            List<Map<String, Object>> conflicts = rosterGenerator.detectConflicts(gp.rosters);
+            for (Map<String, Object> conflict : conflicts) {
+                ConflictRecord record = new ConflictRecord();
+                record.setRosterId((Long) conflict.get("rosterId"));
+                record.setCrewId((Long) conflict.get("crewId"));
+                record.setConflictType((String) conflict.get("conflictType"));
+                record.setDescription((String) conflict.get("description"));
+                record.setSuggestion((String) conflict.get("suggestion"));
+                record.setStatus("OPEN");
+                conflictRecordMapper.insert(record);
+            }
+
+            RosterPlanVO planVO = convertToPlanVO(plan, gp.rosters);
+            planVO.setOptimizeGoal(gp.optimizeGoal);
+            planVO.setScore(gp.score);
+            planVOs.add(planVO);
+
+            if (gp.score.getCompositeScore() > bestScore) {
+                bestScore = gp.score.getCompositeScore();
+                recommendedId = plan.getId();
+            }
         }
 
-        List<Map<String, Object>> conflicts = rosterGenerator.detectConflicts(rosters);
-        plan.setViolationCount(conflicts.size());
+        RosterPlanCompareVO compareVO = new RosterPlanCompareVO();
+        compareVO.setPlanCount(planVOs.size());
+        compareVO.setRecommendedPlanId(recommendedId);
+        compareVO.setPlans(planVOs);
 
-        Double avgFatigue = rosters.stream()
-                .mapToDouble(r -> r.getFatigueScore() != null ? r.getFatigueScore() : 0)
-                .average().orElse(0.0);
-        plan.setAvgFatigueScore(avgFatigue);
+        log.info("多方案排班生成完成: month={}, planCount={}, recommendedId={}", month, planVOs.size(), recommendedId);
+        return compareVO;
+    }
 
-        rosterPlanMapper.updateById(plan);
-
-        for (Map<String, Object> conflict : conflicts) {
-            ConflictRecord record = new ConflictRecord();
-            record.setRosterId((Long) conflict.get("rosterId"));
-            record.setCrewId((Long) conflict.get("crewId"));
-            record.setConflictType((String) conflict.get("conflictType"));
-            record.setDescription((String) conflict.get("description"));
-            record.setSuggestion((String) conflict.get("suggestion"));
-            record.setStatus("OPEN");
-            conflictRecordMapper.insert(record);
+    @Transactional
+    public RosterPlanVO selectPlan(Long planId, String operator) {
+        RosterPlan selectedPlan = rosterPlanMapper.selectById(planId);
+        if (selectedPlan == null) {
+            throw new BusinessException(ErrorCode.ROSTER_NOT_FOUND);
         }
 
-        return convertToPlanVO(plan, rosters);
+        LocalDate month = selectedPlan.getMonth();
+
+        List<RosterPlan> monthPlans = rosterPlanMapper.selectList(
+                new LambdaQueryWrapper<RosterPlan>()
+                        .eq(RosterPlan::getMonth, month)
+        );
+
+        for (RosterPlan p : monthPlans) {
+            if (p.getId().equals(planId)) {
+                continue;
+            }
+            p.setStatus("REJECTED");
+            rosterPlanMapper.updateById(p);
+
+            List<Roster> rosters = rosterMapper.selectList(
+                    new LambdaQueryWrapper<Roster>()
+                            .likeRight(Roster::getRosterNo, "RS-" + p.getPlanNo())
+            );
+            for (Roster r : rosters) {
+                r.setStatus("CANCELLED");
+                rosterMapper.updateById(r);
+            }
+        }
+
+        selectedPlan.setStatus("SELECTED");
+        selectedPlan.setApprovedBy(operator);
+        selectedPlan.setApprovedAt(LocalDateTime.now());
+        rosterPlanMapper.updateById(selectedPlan);
+
+        List<Roster> selectedRosters = rosterMapper.selectList(
+                new LambdaQueryWrapper<Roster>()
+                        .likeRight(Roster::getRosterNo, "RS-" + selectedPlan.getPlanNo())
+        );
+        for (Roster r : selectedRosters) {
+            r.setStatus("APPROVED");
+            rosterMapper.updateById(r);
+        }
+
+        RosterPlanVO vo = convertToPlanVO(selectedPlan, selectedRosters);
+        vo.setOptimizeGoal(selectedPlan.getRemark() != null && selectedPlan.getRemark().startsWith("优化目标: ")
+                ? selectedPlan.getRemark().substring(5) : null);
+
+        log.info("排班方案已选择: planId={}, operator={}", planId, operator);
+        return vo;
     }
 
     @Transactional

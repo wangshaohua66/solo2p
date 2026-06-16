@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "机组人员管理", description = "机组人员增删改查与资质维护")
 @RestController
-@RequestMapping("/crew")
+@RequestMapping("/api/v1/crew")
 @RequiredArgsConstructor
 public class CrewController {
 

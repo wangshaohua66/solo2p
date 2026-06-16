@@ -19,6 +19,8 @@ public class RosterPlanVO {
     private Integer violationCount;
     private Double avgFatigueScore;
     private String remark;
+    private String optimizeGoal;
+    private RosterPlanScore score;
     private List<RosterItemVO> rosterItems;
 
     @Data

@@ -36,13 +36,13 @@ public class SecurityConfig {
                         .accessDeniedHandler(jwtAccessDeniedHandler)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/login", "/auth/register").permitAll()
+                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/swagger-resources/**",
                                 "/v3/api-docs/**", "/webjars/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/auth/info").authenticated()
-                        .requestMatchers("/crew/**", "/roster/**", "/fatigue/**", "/qualification/**",
-                                "/statistics/**", "/duty/**").authenticated()
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/auth/info").authenticated()
+                        .requestMatchers("/api/v1/crew/**", "/api/v1/roster/**", "/api/v1/fatigue/**",
+                                "/api/v1/qualification/**", "/api/v1/statistics/**", "/api/v1/duty/**").authenticated()
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

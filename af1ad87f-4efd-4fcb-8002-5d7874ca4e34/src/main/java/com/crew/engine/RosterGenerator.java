@@ -20,6 +20,11 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
+import com.crew.dto.RosterPlanScore;
+import com.crew.entity.CrewMember;
+import com.crew.entity.Flight;
+import com.crew.entity.Roster;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -316,6 +321,102 @@ public class RosterGenerator {
         }
 
         return conflicts;
+    }
+
+    public static class GeneratedPlan {
+        public List<Roster> rosters;
+        public String optimizeGoal;
+        public RosterPlanScore score;
+
+        public GeneratedPlan(List<Roster> rosters, String optimizeGoal) {
+            this.rosters = rosters;
+            this.optimizeGoal = optimizeGoal;
+        }
+    }
+
+    public List<GeneratedPlan> generateMultiplePlans(LocalDate month, int planCount) {
+        List<GeneratedPlan> plans = new ArrayList<>();
+        String[] goals = {"BALANCED", "MIN_FATIGUE", "MAX_UTILIZATION"};
+
+        for (int i = 0; i < Math.min(planCount, goals.length); i++) {
+            String goal = goals[i];
+            List<Roster> rosters = generate(month, goal);
+            GeneratedPlan plan = new GeneratedPlan(rosters, goal);
+            plan.score = scorePlan(rosters, goal);
+            plans.add(plan);
+        }
+
+        plans.sort(Comparator.comparingDouble(p -> -p.score.getCompositeScore()));
+        return plans;
+    }
+
+    public RosterPlanScore scorePlan(List<Roster> rosters, String optimizeGoal) {
+        RosterPlanScore score = new RosterPlanScore();
+        score.setOptimizeGoal(optimizeGoal);
+
+        int totalFlights = (int) rosters.stream().map(Roster::getFlightId).distinct().count();
+        int totalCrew = (int) rosters.stream().map(Roster::getCrewId).distinct().count();
+        int totalAssignments = rosters.size();
+
+        double avgDutyHours = rosters.stream()
+                .mapToDouble(r -> r.getDutyHours() != null ? r.getDutyHours() : 0)
+                .average().orElse(0);
+
+        double hourStdDev = 0;
+        if (!rosters.isEmpty()) {
+            Map<Long, Double> crewHours = new HashMap<>();
+            for (Roster r : rosters) {
+                crewHours.merge(r.getCrewId(), r.getDutyHours() != null ? r.getDutyHours() : 0, Double::sum);
+            }
+            double mean = crewHours.values().stream().mapToDouble(Double::doubleValue).average().orElse(0);
+            double variance = crewHours.values().stream()
+                    .mapToDouble(h -> Math.pow(h - mean, 2))
+                    .average().orElse(0);
+            hourStdDev = Math.sqrt(variance);
+        }
+
+        double avgFatigue = rosters.stream()
+                .mapToDouble(r -> r.getFatigueScore() != null ? r.getFatigueScore() : 0)
+                .average().orElse(0);
+
+        List<Map<String, Object>> conflicts = detectConflicts(rosters);
+        int violationCount = conflicts.size();
+
+        double maxPossibleAssignments = totalCrew * (totalFlights > 0 ? totalAssignments / (double) Math.max(totalCrew, 1) : 0);
+        double utilizationRate = totalCrew > 0 ? avgDutyHours / maxMonthlyHours * 100 : 0;
+
+        double utilizationScore = Math.min(utilizationRate / 80.0 * 30, 30);
+        double complianceScore = Math.max(0, 30 - violationCount * 5);
+        double fatigueScore = Math.max(0, 25 - (avgFatigue / 50.0 * 25));
+        double balanceScore = hourStdDev < 5 ? 15 : Math.max(0, 15 - (hourStdDev - 5));
+
+        double compositeScore = utilizationScore + complianceScore + fatigueScore + balanceScore;
+
+        switch (optimizeGoal) {
+            case "MIN_FATIGUE":
+                fatigueScore = Math.min(fatigueScore * 1.5, 35);
+                compositeScore = utilizationScore * 0.8 + complianceScore + fatigueScore * 1.5 + balanceScore;
+                break;
+            case "MAX_UTILIZATION":
+                utilizationScore = Math.min(utilizationScore * 1.5, 40);
+                compositeScore = utilizationScore * 1.5 + complianceScore + fatigueScore * 0.8 + balanceScore;
+                break;
+            case "BALANCED":
+            default:
+                break;
+        }
+
+        score.setUtilizationScore(Math.round(utilizationScore * 100) / 100.0);
+        score.setComplianceScore(Math.round(complianceScore * 100) / 100.0);
+        score.setFatigueScore(Math.round(fatigueScore * 100) / 100.0);
+        score.setBalanceScore(Math.round(balanceScore * 100) / 100.0);
+        score.setCompositeScore(Math.round(compositeScore * 100) / 100.0);
+        score.setUtilizationRate(Math.round(utilizationRate * 100) / 100.0);
+        score.setViolationCount(violationCount);
+        score.setAvgFatigue(Math.round(avgFatigue * 100) / 100.0);
+        score.setHourStdDev(Math.round(hourStdDev * 100) / 100.0);
+
+        return score;
     }
 
     private static class CrewDutyState {

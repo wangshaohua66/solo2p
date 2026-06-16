@@ -17,7 +17,7 @@ import java.util.List;
 
 @Tag(name = "资质管理", description = "执照到期提醒、机型资格、体检有效期管理")
 @RestController
-@RequestMapping("/qualification")
+@RequestMapping("/api/v1/qualification")
 @RequiredArgsConstructor
 public class QualificationController {
 

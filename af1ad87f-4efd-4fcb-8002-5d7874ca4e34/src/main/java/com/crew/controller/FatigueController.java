@@ -20,7 +20,7 @@ import java.time.LocalDate;
 
 @Tag(name = "疲劳监控", description = "执勤追踪、预警触发、历史分析")
 @RestController
-@RequestMapping("/fatigue")
+@RequestMapping("/api/v1/fatigue")
 @RequiredArgsConstructor
 public class FatigueController {
 
