@@ -110,6 +110,8 @@ func main() {
 	go startHealthCheckScheduler(healthSvc)
 	go startCertificateMonitor(personnelSvc)
 	go startInventoryMonitor(spareSvc)
+	go startWeatherStatusUpdater(weatherSvc)
+	go startEvacuationAlerter(personnelSvc)
 
 	server := &http.Server{
 		Addr:         ":" + cfg.Server.Port,
@@ -174,6 +176,38 @@ func startInventoryMonitor(spareSvc *sparepartsService.Service) {
 		_, err := spareSvc.CheckAndGenerateRestockAlerts(context.Background(), "")
 		if err != nil {
 			log.Printf("Inventory monitor error: %v", err)
+		}
+	}
+}
+
+func startWeatherStatusUpdater(weatherSvc *weatherService.Service) {
+	ticker := time.NewTicker(15 * time.Minute)
+	defer ticker.Stop()
+
+	log.Println("Weather status updater started")
+	for range ticker.C {
+		start := time.Now()
+		count, err := weatherSvc.UpdateVoyagesWeatherStatus(context.Background(), "")
+		if err != nil {
+			log.Printf("Weather status update error: %v", err)
+		} else {
+			log.Printf("Weather status update complete: %d voyages updated, elapsed=%v", count, time.Since(start))
+		}
+	}
+}
+
+func startEvacuationAlerter(personnelSvc *personnelService.Service) {
+	ticker := time.NewTicker(10 * time.Minute)
+	defer ticker.Stop()
+
+	log.Println("Evacuation alerter started")
+	for range ticker.C {
+		start := time.Now()
+		count, err := personnelSvc.CheckUnacknowledgedEvacuations(context.Background())
+		if err != nil {
+			log.Printf("Evacuation check error: %v", err)
+		} else if count > 0 {
+			log.Printf("Evacuation check complete: %d unacknowledged alerts generated, elapsed=%v", count, time.Since(start))
 		}
 	}
 }

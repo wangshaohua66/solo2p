@@ -3,6 +3,7 @@ package voyage
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -92,6 +93,11 @@ func (e *ConflictError) Error() string {
 }
 
 func (s *Service) CheckConflicts(ctx context.Context, voyageID, shipID string, personnelIDs []string, start, end time.Time) ([]model.VoyageConflict, error) {
+	startTime := time.Now()
+	defer func() {
+		log.Printf("[PERF] CheckConflicts ship=%s passengers=%d range=%s-%s elapsed=%v", shipID, len(personnelIDs), start.Format(time.RFC3339), end.Format(time.RFC3339), time.Since(startTime))
+	}()
+
 	var conflicts []model.VoyageConflict
 
 	shipConflicts, err := s.voyageRepo.CheckShipConflict(ctx, shipID, start, end, voyageID)

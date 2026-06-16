@@ -2,6 +2,7 @@ package weather
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"time"
 
@@ -218,5 +219,5 @@ func (s *Service) UpdateVoyagesWeatherStatus(ctx context.Context, windFarmID str
 }
 
 func floatToString(f float64) string {
-	return string(rune(int(f)))
+	return fmt.Sprintf("%.1f", f)
 }

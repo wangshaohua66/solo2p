@@ -3,6 +3,7 @@ package spareparts
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"go.mongodb.org/mongo-driver/bson"
 
@@ -108,7 +109,7 @@ func (s *Service) UpdateStock(ctx context.Context, partID, warehouseID string, q
 			Type:       model.AlertTypeInventory,
 			Severity:   model.SeverityWarning,
 			Title:      "库存低于安全阈值",
-			Description: part.Name + " 库存不足，当前: " + string(rune(inv.AvailableQty)) + ", 安全库存: " + string(rune(part.SafetyStock)),
+			Description: part.Name + " 库存不足，当前: " + fmt.Sprintf("%d", inv.AvailableQty) + ", 安全库存: " + fmt.Sprintf("%d", part.SafetyStock),
 			PartID:     partID,
 			Source:     "inventory_monitor",
 		}
@@ -222,8 +223,16 @@ func (s *Service) RejectTransfer(ctx context.Context, transferID, approverID, re
 		return err
 	}
 
-	if transfer.Status != "pending_approval" {
-		return errors.New("transfer is not pending approval")
+	if transfer.Status != "pending_approval" && transfer.Status != "approved" {
+		return errors.New("transfer is not in a rejectable status")
+	}
+
+	if transfer.Status == "approved" {
+		for _, item := range transfer.Items {
+			if err := s.spRepo.UpdateInventoryQty(ctx, item.PartID, transfer.SourceWarehouseID, 0, -item.Quantity); err != nil {
+				return err
+			}
+		}
 	}
 
 	return s.spRepo.UpdateTransferStatus(ctx, transferID, "rejected", approverID)
@@ -299,7 +308,7 @@ func (s *Service) CheckAndGenerateRestockAlerts(ctx context.Context, warehouseID
 			Type:       model.AlertTypeInventory,
 			Severity:   model.SeverityWarning,
 			Title:      "库存预警 - " + item.PartName,
-			Description: "当前库存 " + string(rune(item.AvailableQty)) + " 低于安全库存 " + string(rune(part.SafetyStock)),
+			Description: "当前库存 " + fmt.Sprintf("%d", item.AvailableQty) + " 低于安全库存 " + fmt.Sprintf("%d", part.SafetyStock),
 			PartID:     item.PartID,
 			Source:     "auto_check",
 		}

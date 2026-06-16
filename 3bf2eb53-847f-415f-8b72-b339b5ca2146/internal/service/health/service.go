@@ -3,7 +3,9 @@ package health
 import (
 	"context"
 	"errors"
+	"log"
 	"math"
+	"strconv"
 	"time"
 
 	"offshore-wind-ops/internal/model"
@@ -86,6 +88,11 @@ var defaultThresholds = map[string]model.ThresholdRange{
 }
 
 func (s *Service) CalculateHealthScore(ctx context.Context, turbineID string) (*model.HealthRecord, error) {
+	start := time.Now()
+	defer func() {
+		log.Printf("[PERF] CalculateHealthScore turbine=%s elapsed=%v", turbineID, time.Since(start))
+	}()
+
 	turbine, err := s.turbineRepo.GetTurbine(ctx, turbineID)
 	if err != nil {
 		return nil, err
@@ -260,7 +267,7 @@ func (s *Service) checkConsecutiveLowScores(ctx context.Context, turbineID strin
 		wo := &model.WorkOrder{
 			Type:        model.WOTypeInspection,
 			Title:       "健康评分异常巡检 - " + turbine.TurbineNo,
-			Description: "风机健康评分连续" + string(rune(periods)) + "个周期低于阈值，需现场巡检确认",
+			Description: "风机健康评分连续" + strconv.Itoa(periods) + "个周期低于阈值，需现场巡检确认",
 			TurbineID:   turbineID,
 			WindFarmID:  turbine.WindFarmID,
 			Priority:    "high",

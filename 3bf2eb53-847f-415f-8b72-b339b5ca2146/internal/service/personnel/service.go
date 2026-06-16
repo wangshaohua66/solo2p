@@ -3,6 +3,7 @@ package personnel
 import (
 	"context"
 	"errors"
+	"strconv"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -139,7 +140,7 @@ func (s *Service) CheckExpiringCertificates(ctx context.Context, days int) ([]mo
 					Type:       model.AlertTypeCertificate,
 					Severity:   model.SeverityWarning,
 					Title:      "证书即将到期",
-					Description: p.Name + " 的 " + string(cert.Type) + " 证书将在 " + string(rune(daysRemaining)) + " 天后到期",
+					Description: p.Name + " 的 " + string(cert.Type) + " 证书将在 " + strconv.Itoa(daysRemaining) + " 天后到期",
 					PersonnelID: p.ID.Hex(),
 					Source:     "cert_monitor",
 				}
@@ -305,4 +306,37 @@ func (s *Service) GetPersonnelAtSeaCount(ctx context.Context) (int, error) {
 	}
 	_, total, err := s.personnelRepo.List(ctx, filter, 1, 1)
 	return int(total), err
+}
+
+func (s *Service) CheckUnacknowledgedEvacuations(ctx context.Context) (int, error) {
+	filter := bson.M{
+		"status": "active",
+	}
+
+	evacs, _, err := s.personnelRepo.ListEvacuations(ctx, filter, 1, 1000)
+	if err != nil {
+		return 0, err
+	}
+
+	count := 0
+	for _, evac := range evacs {
+		for _, p := range evac.PersonnelList {
+			if p.Status == "pending" {
+				alert := &model.Alert{
+					Type:       model.AlertTypeSafety,
+					Severity:   model.SeverityCritical,
+					Title:      "撤离未确认持续告警",
+					Description: "撤离人员 " + p.Name + " 未确认撤离指令，撤离原因: " + evac.Reason,
+					PersonnelID: p.PersonnelID,
+					WindFarmID: evac.WindFarmID,
+					Source:     "evacuation_monitor",
+				}
+				if err := s.alertRepo.Create(ctx, alert); err == nil {
+					count++
+				}
+			}
+		}
+	}
+
+	return count, nil
 }
