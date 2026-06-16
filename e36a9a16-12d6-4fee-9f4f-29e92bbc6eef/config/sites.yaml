@@ -1,0 +1,412 @@
+global:
+  timeout: 15000
+  maxRetries: 3
+  puppeteerMaxInstances: 3
+  pagesPerBrowser: 5
+  matchThreshold: 60
+
+wechat:
+  webhookUrl: ""
+  retryCount: 3
+
+sites:
+  - id: province-ggzy
+    name: 省公共资源交易中心
+    type: dynamic
+    url: https://ggzy.example.gov.cn/
+    listUrl: https://ggzy.example.gov.cn/zbgg/index.jhtml
+    schedule: "0 8 * * 1-5"
+    listSelector:
+      container: ".news-list"
+      items: ".news-item"
+      title: ".news-title a"
+      link: ".news-title a"
+      date: ".news-date"
+      changeFlag: ".change-tag, .buyi-tag"
+    detailSelector:
+      title: ".article-title"
+      projectNo: ".project-no"
+      budget: ".budget-amount"
+      bidDeadline: ".bid-deadline"
+      openTime: ".open-time"
+      qualification: ".qualification-section"
+      contact: ".contact-info"
+    needsLogin: false
+    hasCaptcha: false
+    cookies: []
+
+  - id: city-a-ggzy
+    name: A市公共资源交易中心
+    type: dynamic
+    url: https://ggzy.city-a.gov.cn/
+    listUrl: https://ggzy.city-a.gov.cn/jyxx/zfcg/zbgg/
+    schedule: "0 8,14 * * 1-5"
+    listSelector:
+      container: ".list-box"
+      items: ".list-item"
+      title: ".item-title a"
+      link: ".item-title a"
+      date: ".item-date"
+      changeFlag: ".tag-change, .tag-correction"
+    detailSelector:
+      title: ".detail-title"
+      projectNo: ".detail-project-no"
+      budget: ".detail-budget"
+      bidDeadline: ".detail-deadline"
+      openTime: ".detail-open-time"
+      qualification: ".detail-qualification"
+      contact: ".detail-contact"
+    needsLogin: false
+    hasCaptcha: false
+    cookies: []
+
+  - id: city-b-ggzy
+    name: B市公共资源交易中心
+    type: static
+    url: https://ggzy.city-b.gov.cn/
+    listUrl: https://ggzy.city-b.gov.cn/zfcg/zbgg/
+    schedule: "0 9 * * 1-5"
+    listSelector:
+      container: ".table-bid"
+      items: "tr.item-row"
+      title: "td.title-col a"
+      link: "td.title-col a"
+      date: "td.date-col"
+      changeFlag: ".td .flag-change"
+    detailSelector:
+      title: ".article h1"
+      projectNo: ".project-code"
+      budget: ".budget-money"
+      bidDeadline: ".deadline-time"
+      openTime: ".bid-open-time"
+      qualification: ".qualification-list"
+      contact: ".contact-block"
+    needsLogin: false
+    hasCaptcha: false
+    cookies: []
+
+  - id: city-c-ggzy
+    name: C市公共资源交易中心
+    type: dynamic
+    url: https://ggzy.city-c.gov.cn/
+    listUrl: https://ggzy.city-c.gov.cn/#/zfcg/zbgg
+    schedule: "0 8,16 * * 1-5"
+    listSelector:
+      container: ".ant-table-body"
+      items: ".ant-table-row"
+      title: ".title-link"
+      link: ".title-link"
+      date: ".date-cell"
+      changeFlag: ".change-badge"
+    detailSelector:
+      title: ".detail-header h2"
+      projectNo: ".proj-no"
+      budget: ".budget-val"
+      bidDeadline: ".deadline-val"
+      openTime: ".open-val"
+      qualification: ".qual-wrap"
+      contact: ".contact-wrap"
+    needsLogin: true
+    hasCaptcha: false
+    loginConfig:
+      loginUrl: https://ggzy.city-c.gov.cn/#/login
+      usernameSelector: "#username"
+      passwordSelector: "#password"
+      submitSelector: ".login-btn"
+      username: "user@company.com"
+      password: "password123"
+      checkSelector: ".user-info"
+    cookies: []
+
+  - id: city-d-ggzy
+    name: D市公共资源交易中心
+    type: static
+    url: https://zfcg.city-d.gov.cn/
+    listUrl: https://zfcg.city-d.gov.cn/announce/index_1.html
+    schedule: "0 9 * * 1-5"
+    listSelector:
+      container: ".announce-list"
+      items: ".announce-item"
+      title: ".ann-title a"
+      link: ".ann-title a"
+      date: ".ann-date"
+      changeFlag: ".flag-clarify, .flag-change"
+    detailSelector:
+      title: ".content-title"
+      projectNo: ".project-number"
+      budget: ".project-budget"
+      bidDeadline: ".bid-end-time"
+      openTime: ".open-bid-time"
+      qualification: ".qualification-req"
+      contact: ".contact-person"
+    needsLogin: false
+    hasCaptcha: false
+    cookies: []
+
+  - id: city-e-ggzy
+    name: E市公共资源交易中心
+    type: dynamic
+    url: https://ggzy.city-e.gov.cn/
+    listUrl: https://ggzy.city-e.gov.cn/tender/list
+    schedule: "0 8,12 * * 1-5"
+    listSelector:
+      container: "#bidList"
+      items: ".bid-item"
+      title: ".bid-name a"
+      link: ".bid-name a"
+      date: ".bid-date"
+      changeFlag: ".modify-tag"
+    detailSelector:
+      title: "#projectTitle"
+      projectNo: "#projectCode"
+      budget: "#budgetAmount"
+      bidDeadline: "#deadlineTime"
+      openTime: "#openBidTime"
+      qualification: "#qualificationSection"
+      contact: "#contactInfo"
+    needsLogin: true
+    hasCaptcha: true
+    loginConfig:
+      loginUrl: https://ggzy.city-e.gov.cn/login
+      usernameSelector: "#userName"
+      passwordSelector: "#passWord"
+      captchaSelector: "#captcha"
+      captchaImgSelector: "#captchaImg"
+      submitSelector: "#loginBtn"
+      username: "user@company.com"
+      password: "password123"
+      checkSelector: ".login-user"
+    cookies: []
+
+  - id: city-f-ggzy
+    name: F市公共资源交易中心
+    type: static
+    url: https://www.city-f.gov.cn/zfcg/
+    listUrl: https://www.city-f.gov.cn/zfcg/zbgg/
+    schedule: "0 10 * * 1-5"
+    listSelector:
+      container: ".zfcg-list"
+      items: ".zfcg-item"
+      title: ".zfcg-title a"
+      link: ".zfcg-title a"
+      date: ".zfcg-date"
+      changeFlag: ".zfcg-tag-change"
+    detailSelector:
+      title: ".zfcg-detail h1"
+      projectNo: ".zfcg-projno"
+      budget: ".zfcg-budget"
+      bidDeadline: ".zfcg-deadline"
+      openTime: ".zfcg-opentime"
+      qualification: ".zfcg-quali"
+      contact: ".zfcg-contact"
+    needsLogin: false
+    hasCaptcha: false
+    cookies: []
+
+  - id: city-g-ggzy
+    name: G市公共资源交易中心
+    type: dynamic
+    url: https://ggzy.city-g.gov.cn/
+    listUrl: https://ggzy.city-g.gov.cn/portal/category/zfcg/zbgg
+    schedule: "0 8,15 * * 1-5"
+    listSelector:
+      container: ".list-content"
+      items: ".list-card"
+      title: ".card-title a"
+      link: ".card-title a"
+      date: ".card-date"
+      changeFlag: ".card-change-badge"
+    detailSelector:
+      title: ".detail-title"
+      projectNo: ".detail-no"
+      budget: ".detail-money"
+      bidDeadline: ".detail-end"
+      openTime: ".detail-open"
+      qualification: ".detail-quali"
+      contact: ".detail-contact"
+    needsLogin: false
+    hasCaptcha: false
+    cookies: []
+
+  - id: city-h-ggzy
+    name: H市公共资源交易中心
+    type: static
+    url: https://zfcg.city-h.gov.cn/
+    listUrl: https://zfcg.city-h.gov.cn/cggg/zbgg/
+    schedule: "0 9 * * 1-5"
+    listSelector:
+      container: ".news_list"
+      items: "li.news_item"
+      title: "a.news_title"
+      link: "a.news_title"
+      date: "span.news_date"
+      changeFlag: ".news_change"
+    detailSelector:
+      title: ".article_title"
+      projectNo: ".project_no"
+      budget: ".project_money"
+      bidDeadline: ".bid_deadline"
+      openTime: ".open_time"
+      qualification: ".qual_list"
+      contact: ".contact_way"
+    needsLogin: false
+    hasCaptcha: false
+    cookies: []
+
+  - id: district-1-cgw
+    name: 一区政府采购网
+    type: static
+    url: https://zfcg.district1.gov.cn/
+    listUrl: https://zfcg.district1.gov.cn/zbgg/
+    schedule: "0 9 * * 1-5"
+    listSelector:
+      container: ".list-page"
+      items: ".item"
+      title: ".item-name a"
+      link: ".item-name a"
+      date: ".item-time"
+      changeFlag: ".item-status-change"
+    detailSelector:
+      title: ".detail h2"
+      projectNo: ".detail-xmbh"
+      budget: ".detail-ysje"
+      bidDeadline: ".detail-tbjzsj"
+      openTime: ".detail-kbsj"
+      qualification: ".detail-zzqk"
+      contact: ".detail-lxfs"
+    needsLogin: false
+    hasCaptcha: false
+    cookies: []
+
+  - id: district-2-cgw
+    name: 二区政府采购网
+    type: static
+    url: https://caigou.district2.gov.cn/
+    listUrl: https://caigou.district2.gov.cn/zbgg/
+    schedule: "0 9 * * 1-5"
+    listSelector:
+      container: ".cg-list"
+      items: ".cg-item"
+      title: ".cg-title a"
+      link: ".cg-title a"
+      date: ".cg-date"
+      changeFlag: ".cg-flag"
+    detailSelector:
+      title: ".cg-detail-title"
+      projectNo: ".cg-project-no"
+      budget: ".cg-budget"
+      bidDeadline: ".cg-deadline"
+      openTime: ".cg-open-time"
+      qualification: ".cg-qualification"
+      contact: ".cg-contact"
+    needsLogin: false
+    hasCaptcha: false
+    cookies: []
+
+  - id: district-3-cgw
+    name: 三区政府采购网
+    type: dynamic
+    url: https://zfcg.district3.gov.cn/
+    listUrl: https://zfcg.district3.gov.cn/#/announcement
+    schedule: "0 10 * * 1-5"
+    listSelector:
+      container: ".ann-list"
+      items: ".ann-card"
+      title: ".ann-name a"
+      link: ".ann-name a"
+      date: ".ann-date"
+      changeFlag: ".ann-tag"
+    detailSelector:
+      title: ".ann-detail-title"
+      projectNo: ".ann-detail-no"
+      budget: ".ann-detail-money"
+      bidDeadline: ".ann-detail-deadline"
+      openTime: ".ann-detail-open"
+      qualification: ".ann-detail-quali"
+      contact: ".ann-detail-contact"
+    needsLogin: true
+    hasCaptcha: false
+    loginConfig:
+      loginUrl: https://zfcg.district3.gov.cn/#/login
+      usernameSelector: "#loginName"
+      passwordSelector: "#loginPwd"
+      submitSelector: ".login-submit"
+      username: "user@company.com"
+      password: "password123"
+      checkSelector: ".user-name"
+    cookies: []
+
+  - id: district-4-cgw
+    name: 四区政府采购网
+    type: static
+    url: https://www.district4.gov.cn/zfcg/
+    listUrl: https://www.district4.gov.cn/zfcg/zbgg/
+    schedule: "0 9 * * 1-5"
+    listSelector:
+      container: ".zflist"
+      items: ".zfitem"
+      title: ".zftitle a"
+      link: ".zftitle a"
+      date: ".zfdate"
+      changeFlag: ".zftag"
+    detailSelector:
+      title: ".zfdetail h1"
+      projectNo: ".zfxmbh"
+      budget: ".zfysje"
+      bidDeadline: ".zftbjz"
+      openTime: ".zfkbsj"
+      qualification: ".zfzzqk"
+      contact: ".zflxfs"
+    needsLogin: false
+    hasCaptcha: false
+    cookies: []
+
+  - id: district-5-cgw
+    name: 五区政府采购网
+    type: static
+    url: https://cg.district5.gov.cn/
+    listUrl: https://cg.district5.gov.cn/notice/list?type=zbgg
+    schedule: "0 9 * * 1-5"
+    listSelector:
+      container: ".notice-list"
+      items: ".notice-item"
+      title: ".notice-title a"
+      link: ".notice-title a"
+      date: ".notice-date"
+      changeFlag: ".notice-change"
+    detailSelector:
+      title: ".notice-detail-title"
+      projectNo: ".notice-project-no"
+      budget: ".notice-budget"
+      bidDeadline: ".notice-deadline"
+      openTime: ".notice-open-time"
+      qualification: ".notice-qualification"
+      contact: ".notice-contact"
+    needsLogin: false
+    hasCaptcha: false
+    cookies: []
+
+  - id: district-6-cgw
+    name: 六区政府采购网
+    type: static
+    url: https://zfcg.district6.gov.cn/
+    listUrl: https://zfcg.district6.gov.cn/portal/zbgg
+    schedule: "0 9 * * 1-5"
+    listSelector:
+      container: ".portal-list"
+      items: ".portal-item"
+      title: ".portal-title a"
+      link: ".portal-title a"
+      date: ".portal-date"
+      changeFlag: ".portal-change"
+    detailSelector:
+      title: ".portal-detail-title"
+      projectNo: ".portal-project-no"
+      budget: ".portal-budget"
+      bidDeadline: ".portal-deadline"
+      openTime: ".portal-open-time"
+      qualification: ".portal-qualification"
+      contact: ".portal-contact"
+    needsLogin: false
+    hasCaptcha: false
+    cookies: []

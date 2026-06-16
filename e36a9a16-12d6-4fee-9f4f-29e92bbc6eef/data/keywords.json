@@ -1,0 +1,89 @@
+{
+  "threshold": 60,
+  "categories": [
+    {
+      "name": "工程咨询",
+      "weight": 1.5,
+      "keywords": [
+        { "word": "工程咨询", "weight": 10 },
+        { "word": "可行性研究", "weight": 8 },
+        { "word": "可研报告", "weight": 8 },
+        { "word": "项目建议书", "weight": 7 },
+        { "word": "初步设计", "weight": 6 },
+        { "word": "施工图设计", "weight": 6 },
+        { "word": "设计咨询", "weight": 5 },
+        { "word": "造价咨询", "weight": 5 },
+        { "word": "招标代理", "weight": 5 },
+        { "word": "工程监理", "weight": 4 }
+      ]
+    },
+    {
+      "name": "建筑工程",
+      "weight": 1.2,
+      "keywords": [
+        { "word": "房屋建筑", "weight": 5 },
+        { "word": "办公楼", "weight": 4 },
+        { "word": "教学楼", "weight": 4 },
+        { "word": "综合楼", "weight": 4 },
+        { "word": "宿舍楼", "weight": 3 },
+        { "word": "医院", "weight": 3 },
+        { "word": "图书馆", "weight": 3 },
+        { "word": "体育馆", "weight": 3 },
+        { "word": "厂房", "weight": 3 }
+      ]
+    },
+    {
+      "name": "市政工程",
+      "weight": 1.1,
+      "keywords": [
+        { "word": "市政工程", "weight": 5 },
+        { "word": "道路工程", "weight": 4 },
+        { "word": "桥梁工程", "weight": 4 },
+        { "word": "给排水", "weight": 4 },
+        { "word": "污水处理", "weight": 4 },
+        { "word": "园林绿化", "weight": 3 },
+        { "word": "亮化工程", "weight": 3 },
+        { "word": "管网改造", "weight": 3 }
+      ]
+    },
+    {
+      "name": "交通工程",
+      "weight": 1.0,
+      "keywords": [
+        { "word": "公路工程", "weight": 5 },
+        { "word": "高速公路", "weight": 4 },
+        { "word": "隧道工程", "weight": 4 },
+        { "word": "轨道交通", "weight": 4 },
+        { "word": "客运枢纽", "weight": 3 }
+      ]
+    },
+    {
+      "name": "水利工程",
+      "weight": 0.9,
+      "keywords": [
+        { "word": "水利工程", "weight": 5 },
+        { "word": "水库", "weight": 4 },
+        { "word": "河道治理", "weight": 4 },
+        { "word": "防洪工程", "weight": 4 },
+        { "word": "灌溉工程", "weight": 3 }
+      ]
+    },
+    {
+      "name": "资质要求",
+      "weight": 1.0,
+      "keywords": [
+        { "word": "甲级资质", "weight": 2 },
+        { "word": "乙级资质", "weight": 1 },
+        { "word": "工程咨询资质", "weight": 3 },
+        { "word": "设计资质", "weight": 2 }
+      ]
+    }
+  ],
+  "excludeKeywords": [
+    "软件开发",
+    "信息化建设",
+    "设备采购",
+    "办公耗材",
+    "物业管理"
+  ]
+}
