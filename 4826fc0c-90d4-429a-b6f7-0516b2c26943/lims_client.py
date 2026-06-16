@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import time
 import random
@@ -10,6 +11,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 import pyautogui
+import pytesseract
 from loguru import logger
 
 pyautogui.FAILSAFE = False
@@ -252,32 +254,69 @@ class LIMSClient:
     def _fill_element_field(self, lims_name: str, value: float) -> bool:
         edit_cfg = self.config.get("edit", {})
         field_coords = edit_cfg.get("field_coords", {})
+        element_field_template = edit_cfg.get("element_field_template", "")
 
-        coords = field_coords.get(lims_name)
-        if not coords or not self._window_rect:
-            logger.warning(f"LIMS 元素字段坐标未配置: {lims_name}")
-            return False
-
-        wx, wy, _, _ = self._window_rect
-        abs_x = wx + coords[0]
-        abs_y = wy + coords[1]
+        symbol = self._lims_name_to_symbol(lims_name)
+        template_path = ""
+        if element_field_template and symbol:
+            template_path = element_field_template.replace("{symbol}", symbol)
 
         for attempt in range(self._max_retry):
+            target_x = None
+            target_y = None
+            located_by = ""
+
+            if template_path and os.path.exists(template_path):
+                match_result = self._template_match_fullscreen(template_path)
+                if match_result:
+                    x, y, w, h = match_result
+                    target_x = x + w // 2
+                    target_y = y + h // 2
+                    located_by = "模板匹配"
+                    logger.debug(f"LIMS 字段 {lims_name} 通过模板定位: {template_path}")
+
+            if target_x is None:
+                coords = field_coords.get(lims_name)
+                if coords and self._window_rect:
+                    wx, wy, _, _ = self._window_rect
+                    target_x = wx + coords[0]
+                    target_y = wy + coords[1]
+                    located_by = "回退坐标"
+                    logger.debug(f"LIMS 字段 {lims_name} 通过回退坐标定位")
+                else:
+                    logger.warning(f"LIMS 元素字段定位失败: {lims_name} (无模板且无坐标)")
+                    self._exponential_backoff(attempt)
+                    continue
+
             try:
                 self._jitter()
-                pyautogui.moveTo(abs_x, abs_y, duration=random.uniform(0.1, 0.3))
+                pyautogui.moveTo(target_x, target_y, duration=random.uniform(0.1, 0.3))
                 pyautogui.click()
                 time.sleep(0.15)
                 pyautogui.hotkey("ctrl", "a")
                 time.sleep(0.1)
                 self._type_text(f"{value:.4f}")
                 time.sleep(0.1)
+                logger.debug(f"LIMS 填写 {lims_name}={value:.4f} ({located_by})")
                 return True
             except Exception as e:
                 logger.warning(f"LIMS 填写字段 {lims_name} 第{attempt+1}次异常: {e}")
                 self._exponential_backoff(attempt)
 
         return False
+
+    def _lims_name_to_symbol(self, lims_name: str) -> str:
+        mapping = {
+            "碳含量": "C", "硅含量": "Si", "锰含量": "Mn", "磷含量": "P",
+            "硫含量": "S", "铬含量": "Cr", "镍含量": "Ni", "钼含量": "Mo",
+            "钒含量": "V", "钛含量": "Ti", "铜含量": "Cu", "铝含量": "Al",
+            "钨含量": "W", "钴含量": "Co", "铌含量": "Nb", "硼含量": "B",
+            "铁含量": "Fe", "钙含量": "Ca", "镁含量": "Mg", "钾含量": "K",
+            "锌含量": "Zn", "砷含量": "As", "锆含量": "Zr", "锡含量": "Sn",
+            "铅含量": "Pb", "铋含量": "Bi", "总碳含量": "TC", "总硫含量": "TS",
+            "氮含量": "N",
+        }
+        return mapping.get(lims_name, lims_name)
 
     def _save_record(self) -> bool:
         edit_cfg = self.config.get("edit", {})
@@ -300,21 +339,104 @@ class LIMSClient:
 
         try:
             screenshot = pyautogui.screenshot(region=abs_roi)
-            img_array = np.array(screenshot)
+            img_array = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
             timestamp = time.strftime("%Y%m%d_%H%M%S")
             verify_filename = f"lims_verify_{sample_id}_{timestamp}.png"
             verify_path = self._audit_dir / verify_filename
-            cv2.imwrite(str(verify_path), cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR))
+            cv2.imwrite(str(verify_path), img_array)
+
+            total_count = len(element_values)
+            if total_count == 0:
+                logger.info("LIMS 回填校验: 无需验证的元素值")
+                return True
 
             passed_count = 0
-            total_count = len(element_values)
+            edit_cfg = self.config.get("edit", {})
+            field_coords = edit_cfg.get("field_coords", {})
 
-            logger.info(f"LIMS 回填校验完成（截图已保存）: {total_count} 项元素")
-            return passed_count / max(total_count, 1) >= 0.8
+            for lims_name, expected_value in element_values.items():
+                try:
+                    coords = field_coords.get(lims_name)
+                    if coords and self._window_rect:
+                        fx = min(coords[0], read_roi[2] - 60)
+                        fy = min(coords[1] - read_roi[1], read_roi[3] - 25)
+                        fw = 120
+                        fh = 22
+
+                        fy = max(0, fy)
+                        fx = max(0, fx)
+
+                        if fy + fh <= img_array.shape[0] and fx + fw <= img_array.shape[1]:
+                            field_roi = img_array[fy:fy + fh, fx:fx + fw]
+                            gray = cv2.cvtColor(field_roi, cv2.COLOR_BGR2GRAY)
+                            _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+                            scale = 2.0
+                            binary = cv2.resize(
+                                binary, None, fx=scale, fy=scale,
+                                interpolation=cv2.INTER_CUBIC
+                            )
+
+                            ocr_text = pytesseract.image_to_string(
+                                binary,
+                                config="--psm 7 --oem 3 -c tessedit_char_whitelist=0123456789.-%- "
+                            ).strip()
+
+                            match = re.search(r'-?\d+\.?\d*', ocr_text.replace(',', '.'))
+                            if match:
+                                read_value = float(match.group())
+                                if abs(read_value - expected_value) < abs(expected_value) * 0.01 + 0.0001:
+                                    passed_count += 1
+                                    logger.debug(
+                                        f"LIMS 校验通过: {lims_name} 期望={expected_value:.4f} 实际={read_value:.4f}"
+                                    )
+                                else:
+                                    logger.warning(
+                                        f"LIMS 校验偏差: {lims_name} 期望={expected_value:.4f} 实际={read_value:.4f}"
+                                    )
+                            else:
+                                logger.warning(f"LIMS 校验无法识别: {lims_name} OCR='{ocr_text}'")
+                        else:
+                            logger.debug(f"LIMS 校验坐标越界: {lims_name}, 使用像素比对")
+                            if self._pixel_compare_field(img_array, lims_name, coords, read_roi):
+                                passed_count += 1
+                    else:
+                        logger.debug(f"LIMS 校验无坐标: {lims_name}, 跳过该字段")
+
+                except Exception as e:
+                    logger.warning(f"LIMS 校验单字段异常: {lims_name}, {e}")
+
+            ratio = passed_count / max(total_count, 1)
+            logger.info(
+                f"LIMS 回填校验完成: {passed_count}/{total_count} 项通过, 比率={ratio:.2f}"
+            )
+            return ratio >= 0.8
 
         except Exception as e:
             logger.warning(f"LIMS 校验过程异常: {e}")
             return True
+
+    def _pixel_compare_field(self, full_img: np.ndarray, lims_name: str,
+                             coords: list, read_roi: list) -> bool:
+        if not coords or not read_roi:
+            return False
+        try:
+            fx = min(coords[0], read_roi[2] - 30)
+            fy = min(coords[1] - read_roi[1], read_roi[3] - 15)
+            fw = 80
+            fh = 15
+            fy = max(0, fy)
+            fx = max(0, fx)
+
+            if fy + fh > full_img.shape[0] or fx + fw > full_img.shape[1]:
+                return False
+
+            field_roi = full_img[fy:fy + fh, fx:fx + fw]
+            gray = cv2.cvtColor(field_roi, cv2.COLOR_BGR2GRAY)
+            white_pixel_ratio = np.sum(gray > 200) / max(gray.size, 1)
+            return white_pixel_ratio > 0.3
+        except Exception:
+            return False
 
     def submit_results(self, sample_id: str, element_values: Dict[str, float],
                       element_mapping: Dict[str, str]) -> LIMSResult:
