@@ -11,15 +11,21 @@ public class InventoryService : IInventoryService
     private readonly IInventoryRepository _inventoryRepository;
     private readonly IEvidenceRepository _evidenceRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IEmailSender _emailSender;
+    private readonly ISmsSender _smsSender;
 
     public InventoryService(
         IInventoryRepository inventoryRepository,
         IEvidenceRepository evidenceRepository,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        IEmailSender emailSender,
+        ISmsSender smsSender)
     {
         _inventoryRepository = inventoryRepository;
         _evidenceRepository = evidenceRepository;
         _userRepository = userRepository;
+        _emailSender = emailSender;
+        _smsSender = smsSender;
     }
 
     public async Task<InventoryTaskDto> CreateTaskAsync(CreateInventoryTaskRequest request, Guid operatorId, string operatorName)
@@ -202,10 +208,40 @@ public class InventoryService : IInventoryService
         {
             task.Status = InventoryStatus.Exception;
             task.LeaderNotified = true;
+
+            var title = $"盘点异常报告 - {task.TaskNumber}";
+            var content = $"盘点任务{task.TaskNumber}发现异常：缺失{missingCount}件、多余{extraCount}件、不匹配{mismatchedCount}件，请及时处理。";
+            var leaders = await _userRepository.GetByRoleAsync(UserRole.Leader);
+            foreach (var leader in leaders)
+            {
+                if (!string.IsNullOrEmpty(leader.Email))
+                {
+                    await _emailSender.SendAsync(leader.Email, title, content);
+                }
+                if (!string.IsNullOrEmpty(leader.Phone))
+                {
+                    await _smsSender.SendAsync(leader.Phone, $"[物证管理系统]{title}：{content}");
+                }
+            }
         }
         else
         {
             task.Status = InventoryStatus.Completed;
+
+            var creator = await _userRepository.GetByIdAsync(task.CreatedById);
+            if (creator != null)
+            {
+                var title = "盘点任务完成";
+                var content = $"盘点任务{task.TaskNumber}已完成，共盘点{task.TotalCount}件物证，全部匹配。";
+                if (!string.IsNullOrEmpty(creator.Email))
+                {
+                    await _emailSender.SendAsync(creator.Email, title, content);
+                }
+                if (!string.IsNullOrEmpty(creator.Phone))
+                {
+                    await _smsSender.SendAsync(creator.Phone, $"[物证管理系统]{title}：{content}");
+                }
+            }
         }
 
         await _inventoryRepository.UpdateAsync(task);

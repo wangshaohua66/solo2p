@@ -40,5 +40,9 @@ public class ExecuteDestroyRequestValidator : AbstractValidator<ExecuteDestroyRe
         RuleFor(x => x.Executor2Name)
             .NotEmpty().WithMessage("执行人2不能为空")
             .Length(1, 50).WithMessage("执行人2姓名长度必须在1到50个字符之间");
+
+        RuleFor(x => x)
+            .Must(x => !string.Equals(x.Executor1Name, x.Executor2Name, StringComparison.OrdinalIgnoreCase))
+            .WithMessage("两名执行人不能是同一人");
     }
 }

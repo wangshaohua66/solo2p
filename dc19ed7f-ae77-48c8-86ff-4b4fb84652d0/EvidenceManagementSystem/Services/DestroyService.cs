@@ -137,6 +137,11 @@ public class DestroyService : IDestroyService
                 throw new BusinessException("物证已销毁", 400);
             }
 
+            if (string.Equals(request.Executor1Name, request.Executor2Name, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new BusinessException("两名执行人不能是同一人", 400);
+            }
+
             var statusBefore = evidence.Status;
             evidence.IsDestroyed = true;
             evidence.DestroyedAt = DateTime.UtcNow;

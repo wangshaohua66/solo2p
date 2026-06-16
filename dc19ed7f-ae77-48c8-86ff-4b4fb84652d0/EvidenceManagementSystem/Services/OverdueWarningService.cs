@@ -11,15 +11,21 @@ public class OverdueWarningService : IOverdueWarningService
 {
     private readonly IOverdueWarningRepository _warningRepository;
     private readonly IEvidenceRepository _evidenceRepository;
+    private readonly INotificationService _notificationService;
+    private readonly IUserRepository _userRepository;
     private readonly int _warningDays;
 
     public OverdueWarningService(
         IOverdueWarningRepository warningRepository,
         IEvidenceRepository evidenceRepository,
+        INotificationService notificationService,
+        IUserRepository userRepository,
         IConfiguration configuration)
     {
         _warningRepository = warningRepository;
         _evidenceRepository = evidenceRepository;
+        _notificationService = notificationService;
+        _userRepository = userRepository;
         _warningDays = configuration.GetValue<int>("EvidenceSettings:WarningDaysBeforeExpiry", 7);
     }
 
@@ -56,6 +62,14 @@ public class OverdueWarningService : IOverdueWarningService
             };
 
             await _warningRepository.AddAsync(warning);
+
+            await _notificationService.NotifyLeaderAsync("4",
+                $"物证即将到期预警 - {evidence.Barcode}",
+                $"物证{evidence.Name}（条码：{evidence.Barcode}）将于{daysRemaining}天后到期，请及时处理。");
+
+            warning.Notified = true;
+            warning.NotifiedAt = DateTime.UtcNow;
+            await _warningRepository.UpdateAsync(warning);
         }
 
         var overdueEvidences = await _evidenceRepository.GetOverdueEvidencesAsync();
@@ -75,6 +89,14 @@ public class OverdueWarningService : IOverdueWarningService
                     existingWarning.DaysRemaining = -daysOverdue;
                     existingWarning.GeneratedAt = DateTime.UtcNow;
                     existingWarning.Notified = false;
+                    await _warningRepository.UpdateAsync(existingWarning);
+
+                    await _notificationService.NotifyLeaderAsync("4",
+                        $"物证已超期 - {evidence.Barcode}",
+                        $"物证{evidence.Name}（条码：{evidence.Barcode}）已超期{daysOverdue}天，请及时处理。");
+
+                    existingWarning.Notified = true;
+                    existingWarning.NotifiedAt = DateTime.UtcNow;
                     await _warningRepository.UpdateAsync(existingWarning);
                 }
             }
@@ -97,6 +119,14 @@ public class OverdueWarningService : IOverdueWarningService
                 };
 
                 await _warningRepository.AddAsync(warning);
+
+                await _notificationService.NotifyLeaderAsync("4",
+                    $"物证已超期 - {evidence.Barcode}",
+                    $"物证{evidence.Name}（条码：{evidence.Barcode}）已超期{daysOverdue}天，请及时处理。");
+
+                warning.Notified = true;
+                warning.NotifiedAt = DateTime.UtcNow;
+                await _warningRepository.UpdateAsync(warning);
             }
 
             if (!evidence.IsOverdue)
@@ -105,6 +135,13 @@ public class OverdueWarningService : IOverdueWarningService
                 evidence.Status = EvidenceStatus.Overdue;
                 evidence.UpdatedAt = DateTime.UtcNow;
                 await _evidenceRepository.UpdateAsync(evidence);
+            }
+
+            if (evidence.CreatedBy != Guid.Empty)
+            {
+                await _notificationService.NotifyUserAsync(evidence.CreatedBy,
+                    $"物证已超期 - {evidence.Barcode}",
+                    $"您登记的物证{evidence.Name}（条码：{evidence.Barcode}）已超期{daysOverdue}天，已被限制出库。");
             }
         }
     }

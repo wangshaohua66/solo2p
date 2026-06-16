@@ -1,5 +1,6 @@
 using EvidenceManagementSystem.Data;
 using EvidenceManagementSystem.Models.Entities;
+using EvidenceManagementSystem.Models.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace EvidenceManagementSystem.Repositories;
@@ -31,5 +32,12 @@ public class UserRepository : Repository<User>, IUserRepository
     public async Task<bool> EmployeeIdExistsAsync(string employeeId)
     {
         return await _dbSet.AnyAsync(u => u.EmployeeId == employeeId);
+    }
+
+    public async Task<List<User>> GetByRoleAsync(UserRole role)
+    {
+        return await _dbSet
+            .Where(u => u.Role == role && u.IsActive)
+            .ToListAsync();
     }
 }

@@ -176,6 +176,7 @@ builder.Services.AddScoped<IDestroyService, DestroyService>();
 builder.Services.AddScoped<IOverdueWarningService, OverdueWarningService>();
 builder.Services.AddScoped<IOverdueApprovalService, OverdueApprovalService>();
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 builder.Services.AddHostedService<OverdueWarningHostedService>();
 
