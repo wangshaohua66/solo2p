@@ -325,6 +325,13 @@ func (s *Scheduler) RunCrawlTask(taskType string) {
 		log.Warn().Err(err).Msg("finish task report failed")
 	}
 
+	reportsDir := filepath.Join(filepath.Dir(s.config.Global.DBPath), "reports")
+	if reportPath, err := s.store.ExportTaskReportJSON(taskID, reportsDir); err != nil {
+		log.Warn().Err(err).Msg("export task report to JSON failed")
+	} else {
+		log.Info().Str("report_path", reportPath).Msg("task report exported")
+	}
+
 	s.checkAndArchiveDB()
 
 	log.Info().
@@ -406,7 +413,7 @@ func (s *Scheduler) crawlSite(taskID string, siteName string, sc scraper.Scraper
 		for attempt := 1; attempt <= maxRetries; attempt++ {
 			opts := &scraper.ScrapeOptions{
 				MaxPages:  s.config.Sites[siteName].Pagination.MaxPages,
-				StartPage: progress.LastPage,
+				StartPage: progress.LastPage + 1,
 				Timeout:   timeout,
 			}
 

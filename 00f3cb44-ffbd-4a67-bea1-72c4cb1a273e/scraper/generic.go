@@ -297,6 +297,36 @@ func (bs *BaseScraper) NavigateAndWait(ctx context.Context, url string, waitSel 
 	return nil
 }
 
+func (bs *BaseScraper) NavigateWithPageRetry(ctx context.Context, url string, waitSel string, timeout time.Duration, maxRetries int) error {
+	if maxRetries <= 0 {
+		maxRetries = 3
+	}
+
+	var lastErr error
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		err := bs.NavigateAndWait(ctx, url, waitSel, timeout)
+		if err == nil {
+			return nil
+		}
+
+		lastErr = err
+		if attempt < maxRetries {
+			backoffMs := 2000 * (1 << (attempt - 1))
+			log.Warn().
+				Str("site", bs.SiteName).
+				Str("url", url).
+				Int("attempt", attempt).
+				Int("max_retries", maxRetries).
+				Int("backoff_ms", backoffMs).
+				Err(err).
+				Msg("page load failed, retrying")
+			time.Sleep(time.Duration(backoffMs) * time.Millisecond)
+		}
+	}
+
+	return fmt.Errorf("page load failed after %d attempts: %w", maxRetries, lastErr)
+}
+
 func (bs *BaseScraper) logSelectorError(ctx context.Context, url string, selector string) {
 	screenshotPath, err := TakeScreenshot(ctx, bs.screenshotsDir, bs.SiteName+"_selector_error")
 	if err != nil {
@@ -566,7 +596,7 @@ func (bs *BaseScraper) ScrapeWithFallback(ctx context.Context, url string, categ
 	}
 
 	log.Debug().Str("site", bs.SiteName).Msg("using Chromedp for dynamic scraping")
-	if err := bs.NavigateAndWait(ctx, url, waitSel, timeout); err != nil {
+	if err := bs.NavigateWithPageRetry(ctx, url, waitSel, timeout, 3); err != nil {
 		if usedStatic && len(staticProducts) > 0 {
 			log.Warn().Err(err).Str("site", bs.SiteName).Msg("Chromedp failed but static results available, using static data")
 			return staticProducts, nil

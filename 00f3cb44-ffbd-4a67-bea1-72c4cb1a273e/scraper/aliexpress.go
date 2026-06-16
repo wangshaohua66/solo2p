@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/chromedp/chromedp"
 	"github.com/rs/zerolog/log"
 
 	"crossborder-scraper/pipeline"
@@ -66,12 +65,8 @@ func (s *AliExpressScraper) Scrape(ctx context.Context, category string, opts *S
 	}
 
 	pageCtx, cancel := context.WithTimeout(browserCtx, timeout)
-	err = chromedp.Run(pageCtx,
-		chromedp.Navigate(url),
-		chromedp.WaitVisible(waitSel, chromedp.ByQuery),
-		chromedp.Sleep(RandomWait(2000, 4000)),
-	)
-	cancel()
+	defer cancel()
+	err = s.NavigateWithPageRetry(pageCtx, url, waitSel, timeout, 3)
 
 	if err != nil {
 		if len(staticProducts) > 0 {

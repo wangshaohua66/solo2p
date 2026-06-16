@@ -392,6 +392,14 @@ func (s *Store) BulkUpsertProducts(products []*Product) (int, error) {
 		return 0, nil
 	}
 
+	if err := s.db.Ping(); err != nil {
+		log.Error().Err(err).Int("count", len(products)).Msg("database unavailable, caching all products to local file")
+		if cacheErr := s.saveFailedProducts(products, fmt.Errorf("database unavailable: %w", err)); cacheErr != nil {
+			log.Error().Err(cacheErr).Int("count", len(products)).Msg("failed to cache products during db outage")
+		}
+		return 0, fmt.Errorf("database unavailable, all %d products cached: %w", len(products), err)
+	}
+
 	count := 0
 	var failedProducts []*Product
 
@@ -609,4 +617,30 @@ func (s *Store) ArchiveOldData(days int) (int64, error) {
 	}
 
 	return affected, nil
+}
+
+func (s *Store) ExportTaskReportJSON(taskID string, outputDir string) (string, error) {
+	report, err := s.GetTaskReport(taskID)
+	if err != nil {
+		return "", fmt.Errorf("get task report: %w", err)
+	}
+
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return "", fmt.Errorf("create report dir: %w", err)
+	}
+
+	filename := fmt.Sprintf("report_%s_%s.json", taskID, report.Status)
+	filepath := filepath.Join(outputDir, filename)
+
+	data, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("marshal report: %w", err)
+	}
+
+	if err := os.WriteFile(filepath, data, 0644); err != nil {
+		return "", fmt.Errorf("write report file: %w", err)
+	}
+
+	log.Info().Str("task_id", taskID).Str("file", filepath).Msg("task report exported to JSON")
+	return filepath, nil
 }
