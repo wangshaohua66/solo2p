@@ -1,0 +1,180 @@
+dmv:
+  name: "公安交管互联网服务平台"
+  url: "https://dmv.example.gov.cn"
+  credentials:
+    username: "${DMV_USERNAME}"
+    password: "${DMV_PASSWORD}"
+  login:
+    usernameInput: "#username"
+    passwordInput: "#password"
+    loginButton: "button.btn-login"
+    captchaImage: "img#captcha-img"
+    captchaInput: "input#captcha"
+    captchaSubmit: "button#captcha-submit"
+    loginSuccessIndicator: ".user-info"
+    sessionTimeoutIndicator: ".login-expired"
+  navigation:
+    vinQueryPage: "/vehicle/query"
+    vinInput: "input#vin-code"
+    queryButton: "button#query-btn"
+    resultTable: "table.vehicle-info"
+  keepAlive:
+    url: "/user/heartbeat"
+    intervalMs: 120000
+  locators:
+    registrationDate: "td[data-field='registrationDate']"
+    transferCount: "td[data-field='transferCount']"
+    usageType: "td[data-field='usageType']"
+    plateNumber: "td[data-field='plateNumber']"
+    engineNumber: "td[data-field='engineNumber']"
+    vehicleModel: "td[data-field='vehicleModel']"
+    registrationHistory: "div.registration-history tr"
+
+insurance:
+  name: "中国银保信车险信息平台"
+  url: "https://insurance.example.cbic.com"
+  credentials:
+    username: "${INSURANCE_USERNAME}"
+    password: "${INSURANCE_PASSWORD}"
+  login:
+    usernameInput: "input[name='loginName']"
+    passwordInput: "input[name='loginPwd']"
+    loginButton: ".login-btn"
+    captchaImage: "#verifyImg"
+    captchaInput: "input#verifyCode"
+    captchaSubmit: ".verify-submit"
+    loginSuccessIndicator: ".welcome-msg"
+    sessionTimeoutIndicator: ".session-expired"
+  navigation:
+    claimQueryPage: "/claim/query"
+    vinInput: "input#searchVin"
+    queryButton: ".search-btn"
+    resultTable: "table.claim-result"
+    pagination: ".pagination"
+    nextPage: ".pagination .next"
+  keepAlive:
+    url: "/user/keepalive"
+    intervalMs: 90000
+  locators:
+    accidentDate: "td[data-field='accidentDate']"
+    accidentType: "td[data-field='accidentType']"
+    claimAmount: "td[data-field='claimAmount']"
+    insuranceType: "td[data-field='insuranceType']"
+    claimStatus: "td[data-field='claimStatus']"
+    totalLossFlag: "td[data-field='totalLoss']"
+    waterDamageFlag: "td[data-field='waterDamage']"
+    fireDamageFlag: "td[data-field='fireDamage']"
+  riskThresholds:
+    totalClaimAmount: 50000
+    totalLossTag: "全损"
+    waterDamageTag: "水泡"
+    fireDamageTag: "火烧"
+
+recall:
+  name: "厂商召回公示页面"
+  baseUrls:
+    toyota: "https://recall.toyota.com.cn"
+    honda: "https://recall.honda.com.cn"
+    volkswagen: "https://recall.vw.com.cn"
+    bmw: "https://recall.bmw.com.cn"
+    hyundai: "https://recall.hyundai.com.cn"
+    nissan: "https://recall.nissan.com.cn"
+    ford: "https://recall.ford.com.cn"
+    chevrolet: "https://recall.chevrolet.com.cn"
+    buick: "https://recall.buick.com.cn"
+    audi: "https://recall.audi.com.cn"
+    benz: "https://recall.benz.com.cn"
+    generic: "https://recall.samr.gov.cn"
+  credentials:
+    username: "${RECALL_USERNAME}"
+    password: "${RECALL_PASSWORD}"
+  brandMapping:
+    "LFV": "volkswagen"
+    "LSV": "volkswagen"
+    "LHG": "honda"
+    "LF": "ford"
+    "LBV": "bmw"
+    "LNB": "buick"
+    "LSG": "chevrolet"
+    "LJN": "nissan"
+    "LZY": "toyota"
+    "LVSH": "audi"
+    "WBA": "bmw"
+    "WDD": "benz"
+  login:
+    usernameInput: "input[name='account']"
+    passwordInput: "input[name='password']"
+    loginButton: ".submit-btn"
+    captchaImage: "#captcha-img"
+    captchaInput: "input#captchaCode"
+    captchaSubmit: "#captchaSubmit"
+    loginSuccessIndicator: ".account-info"
+  navigation:
+    recallSearchPage: "/search"
+    vinInput: "input#vinSearch"
+    searchButton: ".search-btn"
+    resultTable: "table.recall-list"
+  keepAlive:
+    url: "/heartbeat"
+    intervalMs: 180000
+  locators:
+    recallId: "td[data-field='recallId']"
+    recallReason: "td[data-field='reason']"
+    affectedRange: "td[data-field='affectedRange']"
+    productionDateStart: "td[data-field='prodDateStart']"
+    productionDateEnd: "td[data-field='prodDateEnd']"
+    vinPrefix: "td[data-field='vinPrefix']"
+    repairStatus: "td[data-field='repairStatus']"
+    recallDate: "td[data-field='recallDate']"
+
+emission:
+  name: "省级生态环境机动车排放监控平台"
+  url: "https://emission.example.gov.cn"
+  credentials:
+    username: "${EMISSION_USERNAME}"
+    password: "${EMISSION_PASSWORD}"
+  login:
+    usernameInput: "#loginAccount"
+    passwordInput: "#loginPassword"
+    loginButton: ".btn-login"
+    captchaImage: "img.captcha"
+    captchaInput: "input#captchaInput"
+    captchaSubmit: ".captcha-confirm"
+    loginSuccessIndicator: ".logged-in"
+    sessionTimeoutIndicator: ".re-login"
+  navigation:
+    inspectionQueryPage: "/inspection/query"
+    vinInput: "input#vin"
+    queryButton: ".query-btn"
+    resultTable: "table.inspection-result"
+  keepAlive:
+    url: "/api/heartbeat"
+    intervalMs: 100000
+  locators:
+    inspectionDate: "td[data-field='inspDate']"
+    inspectionResult: "td[data-field='inspResult']"
+    validUntil: "td[data-field='validUntil']"
+    inspectionStation: "td[data-field='station']"
+    emissionStandard: "td[data-field='standard']"
+    coValue: "td[data-field='co']"
+    hcValue: "td[data-field='hc']"
+    noValue: "td[data-field='no']"
+    pmValue: "td[data-field='pm']"
+  complianceRules:
+    resultPassTag: "合格"
+    resultFailTag: "不合格"
+    validityMonths: 6
+
+browserPool:
+  maxInstances: 4
+  idleTimeoutMs: 300000
+  maxMemoryMB: 280
+  pageLoadTimeoutMs: 15000
+  elementWaitTimeoutMs: 15000
+  retryAttempts: 2
+  retryDelayMs: 3000
+
+pipeline:
+  maxConcurrency: 4
+  batchSize: 50
+  checkpointInterval: 10
