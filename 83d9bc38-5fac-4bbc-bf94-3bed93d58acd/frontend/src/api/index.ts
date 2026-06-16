@@ -87,7 +87,7 @@ const handleError = (error: unknown): never => {
 }
 
 const extractData = <T>(response: AxiosResponse<ApiResponse<T>>): T => {
-  if (response.data.code !== undefined && response.data.code !== 0) {
+  if (response.data.code !== undefined && response.data.code !== 200) {
     ElMessage.error(response.data.message || '请求失败')
     throw new Error(response.data.message || 'Request failed')
   }
@@ -100,7 +100,7 @@ export const auth = {
       const response = await request.post<LoginResponse>('/auth/login', data)
       return response.data
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -113,7 +113,7 @@ export const auth = {
     } catch (error) {
       localStorage.removeItem('token')
       localStorage.removeItem('userInfo')
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -122,7 +122,7 @@ export const auth = {
       const response = await request.get<User>('/auth/me')
       return response.data
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -131,7 +131,7 @@ export const auth = {
       const response = await request.post<{ token: string }>('/auth/refresh', { token })
       return response.data
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   }
 }
@@ -148,7 +148,7 @@ export const equipment = {
       const response = await request.get<ApiResponse<PaginatedResponse<Equipment>>>('/equipment', { params })
       return extractData(response)
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -157,7 +157,7 @@ export const equipment = {
       const response = await request.get<ApiResponse<Equipment & { currentUser?: string; nextFreeTime?: string }>>(`/equipment/${id}`)
       return extractData(response)
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -166,7 +166,7 @@ export const equipment = {
       const response = await request.post<ApiResponse<Equipment>>('/equipment', data)
       return extractData(response)
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -175,7 +175,7 @@ export const equipment = {
       const response = await request.put<ApiResponse<Equipment>>(`/equipment/${id}`, data)
       return extractData(response)
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -184,7 +184,7 @@ export const equipment = {
       const response = await request.patch<ApiResponse<Equipment>>(`/equipment/${id}/status`, data)
       return extractData(response)
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -193,7 +193,7 @@ export const equipment = {
       const response = await request.get<ApiResponse<EquipmentStats[]>>(`/equipment/${id}/stats`, { params })
       return extractData(response)
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   }
 }
@@ -209,37 +209,37 @@ export const booking = {
     pageSize?: number
   }): Promise<PaginatedResponse<Booking>> => {
     try {
-      const response = await request.get<PaginatedResponse<Booking>>('/booking', { params })
+      const response = await request.get<PaginatedResponse<Booking>>('/bookings', { params })
       return response.data
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
   create: async (data: BookingCreateRequest): Promise<Booking> => {
     try {
-      const response = await request.post<Booking>('/booking', data)
+      const response = await request.post<Booking>('/bookings', data)
       return response.data
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
   createSeries: async (data: BookingSeriesRequest): Promise<Booking[]> => {
     try {
-      const response = await request.post<Booking[]>('/booking/series', data)
+      const response = await request.post<Booking[]>('/bookings/series', data)
       return response.data
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
   cancel: async (id: number, reason?: string): Promise<{ message: string }> => {
     try {
-      const response = await request.post<{ message: string }>(`/booking/${id}/cancel`, { reason })
+      const response = await request.post<{ message: string }>(`/bookings/${id}/cancel`, { reason })
       return response.data
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -249,19 +249,19 @@ export const booking = {
     endTime: string
   }): Promise<ConflictCheckResponse> => {
     try {
-      const response = await request.get<ConflictCheckResponse>('/booking/conflict', { params })
+      const response = await request.get<ConflictCheckResponse>('/bookings/conflict', { params })
       return response.data
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
   addWaitlist: async (data: WaitlistRequest): Promise<{ position: number; equipmentId: number; userId: number }> => {
     try {
-      const response = await request.post<{ position: number; equipmentId: number; userId: number }>('/booking/waitlist', data)
+      const response = await request.post<{ position: number; equipmentId: number; userId: number }>('/bookings/waitlist', data)
       return response.data
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   }
 }
@@ -272,7 +272,7 @@ export const billing = {
       const response = await request.get<PaginatedResponse<Billing>>('/billing', { params })
       return response.data
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -281,7 +281,7 @@ export const billing = {
       const response = await request.get<Billing>(`/billing/${id}`)
       return response.data
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -292,7 +292,7 @@ export const billing = {
       })
       return response.data
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -301,7 +301,7 @@ export const billing = {
       const response = await request.get<{ userId: number; budget: number }>('/billing/budget')
       return response.data
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -310,7 +310,7 @@ export const billing = {
       const response = await request.post<{ userId: number; newBudget: number; amount: number }>('/billing/budget', data)
       return response.data
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   }
 }
@@ -328,7 +328,7 @@ export const maintenance = {
       const response = await request.get<PaginatedResponse<Maintenance>>('/maintenance', { params })
       return response.data
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -337,7 +337,7 @@ export const maintenance = {
       const response = await request.post<Maintenance>('/maintenance', data)
       return response.data
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -346,7 +346,7 @@ export const maintenance = {
       const response = await request.put<Maintenance>(`/maintenance/${id}`, data)
       return response.data
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -355,7 +355,7 @@ export const maintenance = {
       const response = await request.post<Maintenance>(`/maintenance/${id}/complete`, { remark })
       return response.data
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -364,7 +364,7 @@ export const maintenance = {
       const response = await request.delete<{ message: string }>(`/maintenance/${id}`)
       return response.data
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   }
 }
@@ -372,8 +372,9 @@ export const maintenance = {
 export const stats = {
   getDashboard: async (): Promise<DashboardStats> => {
     try {
-      const response = await request.get<{ code: number; data: { series: Array<{ value: number; name: string; unit?: string }> } }>('/stats/dashboard')
-      const series = response.data.data.series
+      const response = await request.get<ApiResponse<{ series: Array<{ value: number; name: string; unit?: string }> }>>('/stats/dashboard')
+      const data = extractData(response)
+      const series = data.series
       return {
         totalEquipment: series.find(s => s.name === '设备总数')?.value || 0,
         todayBookings: series.find(s => s.name === '今日预约')?.value || 0,
@@ -381,7 +382,7 @@ export const stats = {
         pendingCount: series.find(s => s.name === '待处理')?.value || 0
       }
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -394,61 +395,66 @@ export const stats = {
     category?: string
   }): Promise<{ xAxis: string[]; series: Array<{ name: string; type: string; data: number[]; yAxisIndex?: number }> }> => {
     try {
-      const response = await request.get<{ code: number; data: { xAxis: { data: string[] }; series: Array<{ name: string; type: string; data: number[]; yAxisIndex?: number }> } }>('/stats/utilization', { params })
+      const response = await request.get<ApiResponse<{ xAxis: { data: string[] }; series: Array<{ name: string; type: string; data: number[]; yAxisIndex?: number }> }>>('/stats/utilization', { params })
+      const data = extractData(response)
       return {
-        xAxis: response.data.data.xAxis.data,
-        series: response.data.data.series
+        xAxis: data.xAxis.data,
+        series: data.series
       }
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
   getPeakValley: async (params?: { startDate?: string; endDate?: string }): Promise<{ xAxis: number[]; series: Array<{ name: string; type: string; data: number[] }> }> => {
     try {
-      const response = await request.get<{ code: number; data: { xAxis: { data: number[] }; series: Array<{ name: string; type: string; data: number[] }> } }>('/stats/peak-valley', { params })
+      const response = await request.get<ApiResponse<{ xAxis: { data: number[] }; series: Array<{ name: string; type: string; data: number[] }> }>>('/stats/peak-valley', { params })
+      const data = extractData(response)
       return {
-        xAxis: response.data.data.xAxis.data,
-        series: response.data.data.series
+        xAxis: data.xAxis.data,
+        series: data.series
       }
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
   getTrend: async (params?: { days?: number }): Promise<{ xAxis: string[]; series: Array<{ name: string; type: string; data: number[]; yAxisIndex?: number }> }> => {
     try {
-      const response = await request.get<{ code: number; data: { xAxis: { data: string[] }; series: Array<{ name: string; type: string; data: number[]; yAxisIndex?: number }> } }>('/stats/trend', { params })
+      const response = await request.get<ApiResponse<{ xAxis: { data: string[] }; series: Array<{ name: string; type: string; data: number[]; yAxisIndex?: number }> }>>('/stats/trend', { params })
+      const data = extractData(response)
       return {
-        xAxis: response.data.data.xAxis.data,
-        series: response.data.data.series
+        xAxis: data.xAxis.data,
+        series: data.series
       }
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
   getRanking: async (params?: { limit?: number; startDate?: string; endDate?: string }): Promise<{ xAxis: string[]; series: Array<{ name: string; type: string; data: number[] }> }> => {
     try {
-      const response = await request.get<{ code: number; data: { yAxis: { data: string[] }; series: Array<{ name: string; type: string; data: number[] }> } }>('/stats/ranking', { params })
+      const response = await request.get<ApiResponse<{ yAxis: { data: string[] }; series: Array<{ name: string; type: string; data: number[] }> }>>('/stats/ranking', { params })
+      const data = extractData(response)
       return {
-        xAxis: response.data.data.yAxis.data,
-        series: response.data.data.series
+        xAxis: data.yAxis.data,
+        series: data.series
       }
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
   getCenterStats: async (params?: { startDate?: string; endDate?: string }): Promise<{ xAxis: string[]; series: Array<{ name: string; type: string; data: number[]; yAxisIndex?: number }> }> => {
     try {
-      const response = await request.get<{ code: number; data: { xAxis: { data: string[] }; series: Array<{ name: string; type: string; data: number[]; yAxisIndex?: number }> } }>('/stats/center', { params })
+      const response = await request.get<ApiResponse<{ xAxis: { data: string[] }; series: Array<{ name: string; type: string; data: number[]; yAxisIndex?: number }> }>>('/stats/center', { params })
+      const data = extractData(response)
       return {
-        xAxis: response.data.data.xAxis.data,
-        series: response.data.data.series
+        xAxis: data.xAxis.data,
+        series: data.series
       }
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   }
 }
@@ -459,7 +465,7 @@ export const notification = {
       const response = await request.get<PaginatedResponse<Notification>>('/notification', { params })
       return response.data
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -468,7 +474,7 @@ export const notification = {
       const response = await request.get<UnreadCount>('/notification/unread-count')
       return response.data
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -477,7 +483,7 @@ export const notification = {
       const response = await request.patch<{ message: string }>(`/notification/${id}/read`)
       return response.data
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -486,7 +492,7 @@ export const notification = {
       const response = await request.patch<{ message: string }>('/notification/read-all')
       return response.data
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   }
 }
@@ -497,7 +503,7 @@ export const audit = {
       const response = await request.get<PaginatedResponse<AuditLog>>('/audit/logs', { params })
       return response.data
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -506,7 +512,7 @@ export const audit = {
       const response = await request.get<AuditLog & { fieldDiffs: FieldDiff[] }>(`/audit/logs/${id}`)
       return response.data
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   }
 }
@@ -517,7 +523,7 @@ export const user = {
       const response = await request.get<ApiResponse<PaginatedResponse<User>>>('/user', { params })
       return extractData(response)
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -526,7 +532,7 @@ export const user = {
       const response = await request.get<ApiResponse<User>>(`/user/${id}`)
       return extractData(response)
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -535,7 +541,7 @@ export const user = {
       const response = await request.post<ApiResponse<User>>('/user', data)
       return extractData(response)
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -544,7 +550,7 @@ export const user = {
       const response = await request.put<ApiResponse<User>>(`/user/${id}`, data)
       return extractData(response)
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -552,7 +558,7 @@ export const user = {
     try {
       await request.delete<ApiResponse<void>>(`/user/${id}`)
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -561,7 +567,7 @@ export const user = {
       const response = await request.patch<ApiResponse<User>>(`/user/${id}/role`, { roleId })
       return extractData(response)
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -570,7 +576,7 @@ export const user = {
       const response = await request.get<ApiResponse<User[]>>(`/user/center/${centerId}`)
       return extractData(response)
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   },
 
@@ -579,7 +585,7 @@ export const user = {
       const response = await request.get<ApiResponse<User[]>>(`/user/role/${roleId}`)
       return extractData(response)
     } catch (error) {
-      return handleError(error)
+      handleError(error)
     }
   }
 }

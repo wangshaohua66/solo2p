@@ -207,10 +207,10 @@ const menuItems: MenuItem[] = [
     permission: 'maintenance:view'
   },
   {
-    path: '/statistics',
+    path: '/stats',
     title: '统计分析',
     icon: TrendCharts,
-    permission: 'statistics:view'
+    permission: 'stats:view'
   },
   {
     path: '/audit',

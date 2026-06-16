@@ -328,7 +328,7 @@ INSERT INTO equipment (name, model, category, center_id, hourly_rate, status, sp
 ('真空感应熔炼炉', 'Indutherm VTC 200 V', '材料制备', 1, 700.00, 'available', '{"max_temp": "1700°C", "capacity": "200g", "vacuum": "1e-4 mbar"}'),
 ('电弧熔炼炉', 'Edmund Bühler MAM-1', '材料制备', 1, 500.00, 'available', '{"current": "1000A", "max_temp": "3500°C", "argon_atmosphere": true}'),
 ('区熔单晶生长炉', 'NEC SC-35HD', '晶体生长', 1, 1000.00, 'available', '{"max_temp": "1600°C", "zone_length": "20-80mm", "vacuum": "1e-6 Torr"}'),
-('提拉法晶体生长炉', "Cyberstar Oxypuller", '晶体生长', 1, 900.00, 'available', '{"max_temp": "2100°C", "capacity": "5kg", "atmosphere": "Air/Ar/O2"}'),
+('提拉法晶体生长炉', 'Cyberstar Oxypuller', '晶体生长', 1, 900.00, 'available', '{"max_temp": "2100°C", "capacity": "5kg", "atmosphere": "Air/Ar/O2"}'),
 ('水热反应釜', 'Parr 4749', '材料制备', 2, 100.00, 'available', '{"capacity": "1L", "max_temp": "300°C", "max_pressure": "3000psi"}'),
 ('冷冻干燥机', 'Labconco FreeZone 12', '样品制备', 2, 250.00, 'available', '{"capacity": "12L", "temp": "-84°C", "vacuum": "0.002mbar"}'),
 ('手套箱', 'MBraun Labmaster 130', '气氛控制', 1, 400.00, 'available', '{"H2O/O2": "<1ppm", "volume": "1300L", "gas_purification": true}'),

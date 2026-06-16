@@ -61,7 +61,6 @@ import (
 
 	"equipment-booking/internal/handler"
 	"equipment-booking/internal/middleware"
-	"equipment-booking/internal/model"
 	"equipment-booking/internal/repository"
 	"equipment-booking/internal/service"
 
@@ -106,9 +105,10 @@ func run() error {
 		}
 	}()
 
-	if err := model.AutoMigrate(db); err != nil {
-		return fmt.Errorf("数据库迁移失败: %w", err)
-	}
+	// if err := model.AutoMigrate(db); err != nil {
+	// 	return fmt.Errorf("数据库迁移失败: %w", err)
+	// }
+	log.Println("跳过数据库迁移（表已存在）")
 
 	repos := repository.NewRepositories(db)
 
@@ -213,7 +213,7 @@ func run() error {
 		auth.GET("/me", authHandler.GetCurrentUser, authMiddleware)
 	}
 
-	booking := api.Group("/booking", authMiddleware)
+	booking := api.Group("/bookings", authMiddleware)
 	{
 		booking.GET("", bookingHandler.GetBookingList, middleware.RBAC("booking:read"))
 		booking.POST("", bookingHandler.CreateBooking, middleware.RBAC("booking:create"))
