@@ -98,6 +98,15 @@ public class AlertRepository : PagedRepository<Alert>, IAlertRepository
             && a.Status != AlertStatus.Closed);
     }
 
+    public async Task<int> GetActiveOfflineAlertCountBySensorIdAsync(long sensorId)
+    {
+        return await _dbSet.CountAsync(a =>
+            a.SensorId == sensorId
+            && a.TriggerMetric == "offline"
+            && a.Status != AlertStatus.Resolved
+            && a.Status != AlertStatus.Closed);
+    }
+
     public async Task<Alert?> GetActiveAlertByRuleAndSensorAsync(long alertRuleId, long sensorId)
     {
         return await _dbSet

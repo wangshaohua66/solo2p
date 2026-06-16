@@ -69,8 +69,8 @@ public class DeviceHealthMonitorService : IDeviceHealthMonitorService
 
         Log.Warning("传感器 {SensorCode} 已标记为离线", sensor.SensorCode);
 
-        var existingAlert = await _alertRepository.GetActiveAlertCountBySensorIdAsync(sensorId, -1);
-        if (existingAlert == 0)
+        var existingOfflineAlertCount = await _alertRepository.GetActiveOfflineAlertCountBySensorIdAsync(sensorId);
+        if (existingOfflineAlertCount == 0)
         {
             var alert = new Alert
             {
@@ -98,6 +98,10 @@ public class DeviceHealthMonitorService : IDeviceHealthMonitorService
             await _alertRepository.SaveChangesAsync();
 
             _ = Task.Run(() => _notificationService.SendAlertNotificationAsync(alert));
+        }
+        else
+        {
+            Log.Information("传感器 {SensorCode} 已有活跃的离线告警，跳过创建", sensor.SensorCode);
         }
     }
 

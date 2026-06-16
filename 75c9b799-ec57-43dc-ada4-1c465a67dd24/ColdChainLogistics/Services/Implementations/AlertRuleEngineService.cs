@@ -12,17 +12,20 @@ public class AlertRuleEngineService : IAlertRuleEngineService
     private readonly IAlertRepository _alertRepository;
     private readonly INotificationService _notificationService;
     private readonly ISensorRepository _sensorRepository;
+    private readonly ISensorDataRepository _sensorDataRepository;
 
     public AlertRuleEngineService(
         IAlertRuleRepository alertRuleRepository,
         IAlertRepository alertRepository,
         INotificationService notificationService,
-        ISensorRepository sensorRepository)
+        ISensorRepository sensorRepository,
+        ISensorDataRepository sensorDataRepository)
     {
         _alertRuleRepository = alertRuleRepository;
         _alertRepository = alertRepository;
         _notificationService = notificationService;
         _sensorRepository = sensorRepository;
+        _sensorDataRepository = sensorDataRepository;
     }
 
     public async Task<List<AlertRule>> GetApplicableRulesAsync(long? customerId = null, long? vehicleId = null)
@@ -170,9 +173,162 @@ public class AlertRuleEngineService : IAlertRuleEngineService
         };
     }
 
-    private Task<bool> CheckSustainedConditionAsync(long sensorId, AlertRule rule, DateTime currentTime, int durationSeconds)
+    private async Task<bool> CheckSustainedConditionAsync(long sensorId, AlertRule rule, DateTime currentTime, int durationSeconds)
     {
-        return Task.FromResult(true);
+        var startTime = currentTime.AddSeconds(-durationSeconds);
+        
+        var historyData = await _sensorDataRepository.GetBySensorIdAsync(sensorId, startTime, currentTime);
+        
+        if (historyData.Count == 0)
+            return false;
+
+        var orderedData = historyData.OrderBy(d => d.Timestamp).ToList();
+
+        if (rule.DetectionMode == DetectionMode.ContinuousDeviation)
+        {
+            return CheckContinuousDeviation(orderedData, rule, durationSeconds);
+        }
+        else
+        {
+            return CheckCumulativeDeviation(orderedData, rule, durationSeconds);
+        }
+    }
+
+    private bool CheckContinuousDeviation(List<SensorData> orderedData, AlertRule rule, int durationSeconds)
+    {
+        double maxContinuousSeconds = 0;
+        double currentContinuousSeconds = 0;
+        DateTime? lastViolationTime = null;
+
+        foreach (var data in orderedData)
+        {
+            var isViolation = IsDataViolatingRule(data, rule);
+
+            if (isViolation)
+            {
+                if (lastViolationTime.HasValue)
+                {
+                    currentContinuousSeconds += (data.Timestamp - lastViolationTime.Value).TotalSeconds;
+                }
+                else
+                {
+                    currentContinuousSeconds = 0;
+                }
+                lastViolationTime = data.Timestamp;
+
+                if (currentContinuousSeconds >= durationSeconds)
+                {
+                    return true;
+                }
+            }
+            else
+            {
+                if (currentContinuousSeconds > maxContinuousSeconds)
+                {
+                    maxContinuousSeconds = currentContinuousSeconds;
+                }
+                currentContinuousSeconds = 0;
+                lastViolationTime = null;
+            }
+        }
+
+        if (currentContinuousSeconds > maxContinuousSeconds)
+        {
+            maxContinuousSeconds = currentContinuousSeconds;
+        }
+
+        return maxContinuousSeconds >= durationSeconds;
+    }
+
+    private bool CheckCumulativeDeviation(List<SensorData> orderedData, AlertRule rule, int durationSeconds)
+    {
+        double totalViolationSeconds = 0;
+        DateTime? lastViolationTime = null;
+
+        foreach (var data in orderedData)
+        {
+            var isViolation = IsDataViolatingRule(data, rule);
+
+            if (isViolation)
+            {
+                if (lastViolationTime.HasValue)
+                {
+                    totalViolationSeconds += (data.Timestamp - lastViolationTime.Value).TotalSeconds;
+                }
+                lastViolationTime = data.Timestamp;
+            }
+            else
+            {
+                lastViolationTime = null;
+            }
+        }
+
+        return totalViolationSeconds >= durationSeconds;
+    }
+
+    private bool IsDataViolatingRule(SensorData data, AlertRule rule)
+    {
+        var conditionGroups = rule.Conditions
+            .GroupBy(c => c.ConditionGroup)
+            .OrderBy(g => g.Key)
+            .ToList();
+
+        var groupResults = new List<bool>();
+
+        foreach (var group in conditionGroups)
+        {
+            var groupConditions = group.ToList();
+            var groupOperator = group.First().GroupOperator;
+
+            bool groupResult;
+            if (groupOperator == RuleLogicalOperator.And)
+            {
+                groupResult = true;
+                foreach (var condition in groupConditions)
+                {
+                    var metricValue = GetMetricValue(condition.Metric, data, null);
+                    if (!metricValue.HasValue)
+                    {
+                        groupResult = false;
+                        break;
+                    }
+
+                    var conditionResult = EvaluateOperator(condition.Operator, metricValue.Value, 
+                        condition.ThresholdValue, condition.ThresholdValue2);
+                    groupResult &= conditionResult;
+                    if (!groupResult) break;
+                }
+            }
+            else
+            {
+                groupResult = false;
+                foreach (var condition in groupConditions)
+                {
+                    var metricValue = GetMetricValue(condition.Metric, data, null);
+                    if (!metricValue.HasValue)
+                        continue;
+
+                    var conditionResult = EvaluateOperator(condition.Operator, metricValue.Value,
+                        condition.ThresholdValue, condition.ThresholdValue2);
+                    groupResult |= conditionResult;
+                    if (groupResult) break;
+                }
+            }
+
+            groupResults.Add(groupResult);
+        }
+
+        bool finalResult;
+        if (rule.LogicalOperator == RuleLogicalOperator.And)
+        {
+            finalResult = groupResults.All(r => r);
+        }
+        else
+        {
+            finalResult = groupResults.Any(r => r);
+        }
+
+        return finalResult;
     }
 
     private async Task<Alert?> HandleTriggeredRuleAsync(AlertRule rule, Sensor sensor, SensorData latestData,

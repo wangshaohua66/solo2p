@@ -15,19 +15,22 @@ public class TraceabilityService : ITraceabilityService
     private readonly IShipmentBatchRepository _batchRepository;
     private readonly ISensorDataRepository _sensorDataRepository;
     private readonly IWarehouseRepository _warehouseRepository;
+    private readonly ISensorRepository _sensorRepository;
 
     public TraceabilityService(
         ITraceabilityRepository traceabilityRepository,
         IShipmentRepository shipmentRepository,
         IShipmentBatchRepository batchRepository,
         ISensorDataRepository sensorDataRepository,
-        IWarehouseRepository warehouseRepository)
+        IWarehouseRepository warehouseRepository,
+        ISensorRepository sensorRepository)
     {
         _traceabilityRepository = traceabilityRepository;
         _shipmentRepository = shipmentRepository;
         _batchRepository = batchRepository;
         _sensorDataRepository = sensorDataRepository;
         _warehouseRepository = warehouseRepository;
+        _sensorRepository = sensorRepository;
     }
 
     public async Task<TraceabilityResponse> GetTraceabilityAsync(TraceabilityQueryRequest request)
@@ -113,7 +116,7 @@ public class TraceabilityService : ITraceabilityService
             var tempMax = shipment.TemperatureMax ?? 8;
 
             var overLimitCount = sensorData.Count(d => d.Temperature < tempMin || d.Temperature > tempMax);
-            double overLimitDuration = 0;
+            double overLimitDurationMinutes = CalculateOverLimitDuration(sensorData, tempMin, tempMax);
 
             response.Statistics = new TemperatureStatisticsDto
             {
@@ -124,11 +127,38 @@ public class TraceabilityService : ITraceabilityService
                 MaxHumidity = humidities.Max(),
                 AvgHumidity = humidities.Average(),
                 OverLimitCount = overLimitCount,
-                OverLimitDurationMinutes = overLimitDuration
+                OverLimitDurationMinutes = overLimitDurationMinutes
             };
         }
 
         return response;
+    }
+
+    private double CalculateOverLimitDuration(List<SensorData> sensorData, double tempMin, double tempMax)
+    {
+        var orderedData = sensorData.OrderBy(d => d.Timestamp).ToList();
+        double totalMinutes = 0;
+        DateTime? lastOverLimitTime = null;
+
+        foreach (var data in orderedData)
+        {
+            var isOverLimit = data.Temperature < tempMin || data.Temperature > tempMax;
+
+            if (isOverLimit)
+            {
+                if (lastOverLimitTime.HasValue)
+                {
+                    totalMinutes += (data.Timestamp - lastOverLimitTime.Value).TotalMinutes;
+                }
+                lastOverLimitTime = data.Timestamp;
+            }
+            else
+            {
+                lastOverLimitTime = null;
+            }
+        }
+
+        return Math.Round(totalMinutes, 2);
     }
 
     public async Task BuildTraceabilityChainAsync(long shipmentId)
@@ -150,43 +180,76 @@ public class TraceabilityService : ITraceabilityService
         string? previousHash = null;
 
         var warehouse = await _warehouseRepository.GetByIdAsync(shipment.OriginWarehouseId);
+        var sensors = await _sensorRepository.GetByVehicleIdAsync(shipment.VehicleId);
+        var sensorIds = sensors.Select(s => s.Id).ToList();
+
+        var startTime = shipment.DepartureTime ?? shipment.CreatedAt;
+        var endTime = shipment.SignTime ?? shipment.ArrivalTime ?? DateTime.UtcNow;
+
+        var allSensorData = new List<SensorData>();
+        if (sensorIds.Count > 0)
+        {
+            foreach (var sensorId in sensorIds)
+            {
+                var data = await _sensorDataRepository.GetBySensorIdAsync(sensorId, startTime, endTime);
+                allSensorData.AddRange(data);
+            }
+            allSensorData = allSensorData.OrderBy(d => d.Timestamp).ToList();
+        }
 
         foreach (var batch in shipment.Batches)
         {
+            var inboundData = GetNearestSensorData(allSensorData, batch.InboundTime ?? shipment.CreatedAt);
             var inboundNode = CreateTraceabilityRecord(
                 shipment.Id, batch.Id, batch.BatchNumber, sequence++, "Inbound", "入库节点",
                 batch.InboundTime ?? shipment.CreatedAt,
-                null, null,
+                inboundData?.Temperature, inboundData?.Humidity,
                 warehouse?.Name,
                 null, "药品入库");
             previousHash = UpdateHash(inboundNode, previousHash);
             await _traceabilityRepository.AddAsync(inboundNode);
 
+            var outboundData = GetNearestSensorData(allSensorData, batch.OutboundTime ?? shipment.CreatedAt);
             var outboundNode = CreateTraceabilityRecord(
                 shipment.Id, batch.Id, batch.BatchNumber, sequence++, "Outbound", "出库节点",
                 batch.OutboundTime ?? shipment.CreatedAt,
-                null, null,
+                outboundData?.Temperature, outboundData?.Humidity,
                 warehouse?.Name,
                 null, "药品出库装车");
             previousHash = UpdateHash(outboundNode, previousHash);
             await _traceabilityRepository.AddAsync(outboundNode);
         }
 
+        var departureData = GetNearestSensorData(allSensorData, shipment.DepartureTime ?? shipment.CreatedAt);
         var departureNode = CreateTraceabilityRecord(
             shipment.Id, null, string.Empty, sequence++, "Departure", "发车节点",
             shipment.DepartureTime ?? shipment.CreatedAt,
-            null, null,
+            departureData?.Temperature, departureData?.Humidity,
             warehouse?.Name,
             shipment.DriverName, "运输车辆出发");
         previousHash = UpdateHash(departureNode, previousHash);
         await _traceabilityRepository.AddAsync(departureNode);
 
+        var transitSamples = GenerateTransitSamples(allSensorData, startTime, endTime);
+        foreach (var sample in transitSamples)
+        {
+            var transitNode = CreateTraceabilityRecord(
+                shipment.Id, null, string.Empty, sequence++, "InTransit", $"途中采样-{sample.Timestamp:HH:mm}",
+                sample.Timestamp,
+                sample.Temperature, sample.Humidity,
+                $"({sample.Latitude:F6}, {sample.Longitude:F6})",
+                null, "运输途中环境采样");
+            previousHash = UpdateHash(transitNode, previousHash);
+            await _traceabilityRepository.AddAsync(transitNode);
+        }
+
         if (shipment.ArrivalTime.HasValue)
         {
+            var arrivalData = GetNearestSensorData(allSensorData, shipment.ArrivalTime.Value);
             var arrivalNode = CreateTraceabilityRecord(
                 shipment.Id, null, string.Empty, sequence++, "Arrival", "到达节点",
                 shipment.ArrivalTime.Value,
-                null, null,
+                arrivalData?.Temperature, arrivalData?.Humidity,
                 shipment.Destination,
                 null, "运输车辆到达");
             previousHash = UpdateHash(arrivalNode, previousHash);
@@ -195,10 +258,11 @@ public class TraceabilityService : ITraceabilityService
 
         if (shipment.SignTime.HasValue)
         {
+            var signData = GetNearestSensorData(allSensorData, shipment.SignTime.Value);
             var signNode = CreateTraceabilityRecord(
                 shipment.Id, null, string.Empty, sequence++, "Sign", "签收节点",
                 shipment.SignTime.Value,
-                null, null,
+                signData?.Temperature, signData?.Humidity,
                 shipment.Destination,
                 null, "客户签收确认");
             previousHash = UpdateHash(signNode, previousHash);
@@ -206,7 +270,38 @@ public class TraceabilityService : ITraceabilityService
         }
 
         await _traceabilityRepository.SaveChangesAsync();
-        Log.Information("运输单 {ShipmentId} 溯源链构建完成，共 {Count} 个节点", shipmentId, sequence - 1);
+        Log.Information("运输单 {ShipmentId} 溯源链构建完成，共 {Count} 个节点（含 {TransitCount} 个途中采样点）", 
+            shipmentId, sequence - 1, transitSamples.Count);
+    }
+
+    private SensorData? GetNearestSensorData(List<SensorData> sensorData, DateTime targetTime)
+    {
+        if (sensorData.Count == 0)
+            return null;
+
+        return sensorData
+            .OrderBy(d => Math.Abs((d.Timestamp - targetTime).TotalSeconds))
+            .FirstOrDefault();
+    }
+
+    private List<SensorData> GenerateTransitSamples(List<SensorData> sensorData, DateTime startTime, DateTime endTime)
+    {
+        if (sensorData.Count == 0)
+            return new List<SensorData>();
+
+        var samples = new List<SensorData>();
+        var intervalMinutes = 60;
+
+        for (var time = startTime.AddMinutes(30); time < endTime; time = time.AddMinutes(intervalMinutes))
+        {
+            var nearest = GetNearestSensorData(sensorData, time);
+            if (nearest != null && !samples.Contains(nearest))
+            {
+                samples.Add(nearest);
+            }
+        }
+
+        return samples.OrderBy(d => d.Timestamp).ToList();
     }
 
     public async Task AddTraceabilityNodeAsync(long shipmentId, string nodeType, string nodeName,

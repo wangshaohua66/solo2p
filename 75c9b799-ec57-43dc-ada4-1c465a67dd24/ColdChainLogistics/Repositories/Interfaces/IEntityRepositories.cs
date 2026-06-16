@@ -69,6 +69,7 @@ public interface IAlertRepository : IPagedRepository<Alert>
     Task<List<Alert>> GetActiveAlertsAsync(long? customerId = null, long? vehicleId = null);
     Task<List<Alert>> GetAlertsForEscalationAsync(DateTime beforeTime);
     Task<int> GetActiveAlertCountBySensorIdAsync(long sensorId, long alertRuleId);
+    Task<int> GetActiveOfflineAlertCountBySensorIdAsync(long sensorId);
     Task<Alert?> GetActiveAlertByRuleAndSensorAsync(long alertRuleId, long sensorId);
 }
 

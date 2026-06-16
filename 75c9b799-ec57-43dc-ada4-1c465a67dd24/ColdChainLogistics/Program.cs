@@ -12,10 +12,16 @@ using ColdChainLogistics.Repositories.Interfaces;
 using ColdChainLogistics.Repositories.Implementations;
 using ColdChainLogistics.Services.Interfaces;
 using ColdChainLogistics.Services.Implementations;
+using ColdChainLogistics.Models.Common;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseColdChainSerilog();
+
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+builder.Services.Configure<SmsSettings>(builder.Configuration.GetSection("SmsSettings"));
+
+builder.Services.AddHttpClient();
 
 builder.Services.AddControllers(options =>
 {
