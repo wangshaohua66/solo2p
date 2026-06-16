@@ -1,0 +1,16 @@
+spring:
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        namespace: carbon
+        group: CARBON_GROUP
+      config:
+        server-addr: localhost:8848
+        namespace: carbon
+        group: CARBON_GROUP
+        file-extension: yml
+        shared-configs:
+          - data-id: carbon-common.yml
+            group: CARBON_GROUP
+            refresh: true

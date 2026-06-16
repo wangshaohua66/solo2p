@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.carbon.mapper.EmissionReportMapper">
+
+    <select id="sumEmissionByEnterpriseAndYear" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(emission_amount), 0)
+        FROM t_emission_report
+        WHERE enterprise_id = #{enterpriseId}
+          AND report_year = #{reportYear}
+          AND status = 'VERIFIED'
+    </select>
+
+    <insert id="batchInsert" parameterType="java.util.List" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_emission_report
+            (enterprise_id, enterprise_code, report_year, report_month,
+             emission_amount, co2_amount, ch4_amount, n2o_amount,
+             fuel_type, fuel_consumption, power_consumption, heat_consumption,
+             report_format, status, created_time, updated_time)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.enterpriseId}, #{item.enterpriseCode}, #{item.reportYear}, #{item.reportMonth},
+             #{item.emissionAmount}, #{item.co2Amount}, #{item.ch4Amount}, #{item.n2oAmount},
+             #{item.fuelType}, #{item.fuelConsumption}, #{item.powerConsumption}, #{item.heatConsumption},
+             #{item.reportFormat}, #{item.status}, #{item.createdTime}, #{item.updatedTime})
+        </foreach>
+    </insert>
+
+</mapper>
