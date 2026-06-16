@@ -1,0 +1,273 @@
+global:
+  browser_pool_size: 3
+  page_timeout_seconds: 15
+  max_retries: 3
+  retry_backoff_base: 2
+  max_retry_backoff: 60
+  user_agents:
+    - "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    - "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    - "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0"
+    - "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15"
+  cookies_dir: "./data/cookies"
+  screenshots_dir: "./data/screenshots"
+  db_path: "./data/db/products.db"
+  log_dir: "./data/logs"
+  captcha_ws_port: 8765
+  categories:
+    - "electronics"
+    - "home-kitchen"
+    - "toys-games"
+
+sites:
+  amazon:
+    name: "Amazon"
+    enabled: true
+    base_url: "https://www.amazon.com"
+    search_url_template: "https://www.amazon.com/s?k={keyword}&page={page}"
+    requires_login: false
+    login_url: "https://www.amazon.com/ap/signin"
+    pagination:
+      type: "page_number"
+      max_pages: 10
+      wait_for_selector: ".s-result-list"
+    selectors:
+      item_container: ".s-result-item[data-component-type=s-search-result]"
+      title: "h2 a span"
+      price: ".a-price .a-offscreen"
+      original_price: ".a-price[data-a-strike=true] .a-offscreen"
+      rating: ".a-icon-alt"
+      review_count: ".a-size-base.s-underline-text"
+      seller: ".a-row.a-size-base .a-color-secondary"
+      stock_status: ".a-size-medium.a-color-price"
+      promo_tags: ".a-badge-text, .s-coupon-unclipped"
+      product_url: "h2 a"
+      sku: "[data-asin]"
+      sku_attr: "data-asin"
+      image: ".s-image"
+      image_attr: "src"
+    field_mapping:
+      title: "title"
+      price: "price"
+      original_price: "original_price"
+      rating: "rating"
+      review_count: "review_count"
+      seller: "seller"
+      stock_status: "stock_status"
+      promo_tags: "promo_tags"
+      product_url: "product_url"
+      sku: "sku"
+      image_url: "image"
+    currency: "USD"
+    rating_scale: 5
+
+  ebay:
+    name: "eBay"
+    enabled: true
+    base_url: "https://www.ebay.com"
+    search_url_template: "https://www.ebay.com/sch/i.html?_nkw={keyword}&_pgn={page}"
+    requires_login: false
+    login_url: "https://signin.ebay.com"
+    pagination:
+      type: "page_number"
+      max_pages: 10
+      wait_for_selector: ".srp-results"
+    selectors:
+      item_container: ".s-item.s-item--watch-at-corner, .s-item.s-item--large"
+      title: ".s-item__title"
+      price: ".s-item__price"
+      original_price: ".s-item__discount .STRIKETHROUGH"
+      rating: ".s-item__reviews .clipped"
+      review_count: ".s-item__reviews-count span"
+      seller: ".s-item__seller-info-text"
+      stock_status: ".s-item__quantitySold"
+      promo_tags: ".s-item__discount, .s-item__trending-price"
+      product_url: ".s-item__link"
+      product_url_attr: "href"
+      sku: "[data-item-id]"
+      sku_attr: "data-item-id"
+      image: ".s-item__image-img"
+      image_attr: "src"
+    field_mapping:
+      title: "title"
+      price: "price"
+      original_price: "original_price"
+      rating: "rating"
+      review_count: "review_count"
+      seller: "seller"
+      stock_status: "stock_status"
+      promo_tags: "promo_tags"
+      product_url: "product_url"
+      sku: "sku"
+      image_url: "image"
+    currency: "USD"
+    rating_scale: 5
+
+  walmart:
+    name: "Walmart"
+    enabled: true
+    base_url: "https://www.walmart.com"
+    search_url_template: "https://www.walmart.com/search?q={keyword}&page={page}"
+    requires_login: false
+    login_url: "https://www.walmart.com/account/login"
+    pagination:
+      type: "page_number"
+      max_pages: 10
+      wait_for_selector: ".search-product-result"
+    selectors:
+      item_container: ".mb1.ph1.pa0-xl.bb.b--near-white.w-25"
+      title: ".f6.f5-l.near-black.dark-gray-mid.ttl.mt2"
+      price: ".w_iUH7"
+      original_price: ".gray.mr1.lh-copy"
+      rating: ".w_QSmw"
+      review_count: ".gray.f7.mt1"
+      seller: ".f7.lh-copy.gray"
+      stock_status: ".b--black-20.br2.pv1.ph2"
+      promo_tags: ".b--black-20.br2.pv1.ph2, .flex.items-center"
+      product_url: "a.absolute.w-100.h-100.z-1"
+      product_url_attr: "href"
+      sku: "[data-item-id]"
+      sku_attr: "data-item-id"
+      image: ".db.center"
+      image_attr: "src"
+    field_mapping:
+      title: "title"
+      price: "price"
+      original_price: "original_price"
+      rating: "rating"
+      review_count: "review_count"
+      seller: "seller"
+      stock_status: "stock_status"
+      promo_tags: "promo_tags"
+      product_url: "product_url"
+      sku: "sku"
+      image_url: "image"
+    currency: "USD"
+    rating_scale: 5
+
+  aliexpress:
+    name: "AliExpress"
+    enabled: true
+    base_url: "https://www.aliexpress.com"
+    search_url_template: "https://www.aliexpress.com/w/wholesale-{keyword}.html?page={page}"
+    requires_login: false
+    login_url: "https://login.aliexpress.com"
+    pagination:
+      type: "infinite_scroll"
+      max_pages: 10
+      scroll_pause_ms: 2000
+      wait_for_selector: ".list--gallery--C2f2tvm"
+    selectors:
+      item_container: ".list--gallery--C2f2tvm .multi--outWrapper--2P8xBrA"
+      title: ".multi--title--G7dOCj3"
+      price: ".multi--price-sale--U-S0jtj"
+      original_price: ".multi--price-original--1zEQHCp"
+      rating: ".multi--evaluation--X7r5oNk"
+      review_count: ".multi--trade--KdWsOcQ"
+      seller: ".cards--store--3y3T7Pd"
+      stock_status: ".multi--sales--2K7hYq8"
+      promo_tags: ".multi--tag--Zg0hAZ-, .multi--promotion--2Z10PnQ"
+      product_url: ".multi--outWrapper--2P8xBrA > a"
+      product_url_attr: "href"
+      sku: "[data-product-id]"
+      sku_attr: "data-product-id"
+      image: ".images--imageWindow--1Z_2q9j"
+      image_attr: "src"
+    field_mapping:
+      title: "title"
+      price: "price"
+      original_price: "original_price"
+      rating: "rating"
+      review_count: "review_count"
+      seller: "seller"
+      stock_status: "stock_status"
+      promo_tags: "promo_tags"
+      product_url: "product_url"
+      sku: "sku"
+      image_url: "image"
+    currency: "USD"
+    rating_scale: 5
+
+  target:
+    name: "Target"
+    enabled: true
+    base_url: "https://www.target.com"
+    search_url_template: "https://www.target.com/s?searchTerm={keyword}&page={page}"
+    requires_login: false
+    login_url: "https://www.target.com/account"
+    pagination:
+      type: "page_number"
+      max_pages: 10
+      wait_for_selector: "[data-test=product-grid]"
+    selectors:
+      item_container: "[data-test=product-grid] > div > div"
+      title: "a[data-test=product-title]"
+      price: "span[data-test=current-price] span"
+      original_price: "span[data-test=formatted-price]"
+      rating: "span[data-test=rating]"
+      review_count: "span[data-test=rating-count]"
+      seller: ".h-text-gray"
+      stock_status: "[data-test=ship-text]"
+      promo_tags: ".h-text-red, [data-test=badge]"
+      product_url: "a[data-test=product-title]"
+      product_url_attr: "href"
+      sku: "[data-item-id]"
+      sku_attr: "data-item-id"
+      image: "img[data-test=product-image]"
+      image_attr: "src"
+    field_mapping:
+      title: "title"
+      price: "price"
+      original_price: "original_price"
+      rating: "rating"
+      review_count: "review_count"
+      seller: "seller"
+      stock_status: "stock_status"
+      promo_tags: "promo_tags"
+      product_url: "product_url"
+      sku: "sku"
+      image_url: "image"
+    currency: "USD"
+    rating_scale: 5
+
+  bestbuy:
+    name: "BestBuy"
+    enabled: true
+    base_url: "https://www.bestbuy.com"
+    search_url_template: "https://www.bestbuy.com/site/searchpage.jsp?st={keyword}&cp={page}"
+    requires_login: false
+    login_url: "https://www.bestbuy.com/identity/signin"
+    pagination:
+      type: "page_number"
+      max_pages: 10
+      wait_for_selector: ".sku-item-list"
+    selectors:
+      item_container: ".sku-item"
+      title: ".sku-title a"
+      price: ".priceView-customer-price span"
+      original_price: ".priceView-list-price .sr-only"
+      rating: ".ugc-c-review-average"
+      review_count: ".ugc-c-review-count"
+      seller: ".sku-model"
+      stock_status: ".fulfillment-fulfillment-summary"
+      promo_tags: ".label-text, .savings-magnets"
+      product_url: ".sku-title a"
+      product_url_attr: "href"
+      sku: "[data-sku-id]"
+      sku_attr: "data-sku-id"
+      image: ".product-image"
+      image_attr: "src"
+    field_mapping:
+      title: "title"
+      price: "price"
+      original_price: "original_price"
+      rating: "rating"
+      review_count: "review_count"
+      seller: "seller"
+      stock_status: "stock_status"
+      promo_tags: "promo_tags"
+      product_url: "product_url"
+      sku: "sku"
+      image_url: "image"
+    currency: "USD"
+    rating_scale: 5
