@@ -1,0 +1,55 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: dispatch-service
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+        namespace: emergency
+    sentinel:
+      transport:
+        dashboard: 127.0.0.1:8858
+        port: 8722
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://127.0.0.1:5432/emergency?useUnicode=true&characterEncoding=utf8&currentSchema=emergency
+    username: emergency
+    password: emergency@2024
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      password: emergency@2024
+      database: 3
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/*.xml
+  type-aliases-package: com.emergency.dispatch.entity
+  type-handlers-package: com.emergency.dispatch.handler
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: AUTO
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+
+knife4j:
+  enable: true
+  openapi:
+    title: 救援调度API
+    description: 救援力量调度接口文档
+    version: 1.0.0
+
+logging:
+  level:
+    com.emergency.dispatch: DEBUG

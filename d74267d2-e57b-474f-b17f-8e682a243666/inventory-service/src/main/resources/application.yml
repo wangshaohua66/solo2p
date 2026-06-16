@@ -1,0 +1,51 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: inventory-service
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+        namespace: emergency
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://127.0.0.1:5432/emergency?useUnicode=true&characterEncoding=utf8&currentSchema=emergency
+    username: emergency
+    password: emergency@2024
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      password: emergency@2024
+      database: 4
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/*.xml
+  type-aliases-package: com.emergency.inventory.entity
+  type-handlers-package: com.emergency.inventory.handler
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: AUTO
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+
+knife4j:
+  enable: true
+  openapi:
+    title: 物资仓储API
+    description: 物资仓储管理接口文档
+    version: 1.0.0
+
+logging:
+  level:
+    com.emergency.inventory: DEBUG
