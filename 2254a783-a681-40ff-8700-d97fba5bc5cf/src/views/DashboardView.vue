@@ -62,6 +62,7 @@ const throughputChartRef = ref<HTMLDivElement | null>(null)
 const utilizationChartRef = ref<HTMLDivElement | null>(null)
 const throughputChart = shallowRef<echarts.ECharts | null>(null)
 const utilizationChart = shallowRef<echarts.ECharts | null>(null)
+const utilizationGranularity = ref<'day' | 'week' | 'month'>('day')
 
 function initThroughputChart() {
   if (!throughputChartRef.value) return
@@ -138,25 +139,65 @@ function initThroughputChart() {
   })
 }
 
-function initUtilizationChart() {
-  if (!utilizationChartRef.value) return
-  utilizationChart.value = echarts.init(utilizationChartRef.value)
+function aggregateUtilizationData(granularity: 'day' | 'week' | 'month') {
+  const berthCount = Math.min(12, scheduleStore.berths.length)
+  const berths = scheduleStore.berths.slice(0, berthCount)
+  const berthIds = berths.map(b => b.name.replace(/^.+?(?=\d)/, ''))
 
-  const berthIds = scheduleStore.berths.slice(0, 12).map(b => b.name.replace(/^.+?(?=\d)/, ''))
-  const hours = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}`)
-
+  let xLabels: string[] = []
   const data: [number, number, number][] = []
-  const recentData = scheduleStore.utilizationData.filter(u =>
-    u.date === dayjs().format('YYYY-MM-DD')
-  )
+  const allData = scheduleStore.utilizationData
 
-  for (let bi = 0; bi < 12; bi++) {
-    const berth = scheduleStore.berths[bi]
-    for (let h = 0; h < 24; h++) {
-      const entry = recentData.find(u => u.berthId === berth?.id && u.hour === h)
-      data.push([h, bi, entry?.occupied ? Math.random() * 50 + 50 : Math.random() * 30])
+  if (granularity === 'day') {
+    xLabels = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}`)
+    const today = dayjs().format('YYYY-MM-DD')
+    const dayData = allData.filter(u => u.date === today)
+    for (let bi = 0; bi < berthCount; bi++) {
+      for (let h = 0; h < 24; h++) {
+        const entry = dayData.find(u => u.berthId === berths[bi].id && u.hour === h)
+        data.push([h, bi, entry?.occupied ? Math.random() * 50 + 50 : Math.random() * 30])
+      }
+    }
+  } else if (granularity === 'week') {
+    xLabels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+    for (let bi = 0; bi < berthCount; bi++) {
+      for (let d = 0; d < 7; d++) {
+        const date = dayjs().subtract(6 - d, 'day').format('YYYY-MM-DD')
+        const dayData = allData.filter(u => u.berthId === berths[bi].id && u.date === date)
+        const occupiedHours = dayData.filter(u => u.occupied).length
+        const util = dayData.length > 0 ? Math.round((occupiedHours / dayData.length) * 100) : Math.random() * 60 + 20
+        data.push([d, bi, util])
+      }
+    }
+  } else {
+    xLabels = Array.from({ length: 30 }, (_, i) => dayjs().subtract(29 - i, 'day').format('MM/DD'))
+    for (let bi = 0; bi < berthCount; bi++) {
+      for (let d = 0; d < 30; d++) {
+        const date = dayjs().subtract(29 - d, 'day').format('YYYY-MM-DD')
+        const dayData = allData.filter(u => u.berthId === berths[bi].id && u.date === date)
+        const occupiedHours = dayData.filter(u => u.occupied).length
+        const util = dayData.length > 0 ? Math.round((occupiedHours / dayData.length) * 100) : Math.random() * 60 + 20
+        data.push([d, bi, util])
+      }
     }
   }
+
+  return { berthIds, xLabels, data }
+}
+
+function initUtilizationChart() {
+  if (!utilizationChartRef.value) return
+  if (!utilizationChart.value) {
+    utilizationChart.value = echarts.init(utilizationChartRef.value)
+  }
+  updateUtilizationChart()
+}
+
+function updateUtilizationChart() {
+  if (!utilizationChart.value) return
+  const { berthIds, xLabels, data } = aggregateUtilizationData(utilizationGranularity.value)
+
+  const xLabelInterval = utilizationGranularity.value === 'month' ? 4 : utilizationGranularity.value === 'week' ? 0 : 2
 
   utilizationChart.value.setOption({
     backgroundColor: 'transparent',
@@ -165,14 +206,21 @@ function initUtilizationChart() {
       backgroundColor: 'rgba(21, 34, 56, 0.95)',
       borderColor: '#2979ff',
       textStyle: { color: '#e8eaf6', fontSize: 11 },
-      formatter: (p: any) => `${berthIds[p.data[1]]} ${hours[p.data[0]]}:00<br/>利用率: ${p.data[2].toFixed(0)}%`
+      formatter: (p: any) => {
+        const x = xLabels[p.data[0]]
+        const y = berthIds[p.data[1]]
+        const val = p.data[2].toFixed(0)
+        return utilizationGranularity.value === 'day'
+          ? `${y} ${x}:00<br/>利用率: ${val}%`
+          : `${y} ${x}<br/>利用率: ${val}%`
+      }
     },
     grid: { left: 80, right: 20, top: 10, bottom: 30 },
     xAxis: {
       type: 'category',
-      data: hours,
+      data: xLabels,
       splitArea: { show: true, areaStyle: { color: ['rgba(30,58,95,0.3)', 'transparent'] } },
-      axisLabel: { color: '#90a4ae', fontSize: 9, interval: 2 },
+      axisLabel: { color: '#90a4ae', fontSize: 9, interval: xLabelInterval },
       axisLine: { lineStyle: { color: '#1e3a5f' } }
     },
     yAxis: {
@@ -202,7 +250,12 @@ function initUtilizationChart() {
       emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0, 0, 0, 0.5)' } },
       itemStyle: { borderColor: '#0a1628', borderWidth: 1 }
     }]
-  })
+  }, true)
+}
+
+function onGranularityChange(val: 'day' | 'week' | 'month') {
+  utilizationGranularity.value = val
+  nextTick(() => updateUtilizationChart())
 }
 
 function vesselStatusTag(status: string) {
@@ -226,6 +279,7 @@ watch([() => vesselStore.selectedPortId], () => {
   nextTick(() => {
     initThroughputChart()
     initUtilizationChart()
+    updateUtilizationChart()
   })
 })
 
@@ -281,6 +335,16 @@ onMounted(() => {
               <el-icon class="text-port-warning"><PieChart /></el-icon>
               泊位利用率热力图
             </h3>
+            <el-radio-group
+              :model-value="utilizationGranularity"
+              size="small"
+              @update:model-value="onGranularityChange"
+              class="!text-xs"
+            >
+              <el-radio-button value="day" class="!text-xs !h-6 !px-2">日</el-radio-button>
+              <el-radio-button value="week" class="!text-xs !h-6 !px-2">周</el-radio-button>
+              <el-radio-button value="month" class="!text-xs !h-6 !px-2">月</el-radio-button>
+            </el-radio-group>
           </div>
           <div ref="utilizationChartRef" class="flex-1 min-h-0 w-full" />
         </div>
