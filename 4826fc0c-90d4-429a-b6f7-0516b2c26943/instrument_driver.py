@@ -17,6 +17,17 @@ from loguru import logger
 pyautogui.FAILSAFE = False
 pyautogui.PAUSE = 0.1
 
+_HAS_WIN32 = False
+if sys.platform == "win32":
+    try:
+        import win32gui
+        import win32con
+        _HAS_WIN32 = True
+    except ImportError:
+        logger.warning("当前为 Windows 平台但未安装 pywin32，窗口原生定位功能将不可用，将使用模板匹配和坐标回退模式")
+else:
+    logger.info("非 Windows 平台，win32 原生窗口操作已跳过，将使用模板匹配和坐标回退模式")
+
 
 class InstrumentStatus(Enum):
     IDLE = "空闲"
@@ -92,9 +103,8 @@ class InstrumentDriver:
                 self.window_info = WindowInfo(left=x, top=y, width=w, height=h)
                 return True
 
-        if sys.platform == "win32":
+        if _HAS_WIN32 and sys.platform == "win32":
             try:
-                import win32gui
                 hwnd = win32gui.FindWindow(None, window_title)
                 if hwnd:
                     left, top, right, bottom = win32gui.GetWindowRect(hwnd)
@@ -105,17 +115,15 @@ class InstrumentDriver:
                     )
                     self._restore_window(hwnd)
                     return True
-            except ImportError:
-                pass
+            except Exception as e:
+                logger.warning(f"[{self.instrument_id}] win32 窗口定位异常: {e}")
 
         logger.warning(f"[{self.instrument_id}] 模板和标题均无法定位窗口，尝试全屏搜索")
         return False
 
     def _restore_window(self, hwnd: Any) -> None:
-        if sys.platform == "win32":
+        if _HAS_WIN32 and sys.platform == "win32":
             try:
-                import win32con
-                import win32gui
                 placement = win32gui.GetWindowPlacement(hwnd)
                 if placement[1] == win32con.SW_SHOWMINIMIZED:
                     win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
@@ -201,9 +209,8 @@ class InstrumentDriver:
     def activate_window(self) -> bool:
         if not self.locate_window():
             return False
-        if self.window_info and self.window_info.handle and sys.platform == "win32":
+        if _HAS_WIN32 and self.window_info and self.window_info.handle and sys.platform == "win32":
             try:
-                import win32gui
                 win32gui.SetForegroundWindow(self.window_info.handle)
                 time.sleep(0.5)
                 return True

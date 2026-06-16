@@ -50,17 +50,34 @@ class OCRReader:
 
     def _load_digit_templates(self) -> None:
         templates_dir = Path(self.config.get("digit_templates_dir", "templates/digits"))
-        if not templates_dir.exists():
-            templates_dir.mkdir(parents=True, exist_ok=True)
-            return
-        for f in templates_dir.glob("*.png"):
-            try:
-                digit = f.stem
-                img = cv2.imread(str(f), cv2.IMREAD_GRAYSCALE)
-                if img is not None:
-                    self._digit_templates[digit] = img
-            except Exception as e:
-                logger.warning(f"加载数字模板 {f} 失败: {e}")
+        try:
+            if not templates_dir.exists():
+                templates_dir.mkdir(parents=True, exist_ok=True)
+                logger.info(f"数字模板目录不存在，已创建: {templates_dir}，数字模板校正功能将跳过")
+                return
+
+            png_files = list(templates_dir.glob("*.png"))
+            if not png_files:
+                logger.warning(f"数字模板目录为空: {templates_dir}，数字模板二次校正功能已禁用")
+                return
+
+            loaded_count = 0
+            for f in png_files:
+                try:
+                    digit = f.stem
+                    img = cv2.imread(str(f), cv2.IMREAD_GRAYSCALE)
+                    if img is not None:
+                        self._digit_templates[digit] = img
+                        loaded_count += 1
+                except Exception as e:
+                    logger.warning(f"加载数字模板 {f.name} 失败: {e}")
+
+            if loaded_count == 0:
+                logger.warning("未成功加载任何数字模板，数字模板二次校正功能将跳过")
+            else:
+                logger.info(f"已加载 {loaded_count} 个数字模板")
+        except Exception as e:
+            logger.warning(f"数字模板加载过程异常，已优雅降级: {e}")
 
     def preprocess_image(self, image: np.ndarray) -> np.ndarray:
         pp_cfg = self.config.get("preprocessing", {})

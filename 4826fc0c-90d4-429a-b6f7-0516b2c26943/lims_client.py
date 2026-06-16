@@ -15,6 +15,17 @@ from loguru import logger
 pyautogui.FAILSAFE = False
 pyautogui.PAUSE = 0.1
 
+_HAS_WIN32 = False
+if sys.platform == "win32":
+    try:
+        import win32gui
+        import win32con
+        _HAS_WIN32 = True
+    except ImportError:
+        logger.warning("当前为 Windows 平台但未安装 pywin32，LIMS 窗口原生定位功能将不可用")
+else:
+    logger.info("非 Windows 平台，LIMS 客户端 win32 原生窗口操作已跳过")
+
 
 @dataclass
 class LIMSRecord:
@@ -97,15 +108,13 @@ class LIMSClient:
                 self._activate_lims_window()
                 return True
 
-            if sys.platform == "win32":
+            if _HAS_WIN32 and sys.platform == "win32":
                 try:
-                    import win32gui
                     hwnd = win32gui.FindWindow(None, window_title)
                     if hwnd:
                         left, top, right, bottom = win32gui.GetWindowRect(hwnd)
                         self._window_rect = (left, top, right - left, bottom - top)
                         try:
-                            import win32con
                             placement = win32gui.GetWindowPlacement(hwnd)
                             if placement[1] == win32con.SW_SHOWMINIMIZED:
                                 win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
@@ -114,8 +123,8 @@ class LIMSClient:
                             pass
                         logger.success("LIMS 窗口通过标题定位成功")
                         return True
-                except ImportError:
-                    pass
+                except Exception as e:
+                    logger.warning(f"LIMS win32 窗口定位异常: {e}")
 
             self._exponential_backoff(attempt)
 

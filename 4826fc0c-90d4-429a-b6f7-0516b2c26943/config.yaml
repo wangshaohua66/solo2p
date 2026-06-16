@@ -3,516 +3,729 @@ global:
   operation_jitter_max: 1.2
   max_concurrent_instruments: 3
   measurement_timeout: 120
-  ocr_confidence_threshold: 0.90
+  ocr_confidence_threshold: 0.9
   max_retry_count: 3
   retry_backoff_base: 2.0
-  audit_log_dir: "audit_logs"
-  template_dir: "templates"
-  log_dir: "logs"
+  audit_log_dir: audit_logs
+  template_dir: templates
+  log_dir: logs
   log_retention_days: 30
-
 instruments:
   OES_SPECTRO_1:
-    type: "直读光谱仪"
-    vendor: "SPECTRO"
-    model: "SPECTROMAXx"
-    window_title: "SPECTRO Analytical Instruments"
-    window_template: "templates/oes_spectro_1_window.png"
+    type: 直读光谱仪
+    vendor: SPECTRO
+    model: SPECTROMAXx
+    window_title: SPECTRO Analytical Instruments
+    window_template: ''
     nav_sequence:
-      - action: "click"
-        description: "点击测量菜单"
-        template: "templates/oes_spectro_1_menu_measure.png"
-        fallback_coords: [120, 45]
-      - action: "click"
-        description: "新建测量任务"
-        template: "templates/oes_spectro_1_new_task.png"
-        fallback_coords: [180, 80]
+    - action: click
+      description: 点击测量菜单
+      template: ''
+      fallback_coords:
+      - 120
+      - 45
+    - action: click
+      description: 新建测量任务
+      template: ''
+      fallback_coords:
+      - 180
+      - 80
     sample_id_input:
-      template: "templates/oes_spectro_1_id_input.png"
-      fallback_coords: [300, 150]
+      template: ''
+      fallback_coords:
+      - 300
+      - 150
     measure_button:
-      template: "templates/oes_spectro_1_start_btn.png"
-      fallback_coords: [500, 400]
+      template: ''
+      fallback_coords:
+      - 500
+      - 400
     status_indicator:
-      ready_roi: [680, 420, 40, 40]
-      ready_color: [0, 200, 0]
+      ready_roi:
+      - 680
+      - 420
+      - 40
+      - 40
+      ready_color:
+      - 0
+      - 200
+      - 0
       color_tolerance: 40
     result_region:
-      roi: [50, 200, 700, 350]
-      elements_layout: "table"
+      roi:
+      - 50
+      - 200
+      - 700
+      - 350
+      elements_layout: table
       columns:
-        - name: "symbol"
-          x_offset: 20
-          width: 80
-        - name: "value"
-          x_offset: 120
-          width: 120
+      - name: symbol
+        x_offset: 20
+        width: 80
+      - name: value
+        x_offset: 120
+        width: 120
     elements:
-      - symbol: "C"
-        lims_name: "碳含量"
-      - symbol: "Si"
-        lims_name: "硅含量"
-      - symbol: "Mn"
-        lims_name: "锰含量"
-      - symbol: "P"
-        lims_name: "磷含量"
-      - symbol: "S"
-        lims_name: "硫含量"
-      - symbol: "Cr"
-        lims_name: "铬含量"
-      - symbol: "Ni"
-        lims_name: "镍含量"
-      - symbol: "Mo"
-        lims_name: "钼含量"
-      - symbol: "V"
-        lims_name: "钒含量"
-      - symbol: "Ti"
-        lims_name: "钛含量"
-      - symbol: "Cu"
-        lims_name: "铜含量"
-      - symbol: "Al"
-        lims_name: "铝含量"
-
+    - symbol: C
+      lims_name: 碳含量
+    - symbol: Si
+      lims_name: 硅含量
+    - symbol: Mn
+      lims_name: 锰含量
+    - symbol: P
+      lims_name: 磷含量
+    - symbol: S
+      lims_name: 硫含量
+    - symbol: Cr
+      lims_name: 铬含量
+    - symbol: Ni
+      lims_name: 镍含量
+    - symbol: Mo
+      lims_name: 钼含量
+    - symbol: V
+      lims_name: 钒含量
+    - symbol: Ti
+      lims_name: 钛含量
+    - symbol: Cu
+      lims_name: 铜含量
+    - symbol: Al
+      lims_name: 铝含量
   OES_SPECTRO_2:
-    type: "直读光谱仪"
-    vendor: "SPECTRO"
-    model: "SPECTROMAXx"
-    window_title: "SPECTRO Analytical Instruments #2"
-    window_template: "templates/oes_spectro_2_window.png"
+    type: 直读光谱仪
+    vendor: SPECTRO
+    model: SPECTROMAXx
+    window_title: 'SPECTRO Analytical Instruments #2'
+    window_template: ''
     nav_sequence:
-      - action: "click"
-        description: "点击测量菜单"
-        template: "templates/oes_spectro_2_menu_measure.png"
-        fallback_coords: [120, 45]
-      - action: "click"
-        description: "新建测量任务"
-        template: "templates/oes_spectro_2_new_task.png"
-        fallback_coords: [180, 80]
+    - action: click
+      description: 点击测量菜单
+      template: ''
+      fallback_coords:
+      - 120
+      - 45
+    - action: click
+      description: 新建测量任务
+      template: ''
+      fallback_coords:
+      - 180
+      - 80
     sample_id_input:
-      template: "templates/oes_spectro_2_id_input.png"
-      fallback_coords: [300, 150]
+      template: ''
+      fallback_coords:
+      - 300
+      - 150
     measure_button:
-      template: "templates/oes_spectro_2_start_btn.png"
-      fallback_coords: [500, 400]
+      template: ''
+      fallback_coords:
+      - 500
+      - 400
     status_indicator:
-      ready_roi: [680, 420, 40, 40]
-      ready_color: [0, 200, 0]
+      ready_roi:
+      - 680
+      - 420
+      - 40
+      - 40
+      ready_color:
+      - 0
+      - 200
+      - 0
       color_tolerance: 40
     result_region:
-      roi: [50, 200, 700, 350]
-      elements_layout: "table"
+      roi:
+      - 50
+      - 200
+      - 700
+      - 350
+      elements_layout: table
       columns:
-        - name: "symbol"
-          x_offset: 20
-          width: 80
-        - name: "value"
-          x_offset: 120
-          width: 120
+      - name: symbol
+        x_offset: 20
+        width: 80
+      - name: value
+        x_offset: 120
+        width: 120
     elements:
-      - symbol: "C"
-        lims_name: "碳含量"
-      - symbol: "Si"
-        lims_name: "硅含量"
-      - symbol: "Mn"
-        lims_name: "锰含量"
-      - symbol: "P"
-        lims_name: "磷含量"
-      - symbol: "S"
-        lims_name: "硫含量"
-      - symbol: "Cr"
-        lims_name: "铬含量"
-      - symbol: "Ni"
-        lims_name: "镍含量"
-      - symbol: "Mo"
-        lims_name: "钼含量"
-      - symbol: "V"
-        lims_name: "钒含量"
-      - symbol: "Ti"
-        lims_name: "钛含量"
-      - symbol: "Cu"
-        lims_name: "铜含量"
-      - symbol: "Al"
-        lims_name: "铝含量"
-
+    - symbol: C
+      lims_name: 碳含量
+    - symbol: Si
+      lims_name: 硅含量
+    - symbol: Mn
+      lims_name: 锰含量
+    - symbol: P
+      lims_name: 磷含量
+    - symbol: S
+      lims_name: 硫含量
+    - symbol: Cr
+      lims_name: 铬含量
+    - symbol: Ni
+      lims_name: 镍含量
+    - symbol: Mo
+      lims_name: 钼含量
+    - symbol: V
+      lims_name: 钒含量
+    - symbol: Ti
+      lims_name: 钛含量
+    - symbol: Cu
+      lims_name: 铜含量
+    - symbol: Al
+      lims_name: 铝含量
   OES_ARL_1:
-    type: "直读光谱仪"
-    vendor: "Thermo Fisher"
-    model: "ARL iSpark"
-    window_title: "ARL iSpark Analysis"
-    window_template: "templates/oes_arl_1_window.png"
+    type: 直读光谱仪
+    vendor: Thermo Fisher
+    model: ARL iSpark
+    window_title: ARL iSpark Analysis
+    window_template: ''
     nav_sequence:
-      - action: "click"
-        description: "点击分析标签"
-        template: "templates/oes_arl_1_tab_analysis.png"
-        fallback_coords: [200, 30]
-      - action: "click"
-        description: "点击新建"
-        template: "templates/oes_arl_1_new.png"
-        fallback_coords: [100, 70]
+    - action: click
+      description: 点击分析标签
+      template: ''
+      fallback_coords:
+      - 200
+      - 30
+    - action: click
+      description: 点击新建
+      template: ''
+      fallback_coords:
+      - 100
+      - 70
     sample_id_input:
-      template: "templates/oes_arl_1_id_input.png"
-      fallback_coords: [250, 120]
+      template: ''
+      fallback_coords:
+      - 250
+      - 120
     measure_button:
-      template: "templates/oes_arl_1_start_btn.png"
-      fallback_coords: [450, 380]
+      template: ''
+      fallback_coords:
+      - 450
+      - 380
     status_indicator:
-      ready_roi: [720, 400, 35, 35]
-      ready_color: [0, 220, 0]
+      ready_roi:
+      - 720
+      - 400
+      - 35
+      - 35
+      ready_color:
+      - 0
+      - 220
+      - 0
       color_tolerance: 45
     result_region:
-      roi: [30, 180, 750, 380]
-      elements_layout: "grid"
+      roi:
+      - 30
+      - 180
+      - 750
+      - 380
+      elements_layout: grid
       cell_width: 150
       cell_height: 35
       columns_count: 3
     elements:
-      - symbol: "C"
-        lims_name: "碳含量"
-      - symbol: "Si"
-        lims_name: "硅含量"
-      - symbol: "Mn"
-        lims_name: "锰含量"
-      - symbol: "P"
-        lims_name: "磷含量"
-      - symbol: "S"
-        lims_name: "硫含量"
-      - symbol: "Cr"
-        lims_name: "铬含量"
-      - symbol: "Ni"
-        lims_name: "镍含量"
-      - symbol: "Mo"
-        lims_name: "钼含量"
-      - symbol: "W"
-        lims_name: "钨含量"
-      - symbol: "Co"
-        lims_name: "钴含量"
-      - symbol: "Nb"
-        lims_name: "铌含量"
-      - symbol: "B"
-        lims_name: "硼含量"
-
+    - symbol: C
+      lims_name: 碳含量
+    - symbol: Si
+      lims_name: 硅含量
+    - symbol: Mn
+      lims_name: 锰含量
+    - symbol: P
+      lims_name: 磷含量
+    - symbol: S
+      lims_name: 硫含量
+    - symbol: Cr
+      lims_name: 铬含量
+    - symbol: Ni
+      lims_name: 镍含量
+    - symbol: Mo
+      lims_name: 钼含量
+    - symbol: W
+      lims_name: 钨含量
+    - symbol: Co
+      lims_name: 钴含量
+    - symbol: Nb
+      lims_name: 铌含量
+    - symbol: B
+      lims_name: 硼含量
   OES_ARL_2:
-    type: "直读光谱仪"
-    vendor: "Thermo Fisher"
-    model: "ARL iSpark"
-    window_title: "ARL iSpark Analysis #2"
-    window_template: "templates/oes_arl_2_window.png"
+    type: 直读光谱仪
+    vendor: Thermo Fisher
+    model: ARL iSpark
+    window_title: 'ARL iSpark Analysis #2'
+    window_template: ''
     nav_sequence:
-      - action: "click"
-        description: "点击分析标签"
-        template: "templates/oes_arl_2_tab_analysis.png"
-        fallback_coords: [200, 30]
-      - action: "click"
-        description: "点击新建"
-        template: "templates/oes_arl_2_new.png"
-        fallback_coords: [100, 70]
+    - action: click
+      description: 点击分析标签
+      template: ''
+      fallback_coords:
+      - 200
+      - 30
+    - action: click
+      description: 点击新建
+      template: ''
+      fallback_coords:
+      - 100
+      - 70
     sample_id_input:
-      template: "templates/oes_arl_2_id_input.png"
-      fallback_coords: [250, 120]
+      template: ''
+      fallback_coords:
+      - 250
+      - 120
     measure_button:
-      template: "templates/oes_arl_2_start_btn.png"
-      fallback_coords: [450, 380]
+      template: ''
+      fallback_coords:
+      - 450
+      - 380
     status_indicator:
-      ready_roi: [720, 400, 35, 35]
-      ready_color: [0, 220, 0]
+      ready_roi:
+      - 720
+      - 400
+      - 35
+      - 35
+      ready_color:
+      - 0
+      - 220
+      - 0
       color_tolerance: 45
     result_region:
-      roi: [30, 180, 750, 380]
-      elements_layout: "grid"
+      roi:
+      - 30
+      - 180
+      - 750
+      - 380
+      elements_layout: grid
       cell_width: 150
       cell_height: 35
       columns_count: 3
     elements:
-      - symbol: "C"
-        lims_name: "碳含量"
-      - symbol: "Si"
-        lims_name: "硅含量"
-      - symbol: "Mn"
-        lims_name: "锰含量"
-      - symbol: "P"
-        lims_name: "磷含量"
-      - symbol: "S"
-        lims_name: "硫含量"
-      - symbol: "Cr"
-        lims_name: "铬含量"
-      - symbol: "Ni"
-        lims_name: "镍含量"
-      - symbol: "Mo"
-        lims_name: "钼含量"
-      - symbol: "W"
-        lims_name: "钨含量"
-      - symbol: "Co"
-        lims_name: "钴含量"
-      - symbol: "Nb"
-        lims_name: "铌含量"
-      - symbol: "B"
-        lims_name: "硼含量"
-
+    - symbol: C
+      lims_name: 碳含量
+    - symbol: Si
+      lims_name: 硅含量
+    - symbol: Mn
+      lims_name: 锰含量
+    - symbol: P
+      lims_name: 磷含量
+    - symbol: S
+      lims_name: 硫含量
+    - symbol: Cr
+      lims_name: 铬含量
+    - symbol: Ni
+      lims_name: 镍含量
+    - symbol: Mo
+      lims_name: 钼含量
+    - symbol: W
+      lims_name: 钨含量
+    - symbol: Co
+      lims_name: 钴含量
+    - symbol: Nb
+      lims_name: 铌含量
+    - symbol: B
+      lims_name: 硼含量
   XRF_PANALYTICAL_1:
-    type: "X荧光分析仪"
-    vendor: "Malvern Panalytical"
-    model: "Axios FAST"
-    window_title: "SuperQ Operating Software"
-    window_template: "templates/xrf_pana_1_window.png"
+    type: X荧光分析仪
+    vendor: Malvern Panalytical
+    model: Axios FAST
+    window_title: SuperQ Operating Software
+    window_template: ''
     nav_sequence:
-      - action: "click"
-        description: "切换到测量模式"
-        template: "templates/xrf_pana_1_mode_measure.png"
-        fallback_coords: [80, 50]
-      - action: "click"
-        description: "新建样品"
-        template: "templates/xrf_pana_1_new_sample.png"
-        fallback_coords: [160, 90]
+    - action: click
+      description: 切换到测量模式
+      template: ''
+      fallback_coords:
+      - 80
+      - 50
+    - action: click
+      description: 新建样品
+      template: ''
+      fallback_coords:
+      - 160
+      - 90
     sample_id_input:
-      template: "templates/xrf_pana_1_id_input.png"
-      fallback_coords: [350, 140]
+      template: ''
+      fallback_coords:
+      - 350
+      - 140
     measure_button:
-      template: "templates/xrf_pana_1_start_btn.png"
-      fallback_coords: [550, 420]
+      template: ''
+      fallback_coords:
+      - 550
+      - 420
     status_indicator:
-      ready_roi: [700, 440, 45, 45]
-      ready_color: [0, 180, 0]
+      ready_roi:
+      - 700
+      - 440
+      - 45
+      - 45
+      ready_color:
+      - 0
+      - 180
+      - 0
       color_tolerance: 50
     result_region:
-      roi: [40, 220, 720, 320]
-      elements_layout: "list"
+      roi:
+      - 40
+      - 220
+      - 720
+      - 320
+      elements_layout: list
       row_height: 28
     elements:
-      - symbol: "Fe"
-        lims_name: "铁含量"
-      - symbol: "Ca"
-        lims_name: "钙含量"
-      - symbol: "Mg"
-        lims_name: "镁含量"
-      - symbol: "Al"
-        lims_name: "铝含量"
-      - symbol: "Si"
-        lims_name: "硅含量"
-      - symbol: "P"
-        lims_name: "磷含量"
-      - symbol: "S"
-        lims_name: "硫含量"
-      - symbol: "Ti"
-        lims_name: "钛含量"
-      - symbol: "V"
-        lims_name: "钒含量"
-      - symbol: "Cr"
-        lims_name: "铬含量"
-      - symbol: "Mn"
-        lims_name: "锰含量"
-      - symbol: "Ni"
-        lims_name: "镍含量"
-      - symbol: "Cu"
-        lims_name: "铜含量"
-      - symbol: "Zn"
-        lims_name: "锌含量"
-      - symbol: "Zr"
-        lims_name: "锆含量"
-      - symbol: "Sn"
-        lims_name: "锡含量"
-      - symbol: "Pb"
-        lims_name: "铅含量"
-      - symbol: "Bi"
-        lims_name: "铋含量"
-
+    - symbol: Fe
+      lims_name: 铁含量
+    - symbol: Ca
+      lims_name: 钙含量
+    - symbol: Mg
+      lims_name: 镁含量
+    - symbol: Al
+      lims_name: 铝含量
+    - symbol: Si
+      lims_name: 硅含量
+    - symbol: P
+      lims_name: 磷含量
+    - symbol: S
+      lims_name: 硫含量
+    - symbol: Ti
+      lims_name: 钛含量
+    - symbol: V
+      lims_name: 钒含量
+    - symbol: Cr
+      lims_name: 铬含量
+    - symbol: Mn
+      lims_name: 锰含量
+    - symbol: Ni
+      lims_name: 镍含量
+    - symbol: Cu
+      lims_name: 铜含量
+    - symbol: Zn
+      lims_name: 锌含量
+    - symbol: Zr
+      lims_name: 锆含量
+    - symbol: Sn
+      lims_name: 锡含量
+    - symbol: Pb
+      lims_name: 铅含量
+    - symbol: Bi
+      lims_name: 铋含量
   XRF_RIGAKU_1:
-    type: "X荧光分析仪"
-    vendor: "Rigaku"
-    model: "ZSX Primus IV"
-    window_title: "ZSX Primus Analysis"
-    window_template: "templates/xrf_rigaku_1_window.png"
+    type: X荧光分析仪
+    vendor: Rigaku
+    model: ZSX Primus IV
+    window_title: ZSX Primus Analysis
+    window_template: ''
     nav_sequence:
-      - action: "click"
-        description: "打开样品登记"
-        template: "templates/xrf_rigaku_1_sample_reg.png"
-        fallback_coords: [140, 40]
-      - action: "click"
-        description: "添加新样品"
-        template: "templates/xrf_rigaku_1_add_sample.png"
-        fallback_coords: [100, 100]
+    - action: click
+      description: 打开样品登记
+      template: ''
+      fallback_coords:
+      - 140
+      - 40
+    - action: click
+      description: 添加新样品
+      template: ''
+      fallback_coords:
+      - 100
+      - 100
     sample_id_input:
-      template: "templates/xrf_rigaku_1_id_input.png"
-      fallback_coords: [280, 160]
+      template: ''
+      fallback_coords:
+      - 280
+      - 160
     measure_button:
-      template: "templates/xrf_rigaku_1_start_btn.png"
-      fallback_coords: [480, 440]
+      template: ''
+      fallback_coords:
+      - 480
+      - 440
     status_indicator:
-      ready_roi: [650, 460, 50, 50]
-      ready_color: [0, 200, 80]
+      ready_roi:
+      - 650
+      - 460
+      - 50
+      - 50
+      ready_color:
+      - 0
+      - 200
+      - 80
       color_tolerance: 45
     result_region:
-      roi: [60, 240, 680, 300]
-      elements_layout: "list"
+      roi:
+      - 60
+      - 240
+      - 680
+      - 300
+      elements_layout: list
       row_height: 30
     elements:
-      - symbol: "Fe"
-        lims_name: "铁含量"
-      - symbol: "Ca"
-        lims_name: "钙含量"
-      - symbol: "Mg"
-        lims_name: "镁含量"
-      - symbol: "Al"
-        lims_name: "铝含量"
-      - symbol: "Si"
-        lims_name: "硅含量"
-      - symbol: "P"
-        lims_name: "磷含量"
-      - symbol: "S"
-        lims_name: "硫含量"
-      - symbol: "K"
-        lims_name: "钾含量"
-      - symbol: "Ti"
-        lims_name: "钛含量"
-      - symbol: "V"
-        lims_name: "钒含量"
-      - symbol: "Cr"
-        lims_name: "铬含量"
-      - symbol: "Mn"
-        lims_name: "锰含量"
-      - symbol: "Co"
-        lims_name: "钴含量"
-      - symbol: "Ni"
-        lims_name: "镍含量"
-      - symbol: "Cu"
-        lims_name: "铜含量"
-      - symbol: "Zn"
-        lims_name: "锌含量"
-      - symbol: "As"
-        lims_name: "砷含量"
-      - symbol: "Mo"
-        lims_name: "钼含量"
-
+    - symbol: Fe
+      lims_name: 铁含量
+    - symbol: Ca
+      lims_name: 钙含量
+    - symbol: Mg
+      lims_name: 镁含量
+    - symbol: Al
+      lims_name: 铝含量
+    - symbol: Si
+      lims_name: 硅含量
+    - symbol: P
+      lims_name: 磷含量
+    - symbol: S
+      lims_name: 硫含量
+    - symbol: K
+      lims_name: 钾含量
+    - symbol: Ti
+      lims_name: 钛含量
+    - symbol: V
+      lims_name: 钒含量
+    - symbol: Cr
+      lims_name: 铬含量
+    - symbol: Mn
+      lims_name: 锰含量
+    - symbol: Co
+      lims_name: 钴含量
+    - symbol: Ni
+      lims_name: 镍含量
+    - symbol: Cu
+      lims_name: 铜含量
+    - symbol: Zn
+      lims_name: 锌含量
+    - symbol: As
+      lims_name: 砷含量
+    - symbol: Mo
+      lims_name: 钼含量
   CS_LECO_1:
-    type: "碳硫分析仪"
-    vendor: "LECO"
-    model: "CS844"
-    window_title: "LECO CS844 Analysis"
-    window_template: "templates/cs_leco_1_window.png"
+    type: 碳硫分析仪
+    vendor: LECO
+    model: CS844
+    window_title: LECO CS844 Analysis
+    window_template: ''
     nav_sequence:
-      - action: "click"
-        description: "点击分析"
-        template: "templates/cs_leco_1_menu_analyze.png"
-        fallback_coords: [100, 40]
-      - action: "click"
-        description: "新建分析"
-        template: "templates/cs_leco_1_new_analysis.png"
-        fallback_coords: [150, 75]
+    - action: click
+      description: 点击分析
+      template: ''
+      fallback_coords:
+      - 100
+      - 40
+    - action: click
+      description: 新建分析
+      template: ''
+      fallback_coords:
+      - 150
+      - 75
     sample_id_input:
-      template: "templates/cs_leco_1_id_input.png"
-      fallback_coords: [320, 130]
+      template: ''
+      fallback_coords:
+      - 320
+      - 130
     measure_button:
-      template: "templates/cs_leco_1_start_btn.png"
-      fallback_coords: [420, 380]
+      template: ''
+      fallback_coords:
+      - 420
+      - 380
     status_indicator:
-      ready_roi: [600, 400, 40, 40]
-      ready_color: [0, 210, 0]
+      ready_roi:
+      - 600
+      - 400
+      - 40
+      - 40
+      ready_color:
+      - 0
+      - 210
+      - 0
       color_tolerance: 40
     result_region:
-      roi: [80, 200, 600, 200]
-      elements_layout: "dual"
-      carbon_roi: [100, 220, 200, 60]
-      sulfur_roi: [350, 220, 200, 60]
+      roi:
+      - 80
+      - 200
+      - 600
+      - 200
+      elements_layout: dual
+      carbon_roi:
+      - 100
+      - 220
+      - 200
+      - 60
+      sulfur_roi:
+      - 350
+      - 220
+      - 200
+      - 60
     elements:
-      - symbol: "C"
-        lims_name: "碳含量"
-      - symbol: "S"
-        lims_name: "硫含量"
-      - symbol: "TC"
-        lims_name: "总碳含量"
-      - symbol: "TS"
-        lims_name: "总硫含量"
-      - symbol: "N"
-        lims_name: "氮含量"
-
+    - symbol: C
+      lims_name: 碳含量
+    - symbol: S
+      lims_name: 硫含量
+    - symbol: TC
+      lims_name: 总碳含量
+    - symbol: TS
+      lims_name: 总硫含量
+    - symbol: N
+      lims_name: 氮含量
 lims:
-  window_title: "LIMS 实验室信息管理系统"
-  window_template: "templates/lims_window.png"
+  window_title: LIMS 实验室信息管理系统
+  window_template: ''
   login:
     username_field:
-      template: "templates/lims_username.png"
-      fallback_coords: [400, 250]
+      template: ''
+      fallback_coords:
+      - 400
+      - 250
     password_field:
-      template: "templates/lims_password.png"
-      fallback_coords: [400, 300]
+      template: ''
+      fallback_coords:
+      - 400
+      - 300
     login_button:
-      template: "templates/lims_login_btn.png"
-      fallback_coords: [450, 360]
+      template: ''
+      fallback_coords:
+      - 450
+      - 360
   search:
     menu_entry:
-      template: "templates/lims_menu_sample.png"
-      fallback_coords: [80, 40]
+      template: ''
+      fallback_coords:
+      - 80
+      - 40
     search_box:
-      template: "templates/lims_search_box.png"
-      fallback_coords: [300, 120]
+      template: ''
+      fallback_coords:
+      - 300
+      - 120
     search_button:
-      template: "templates/lims_search_btn.png"
-      fallback_coords: [550, 120]
+      template: ''
+      fallback_coords:
+      - 550
+      - 120
     result_row_click:
-      template: "templates/lims_result_row.png"
-      fallback_coords: [200, 220]
+      template: ''
+      fallback_coords:
+      - 200
+      - 220
   edit:
     edit_button:
-      template: "templates/lims_edit_btn.png"
-      fallback_coords: [600, 120]
+      template: ''
+      fallback_coords:
+      - 600
+      - 120
     save_button:
-      template: "templates/lims_save_btn.png"
-      fallback_coords: [700, 120]
-    element_field_template: "templates/lims_field_{symbol}.png"
+      template: ''
+      fallback_coords:
+      - 700
+      - 120
+    element_field_template: templates/lims_field_{symbol}.png
     field_coords:
-      "碳含量": [280, 200]
-      "硅含量": [280, 230]
-      "锰含量": [280, 260]
-      "磷含量": [280, 290]
-      "硫含量": [280, 320]
-      "铬含量": [280, 350]
-      "镍含量": [280, 380]
-      "钼含量": [280, 410]
-      "钒含量": [280, 440]
-      "钛含量": [280, 470]
-      "铜含量": [280, 500]
-      "铝含量": [550, 200]
-      "钨含量": [550, 230]
-      "钴含量": [550, 260]
-      "铌含量": [550, 290]
-      "硼含量": [550, 320]
-      "铁含量": [550, 350]
-      "钙含量": [550, 380]
-      "镁含量": [550, 410]
-      "总碳含量": [550, 440]
-      "总硫含量": [550, 470]
-      "氮含量": [550, 500]
-      "钾含量": [820, 200]
-      "锌含量": [820, 230]
-      "砷含量": [820, 260]
-      "锆含量": [820, 290]
-      "锡含量": [820, 320]
-      "铅含量": [820, 350]
-      "铋含量": [820, 380]
+      碳含量:
+      - 280
+      - 200
+      硅含量:
+      - 280
+      - 230
+      锰含量:
+      - 280
+      - 260
+      磷含量:
+      - 280
+      - 290
+      硫含量:
+      - 280
+      - 320
+      铬含量:
+      - 280
+      - 350
+      镍含量:
+      - 280
+      - 380
+      钼含量:
+      - 280
+      - 410
+      钒含量:
+      - 280
+      - 440
+      钛含量:
+      - 280
+      - 470
+      铜含量:
+      - 280
+      - 500
+      铝含量:
+      - 550
+      - 200
+      钨含量:
+      - 550
+      - 230
+      钴含量:
+      - 550
+      - 260
+      铌含量:
+      - 550
+      - 290
+      硼含量:
+      - 550
+      - 320
+      铁含量:
+      - 550
+      - 350
+      钙含量:
+      - 550
+      - 380
+      镁含量:
+      - 550
+      - 410
+      总碳含量:
+      - 550
+      - 440
+      总硫含量:
+      - 550
+      - 470
+      氮含量:
+      - 550
+      - 500
+      钾含量:
+      - 820
+      - 200
+      锌含量:
+      - 820
+      - 230
+      砷含量:
+      - 820
+      - 260
+      锆含量:
+      - 820
+      - 290
+      锡含量:
+      - 820
+      - 320
+      铅含量:
+      - 820
+      - 350
+      铋含量:
+      - 820
+      - 380
   verification:
-    read_back_roi: [260, 190, 600, 340]
-
+    read_back_roi:
+    - 260
+    - 190
+    - 600
+    - 340
 ocr:
-  tesseract_cmd: "/usr/local/bin/tesseract"
-  tesseract_lang: "eng"
+  tesseract_cmd: /usr/local/bin/tesseract
+  tesseract_lang: eng
   preprocessing:
     denoise_kernel: 3
-    threshold_method: "adaptive"
+    threshold_method: adaptive
     adaptive_block_size: 11
     adaptive_c: 2
-    morph_kernel: [2, 2]
+    morph_kernel:
+    - 2
+    - 2
     scale_factor: 2.0
-  digit_templates_dir: "templates/digits"
-  custom_config: "--psm 6 --oem 3 -c tessedit_char_whitelist=0123456789.-%"
-
+  digit_templates_dir: templates/digits
+  custom_config: --psm 6 --oem 3 -c tessedit_char_whitelist=0123456789.-%
 console_ui:
   refresh_interval: 0.5
   color_scheme:
-    header: "cyan"
-    instrument_idle: "green"
-    instrument_busy: "yellow"
-    instrument_error: "red"
-    log_info: "white"
-    log_warning: "yellow"
-    log_error: "red"
-    log_success: "green"
-    progress_bar: "blue"
+    header: cyan
+    instrument_idle: green
+    instrument_busy: yellow
+    instrument_error: red
+    log_info: white
+    log_warning: yellow
+    log_error: red
+    log_success: green
+    progress_bar: blue
