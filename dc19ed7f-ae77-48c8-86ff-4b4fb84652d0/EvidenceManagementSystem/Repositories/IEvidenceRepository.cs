@@ -13,4 +13,6 @@ public interface IEvidenceRepository : IRepository<Evidence>
     Task<List<Evidence>> GetOverdueEvidencesAsync();
     Task<List<Evidence>> GetWarningEvidencesAsync(int daysBeforeExpiry);
     Task<bool> BarcodeExistsAsync(string barcode);
+    Task<PagedResult<Evidence>> GetForInventoryAsync(EvidenceCategory? category, string? warehouse, string? caseNumber, int pageNumber, int pageSize);
+    Task<int> GetCountForInventoryAsync(EvidenceCategory? category, string? warehouse, string? caseNumber);
 }

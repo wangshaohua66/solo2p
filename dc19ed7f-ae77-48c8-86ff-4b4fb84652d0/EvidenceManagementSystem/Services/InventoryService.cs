@@ -24,19 +24,13 @@ public class InventoryService : IInventoryService
 
     public async Task<InventoryTaskDto> CreateTaskAsync(CreateInventoryTaskRequest request, Guid operatorId, string operatorName)
     {
+        const int PageSize = 1000;
         var taskNumber = BarcodeGenerator.GenerateTaskNumber("PD");
 
-        var allEvidences = await _evidenceRepository.GetAllAsync();
-        var evidences = allEvidences.AsQueryable();
-
-        if (request.Category.HasValue)
-            evidences = evidences.Where(e => e.Category == request.Category.Value);
-        if (!string.IsNullOrEmpty(request.Warehouse))
-            evidences = evidences.Where(e => e.StorageLocation != null && e.StorageLocation.Contains(request.Warehouse));
-        if (!string.IsNullOrEmpty(request.CaseNumber))
-            evidences = evidences.Where(e => e.CaseNumber != null && e.CaseNumber.Contains(request.CaseNumber));
-
-        var evidenceList = evidences.Where(e => !e.IsDestroyed).ToList();
+        var totalCount = await _evidenceRepository.GetCountForInventoryAsync(
+            request.Category,
+            request.Warehouse,
+            request.CaseNumber);
 
         var task = new InventoryTask
         {
@@ -46,7 +40,7 @@ public class InventoryService : IInventoryService
             Category = request.Category,
             CaseNumber = request.CaseNumber,
             Status = InventoryStatus.Pending,
-            TotalCount = evidenceList.Count,
+            TotalCount = totalCount,
             MatchedCount = 0,
             MismatchedCount = 0,
             MissingCount = 0,
@@ -57,28 +51,33 @@ public class InventoryService : IInventoryService
 
         var createdTask = await _inventoryRepository.AddAsync(task);
 
-        var inventoryItems = new List<InventoryItem>();
-        foreach (var ev in evidenceList)
+        var totalPages = (int)Math.Ceiling((double)totalCount / PageSize);
+        for (int page = 1; page <= totalPages; page++)
         {
-            inventoryItems.Add(new InventoryItem
-            {
-                Id = Guid.NewGuid(),
-                InventoryTaskId = createdTask.Id,
-                EvidenceId = ev.Id,
-                Barcode = ev.Barcode,
-                EvidenceName = ev.Name,
-                IsInSystem = true,
-                IsScanned = false,
-                IsMatched = false
-            });
-        }
+            var pagedResult = await _evidenceRepository.GetForInventoryAsync(
+                request.Category,
+                request.Warehouse,
+                request.CaseNumber,
+                page,
+                PageSize);
 
-        if (inventoryItems.Count > 0)
-        {
-            foreach (var item in inventoryItems)
+            var batchItems = new List<InventoryItem>();
+            foreach (var ev in pagedResult.Items)
             {
-                await _inventoryRepository.AddItemAsync(item);
+                batchItems.Add(new InventoryItem
+                {
+                    Id = Guid.NewGuid(),
+                    InventoryTaskId = createdTask.Id,
+                    EvidenceId = ev.Id,
+                    Barcode = ev.Barcode,
+                    EvidenceName = ev.Name,
+                    IsInSystem = true,
+                    IsScanned = false,
+                    IsMatched = false
+                });
             }
+
+            await _inventoryRepository.BulkAddItemsAsync(batchItems);
         }
 
         return await MapToDto(createdTask);

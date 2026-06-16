@@ -102,4 +102,54 @@ public class EvidenceRepository : Repository<Evidence>, IEvidenceRepository
     {
         return await _dbSet.AnyAsync(e => e.Barcode == barcode);
     }
+
+    public async Task<PagedResult<Evidence>> GetForInventoryAsync(
+        EvidenceCategory? category,
+        string? warehouse,
+        string? caseNumber,
+        int pageNumber,
+        int pageSize)
+    {
+        var q = _dbSet.Where(e => !e.IsDestroyed);
+
+        if (category.HasValue)
+            q = q.Where(e => e.Category == category.Value);
+        if (!string.IsNullOrEmpty(warehouse))
+            q = q.Where(e => e.StorageLocation != null && e.StorageLocation.Contains(warehouse));
+        if (!string.IsNullOrEmpty(caseNumber))
+            q = q.Where(e => e.CaseNumber != null && e.CaseNumber.Contains(caseNumber));
+
+        var totalCount = await q.CountAsync();
+
+        var items = await q
+            .OrderBy(e => e.Barcode)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PagedResult<Evidence>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            PageNumber = pageNumber,
+            PageSize = pageSize
+        };
+    }
+
+    public async Task<int> GetCountForInventoryAsync(
+        EvidenceCategory? category,
+        string? warehouse,
+        string? caseNumber)
+    {
+        var q = _dbSet.Where(e => !e.IsDestroyed);
+
+        if (category.HasValue)
+            q = q.Where(e => e.Category == category.Value);
+        if (!string.IsNullOrEmpty(warehouse))
+            q = q.Where(e => e.StorageLocation != null && e.StorageLocation.Contains(warehouse));
+        if (!string.IsNullOrEmpty(caseNumber))
+            q = q.Where(e => e.CaseNumber != null && e.CaseNumber.Contains(caseNumber));
+
+        return await q.CountAsync();
+    }
 }

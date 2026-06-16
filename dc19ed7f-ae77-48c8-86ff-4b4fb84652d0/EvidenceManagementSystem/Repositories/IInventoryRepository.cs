@@ -11,4 +11,5 @@ public interface IInventoryRepository : IRepository<InventoryTask>
     Task<List<InventoryItem>> GetItemsByTaskIdAsync(Guid taskId);
     Task AddItemAsync(InventoryItem item);
     Task UpdateItemAsync(InventoryItem item);
+    Task BulkAddItemsAsync(List<InventoryItem> items);
 }

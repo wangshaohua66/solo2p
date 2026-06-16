@@ -78,4 +78,10 @@ public class InventoryRepository : Repository<InventoryTask>, IInventoryReposito
         _context.InventoryItems.Update(item);
         await _context.SaveChangesAsync();
     }
+
+    public async Task BulkAddItemsAsync(List<InventoryItem> items)
+    {
+        await _context.InventoryItems.AddRangeAsync(items);
+        await _context.SaveChangesAsync();
+    }
 }

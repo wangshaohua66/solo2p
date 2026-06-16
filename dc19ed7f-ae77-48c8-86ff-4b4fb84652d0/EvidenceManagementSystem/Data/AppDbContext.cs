@@ -18,6 +18,7 @@ public class AppDbContext : DbContext
     public DbSet<InventoryItem> InventoryItems { get; set; }
     public DbSet<DestroyRequest> DestroyRequests { get; set; }
     public DbSet<OverdueWarning> OverdueWarnings { get; set; }
+    public DbSet<OverdueApproval> OverdueApprovals { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -201,6 +202,40 @@ public class AppDbContext : DbContext
              .WithMany()
              .HasForeignKey(o => o.EvidenceId)
              .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<OverdueApproval>(b =>
+        {
+            b.HasIndex(a => a.EvidenceId);
+            b.HasIndex(a => a.WarningId);
+            b.HasIndex(a => a.Status);
+            b.HasIndex(a => a.SubmittedById);
+            b.HasIndex(a => a.SubmittedAt);
+            b.Property(a => a.Barcode).HasMaxLength(50).IsRequired();
+            b.Property(a => a.EvidenceName).HasMaxLength(200).IsRequired();
+            b.Property(a => a.Justification).HasMaxLength(500).IsRequired();
+            b.Property(a => a.ApprovalRemark).HasMaxLength(500);
+            b.Property(a => a.RejectReason).HasMaxLength(500);
+
+            b.HasOne(a => a.Evidence)
+             .WithMany()
+             .HasForeignKey(a => a.EvidenceId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            b.HasOne(a => a.Warning)
+             .WithMany()
+             .HasForeignKey(a => a.WarningId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            b.HasOne(a => a.SubmittedBy)
+             .WithMany()
+             .HasForeignKey(a => a.SubmittedById)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            b.HasOne(a => a.ApprovedBy)
+             .WithMany()
+             .HasForeignKey(a => a.ApprovedById)
+             .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

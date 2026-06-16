@@ -10,5 +10,8 @@ public enum ChainOperationType
     ExaminationStart = 6,
     ExaminationComplete = 7,
     Transfer = 8,
-    Destroy = 9
+    Destroy = 9,
+    OverdueApprovalSubmitted = 10,
+    OverdueApprovalApproved = 11,
+    OverdueApprovalRejected = 12
 }

@@ -1,12 +1,15 @@
+using EvidenceManagementSystem.Data;
 using EvidenceManagementSystem.Models.DTOs;
 using EvidenceManagementSystem.Models.Entities;
 using EvidenceManagementSystem.Models.Enums;
 using EvidenceManagementSystem.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 namespace EvidenceManagementSystem.Services;
 
 public class StatisticsService : IStatisticsService
 {
+    private readonly AppDbContext _context;
     private readonly IEvidenceRepository _evidenceRepository;
     private readonly IExaminationRepository _examinationRepository;
     private readonly IChainRecordRepository _chainRepository;
@@ -14,12 +17,14 @@ public class StatisticsService : IStatisticsService
     private readonly IUserRepository _userRepository;
 
     public StatisticsService(
+        AppDbContext context,
         IEvidenceRepository evidenceRepository,
         IExaminationRepository examinationRepository,
         IChainRecordRepository chainRepository,
         IOverdueWarningRepository warningRepository,
         IUserRepository userRepository)
     {
+        _context = context;
         _evidenceRepository = evidenceRepository;
         _examinationRepository = examinationRepository;
         _chainRepository = chainRepository;
@@ -92,100 +97,108 @@ public class StatisticsService : IStatisticsService
         var startDate = query.StartDate ?? DateTime.UtcNow.AddMonths(-1);
         var endDate = query.EndDate ?? DateTime.UtcNow;
 
-        var allUsers = await _userRepository.GetAllAsync();
-        var allTasks = await _examinationRepository.GetAllAsync();
-        var allEvidences = await _evidenceRepository.GetAllAsync();
-
-        var usersByDepartment = allUsers
+        var result = await _context.Users
             .Where(u => !string.IsNullOrEmpty(u.Department))
-            .GroupBy(u => u.Department!)
+            .GroupJoin(
+                _context.Evidences
+                    .Where(e => e.CreatedAt >= startDate && e.CreatedAt <= endDate),
+                u => u.Id,
+                e => e.CreatedBy,
+                (u, evidences) => new { u, evidences })
+            .SelectMany(
+                g => g.evidences.DefaultIfEmpty(),
+                (g, ev) => new { g.u, ev })
+            .GroupJoin(
+                _context.ExaminationTasks
+                    .Where(t => t.CreatedAt >= startDate && t.CreatedAt <= endDate),
+                g => g.u.Id,
+                t => t.ExaminerId,
+                (g, tasks) => new { g.u, g.ev, tasks })
+            .SelectMany(
+                g => g.tasks.DefaultIfEmpty(),
+                (g, task) => new { g.u, g.ev, task })
+            .GroupBy(g => g.u.Department!)
             .Select(g => new
             {
                 Department = g.Key,
-                UserIds = g.Select(u => u.Id).ToList()
+                ReceivedCount = g.Count(x => x.ev != null),
+                TotalTasks = g.Count(x => x.task != null),
+                CompletedCount = g.Count(x =>
+                    x.task != null &&
+                    x.task.Status == ExaminationStatus.Issued &&
+                    x.task.IssuedAt.HasValue &&
+                    x.task.IssuedAt >= startDate &&
+                    x.task.IssuedAt <= endDate),
+                OverdueCount = g.Count(x =>
+                    x.task != null &&
+                    x.task.Status == ExaminationStatus.Issued &&
+                    x.task.IssuedAt.HasValue &&
+                    x.task.CreatedAt.AddDays(7) < x.task.IssuedAt)
             })
-            .ToList();
+            .ToListAsync();
 
-        var result = new List<DepartmentStatisticsDto>();
-
-        foreach (var deptGroup in usersByDepartment)
+        return result.Select(r => new DepartmentStatisticsDto
         {
-            var deptUserIds = deptGroup.UserIds;
-
-            var receivedCount = allEvidences.Count(e =>
-                e.CreatedAt >= startDate && e.CreatedAt <= endDate &&
-                deptUserIds.Contains(e.CreatedBy));
-
-            var completedCount = allTasks.Count(t =>
-                t.Status == ExaminationStatus.Issued &&
-                t.IssuedAt.HasValue &&
-                t.IssuedAt >= startDate && t.IssuedAt <= endDate &&
-                deptUserIds.Contains(t.ExaminerId));
-
-            var deptTasks = allTasks.Where(t =>
-                t.CreatedAt >= startDate && t.CreatedAt <= endDate &&
-                deptUserIds.Contains(t.ExaminerId)).ToList();
-
-            var overdueCount = deptTasks.Count(t =>
-                t.Status == ExaminationStatus.Issued &&
-                t.IssuedAt.HasValue &&
-                t.CreatedAt.AddDays(7) < t.IssuedAt);
-
-            var totalDeptTasks = deptTasks.Count;
-
-            result.Add(new DepartmentStatisticsDto
-            {
-                Department = deptGroup.Department,
-                ReceivedCount = receivedCount,
-                CompletedCount = completedCount,
-                OverdueCount = overdueCount,
-                CompletionRate = totalDeptTasks > 0
-                    ? Math.Round((double)completedCount / totalDeptTasks * 100, 2)
-                    : 0
-            });
-        }
-
-        return result;
+            Department = r.Department,
+            ReceivedCount = r.ReceivedCount,
+            CompletedCount = r.CompletedCount,
+            OverdueCount = r.OverdueCount,
+            CompletionRate = r.TotalTasks > 0
+                ? Math.Round((double)r.CompletedCount / r.TotalTasks * 100, 2)
+                : 0
+        }).ToList();
     }
 
     public async Task<List<DailyStatisticsDto>> GetDailyStatisticsAsync(StatisticsQuery query)
     {
         var startDate = query.StartDate ?? DateTime.UtcNow.AddDays(-30);
         var endDate = query.EndDate ?? DateTime.UtcNow;
+        startDate = startDate.Date;
+        endDate = endDate.Date;
 
-        var result = new List<DailyStatisticsDto>();
-        var currentDate = startDate.Date;
+        var dates = Enumerable.Range(0, (endDate - startDate).Days + 1)
+            .Select(offset => startDate.AddDays(offset))
+            .ToList();
 
-        while (currentDate <= endDate.Date)
-        {
-            var nextDate = currentDate.AddDays(1);
+        var receivedByDay = await _context.Evidences
+            .Where(e => e.CreatedAt >= startDate && e.CreatedAt <= endDate.AddDays(1))
+            .GroupBy(e => e.CreatedAt.Date)
+            .Select(g => new { Date = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Date, x => x.Count);
 
-            var receivedCount = await _evidenceRepository.CountAsync(e =>
-                e.CreatedAt >= currentDate && e.CreatedAt < nextDate);
-
-            var completedCount = await _examinationRepository.CountAsync(t =>
+        var completedByDay = await _context.ExaminationTasks
+            .Where(t =>
                 t.Status == ExaminationStatus.Issued &&
                 t.IssuedAt.HasValue &&
-                t.IssuedAt >= currentDate && t.IssuedAt < nextDate);
+                t.IssuedAt >= startDate && t.IssuedAt <= endDate.AddDays(1))
+            .GroupBy(t => t.IssuedAt!.Value.Date)
+            .Select(g => new { Date = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Date, x => x.Count);
 
-            var outboundCount = await _chainRepository.CountAsync(c =>
-                c.OperationType == ChainOperationType.Outbound &&
-                c.OperationTime >= currentDate && c.OperationTime < nextDate);
+        var chainByDay = await _context.ChainRecords
+            .Where(c =>
+                (c.OperationType == ChainOperationType.Outbound || c.OperationType == ChainOperationType.Inbound) &&
+                c.OperationTime >= startDate && c.OperationTime <= endDate.AddDays(1))
+            .GroupBy(c => new { c.OperationTime.Date, c.OperationType })
+            .Select(g => new { g.Key.Date, g.Key.OperationType, Count = g.Count() })
+            .ToDictionaryAsync(x => (x.Date, x.OperationType), x => x.Count);
 
-            var inboundCount = await _chainRepository.CountAsync(c =>
-                c.OperationType == ChainOperationType.Inbound &&
-                c.OperationTime >= currentDate && c.OperationTime < nextDate);
+        var result = new List<DailyStatisticsDto>();
+        foreach (var date in dates)
+        {
+            receivedByDay.TryGetValue(date, out var receivedCount);
+            completedByDay.TryGetValue(date, out var completedCount);
+            chainByDay.TryGetValue((date, ChainOperationType.Outbound), out var outboundCount);
+            chainByDay.TryGetValue((date, ChainOperationType.Inbound), out var inboundCount);
 
             result.Add(new DailyStatisticsDto
             {
-                Date = currentDate,
+                Date = date,
                 ReceivedCount = receivedCount,
                 CompletedCount = completedCount,
                 OutboundCount = outboundCount,
                 InboundCount = inboundCount
             });
-
-            currentDate = currentDate.AddDays(1);
         }
 
         return result;

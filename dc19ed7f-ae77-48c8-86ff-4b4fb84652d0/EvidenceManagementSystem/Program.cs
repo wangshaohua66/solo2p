@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text;
 using EvidenceManagementSystem.Common;
 using EvidenceManagementSystem.Data;
+using EvidenceManagementSystem.HostedServices;
 using EvidenceManagementSystem.Middleware;
 using EvidenceManagementSystem.Repositories;
 using EvidenceManagementSystem.Services;
@@ -164,6 +165,7 @@ builder.Services.AddScoped<IExaminationRecordRepository, ExaminationRecordReposi
 builder.Services.AddScoped<IInventoryRepository, InventoryRepository>();
 builder.Services.AddScoped<IDestroyRequestRepository, DestroyRequestRepository>();
 builder.Services.AddScoped<IOverdueWarningRepository, OverdueWarningRepository>();
+builder.Services.AddScoped<IOverdueApprovalRepository, OverdueApprovalRepository>();
 
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IEvidenceService, EvidenceService>();
@@ -172,10 +174,14 @@ builder.Services.AddScoped<IExaminationService, ExaminationService>();
 builder.Services.AddScoped<IInventoryService, InventoryService>();
 builder.Services.AddScoped<IDestroyService, DestroyService>();
 builder.Services.AddScoped<IOverdueWarningService, OverdueWarningService>();
+builder.Services.AddScoped<IOverdueApprovalService, OverdueApprovalService>();
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();
+
+builder.Services.AddHostedService<OverdueWarningHostedService>();
 
 var app = builder.Build();
 
+app.UseMiddleware<RateLimitingMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 if (app.Environment.IsDevelopment())
