@@ -10,12 +10,13 @@ const {
   validateCategory,
   ValidationError
 } = require('../lib/validator');
+const { padEndVisual, centerVisual, formatDateLocal, parseDateLocal, truncateVisual } = require('../lib/utils');
 const { querySamples } = require('../lib/store');
 
 function getDateBuckets(startDate, endDate, granularity) {
   const buckets = [];
-  let cur = new Date(startDate);
-  const end = new Date(endDate);
+  let cur = parseDateLocal(startDate);
+  const end = parseDateLocal(endDate);
   while (cur <= end) {
     const y = cur.getFullYear();
     const m = cur.getMonth();
@@ -135,23 +136,27 @@ function computeStats(samples, config) {
 }
 
 function printSummary(stats, config, title) {
-  console.log(chalk.cyan.bold('\n┌──────────────────────────────────────────────────────────────────────┐'));
-  console.log(chalk.cyan.bold('│') + chalk.white.bold(` ${title || '统计汇总报告'}`.padEnd(68)) + chalk.cyan.bold('│'));
-  console.log(chalk.cyan.bold('├──────────────────────────────────────────────────────────────────────┤'));
+  const W = 66;
+  const border = (l, r) => chalk.cyan.bold(l) + '═'.repeat(W) + chalk.cyan.bold(r);
+  const line = (content) => chalk.cyan.bold('│') + padEndVisual(content, W) + chalk.cyan.bold('│');
+  const sep = (l, r) => chalk.cyan.bold(l) + '─'.repeat(W) + chalk.cyan.bold(r);
   const row = (label, value, color) => {
     const v = color ? color(String(value)) : String(value);
-    return chalk.cyan.bold('│') + `  ${chalk.yellow(label)}: ${v}` + ' '.repeat(Math.max(0, 66 - 4 - label.length - String(value).length)) + chalk.cyan.bold('│');
+    return line(`  ${chalk.yellow(label)}: ${v}`);
   };
+  console.log('\n' + border('┌', '┐'));
+  console.log(line(centerVisual(chalk.white.bold(title || '统计汇总报告'), W)));
+  console.log(border('├', '┤'));
   console.log(row('样品总数', stats.total));
   console.log(row('已出证', stats.certified, chalk.green));
   console.log(row('进行中', stats.total - stats.certified, chalk.cyan));
   console.log(row('异常样品', stats.exception, chalk.red.bold));
-  console.log(chalk.cyan.bold('├──────────────────────────────────────────────────────────────────────┤'));
+  console.log(sep('├', '┤'));
   console.log(row('已判定样品', stats.judged));
   console.log(row('合格', stats.passed, chalk.green));
   console.log(row('不合格', stats.failed, chalk.red));
   console.log(row('合格率', `${stats.passRate}%`, stats.passRate !== '-' && Number(stats.passRate) >= 95 ? chalk.green : Number(stats.passRate) >= 80 ? chalk.yellow : chalk.red));
-  console.log(chalk.cyan.bold('└──────────────────────────────────────────────────────────────────────┘'));
+  console.log(border('└', '┘'));
 }
 
 function printByCategory(byCategory, config) {
@@ -232,7 +237,7 @@ function printBySource(bySource, limit) {
     const rate = judged > 0 ? `${((data.passed / judged) * 100).toFixed(1)}%` : '-';
     table.push([
       idx + 1,
-      source.length > 22 ? source.slice(0, 20) + '..' : source,
+      truncateVisual(source, 22),
       data.total,
       chalk.green(data.passed),
       chalk.red(data.failed),
@@ -254,7 +259,7 @@ function printTrend(samples, config, startDate, endDate, granularity) {
     if (granularity === 'day') matchedKey = ds;
     else if (granularity === 'month') matchedKey = ds.slice(0, 7);
     else if (granularity === 'week') {
-      const d = new Date(ds);
+      const d = parseDateLocal(ds);
       const day = d.getDay() || 7;
       d.setDate(d.getDate() - day + 1);
       matchedKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -349,19 +354,20 @@ function register(program) {
   cmd
     .command('trend')
     .description('时间趋势分析')
-    .option('--start <date>', '起始日期 (YYYY-MM-DD)', () => {
-      const d = new Date();
-      d.setDate(d.getDate() - 29);
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    })
-    .option('--end <date>', '结束日期 (YYYY-MM-DD)', () => {
-      const d = new Date();
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    })
+    .option('--start <date>', '起始日期 (YYYY-MM-DD，默认近30天)')
+    .option('--end <date>', '结束日期 (YYYY-MM-DD，默认今天)')
     .option('-g, --granularity <g>', '粒度: day|week|month', 'day')
     .option('-c, --category <category>', '按检测类别筛选')
     .action((options) => {
       const config = loadConfig();
+      if (!options.start) {
+        const d = new Date();
+        d.setDate(d.getDate() - 29);
+        options.start = formatDateLocal(d);
+      }
+      if (!options.end) {
+        options.end = formatDateLocal(new Date());
+      }
       try {
         validateDateRange(options.start, options.end);
         if (!['day', 'week', 'month'].includes(options.granularity)) {

@@ -16,6 +16,13 @@ const {
   ValidationError
 } = require('../lib/validator');
 const {
+  padEndVisual,
+  centerVisual,
+  truncateVisual,
+  formatDateTimeLocal,
+  displayDateTime
+} = require('../lib/utils');
+const {
   getSampleById,
   updateSample,
   querySamples,
@@ -47,29 +54,30 @@ function printSampleProgress(sample, config, detailed = false) {
   const filled = Math.round(progressBarWidth * progress / 100);
   const bar = '█'.repeat(filled) + '░'.repeat(progressBarWidth - filled);
   const barColor = progress === 100 ? chalk.green : chalk.cyan;
-  const exceptionTag = sample.isException ? chalk.red.bold(' [异常]') : '';
-  console.log(chalk.cyan.bold('\n┌──────────────────────────────────────────────────┐'));
-  console.log(chalk.cyan.bold('│') + chalk.white.bold(`              样品检测进度                        `) + chalk.cyan.bold('│'));
-  console.log(chalk.cyan.bold('├──────────────────────────────────────────────────┤'));
-  console.log(chalk.cyan.bold('│') + ` ${chalk.yellow('编号:')} ${chalk.bold(sample.id)}${exceptionTag}` + ' '.repeat(Math.max(0, 48 - 8 - sample.id.length - (sample.isException ? 6 : 0))) + chalk.cyan.bold('│'));
-  console.log(chalk.cyan.bold('│') + ` ${chalk.yellow('名称:')} ${sample.name}` + ' '.repeat(Math.max(0, 48 - 8 - sample.name.length)) + chalk.cyan.bold('│'));
-  console.log(chalk.cyan.bold('│') + ` ${chalk.yellow('类别:')} ${cat.name}` + ' '.repeat(Math.max(0, 48 - 8 - cat.name.length)) + chalk.cyan.bold('│'));
-  console.log(chalk.cyan.bold('│') + ` ${chalk.yellow('状态:')} ${statusName}` + ' '.repeat(Math.max(0, 48 - 8 - flow.name.length)) + chalk.cyan.bold('│'));
-  console.log(chalk.cyan.bold('│') + ` ${chalk.yellow('进度:')} ${barColor(bar)} ${progress}%` + ' '.repeat(Math.max(0, 48 - 8 - progressBarWidth - 4 - String(progress).length)) + chalk.cyan.bold('│'));
-  console.log(chalk.cyan.bold('│') + ` ${chalk.yellow('项目:')} ${completedProjects}/${totalProjects} 已完成` + ' '.repeat(Math.max(0, 48 - 8 - String(completedProjects).length - 1 - String(totalProjects).length - 5)) + chalk.cyan.bold('│'));
-  console.log(chalk.cyan.bold('│') + ` ${chalk.yellow('采样员:')} ${sample.sampler}` + ' '.repeat(Math.max(0, 48 - 10 - sample.sampler.length)) + chalk.cyan.bold('│'));
-  console.log(chalk.cyan.bold('│') + ` ${chalk.yellow('登记时间:')} ${sample.registeredAt.slice(0, 19).replace('T', ' ')}` + ' '.repeat(Math.max(0, 48 - 12 - 19)) + chalk.cyan.bold('│'));
+  const exceptionTag = sample.isException ? ' ' + chalk.red.bold('[异常]') : '';
+  const W = 50;
+  const border = (l, r) => chalk.cyan.bold(l) + '─'.repeat(W) + chalk.cyan.bold(r);
+  const line = (content) => chalk.cyan.bold('│') + padEndVisual(content, W) + chalk.cyan.bold('│');
+  const kv = (label, value) => line(` ${chalk.yellow(label)}: ${value}`);
+  console.log('\n' + border('┌', '┐'));
+  console.log(line(centerVisual(chalk.white.bold('样品检测进度'), W)));
+  console.log(border('├', '┤'));
+  console.log(kv('编号', chalk.bold(sample.id) + exceptionTag));
+  console.log(kv('名称', sample.name));
+  console.log(kv('类别', cat.name));
+  console.log(kv('状态', statusName));
+  console.log(kv('进度', `${barColor(bar)} ${progress}%`));
+  console.log(kv('项目', `${completedProjects}/${totalProjects} 已完成`));
+  console.log(kv('采样员', sample.sampler));
+  console.log(kv('登记时间', displayDateTime(sample.registeredAt)));
   if (sample.isException && sample.exceptionReason) {
-    const reason = sample.exceptionReason;
-    if (reason.length <= 40) {
-      console.log(chalk.cyan.bold('│') + ` ${chalk.red('异常原因:')} ${reason}` + ' '.repeat(Math.max(0, 48 - 12 - reason.length)) + chalk.cyan.bold('│'));
-    }
+    console.log(kv(chalk.red('异常原因'), sample.exceptionReason));
   }
-  console.log(chalk.cyan.bold('└──────────────────────────────────────────────────┘'));
+  console.log(border('└', '┘'));
   if (detailed && sample.statusHistory && sample.statusHistory.length > 0) {
     console.log(chalk.cyan('\n状态流转历史:'));
     for (const h of sample.statusHistory) {
-      const t = h.time.slice(0, 19).replace('T', ' ');
+      const t = displayDateTime(h.time);
       const s = colorizeStatus(h.status, config);
       console.log(`  ${chalk.gray(t)}  ${s}  (${h.operator})`);
     }
@@ -81,9 +89,9 @@ function printSampleProgress(sample, config, detailed = false) {
       const val = last.mean !== undefined ? last.mean : last.value;
       const judge = last.judged;
       let judgeTag = '';
-      if (judge === true) judgeTag = chalk.green(' [合格]');
-      else if (judge === false) judgeTag = chalk.red(' [不合格]');
-      console.log(`  ${chalk.yellow(project)}: ${val}${last.unit || ''} (${results.length}次平行)${judgeTag}`);
+      if (judge === true) judgeTag = ' ' + chalk.green('[合格]');
+      else if (judge === false) judgeTag = ' ' + chalk.red('[不合格]');
+      console.log(`  ${chalk.yellow(project)}: ${val}${last.unit || ''} (${last.count}次平行)${judgeTag}`);
     }
   }
 }
@@ -113,11 +121,11 @@ function printSampleList(samples, config) {
     const pct = total > 0 ? `${Math.round(completed / total * 100)}%` : '-';
     table.push([
       s.id,
-      s.name.length > 18 ? s.name.slice(0, 16) + '..' : s.name,
+      truncateVisual(s.name, 18),
       cat,
       colorizeStatus(s.status, config),
       pct,
-      s.source.length > 14 ? s.source.slice(0, 12) + '..' : s.source,
+      truncateVisual(s.source, 14),
       s.sampler,
       s.isException ? chalk.red('是') : chalk.green('否')
     ]);
@@ -136,7 +144,7 @@ function transitionStatus(config, sampleId, newStatus, operator, reason) {
   validateStatusTransition(sample.status, newStatus, config);
   const historyEntry = {
     status: newStatus,
-    time: new Date().toISOString(),
+    time: formatDateTimeLocal(new Date()),
     operator: operator || 'system'
   };
   if (reason) {
@@ -176,14 +184,16 @@ function showDashboard(config) {
   const review = countSamples(config, { status: 'review' });
   const certified = countSamples(config, { status: 'certified' });
   const exceptions = countSamples(config, { hasException: true });
-  console.log(chalk.cyan.bold('\n╔══════════════════════════════════════════════════╗'));
-  console.log(chalk.cyan.bold('║') + chalk.white.bold(`              检测进度总览 Dashboard               `) + chalk.cyan.bold('║'));
-  console.log(chalk.cyan.bold('╠══════════════════════════════════════════════════╣'));
+  const W = 50;
+  const border = (l, r) => chalk.cyan.bold(l) + '═'.repeat(W) + chalk.cyan.bold(r);
+  const line = (content) => chalk.cyan.bold('║') + padEndVisual(content, W) + chalk.cyan.bold('║');
   const row = (label, value, color) => {
     const v = color ? color(String(value)) : String(value);
-    const pad = 40 - label.length - String(value).length;
-    return chalk.cyan.bold('║') + `  ${label}: ${v}` + ' '.repeat(Math.max(0, pad)) + chalk.cyan.bold('║');
+    return line(`  ${chalk.yellow(label)}: ${v}`);
   };
+  console.log('\n' + border('╔', '╗'));
+  console.log(line(centerVisual(chalk.white.bold('检测进度总览 Dashboard'), W)));
+  console.log(border('╠', '╣'));
   console.log(row('样品总数', all));
   console.log(row('待检', pending, chalk.yellow));
   console.log(row('检测中', testing, chalk.cyan));
@@ -194,7 +204,7 @@ function showDashboard(config) {
     const rate = ((certified / all) * 100).toFixed(1);
     console.log(row('完成率', `${rate}%`, chalk.green));
   }
-  console.log(chalk.cyan.bold('╚══════════════════════════════════════════════════╝'));
+  console.log(border('╚', '╝'));
   if (exceptions > 0) {
     console.log(chalk.red.bold(`\n⚠ 存在 ${exceptions} 个异常样品，请及时处理！`));
     const exSamples = querySamples(config, { hasException: true }).slice(0, 5);

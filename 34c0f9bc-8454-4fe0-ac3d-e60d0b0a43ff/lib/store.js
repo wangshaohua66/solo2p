@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { formatDateTimeLocal } = require('./utils');
 
 const SAMPLES_CACHE = { data: null, mtime: 0 };
 const SEQUENCES_CACHE = { data: null, mtime: 0 };
@@ -151,7 +152,7 @@ function updateSample(config, id, updates) {
   if (idx === -1) {
     throw new Error(`样品不存在: ${id}`);
   }
-  samples[idx] = { ...samples[idx], ...updates, updatedAt: new Date().toISOString() };
+  samples[idx] = { ...samples[idx], ...updates, updatedAt: formatDateTimeLocal(new Date()) };
   saveSamples(config, samples);
   return samples[idx];
 }
@@ -217,7 +218,7 @@ function addTestResult(config, sampleId, projectName, result) {
   }
   sample.testResults[projectName].push({
     ...result,
-    timestamp: new Date().toISOString()
+    timestamp: formatDateTimeLocal(new Date())
   });
   return updateSample(config, sampleId, { testResults: sample.testResults });
 }

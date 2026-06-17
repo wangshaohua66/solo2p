@@ -1,0 +1,21 @@
+{
+  "name": "default",
+  "description": "默认食品安全检测报告模板",
+  "version": "1.0.0",
+  "header": "食品安全检测报告",
+  "sections": [
+    { "key": "lab", "label": "实验室", "fields": ["name", "code"] },
+    { "key": "sample", "label": "样品信息", "fields": ["id", "name", "batch", "category", "source", "producer", "sampler", "sampleDate", "quantity", "unit"] },
+    { "key": "results", "label": "检测项目", "fields": ["name", "mean", "unit", "judged", "standard"] },
+    { "key": "overall", "label": "综合判定", "fields": ["result", "passed", "failed", "pending", "total"] }
+  ],
+  "outputFormats": ["text", "json"],
+  "fields": {
+    "reportId": { "label": "报告编号", "width": 24 },
+    "sampleName": { "label": "样品名称", "width": 24 },
+    "result": { "label": "结果", "width": 12 },
+    "unit": { "label": "单位", "width": 10 },
+    "judged": { "label": "判定", "width": 8 },
+    "standard": { "label": "标准", "width": 16 }
+  }
+}

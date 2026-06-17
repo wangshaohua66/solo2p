@@ -14,6 +14,15 @@ const {
   ValidationError
 } = require('../lib/validator');
 const {
+  padEndVisual,
+  centerVisual,
+  truncateVisual,
+  stringWidth,
+  formatDateLocal,
+  formatDateTimeLocal,
+  displayDateTime
+} = require('../lib/utils');
+const {
   generateSampleId,
   addSample,
   addSamples,
@@ -56,6 +65,7 @@ function createSample(config, data) {
     ? data.projects.filter(p => catProjects.includes(p))
     : catProjects;
   const id = data.id || generateSampleId(config);
+  const now = formatDateTimeLocal(new Date());
   return {
     id,
     name: data.name,
@@ -64,7 +74,7 @@ function createSample(config, data) {
     source: data.source,
     producer: data.producer || '',
     sampler: data.sampler,
-    sampleDate: data.sampleDate || new Date().toISOString().slice(0, 10),
+    sampleDate: data.sampleDate || formatDateLocal(new Date()),
     quantity: data.quantity || 1,
     unit: data.unit || '份',
     projects,
@@ -73,11 +83,11 @@ function createSample(config, data) {
     exceptionReason: '',
     testResults: {},
     statusHistory: [
-      { status: 'pending', time: new Date().toISOString(), operator: data.sampler || 'system' }
+      { status: 'pending', time: now, operator: data.sampler || 'system' }
     ],
-    registeredAt: new Date().toISOString(),
+    registeredAt: now,
     registeredBy: data.sampler || 'system',
-    updatedAt: new Date().toISOString(),
+    updatedAt: now,
     barcode: id,
     remark: data.remark || ''
   };
@@ -85,41 +95,42 @@ function createSample(config, data) {
 
 function printSampleCard(sample, config) {
   const cat = config.categories[sample.category];
-  console.log(chalk.cyan.bold('\n┌──────────────────────────────────────────────────┐'));
-  console.log(chalk.cyan.bold('│') + chalk.white.bold(`              样品登记成功                        `) + chalk.cyan.bold('│'));
-  console.log(chalk.cyan.bold('├──────────────────────────────────────────────────┤'));
-  console.log(chalk.cyan.bold('│') + ` ${chalk.yellow('样品编号:')} ${chalk.bold(sample.id)}` + ' '.repeat(Math.max(0, 48 - 12 - sample.id.length)) + chalk.cyan.bold('│'));
-  console.log(chalk.cyan.bold('│') + ` ${chalk.yellow('样品名称:')} ${sample.name}` + ' '.repeat(Math.max(0, 48 - 12 - sample.name.length)) + chalk.cyan.bold('│'));
+  const W = 50;
+  const border = (l, r) => chalk.cyan.bold(l) + '─'.repeat(W) + chalk.cyan.bold(r);
+  const line = (content) => chalk.cyan.bold('│') + padEndVisual(content, W) + chalk.cyan.bold('│');
+  const kv = (label, value) => line(` ${chalk.yellow(label)}: ${value}`);
+  console.log('\n' + border('┌', '┐'));
+  console.log(line(centerVisual(chalk.white.bold('样品登记成功'), W)));
+  console.log(border('├', '┤'));
+  console.log(kv('样品编号', chalk.bold(sample.id)));
+  console.log(kv('样品名称', sample.name));
   if (sample.batch) {
-    console.log(chalk.cyan.bold('│') + ` ${chalk.yellow('批次号:')} ${sample.batch}` + ' '.repeat(Math.max(0, 48 - 10 - sample.batch.length)) + chalk.cyan.bold('│'));
+    console.log(kv('批次号', sample.batch));
   }
-  console.log(chalk.cyan.bold('│') + ` ${chalk.yellow('检测类别:')} ${cat.name}` + ' '.repeat(Math.max(0, 48 - 12 - cat.name.length)) + chalk.cyan.bold('│'));
-  console.log(chalk.cyan.bold('│') + ` ${chalk.yellow('采样来源:')} ${sample.source}` + ' '.repeat(Math.max(0, 48 - 12 - sample.source.length)) + chalk.cyan.bold('│'));
-  console.log(chalk.cyan.bold('│') + ` ${chalk.yellow('采样人员:')} ${sample.sampler}` + ' '.repeat(Math.max(0, 48 - 12 - sample.sampler.length)) + chalk.cyan.bold('│'));
-  console.log(chalk.cyan.bold('│') + ` ${chalk.yellow('采样日期:')} ${sample.sampleDate}` + ' '.repeat(Math.max(0, 48 - 12 - sample.sampleDate.length)) + chalk.cyan.bold('│'));
-  console.log(chalk.cyan.bold('│') + ` ${chalk.yellow('状态:')} ${chalk.yellow('待检')}` + ' '.repeat(Math.max(0, 48 - 8 - 4)) + chalk.cyan.bold('│'));
-  console.log(chalk.cyan.bold('│') + ` ${chalk.yellow('检测项目:')} ${sample.projects.length}项` + ' '.repeat(Math.max(0, 48 - 12 - String(sample.projects.length).length - 1)) + chalk.cyan.bold('│'));
-  const projs = sample.projects.join('、');
-  if (projs.length <= 40) {
-    console.log(chalk.cyan.bold('│') + `   ${projs}` + ' '.repeat(Math.max(0, 48 - 2 - projs.length)) + chalk.cyan.bold('│'));
-  } else {
-    const parts = [];
-    let cur = '';
-    for (const p of sample.projects) {
-      if ((cur + '、' + p).length <= 40) {
-        cur = cur ? cur + '、' + p : p;
-      } else {
-        parts.push(cur);
-        cur = p;
-      }
-    }
-    if (cur) parts.push(cur);
-    for (let i = 0; i < parts.length; i++) {
-      const prefix = i === 0 ? '   ' : '   ';
-      console.log(chalk.cyan.bold('│') + ` ${prefix}${parts[i]}` + ' '.repeat(Math.max(0, 48 - 3 - parts[i].length)) + chalk.cyan.bold('│'));
+  console.log(kv('检测类别', cat.name));
+  console.log(kv('采样来源', sample.source));
+  console.log(kv('采样人员', sample.sampler));
+  console.log(kv('采样日期', sample.sampleDate));
+  console.log(kv('状态', chalk.yellow('待检')));
+  console.log(kv('检测项目', `${sample.projects.length}项`));
+  const indent = '   ';
+  const maxW = W - stringWidth(indent);
+  const parts = [];
+  let cur = '';
+  for (const p of sample.projects) {
+    const candidate = cur ? cur + '、' + p : p;
+    if (stringWidth(candidate) <= maxW) {
+      cur = candidate;
+    } else {
+      if (cur) parts.push(cur);
+      cur = p;
     }
   }
-  console.log(chalk.cyan.bold('└──────────────────────────────────────────────────┘'));
+  if (cur) parts.push(cur);
+  for (const part of parts) {
+    console.log(line(`${indent}${part}`));
+  }
+  console.log(border('└', '┘'));
   console.log(chalk.gray(`\n条码:\n${generateBarcode(sample.id)}`));
 }
 
