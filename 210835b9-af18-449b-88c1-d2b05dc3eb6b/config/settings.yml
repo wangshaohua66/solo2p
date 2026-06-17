@@ -1,0 +1,51 @@
+environments:
+  development:
+    driver: mysql
+    host: localhost
+    port: 3306
+    user: dev_user
+    password: dev_password
+    database: app_dev
+    charset: utf8mb4
+    connectionLimit: 10
+  test:
+    driver: postgresql
+    host: localhost
+    port: 5432
+    user: test_user
+    password: test_password
+    database: app_test
+    charset: utf8
+    connectionLimit: 10
+  staging:
+    driver: mysql
+    host: staging-db.internal
+    port: 3306
+    user: staging_user
+    password: staging_password
+    database: app_staging
+    charset: utf8mb4
+    connectionLimit: 20
+  production:
+    driver: mysql
+    host: prod-db.internal
+    port: 3306
+    user: prod_user
+    password: prod_password
+    database: app_production
+    charset: utf8mb4
+    connectionLimit: 50
+
+migration:
+  directory: migrations
+  versionTable: schema_migrations
+  template: default
+  timestampFormat: YYYYMMDDHHmmss
+  fileEncoding: utf-8
+
+logging:
+  level: info
+  directory: logs
+  maxFileSize: 10485760
+  maxFiles: 5
+  compress: true

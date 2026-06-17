@@ -1,0 +1,30 @@
+{
+  "name": "db-migrate-cli",
+  "version": "1.0.0",
+  "description": "Multi-environment database migration CLI tool for microservices",
+  "main": "bin/migrate.js",
+  "bin": {
+    "db-migrate": "bin/migrate.js"
+  },
+  "scripts": {
+    "start": "node bin/migrate.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["migration", "database", "cli", "mysql", "postgresql", "sqlite"],
+  "license": "MIT",
+  "dependencies": {
+    "yargs": "^17.7.2",
+    "chalk": "^4.1.2",
+    "js-yaml": "^4.1.0",
+    "mysql2": "^3.9.0",
+    "pg": "^8.11.3",
+    "better-sqlite3": "^11.0.0",
+    "cli-progress": "^3.12.0",
+    "cli-table3": "^0.6.3",
+    "inquirer": "^8.2.6",
+    "glob": "^10.3.10"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

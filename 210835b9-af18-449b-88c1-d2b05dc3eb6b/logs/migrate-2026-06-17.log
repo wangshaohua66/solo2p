@@ -1,0 +1,27 @@
+[2026-06-17T10:19:49.534Z] [INFO] Migration created: 20260617181949_create_users_table {"version":"20260617181949","name":"create_users_table","filePath":"/Users/paul/WorkSpace/TestSoloCoder/210835b9-af18-449b-88c1-d2b05dc3eb6b/migrations/20260617181949_create_users_table.js"}
+[2026-06-17T10:20:34.947Z] [ERROR] Status query failed: Failed to query migration status: Failed to create schema version table "schema_migrations": Query execution failed: The supplied SQL string contains more than one statement {"env":"development","error":"Failed to query migration status: Failed to create schema version table \"schema_migrations\": Query execution failed: The supplied SQL string contains more than one statement"}
+[2026-06-17T10:21:23.462Z] [INFO] Status query completed in 2ms {"env":"development","elapsedMs":2,"totalMigrations":1}
+[2026-06-17T10:21:31.386Z] [INFO] Migration started: 20260617181949_create_users_table {"version":"20260617181949","name":"create_users_table","action":"up_start"}
+[2026-06-17T10:21:31.387Z] [INFO] Migration completed: 20260617181949_create_users_table {"version":"20260617181949","name":"create_users_table","action":"up_success","executionTimeMs":1}
+[2026-06-17T10:21:36.923Z] [INFO] Status query completed in 1ms {"env":"development","elapsedMs":1,"totalMigrations":1}
+[2026-06-17T10:21:42.813Z] [INFO] Rollback started: 20260617181949_create_users_table {"version":"20260617181949","name":"create_users_table","action":"down_start"}
+[2026-06-17T10:21:42.815Z] [INFO] Rollback completed: 20260617181949_create_users_table {"version":"20260617181949","name":"create_users_table","action":"down_success","executionTimeMs":2}
+[2026-06-17T10:21:52.529Z] [INFO] Migration created: 20260617182152_add_orders_table {"version":"20260617182152","name":"add_orders_table","filePath":"/Users/paul/WorkSpace/TestSoloCoder/210835b9-af18-449b-88c1-d2b05dc3eb6b/migrations/20260617182152_add_orders_table.js"}
+[2026-06-17T10:22:15.470Z] [INFO] Migration started: 20260617181949_create_users_table {"version":"20260617181949","name":"create_users_table","action":"up_start"}
+[2026-06-17T10:22:15.472Z] [INFO] Migration completed: 20260617181949_create_users_table {"version":"20260617181949","name":"create_users_table","action":"up_success","executionTimeMs":1}
+[2026-06-17T10:22:15.472Z] [INFO] Migration started: 20260617182152_add_orders_table {"version":"20260617182152","name":"add_orders_table","action":"up_start"}
+[2026-06-17T10:22:15.472Z] [ERROR] Migration failed: 20260617182152_add_orders_table {"version":"20260617182152","name":"add_orders_table","action":"up_failure","error":"Query in transaction failed: no such table: non_existent_table"}
+[2026-06-17T10:22:15.472Z] [INFO] Migration rolled back: 20260617182152_add_orders_table {"version":"20260617182152","executionTimeMs":0}
+[2026-06-17T10:22:23.786Z] [INFO] Status query completed in 1ms {"env":"development","elapsedMs":1,"totalMigrations":2}
+[2026-06-17T10:22:38.561Z] [INFO] Migration started: 20260617181949_create_users_table {"version":"20260617181949","name":"create_users_table","action":"up_start"}
+[2026-06-17T10:22:38.562Z] [INFO] Migration completed: 20260617181949_create_users_table {"version":"20260617181949","name":"create_users_table","action":"up_success","executionTimeMs":1}
+[2026-06-17T10:22:38.562Z] [INFO] Migration started: 20260617182152_add_orders_table {"version":"20260617182152","name":"add_orders_table","action":"up_start"}
+[2026-06-17T10:22:38.563Z] [INFO] Migration completed: 20260617182152_add_orders_table {"version":"20260617182152","name":"add_orders_table","action":"up_success","executionTimeMs":1}
+[2026-06-17T10:22:38.745Z] [INFO] Status query completed in 1ms {"env":"development","elapsedMs":1,"totalMigrations":2}
+[2026-06-17T10:22:38.919Z] [INFO] Status query completed in 1ms {"env":"test","elapsedMs":1,"totalMigrations":2}
+[2026-06-17T10:22:47.815Z] [INFO] Migration started: 20260617182152_add_orders_table {"version":"20260617182152","name":"add_orders_table","action":"up_start"}
+[2026-06-17T10:22:47.816Z] [INFO] Migration completed: 20260617182152_add_orders_table {"version":"20260617182152","name":"add_orders_table","action":"up_success","executionTimeMs":1}
+[2026-06-17T10:23:00.894Z] [INFO] Rollback started: 20260617182152_add_orders_table {"version":"20260617182152","name":"add_orders_table","action":"down_start"}
+[2026-06-17T10:23:00.895Z] [INFO] Rollback completed: 20260617182152_add_orders_table {"version":"20260617182152","name":"add_orders_table","action":"down_success","executionTimeMs":1}
+[2026-06-17T10:23:00.895Z] [INFO] Rollback started: 20260617181949_create_users_table {"version":"20260617181949","name":"create_users_table","action":"down_start"}
+[2026-06-17T10:23:00.896Z] [INFO] Rollback completed: 20260617181949_create_users_table {"version":"20260617181949","name":"create_users_table","action":"down_success","executionTimeMs":1}
