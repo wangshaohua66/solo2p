@@ -27,6 +27,7 @@ var PrescriptionEngine = (function() {
   function validatePrescription(p, opts) {
     opts = opts || {};
     var warnings = [];
+    var errors = [];
     var herbIds = {};
     var itemsById = {};
     p.items.forEach(function(it, idx) {
@@ -52,33 +53,36 @@ var PrescriptionEngine = (function() {
 
       h1.eighteenAnti.forEach(function(oid) {
         if (itemsById[oid]) {
-          warnings.push({
+          var w = {
             type: '十八反', severity: 'danger',
             herbs: [h1.name, (HerbData.getById(oid)||{}).name],
             message: h1.name + ' 与 ' + (HerbData.getById(oid)||{}).name + ' 属于十八反配伍禁忌，严禁同用',
             items: [herbIds[itemKeys[i]], herbIds[oid]]
-          });
+          };
+          errors.push(w); warnings.push(w);
         }
       });
       h1.nineteenFear.forEach(function(oid) {
         if (itemsById[oid]) {
-          warnings.push({
+          var w = {
             type: '十九畏', severity: 'danger',
             herbs: [h1.name, (HerbData.getById(oid)||{}).name],
             message: h1.name + ' 与 ' + (HerbData.getById(oid)||{}).name + ' 属于十九畏配伍，相互制约降低疗效',
             items: [herbIds[itemKeys[i]], herbIds[oid]]
-          });
+          };
+          errors.push(w); warnings.push(w);
         }
       });
 
       if (p.isPregnant || (opts.forcePregnant)) {
         if (h1.pregnancy === '禁用') {
-          warnings.push({
+          var w = {
             type: '妊娠禁用', severity: 'danger',
             herbs: [h1.name],
             message: h1.name + ' 为妊娠禁用药，孕妇绝对禁止使用',
             items: [herbIds[itemKeys[i]]]
-          });
+          };
+          errors.push(w); warnings.push(w);
         } else if (h1.pregnancy === '慎用') {
           warnings.push({
             type: '妊娠慎用', severity: 'warning',
@@ -90,12 +94,13 @@ var PrescriptionEngine = (function() {
       }
 
       if (h1.maxDose > 0 && it1.dosage > h1.maxDose * 1.2) {
-        warnings.push({
+        var w = {
           type: '剂量超限', severity: 'danger',
           herbs: [h1.name],
           message: h1.name + ' 剂量 ' + it1.dosage + 'g 超出上限 ' + h1.maxDose + 'g ' + (Math.round(it1.dosage/h1.maxDose*100)-100) + '%，已超过药典常用量120%红线',
           items: [herbIds[itemKeys[i]]]
-        });
+        };
+        errors.push(w); warnings.push(w);
       } else if (h1.maxDose > 0 && it1.dosage > h1.maxDose) {
         warnings.push({
           type: '剂量超限', severity: 'warning',
@@ -113,16 +118,18 @@ var PrescriptionEngine = (function() {
         });
       }
       if (h1.toxicity === '大毒' && it1.dosage > (h1.maxDose || 3)) {
-        warnings.push({
+        var w = {
           type: '剂量超限', severity: 'danger',
           herbs: [h1.name],
           message: h1.name + ' 为大毒药品，剂量 ' + it1.dosage + 'g 已达安全阈值上限，请务必审慎',
           items: [herbIds[itemKeys[i]]]
-        });
+        };
+        errors.push(w); warnings.push(w);
       }
     }
     p.warnings = warnings;
-    return warnings;
+    p.errors = errors;
+    return { warnings: warnings, errors: errors };
   }
 
   function addHerbByObject(herbObj, opts) {
@@ -134,7 +141,16 @@ var PrescriptionEngine = (function() {
 
     var idx = currentPrescription.items.findIndex(function(it) { return it.herbId === h.id; });
     if (idx >= 0) {
-      return { duplicate: true, warning: canonName + ' 已在处方中，自动叠加剂量', itemIndex: idx };
+      var addDosage = herbObj.dosage || opts.dosage;
+      if (addDosage) {
+        currentPrescription.items[idx].dosage = Math.round((currentPrescription.items[idx].dosage + addDosage) * 10) / 10;
+      } else {
+        var defDose = Math.round((h.minDose + (h.maxDose - h.minDose) * 0.4) * 10) / 10;
+        currentPrescription.items[idx].dosage = Math.round((currentPrescription.items[idx].dosage + defDose) * 10) / 10;
+      }
+      currentPrescription.updatedAt = Date.now();
+      if (opts.validate !== false) validatePrescription(currentPrescription);
+      return { duplicate: true, merged: true, warning: canonName + ' 已在处方中，自动叠加剂量', itemIndex: idx, item: currentPrescription.items[idx] };
     }
 
     var defDose = Math.round((h.minDose + (h.maxDose - h.minDose) * 0.4) * 10) / 10;

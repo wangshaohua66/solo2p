@@ -222,7 +222,7 @@ var App = (function() {
         .reduce(function(sum, r) { return sum + (r.items || []).reduce(function(s, it) { return s + it.dosage * (r.totalDose||1); }, 0); }, 0);
       monthCounts.push({ label: (d.getMonth()+1) + '月', count: cnt, grams: Math.round(herbSum/1000) });
     }
-    var recentWl = wl.slice().sort(function(a, b) { return (b.ts || 0) - (a.ts || 0); }).slice(0, 6);
+    var recentWl = wl.slice().sort(function(a, b) { return (b.createdAt || 0) - (a.createdAt || 0); }).slice(0, 6);
 
     var html = pageHeader('经营总览', '系统仪表盘', 'bi-speedometer2',
       [{label:'快速导航',items:[
@@ -303,7 +303,7 @@ var App = (function() {
         html += '<div class="list-group-item px-3 py-2 bg-' + sev + '-subtle border-0">'
           + '<div class="d-flex align-items-center mb-1">'
           + '<span class="badge bg-' + sev + ' text-white me-2"><i class="bi bi-' + (sev==='danger'?'exclamation-octagon-fill':'exclamation-triangle-fill') + ' me-1"></i>' + w.type + '</span>'
-          + '<small class="text-muted ms-auto">' + relativeTime(w.ts || Date.now()) + '</small></div>'
+          + '<small class="text-muted ms-auto">' + relativeTime(w.createdAt || Date.now()) + '</small></div>'
           + '<div class="small">' + (w.message || '') + '</div>'
           + '<div class="d-flex gap-1 mt-1">';
         (w.herbs || []).forEach(function(h) { html += '<span class="herb-chip">' + h + '</span>'; });
@@ -970,7 +970,7 @@ var App = (function() {
     AppRouter.on('/settings', pageSettings);
     AppRouter.on('/', function() { window.location.hash = '#/dashboard'; });
     AppRouter.notFound(function(ctx, $app) {
-      $app.html('<div class="card p-5 text-center" style="border-radius:12px"><h3 class="mb-3 text-herb-red"><i class="bi bi-signpost-split me-2"></i>迷路了？</h3><p class="text-muted mb-3">路径 [' + ctx.path + '] 不存在，系统已为您准备好茶歇会儿～</p><a class="btn btn-herg" href="#/dashboard"><i class="bi bi-house me-1"></i>返回首页</a></div>');
+      $app.html('<div class="card p-5 text-center" style="border-radius:12px"><h3 class="mb-3 text-herb-red"><i class="bi bi-signpost-split me-2"></i>迷路了？</h3><p class="text-muted mb-3">路径 [' + ctx.path + '] 不存在，系统已为您准备好茶歇会儿～</p><a class="btn btn-herb" href="#/dashboard"><i class="bi bi-house me-1"></i>返回首页</a></div>');
     });
     AppRouter.init();
     $(window).on('route:changed', function(_, c) {
