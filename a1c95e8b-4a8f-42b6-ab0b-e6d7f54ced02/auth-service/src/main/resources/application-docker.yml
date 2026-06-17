@@ -1,0 +1,32 @@
+server:
+  port: 9100
+
+spring:
+  application:
+    name: auth-service
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/heritage_auth}
+      auto-index-creation: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URI:http://eureka:eureka123@localhost:8761/eureka/}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.cloud.client.ip-address}:${server.port}
+
+jwt:
+  secret: ${JWT_SECRET:heritage-platform-jwt-secret-key-2024-very-long-and-secure-key-for-signing}
+  expiration: ${JWT_EXPIRATION:86400000}
+  refresh-expiration: 604800000
+  header: Authorization
+  prefix: "Bearer "
+
+logging:
+  level:
+    com.heritage.auth: INFO
+    org.springframework.security: INFO

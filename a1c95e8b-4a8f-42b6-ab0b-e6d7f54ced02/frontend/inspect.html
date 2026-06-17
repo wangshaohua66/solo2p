@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>巡查监测 - 文化遗产数字化保护平台</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="sidebar" id="sidebar-root"></div>
+  <div class="main-content">
+    <div class="topbar" id="topbar-root"></div>
+    <div class="page-content">
+      <ul class="nav nav-tabs" style="margin-bottom:20px;">
+        <li class="nav-item"><a class="nav-link active" data-view="tasks">📋 巡查任务</a></li>
+        <li class="nav-item"><a class="nav-link" data-view="diseases">🦠 病害记录</a></li>
+        <li class="nav-item"><a class="nav-link" data-view="alerts">🚨 预警通知</a></li>
+        ${Auth.isAdmin() ? '<li class="nav-item"><a class="nav-link" data-view="create">➕ 填报病害</a></li>' : ''}
+        ${Auth.isInspector() ? '<li class="nav-item"><a class="nav-link" data-view="create">➕ 填报病害</a></li>' : ''}
+      </ul>
+
+      <div id="view-tasks">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <h5 style="margin:0;">巡查任务列表</h5>
+          ${Auth.isAdmin() ? '<button class="btn btn-primary" id="btn-new-task">+ 派发任务</button>' : ''}
+        </div>
+        <div class="card"><div class="card-body" style="padding:0;">
+          <div class="table-responsive"><table class="table table-hover" style="margin:0;">
+            <thead><tr><th>任务名称</th><th>巡查员</th><th>文物/地点</th><th>计划时间</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody id="task-tbody"><tr><td colspan="6" style="text-align:center;padding:40px;"><div class="loading-spinner"></div></td></tr></tbody>
+          </table></div>
+        </div></div>
+      </div>
+
+      <div id="view-diseases" style="display:none;">
+        <div class="filter-bar">
+          <div class="filter-item"><label>病害类型</label>
+            <select class="form-select" id="f-disease">
+              <option value="">全部</option>
+              <option>CRACK</option><option>DEFORMATION</option><option>CORROSION</option>
+              <option>PEELING</option><option>DISCOLORATION</option><option>MOLD</option>
+              <option>PEST</option><option>WEATHERING</option><option>WATER_STAIN</option>
+              <option>FIRE_DAMAGE</option><option>OTHER</option>
+            </select>
+          </div>
+          <div class="filter-item"><label>预警级别</label>
+            <select class="form-select" id="f-alert">
+              <option value="">全部</option>
+              <option value="LOW">低</option>
+              <option value="MEDIUM">中</option>
+              <option value="HIGH">高</option>
+              <option value="CRITICAL">紧急</option>
+            </select>
+          </div>
+          <div class="filter-item"><label>处理状态</label>
+            <select class="form-select" id="f-resolved">
+              <option value="">全部</option>
+              <option value="false">未处理</option>
+              <option value="true">已处理</option>
+            </select>
+          </div>
+          <div class="filter-item"><label>&nbsp;</label><button class="btn btn-primary" id="btn-search-dis">🔍 查询</button></div>
+        </div>
+        <div class="card"><div class="card-body" style="padding:0;">
+          <div class="table-responsive"><table class="table table-hover" style="margin:0;">
+            <thead><tr><th>文物</th><th>病害类型</th><th>预警级别</th><th>描述</th><th>发现人</th><th>发现时间</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody id="dis-tbody"><tr><td colspan="8" style="text-align:center;padding:40px;"><div class="loading-spinner"></div></td></tr></tbody>
+          </table></div>
+        </div></div>
+      </div>
+
+      <div id="view-alerts" style="display:none;">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 style="margin:0;">🚨 预警通知</h5>
+          <button class="btn btn-sm btn-outline-primary" id="btn-ack-all">全部确认</button>
+        </div>
+        <div id="alert-list"></div>
+      </div>
+
+      <div id="view-create" style="display:none;">
+        <div class="card">
+          <div class="card-header"><h5>📝 病害记录填报</h5><span style="font-size:12px;color:#6c757d;">巡查员移动端 / PC端通用</span></div>
+          <div class="card-body">
+            <form id="disease-form">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label">文物编号 *</label>
+                  <input type="text" class="form-control" id="d-artifactId" placeholder="如：WH20240115000001" required>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">病害类型 *</label>
+                  <select class="form-select" id="d-type" required>
+                    <option value="">请选择</option>
+                    <option>CRACK</option><option>DEFORMATION</option><option>CORROSION</option>
+                    <option>PEELING</option><option>DISCOLORATION</option><option>MOLD</option>
+                    <option>PEST</option><option>WEATHERING</option><option>WATER_STAIN</option>
+                    <option>FIRE_DAMAGE</option><option>OTHER</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">预警级别</label>
+                  <select class="form-select" id="d-alert">
+                    <option value="">自动识别</option>
+                    <option value="LOW">低</option>
+                    <option value="MEDIUM">中</option>
+                    <option value="HIGH">高</option>
+                    <option value="CRITICAL">紧急</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">位置描述</label>
+                  <input type="text" class="form-control" id="d-location" placeholder="如：东侧山墙上部">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">GPS坐标（选填）</label>
+                  <input type="text" class="form-control" id="d-gps" placeholder="经度, 纬度" readonly>
+                  <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="InspectPage.getGPS()">📍 获取当前位置</button>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">病害描述 *</label>
+                  <textarea class="form-control" id="d-desc" rows="3" placeholder="详细描述病害情况、严重程度..." required></textarea>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">现场照片</label>
+                  <input type="file" class="form-control" id="d-photos" accept="image/*" multiple>
+                  <small class="text-muted">可上传多张现场照片</small>
+                </div>
+              </div>
+              <div class="mt-4">
+                <button type="button" class="btn btn-primary" id="btn-submit-dis">✅ 提交病害记录</button>
+                <button type="reset" class="btn btn-outline-secondary">重置</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="taskModal">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title">派发巡查任务</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+          <div class="mb-3"><label class="form-label">任务名称 *</label><input type="text" class="form-control" id="tk-name" required></div>
+          <div class="mb-3"><label class="form-label">巡查员</label>
+            <select class="form-select" id="tk-inspector">
+              <option value="inspector1">巡查员 - 王师傅</option>
+              <option value="inspector2">巡查员 - 李师傅</option>
+              <option value="inspector3">巡查员 - 张师傅</option>
+            </select>
+          </div>
+          <div class="mb-3"><label class="form-label">文物/地点</label><input type="text" class="form-control" id="tk-artifact"></div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6"><label class="form-label">计划开始</label><input type="datetime-local" class="form-control" id="tk-start"></div>
+            <div class="col-md-6"><label class="form-label">计划结束</label><input type="datetime-local" class="form-control" id="tk-end"></div>
+          </div>
+          <div class="mb-3"><label class="form-label">备注</label><textarea class="form-control" id="tk-remark" rows="2"></textarea></div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button class="btn btn-primary" id="btn-save-task">派发</button></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+    Layout.mount('inspect');
+    const InspectPage = {
+      async loadTasks() {
+        try {
+          const list = await Api.get('/inspect/tasks?page=0&size=50');
+          const items = list.content || list || [];
+          if (!items.length) {
+            $('#task-tbody').html('<tr><td colspan="6"><div class="empty-state"><i>📭</i><h4>暂无巡查任务</h4></div></td></tr>');
+            return;
+          }
+          const st = { PENDING:['待执行','secondary'], IN_PROGRESS:['执行中','primary'], COMPLETED:['已完成','success'], CANCELLED:['已取消','light'] };
+          $('#task-tbody').html(items.map(t => {
+            const s = st[t.status] || [t.status,'secondary'];
+            return `
+              <tr>
+                <td style="font-weight:600;">${Utils.esc(t.title||'未命名')}</td>
+                <td>${Utils.esc(t.inspectorName||t.inspectorId||'-')}</td>
+                <td>${Utils.esc(t.artifactName||t.location||'-')}</td>
+                <td>${Utils.fmtDay(t.plannedStartTime)} ~ ${Utils.fmtDay(t.plannedEndTime)}</td>
+                <td><span class="badge bg-${s[1]}">${s[0]}</span></td>
+                <td>
+                  ${t.status==='PENDING'?`<button class="btn btn-sm btn-primary" onclick="InspectPage.startTask('${t.id}')">开始</button> `:''}
+                  ${t.status==='IN_PROGRESS'?`<button class="btn btn-sm btn-success" onclick="InspectPage.completeTask('${t.id}')">完成</button> `:''}
+                  <button class="btn btn-sm btn-outline-secondary">详情</button>
+                </td>
+              </tr>
+            `;
+          }).join(''));
+        } catch(e) {
+          $('#task-tbody').html('<tr><td colspan="6"><div class="empty-state"><i>❌</i><h4>加载失败</h4></div></td></tr>');
+        }
+      },
+      async loadDiseases() {
+        const params = new URLSearchParams({
+          diseaseType: $('#f-disease').val(),
+          alertLevel: $('#f-alert').val(),
+          resolved: $('#f-resolved').val(),
+          page: 0, size: 50
+        });
+        try {
+          const list = await Api.get('/inspect/diseases?' + params);
+          const items = list.content || list || [];
+          if (!items.length) {
+            $('#dis-tbody').html('<tr><td colspan="8"><div class="empty-state"><i>📭</i><h4>暂无病害记录</h4></div></td></tr>');
+            return;
+          }
+          const ac = { LOW:'success', MEDIUM:'info', HIGH:'warning', CRITICAL:'danger' };
+          $('#dis-tbody').html(items.map(d => `
+            <tr>
+              <td>${Utils.esc(d.artifactName||d.artifactId||'-')}</td>
+              <td>${Utils.diseaseLabel(d.diseaseType)}</td>
+              <td><span class="badge bg-${ac[d.alertLevel]||'secondary'}">${Utils.alertLabel(d.alertLevel)}</span></td>
+              <td style="max-width:220px;">${Utils.esc((d.description||'').slice(0,40))}${d.description&&d.description.length>40?'...':''}</td>
+              <td>${Utils.esc(d.inspectorName||d.inspectorId||'-')}</td>
+              <td>${Utils.fmtDate(d.foundAt)}</td>
+              <td>${d.resolved?'<span class="badge bg-success">已处理</span>':'<span class="badge bg-danger">未处理</span>'}</td>
+              <td>
+                ${!d.resolved?`<button class="btn btn-sm btn-success" onclick="InspectPage.resolveDis('${d.id}')">标记处理</button> `:''}
+                <button class="btn btn-sm btn-outline-secondary">查看</button>
+              </td>
+            </tr>
+          `).join(''));
+        } catch(e) {
+          $('#dis-tbody').html('<tr><td colspan="8"><div class="empty-state"><i>❌</i><h4>加载失败</h4></div></td></tr>');
+        }
+      },
+      async loadAlerts() {
+        try {
+          const list = await Api.get('/inspect/alerts?acknowledged=false&page=0&size=50');
+          const items = list.content || list || [];
+          if (!items.length) {
+            $('#alert-list').html('<div class="empty-state"><i>✅</i><h4>暂无待处理预警</h4></div>');
+            return;
+          }
+          const ac = { LOW:'success', MEDIUM:'info', HIGH:'warning', CRITICAL:'danger' };
+          $('#alert-list').html(items.map(a => `
+            <div class="card" style="border-left:4px solid var(--bs-${ac[a.alertLevel]||'secondary'});">
+              <div class="card-body" style="padding:16px 20px;">
+                <div class="d-flex align-items-start gap-3">
+                  <div style="font-size:32px;">${a.alertLevel==='CRITICAL'?'🚨':a.alertLevel==='HIGH'?'⚠️':a.alertLevel==='MEDIUM'?'⚡':'ℹ️'}</div>
+                  <div class="flex-grow-1">
+                    <h6 style="margin:0 0 6px;font-weight:600;">${Utils.alertLabel(a.alertLevel)}预警 - ${Utils.esc(a.title||'病害预警')}</h6>
+                    <p style="margin:0 0 8px;font-size:13px;color:#6c757d;">${Utils.esc(a.message||'')}</p>
+                    <small style="color:#adb5bd;">文物: ${Utils.esc(a.artifactName||'-')} · ${Utils.fmtDate(a.createdAt)}</small>
+                  </div>
+                  <button class="btn btn-sm btn-outline-primary" onclick="InspectPage.ackAlert('${a.id}')">确认</button>
+                </div>
+              </div>
+            </div>
+          `).join(''));
+        } catch(e) {
+          $('#alert-list').html('<div class="empty-state"><i>❌</i><h4>加载失败</h4></div>');
+        }
+      },
+      async startTask(id) {
+        try { await Api.put(`/inspect/tasks/${id}/start`); Toast.success('任务已开始'); this.loadTasks(); } catch(e){}
+      },
+      async completeTask(id) {
+        try { await Api.put(`/inspect/tasks/${id}/complete`); Toast.success('任务已完成'); this.loadTasks(); } catch(e){}
+      },
+      async resolveDis(id) {
+        try { await Api.put(`/inspect/diseases/${id}/resolve`); Toast.success('病害已标记处理'); this.loadDiseases(); } catch(e){}
+      },
+      async ackAlert(id) {
+        try { await Api.put(`/inspect/alerts/${id}/acknowledge`); Toast.success('已确认'); this.loadAlerts(); } catch(e){}
+      },
+      async submitDisease() {
+        const artifactId = $('#d-artifactId').val().trim();
+        const diseaseType = $('#d-type').val();
+        const description = $('#d-desc').val().trim();
+        if (!artifactId || !diseaseType || !description) {
+          Toast.warning('请填写必填项'); return;
+        }
+        let alertLevel = $('#d-alert').val();
+        if (!alertLevel) alertLevel = Utils.diseaseAlertLevel(diseaseType);
+        try {
+          const saved = await Api.post('/inspect/diseases', {
+            artifactId, diseaseType, alertLevel,
+            locationDescription: $('#d-location').val().trim(),
+            gpsCoordinate: $('#d-gps').val().trim(),
+            description
+          });
+          Toast.success('病害记录已提交，预警已自动生成');
+          $('#disease-form')[0].reset();
+        } catch(e) {}
+      },
+      getGPS() {
+        if (!navigator.geolocation) { Toast.warning('浏览器不支持定位'); return; }
+        $('#d-gps').val('定位中...');
+        navigator.geolocation.getCurrentPosition(
+          p => $('#d-gps').val(`${p.coords.longitude.toFixed(6)}, ${p.coords.latitude.toFixed(6)}`),
+          () => { $('#d-gps').val(''); Toast.warning('定位失败'); }
+        );
+      },
+      async createTask() {
+        try {
+          await Api.post('/inspect/tasks', {
+            title: $('#tk-name').val().trim(),
+            inspectorId: $('#tk-inspector').val(),
+            artifactName: $('#tk-artifact').val().trim(),
+            plannedStartTime: $('#tk-start').val(),
+            plannedEndTime: $('#tk-end').val(),
+            remark: $('#tk-remark').val().trim()
+          });
+          Toast.success('任务已派发');
+          bootstrap.Modal.getInstance(document.getElementById('taskModal')).hide();
+          this.loadTasks();
+        } catch(e) {}
+      },
+      switchView(v) {
+        $('[id^="view-"]').hide();
+        $('#view-' + v).show();
+        if (v==='tasks') this.loadTasks();
+        if (v==='diseases') this.loadDiseases();
+        if (v==='alerts') this.loadAlerts();
+      }
+    };
+
+    $('.nav-tabs .nav-link').on('click', function() {
+      $('.nav-tabs .nav-link').removeClass('active');
+      $(this).addClass('active');
+      InspectPage.switchView($(this).data('view'));
+    });
+    $('#btn-new-task').on('click', () => new bootstrap.Modal(document.getElementById('taskModal')).show());
+    $('#btn-save-task').on('click', () => InspectPage.createTask());
+    $('#btn-submit-dis').on('click', () => InspectPage.submitDisease());
+    $('#btn-search-dis').on('click', () => InspectPage.loadDiseases());
+    $('#btn-ack-all').on('click', () => { if (confirm('确认全部已读？')) Toast.success('操作成功'); InspectPage.loadAlerts(); });
+    InspectPage.loadTasks();
+  </script>
+</body>
+</html>

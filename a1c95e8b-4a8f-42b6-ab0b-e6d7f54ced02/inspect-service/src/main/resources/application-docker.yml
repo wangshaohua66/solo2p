@@ -1,0 +1,34 @@
+server:
+  port: 9500
+
+spring:
+  application:
+    name: inspect-service
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/heritage_inspect}
+      auto-index-creation: true
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URI:http://eureka:eureka123@localhost:8761/eureka/}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.cloud.client.ip-address}:${server.port}
+
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  accessKey: ${MINIO_ACCESS_KEY:minioadmin}
+  secretKey: ${MINIO_SECRET_KEY:minioadmin123}
+  bucketName: ${MINIO_BUCKET:heritage-inspect}
+
+logging:
+  level:
+    com.heritage.inspect: INFO

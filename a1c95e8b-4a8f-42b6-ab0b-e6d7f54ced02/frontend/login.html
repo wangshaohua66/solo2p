@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 - 文化遗产数字化保护平台</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="login-wrapper">
+    <div class="login-card">
+      <div class="login-logo">
+        <div class="icon">🏛️</div>
+        <h1>文化遗产数字化保护平台</h1>
+        <p>Cultural Heritage Digital Protection Platform</p>
+      </div>
+      <form id="loginForm">
+        <div class="mb-3">
+          <label class="form-label">用户名</label>
+          <input type="text" class="form-control" id="username" placeholder="请输入用户名" value="admin" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">密码</label>
+          <input type="password" class="form-control" id="password" placeholder="请输入密码" value="admin123" required>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="remember" checked>
+            <label class="form-check-label" for="remember" style="font-size:13px;color:#6c757d;">记住登录</label>
+          </div>
+          <a href="#" style="font-size:13px;color:#8B4513;">忘记密码？</a>
+        </div>
+        <button type="submit" class="btn btn-primary w-100" id="loginBtn">登 录</button>
+      </form>
+      <div class="mt-4 pt-3" style="border-top:1px solid #eee;">
+        <p style="font-size:12px;color:#6c757d;margin:0;text-align:center;">
+          测试账号：admin/admin123（管理员）、expert/expert123（专家）、restorer/restorer123（修复师）
+        </p>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+    if (Auth.getToken()) location.href = 'dashboard.html';
+
+    $('#loginForm').on('submit', async function(e) {
+      e.preventDefault();
+      const $btn = $('#loginBtn');
+      $btn.prop('disabled', true).text('登录中...');
+      try {
+        const data = await Api.post('/auth/login', {
+          username: $('#username').val().trim(),
+          password: $('#password').val()
+        });
+        Auth.setAuth(data.accessToken, data.user);
+        Toast.success('登录成功');
+        setTimeout(() => location.href = 'dashboard.html', 500);
+      } catch(err) {
+        $btn.prop('disabled', false).text('登 录');
+      }
+    });
+  </script>
+</body>
+</html>

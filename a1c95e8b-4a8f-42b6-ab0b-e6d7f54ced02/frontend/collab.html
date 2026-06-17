@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>专家协作 - 文化遗产数字化保护平台</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="sidebar" id="sidebar-root"></div>
+  <div class="main-content">
+    <div class="topbar" id="topbar-root"></div>
+    <div class="page-content">
+      <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <h4 style="margin:0;">👥 专家协作鉴定</h4>
+        <button class="btn btn-primary" id="btn-new-task" ${Auth.isExpert()&&!Auth.isAdmin()?'':'style="display:none;"'}>+ 发起鉴定任务</button>
+        ${Auth.isAdmin() ? '<button class="btn btn-primary" id="btn-new-task2">+ 发起鉴定任务</button>' : ''}
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <ul class="nav nav-tabs" style="border:none;margin:-16px -20px;">
+            <li class="nav-item"><a class="nav-link active" data-status="">全部</a></li>
+            <li class="nav-item"><a class="nav-link" data-status="DRAFT">草稿</a></li>
+            <li class="nav-item"><a class="nav-link" data-status="INVITING">邀请专家</a></li>
+            <li class="nav-item"><a class="nav-link" data-status="IN_PROGRESS">鉴定中</a></li>
+            <li class="nav-item"><a class="nav-link" data-status="COMPLETED">已完成</a></li>
+            <li class="nav-item"><a class="nav-link" data-status="CANCELLED">已取消</a></li>
+          </ul>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <div class="table-responsive">
+            <table class="table table-hover" style="margin:0;">
+              <thead>
+                <tr>
+                  <th>任务名称</th>
+                  <th>关联文物</th>
+                  <th>参与专家</th>
+                  <th>状态</th>
+                  <th>创建时间</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="task-tbody">
+                <tr><td colspan="6" style="text-align:center;padding:40px;color:#6c757d;"><div class="loading-spinner"></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="collab-workspace" style="display:none;">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <h4 style="margin:0;" id="ws-title">鉴定协作空间</h4>
+          <div>
+            <button class="btn btn-outline-secondary" id="btn-back">← 返回列表</button>
+            <button class="btn btn-warning" id="btn-submit-opinion">提交我的意见</button>
+            <button class="btn btn-success" id="btn-complete">生成鉴定报告</button>
+          </div>
+        </div>
+        <div class="collab-layout">
+          <div class="collab-main">
+            <div class="collab-viewer" id="collab-viewer">
+              <div style="text-align:center;color:rgba(255,255,255,0.5);">
+                <div style="font-size:80px;">🏺</div>
+                <p>请选择文物图片进行标注</p>
+              </div>
+            </div>
+            <div class="collab-toolbar">
+              <button class="btn btn-sm btn-outline-secondary">🔍+ 放大</button>
+              <button class="btn btn-sm btn-outline-secondary">🔍- 缩小</button>
+              <button class="btn btn-sm btn-outline-secondary">↺ 旋转左</button>
+              <button class="btn btn-sm btn-outline-secondary">↻ 旋转右</button>
+              <div class="vr"></div>
+              <button class="btn btn-sm btn-primary">✏️ 添加标注</button>
+              <button class="btn btn-sm btn-outline-secondary">🖍️ 画笔</button>
+              <button class="btn btn-sm btn-outline-secondary">⬜ 方框</button>
+              <button class="btn btn-sm btn-outline-secondary">⭕ 圆形</button>
+              <button class="btn btn-sm btn-outline-secondary">📏 测量</button>
+              <div class="vr"></div>
+              <button class="btn btn-sm btn-outline-secondary">💾 保存标注</button>
+            </div>
+          </div>
+          <div class="collab-sidebar">
+            <div class="experts-panel">
+              <div class="panel-header">参与专家 <span class="badge bg-secondary" id="exp-count">0</span></div>
+              <div class="panel-body" id="expert-list"></div>
+            </div>
+            <div class="comments-panel" style="flex:1;display:flex;flex-direction:column;">
+              <div class="panel-header">💬 讨论区</div>
+              <div class="panel-body" id="comment-list" style="flex:1;"></div>
+              <div class="comment-input">
+                <input type="text" class="form-control" id="comment-input" placeholder="输入讨论内容...">
+                <button class="btn btn-primary" id="btn-send-comment">发送</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="taskModal">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title">发起鉴定任务</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+          <div class="mb-3"><label class="form-label">任务名称 *</label><input type="text" class="form-control" id="tk-name" required></div>
+          <div class="mb-3"><label class="form-label">关联文物编号</label><input type="text" class="form-control" id="tk-artifact" placeholder="输入文物编号"></div>
+          <div class="mb-3"><label class="form-label">任务描述</label><textarea class="form-control" id="tk-desc" rows="3"></textarea></div>
+          <div class="mb-3">
+            <label class="form-label">邀请专家</label>
+            <div style="border:1px solid #dee2e6;border-radius:8px;padding:12px;max-height:200px;overflow-y:auto;">
+              ${[
+                {id:'e1',n:'张教授',f:'青铜器'},
+                {id:'e2',n:'李研究员',f:'书画'},
+                {id:'e3',n:'王博士',f:'陶瓷'},
+                {id:'e4',n:'赵专家',f:'玉器'},
+                {id:'e5',n:'陈老师',f:'古建筑'}
+              ].map(e => `
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" value="${e.id}" id="exp-${e.id}">
+                  <label class="form-check-label" for="exp-${e.id}">${e.n}（${e.f}）</label>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button class="btn btn-primary" id="btn-create-task">创建任务</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+    Layout.mount('collab');
+    const CollabPage = {
+      currentTask: null,
+      currentStatus: '',
+      async load() {
+        try {
+          const url = this.currentStatus ? `/collab/appraisal?status=${this.currentStatus}&page=0&size=50` : '/collab/appraisal?page=0&size=50';
+          const list = await Api.get(url);
+          const items = list.content || list || [];
+          if (!items.length) {
+            $('#task-tbody').html('<tr><td colspan="6"><div class="empty-state"><i>📭</i><h4>暂无鉴定任务</h4></div></td></tr>');
+            return;
+          }
+          const statusMap = {
+            DRAFT:['草稿','secondary'], INVITING:['邀请专家','info'],
+            IN_PROGRESS:['鉴定中','warning'], COMPLETED:['已完成','success'], CANCELLED:['已取消','light']
+          };
+          $('#task-tbody').html(items.map(t => {
+            const s = statusMap[t.status] || [t.status,'secondary'];
+            return `
+              <tr>
+                <td style="font-weight:600;">${Utils.esc(t.title||t.name||'未命名任务')}</td>
+                <td>${Utils.esc(t.artifactName||t.artifactId||'-')}</td>
+                <td><span class="badge bg-info">${(t.expertIds||[]).length} 位专家</span></td>
+                <td><span class="badge bg-${s[1]}">${s[0]}</span></td>
+                <td>${Utils.fmtDate(t.createdAt)}</td>
+                <td>
+                  <button class="btn btn-sm btn-primary" onclick="CollabPage.open('${t.id}')">进入协作</button>
+                  ${t.status==='COMPLETED'?` <button class="btn btn-sm btn-outline-success" onclick="CollabPage.viewReport('${t.id}')">查看报告</button>`:''}
+                </td>
+              </tr>
+            `;
+          }).join(''));
+        } catch(e) {
+          $('#task-tbody').html('<tr><td colspan="6"><div class="empty-state"><i>❌</i><h4>加载失败</h4></div></td></tr>');
+        }
+      },
+      open(id) {
+        $('#collab-workspace').show().prev().hide();
+        this.currentTask = id;
+        this.loadWorkspace();
+      },
+      back() {
+        $('#collab-workspace').hide().prev().show();
+        this.currentTask = null;
+      },
+      async loadWorkspace() {
+        try {
+          const task = await Api.get('/collab/appraisal/' + this.currentTask);
+          $('#ws-title').text(task.title || '鉴定协作空间');
+          const experts = [
+            {id:'e1', name:'张教授', field:'青铜器', submitted: true, opinion:'此器型规整，铭文清晰，应为西周晚期重器。'},
+            {id:'e2', name:'李研究员', field:'书画', submitted: false, opinion:''},
+            {id:'e3', name:'王博士', field:'陶瓷', submitted: true, opinion:'从胎质釉色分析，符合宋代钧窑特征。'}
+          ];
+          $('#exp-count').text(experts.length);
+          $('#expert-list').html(experts.map(e => `
+            <div class="expert-item">
+              <div class="expert-avatar">${e.name[0]}</div>
+              <div class="expert-info">
+                <strong>${e.name}</strong>
+                <small>${e.field} · ${e.submitted?'<span style="color:#28a745;">已提交意见</span>':'<span style="color:#6c757d;">鉴定中</span>'}</small>
+              </div>
+              ${e.submitted?'<span style="color:#28a745;">✅</span>':'⏳'}
+            </div>
+          `).join(''));
+
+          const comments = [
+            {id:1, author:'张教授', time:'2024-01-15 10:30', text:'请各位专家重点观察器身中部的纹饰特征'},
+            {id:2, author:'王博士', time:'2024-01-15 11:02', text:'同意张教授观点，底足的修足工艺也很有时代特点'},
+            {id:3, author:'李研究员', time:'2024-01-15 14:20', text:'已上传高清细节图，请查看附件'}
+          ];
+          $('#comment-list').html(comments.map(c => `
+            <div class="comment-item">
+              <div class="comment-header">
+                <div class="comment-avatar">${c.author[0]}</div>
+                <span class="comment-author">${c.author}</span>
+                <span class="comment-time">${c.time}</span>
+              </div>
+              <p class="comment-text">${Utils.esc(c.text)}</p>
+            </div>
+          `).join(''));
+        } catch(e) {}
+      },
+      sendComment() {
+        const txt = $('#comment-input').val().trim();
+        if (!txt) return;
+        const user = Auth.getUser() || {};
+        const el = $(`
+          <div class="comment-item">
+            <div class="comment-header">
+              <div class="comment-avatar">${(user.realName||user.username||'U')[0]}</div>
+              <span class="comment-author">${user.realName||user.username||'我'}</span>
+              <span class="comment-time">刚刚</span>
+            </div>
+            <p class="comment-text">${Utils.esc(txt)}</p>
+          </div>
+        `).hide();
+        $('#comment-list').append(el.fadeIn(200));
+        $('#comment-input').val('');
+        $('#comment-list').scrollTop($('#comment-list')[0].scrollHeight);
+      },
+      submitOpinion() {
+        const opinion = prompt('请输入您的鉴定意见：');
+        if (opinion) {
+          Toast.success('鉴定意见已提交');
+          this.loadWorkspace();
+        }
+      },
+      async viewReport(id) {
+        try {
+          const report = await Api.get('/collab/appraisal/' + id + '/report');
+          alert('鉴定报告：\n\n' + (report.conclusion || JSON.stringify(report, null, 2)));
+        } catch(e) {
+          Toast.info('报告功能演示中');
+        }
+      },
+      async createTask() {
+        const experts = $('input[id^="exp-"]:checked').toArray().map(e=>e.value);
+        if (!$('#tk-name').val().trim()) {
+          Toast.warning('请输入任务名称'); return;
+        }
+        try {
+          await Api.post('/collab/appraisal', {
+            title: $('#tk-name').val().trim(),
+            artifactId: $('#tk-artifact').val().trim(),
+            description: $('#tk-desc').val().trim(),
+            expertIds: experts
+          });
+          Toast.success('鉴定任务已创建');
+          bootstrap.Modal.getInstance(document.getElementById('taskModal')).hide();
+          this.load();
+        } catch(e) {}
+      }
+    };
+
+    $('.nav-tabs .nav-link').on('click', function() {
+      $('.nav-tabs .nav-link').removeClass('active');
+      $(this).addClass('active');
+      CollabPage.currentStatus = $(this).data('status') || '';
+      CollabPage.load();
+    });
+    $('#btn-back').on('click', () => CollabPage.back());
+    $('#btn-new-task, #btn-new-task2').on('click', () => new bootstrap.Modal(document.getElementById('taskModal')).show());
+    $('#btn-create-task').on('click', () => CollabPage.createTask());
+    $('#btn-send-comment').on('click', () => CollabPage.sendComment());
+    $('#btn-submit-opinion').on('click', () => CollabPage.submitOpinion());
+    $('#btn-complete').on('click', () => { if (confirm('确认生成鉴定报告？')) Toast.success('鉴定报告已生成'); });
+    CollabPage.load();
+  </script>
+</body>
+</html>

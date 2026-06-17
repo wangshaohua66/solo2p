@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文物详情 - 文化遗产数字化保护平台</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="sidebar" id="sidebar-root"></div>
+  <div class="main-content">
+    <div class="topbar" id="topbar-root"></div>
+    <div class="page-content" id="detail-content">
+      <div style="text-align:center;padding:80px 0;"><div class="loading-spinner"></div><p style="margin-top:16px;color:#6c757d;">加载中...</p></div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="flowModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title">记录流转</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+          <div class="mb-3"><label class="form-label">流转类型 *</label>
+            <select class="form-select" id="fl-type">
+              <option>OUTBOUND</option><option>SENT_FOR_RESTORE</option><option>START_RESTORE</option>
+              <option>RESTORE_COMPLETE</option><option>INBOUND</option><option>LEND</option>
+              <option>RETURN</option><option>EXHIBIT</option><option>EXHIBIT_END</option>
+              <option>DAMAGE</option><option>INSPECT</option><option>OTHER</option>
+            </select>
+          </div>
+          <div class="mb-3"><label class="form-label">责任单位/人</label><input type="text" class="form-control" id="fl-operator" placeholder="如：故宫博物院修复科 张三"></div>
+          <div class="mb-3"><label class="form-label">流转说明</label><textarea class="form-control" id="fl-remark" rows="3"></textarea></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button class="btn btn-primary" id="btn-flow-save">提交并上链</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+    Layout.mount('artifact');
+    const params = new URLSearchParams(location.search);
+    const id = params.get('id');
+    if (!id) location.href = 'artifacts.html';
+
+    const Detail = {
+      data: null,
+      async load() {
+        try {
+          this.data = await Api.get('/artifact/' + id);
+          this.render();
+          await this.loadTrace();
+        } catch(e) {
+          $('#detail-content').html('<div class="empty-state"><i>❌</i><h4>加载失败</h4><p>文物不存在或您无权限查看</p><a class="btn btn-primary mt-3" href="artifacts.html">返回列表</a></div>');
+        }
+      },
+      levelBadge(l) {
+        const m = { NATIONAL_FIRST:1, NATIONAL_SECOND:2, NATIONAL_THIRD:3, GENERAL:4, ORDINARY:5 };
+        return m[l] || 5;
+      },
+      statusCls(s) {
+        const m = { IN_LIBRARY:'status-inlibrary', RESTORING:'status-restoring',
+          ON_EXHIBITION:'status-exhibit', LENT_OUT:'status-lending',
+          LOST:'status-lost', DAMAGED:'status-damaged' };
+        return m[s] || '';
+      },
+      render() {
+        const a = this.data;
+        $('#detail-content').html(`
+          <div class="d-flex align-items-start mb-4 gap-3 flex-wrap">
+            <button class="btn btn-outline-secondary" onclick="location.href='artifacts.html'">← 返回列表</button>
+            <h3 style="margin:0;">${Utils.esc(a.name)}</h3>
+            <span class="badge badge-level-${this.levelBadge(a.level)}" style="font-size:12px;padding:6px 12px;">${Utils.levelLabel(a.level)}</span>
+            <span class="status-badge ${this.statusCls(a.status)}">${Utils.statusLabel(a.status)}</span>
+            <div style="margin-left:auto;">
+              ${Auth.isArchivist() || Auth.isAdmin() ? '<button class="btn btn-outline-primary" onclick="Detail.edit()">编辑</button> ' : ''}
+              ${Auth.isRestorer() || Auth.isAdmin() || Auth.isArchivist() ? '<button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#flowModal">📦 记录流转</button>' : ''}
+            </div>
+          </div>
+
+          <ul class="nav nav-tabs" id="tabNav">
+            <li class="nav-item"><a class="nav-link active" data-tab="base">基础信息</a></li>
+            <li class="nav-item"><a class="nav-link" data-tab="images">图片资料</a></li>
+            <li class="nav-item"><a class="nav-link" data-tab="3d">三维模型</a></li>
+            <li class="nav-item"><a class="nav-link" data-tab="docs">文献资料</a></li>
+            <li class="nav-item"><a class="nav-link" data-tab="trace">流转记录</a></li>
+          </ul>
+
+          <div id="tab-base" class="tab-pane">
+            <div class="card">
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-md-6">
+                    <div class="detail-row"><div class="detail-label">文物编号</div><div class="detail-value"><code>${Utils.esc(a.artifactCode||'-')}</code></div></div>
+                    <div class="detail-row"><div class="detail-label">文物名称</div><div class="detail-value">${Utils.esc(a.name)}</div></div>
+                    <div class="detail-row"><div class="detail-label">文物类型</div><div class="detail-value">${Utils.typeLabel(a.type)}</div></div>
+                    <div class="detail-row"><div class="detail-label">文物级别</div><div class="detail-value">${Utils.levelLabel(a.level)}</div></div>
+                    <div class="detail-row"><div class="detail-label">朝代/年代</div><div class="detail-value">${Utils.esc(a.dynasty||'-')}</div></div>
+                    <div class="detail-row"><div class="detail-label">出土地点</div><div class="detail-value">${Utils.esc(a.origin||'-')}</div></div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="detail-row"><div class="detail-label">尺寸规格</div><div class="detail-value">${Utils.esc(a.size||'-')}</div></div>
+                    <div class="detail-row"><div class="detail-label">材质</div><div class="detail-value">${Utils.esc(a.material||'-')}</div></div>
+                    <div class="detail-row"><div class="detail-label">保存状态</div><div class="detail-value"><span class="status-badge ${this.statusCls(a.status)}">${Utils.statusLabel(a.status)}</span></div></div>
+                    <div class="detail-row"><div class="detail-label">创建时间</div><div class="detail-value">${Utils.fmtDate(a.createdAt)}</div></div>
+                    <div class="detail-row"><div class="detail-label">更新时间</div><div class="detail-value">${Utils.fmtDate(a.updatedAt)}</div></div>
+                  </div>
+                </div>
+                <div class="detail-row"><div class="detail-label">文物描述</div><div class="detail-value" style="white-space:pre-wrap;">${Utils.esc(a.description||'暂无描述')}</div></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-images" class="tab-pane" style="display:none;">
+            <div class="card">
+              <div class="card-header">
+                <h5>图片资料 (${(a.images||[]).length})</h5>
+                ${Auth.isArchivist() || Auth.isAdmin() ? '<label class="btn btn-primary btn-sm">+ 上传图片<input type="file" accept="image/*" multiple style="display:none;" id="img-upload"></label>' : ''}
+              </div>
+              <div class="card-body">
+                <div class="image-gallery" id="img-gallery"></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-3d" class="tab-pane" style="display:none;">
+            <div class="card">
+              <div class="card-header">
+                <h5>三维模型 (${(a.models3d||[]).length})</h5>
+                ${Auth.isArchivist() || Auth.isAdmin() ? '<label class="btn btn-primary btn-sm">+ 上传模型<input type="file" accept=".obj,.glb,.gltf,.fbx" multiple style="display:none;" id="md-upload"></label>' : ''}
+              </div>
+              <div class="card-body">
+                <div id="md-list"></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-docs" class="tab-pane" style="display:none;">
+            <div class="card">
+              <div class="card-header">
+                <h5>文献资料 (${(a.documents||[]).length})</h5>
+                ${Auth.isArchivist() || Auth.isAdmin() ? '<label class="btn btn-primary btn-sm">+ 上传文献<input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx" multiple style="display:none;" id="doc-upload"></label>' : ''}
+              </div>
+              <div class="card-body">
+                <div id="doc-list"></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-trace" class="tab-pane" style="display:none;">
+            <div class="card">
+              <div class="card-header"><h5>🔗 流转记录（区块链存证）</h5>
+                <button class="btn btn-sm btn-outline-secondary" onclick="Detail.verifyChain()">✅ 验证存证完整性</button>
+              </div>
+              <div class="card-body"><div id="trace-list"><div class="text-center py-4 text-muted">加载中...</div></div></div>
+            </div>
+          </div>
+        `);
+
+        $('#tabNav a').on('click', function() {
+          $('#tabNav a').removeClass('active');
+          $(this).addClass('active');
+          $('.tab-pane').hide();
+          $('#tab-' + $(this).data('tab')).show();
+        });
+
+        this.renderImages();
+        this.render3d();
+        this.renderDocs();
+        this.bindUploads();
+      },
+      renderImages() {
+        const imgs = this.data.images || [];
+        if (!imgs.length) {
+          $('#img-gallery').html('<div class="empty-state" style="padding:40px 20px;"><i>🖼️</i><h4>暂无图片</h4></div>');
+          return;
+        }
+        $('#img-gallery').html(imgs.map((img,i) => `
+          <div class="image-thumb" data-i="${i}">
+            ${img.url ? `<img src="${img.url}" loading="lazy">` : '<i>🖼️</i>'}
+            ${Auth.isArchivist() || Auth.isAdmin() ? `<button class="btn btn-sm btn-danger" style="position:absolute;top:4px;right:4px;padding:2px 6px;" onclick="event.stopPropagation();Detail.delImg('${img.id||i}')">×</button>` : ''}
+          </div>
+        `).join(''));
+      },
+      render3d() {
+        const list = this.data.models3d || [];
+        if (!list.length) {
+          $('#md-list').html('<div class="empty-state" style="padding:40px 20px;"><i>🧊</i><h4>暂无三维模型</h4></div>');
+          return;
+        }
+        $('#md-list').html(list.map(m => `
+          <div class="d-flex align-items-center p-3 border-bottom">
+            <div style="font-size:32px;">🧊</div>
+            <div class="flex-grow-1 ms-3">
+              <div style="font-weight:600;">${Utils.esc(m.name||m.fileName||'三维模型')}</div>
+              <div style="font-size:12px;color:#6c757d;">${Utils.esc(m.format||'')} · ${(m.size/1024/1024).toFixed(2)} MB</div>
+            </div>
+            <button class="btn btn-sm btn-outline-primary">预览</button>
+          </div>
+        `).join(''));
+      },
+      renderDocs() {
+        const list = this.data.documents || [];
+        if (!list.length) {
+          $('#doc-list').html('<div class="empty-state" style="padding:40px 20px;"><i>📄</i><h4>暂无文献资料</h4></div>');
+          return;
+        }
+        $('#doc-list').html(list.map(d => `
+          <div class="d-flex align-items-center p-3 border-bottom">
+            <div style="font-size:32px;">📄</div>
+            <div class="flex-grow-1 ms-3">
+              <div style="font-weight:600;">${Utils.esc(d.title||d.fileName||'文献')}</div>
+              <div style="font-size:12px;color:#6c757d;">${Utils.esc(d.description||'')} · ${Utils.fmtDate(d.uploadedAt)}</div>
+            </div>
+            <button class="btn btn-sm btn-outline-primary">下载</button>
+          </div>
+        `).join(''));
+      },
+      bindUploads() {
+        $('#img-upload').on('change', async function() {
+          const files = this.files;
+          for (const f of files) {
+            const fd = new FormData();
+            fd.append('file', f);
+            try { await Api.upload(`/artifact/${id}/images`, fd); Toast.success('上传成功'); } catch(e){}
+          }
+          Detail.load();
+        });
+        $('#md-upload').on('change', async function() {
+          const files = this.files;
+          for (const f of files) {
+            const fd = new FormData();
+            fd.append('file', f);
+            try { await Api.upload(`/artifact/${id}/models3d`, fd); Toast.success('上传成功'); } catch(e){}
+          }
+          Detail.load();
+        });
+        $('#doc-upload').on('change', async function() {
+          const files = this.files;
+          for (const f of files) {
+            const fd = new FormData();
+            fd.append('file', f);
+            try { await Api.upload(`/artifact/${id}/documents`, fd); Toast.success('上传成功'); } catch(e){}
+          }
+          Detail.load();
+        });
+      },
+      async delImg(imgId) {
+        if (!await Utils.confirm('确定删除该图片？')) return;
+        try {
+          await Api.delete(`/artifact/${id}/images/${imgId}`);
+          Toast.success('已删除');
+          this.load();
+        } catch(e) {}
+      },
+      async loadTrace() {
+        try {
+          const list = await Api.get(`/trace/records/artifact/${id}`);
+          if (!list.length) {
+            $('#trace-list').html('<div class="empty-state" style="padding:40px 20px;"><i>📭</i><h4>暂无流转记录</h4></div>');
+            return;
+          }
+          const colorMap = {
+            INBOUND:'success', OUTBOUND:'info', SENT_FOR_RESTORE:'warning', START_RESTORE:'warning',
+            RESTORE_COMPLETE:'success', EXHIBIT:'info', EXHIBIT_END:'info',
+            LEND:'info', RETURN:'info', DAMAGE:'danger', INSPECT:'info', OTHER:''
+          };
+          $('#trace-list').html(`<div class="timeline">
+            ${list.map((r,i) => `
+              <div class="timeline-item">
+                <div class="timeline-dot ${colorMap[r.flowType]||''}"></div>
+                <div class="timeline-content">
+                  <div class="timeline-title">${Utils.flowLabel(r.flowType)} ${i===list.length-1?'<span class="badge bg-primary" style="margin-left:8px;">最新</span>':''}</div>
+                  <div class="timeline-time">👤 ${Utils.esc(r.operatorName||r.operatorId||'系统')} · 📅 ${Utils.fmtDate(r.createdAt)}</div>
+                  <div style="font-size:13px;margin:6px 0;">${Utils.esc(r.remark||'无备注')}</div>
+                  <div class="timeline-hash" title="${Utils.esc(r.blockchainHash)}">
+                    <div>📌 存证哈希: ${Utils.maskHash(r.blockchainHash)}</div>
+                    ${r.previousHash ? `<div>🔗 前链哈希: ${Utils.maskHash(r.previousHash)}</div>` : '<div>🔗 创世区块</div>'}
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>`);
+        } catch(e) {
+          $('#trace-list').html('<div class="alert alert-warning">流转记录加载失败</div>');
+        }
+      },
+      async verifyChain() {
+        try {
+          const r = await Api.get(`/trace/verify/${id}`);
+          if (r) Toast.success('✅ 区块链存证验证通过，数据完整未篡改');
+          else Toast.error('❌ 存证验证失败，数据可能被篡改');
+        } catch(e) {}
+      },
+      async saveFlow() {
+        try {
+          await Api.post('/trace/records', {
+            artifactId: id,
+            artifactName: this.data.name,
+            artifactCode: this.data.artifactCode,
+            flowType: $('#fl-type').val(),
+            operatorName: $('#fl-operator').val().trim(),
+            remark: $('#fl-remark').val().trim()
+          });
+          Toast.success('流转记录已创建并存证上链');
+          bootstrap.Modal.getInstance(document.getElementById('flowModal')).hide();
+          this.load();
+        } catch(e) {}
+      },
+      edit() {
+        const a = this.data;
+        $('#f-name-edit').val(a.name);
+        Toast.info('编辑功能可在列表页点击卡片进入编辑');
+      }
+    };
+
+    $('#btn-flow-save').on('click', () => Detail.saveFlow());
+    Detail.load();
+  </script>
+</body>
+</html>

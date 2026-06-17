@@ -1,0 +1,91 @@
+server:
+  port: 9000
+
+spring:
+  application:
+    name: gateway-service
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - StripPrefix=2
+
+        - id: artifact-service
+          uri: lb://artifact-service
+          predicates:
+            - Path=/api/artifact/**
+          filters:
+            - StripPrefix=2
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 50
+                redis-rate-limiter.burstCapacity: 100
+                redis-rate-limiter.requestedTokens: 1
+                key-resolver: "#{@ipKeyResolver}"
+
+        - id: trace-service
+          uri: lb://trace-service
+          predicates:
+            - Path=/api/trace/**
+          filters:
+            - StripPrefix=2
+
+        - id: collab-service
+          uri: lb://collab-service
+          predicates:
+            - Path=/api/collab/**
+          filters:
+            - StripPrefix=2
+
+        - id: inspect-service
+          uri: lb://inspect-service
+          predicates:
+            - Path=/api/inspect/**
+          filters:
+            - StripPrefix=2
+
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+            exposedHeaders: "Authorization"
+            allowCredentials: true
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      database: 0
+      timeout: 3000ms
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka:eureka123@localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.cloud.client.ip-address}:${server.port}
+
+jwt:
+  secret: heritage-platform-jwt-secret-key-2024-very-long-and-secure-key-for-signing
+  expiration: 86400000
+  header: Authorization
+  prefix: "Bearer "
+
+logging:
+  level:
+    com.heritage.gateway: DEBUG
+    org.springframework.cloud.gateway: DEBUG
