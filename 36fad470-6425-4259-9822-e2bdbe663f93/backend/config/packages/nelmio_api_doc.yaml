@@ -1,0 +1,20 @@
+nelmio_api_doc:
+    documentation:
+        info:
+            title: 演艺集团票务管理系统 API
+            description: 市级演艺集团演出场馆票务运营管理平台后端接口文档
+            version: 1.0.0
+        servers:
+            - url: http://localhost:8000
+              description: 开发环境
+        components:
+            securitySchemes:
+                Bearer:
+                    type: http
+                    scheme: bearer
+                    bearerFormat: JWT
+        security:
+            - Bearer: []
+    areas:
+        path_patterns:
+            - ^/api(?!/doc$)
