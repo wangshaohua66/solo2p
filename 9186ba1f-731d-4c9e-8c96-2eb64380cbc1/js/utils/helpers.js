@@ -135,7 +135,46 @@ const Helpers = (function() {
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         link.setAttribute('href', url);
-        link.setAttribute('download', filename + '_' + formatDate(null, 'YYYYMMDD') + '.csv');
+        link.setAttribute('download', filename + '.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function downloadExcel(data, filename) {
+        if (!data || data.length === 0) {
+            alert('没有数据可导出');
+            return;
+        }
+
+        const headers = Object.keys(data[0]);
+        let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+        html += '<head><meta charset="UTF-8">';
+        html += '<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Sheet1</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->';
+        html += '</head><body><table border="1" style="border-collapse: collapse; font-family: Arial, sans-serif;">';
+        html += '<tr style="background-color: #f0f0f0; font-weight: bold;">';
+        headers.forEach(h => {
+            html += `<td style="padding: 8px;">${h}</td>`;
+        });
+        html += '</tr>';
+        data.forEach(row => {
+            html += '<tr>';
+            headers.forEach(header => {
+                let value = row[header] === null || row[header] === undefined ? '' : String(row[header]);
+                value = value.replace(/<[^>]*>/g, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                html += `<td style="padding: 4px 8px; mso-number-format:'\\@';">${value}</td>`;
+            });
+            html += '</tr>';
+        });
+        html += '</table></body></html>';
+
+        const BOM = '\uFEFF';
+        const blob = new Blob([BOM + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename + '.xls');
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
@@ -460,6 +499,7 @@ const Helpers = (function() {
         throttle,
         generateRandomId,
         downloadCSV,
+        downloadExcel,
         showToast,
         showConfirm,
         showLoading,

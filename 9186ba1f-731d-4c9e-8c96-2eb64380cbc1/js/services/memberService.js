@@ -325,6 +325,75 @@ const MemberService = (function() {
             }));
     }
 
+    function getAllConsumptionRecords(filters = {}) {
+        const orders = DataStore.findAll('orders').filter(o => o.memberId);
+        let result = orders.map(order => {
+            const member = DataStore.findById('members', order.memberId);
+            const items = DataStore.indexes.orderItems.byOrderId.get(order.id) || [];
+            return {
+                ...order,
+                member,
+                memberName: member?.name || '未知会员',
+                memberCardNo: member?.cardNo || '-',
+                memberPhone: member?.phone || '-',
+                memberCardType: member?.cardType || '-',
+                items: items,
+                serviceItems: items.map(i => i.itemName).join('、'),
+                statusText: Helpers.getStatusText(order.status)
+            };
+        });
+
+        if (filters.startDate) {
+            result = result.filter(r => new Date(r.createdAt) >= new Date(filters.startDate));
+        }
+        if (filters.endDate) {
+            const endDate = new Date(filters.endDate);
+            endDate.setHours(23, 59, 59, 999);
+            result = result.filter(r => new Date(r.createdAt) <= endDate);
+        }
+        if (filters.minAmount !== undefined && filters.minAmount !== null && filters.minAmount !== '') {
+            result = result.filter(r => r.actualAmount >= parseFloat(filters.minAmount));
+        }
+        if (filters.maxAmount !== undefined && filters.maxAmount !== null && filters.maxAmount !== '') {
+            result = result.filter(r => r.actualAmount <= parseFloat(filters.maxAmount));
+        }
+        if (filters.memberId) {
+            result = result.filter(r => r.memberId === filters.memberId);
+        }
+        if (filters.cardNo) {
+            result = result.filter(r => r.memberCardNo && r.memberCardNo.includes(filters.cardNo));
+        }
+
+        return result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
+
+    function exportConsumptionRecords(records, format = 'csv') {
+        const exportData = records.map(r => ({
+            '消费时间': Helpers.formatDate(r.createdAt, 'YYYY-MM-DD HH:mm'),
+            '会员卡号': r.memberCardNo,
+            '会员姓名': r.memberName,
+            '联系电话': r.memberPhone,
+            '卡类型': Helpers.getMemberCardTypeText(r.memberCardType),
+            '车牌号': r.plateNo || '-',
+            '服务项目': r.serviceItems,
+            '工时费': (r.laborFee || 0).toFixed(2),
+            '材料费': (r.materialFee || 0).toFixed(2),
+            '折扣金额': r.discountAmount ? r.discountAmount.toFixed(2) : '0.00',
+            '实付金额': (r.actualAmount || 0).toFixed(2),
+            '工单状态': r.statusText,
+            '操作人': r.createdBy || '系统'
+        }));
+
+        const timestamp = Helpers.formatDate(null, 'YYYYMMDD_HHmmss');
+        const filename = `会员消费记录_${timestamp}`;
+
+        if (format === 'excel') {
+            Helpers.downloadExcel(exportData, filename);
+        } else {
+            Helpers.downloadCSV(exportData, filename);
+        }
+    }
+
     function getMemberStats(memberId) {
         const member = findById(memberId);
         if (!member) return null;
@@ -413,6 +482,8 @@ const MemberService = (function() {
         addTransaction,
         getTransactions,
         getConsumptionHistory,
+        getAllConsumptionRecords,
+        exportConsumptionRecords,
         getMemberStats,
         getCount,
         getCardTypeDistribution,

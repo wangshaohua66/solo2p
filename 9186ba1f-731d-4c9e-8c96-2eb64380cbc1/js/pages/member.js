@@ -1,5 +1,8 @@
 const MemberPage = (function() {
     let currentMember = null;
+    let currentTab = 'members';
+    let consumptionPage = 1;
+    let filteredConsumptionRecords = [];
 
     function render() {
         const html = `
@@ -13,131 +16,242 @@ const MemberPage = (function() {
                     </div>
                 </div>
 
-                <div class="card mb-4">
-                    <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <div class="input-group">
-                                    <span class="input-group-text"><i class="bi bi-search"></i></span>
-                                    <input type="text" class="form-control" id="searchKeyword" placeholder="搜索会员姓名、手机号、卡号">
+                <ul class="nav nav-tabs mb-4" id="mainTabs">
+                    <li class="nav-item">
+                        <button class="nav-link active" data-tab="members" id="tabMembers">
+                            <i class="bi bi-people me-1"></i>会员列表
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" data-tab="consumption" id="tabConsumption">
+                            <i class="bi bi-receipt me-1"></i>消费记录
+                        </button>
+                    </li>
+                </ul>
+
+                <div id="membersTab">
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                        <input type="text" class="form-control" id="searchKeyword" placeholder="搜索会员姓名、手机号、卡号">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" id="filterCardType">
+                                        <option value="">全部卡类型</option>
+                                        <option value="prepaid">储值卡</option>
+                                        <option value="count">次卡</option>
+                                        <option value="year">年卡</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" id="filterStatus">
+                                        <option value="">全部状态</option>
+                                        <option value="normal">正常</option>
+                                        <option value="warning">余额/次数不足</option>
+                                        <option value="expired">已过期</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <button class="btn btn-outline-secondary w-100" id="btnResetSearch">
+                                        <i class="bi bi-arrow-clockwise me-1"></i>重置
+                                    </button>
                                 </div>
                             </div>
-                            <div class="col-md-3">
-                                <select class="form-select" id="filterCardType">
-                                    <option value="">全部卡类型</option>
-                                    <option value="prepaid">储值卡</option>
-                                    <option value="count">次卡</option>
-                                    <option value="year">年卡</option>
-                                </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="text-muted mb-1">会员总数</h6>
+                                            <h3 class="mb-0 text-primary fw-bold" id="statTotalMembers">0</h3>
+                                        </div>
+                                        <div class="bg-primary bg-opacity-10 rounded-circle p-3">
+                                            <i class="bi bi-people fs-3 text-primary"></i>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-md-3">
-                                <select class="form-select" id="filterStatus">
-                                    <option value="">全部状态</option>
-                                    <option value="normal">正常</option>
-                                    <option value="warning">余额/次数不足</option>
-                                    <option value="expired">已过期</option>
-                                </select>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="text-muted mb-1">储值卡会员</h6>
+                                            <h3 class="mb-0 text-info fw-bold" id="statPrepaidMembers">0</h3>
+                                        </div>
+                                        <div class="bg-info bg-opacity-10 rounded-circle p-3">
+                                            <i class="bi bi-credit-card fs-3 text-info"></i>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-md-2">
-                                <button class="btn btn-outline-secondary w-100" id="btnResetSearch">
-                                    <i class="bi bi-arrow-clockwise me-1"></i>重置
-                                </button>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="text-muted mb-1">总储值余额</h6>
+                                            <h3 class="mb-0 text-success fw-bold" id="statTotalBalance">¥0</h3>
+                                        </div>
+                                        <div class="bg-success bg-opacity-10 rounded-circle p-3">
+                                            <i class="bi bi-wallet fs-3 text-success"></i>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="text-muted mb-1">总积分</h6>
+                                            <h3 class="mb-0 text-warning fw-bold" id="statTotalPoints">0</h3>
+                                        </div>
+                                        <div class="bg-warning bg-opacity-10 rounded-circle p-3">
+                                            <i class="bi bi-star fs-3 text-warning"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>会员卡号</th>
+                                            <th>姓名</th>
+                                            <th>手机号</th>
+                                            <th>卡类型</th>
+                                            <th>余额/次数</th>
+                                            <th>积分</th>
+                                            <th>状态</th>
+                                            <th>注册时间</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="memberTableBody">
+                                        <tr>
+                                            <td colspan="9" class="text-center py-4 text-muted">加载中...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <nav class="p-3 border-top">
+                                <ul class="pagination justify-content-center mb-0" id="pagination">
+                                </ul>
+                            </nav>
                         </div>
                     </div>
                 </div>
 
-                <div class="row g-3 mb-4">
-                    <div class="col-md-3">
-                        <div class="card h-100">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <h6 class="text-muted mb-1">会员总数</h6>
-                                        <h3 class="mb-0 text-primary fw-bold" id="statTotalMembers">0</h3>
+                <div id="consumptionTab" style="display: none;">
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-2">
+                                    <label class="form-label">开始日期</label>
+                                    <input type="text" class="form-control datepicker" id="consStartDate" placeholder="选择开始日期">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">结束日期</label>
+                                    <input type="text" class="form-control datepicker" id="consEndDate" placeholder="选择结束日期">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">最低金额</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">¥</span>
+                                        <input type="number" class="form-control" id="consMinAmount" min="0" step="0.01" placeholder="最低金额">
                                     </div>
-                                    <div class="bg-primary bg-opacity-10 rounded-circle p-3">
-                                        <i class="bi bi-people fs-3 text-primary"></i>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">最高金额</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">¥</span>
+                                        <input type="number" class="form-control" id="consMaxAmount" min="0" step="0.01" placeholder="最高金额">
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">会员卡号</label>
+                                    <select class="form-select" id="consMemberCard">
+                                        <option value="">全部会员</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">&nbsp;</label>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-outline-secondary flex-fill" id="btnResetConsumption">
+                                            <i class="bi bi-arrow-clockwise"></i>
+                                        </button>
+                                        <button class="btn btn-primary flex-fill" id="btnApplyConsumption">
+                                            <i class="bi bi-filter me-1"></i>筛选
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-2">
+                                <div class="col-md-12 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <span class="text-muted">共 <span class="fw-bold text-primary" id="consumptionTotalCount">0</span> 条记录</span>
+                                        <span class="mx-3 text-muted">总金额: <span class="fw-bold text-success" id="consumptionTotalAmount">¥0.00</span></span>
+                                    </div>
+                                    <div class="btn-group">
+                                        <button type="button" class="btn btn-outline-success" id="btnExportCSV">
+                                            <i class="bi bi-filetype-csv me-1"></i>导出 CSV
+                                        </button>
+                                        <button type="button" class="btn btn-outline-success" id="btnExportExcel">
+                                            <i class="bi bi-file-earmark-excel me-1"></i>导出 Excel
+                                        </button>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="card h-100">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <h6 class="text-muted mb-1">储值卡会员</h6>
-                                        <h3 class="mb-0 text-info fw-bold" id="statPrepaidMembers">0</h3>
-                                    </div>
-                                    <div class="bg-info bg-opacity-10 rounded-circle p-3">
-                                        <i class="bi bi-credit-card fs-3 text-info"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card h-100">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <h6 class="text-muted mb-1">总储值余额</h6>
-                                        <h3 class="mb-0 text-success fw-bold" id="statTotalBalance">¥0</h3>
-                                    </div>
-                                    <div class="bg-success bg-opacity-10 rounded-circle p-3">
-                                        <i class="bi bi-wallet fs-3 text-success"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card h-100">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <h6 class="text-muted mb-1">总积分</h6>
-                                        <h3 class="mb-0 text-warning fw-bold" id="statTotalPoints">0</h3>
-                                    </div>
-                                    <div class="bg-warning bg-opacity-10 rounded-circle p-3">
-                                        <i class="bi bi-star fs-3 text-warning"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
-                <div class="card">
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>会员卡号</th>
-                                        <th>姓名</th>
-                                        <th>手机号</th>
-                                        <th>卡类型</th>
-                                        <th>余额/次数</th>
-                                        <th>积分</th>
-                                        <th>状态</th>
-                                        <th>注册时间</th>
-                                        <th>操作</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="memberTableBody">
-                                    <tr>
-                                        <td colspan="9" class="text-center py-4 text-muted">加载中...</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                    <div class="card">
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>消费时间</th>
+                                            <th>会员卡号</th>
+                                            <th>会员姓名</th>
+                                            <th>联系电话</th>
+                                            <th>车牌号</th>
+                                            <th>服务项目</th>
+                                            <th>工时费</th>
+                                            <th>材料费</th>
+                                            <th>实付金额</th>
+                                            <th>状态</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="consumptionTableBody">
+                                        <tr>
+                                            <td colspan="10" class="text-center py-4 text-muted">加载中...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <nav class="p-3 border-top">
+                                <ul class="pagination justify-content-center mb-0" id="consumptionPagination">
+                                </ul>
+                            </nav>
                         </div>
-                        <nav class="p-3 border-top">
-                            <ul class="pagination justify-content-center mb-0" id="pagination">
-                            </ul>
-                        </nav>
                     </div>
                 </div>
             </div>
@@ -302,6 +416,7 @@ const MemberPage = (function() {
         $('#main-content').html(html);
         initDatePicker();
         bindEvents();
+        loadMemberCardOptions();
         loadMemberStats();
         loadMembers();
     }
@@ -311,13 +426,16 @@ const MemberPage = (function() {
             format: 'yyyy-mm-dd',
             autoclose: true,
             todayHighlight: true,
-            language: 'zh-CN',
-            startDate: new Date()
+            language: 'zh-CN'
         });
     }
 
     function bindEvents() {
         $('#btnAddMember').on('click', () => showModal());
+
+        $('#mainTabs .nav-link').on('click', function() {
+            switchTab($(this).data('tab'));
+        });
 
         $('#searchKeyword').on('input', Helpers.debounce(function() {
             loadMembers();
@@ -342,6 +460,29 @@ const MemberPage = (function() {
         });
 
         $('#btnConfirmRecharge').on('click', handleRecharge);
+
+        $('#btnApplyConsumption').on('click', function() {
+            consumptionPage = 1;
+            loadConsumptionRecords();
+        });
+
+        $('#btnResetConsumption').on('click', function() {
+            $('#consStartDate').val('');
+            $('#consEndDate').val('');
+            $('#consMinAmount').val('');
+            $('#consMaxAmount').val('');
+            $('#consMemberCard').val('');
+            consumptionPage = 1;
+            loadConsumptionRecords();
+        });
+
+        $('#btnExportCSV').on('click', function() {
+            exportConsumption('csv');
+        });
+
+        $('#btnExportExcel').on('click', function() {
+            exportConsumption('excel');
+        });
 
         Validator.extendJQueryValidation();
         $('#memberForm').validate({
@@ -400,6 +541,27 @@ const MemberPage = (function() {
                 return false;
             }
         });
+    }
+
+    function switchTab(tab) {
+        currentTab = tab;
+        $('#mainTabs .nav-link').removeClass('active');
+        $('#tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).addClass('active');
+        $('#membersTab').toggle(tab === 'members');
+        $('#consumptionTab').toggle(tab === 'consumption');
+
+        if (tab === 'consumption') {
+            loadConsumptionRecords();
+        }
+    }
+
+    function loadMemberCardOptions() {
+        const members = MemberService.findAll();
+        const options = members
+            .sort((a, b) => (a.cardNo || '').localeCompare(b.cardNo || ''))
+            .map(m => `<option value="${m.id}">${m.cardNo || '无卡号'} - ${m.name}</option>`)
+            .join('');
+        $('#consMemberCard').append(options);
     }
 
     function showModal(memberId = null) {
@@ -463,6 +625,7 @@ const MemberPage = (function() {
             } else {
                 MemberService.create(formData);
                 Helpers.showToast('会员注册成功', 'success');
+                loadMemberCardOptions();
             }
 
             bootstrap.Modal.getInstance(document.getElementById('memberModal')).hide();
@@ -635,6 +798,125 @@ const MemberPage = (function() {
         loadMembers(page);
     }
 
+    function loadConsumptionRecords(page = null) {
+        if (page !== null) consumptionPage = page;
+
+        const pageSize = 10;
+        const filters = {
+            startDate: $('#consStartDate').val() || null,
+            endDate: $('#consEndDate').val() || null,
+            minAmount: $('#consMinAmount').val() || null,
+            maxAmount: $('#consMaxAmount').val() || null,
+            memberId: $('#consMemberCard').val() || null
+        };
+
+        filteredConsumptionRecords = MemberService.getAllConsumptionRecords(filters);
+
+        const totalCount = filteredConsumptionRecords.length;
+        const totalAmount = filteredConsumptionRecords.reduce((sum, r) => sum + (r.actualAmount || 0), 0);
+        $('#consumptionTotalCount').text(totalCount.toLocaleString());
+        $('#consumptionTotalAmount').text(Helpers.formatCurrency(totalAmount));
+
+        const totalPages = Math.ceil(totalCount / pageSize);
+        const startIndex = (consumptionPage - 1) * pageSize;
+        const pageData = filteredConsumptionRecords.slice(startIndex, startIndex + pageSize);
+
+        renderConsumptionTable(pageData);
+        renderConsumptionPagination(consumptionPage, totalPages);
+    }
+
+    function renderConsumptionTable(records) {
+        const tbody = $('#consumptionTableBody');
+
+        if (records.length === 0) {
+            tbody.html('<tr><td colspan="10" class="text-center py-4 text-muted">暂无消费记录</td></tr>');
+            return;
+        }
+
+        tbody.html(records.map(record => `
+            <tr>
+                <td>${Helpers.formatDate(record.createdAt, 'YYYY-MM-DD HH:mm')}</td>
+                <td class="fw-bold text-primary">${record.memberCardNo}</td>
+                <td>${record.memberName}</td>
+                <td>${record.memberPhone}</td>
+                <td>${record.plateNo || '-'}</td>
+                <td><span class="text-truncate d-inline-block" style="max-width: 200px;" title="${record.serviceItems}">${record.serviceItems || '-'}</span></td>
+                <td>${Helpers.formatCurrency(record.laborFee || 0)}</td>
+                <td>${Helpers.formatCurrency(record.materialFee || 0)}</td>
+                <td class="fw-bold text-success">${Helpers.formatCurrency(record.actualAmount || 0)}</td>
+                <td>${Helpers.getStatusBadge(record.status)}</td>
+            </tr>
+        `).join(''));
+    }
+
+    function renderConsumptionPagination(currentPage, totalPages) {
+        const pagination = $('#consumptionPagination');
+        if (totalPages <= 1) {
+            pagination.empty();
+            return;
+        }
+
+        let html = '';
+
+        html += `
+            <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                <a class="page-link" href="#" onclick="MemberPage.loadConsumptionPage(${currentPage - 1}); return false;">
+                    <i class="bi bi-chevron-left"></i>
+                </a>
+            </li>
+        `;
+
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+                html += `
+                    <li class="page-item ${i === currentPage ? 'active' : ''}">
+                        <a class="page-link" href="#" onclick="MemberPage.loadConsumptionPage(${i}); return false;">${i}</a>
+                    </li>
+                `;
+            } else if (i === currentPage - 2 || i === currentPage + 2) {
+                html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+            }
+        }
+
+        html += `
+            <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                <a class="page-link" href="#" onclick="MemberPage.loadConsumptionPage(${currentPage + 1}); return false;">
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </li>
+        `;
+
+        pagination.html(html);
+    }
+
+    function loadConsumptionPage(page) {
+        loadConsumptionRecords(page);
+    }
+
+    function exportConsumption(format) {
+        if (!filteredConsumptionRecords || filteredConsumptionRecords.length === 0) {
+            Helpers.showToast('暂无数据可导出', 'warning');
+            return;
+        }
+
+        const count = filteredConsumptionRecords.length;
+        const formatName = format === 'excel' ? 'Excel' : 'CSV';
+
+        Helpers.showLoading(true, `正在导出${count}条${formatName}数据...`);
+
+        setTimeout(() => {
+            try {
+                MemberService.exportConsumptionRecords(filteredConsumptionRecords, format);
+                Helpers.showToast(`成功导出 ${count} 条记录为 ${formatName}`, 'success');
+            } catch (error) {
+                console.error('Export error:', error);
+                Helpers.showToast('导出失败: ' + error.message, 'error');
+            } finally {
+                Helpers.showLoading(false);
+            }
+        }, 100);
+    }
+
     function viewDetail(memberId) {
         const member = MemberService.findById(memberId);
         if (!member) return;
@@ -801,8 +1083,8 @@ const MemberPage = (function() {
             $('#detailTabs .nav-link').removeClass('active');
             $(this).addClass('active');
             const tab = $(this).data('tab');
-            $('#consumptionTab').toggle(tab === 'consumption');
-            $('#transactionTab').toggle(tab === 'transaction');
+            $('#tabContent #consumptionTab').toggle(tab === 'consumption');
+            $('#tabContent #transactionTab').toggle(tab === 'transaction');
         });
 
         const modal = new bootstrap.Modal(document.getElementById('memberDetailModal'));
@@ -882,6 +1164,7 @@ const MemberPage = (function() {
             bootstrap.Modal.getInstance(document.getElementById('rechargeModal')).hide();
             loadMemberStats();
             loadMembers();
+            loadMemberCardOptions();
         } catch (error) {
             Helpers.showToast(error.message, 'error');
         }
@@ -941,6 +1224,7 @@ const MemberPage = (function() {
                     Helpers.showToast('删除成功', 'success');
                     loadMemberStats();
                     loadMembers();
+                    loadMemberCardOptions();
                 } catch (error) {
                     Helpers.showToast(error.message, 'error');
                 }
@@ -952,7 +1236,13 @@ const MemberPage = (function() {
         $(document).off('dataSynced.member').on('dataSynced.member', function(e, data) {
             if (data.key === 'members') {
                 loadMemberStats();
-                loadMembers();
+                if (currentTab === 'members') {
+                    loadMembers();
+                }
+                if (currentTab === 'consumption') {
+                    loadMemberCardOptions();
+                    loadConsumptionRecords();
+                }
             }
         });
     }
@@ -961,6 +1251,7 @@ const MemberPage = (function() {
         render,
         init,
         loadPage,
+        loadConsumptionPage,
         edit,
         viewDetail,
         showRecharge,
