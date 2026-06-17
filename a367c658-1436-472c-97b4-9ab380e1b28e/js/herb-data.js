@@ -499,7 +499,7 @@ var HerbData = (function() {
     ['莲子心','莲心','苦,寒','苦','心,肾经','无毒',1.5,3,'安全','','qing_re'],
     ['白茅花','茅花','甘,平','苦,涩','肺经','无毒',3,9,'安全','','zhi_xue'],
     ['西瓜翠衣','西瓜皮','甘,淡,凉','苦','脾,胃经','无毒',12,21,'安全','','qing_re'],
-    ['丝瓜络','丝瓜筋','甘,平','甘','肺,胃,肝经','无毒',4.5,9,'安全','','luo_fei'],
+    ['丝瓜络','丝瓜筋','甘,平','甘','肺,胃,肝经','无毒',4.5,9,'安全','','qu_feng_shi'],
     ['橘络','橘丝','甘,苦,平','辛,苦','肝,肺经','无毒',3,5,'安全','','li_qi'],
     ['橘核','橘子仁','苦,平','辛,苦','肝经','无毒',3,9,'安全','','li_qi'],
     ['橘叶','橘子叶','苦,辛,平','辛,苦','肝经','无毒',6,10,'安全','','li_qi'],
@@ -1373,9 +1373,14 @@ var HerbData = (function() {
 
   function gramsToQianLiang(val) {
     var qian = val / 3.0;
-    var liang = val / 30.0;
-    var remainQian = qian % 10;
-    return { qian: qian.toFixed(2), liang: liang.toFixed(2), ke: val, remainQian: remainQian.toFixed(2) };
+    var liangInt = Math.floor(qian / 10);
+    var remainQian = qian - liangInt * 10;
+    return {
+      qian: qian.toFixed(2),
+      liangInt: liangInt,
+      remainQian: remainQian.toFixed(2),
+      ke: val
+    };
   }
 
   return {

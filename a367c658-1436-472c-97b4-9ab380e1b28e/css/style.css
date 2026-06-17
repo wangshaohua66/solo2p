@@ -526,6 +526,7 @@ tr.stock-expiry {
 
 .badge-toxicity-大毒 { background: #9B2335 !important; color:#fff; }
 .badge-toxicity-中毒 { background: #C0392B !important; color:#fff; }
+.badge-toxicity-有毒 { background: #D35400 !important; color:#fff; }
 .badge-toxicity-小毒 { background: #E67E22 !important; color:#fff; }
 .badge-toxicity-无毒 { background: #52B788 !important; color:#fff; }
 

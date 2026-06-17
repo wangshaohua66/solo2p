@@ -528,14 +528,16 @@ var App = (function() {
         + '<td class="text-muted small">' + (i+1) + '</td>'
         + '<td><b>' + it.herbName + '</b>' + (h && h.aliases[0] ? ' <span class="alias-tag">' + h.aliases.slice(0,2).join('/') + '</span>' : '') + '</td>'
         + '<td class="font-mono fw-bold text-herb-red">' + it.dosage + ' g</td>'
-        + '<td class="font-mono small text-muted">' + c.qian + '钱 / ' + c.liang + '两</td>'
+        + '<td class="font-mono small text-muted">' + (c.liangInt > 0 ? c.liangInt + '两' : '') + (parseFloat(c.remainQian) > 0 ? c.remainQian + '钱' : '') + '</td>'
         + '<td>' + (it.decoction || '<span class="text-muted">常规</span>') + '</td>'
         + '<td class="small">' + (h ? h.nature + ' ' + h.flavors.join('、') + ' · ' + h.meridians.join('、') : '-') + '</td>'
         + '<td>' + (h ? '<span class="badge badge-toxicity-' + h.toxicity + '" style="font-size:.6rem">' + h.toxicity + '</span> <span class="badge preg-badge-' + h.pregnancy + '" style="font-size:.6rem">妊' + h.pregnancy + '</span>' : '-') + '</td>'
         + '<td class="small">' + (it.notes || '-') + '</td></tr>';
     });
+    var totalConv = HerbData.gramsToQianLiang(total);
+    var totalConvText = (totalConv.liangInt > 0 ? totalConv.liangInt + '两 ' : '') + totalConv.remainQian + '钱';
     html += '<tr class="bg-herb-green-soft"><td colspan="3" class="font-mono fw-bold text-end">单剂总量：' + total.toFixed(1) + ' g</td>'
-      + '<td class="font-mono text-herb-green-dark" colspan="5">' + HerbData.gramsToQianLiang(total).liang + '两 ' + HerbData.gramsToQianLiang(total).remainQian + '钱 × ' + (rx.totalDose||3) + ' 剂 = <b class="text-herb-red">' + (total*(rx.totalDose||3)).toFixed(0) + ' g</b> 总药材量</td></tr>';
+      + '<td class="font-mono text-herb-green-dark" colspan="5">' + totalConvText + ' × ' + (rx.totalDose||3) + ' 剂 = <b class="text-herb-red">' + (total*(rx.totalDose||3)).toFixed(0) + ' g</b> 总药材量</td></tr>';
     html += '</tbody></table></div>';
     if (rx.warnings && rx.warnings.length > 0) {
       html += '<h6 class="fw-bold mt-4 mb-2"><i class="bi bi-exclamation-triangle me-2 text-warning"></i>配伍/剂量警示记录（共 ' + rx.warnings.length + ' 项）</h6>';
