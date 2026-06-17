@@ -24,6 +24,117 @@ use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\AllowedSort;
 use Spatie\QueryBuilder\AllowedInclude;
 
+/**
+ * @OA\Tag(
+ *     name="Tickets",
+ *     description="工单管理 - 完整工单生命周期API：CRUD、状态流转、分配、评论、批量操作、满意度、附件、导出、审批"
+ * )
+ *
+ * @OA\Schema(
+ *     schema="Ticket",
+ *     type="object",
+ *     description="工单实体对象",
+ *     @OA\Property(property="id", type="integer", example=1001),
+ *     @OA\Property(property="uuid", type="string", format="uuid", example="f8a9c3e0-4b1a-4321-abcd-123456789012"),
+ *     @OA\Property(property="ticket_number", type="string", example="TK20240115000001"),
+ *     @OA\Property(property="subject", type="string", example="无法登录系统-密码重置请求"),
+ *     @OA\Property(property="description", type="string", example="用户反馈输入正确密码后仍无法登录"),
+ *     @OA\Property(property="status", type="string", enum={"open","in_progress","pending_customer","pending_third_party","pending_approval","resolved","closed"}, example="open"),
+ *     @OA\Property(property="priority", type="string", enum={"lowest","low","medium","high","urgent"}, example="high"),
+ *     @OA\Property(property="source", type="string", enum={"web","email","phone","chat","api"}, example="web"),
+ *     @OA\Property(property="category_id", type="integer", example=3),
+ *     @OA\Property(property="group_id", type="integer", example=2),
+ *     @OA\Property(property="assignee_id", type="integer", example=45),
+ *     @OA\Property(property="requester_id", type="integer", example=128),
+ *     @OA\Property(property="due_at", type="string", format="date-time", example="2024-01-16T18:00:00+08:00"),
+ *     @OA\Property(property="satisfaction_rating", type="integer", minimum=1, maximum=5, example=5, nullable=true),
+ *     @OA\Property(property="satisfaction_comment", type="string", example="服务非常专业，响应很快！"),
+ *     @OA\Property(property="created_at", type="string", format="date-time", example="2024-01-15T09:30:00+08:00"),
+ *     @OA\Property(property="updated_at", type="string", format="date-time", example="2024-01-15T14:22:10+08:00"),
+ *     @OA\Property(property="resolved_at", type="string", format="date-time", nullable=true),
+ *     @OA\Property(property="closed_at", type="string", format="date-time", nullable=true),
+ * )
+ *
+ * @OA\Schema(
+ *     schema="TicketListResponse",
+ *     type="object",
+ *     @OA\Property(property="success", type="boolean", example=true),
+ *     @OA\Property(property="code", type="integer", example=200),
+ *     @OA\Property(property="data", type="object",
+ *         @OA\Property(property="items", type="array", @OA\Items(ref="#/components/schemas/Ticket")),
+ *         @OA\Property(property="pagination", type="object",
+ *             @OA\Property(property="current_page", type="integer", example=1),
+ *             @OA\Property(property="per_page", type="integer", example=50),
+ *             @OA\Property(property="total", type="integer", example=12345),
+ *             @OA\Property(property="last_page", type="integer", example=247)
+ *         ),
+ *         @OA\Property(property="summary", type="object",
+ *             @OA\Property(property="total_open", type="integer", example=120),
+ *             @OA\Property(property="total_overdue", type="integer", example=8)
+ *         )
+ *     ),
+ *     @OA\Property(property="cached", type="boolean", example=false),
+ *     @OA\Property(property="timestamp", type="string", format="date-time")
+ * )
+ *
+ * @OA\Schema(
+ *     schema="ApiError",
+ *     type="object",
+ *     @OA\Property(property="success", type="boolean", example=false),
+ *     @OA\Property(property="code", type="integer", example=422),
+ *     @OA\Property(property="message", type="string", example="Validation Failed"),
+ *     @OA\Property(property="errors", type="object", additionalProperties=true),
+ *     @OA\Property(property="timestamp", type="string", format="date-time")
+ * )
+ *
+ * @OA\Schema(
+ *     schema="TicketComment",
+ *     type="object",
+ *     @OA\Property(property="id", type="integer", example=501),
+ *     @OA\Property(property="ticket_id", type="integer", example=1001),
+ *     @OA\Property(property="author_id", type="integer", example=45),
+ *     @OA\Property(property="author_name", type="string", example="李工程师"),
+ *     @OA\Property(property="body", type="string", example="已协助用户重置密码并完成登录验证"),
+ *     @OA\Property(property="is_internal", type="boolean", example=false),
+ *     @OA\Property(property="created_at", type="string", format="date-time"),
+ * )
+ *
+ * @OA\Schema(
+ *     schema="TicketHistory",
+ *     type="object",
+ *     @OA\Property(property="id", type="integer", example=9999),
+ *     @OA\Property(property="ticket_id", type="integer", example=1001),
+ *     @OA\Property(property="action", type="string", enum={"created","assigned","status_changed","priority_changed","commented","attachment_added","sla_breach"}, example="status_changed"),
+ *     @OA\Property(property="old_value", type="object", @OA\Property(property="status", type="string", example="open")),
+ *     @OA\Property(property="new_value", type="object", @OA\Property(property="status", type="string", example="in_progress")),
+ *     @OA\Property(property="actor_id", type="integer", example=45),
+ *     @OA\Property(property="created_at", type="string", format="date-time"),
+ * )
+ *
+ * @OA\Schema(
+ *     schema="User",
+ *     type="object",
+ *     @OA\Property(property="id", type="integer", example=45),
+ *     @OA\Property(property="name", type="string", example="李工程师"),
+ *     @OA\Property(property="email", type="string", format="email", example="engineer.li@company.example.com"),
+ *     @OA\Property(property="avatar_url", type="string", example="https://cdn.example.com/avatars/45.jpg", nullable=true),
+ *     @OA\Property(property="roles", type="array", @OA\Items(type="string"), example={"agent","supervisor"}),
+ * )
+ *
+ * @OA\Schema(
+ *     schema="Tenant",
+ *     type="object",
+ *     @OA\Property(property="id", type="integer", example=1),
+ *     @OA\Property(property="uuid", type="string", format="uuid"),
+ *     @OA\Property(property="name", type="string", example="ABC科技有限公司"),
+ *     @OA\Property(property="subdomain", type="string", example="abctech"),
+ *     @OA\Property(property="plan", type="string", enum={"trial","starter","standard","enterprise"}),
+ *     @OA\Property(property="status", type="string", enum={"active","suspended","cancelled","expired"}),
+ *     @OA\Property(property="is_active", type="boolean", example=true),
+ *     @OA\Property(property="billing_email", type="string", format="email"),
+ *     @OA\Property(property="created_at", type="string", format="date-time"),
+ * )
+ */
 class TicketController extends Controller
 {
     protected $workflowEngine;
@@ -46,6 +157,29 @@ class TicketController extends Controller
         $this->reportService = $reportService;
     }
 
+    /**
+     * @OA\Get(
+     *     path="/tickets",
+     *     tags={"Tickets"},
+     *     summary="工单列表查询",
+     *     description="支持18项过滤器/8种排序/7项关联预加载，60秒Redis缓存+分页。权限: tickets.view",
+     *     security={{"OAuth2-Bearer":{}}},
+     *     @OA\Parameter(name="filter[status]", in="query", description="状态: open/in_progress/pending_customer/resolved/closed", @OA\Schema(type="string")),
+     *     @OA\Parameter(name="filter[priority]", in="query", @OA\Schema(type="string")),
+     *     @OA\Parameter(name="filter[assignee_id]", in="query", description="处理人ID", @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="filter[group_id]", in="query", @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="filter[category_id]", in="query", @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="filter[created_between]", in="query", description="创建时间范围[start,end]", @OA\Schema(type="array", @OA\Items(type="string", format="date"))),
+     *     @OA\Parameter(name="filter[subject]", in="query", description="模糊搜索标题", @OA\Schema(type="string")),
+     *     @OA\Parameter(name="include", in="query", description="关联预加载: requester,assignee,group,category,tags,comments", @OA\Schema(type="string")),
+     *     @OA\Parameter(name="sort", in="query", description="排序字段: -created_at (desc) / priority / due_at", @OA\Schema(type="string", example="-created_at")),
+     *     @OA\Parameter(name="page", in="query", @OA\Schema(type="integer", default=1)),
+     *     @OA\Parameter(name="per_page", in="query", @OA\Schema(type="integer", default=50, maximum=200)),
+     *     @OA\Response(response=200, ref="#/components/schemas/TicketListResponse"),
+     *     @OA\Response(response=401, ref="#/components/schemas/ApiError"),
+     *     @OA\Response(response=403, ref="#/components/schemas/ApiError"),
+     * )
+     */
     public function index(Request $request)
     {
         $tenantId = app('currentTenantId');
@@ -132,6 +266,38 @@ class TicketController extends Controller
         ]);
     }
 
+    /**
+     * @OA\Post(
+     *     path="/tickets",
+     *     tags={"Tickets"},
+     *     summary="创建工单",
+     *     description="全生命周期创建：配额检查→自动创建客户→工作流初始化→SLA计时器启动→自动分配→历史记录→事件链触发。限流: 500/秒。权限: tickets.create",
+     *     security={{"OAuth2-Bearer":{}},{"API-Key":{}}},
+     *     @OA\RequestBody(required=true,
+     *         @OA\JsonContent(
+     *             required={"subject"},
+     *             @OA\Property(property="subject", type="string", example="支付失败导致订单无法完成"),
+     *             @OA\Property(property="description", type="string", example="用户使用微信支付后订单仍显示待支付，已扣款成功"),
+     *             @OA\Property(property="priority", type="string", enum={"lowest","low","medium","high","urgent"}, default="medium"),
+     *             @OA\Property(property="category_id", type="integer", example=3),
+     *             @OA\Property(property="group_id", type="integer", example=2),
+     *             @OA\Property(property="assignee_id", type="integer", example=45),
+     *             @OA\Property(property="requester_email", type="string", format="email", example="customer@example.com", description="无用户ID时自动创建客户账号"),
+     *             @OA\Property(property="requester_name", type="string", example="张先生"),
+     *             @OA\Property(property="source", type="string", enum={"web","email","phone","chat","api"}, default="web"),
+     *             @OA\Property(property="tags", type="array", @OA\Items(type="string"), example={"支付","紧急"}),
+     *             @OA\Property(property="custom_fields", type="object", example={"order_no":"ORD202401150001"}),
+     *             @OA\Property(property="due_at", type="string", format="date-time"),
+     *         )
+     *     ),
+     *     @OA\Response(response=201, description="创建成功", @OA\JsonContent(
+     *         @OA\Property(property="success", type="boolean", example=true),
+     *         @OA\Property(property="data", type="object", ref="#/components/schemas/Ticket")))),
+     *     @OA\Response(response=402, description="工单配额超限"),
+     *     @OA\Response(response=422, ref="#/components/schemas/ApiError"),
+     *     @OA\Response(response=429, description="触发500 QPS限流")
+     * )
+     */
     public function store(Request $request)
     {
         $tenantId = app('currentTenantId');
@@ -268,6 +434,20 @@ class TicketController extends Controller
         });
     }
 
+    /**
+     * @OA\Get(
+     *     path="/tickets/{uuid}",
+     *     tags={"Tickets"},
+     *     summary="工单详情",
+     *     description="按需include 9个子资源：评论/历史/附件/审批/SLA计时器/工作流状态等。5分钟Redis缓存。权限: tickets.view",
+     *     security={{"OAuth2-Bearer":{}}},
+     *     @OA\Parameter(name="uuid", in="path", required=true),
+     *     @OA\Parameter(name="include", in="query", description="逗号分隔: comments,histories,attachments,approvals,slaTimers,workflowState,requester,assignee,tags,group,category",
+     *         @OA\Schema(type="string", default="requester,assignee,group,category,comments,histories,attachments,slaTimers,workflowState,approvals")),
+     *     @OA\Response(response=200, description="工单详情(含子资源)"),
+     *     @OA\Response(response=404, ref="#/components/schemas/ApiError")
+     * )
+     */
     public function show(Request $request, string $uuid)
     {
         $tenantId = app('currentTenantId');
@@ -415,6 +595,28 @@ class TicketController extends Controller
         ]);
     }
 
+    /**
+     * @OA\Put(
+     *     path="/tickets/{uuid}",
+     *     tags={"Tickets"},
+     *     summary="更新工单字段",
+     *     description="字段级审计日志。优先级变更会重算SLA；分配变更触发通知。权限: tickets.edit",
+     *     security={{"OAuth2-Bearer":{}}},
+     *     @OA\Parameter(name="uuid", in="path", required=true),
+     *     @OA\RequestBody(@OA\JsonContent(
+     *         @OA\Property(property="subject", type="string"),
+     *         @OA\Property(property="description", type="string"),
+     *         @OA\Property(property="priority", type="string", enum={"lowest","low","medium","high","urgent"}),
+     *         @OA\Property(property="category_id", type="integer"),
+     *         @OA\Property(property="group_id", type="integer"),
+     *         @OA\Property(property="assignee_id", type="integer"),
+     *         @OA\Property(property="due_at", type="string", format="date-time"),
+     *         @OA\Property(property="tags", type="array", @OA\Items(type="string")),
+     *     )),
+     *     @OA\Response(response=200, description="更新成功"),
+     *     @OA\Response(response=422, ref="#/components/schemas/ApiError")
+     * )
+     */
     public function update(Request $request, string $uuid)
     {
         $ticket = Ticket::where('uuid', $uuid)->firstOrFail();
@@ -499,6 +701,17 @@ class TicketController extends Controller
         });
     }
 
+    /**
+     * @OA\Delete(
+     *     path="/tickets/{uuid}",
+     *     tags={"Tickets"},
+     *     summary="删除工单(软删除)",
+     *     description="软删除+自动失效相关缓存。权限: tickets.delete",
+     *     security={{"OAuth2-Bearer":{}}},
+     *     @OA\Response(response=200, description="删除成功"),
+     *     @OA\Response(response=404, ref="#/components/schemas/ApiError")
+     * )
+     */
     public function destroy(string $uuid)
     {
         $tenantId = app('currentTenantId');
@@ -515,6 +728,21 @@ class TicketController extends Controller
         ]);
     }
 
+    /**
+     * @OA\Post(
+     *     path="/tickets/{uuid}/assign",
+     *     tags={"Tickets"},
+     *     summary="手动分配工单给客服/组",
+     *     description="触发通知+记录历史+重算SLA。权限: tickets.assign",
+     *     security={{"OAuth2-Bearer":{}}},
+     *     @OA\Parameter(name="uuid", in="path", required=true,
+     *     @OA\RequestBody(required=true, @OA\JsonContent(oneOf={
+     *         @OA\Schema(required={"assignee_id": 45}, type="integer", example={"assignee_id": 45, "note": "转交给李工处理。(assign_type: "assign"}),
+     *         @OA\Schema(required={"group_id": 2}, example={"group_id": 2}, type="integer"),
+     *     })),
+     *     @OA\Response(response=200, description="分配成功"),
+     * )
+     */
     public function assign(Request $request, string $uuid)
     {
         $ticket = Ticket::where('uuid', $uuid)->firstOrFail();
@@ -581,6 +809,13 @@ class TicketController extends Controller
         });
     }
 
+    /**
+     * @OA\Post(path="/tickets/{uuid}/auto-assign",
+     *     tags={"Tickets"},
+     *     summary="执行自动分配",
+     *     description="按5种策略：指定人/组/轮询/技能标签/最少负载。
+     *     @OA\Response(response=200)
+     */
     public function autoAssign(string $uuid)
     {
         $ticket = Ticket::where('uuid', $uuid)->firstOrFail();
@@ -602,6 +837,17 @@ class TicketController extends Controller
         ]);
     }
 
+    /**
+     * @OA\Post(
+     *     path="/tickets/{uuid}/transition",
+     *     tags={"Tickets"},
+     *     summary="工单状态流转",
+     *     description="条件校验→审批节点检测→Actions执行。
+     *     @OA\RequestBody(required=true, @OA\JsonContent(
+     *         required={"target_state"},
+     *         example={"target_state": "resolved", "comment":"已经协助用户解决问题", "fields":{"skip_approval": false}),
+     *     @OA\Response(response=200, description="流转成功"),
+     */
     public function transition(Request $request, string $uuid)
     {
         $ticket = Ticket::where('uuid', $uuid)->firstOrFail();
@@ -660,6 +906,16 @@ class TicketController extends Controller
         ]);
     }
 
+    /**
+     * @OA\Post(
+     *     path="/tickets/{uuid}/comments",
+     *     tags={"Tickets"},
+     *     summary="添加评论(公开/内部",
+     *     description="内部评论客户不可见；客服首次评论会完成首响应SLA。
+     *     @OA\RequestBody(required=true, @OA\JsonContent(
+     *         required={"body": "...", "is_internal": true},
+     *     )
+     */
     public function addComment(Request $request, string $uuid)
     {
         $ticket = Ticket::where('uuid', $uuid)->firstOrFail();
@@ -732,6 +988,13 @@ class TicketController extends Controller
         ], 201);
     }
 
+    /**
+     * @OA\Post(
+     *     path="/tickets/{uuid}/satisfaction",
+     *     tags={"Tickets"},
+     *     summary="客户满意度评分(1-5星) + 文字评价
+     *     description="一次性操作，状态为 resolved/closed才可评价。
+     */
     public function rateSatisfaction(Request $request, string $uuid)
     {
         $ticket = Ticket::where('uuid', $uuid)->firstOrFail();
@@ -782,6 +1045,13 @@ class TicketController extends Controller
         ]);
     }
 
+    /**
+     * @OA\Post(path="/tickets/batch",
+     *     tags={"Tickets"},
+     *     summary="批量工单操作",
+     *     description="事务性执行9种操作：assign/change_priority/change_status/add_tag/remove_tag/add_watcher/change_category/export/delete。限流60/分。
+     *     @OA\Response(response=200)
+     */
     public function batchOperation(Request $request)
     {
         $tenantId = app('currentTenantId');
@@ -907,6 +1177,16 @@ class TicketController extends Controller
         return ['success' => true];
     }
 
+    /**
+     * @OA\Post(
+     *     path="/tickets/{uuid}/attachments",
+     *     tags={"Tickets"},
+     *     summary="上传附件
+     *     description="S3/OSS上传。存储配额检查。权限: tickets.upload",
+     *     @OA\RequestBody(required=true, @OA\MediaType(mediaType="multipart/form-data",
+     *         @OA\Schema(type="object", required={"file", @OA\Property(property="file", type="file", format="binary")
+     *     )
+     */
     public function uploadAttachment(Request $request, string $uuid)
     {
         $tenantId = app('currentTenantId');
@@ -1016,6 +1296,13 @@ class TicketController extends Controller
         return $base;
     }
 
+    /**
+     * @OA\Post(
+     *     path="/tickets/export",
+     *     tags={"Tickets"},
+     *     summary="异步导出工单(CSV/XLSX/JSON)
+     *     description="超过10万行上限，完成后邮件通知下载链接(24h有效。
+     */
     public function export(Request $request)
     {
         $tenantId = app('currentTenantId');
@@ -1044,6 +1331,13 @@ class TicketController extends Controller
         ], 202);
     }
 
+    /**
+     * @OA\Get(
+     *     path="/tickets/{uuid}/transitions",
+     *     tags={"Tickets"},
+     *     summary="查询工单当前可用状态可执行的状态转换列表
+     *     description="可视化工作流引擎根据权限过滤。
+     */
     public function availableTransitions(string $uuid)
     {
         $ticket = Ticket::where('uuid', $uuid)->firstOrFail();
@@ -1070,6 +1364,13 @@ class TicketController extends Controller
         ]);
     }
 
+    /**
+     * @OA\Post(
+     *     path="/tickets/{uuid}/approvals/{approvalId}/approve",
+     *     tags={"Tickets"},
+     *     summary="审批工单节点",
+     *     description="审批通过后自动执行原状态流转；拒绝则回退原状态，
+     */
     public function approveApproval(Request $request, string $uuid, int $approvalId)
     {
         $ticket = Ticket::where('uuid', $uuid)->firstOrFail();

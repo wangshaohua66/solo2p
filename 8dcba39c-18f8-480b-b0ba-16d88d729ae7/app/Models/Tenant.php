@@ -41,15 +41,19 @@ class Tenant extends Model
     public const PLAN_ENTERPRISE = 'enterprise';
 
     protected $fillable = [
-        'uuid', 'name', 'subdomain', 'email', 'phone', 'industry', 'company_size',
-        'timezone', 'language', 'status', 'trial_ends_at', 'subscription_ends_at',
-        'billing_plan', 'settings', 'created_by',
+        'uuid', 'name', 'subdomain', 'email', 'phone', 'billing_email',
+        'industry', 'company_size', 'employee_count',
+        'timezone', 'language', 'currency', 'status', 'is_active',
+        'trial_ends_at', 'subscription_ends_at',
+        'plan', 'billing_plan', 'settings', 'created_by',
     ];
 
     protected $casts = [
         'settings' => 'array',
         'trial_ends_at' => 'datetime',
         'subscription_ends_at' => 'datetime',
+        'is_active' => 'boolean',
+        'employee_count' => 'integer',
     ];
 
     public function users(): HasMany

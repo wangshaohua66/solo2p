@@ -75,17 +75,19 @@ class Ticket extends Model
     ];
 
     protected $fillable = [
-        'tenant_id', 'uuid', 'number', 'subject', 'content',
+        'tenant_id', 'uuid', 'ticket_number', 'number', 'subject', 'description', 'content',
         'category_id', 'subcategory_id', 'source', 'channel',
         'priority', 'status',
         'requester_id', 'assignee_id', 'group_id',
         'workflow_id', 'current_state_id', 'sla_policy_id',
-        'satisfaction_score', 'satisfaction_comment', 'satisfaction_submitted_at',
-        'due_at', 'first_response_at', 'last_assigned_at',
+        'satisfaction_rating', 'satisfaction_score',
+        'satisfaction_comment', 'satisfaction_submitted_at', 'rated_at',
+        'due_at', 'first_response_at', 'last_assigned_at', 'assigned_at',
         'resolved_at', 'closed_at', 'reopen_count',
         'comment_count', 'attachment_count',
         'custom_fields', 'tags',
         'created_by', 'updated_by',
+        'escalation_level',
     ];
 
     protected $casts = [
@@ -94,9 +96,13 @@ class Ticket extends Model
         'due_at' => 'datetime',
         'first_response_at' => 'datetime',
         'last_assigned_at' => 'datetime',
+        'assigned_at' => 'datetime',
         'resolved_at' => 'datetime',
         'closed_at' => 'datetime',
+        'rated_at' => 'datetime',
         'satisfaction_submitted_at' => 'datetime',
+        'satisfaction_rating' => 'integer',
+        'escalation_level' => 'integer',
     ];
 
     protected $appends = ['is_overdue'];
