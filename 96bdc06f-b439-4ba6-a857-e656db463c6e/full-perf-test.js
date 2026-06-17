@@ -1,4 +1,6 @@
 const os = require('os');
+const fs = require('fs');
+const path = require('path');
 const crypto = require('crypto');
 const moment = require('moment');
 const cliProgress = require('cli-progress');
@@ -520,6 +522,43 @@ async function runFullPerformanceTest() {
     console.log();
     console.log(chalk.green(passed === total ? '✓ 所有性能测试通过!' : `⚠ 部分测试未通过，请检查`));
     console.log();
+
+    // 保存 JSON 报告
+    try {
+      const reportDir = path.join(__dirname, 'data', 'reports');
+      if (!fs.existsSync(reportDir)) fs.mkdirSync(reportDir, { recursive: true });
+      const report = {
+        timestamp: new Date().toISOString(),
+        type: 'full-performance',
+        summary: {
+          totalTests: total,
+          passedTests: passed,
+          failedTests: total - passed,
+          passRate: total > 0 ? parseFloat((passed / total * 100).toFixed(1)) : 0
+        },
+        scenarios: {
+          matching: allResults.matching || [],
+          concurrent: allResults.concurrent || [],
+          csvExport: allResults.csvExport || [],
+          opposition: allResults.opposition || [],
+          deduplication: allResults.dedup || [],
+          cache: allResults.cache || []
+        },
+        environment: {
+          cpu: os.cpus()[0].model,
+          cpuCores: os.cpus().length,
+          totalMemoryGB: parseFloat((os.totalmem() / 1024 / 1024 / 1024).toFixed(1)),
+          nodeVersion: process.version,
+          platform: process.platform,
+          arch: process.arch
+        }
+      };
+      const reportPath = path.join(reportDir, `full-perf-report_${Date.now()}.json`);
+      fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
+      console.log(chalk.blue(`  JSON 报告已保存: ${reportPath}`));
+    } catch (reportErr) {
+      console.warn(chalk.yellow(`  ⚠ 保存报告失败: ${reportErr.message}`));
+    }
     
   } catch (error) {
     console.error(chalk.red('\n✗ 测试执行失败:'), error.message);

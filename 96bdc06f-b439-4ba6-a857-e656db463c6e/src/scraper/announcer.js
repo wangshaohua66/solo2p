@@ -116,6 +116,9 @@ class AnnouncementScraper {
           case 'ruokuai':
             result = await this.solveWithRuoKuai(imageBuffer, attempt);
             break;
+          case 'mock':
+            result = await this.solveWithMock(imageBuffer, attempt);
+            break;
           case 'third_party':
           default:
             result = await this.solveWithGenericAPI(imageBuffer, attempt);
@@ -159,6 +162,48 @@ class AnnouncementScraper {
     
     const fallbackResult = await this.captchaFallbackHandler(imageBuffer, lastError);
     return fallbackResult;
+  }
+
+  async solveWithMock(imageBuffer, attempt) {
+    const mockConfig = this.captchaConfig.mock || {};
+    const accuracy = typeof mockConfig.accuracy === 'number' ? mockConfig.accuracy : 0.95;
+    const latency = mockConfig.simulateLatencyMs || 500;
+    const fixedAnswer = mockConfig.fixedAnswer || '';
+
+    await new Promise(r => setTimeout(r, latency));
+
+    if (Math.random() > accuracy) {
+      throw new Error('Mock captcha service simulated failure (accuracy threshold)');
+    }
+
+    let answer = fixedAnswer;
+    if (!answer) {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      const len = this.captchaConfig.length || 4;
+      let generated = '';
+      for (let i = 0; i < len; i++) {
+        generated += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      answer = generated;
+    }
+
+    if (!this.captchaConfig.caseSensitive) {
+      answer = answer.toUpperCase();
+    }
+
+    logger.debug('Mock captcha service returning solution', {
+      answer: answer.substring(0, 10) + '...',
+      attempt,
+      latency,
+      accuracy
+    });
+
+    return {
+      success: true,
+      text: answer,
+      cost: 0,
+      requestId: `mock-${Date.now()}-${attempt}`
+    };
   }
 
   async solveWithGenericAPI(imageBuffer, attempt) {

@@ -1,0 +1,171 @@
+{
+  "timestamp": "2026-06-17T11:30:23.691Z",
+  "type": "captcha-quick-validation",
+  "summary": {
+    "total": 7,
+    "passed": 7,
+    "failed": 0,
+    "passRate": 100
+  },
+  "results": [
+    {
+      "test": "验证码图片生成+PNG有效",
+      "pass": true,
+      "samples": 5,
+      "detail": [
+        {
+          "code": "CLNF",
+          "sizeKB": "30.84",
+          "durationMs": 7,
+          "validPng": true,
+          "path": "/Users/paul/WorkSpace/TestSoloCoder/96bdc06f-b439-4ba6-a857-e656db463c6e/data/captcha-samples/sample_1.png"
+        },
+        {
+          "code": "F6JE",
+          "sizeKB": "30.76",
+          "durationMs": 9,
+          "validPng": true,
+          "path": "/Users/paul/WorkSpace/TestSoloCoder/96bdc06f-b439-4ba6-a857-e656db463c6e/data/captcha-samples/sample_2.png"
+        },
+        {
+          "code": "E5KA",
+          "sizeKB": "30.57",
+          "durationMs": 4,
+          "validPng": true,
+          "path": "/Users/paul/WorkSpace/TestSoloCoder/96bdc06f-b439-4ba6-a857-e656db463c6e/data/captcha-samples/sample_3.png"
+        },
+        {
+          "code": "ARNK",
+          "sizeKB": "30.64",
+          "durationMs": 6,
+          "validPng": true,
+          "path": "/Users/paul/WorkSpace/TestSoloCoder/96bdc06f-b439-4ba6-a857-e656db463c6e/data/captcha-samples/sample_4.png"
+        },
+        {
+          "code": "VQS4",
+          "sizeKB": "30.64",
+          "durationMs": 3,
+          "validPng": true,
+          "path": "/Users/paul/WorkSpace/TestSoloCoder/96bdc06f-b439-4ba6-a857-e656db463c6e/data/captcha-samples/sample_5.png"
+        }
+      ]
+    },
+    {
+      "test": "Mock 验证码识别准确率",
+      "pass": true,
+      "samples": 5,
+      "detail": [
+        {
+          "code": "5WY2",
+          "got": "5WY2",
+          "durationMs": 18,
+          "pass": true
+        },
+        {
+          "code": "GQ5J",
+          "got": "GQ5J",
+          "durationMs": 15,
+          "pass": true
+        },
+        {
+          "code": "7D4G",
+          "got": "7D4G",
+          "durationMs": 17,
+          "pass": true
+        },
+        {
+          "code": "LWX7",
+          "got": "LWX7",
+          "durationMs": 17,
+          "pass": true
+        },
+        {
+          "code": "JCHL",
+          "got": "JCHL",
+          "durationMs": 17,
+          "pass": true
+        }
+      ],
+      "accuracy": "100.0%"
+    },
+    {
+      "test": "solveWithMock 直接调用",
+      "pass": true,
+      "samples": 1,
+      "detail": {
+        "text": "HX72",
+        "success": true,
+        "cost": 0,
+        "durationMs": 31,
+        "requestId": "mock-1781695823387-1"
+      }
+    },
+    {
+      "test": "重试机制 + fallback=skip",
+      "pass": true,
+      "samples": 1,
+      "detail": {
+        "attempts": 2,
+        "expectedAttempts": 2,
+        "fallbackResult": null,
+        "durationMs": 94
+      }
+    },
+    {
+      "test": "验证码临时屏蔽(retry_later)",
+      "pass": true,
+      "samples": 1,
+      "detail": {
+        "threwBlockedError": true,
+        "blockedActive": true,
+        "unblockAfterExpire": true
+      }
+    },
+    {
+      "test": "save_for_later 降级",
+      "pass": true,
+      "samples": 1,
+      "detail": {
+        "filesBefore": 0,
+        "filesAfter": 1,
+        "fallbackResult": null
+      }
+    },
+    {
+      "test": "多长度支持(3/4/6/8)",
+      "pass": true,
+      "samples": 4,
+      "detail": [
+        {
+          "length": 3,
+          "code": "MJN",
+          "got": "MJN",
+          "pass": true
+        },
+        {
+          "length": 4,
+          "code": "CPPD",
+          "got": "CPPD",
+          "pass": true
+        },
+        {
+          "length": 6,
+          "code": "FPVLTB",
+          "got": "FPVLTB",
+          "pass": true
+        },
+        {
+          "length": 8,
+          "code": "LHTWL28R",
+          "got": "LHTWL28R",
+          "pass": true
+        }
+      ]
+    }
+  ],
+  "environment": {
+    "nodeVersion": "v24.16.0",
+    "platform": "darwin",
+    "captchaService": "mock"
+  }
+}

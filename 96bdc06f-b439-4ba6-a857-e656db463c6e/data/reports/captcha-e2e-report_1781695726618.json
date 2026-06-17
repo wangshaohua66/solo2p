@@ -1,0 +1,135 @@
+{
+  "timestamp": "2026-06-17T11:28:46.617Z",
+  "type": "captcha-e2e",
+  "summary": {
+    "total": 8,
+    "passed": 6,
+    "failed": 2,
+    "passRate": 75
+  },
+  "results": [
+    {
+      "test": "验证码图片生成",
+      "pass": true,
+      "samples": 10,
+      "avgMs": 4.9,
+      "detail": "10 files generated"
+    },
+    {
+      "test": "PNG 有效性",
+      "pass": false,
+      "samples": 10,
+      "detail": "0/10 valid PNGs"
+    },
+    {
+      "test": "Mock 服务识别",
+      "pass": false,
+      "samples": 20,
+      "successRate": 90,
+      "accuracy": 90,
+      "avgMs": 450.9
+    },
+    {
+      "test": "重试机制",
+      "pass": true,
+      "samples": 1,
+      "retryCount": 3,
+      "expectedRetries": 3,
+      "durationMs": 6506,
+      "detail": "retries=3, fallback=skip→null"
+    },
+    {
+      "test": "边界图片处理",
+      "pass": true,
+      "samples": 1,
+      "inputSize": 8,
+      "output": "ABCD"
+    },
+    {
+      "test": "solveCaptcha 完整链路",
+      "pass": true,
+      "expected": "HX72",
+      "got": "HX72",
+      "durationMs": 81,
+      "imageBytes": 31598
+    },
+    {
+      "test": "验证码临时屏蔽",
+      "pass": true,
+      "threwBlockedError": true,
+      "blockedWhileActive": true,
+      "unblockedAfterExpired": true
+    },
+    {
+      "test": "多长度支持",
+      "pass": true,
+      "samples": 4,
+      "lengths": [
+        3,
+        4,
+        6,
+        8
+      ],
+      "detail": "[{\"length\":3,\"expected\":\"3TN\",\"got\":\"3TN\",\"durationMs\":82,\"pass\":true},{\"length\":4,\"expected\":\"PD5C\",\"got\":\"PD5C\",\"durationMs\":82,\"pass\":true},{\"length\":6,\"expected\":\"HHEK9C\",\"got\":\"HHEK9C\",\"durationMs\":110,\"pass\":true},{\"length\":8,\"expected\":\"PJFY3DP5\",\"got\":\"PJFY3DP5\",\"durationMs\":81,\"pass\":true}]"
+    }
+  ],
+  "samples": [
+    {
+      "code": "4FFQ",
+      "sizeKB": "30.92",
+      "filePath": "/Users/paul/WorkSpace/TestSoloCoder/96bdc06f-b439-4ba6-a857-e656db463c6e/data/captcha-samples/captcha_sample_001.png"
+    },
+    {
+      "code": "7S2Y",
+      "sizeKB": "31.00",
+      "filePath": "/Users/paul/WorkSpace/TestSoloCoder/96bdc06f-b439-4ba6-a857-e656db463c6e/data/captcha-samples/captcha_sample_002.png"
+    },
+    {
+      "code": "SFWX",
+      "sizeKB": "30.75",
+      "filePath": "/Users/paul/WorkSpace/TestSoloCoder/96bdc06f-b439-4ba6-a857-e656db463c6e/data/captcha-samples/captcha_sample_003.png"
+    },
+    {
+      "code": "JQ8C",
+      "sizeKB": "30.84",
+      "filePath": "/Users/paul/WorkSpace/TestSoloCoder/96bdc06f-b439-4ba6-a857-e656db463c6e/data/captcha-samples/captcha_sample_004.png"
+    },
+    {
+      "code": "8VRY",
+      "sizeKB": "30.81",
+      "filePath": "/Users/paul/WorkSpace/TestSoloCoder/96bdc06f-b439-4ba6-a857-e656db463c6e/data/captcha-samples/captcha_sample_005.png"
+    },
+    {
+      "code": "HT89",
+      "sizeKB": "30.66",
+      "filePath": "/Users/paul/WorkSpace/TestSoloCoder/96bdc06f-b439-4ba6-a857-e656db463c6e/data/captcha-samples/captcha_sample_006.png"
+    },
+    {
+      "code": "KJRR",
+      "sizeKB": "30.51",
+      "filePath": "/Users/paul/WorkSpace/TestSoloCoder/96bdc06f-b439-4ba6-a857-e656db463c6e/data/captcha-samples/captcha_sample_007.png"
+    },
+    {
+      "code": "KVEZ",
+      "sizeKB": "30.70",
+      "filePath": "/Users/paul/WorkSpace/TestSoloCoder/96bdc06f-b439-4ba6-a857-e656db463c6e/data/captcha-samples/captcha_sample_008.png"
+    },
+    {
+      "code": "AQ6P",
+      "sizeKB": "30.79",
+      "filePath": "/Users/paul/WorkSpace/TestSoloCoder/96bdc06f-b439-4ba6-a857-e656db463c6e/data/captcha-samples/captcha_sample_009.png"
+    },
+    {
+      "code": "VESK",
+      "sizeKB": "30.72",
+      "filePath": "/Users/paul/WorkSpace/TestSoloCoder/96bdc06f-b439-4ba6-a857-e656db463c6e/data/captcha-samples/captcha_sample_010.png"
+    }
+  ],
+  "environment": {
+    "nodeVersion": "v24.16.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "captchaService": "mock",
+    "captchaEnabled": true
+  }
+}

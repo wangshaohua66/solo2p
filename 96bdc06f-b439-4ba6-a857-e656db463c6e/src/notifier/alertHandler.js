@@ -104,6 +104,7 @@ class AlertHandler {
   }
 
   _isDuplicateNotification(dedupKey) {
+    if (!dedupKey) return false;
     if (this.notificationCache.deduplicationIndex.has(dedupKey)) {
       this.notificationCache.statistics.cacheHits++;
       this.notificationCache.statistics.deduplicated++;
@@ -114,17 +115,18 @@ class AlertHandler {
   }
 
   _markAsSent(dedupKey, metadata = {}) {
-    this.notificationCache.deduplicationIndex.add(dedupKey);
+    const safeKey = dedupKey || `sent:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
+    this.notificationCache.deduplicationIndex.add(safeKey);
     const now = Date.now();
     
-    if (dedupKey.startsWith('instant:')) {
-      this.notificationCache.instantAlerts.set(dedupKey, {
+    if (typeof safeKey === 'string' && safeKey.startsWith('instant:')) {
+      this.notificationCache.instantAlerts.set(safeKey, {
         createdAt: now,
         expiresAt: now + this.cacheConfig.deduplicationWindowMs,
         ...metadata
       });
-    } else if (dedupKey.startsWith('weekly:')) {
-      this.notificationCache.weeklySummaries.set(dedupKey, {
+    } else if (typeof safeKey === 'string' && safeKey.startsWith('weekly:')) {
+      this.notificationCache.weeklySummaries.set(safeKey, {
         createdAt: now,
         expiresAt: now + this.cacheConfig.maxCacheAgeMs,
         ...metadata
@@ -140,18 +142,19 @@ class AlertHandler {
   }
 
   _cachePendingForRetry(dedupKey, sendFn, metadata = {}) {
-    const pendingKey = `pending:${dedupKey}`;
+    const safeDedupKey = dedupKey || `pending:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
+    const pendingKey = `pending:${safeDedupKey}`;
     this.notificationCache.instantAlerts.set(pendingKey, {
       createdAt: Date.now(),
       expiresAt: Date.now() + 24 * 60 * 60 * 1000,
       retryCount: 0,
       maxRetries: this.retryConfig.maxAttempts,
-      sendFn: sendFn.toString(),
+      sendFnSerialized: typeof sendFn === 'function' ? sendFn.toString() : null,
       metadata,
       type: 'pending_retry'
     });
     logger.warn('Notification cached for retry', {
-      dedupKey,
+      dedupKey: safeDedupKey,
       retryCount: 0,
       maxRetries: this.retryConfig.maxAttempts
     });
@@ -371,6 +374,14 @@ class AlertHandler {
       return { success: false, reason: 'disabled' };
     }
     
+    if (!matchResult || !clientTrademark) {
+      logger.warn('Invalid params for instant alert', {
+        hasMatchResult: !!matchResult,
+        hasClientTrademark: !!clientTrademark
+      });
+      return { success: false, reason: 'invalid_params' };
+    }
+    
     const client = getClientById(clientTrademark.client_id);
     if (!client) {
       logger.warn('Client not found for instant alert', { clientId: clientTrademark.client_id });
@@ -453,6 +464,16 @@ class AlertHandler {
     } catch (error) {
       logger.error('Failed to send instant alert', { error: error.message });
       await updateNotificationStatus(notifId, 'failed', error.message);
+      
+      this._markAsSent(dedupKey, {
+        notifId,
+        clientId: client.id,
+        trademark: clientTrademark.trademark_name,
+        matchType: matchResult.match_type,
+        riskLevel: matchResult.risk_level,
+        status: 'failed',
+        error: error.message
+      });
       
       this._cachePendingForRetry(dedupKey, null, {
         notifId,
