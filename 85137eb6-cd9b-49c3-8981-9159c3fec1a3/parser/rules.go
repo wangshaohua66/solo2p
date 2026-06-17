@@ -33,16 +33,10 @@ func parsePriceText(text string) float64 {
 	replacements := []string{
 		"¥", "￥", "$", "€", "£", "HK$", "RMB", "CNY", "USD", "EUR",
 		"元", "块", "块钱", "元起", "元/件", "元/盒", "元/袋", "元/罐",
-		",", "，", " ", "\t", "\n", "\r",
+		" ", "\t", "\n", "\r", ",", "，",
 	}
 	for _, r := range replacements {
 		text = strings.ReplaceAll(text, r, "")
-	}
-
-	text = cleanPriceRegex.ReplaceAllString(text, "")
-
-	if text == "" || text == "." {
-		return 0
 	}
 
 	matches := priceRegex.FindAllString(text, -1)
@@ -50,22 +44,22 @@ func parsePriceText(text string) float64 {
 		return 0
 	}
 
-	maxVal := 0.0
+	minVal := 0.0
 	for _, m := range matches {
-		if val, err := strconv.ParseFloat(m, 64); err == nil {
-			if val > 0 && (maxVal == 0 || val < maxVal || maxVal == 0) {
-				if maxVal == 0 || val < maxVal {
-					maxVal = val
-				}
+		cleaned := strings.ReplaceAll(m, ",", "")
+		if val, err := strconv.ParseFloat(cleaned, 64); err == nil && val > 0 {
+			if minVal == 0 || val < minVal {
+				minVal = val
 			}
 		}
 	}
 
-	if maxVal > 0 {
-		return maxVal
+	if minVal > 0 {
+		return minVal
 	}
 
-	val, err := strconv.ParseFloat(matches[0], 64)
+	cleanedFirst := strings.ReplaceAll(matches[0], ",", "")
+	val, err := strconv.ParseFloat(cleanedFirst, 64)
 	if err != nil {
 		return 0
 	}

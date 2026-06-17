@@ -39,27 +39,32 @@ type CrawlResult struct {
 }
 
 type Engine struct {
-	collector  *colly.Collector
-	cfg        *config.AppConfig
-	semaphore  chan struct{}
-	results    chan *CrawlResult
-	wg         sync.WaitGroup
-	active     int32
-	successCnt int32
-	failCnt    int32
-	totalCnt   int32
-	cookieJar  map[string]map[string]string
-	cookieMu   sync.RWMutex
-	uaIndex    int32
-	proxyIndex int32
+	collector      *colly.Collector
+	cfg            *config.AppConfig
+	semaphore      chan struct{}
+	results        chan *CrawlResult
+	wg             sync.WaitGroup
+	active         int32
+	successCnt     int32
+	failCnt        int32
+	totalCnt       int32
+	cookieJar      map[string]map[string]string
+	cookieMu       sync.RWMutex
+	uaIndex        int32
+	proxyIndex     int32
+	captchaMgr     *CaptchaManager
+	errorCollector []string
+	errMu          sync.Mutex
 }
 
 func NewEngine(cfg *config.AppConfig) *Engine {
 	e := &Engine{
-		cfg:       cfg,
-		semaphore: make(chan struct{}, cfg.Global.Concurrency),
-		results:   make(chan *CrawlResult, cfg.Global.Concurrency*2),
-		cookieJar: make(map[string]map[string]string),
+		cfg:            cfg,
+		semaphore:      make(chan struct{}, cfg.Global.Concurrency),
+		results:        make(chan *CrawlResult, cfg.Global.Concurrency*2),
+		cookieJar:      make(map[string]map[string]string),
+		captchaMgr:     NewCaptchaManager(),
+		errorCollector: make([]string, 0),
 	}
 
 	c := colly.NewCollector(
@@ -191,21 +196,31 @@ func (e *Engine) CrawlSingle(task *CrawlTask) *CrawlResult {
 			return
 		}
 
+		pageHTML := string(r.Body)
 		var err error
-		doc, err = goquery.NewDocumentFromReader(strings.NewReader(string(r.Body)))
+		doc, err = goquery.NewDocumentFromReader(strings.NewReader(pageHTML))
 		if err != nil {
 			parseErr = fmt.Errorf("parse HTML failed: %w", err)
 			return
 		}
 
+		if _, hasCaptcha := e.captchaMgr.HandleCaptcha(doc, pageHTML, searchURL, task.Site.ID); hasCaptcha {
+			logger.Info("Captcha handled for site=%s", task.Site.ID)
+		}
+
 		parsedData := parser.ParsePricePage(doc, task.Site)
 
-		priceFinal := parsedData.PricePromo
+		siteCurrency := task.Site.Currency
+		priceOrigCNY := config.ConvertCurrency(parsedData.PriceOriginal, siteCurrency, "CNY")
+		pricePromoCNY := config.ConvertCurrency(parsedData.PricePromo, siteCurrency, "CNY")
+		priceMemberCNY := config.ConvertCurrency(parsedData.PriceMember, siteCurrency, "CNY")
+
+		priceFinal := pricePromoCNY
 		if priceFinal <= 0 {
-			priceFinal = parsedData.PriceOriginal
+			priceFinal = priceOrigCNY
 		}
-		if parsedData.PriceMember > 0 && parsedData.PriceMember < priceFinal {
-			priceFinal = parsedData.PriceMember
+		if priceMemberCNY > 0 && priceMemberCNY < priceFinal {
+			priceFinal = priceMemberCNY
 		}
 
 		if priceFinal <= 0 {
@@ -215,7 +230,7 @@ func (e *Engine) CrawlSingle(task *CrawlTask) *CrawlResult {
 
 		hashData := fmt.Sprintf("%s|%s|%.2f|%.2f|%.2f",
 			task.Site.ID, task.SKU.SKUId,
-			parsedData.PriceOriginal, parsedData.PricePromo, parsedData.PriceMember)
+			priceOrigCNY, pricePromoCNY, priceMemberCNY)
 		hash := fmt.Sprintf("%x", md5.Sum([]byte(hashData)))
 
 		record = &storage.PriceRecord{
@@ -225,11 +240,11 @@ func (e *Engine) CrawlSingle(task *CrawlTask) *CrawlResult {
 			Category:      task.SKU.Category,
 			SiteId:        task.Site.ID,
 			SiteName:      task.Site.Name,
-			PriceOriginal: parsedData.PriceOriginal,
-			PricePromo:    parsedData.PricePromo,
-			PriceMember:   parsedData.PriceMember,
+			PriceOriginal: priceOrigCNY,
+			PricePromo:    pricePromoCNY,
+			PriceMember:   priceMemberCNY,
 			PriceFinal:    priceFinal,
-			Currency:      task.Site.Currency,
+			Currency:      "CNY",
 			URL:           searchURL,
 			Title:         parsedData.Title,
 			Stock:         parsedData.Stock,
@@ -276,6 +291,11 @@ func (e *Engine) CrawlWithRetry(task *CrawlTask) *CrawlResult {
 			return lastResult
 		}
 
+		if lastResult.Error != nil {
+			e.addError(fmt.Sprintf("[%s][%s] attempt %d: %s",
+				task.Site.ID, task.SKU.SKUId, attempt+1, lastResult.Error.Error()))
+		}
+
 		if attempt < maxRetries {
 			interval := retryIntervals[attempt%len(retryIntervals)]
 			jitter := time.Duration(rand.Intn(1000)) * time.Millisecond
@@ -288,6 +308,29 @@ func (e *Engine) CrawlWithRetry(task *CrawlTask) *CrawlResult {
 
 	atomic.AddInt32(&e.failCnt, 1)
 	return lastResult
+}
+
+func (e *Engine) addError(msg string) {
+	e.errMu.Lock()
+	defer e.errMu.Unlock()
+	e.errorCollector = append(e.errorCollector, fmt.Sprintf("[%s] %s", time.Now().Format("15:04:05"), msg))
+	if len(e.errorCollector) > 1000 {
+		e.errorCollector = e.errorCollector[len(e.errorCollector)-1000:]
+	}
+}
+
+func (e *Engine) GetErrors() []string {
+	e.errMu.Lock()
+	defer e.errMu.Unlock()
+	result := make([]string, len(e.errorCollector))
+	copy(result, e.errorCollector)
+	return result
+}
+
+func (e *Engine) ClearErrors() {
+	e.errMu.Lock()
+	defer e.errMu.Unlock()
+	e.errorCollector = e.errorCollector[:0]
 }
 
 func (e *Engine) CrawlBatch(tasks []*CrawlTask, progressCb func(done, total int, result *CrawlResult)) ([]*storage.PriceRecord, []error) {

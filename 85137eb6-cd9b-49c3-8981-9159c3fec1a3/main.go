@@ -204,13 +204,20 @@ func cmdCrawl(cfg *config.AppConfig, db *storage.Database, args []string) {
 		}
 	}
 
+	errMsgs := make([]string, 0, len(errs)+len(engine.GetErrors()))
+	for _, e := range errs {
+		errMsgs = append(errMsgs, e.Error())
+	}
+	errMsgs = append(errMsgs, engine.GetErrors()...)
+
 	stats := &storage.CrawlStats{
-		TotalCount:   len(tasks),
-		SuccessCount: int(success),
-		FailedCount:  int(fail),
-		StartTime:    startTime,
-		EndTime:      time.Now(),
-		Duration:     duration,
+		TotalCount:    len(tasks),
+		SuccessCount:  int(success),
+		FailedCount:   int(fail),
+		StartTime:     startTime,
+		EndTime:       time.Now(),
+		Duration:      duration,
+		ErrorMessages: errMsgs,
 	}
 	db.SaveCrawlStats(stats)
 }
@@ -262,7 +269,10 @@ func cmdList(cfg *config.AppConfig, db *storage.Database, args []string) {
 	tw := tablewriter.NewWriter(os.Stdout)
 	tw.SetHeader([]string{"SKU", "商品名称", "品牌", "平台", "原价", "促销价", "会员价", "实付", "库存", "抓取时间"})
 	tw.SetAutoWrapText(false)
-	tw.SetColWidth(30, 30, 10, 8, 10, 10, 10, 10, 8, 16)
+	colWidths := []int{30, 30, 10, 8, 10, 10, 10, 10, 8, 16}
+	for col, width := range colWidths {
+		tw.SetColMinWidth(col, width)
+	}
 
 	for i, r := range pagedRecords {
 		orig := fmt.Sprintf("%.2f", r.PriceOriginal)

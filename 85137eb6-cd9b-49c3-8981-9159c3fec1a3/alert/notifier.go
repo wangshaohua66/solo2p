@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -37,6 +38,8 @@ type AlertEvent struct {
 	PriceBefore   float64
 	PriceAfter    float64
 	ChangePercent float64
+	StockBefore   string
+	StockAfter    string
 	URL           string
 	OccurredAt    time.Time
 	Message       string
@@ -100,6 +103,12 @@ func (n *Notifier) DetectAndAlert(newRecord *storage.PriceRecord) (*AlertEvent, 
 		}
 	}
 
+	if event == nil {
+		if n.isStockChanged(oldRecord.Stock, newRecord.Stock) {
+			event = n.buildEvent(AlertTypeStockChange, oldRecord, newRecord, 0, 0)
+		}
+	}
+
 	if event != nil {
 		key := fmt.Sprintf("%s_%s_%s", event.Type, event.SKUId, event.SiteId)
 		if n.shouldSendAlert(key) {
@@ -115,6 +124,79 @@ func (n *Notifier) DetectAndAlert(newRecord *storage.PriceRecord) (*AlertEvent, 
 	}
 
 	return nil, nil
+}
+
+func (n *Notifier) isStockChanged(oldStock, newStock string) bool {
+	oldStock = strings.ToLower(strings.TrimSpace(oldStock))
+	newStock = strings.ToLower(strings.TrimSpace(newStock))
+
+	if oldStock == "" || newStock == "" {
+		return false
+	}
+	if oldStock == newStock {
+		return false
+	}
+
+	oosKeywords := []string{"缺货", "无货", "售罄", "out of stock", "sold out", "暂无"}
+	inStockKeywords := []string{"现货", "有货", "库存充足", "充足", "in stock", "available"}
+
+	zeroPieceRe := regexp.MustCompile(`(^|[^0-9])0件`)
+	isZeroStock := func(s string) bool {
+		numRe := regexp.MustCompile(`(^|[^0-9])([0-9]+)`)
+		matches := numRe.FindAllStringSubmatch(s, -1)
+		if len(matches) == 0 {
+			return false
+		}
+		hasNonZero := false
+		for _, m := range matches {
+			if len(m) >= 3 && m[2] != "0" {
+				hasNonZero = true
+				break
+			}
+		}
+		return !hasNonZero && len(matches) > 0
+	}
+
+	oldOOS := containsAny(oldStock, oosKeywords) || zeroPieceRe.MatchString(oldStock) || isZeroStock(oldStock)
+	newOOS := containsAny(newStock, oosKeywords) || zeroPieceRe.MatchString(newStock) || isZeroStock(newStock)
+	if oldOOS != newOOS {
+		return true
+	}
+	if oldOOS && newOOS {
+		return false
+	}
+
+	oldInStock := containsAny(oldStock, inStockKeywords)
+	newInStock := containsAny(newStock, inStockKeywords)
+	if oldInStock != newInStock {
+		return true
+	}
+
+	numRe := regexp.MustCompile(`(\d+)`)
+	oldNums := numRe.FindAllString(oldStock, -1)
+	newNums := numRe.FindAllString(newStock, -1)
+	if len(oldNums) > 0 && len(newNums) > 0 && oldNums[0] != newNums[0] {
+		return true
+	}
+
+	if oldInStock && newInStock {
+		return false
+	}
+
+	if len(oldNums) != len(newNums) {
+		return true
+	}
+
+	return oldStock != newStock
+}
+
+func containsAny(s string, keywords []string) bool {
+	for _, k := range keywords {
+		if strings.Contains(s, strings.ToLower(k)) {
+			return true
+		}
+	}
+	return false
 }
 
 func (n *Notifier) shouldSendAlert(key string) bool {
@@ -140,6 +222,9 @@ func (n *Notifier) shouldSendAlert(key string) bool {
 
 func (n *Notifier) buildEvent(alertType AlertType, oldRec, newRec *storage.PriceRecord, changePct, refPrice float64) *AlertEvent {
 	var msg string
+	stockBefore := oldRec.Stock
+	stockAfter := newRec.Stock
+
 	switch alertType {
 	case AlertTypePriceDrop:
 		msg = fmt.Sprintf("商品 [%s] 在 [%s] 降价 %.2f%%: ¥%.2f → ¥%.2f",
@@ -156,6 +241,9 @@ func (n *Notifier) buildEvent(alertType AlertType, oldRec, newRec *storage.Price
 	case AlertTypeBelowRef:
 		msg = fmt.Sprintf("💰 价格低于参考价！[%s] 在 [%s] 当前价 ¥%.2f (参考价 ¥%.2f)",
 			newRec.SKUName, newRec.SiteName, newRec.PriceFinal, refPrice)
+	case AlertTypeStockChange:
+		msg = fmt.Sprintf("📦 库存变化！[%s] 在 [%s] 库存状态变更: [%s] → [%s]",
+			newRec.SKUName, newRec.SiteName, stockBefore, stockAfter)
 	}
 
 	return &AlertEvent{
@@ -169,6 +257,8 @@ func (n *Notifier) buildEvent(alertType AlertType, oldRec, newRec *storage.Price
 		PriceBefore:   oldRec.PriceFinal,
 		PriceAfter:    newRec.PriceFinal,
 		ChangePercent: changePct,
+		StockBefore:   stockBefore,
+		StockAfter:    stockAfter,
 		URL:           newRec.URL,
 		OccurredAt:    time.Now(),
 		Message:       msg,

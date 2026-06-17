@@ -239,6 +239,15 @@ func (l *Logger) SetLevel(level Level) {
 	l.level = level
 }
 
+func (l *Logger) Debug(format string, args ...interface{}) { l.log(LevelDebug, format, args...) }
+func (l *Logger) Info(format string, args ...interface{})  { l.log(LevelInfo, format, args...) }
+func (l *Logger) Warn(format string, args ...interface{})  { l.log(LevelWarn, format, args...) }
+func (l *Logger) Error(format string, args ...interface{}) { l.log(LevelError, format, args...) }
+func (l *Logger) Fatal(format string, args ...interface{}) {
+	l.log(LevelFatal, format, args...)
+	os.Exit(1)
+}
+
 func (l *Logger) Close() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -246,6 +255,35 @@ func (l *Logger) Close() {
 		l.file.Close()
 		l.file = nil
 	}
+}
+
+func ResetForTest() {
+	if defaultLogger != nil {
+		defaultLogger.Close()
+	}
+	defaultLogger = nil
+	once = sync.Once{}
+}
+
+func GetLevel() Level {
+	if defaultLogger == nil {
+		return LevelInfo
+	}
+	return defaultLogger.level
+}
+
+func GetLogDir() string {
+	if defaultLogger == nil {
+		return "./logs"
+	}
+	return defaultLogger.logDir
+}
+
+func GetRetentionDays() int {
+	if defaultLogger == nil {
+		return 30
+	}
+	return defaultLogger.retentionDays
 }
 
 func Debug(format string, args ...interface{}) {

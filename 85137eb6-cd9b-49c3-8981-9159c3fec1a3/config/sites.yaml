@@ -213,42 +213,7203 @@ sites:
       stock: ".stock_num"
 
 skus:
-  - sku_id: SKU001
-    name: 花王妙而舒纸尿裤L码54片
+  - sku_id: SKU0001
+    name: 花王妙而舒纸尿裤 NB90
     brand: 花王
     category: 纸尿裤
     keywords:
-      - 花王纸尿裤L
+      - 花王 花王妙而舒纸尿裤 NB90
+      - 花王NB90
+    reference_price: 88.00
+
+  - sku_id: SKU0002
+    name: 花王妙而舒纸尿裤 S82
+    brand: 花王
+    category: 纸尿裤
+    keywords:
+      - 花王 花王妙而舒纸尿裤 S82
+      - 花王S82
+    reference_price: 98.00
+
+  - sku_id: SKU0003
+    name: 花王妙而舒纸尿裤 M64
+    brand: 花王
+    category: 纸尿裤
+    keywords:
+      - 花王 花王妙而舒纸尿裤 M64
+      - 花王M64
+    reference_price: 108.00
+
+  - sku_id: SKU0004
+    name: 花王妙而舒纸尿裤 L54
+    brand: 花王
+    category: 纸尿裤
+    keywords:
+      - 花王 花王妙而舒纸尿裤 L54
+      - 花王L54
     reference_price: 128.00
 
-  - sku_id: SKU002
-    name: 帮宝适一级帮纸尿裤M码62片
+  - sku_id: SKU0005
+    name: 花王妙而舒纸尿裤 XL44
+    brand: 花王
+    category: 纸尿裤
+    keywords:
+      - 花王 花王妙而舒纸尿裤 XL44
+      - 花王XL44
+    reference_price: 148.00
+
+  - sku_id: SKU0006
+    name: 花王妙而舒纸尿裤 XXL32
+    brand: 花王
+    category: 纸尿裤
+    keywords:
+      - 花王 花王妙而舒纸尿裤 XXL32
+      - 花王XXL32
+    reference_price: 168.00
+
+  - sku_id: SKU0007
+    name: 花王Merries纸尿裤 NB90
+    brand: 花王
+    category: 纸尿裤
+    keywords:
+      - 花王 花王Merries纸尿裤 NB90
+      - 花王NB90
+    reference_price: 88.00
+
+  - sku_id: SKU0008
+    name: 花王Merries纸尿裤 S82
+    brand: 花王
+    category: 纸尿裤
+    keywords:
+      - 花王 花王Merries纸尿裤 S82
+      - 花王S82
+    reference_price: 98.00
+
+  - sku_id: SKU0009
+    name: 花王Merries纸尿裤 M64
+    brand: 花王
+    category: 纸尿裤
+    keywords:
+      - 花王 花王Merries纸尿裤 M64
+      - 花王M64
+    reference_price: 108.00
+
+  - sku_id: SKU0010
+    name: 花王Merries纸尿裤 L54
+    brand: 花王
+    category: 纸尿裤
+    keywords:
+      - 花王 花王Merries纸尿裤 L54
+      - 花王L54
+    reference_price: 128.00
+
+  - sku_id: SKU0011
+    name: 花王Merries纸尿裤 XL44
+    brand: 花王
+    category: 纸尿裤
+    keywords:
+      - 花王 花王Merries纸尿裤 XL44
+      - 花王XL44
+    reference_price: 148.00
+
+  - sku_id: SKU0012
+    name: 花王Merries纸尿裤 XXL32
+    brand: 花王
+    category: 纸尿裤
+    keywords:
+      - 花王 花王Merries纸尿裤 XXL32
+      - 花王XXL32
+    reference_price: 168.00
+
+  - sku_id: SKU0013
+    name: 花王三倍透气纸尿裤 NB90
+    brand: 花王
+    category: 纸尿裤
+    keywords:
+      - 花王 花王三倍透气纸尿裤 NB90
+      - 花王NB90
+    reference_price: 88.00
+
+  - sku_id: SKU0014
+    name: 花王三倍透气纸尿裤 S82
+    brand: 花王
+    category: 纸尿裤
+    keywords:
+      - 花王 花王三倍透气纸尿裤 S82
+      - 花王S82
+    reference_price: 98.00
+
+  - sku_id: SKU0015
+    name: 花王三倍透气纸尿裤 M64
+    brand: 花王
+    category: 纸尿裤
+    keywords:
+      - 花王 花王三倍透气纸尿裤 M64
+      - 花王M64
+    reference_price: 108.00
+
+  - sku_id: SKU0016
+    name: 花王三倍透气纸尿裤 L54
+    brand: 花王
+    category: 纸尿裤
+    keywords:
+      - 花王 花王三倍透气纸尿裤 L54
+      - 花王L54
+    reference_price: 128.00
+
+  - sku_id: SKU0017
+    name: 花王三倍透气纸尿裤 XL44
+    brand: 花王
+    category: 纸尿裤
+    keywords:
+      - 花王 花王三倍透气纸尿裤 XL44
+      - 花王XL44
+    reference_price: 148.00
+
+  - sku_id: SKU0018
+    name: 花王三倍透气纸尿裤 XXL32
+    brand: 花王
+    category: 纸尿裤
+    keywords:
+      - 花王 花王三倍透气纸尿裤 XXL32
+      - 花王XXL32
+    reference_price: 168.00
+
+  - sku_id: SKU0019
+    name: 帮宝适一级帮纸尿裤 NB96
     brand: 帮宝适
     category: 纸尿裤
     keywords:
-      - 帮宝适一级帮M
+      - 帮宝适 帮宝适一级帮纸尿裤 NB96
+      - 帮宝适NB96
+    reference_price: 78.00
+
+  - sku_id: SKU0020
+    name: 帮宝适一级帮纸尿裤 S84
+    brand: 帮宝适
+    category: 纸尿裤
+    keywords:
+      - 帮宝适 帮宝适一级帮纸尿裤 S84
+      - 帮宝适S84
+    reference_price: 88.00
+
+  - sku_id: SKU0021
+    name: 帮宝适一级帮纸尿裤 M62
+    brand: 帮宝适
+    category: 纸尿裤
+    keywords:
+      - 帮宝适 帮宝适一级帮纸尿裤 M62
+      - 帮宝适M62
+    reference_price: 98.00
+
+  - sku_id: SKU0022
+    name: 帮宝适一级帮纸尿裤 L52
+    brand: 帮宝适
+    category: 纸尿裤
+    keywords:
+      - 帮宝适 帮宝适一级帮纸尿裤 L52
+      - 帮宝适L52
     reference_price: 118.00
 
-  - sku_id: SKU003
-    name: 美素佳儿金装婴幼儿配方奶粉3段900g
+  - sku_id: SKU0023
+    name: 帮宝适一级帮纸尿裤 XL42
+    brand: 帮宝适
+    category: 纸尿裤
+    keywords:
+      - 帮宝适 帮宝适一级帮纸尿裤 XL42
+      - 帮宝适XL42
+    reference_price: 138.00
+
+  - sku_id: SKU0024
+    name: 帮宝适清新帮纸尿裤 NB96
+    brand: 帮宝适
+    category: 纸尿裤
+    keywords:
+      - 帮宝适 帮宝适清新帮纸尿裤 NB96
+      - 帮宝适NB96
+    reference_price: 78.00
+
+  - sku_id: SKU0025
+    name: 帮宝适清新帮纸尿裤 S84
+    brand: 帮宝适
+    category: 纸尿裤
+    keywords:
+      - 帮宝适 帮宝适清新帮纸尿裤 S84
+      - 帮宝适S84
+    reference_price: 88.00
+
+  - sku_id: SKU0026
+    name: 帮宝适清新帮纸尿裤 M62
+    brand: 帮宝适
+    category: 纸尿裤
+    keywords:
+      - 帮宝适 帮宝适清新帮纸尿裤 M62
+      - 帮宝适M62
+    reference_price: 98.00
+
+  - sku_id: SKU0027
+    name: 帮宝适清新帮纸尿裤 L52
+    brand: 帮宝适
+    category: 纸尿裤
+    keywords:
+      - 帮宝适 帮宝适清新帮纸尿裤 L52
+      - 帮宝适L52
+    reference_price: 118.00
+
+  - sku_id: SKU0028
+    name: 帮宝适清新帮纸尿裤 XL42
+    brand: 帮宝适
+    category: 纸尿裤
+    keywords:
+      - 帮宝适 帮宝适清新帮纸尿裤 XL42
+      - 帮宝适XL42
+    reference_price: 138.00
+
+  - sku_id: SKU0029
+    name: 帮宝适超薄干爽纸尿裤 NB96
+    brand: 帮宝适
+    category: 纸尿裤
+    keywords:
+      - 帮宝适 帮宝适超薄干爽纸尿裤 NB96
+      - 帮宝适NB96
+    reference_price: 78.00
+
+  - sku_id: SKU0030
+    name: 帮宝适超薄干爽纸尿裤 S84
+    brand: 帮宝适
+    category: 纸尿裤
+    keywords:
+      - 帮宝适 帮宝适超薄干爽纸尿裤 S84
+      - 帮宝适S84
+    reference_price: 88.00
+
+  - sku_id: SKU0031
+    name: 帮宝适超薄干爽纸尿裤 M62
+    brand: 帮宝适
+    category: 纸尿裤
+    keywords:
+      - 帮宝适 帮宝适超薄干爽纸尿裤 M62
+      - 帮宝适M62
+    reference_price: 98.00
+
+  - sku_id: SKU0032
+    name: 帮宝适超薄干爽纸尿裤 L52
+    brand: 帮宝适
+    category: 纸尿裤
+    keywords:
+      - 帮宝适 帮宝适超薄干爽纸尿裤 L52
+      - 帮宝适L52
+    reference_price: 118.00
+
+  - sku_id: SKU0033
+    name: 帮宝适超薄干爽纸尿裤 XL42
+    brand: 帮宝适
+    category: 纸尿裤
+    keywords:
+      - 帮宝适 帮宝适超薄干爽纸尿裤 XL42
+      - 帮宝适XL42
+    reference_price: 138.00
+
+  - sku_id: SKU0034
+    name: 好奇铂金装纸尿裤 NB80
+    brand: 好奇
+    category: 纸尿裤
+    keywords:
+      - 好奇 好奇铂金装纸尿裤 NB80
+      - 好奇NB80
+    reference_price: 68.00
+
+  - sku_id: SKU0035
+    name: 好奇铂金装纸尿裤 S70
+    brand: 好奇
+    category: 纸尿裤
+    keywords:
+      - 好奇 好奇铂金装纸尿裤 S70
+      - 好奇S70
+    reference_price: 78.00
+
+  - sku_id: SKU0036
+    name: 好奇铂金装纸尿裤 M54
+    brand: 好奇
+    category: 纸尿裤
+    keywords:
+      - 好奇 好奇铂金装纸尿裤 M54
+      - 好奇M54
+    reference_price: 88.00
+
+  - sku_id: SKU0037
+    name: 好奇铂金装纸尿裤 L42
+    brand: 好奇
+    category: 纸尿裤
+    keywords:
+      - 好奇 好奇铂金装纸尿裤 L42
+      - 好奇L42
+    reference_price: 108.00
+
+  - sku_id: SKU0038
+    name: 好奇铂金装纸尿裤 XL34
+    brand: 好奇
+    category: 纸尿裤
+    keywords:
+      - 好奇 好奇铂金装纸尿裤 XL34
+      - 好奇XL34
+    reference_price: 128.00
+
+  - sku_id: SKU0039
+    name: 好奇金装纸尿裤 NB80
+    brand: 好奇
+    category: 纸尿裤
+    keywords:
+      - 好奇 好奇金装纸尿裤 NB80
+      - 好奇NB80
+    reference_price: 68.00
+
+  - sku_id: SKU0040
+    name: 好奇金装纸尿裤 S70
+    brand: 好奇
+    category: 纸尿裤
+    keywords:
+      - 好奇 好奇金装纸尿裤 S70
+      - 好奇S70
+    reference_price: 78.00
+
+  - sku_id: SKU0041
+    name: 好奇金装纸尿裤 M54
+    brand: 好奇
+    category: 纸尿裤
+    keywords:
+      - 好奇 好奇金装纸尿裤 M54
+      - 好奇M54
+    reference_price: 88.00
+
+  - sku_id: SKU0042
+    name: 好奇金装纸尿裤 L42
+    brand: 好奇
+    category: 纸尿裤
+    keywords:
+      - 好奇 好奇金装纸尿裤 L42
+      - 好奇L42
+    reference_price: 108.00
+
+  - sku_id: SKU0043
+    name: 好奇金装纸尿裤 XL34
+    brand: 好奇
+    category: 纸尿裤
+    keywords:
+      - 好奇 好奇金装纸尿裤 XL34
+      - 好奇XL34
+    reference_price: 128.00
+
+  - sku_id: SKU0044
+    name: 好奇银装纸尿裤 NB80
+    brand: 好奇
+    category: 纸尿裤
+    keywords:
+      - 好奇 好奇银装纸尿裤 NB80
+      - 好奇NB80
+    reference_price: 68.00
+
+  - sku_id: SKU0045
+    name: 好奇银装纸尿裤 S70
+    brand: 好奇
+    category: 纸尿裤
+    keywords:
+      - 好奇 好奇银装纸尿裤 S70
+      - 好奇S70
+    reference_price: 78.00
+
+  - sku_id: SKU0046
+    name: 好奇银装纸尿裤 M54
+    brand: 好奇
+    category: 纸尿裤
+    keywords:
+      - 好奇 好奇银装纸尿裤 M54
+      - 好奇M54
+    reference_price: 88.00
+
+  - sku_id: SKU0047
+    name: 好奇银装纸尿裤 L42
+    brand: 好奇
+    category: 纸尿裤
+    keywords:
+      - 好奇 好奇银装纸尿裤 L42
+      - 好奇L42
+    reference_price: 108.00
+
+  - sku_id: SKU0048
+    name: 好奇银装纸尿裤 XL34
+    brand: 好奇
+    category: 纸尿裤
+    keywords:
+      - 好奇 好奇银装纸尿裤 XL34
+      - 好奇XL34
+    reference_price: 128.00
+
+  - sku_id: SKU0049
+    name: 大王光羽纸尿裤 NB90
+    brand: 大王
+    category: 纸尿裤
+    keywords:
+      - 大王 大王光羽纸尿裤 NB90
+      - 大王NB90
+    reference_price: 98.00
+
+  - sku_id: SKU0050
+    name: 大王光羽纸尿裤 S78
+    brand: 大王
+    category: 纸尿裤
+    keywords:
+      - 大王 大王光羽纸尿裤 S78
+      - 大王S78
+    reference_price: 128.00
+
+  - sku_id: SKU0051
+    name: 大王光羽纸尿裤 M58
+    brand: 大王
+    category: 纸尿裤
+    keywords:
+      - 大王 大王光羽纸尿裤 M58
+      - 大王M58
+    reference_price: 158.00
+
+  - sku_id: SKU0052
+    name: 大王光羽纸尿裤 L46
+    brand: 大王
+    category: 纸尿裤
+    keywords:
+      - 大王 大王光羽纸尿裤 L46
+      - 大王L46
+    reference_price: 188.00
+
+  - sku_id: SKU0053
+    name: 大王光羽纸尿裤 XL36
+    brand: 大王
+    category: 纸尿裤
+    keywords:
+      - 大王 大王光羽纸尿裤 XL36
+      - 大王XL36
+    reference_price: 208.00
+
+  - sku_id: SKU0054
+    name: 大王天使纸尿裤 NB90
+    brand: 大王
+    category: 纸尿裤
+    keywords:
+      - 大王 大王天使纸尿裤 NB90
+      - 大王NB90
+    reference_price: 98.00
+
+  - sku_id: SKU0055
+    name: 大王天使纸尿裤 S78
+    brand: 大王
+    category: 纸尿裤
+    keywords:
+      - 大王 大王天使纸尿裤 S78
+      - 大王S78
+    reference_price: 128.00
+
+  - sku_id: SKU0056
+    name: 大王天使纸尿裤 M58
+    brand: 大王
+    category: 纸尿裤
+    keywords:
+      - 大王 大王天使纸尿裤 M58
+      - 大王M58
+    reference_price: 158.00
+
+  - sku_id: SKU0057
+    name: 大王天使纸尿裤 L46
+    brand: 大王
+    category: 纸尿裤
+    keywords:
+      - 大王 大王天使纸尿裤 L46
+      - 大王L46
+    reference_price: 188.00
+
+  - sku_id: SKU0058
+    name: 大王天使纸尿裤 XL36
+    brand: 大王
+    category: 纸尿裤
+    keywords:
+      - 大王 大王天使纸尿裤 XL36
+      - 大王XL36
+    reference_price: 208.00
+
+  - sku_id: SKU0059
+    name: 大王维E纸尿裤 NB90
+    brand: 大王
+    category: 纸尿裤
+    keywords:
+      - 大王 大王维E纸尿裤 NB90
+      - 大王NB90
+    reference_price: 98.00
+
+  - sku_id: SKU0060
+    name: 大王维E纸尿裤 S78
+    brand: 大王
+    category: 纸尿裤
+    keywords:
+      - 大王 大王维E纸尿裤 S78
+      - 大王S78
+    reference_price: 128.00
+
+  - sku_id: SKU0061
+    name: 大王维E纸尿裤 M58
+    brand: 大王
+    category: 纸尿裤
+    keywords:
+      - 大王 大王维E纸尿裤 M58
+      - 大王M58
+    reference_price: 158.00
+
+  - sku_id: SKU0062
+    name: 大王维E纸尿裤 L46
+    brand: 大王
+    category: 纸尿裤
+    keywords:
+      - 大王 大王维E纸尿裤 L46
+      - 大王L46
+    reference_price: 188.00
+
+  - sku_id: SKU0063
+    name: 大王维E纸尿裤 XL36
+    brand: 大王
+    category: 纸尿裤
+    keywords:
+      - 大王 大王维E纸尿裤 XL36
+      - 大王XL36
+    reference_price: 208.00
+
+  - sku_id: SKU0064
+    name: 尤妮佳皇家纸尿裤 NB90
+    brand: 尤妮佳
+    category: 纸尿裤
+    keywords:
+      - 尤妮佳 尤妮佳皇家纸尿裤 NB90
+      - 尤妮佳NB90
+    reference_price: 78.00
+
+  - sku_id: SKU0065
+    name: 尤妮佳皇家纸尿裤 S84
+    brand: 尤妮佳
+    category: 纸尿裤
+    keywords:
+      - 尤妮佳 尤妮佳皇家纸尿裤 S84
+      - 尤妮佳S84
+    reference_price: 98.00
+
+  - sku_id: SKU0066
+    name: 尤妮佳皇家纸尿裤 M64
+    brand: 尤妮佳
+    category: 纸尿裤
+    keywords:
+      - 尤妮佳 尤妮佳皇家纸尿裤 M64
+      - 尤妮佳M64
+    reference_price: 118.00
+
+  - sku_id: SKU0067
+    name: 尤妮佳皇家纸尿裤 L54
+    brand: 尤妮佳
+    category: 纸尿裤
+    keywords:
+      - 尤妮佳 尤妮佳皇家纸尿裤 L54
+      - 尤妮佳L54
+    reference_price: 138.00
+
+  - sku_id: SKU0068
+    name: 尤妮佳皇家纸尿裤 XL42
+    brand: 尤妮佳
+    category: 纸尿裤
+    keywords:
+      - 尤妮佳 尤妮佳皇家纸尿裤 XL42
+      - 尤妮佳XL42
+    reference_price: 158.00
+
+  - sku_id: SKU0069
+    name: 尤妮佳妈咪宝贝纸尿裤 NB90
+    brand: 尤妮佳
+    category: 纸尿裤
+    keywords:
+      - 尤妮佳 尤妮佳妈咪宝贝纸尿裤 NB90
+      - 尤妮佳NB90
+    reference_price: 78.00
+
+  - sku_id: SKU0070
+    name: 尤妮佳妈咪宝贝纸尿裤 S84
+    brand: 尤妮佳
+    category: 纸尿裤
+    keywords:
+      - 尤妮佳 尤妮佳妈咪宝贝纸尿裤 S84
+      - 尤妮佳S84
+    reference_price: 98.00
+
+  - sku_id: SKU0071
+    name: 尤妮佳妈咪宝贝纸尿裤 M64
+    brand: 尤妮佳
+    category: 纸尿裤
+    keywords:
+      - 尤妮佳 尤妮佳妈咪宝贝纸尿裤 M64
+      - 尤妮佳M64
+    reference_price: 118.00
+
+  - sku_id: SKU0072
+    name: 尤妮佳妈咪宝贝纸尿裤 L54
+    brand: 尤妮佳
+    category: 纸尿裤
+    keywords:
+      - 尤妮佳 尤妮佳妈咪宝贝纸尿裤 L54
+      - 尤妮佳L54
+    reference_price: 138.00
+
+  - sku_id: SKU0073
+    name: 尤妮佳妈咪宝贝纸尿裤 XL42
+    brand: 尤妮佳
+    category: 纸尿裤
+    keywords:
+      - 尤妮佳 尤妮佳妈咪宝贝纸尿裤 XL42
+      - 尤妮佳XL42
+    reference_price: 158.00
+
+  - sku_id: SKU0074
+    name: 尤妮佳Moony纸尿裤 NB90
+    brand: 尤妮佳
+    category: 纸尿裤
+    keywords:
+      - 尤妮佳 尤妮佳Moony纸尿裤 NB90
+      - 尤妮佳NB90
+    reference_price: 78.00
+
+  - sku_id: SKU0075
+    name: 尤妮佳Moony纸尿裤 S84
+    brand: 尤妮佳
+    category: 纸尿裤
+    keywords:
+      - 尤妮佳 尤妮佳Moony纸尿裤 S84
+      - 尤妮佳S84
+    reference_price: 98.00
+
+  - sku_id: SKU0076
+    name: 尤妮佳Moony纸尿裤 M64
+    brand: 尤妮佳
+    category: 纸尿裤
+    keywords:
+      - 尤妮佳 尤妮佳Moony纸尿裤 M64
+      - 尤妮佳M64
+    reference_price: 118.00
+
+  - sku_id: SKU0077
+    name: 尤妮佳Moony纸尿裤 L54
+    brand: 尤妮佳
+    category: 纸尿裤
+    keywords:
+      - 尤妮佳 尤妮佳Moony纸尿裤 L54
+      - 尤妮佳L54
+    reference_price: 138.00
+
+  - sku_id: SKU0078
+    name: 尤妮佳Moony纸尿裤 XL42
+    brand: 尤妮佳
+    category: 纸尿裤
+    keywords:
+      - 尤妮佳 尤妮佳Moony纸尿裤 XL42
+      - 尤妮佳XL42
+    reference_price: 158.00
+
+  - sku_id: SKU0079
+    name: 美素佳儿金装婴幼儿配方奶粉 1段400g
     brand: 美素佳儿
     category: 奶粉
     keywords:
-      - 美素佳儿3段
+      - 美素佳儿 美素佳儿金装婴幼儿配方奶粉 1段400g
+      - 美素佳儿1段400g
+    reference_price: 98.00
+
+  - sku_id: SKU0080
+    name: 美素佳儿金装婴幼儿配方奶粉 1段900g
+    brand: 美素佳儿
+    category: 奶粉
+    keywords:
+      - 美素佳儿 美素佳儿金装婴幼儿配方奶粉 1段900g
+      - 美素佳儿1段900g
     reference_price: 198.00
 
-  - sku_id: SKU004
-    name: 爱他美卓萃婴幼儿配方奶粉3段900g
+  - sku_id: SKU0081
+    name: 美素佳儿金装婴幼儿配方奶粉 2段400g
+    brand: 美素佳儿
+    category: 奶粉
+    keywords:
+      - 美素佳儿 美素佳儿金装婴幼儿配方奶粉 2段400g
+      - 美素佳儿2段400g
+    reference_price: 98.00
+
+  - sku_id: SKU0082
+    name: 美素佳儿金装婴幼儿配方奶粉 2段900g
+    brand: 美素佳儿
+    category: 奶粉
+    keywords:
+      - 美素佳儿 美素佳儿金装婴幼儿配方奶粉 2段900g
+      - 美素佳儿2段900g
+    reference_price: 198.00
+
+  - sku_id: SKU0083
+    name: 美素佳儿金装婴幼儿配方奶粉 3段400g
+    brand: 美素佳儿
+    category: 奶粉
+    keywords:
+      - 美素佳儿 美素佳儿金装婴幼儿配方奶粉 3段400g
+      - 美素佳儿3段400g
+    reference_price: 98.00
+
+  - sku_id: SKU0084
+    name: 美素佳儿金装婴幼儿配方奶粉 3段900g
+    brand: 美素佳儿
+    category: 奶粉
+    keywords:
+      - 美素佳儿 美素佳儿金装婴幼儿配方奶粉 3段900g
+      - 美素佳儿3段900g
+    reference_price: 198.00
+
+  - sku_id: SKU0085
+    name: 美素佳儿金装婴幼儿配方奶粉 4段900g
+    brand: 美素佳儿
+    category: 奶粉
+    keywords:
+      - 美素佳儿 美素佳儿金装婴幼儿配方奶粉 4段900g
+      - 美素佳儿4段900g
+    reference_price: 188.00
+
+  - sku_id: SKU0086
+    name: 美素佳儿皇家婴幼儿配方奶粉 1段400g
+    brand: 美素佳儿
+    category: 奶粉
+    keywords:
+      - 美素佳儿 美素佳儿皇家婴幼儿配方奶粉 1段400g
+      - 美素佳儿1段400g
+    reference_price: 98.00
+
+  - sku_id: SKU0087
+    name: 美素佳儿皇家婴幼儿配方奶粉 1段900g
+    brand: 美素佳儿
+    category: 奶粉
+    keywords:
+      - 美素佳儿 美素佳儿皇家婴幼儿配方奶粉 1段900g
+      - 美素佳儿1段900g
+    reference_price: 198.00
+
+  - sku_id: SKU0088
+    name: 美素佳儿皇家婴幼儿配方奶粉 2段400g
+    brand: 美素佳儿
+    category: 奶粉
+    keywords:
+      - 美素佳儿 美素佳儿皇家婴幼儿配方奶粉 2段400g
+      - 美素佳儿2段400g
+    reference_price: 98.00
+
+  - sku_id: SKU0089
+    name: 美素佳儿皇家婴幼儿配方奶粉 2段900g
+    brand: 美素佳儿
+    category: 奶粉
+    keywords:
+      - 美素佳儿 美素佳儿皇家婴幼儿配方奶粉 2段900g
+      - 美素佳儿2段900g
+    reference_price: 198.00
+
+  - sku_id: SKU0090
+    name: 美素佳儿皇家婴幼儿配方奶粉 3段400g
+    brand: 美素佳儿
+    category: 奶粉
+    keywords:
+      - 美素佳儿 美素佳儿皇家婴幼儿配方奶粉 3段400g
+      - 美素佳儿3段400g
+    reference_price: 98.00
+
+  - sku_id: SKU0091
+    name: 美素佳儿皇家婴幼儿配方奶粉 3段900g
+    brand: 美素佳儿
+    category: 奶粉
+    keywords:
+      - 美素佳儿 美素佳儿皇家婴幼儿配方奶粉 3段900g
+      - 美素佳儿3段900g
+    reference_price: 198.00
+
+  - sku_id: SKU0092
+    name: 美素佳儿皇家婴幼儿配方奶粉 4段900g
+    brand: 美素佳儿
+    category: 奶粉
+    keywords:
+      - 美素佳儿 美素佳儿皇家婴幼儿配方奶粉 4段900g
+      - 美素佳儿4段900g
+    reference_price: 188.00
+
+  - sku_id: SKU0093
+    name: 爱他美卓萃婴幼儿配方奶粉 1段380g
     brand: 爱他美
     category: 奶粉
     keywords:
-      - 爱他美卓萃3段
+      - 爱他美 爱他美卓萃婴幼儿配方奶粉 1段380g
+      - 爱他美1段380g
+    reference_price: 175.00
+
+  - sku_id: SKU0094
+    name: 爱他美卓萃婴幼儿配方奶粉 1段800g
+    brand: 爱他美
+    category: 奶粉
+    keywords:
+      - 爱他美 爱他美卓萃婴幼儿配方奶粉 1段800g
+      - 爱他美1段800g
     reference_price: 365.00
 
-  - sku_id: SKU005
-    name: 惠氏启赋婴幼儿配方奶粉3段900g
+  - sku_id: SKU0095
+    name: 爱他美卓萃婴幼儿配方奶粉 2段380g
+    brand: 爱他美
+    category: 奶粉
+    keywords:
+      - 爱他美 爱他美卓萃婴幼儿配方奶粉 2段380g
+      - 爱他美2段380g
+    reference_price: 175.00
+
+  - sku_id: SKU0096
+    name: 爱他美卓萃婴幼儿配方奶粉 2段800g
+    brand: 爱他美
+    category: 奶粉
+    keywords:
+      - 爱他美 爱他美卓萃婴幼儿配方奶粉 2段800g
+      - 爱他美2段800g
+    reference_price: 365.00
+
+  - sku_id: SKU0097
+    name: 爱他美卓萃婴幼儿配方奶粉 3段380g
+    brand: 爱他美
+    category: 奶粉
+    keywords:
+      - 爱他美 爱他美卓萃婴幼儿配方奶粉 3段380g
+      - 爱他美3段380g
+    reference_price: 175.00
+
+  - sku_id: SKU0098
+    name: 爱他美卓萃婴幼儿配方奶粉 3段800g
+    brand: 爱他美
+    category: 奶粉
+    keywords:
+      - 爱他美 爱他美卓萃婴幼儿配方奶粉 3段800g
+      - 爱他美3段800g
+    reference_price: 365.00
+
+  - sku_id: SKU0099
+    name: 爱他美卓萃婴幼儿配方奶粉 4段800g
+    brand: 爱他美
+    category: 奶粉
+    keywords:
+      - 爱他美 爱他美卓萃婴幼儿配方奶粉 4段800g
+      - 爱他美4段800g
+    reference_price: 345.00
+
+  - sku_id: SKU0100
+    name: 爱他美白金版婴幼儿配方奶粉 1段380g
+    brand: 爱他美
+    category: 奶粉
+    keywords:
+      - 爱他美 爱他美白金版婴幼儿配方奶粉 1段380g
+      - 爱他美1段380g
+    reference_price: 175.00
+
+  - sku_id: SKU0101
+    name: 爱他美白金版婴幼儿配方奶粉 1段800g
+    brand: 爱他美
+    category: 奶粉
+    keywords:
+      - 爱他美 爱他美白金版婴幼儿配方奶粉 1段800g
+      - 爱他美1段800g
+    reference_price: 365.00
+
+  - sku_id: SKU0102
+    name: 爱他美白金版婴幼儿配方奶粉 2段380g
+    brand: 爱他美
+    category: 奶粉
+    keywords:
+      - 爱他美 爱他美白金版婴幼儿配方奶粉 2段380g
+      - 爱他美2段380g
+    reference_price: 175.00
+
+  - sku_id: SKU0103
+    name: 爱他美白金版婴幼儿配方奶粉 2段800g
+    brand: 爱他美
+    category: 奶粉
+    keywords:
+      - 爱他美 爱他美白金版婴幼儿配方奶粉 2段800g
+      - 爱他美2段800g
+    reference_price: 365.00
+
+  - sku_id: SKU0104
+    name: 爱他美白金版婴幼儿配方奶粉 3段380g
+    brand: 爱他美
+    category: 奶粉
+    keywords:
+      - 爱他美 爱他美白金版婴幼儿配方奶粉 3段380g
+      - 爱他美3段380g
+    reference_price: 175.00
+
+  - sku_id: SKU0105
+    name: 爱他美白金版婴幼儿配方奶粉 3段800g
+    brand: 爱他美
+    category: 奶粉
+    keywords:
+      - 爱他美 爱他美白金版婴幼儿配方奶粉 3段800g
+      - 爱他美3段800g
+    reference_price: 365.00
+
+  - sku_id: SKU0106
+    name: 爱他美白金版婴幼儿配方奶粉 4段800g
+    brand: 爱他美
+    category: 奶粉
+    keywords:
+      - 爱他美 爱他美白金版婴幼儿配方奶粉 4段800g
+      - 爱他美4段800g
+    reference_price: 345.00
+
+  - sku_id: SKU0107
+    name: 爱他美经典版婴幼儿配方奶粉 1段380g
+    brand: 爱他美
+    category: 奶粉
+    keywords:
+      - 爱他美 爱他美经典版婴幼儿配方奶粉 1段380g
+      - 爱他美1段380g
+    reference_price: 175.00
+
+  - sku_id: SKU0108
+    name: 爱他美经典版婴幼儿配方奶粉 1段800g
+    brand: 爱他美
+    category: 奶粉
+    keywords:
+      - 爱他美 爱他美经典版婴幼儿配方奶粉 1段800g
+      - 爱他美1段800g
+    reference_price: 365.00
+
+  - sku_id: SKU0109
+    name: 爱他美经典版婴幼儿配方奶粉 2段380g
+    brand: 爱他美
+    category: 奶粉
+    keywords:
+      - 爱他美 爱他美经典版婴幼儿配方奶粉 2段380g
+      - 爱他美2段380g
+    reference_price: 175.00
+
+  - sku_id: SKU0110
+    name: 爱他美经典版婴幼儿配方奶粉 2段800g
+    brand: 爱他美
+    category: 奶粉
+    keywords:
+      - 爱他美 爱他美经典版婴幼儿配方奶粉 2段800g
+      - 爱他美2段800g
+    reference_price: 365.00
+
+  - sku_id: SKU0111
+    name: 爱他美经典版婴幼儿配方奶粉 3段380g
+    brand: 爱他美
+    category: 奶粉
+    keywords:
+      - 爱他美 爱他美经典版婴幼儿配方奶粉 3段380g
+      - 爱他美3段380g
+    reference_price: 175.00
+
+  - sku_id: SKU0112
+    name: 爱他美经典版婴幼儿配方奶粉 3段800g
+    brand: 爱他美
+    category: 奶粉
+    keywords:
+      - 爱他美 爱他美经典版婴幼儿配方奶粉 3段800g
+      - 爱他美3段800g
+    reference_price: 365.00
+
+  - sku_id: SKU0113
+    name: 爱他美经典版婴幼儿配方奶粉 4段800g
+    brand: 爱他美
+    category: 奶粉
+    keywords:
+      - 爱他美 爱他美经典版婴幼儿配方奶粉 4段800g
+      - 爱他美4段800g
+    reference_price: 345.00
+
+  - sku_id: SKU0114
+    name: 惠氏启赋婴幼儿配方奶粉 1段350g
     brand: 惠氏
     category: 奶粉
     keywords:
-      - 惠氏启赋3段
+      - 惠氏 惠氏启赋婴幼儿配方奶粉 1段350g
+      - 惠氏1段350g
+    reference_price: 188.00
+
+  - sku_id: SKU0115
+    name: 惠氏启赋婴幼儿配方奶粉 1段900g
+    brand: 惠氏
+    category: 奶粉
+    keywords:
+      - 惠氏 惠氏启赋婴幼儿配方奶粉 1段900g
+      - 惠氏1段900g
     reference_price: 388.00
+
+  - sku_id: SKU0116
+    name: 惠氏启赋婴幼儿配方奶粉 2段350g
+    brand: 惠氏
+    category: 奶粉
+    keywords:
+      - 惠氏 惠氏启赋婴幼儿配方奶粉 2段350g
+      - 惠氏2段350g
+    reference_price: 188.00
+
+  - sku_id: SKU0117
+    name: 惠氏启赋婴幼儿配方奶粉 2段900g
+    brand: 惠氏
+    category: 奶粉
+    keywords:
+      - 惠氏 惠氏启赋婴幼儿配方奶粉 2段900g
+      - 惠氏2段900g
+    reference_price: 388.00
+
+  - sku_id: SKU0118
+    name: 惠氏启赋婴幼儿配方奶粉 3段350g
+    brand: 惠氏
+    category: 奶粉
+    keywords:
+      - 惠氏 惠氏启赋婴幼儿配方奶粉 3段350g
+      - 惠氏3段350g
+    reference_price: 188.00
+
+  - sku_id: SKU0119
+    name: 惠氏启赋婴幼儿配方奶粉 3段900g
+    brand: 惠氏
+    category: 奶粉
+    keywords:
+      - 惠氏 惠氏启赋婴幼儿配方奶粉 3段900g
+      - 惠氏3段900g
+    reference_price: 388.00
+
+  - sku_id: SKU0120
+    name: 惠氏启赋婴幼儿配方奶粉 4段900g
+    brand: 惠氏
+    category: 奶粉
+    keywords:
+      - 惠氏 惠氏启赋婴幼儿配方奶粉 4段900g
+      - 惠氏4段900g
+    reference_price: 368.00
+
+  - sku_id: SKU0121
+    name: 惠氏S-26金装婴幼儿配方奶粉 1段350g
+    brand: 惠氏
+    category: 奶粉
+    keywords:
+      - 惠氏 惠氏S-26金装婴幼儿配方奶粉 1段350g
+      - 惠氏1段350g
+    reference_price: 188.00
+
+  - sku_id: SKU0122
+    name: 惠氏S-26金装婴幼儿配方奶粉 1段900g
+    brand: 惠氏
+    category: 奶粉
+    keywords:
+      - 惠氏 惠氏S-26金装婴幼儿配方奶粉 1段900g
+      - 惠氏1段900g
+    reference_price: 388.00
+
+  - sku_id: SKU0123
+    name: 惠氏S-26金装婴幼儿配方奶粉 2段350g
+    brand: 惠氏
+    category: 奶粉
+    keywords:
+      - 惠氏 惠氏S-26金装婴幼儿配方奶粉 2段350g
+      - 惠氏2段350g
+    reference_price: 188.00
+
+  - sku_id: SKU0124
+    name: 惠氏S-26金装婴幼儿配方奶粉 2段900g
+    brand: 惠氏
+    category: 奶粉
+    keywords:
+      - 惠氏 惠氏S-26金装婴幼儿配方奶粉 2段900g
+      - 惠氏2段900g
+    reference_price: 388.00
+
+  - sku_id: SKU0125
+    name: 惠氏S-26金装婴幼儿配方奶粉 3段350g
+    brand: 惠氏
+    category: 奶粉
+    keywords:
+      - 惠氏 惠氏S-26金装婴幼儿配方奶粉 3段350g
+      - 惠氏3段350g
+    reference_price: 188.00
+
+  - sku_id: SKU0126
+    name: 惠氏S-26金装婴幼儿配方奶粉 3段900g
+    brand: 惠氏
+    category: 奶粉
+    keywords:
+      - 惠氏 惠氏S-26金装婴幼儿配方奶粉 3段900g
+      - 惠氏3段900g
+    reference_price: 388.00
+
+  - sku_id: SKU0127
+    name: 惠氏S-26金装婴幼儿配方奶粉 4段900g
+    brand: 惠氏
+    category: 奶粉
+    keywords:
+      - 惠氏 惠氏S-26金装婴幼儿配方奶粉 4段900g
+      - 惠氏4段900g
+    reference_price: 368.00
+
+  - sku_id: SKU0128
+    name: 惠氏铂臻婴幼儿配方奶粉 1段350g
+    brand: 惠氏
+    category: 奶粉
+    keywords:
+      - 惠氏 惠氏铂臻婴幼儿配方奶粉 1段350g
+      - 惠氏1段350g
+    reference_price: 188.00
+
+  - sku_id: SKU0129
+    name: 惠氏铂臻婴幼儿配方奶粉 1段900g
+    brand: 惠氏
+    category: 奶粉
+    keywords:
+      - 惠氏 惠氏铂臻婴幼儿配方奶粉 1段900g
+      - 惠氏1段900g
+    reference_price: 388.00
+
+  - sku_id: SKU0130
+    name: 惠氏铂臻婴幼儿配方奶粉 2段350g
+    brand: 惠氏
+    category: 奶粉
+    keywords:
+      - 惠氏 惠氏铂臻婴幼儿配方奶粉 2段350g
+      - 惠氏2段350g
+    reference_price: 188.00
+
+  - sku_id: SKU0131
+    name: 惠氏铂臻婴幼儿配方奶粉 2段900g
+    brand: 惠氏
+    category: 奶粉
+    keywords:
+      - 惠氏 惠氏铂臻婴幼儿配方奶粉 2段900g
+      - 惠氏2段900g
+    reference_price: 388.00
+
+  - sku_id: SKU0132
+    name: 惠氏铂臻婴幼儿配方奶粉 3段350g
+    brand: 惠氏
+    category: 奶粉
+    keywords:
+      - 惠氏 惠氏铂臻婴幼儿配方奶粉 3段350g
+      - 惠氏3段350g
+    reference_price: 188.00
+
+  - sku_id: SKU0133
+    name: 惠氏铂臻婴幼儿配方奶粉 3段900g
+    brand: 惠氏
+    category: 奶粉
+    keywords:
+      - 惠氏 惠氏铂臻婴幼儿配方奶粉 3段900g
+      - 惠氏3段900g
+    reference_price: 388.00
+
+  - sku_id: SKU0134
+    name: 惠氏铂臻婴幼儿配方奶粉 4段900g
+    brand: 惠氏
+    category: 奶粉
+    keywords:
+      - 惠氏 惠氏铂臻婴幼儿配方奶粉 4段900g
+      - 惠氏4段900g
+    reference_price: 368.00
+
+  - sku_id: SKU0135
+    name: 美赞臣蓝臻婴幼儿配方奶粉 1段400g
+    brand: 美赞臣
+    category: 奶粉
+    keywords:
+      - 美赞臣 美赞臣蓝臻婴幼儿配方奶粉 1段400g
+      - 美赞臣1段400g
+    reference_price: 168.00
+
+  - sku_id: SKU0136
+    name: 美赞臣蓝臻婴幼儿配方奶粉 1段850g
+    brand: 美赞臣
+    category: 奶粉
+    keywords:
+      - 美赞臣 美赞臣蓝臻婴幼儿配方奶粉 1段850g
+      - 美赞臣1段850g
+    reference_price: 338.00
+
+  - sku_id: SKU0137
+    name: 美赞臣蓝臻婴幼儿配方奶粉 2段400g
+    brand: 美赞臣
+    category: 奶粉
+    keywords:
+      - 美赞臣 美赞臣蓝臻婴幼儿配方奶粉 2段400g
+      - 美赞臣2段400g
+    reference_price: 168.00
+
+  - sku_id: SKU0138
+    name: 美赞臣蓝臻婴幼儿配方奶粉 2段850g
+    brand: 美赞臣
+    category: 奶粉
+    keywords:
+      - 美赞臣 美赞臣蓝臻婴幼儿配方奶粉 2段850g
+      - 美赞臣2段850g
+    reference_price: 338.00
+
+  - sku_id: SKU0139
+    name: 美赞臣蓝臻婴幼儿配方奶粉 3段400g
+    brand: 美赞臣
+    category: 奶粉
+    keywords:
+      - 美赞臣 美赞臣蓝臻婴幼儿配方奶粉 3段400g
+      - 美赞臣3段400g
+    reference_price: 168.00
+
+  - sku_id: SKU0140
+    name: 美赞臣蓝臻婴幼儿配方奶粉 3段850g
+    brand: 美赞臣
+    category: 奶粉
+    keywords:
+      - 美赞臣 美赞臣蓝臻婴幼儿配方奶粉 3段850g
+      - 美赞臣3段850g
+    reference_price: 338.00
+
+  - sku_id: SKU0141
+    name: 美赞臣蓝臻婴幼儿配方奶粉 4段900g
+    brand: 美赞臣
+    category: 奶粉
+    keywords:
+      - 美赞臣 美赞臣蓝臻婴幼儿配方奶粉 4段900g
+      - 美赞臣4段900g
+    reference_price: 318.00
+
+  - sku_id: SKU0142
+    name: 美赞臣铂睿婴幼儿配方奶粉 1段400g
+    brand: 美赞臣
+    category: 奶粉
+    keywords:
+      - 美赞臣 美赞臣铂睿婴幼儿配方奶粉 1段400g
+      - 美赞臣1段400g
+    reference_price: 168.00
+
+  - sku_id: SKU0143
+    name: 美赞臣铂睿婴幼儿配方奶粉 1段850g
+    brand: 美赞臣
+    category: 奶粉
+    keywords:
+      - 美赞臣 美赞臣铂睿婴幼儿配方奶粉 1段850g
+      - 美赞臣1段850g
+    reference_price: 338.00
+
+  - sku_id: SKU0144
+    name: 美赞臣铂睿婴幼儿配方奶粉 2段400g
+    brand: 美赞臣
+    category: 奶粉
+    keywords:
+      - 美赞臣 美赞臣铂睿婴幼儿配方奶粉 2段400g
+      - 美赞臣2段400g
+    reference_price: 168.00
+
+  - sku_id: SKU0145
+    name: 美赞臣铂睿婴幼儿配方奶粉 2段850g
+    brand: 美赞臣
+    category: 奶粉
+    keywords:
+      - 美赞臣 美赞臣铂睿婴幼儿配方奶粉 2段850g
+      - 美赞臣2段850g
+    reference_price: 338.00
+
+  - sku_id: SKU0146
+    name: 美赞臣铂睿婴幼儿配方奶粉 3段400g
+    brand: 美赞臣
+    category: 奶粉
+    keywords:
+      - 美赞臣 美赞臣铂睿婴幼儿配方奶粉 3段400g
+      - 美赞臣3段400g
+    reference_price: 168.00
+
+  - sku_id: SKU0147
+    name: 美赞臣铂睿婴幼儿配方奶粉 3段850g
+    brand: 美赞臣
+    category: 奶粉
+    keywords:
+      - 美赞臣 美赞臣铂睿婴幼儿配方奶粉 3段850g
+      - 美赞臣3段850g
+    reference_price: 338.00
+
+  - sku_id: SKU0148
+    name: 美赞臣铂睿婴幼儿配方奶粉 4段900g
+    brand: 美赞臣
+    category: 奶粉
+    keywords:
+      - 美赞臣 美赞臣铂睿婴幼儿配方奶粉 4段900g
+      - 美赞臣4段900g
+    reference_price: 318.00
+
+  - sku_id: SKU0149
+    name: 美赞臣安儿宝婴幼儿配方奶粉 1段400g
+    brand: 美赞臣
+    category: 奶粉
+    keywords:
+      - 美赞臣 美赞臣安儿宝婴幼儿配方奶粉 1段400g
+      - 美赞臣1段400g
+    reference_price: 168.00
+
+  - sku_id: SKU0150
+    name: 美赞臣安儿宝婴幼儿配方奶粉 1段850g
+    brand: 美赞臣
+    category: 奶粉
+    keywords:
+      - 美赞臣 美赞臣安儿宝婴幼儿配方奶粉 1段850g
+      - 美赞臣1段850g
+    reference_price: 338.00
+
+  - sku_id: SKU0151
+    name: 美赞臣安儿宝婴幼儿配方奶粉 2段400g
+    brand: 美赞臣
+    category: 奶粉
+    keywords:
+      - 美赞臣 美赞臣安儿宝婴幼儿配方奶粉 2段400g
+      - 美赞臣2段400g
+    reference_price: 168.00
+
+  - sku_id: SKU0152
+    name: 美赞臣安儿宝婴幼儿配方奶粉 2段850g
+    brand: 美赞臣
+    category: 奶粉
+    keywords:
+      - 美赞臣 美赞臣安儿宝婴幼儿配方奶粉 2段850g
+      - 美赞臣2段850g
+    reference_price: 338.00
+
+  - sku_id: SKU0153
+    name: 美赞臣安儿宝婴幼儿配方奶粉 3段400g
+    brand: 美赞臣
+    category: 奶粉
+    keywords:
+      - 美赞臣 美赞臣安儿宝婴幼儿配方奶粉 3段400g
+      - 美赞臣3段400g
+    reference_price: 168.00
+
+  - sku_id: SKU0154
+    name: 美赞臣安儿宝婴幼儿配方奶粉 3段850g
+    brand: 美赞臣
+    category: 奶粉
+    keywords:
+      - 美赞臣 美赞臣安儿宝婴幼儿配方奶粉 3段850g
+      - 美赞臣3段850g
+    reference_price: 338.00
+
+  - sku_id: SKU0155
+    name: 美赞臣安儿宝婴幼儿配方奶粉 4段900g
+    brand: 美赞臣
+    category: 奶粉
+    keywords:
+      - 美赞臣 美赞臣安儿宝婴幼儿配方奶粉 4段900g
+      - 美赞臣4段900g
+    reference_price: 318.00
+
+  - sku_id: SKU0156
+    name: 飞鹤星飞帆婴幼儿配方奶粉 1段300g
+    brand: 飞鹤
+    category: 奶粉
+    keywords:
+      - 飞鹤 飞鹤星飞帆婴幼儿配方奶粉 1段300g
+      - 飞鹤1段300g
+    reference_price: 138.00
+
+  - sku_id: SKU0157
+    name: 飞鹤星飞帆婴幼儿配方奶粉 1段800g
+    brand: 飞鹤
+    category: 奶粉
+    keywords:
+      - 飞鹤 飞鹤星飞帆婴幼儿配方奶粉 1段800g
+      - 飞鹤1段800g
+    reference_price: 308.00
+
+  - sku_id: SKU0158
+    name: 飞鹤星飞帆婴幼儿配方奶粉 2段300g
+    brand: 飞鹤
+    category: 奶粉
+    keywords:
+      - 飞鹤 飞鹤星飞帆婴幼儿配方奶粉 2段300g
+      - 飞鹤2段300g
+    reference_price: 138.00
+
+  - sku_id: SKU0159
+    name: 飞鹤星飞帆婴幼儿配方奶粉 2段800g
+    brand: 飞鹤
+    category: 奶粉
+    keywords:
+      - 飞鹤 飞鹤星飞帆婴幼儿配方奶粉 2段800g
+      - 飞鹤2段800g
+    reference_price: 308.00
+
+  - sku_id: SKU0160
+    name: 飞鹤星飞帆婴幼儿配方奶粉 3段300g
+    brand: 飞鹤
+    category: 奶粉
+    keywords:
+      - 飞鹤 飞鹤星飞帆婴幼儿配方奶粉 3段300g
+      - 飞鹤3段300g
+    reference_price: 138.00
+
+  - sku_id: SKU0161
+    name: 飞鹤星飞帆婴幼儿配方奶粉 3段800g
+    brand: 飞鹤
+    category: 奶粉
+    keywords:
+      - 飞鹤 飞鹤星飞帆婴幼儿配方奶粉 3段800g
+      - 飞鹤3段800g
+    reference_price: 308.00
+
+  - sku_id: SKU0162
+    name: 飞鹤星飞帆婴幼儿配方奶粉 4段800g
+    brand: 飞鹤
+    category: 奶粉
+    keywords:
+      - 飞鹤 飞鹤星飞帆婴幼儿配方奶粉 4段800g
+      - 飞鹤4段800g
+    reference_price: 288.00
+
+  - sku_id: SKU0163
+    name: 飞鹤超级飞帆婴幼儿配方奶粉 1段300g
+    brand: 飞鹤
+    category: 奶粉
+    keywords:
+      - 飞鹤 飞鹤超级飞帆婴幼儿配方奶粉 1段300g
+      - 飞鹤1段300g
+    reference_price: 138.00
+
+  - sku_id: SKU0164
+    name: 飞鹤超级飞帆婴幼儿配方奶粉 1段800g
+    brand: 飞鹤
+    category: 奶粉
+    keywords:
+      - 飞鹤 飞鹤超级飞帆婴幼儿配方奶粉 1段800g
+      - 飞鹤1段800g
+    reference_price: 308.00
+
+  - sku_id: SKU0165
+    name: 飞鹤超级飞帆婴幼儿配方奶粉 2段300g
+    brand: 飞鹤
+    category: 奶粉
+    keywords:
+      - 飞鹤 飞鹤超级飞帆婴幼儿配方奶粉 2段300g
+      - 飞鹤2段300g
+    reference_price: 138.00
+
+  - sku_id: SKU0166
+    name: 飞鹤超级飞帆婴幼儿配方奶粉 2段800g
+    brand: 飞鹤
+    category: 奶粉
+    keywords:
+      - 飞鹤 飞鹤超级飞帆婴幼儿配方奶粉 2段800g
+      - 飞鹤2段800g
+    reference_price: 308.00
+
+  - sku_id: SKU0167
+    name: 飞鹤超级飞帆婴幼儿配方奶粉 3段300g
+    brand: 飞鹤
+    category: 奶粉
+    keywords:
+      - 飞鹤 飞鹤超级飞帆婴幼儿配方奶粉 3段300g
+      - 飞鹤3段300g
+    reference_price: 138.00
+
+  - sku_id: SKU0168
+    name: 飞鹤超级飞帆婴幼儿配方奶粉 3段800g
+    brand: 飞鹤
+    category: 奶粉
+    keywords:
+      - 飞鹤 飞鹤超级飞帆婴幼儿配方奶粉 3段800g
+      - 飞鹤3段800g
+    reference_price: 308.00
+
+  - sku_id: SKU0169
+    name: 飞鹤超级飞帆婴幼儿配方奶粉 4段800g
+    brand: 飞鹤
+    category: 奶粉
+    keywords:
+      - 飞鹤 飞鹤超级飞帆婴幼儿配方奶粉 4段800g
+      - 飞鹤4段800g
+    reference_price: 288.00
+
+  - sku_id: SKU0170
+    name: 飞鹤臻爱飞帆婴幼儿配方奶粉 1段300g
+    brand: 飞鹤
+    category: 奶粉
+    keywords:
+      - 飞鹤 飞鹤臻爱飞帆婴幼儿配方奶粉 1段300g
+      - 飞鹤1段300g
+    reference_price: 138.00
+
+  - sku_id: SKU0171
+    name: 飞鹤臻爱飞帆婴幼儿配方奶粉 1段800g
+    brand: 飞鹤
+    category: 奶粉
+    keywords:
+      - 飞鹤 飞鹤臻爱飞帆婴幼儿配方奶粉 1段800g
+      - 飞鹤1段800g
+    reference_price: 308.00
+
+  - sku_id: SKU0172
+    name: 飞鹤臻爱飞帆婴幼儿配方奶粉 2段300g
+    brand: 飞鹤
+    category: 奶粉
+    keywords:
+      - 飞鹤 飞鹤臻爱飞帆婴幼儿配方奶粉 2段300g
+      - 飞鹤2段300g
+    reference_price: 138.00
+
+  - sku_id: SKU0173
+    name: 飞鹤臻爱飞帆婴幼儿配方奶粉 2段800g
+    brand: 飞鹤
+    category: 奶粉
+    keywords:
+      - 飞鹤 飞鹤臻爱飞帆婴幼儿配方奶粉 2段800g
+      - 飞鹤2段800g
+    reference_price: 308.00
+
+  - sku_id: SKU0174
+    name: 飞鹤臻爱飞帆婴幼儿配方奶粉 3段300g
+    brand: 飞鹤
+    category: 奶粉
+    keywords:
+      - 飞鹤 飞鹤臻爱飞帆婴幼儿配方奶粉 3段300g
+      - 飞鹤3段300g
+    reference_price: 138.00
+
+  - sku_id: SKU0175
+    name: 飞鹤臻爱飞帆婴幼儿配方奶粉 3段800g
+    brand: 飞鹤
+    category: 奶粉
+    keywords:
+      - 飞鹤 飞鹤臻爱飞帆婴幼儿配方奶粉 3段800g
+      - 飞鹤3段800g
+    reference_price: 308.00
+
+  - sku_id: SKU0176
+    name: 飞鹤臻爱飞帆婴幼儿配方奶粉 4段800g
+    brand: 飞鹤
+    category: 奶粉
+    keywords:
+      - 飞鹤 飞鹤臻爱飞帆婴幼儿配方奶粉 4段800g
+      - 飞鹤4段800g
+    reference_price: 288.00
+
+  - sku_id: SKU0177
+    name: 诺优能PRO婴幼儿配方奶粉 1段400g
+    brand: 诺优能
+    category: 奶粉
+    keywords:
+      - 诺优能 诺优能PRO婴幼儿配方奶粉 1段400g
+      - 诺优能1段400g
+    reference_price: 88.00
+
+  - sku_id: SKU0178
+    name: 诺优能PRO婴幼儿配方奶粉 1段800g
+    brand: 诺优能
+    category: 奶粉
+    keywords:
+      - 诺优能 诺优能PRO婴幼儿配方奶粉 1段800g
+      - 诺优能1段800g
+    reference_price: 178.00
+
+  - sku_id: SKU0179
+    name: 诺优能PRO婴幼儿配方奶粉 2段400g
+    brand: 诺优能
+    category: 奶粉
+    keywords:
+      - 诺优能 诺优能PRO婴幼儿配方奶粉 2段400g
+      - 诺优能2段400g
+    reference_price: 88.00
+
+  - sku_id: SKU0180
+    name: 诺优能PRO婴幼儿配方奶粉 2段800g
+    brand: 诺优能
+    category: 奶粉
+    keywords:
+      - 诺优能 诺优能PRO婴幼儿配方奶粉 2段800g
+      - 诺优能2段800g
+    reference_price: 178.00
+
+  - sku_id: SKU0181
+    name: 诺优能PRO婴幼儿配方奶粉 3段400g
+    brand: 诺优能
+    category: 奶粉
+    keywords:
+      - 诺优能 诺优能PRO婴幼儿配方奶粉 3段400g
+      - 诺优能3段400g
+    reference_price: 88.00
+
+  - sku_id: SKU0182
+    name: 诺优能PRO婴幼儿配方奶粉 3段800g
+    brand: 诺优能
+    category: 奶粉
+    keywords:
+      - 诺优能 诺优能PRO婴幼儿配方奶粉 3段800g
+      - 诺优能3段800g
+    reference_price: 178.00
+
+  - sku_id: SKU0183
+    name: 诺优能PRO婴幼儿配方奶粉 4段800g
+    brand: 诺优能
+    category: 奶粉
+    keywords:
+      - 诺优能 诺优能PRO婴幼儿配方奶粉 4段800g
+      - 诺优能4段800g
+    reference_price: 168.00
+
+  - sku_id: SKU0184
+    name: 诺优能经典版婴幼儿配方奶粉 1段400g
+    brand: 诺优能
+    category: 奶粉
+    keywords:
+      - 诺优能 诺优能经典版婴幼儿配方奶粉 1段400g
+      - 诺优能1段400g
+    reference_price: 88.00
+
+  - sku_id: SKU0185
+    name: 诺优能经典版婴幼儿配方奶粉 1段800g
+    brand: 诺优能
+    category: 奶粉
+    keywords:
+      - 诺优能 诺优能经典版婴幼儿配方奶粉 1段800g
+      - 诺优能1段800g
+    reference_price: 178.00
+
+  - sku_id: SKU0186
+    name: 诺优能经典版婴幼儿配方奶粉 2段400g
+    brand: 诺优能
+    category: 奶粉
+    keywords:
+      - 诺优能 诺优能经典版婴幼儿配方奶粉 2段400g
+      - 诺优能2段400g
+    reference_price: 88.00
+
+  - sku_id: SKU0187
+    name: 诺优能经典版婴幼儿配方奶粉 2段800g
+    brand: 诺优能
+    category: 奶粉
+    keywords:
+      - 诺优能 诺优能经典版婴幼儿配方奶粉 2段800g
+      - 诺优能2段800g
+    reference_price: 178.00
+
+  - sku_id: SKU0188
+    name: 诺优能经典版婴幼儿配方奶粉 3段400g
+    brand: 诺优能
+    category: 奶粉
+    keywords:
+      - 诺优能 诺优能经典版婴幼儿配方奶粉 3段400g
+      - 诺优能3段400g
+    reference_price: 88.00
+
+  - sku_id: SKU0189
+    name: 诺优能经典版婴幼儿配方奶粉 3段800g
+    brand: 诺优能
+    category: 奶粉
+    keywords:
+      - 诺优能 诺优能经典版婴幼儿配方奶粉 3段800g
+      - 诺优能3段800g
+    reference_price: 178.00
+
+  - sku_id: SKU0190
+    name: 诺优能经典版婴幼儿配方奶粉 4段800g
+    brand: 诺优能
+    category: 奶粉
+    keywords:
+      - 诺优能 诺优能经典版婴幼儿配方奶粉 4段800g
+      - 诺优能4段800g
+    reference_price: 168.00
+
+  - sku_id: SKU0191
+    name: A2 Platinum白金版婴幼儿配方奶粉 1段400g
+    brand: A2
+    category: 奶粉
+    keywords:
+      - A2 A2 Platinum白金版婴幼儿配方奶粉 1段400g
+      - A21段400g
+    reference_price: 198.00
+
+  - sku_id: SKU0192
+    name: A2 Platinum白金版婴幼儿配方奶粉 1段900g
+    brand: A2
+    category: 奶粉
+    keywords:
+      - A2 A2 Platinum白金版婴幼儿配方奶粉 1段900g
+      - A21段900g
+    reference_price: 428.00
+
+  - sku_id: SKU0193
+    name: A2 Platinum白金版婴幼儿配方奶粉 2段400g
+    brand: A2
+    category: 奶粉
+    keywords:
+      - A2 A2 Platinum白金版婴幼儿配方奶粉 2段400g
+      - A22段400g
+    reference_price: 198.00
+
+  - sku_id: SKU0194
+    name: A2 Platinum白金版婴幼儿配方奶粉 2段900g
+    brand: A2
+    category: 奶粉
+    keywords:
+      - A2 A2 Platinum白金版婴幼儿配方奶粉 2段900g
+      - A22段900g
+    reference_price: 428.00
+
+  - sku_id: SKU0195
+    name: A2 Platinum白金版婴幼儿配方奶粉 3段400g
+    brand: A2
+    category: 奶粉
+    keywords:
+      - A2 A2 Platinum白金版婴幼儿配方奶粉 3段400g
+      - A23段400g
+    reference_price: 198.00
+
+  - sku_id: SKU0196
+    name: A2 Platinum白金版婴幼儿配方奶粉 3段900g
+    brand: A2
+    category: 奶粉
+    keywords:
+      - A2 A2 Platinum白金版婴幼儿配方奶粉 3段900g
+      - A23段900g
+    reference_price: 428.00
+
+  - sku_id: SKU0197
+    name: A2 Platinum白金版婴幼儿配方奶粉 4段900g
+    brand: A2
+    category: 奶粉
+    keywords:
+      - A2 A2 Platinum白金版婴幼儿配方奶粉 4段900g
+      - A24段900g
+    reference_price: 408.00
+
+  - sku_id: SKU0198
+    name: A2至初婴幼儿配方奶粉 1段400g
+    brand: A2
+    category: 奶粉
+    keywords:
+      - A2 A2至初婴幼儿配方奶粉 1段400g
+      - A21段400g
+    reference_price: 198.00
+
+  - sku_id: SKU0199
+    name: A2至初婴幼儿配方奶粉 1段900g
+    brand: A2
+    category: 奶粉
+    keywords:
+      - A2 A2至初婴幼儿配方奶粉 1段900g
+      - A21段900g
+    reference_price: 428.00
+
+  - sku_id: SKU0200
+    name: A2至初婴幼儿配方奶粉 2段400g
+    brand: A2
+    category: 奶粉
+    keywords:
+      - A2 A2至初婴幼儿配方奶粉 2段400g
+      - A22段400g
+    reference_price: 198.00
+
+  - sku_id: SKU0201
+    name: A2至初婴幼儿配方奶粉 2段900g
+    brand: A2
+    category: 奶粉
+    keywords:
+      - A2 A2至初婴幼儿配方奶粉 2段900g
+      - A22段900g
+    reference_price: 428.00
+
+  - sku_id: SKU0202
+    name: A2至初婴幼儿配方奶粉 3段400g
+    brand: A2
+    category: 奶粉
+    keywords:
+      - A2 A2至初婴幼儿配方奶粉 3段400g
+      - A23段400g
+    reference_price: 198.00
+
+  - sku_id: SKU0203
+    name: A2至初婴幼儿配方奶粉 3段900g
+    brand: A2
+    category: 奶粉
+    keywords:
+      - A2 A2至初婴幼儿配方奶粉 3段900g
+      - A23段900g
+    reference_price: 428.00
+
+  - sku_id: SKU0204
+    name: A2至初婴幼儿配方奶粉 4段900g
+    brand: A2
+    category: 奶粉
+    keywords:
+      - A2 A2至初婴幼儿配方奶粉 4段900g
+      - A24段900g
+    reference_price: 408.00
+
+  - sku_id: SKU0205
+    name: 贝亲玻璃奶瓶 宽口径160ml
+    brand: 贝亲
+    category: 奶瓶奶嘴
+    keywords:
+      - 贝亲 贝亲玻璃奶瓶 宽口径160ml
+      - 贝亲宽口径160ml
+    reference_price: 58.00
+
+  - sku_id: SKU0206
+    name: 贝亲玻璃奶瓶 宽口径240ml
+    brand: 贝亲
+    category: 奶瓶奶嘴
+    keywords:
+      - 贝亲 贝亲玻璃奶瓶 宽口径240ml
+      - 贝亲宽口径240ml
+    reference_price: 78.00
+
+  - sku_id: SKU0207
+    name: 贝亲玻璃奶瓶 标准口径120ml
+    brand: 贝亲
+    category: 奶瓶奶嘴
+    keywords:
+      - 贝亲 贝亲玻璃奶瓶 标准口径120ml
+      - 贝亲标准口径120ml
+    reference_price: 48.00
+
+  - sku_id: SKU0208
+    name: 贝亲玻璃奶瓶 标准口径200ml
+    brand: 贝亲
+    category: 奶瓶奶嘴
+    keywords:
+      - 贝亲 贝亲玻璃奶瓶 标准口径200ml
+      - 贝亲标准口径200ml
+    reference_price: 68.00
+
+  - sku_id: SKU0209
+    name: 贝亲玻璃奶瓶 PPSU160ml
+    brand: 贝亲
+    category: 奶瓶奶嘴
+    keywords:
+      - 贝亲 贝亲玻璃奶瓶 PPSU160ml
+      - 贝亲PPSU160ml
+    reference_price: 98.00
+
+  - sku_id: SKU0210
+    name: 贝亲玻璃奶瓶 PPSU240ml
+    brand: 贝亲
+    category: 奶瓶奶嘴
+    keywords:
+      - 贝亲 贝亲玻璃奶瓶 PPSU240ml
+      - 贝亲PPSU240ml
+    reference_price: 118.00
+
+  - sku_id: SKU0211
+    name: 贝亲PPSU奶瓶 宽口径160ml
+    brand: 贝亲
+    category: 奶瓶奶嘴
+    keywords:
+      - 贝亲 贝亲PPSU奶瓶 宽口径160ml
+      - 贝亲宽口径160ml
+    reference_price: 58.00
+
+  - sku_id: SKU0212
+    name: 贝亲PPSU奶瓶 宽口径240ml
+    brand: 贝亲
+    category: 奶瓶奶嘴
+    keywords:
+      - 贝亲 贝亲PPSU奶瓶 宽口径240ml
+      - 贝亲宽口径240ml
+    reference_price: 78.00
+
+  - sku_id: SKU0213
+    name: 贝亲PPSU奶瓶 标准口径120ml
+    brand: 贝亲
+    category: 奶瓶奶嘴
+    keywords:
+      - 贝亲 贝亲PPSU奶瓶 标准口径120ml
+      - 贝亲标准口径120ml
+    reference_price: 48.00
+
+  - sku_id: SKU0214
+    name: 贝亲PPSU奶瓶 标准口径200ml
+    brand: 贝亲
+    category: 奶瓶奶嘴
+    keywords:
+      - 贝亲 贝亲PPSU奶瓶 标准口径200ml
+      - 贝亲标准口径200ml
+    reference_price: 68.00
+
+  - sku_id: SKU0215
+    name: 贝亲PPSU奶瓶 PPSU160ml
+    brand: 贝亲
+    category: 奶瓶奶嘴
+    keywords:
+      - 贝亲 贝亲PPSU奶瓶 PPSU160ml
+      - 贝亲PPSU160ml
+    reference_price: 98.00
+
+  - sku_id: SKU0216
+    name: 贝亲PPSU奶瓶 PPSU240ml
+    brand: 贝亲
+    category: 奶瓶奶嘴
+    keywords:
+      - 贝亲 贝亲PPSU奶瓶 PPSU240ml
+      - 贝亲PPSU240ml
+    reference_price: 118.00
+
+  - sku_id: SKU0217
+    name: 贝亲硅胶奶嘴 宽口径160ml
+    brand: 贝亲
+    category: 奶瓶奶嘴
+    keywords:
+      - 贝亲 贝亲硅胶奶嘴 宽口径160ml
+      - 贝亲宽口径160ml
+    reference_price: 58.00
+
+  - sku_id: SKU0218
+    name: 贝亲硅胶奶嘴 宽口径240ml
+    brand: 贝亲
+    category: 奶瓶奶嘴
+    keywords:
+      - 贝亲 贝亲硅胶奶嘴 宽口径240ml
+      - 贝亲宽口径240ml
+    reference_price: 78.00
+
+  - sku_id: SKU0219
+    name: 贝亲硅胶奶嘴 标准口径120ml
+    brand: 贝亲
+    category: 奶瓶奶嘴
+    keywords:
+      - 贝亲 贝亲硅胶奶嘴 标准口径120ml
+      - 贝亲标准口径120ml
+    reference_price: 48.00
+
+  - sku_id: SKU0220
+    name: 贝亲硅胶奶嘴 标准口径200ml
+    brand: 贝亲
+    category: 奶瓶奶嘴
+    keywords:
+      - 贝亲 贝亲硅胶奶嘴 标准口径200ml
+      - 贝亲标准口径200ml
+    reference_price: 68.00
+
+  - sku_id: SKU0221
+    name: 贝亲硅胶奶嘴 PPSU160ml
+    brand: 贝亲
+    category: 奶瓶奶嘴
+    keywords:
+      - 贝亲 贝亲硅胶奶嘴 PPSU160ml
+      - 贝亲PPSU160ml
+    reference_price: 98.00
+
+  - sku_id: SKU0222
+    name: 贝亲硅胶奶嘴 PPSU240ml
+    brand: 贝亲
+    category: 奶瓶奶嘴
+    keywords:
+      - 贝亲 贝亲硅胶奶嘴 PPSU240ml
+      - 贝亲PPSU240ml
+    reference_price: 118.00
+
+  - sku_id: SKU0223
+    name: 贝亲宽口径奶嘴S/M/L/LL号 宽口径160ml
+    brand: 贝亲
+    category: 奶瓶奶嘴
+    keywords:
+      - 贝亲 贝亲宽口径奶嘴S/M/L/LL号 宽口径160ml
+      - 贝亲宽口径160ml
+    reference_price: 58.00
+
+  - sku_id: SKU0224
+    name: 贝亲宽口径奶嘴S/M/L/LL号 宽口径240ml
+    brand: 贝亲
+    category: 奶瓶奶嘴
+    keywords:
+      - 贝亲 贝亲宽口径奶嘴S/M/L/LL号 宽口径240ml
+      - 贝亲宽口径240ml
+    reference_price: 78.00
+
+  - sku_id: SKU0225
+    name: 贝亲宽口径奶嘴S/M/L/LL号 标准口径120ml
+    brand: 贝亲
+    category: 奶瓶奶嘴
+    keywords:
+      - 贝亲 贝亲宽口径奶嘴S/M/L/LL号 标准口径120ml
+      - 贝亲标准口径120ml
+    reference_price: 48.00
+
+  - sku_id: SKU0226
+    name: 贝亲宽口径奶嘴S/M/L/LL号 标准口径200ml
+    brand: 贝亲
+    category: 奶瓶奶嘴
+    keywords:
+      - 贝亲 贝亲宽口径奶嘴S/M/L/LL号 标准口径200ml
+      - 贝亲标准口径200ml
+    reference_price: 68.00
+
+  - sku_id: SKU0227
+    name: 贝亲宽口径奶嘴S/M/L/LL号 PPSU160ml
+    brand: 贝亲
+    category: 奶瓶奶嘴
+    keywords:
+      - 贝亲 贝亲宽口径奶嘴S/M/L/LL号 PPSU160ml
+      - 贝亲PPSU160ml
+    reference_price: 98.00
+
+  - sku_id: SKU0228
+    name: 贝亲宽口径奶嘴S/M/L/LL号 PPSU240ml
+    brand: 贝亲
+    category: 奶瓶奶嘴
+    keywords:
+      - 贝亲 贝亲宽口径奶嘴S/M/L/LL号 PPSU240ml
+      - 贝亲PPSU240ml
+    reference_price: 118.00
+
+  - sku_id: SKU0229
+    name: NUK玻璃奶瓶 宽口150ml
+    brand: NUK
+    category: 奶瓶奶嘴
+    keywords:
+      - NUK NUK玻璃奶瓶 宽口150ml
+      - NUK宽口150ml
+    reference_price: 68.00
+
+  - sku_id: SKU0230
+    name: NUK玻璃奶瓶 宽口250ml
+    brand: NUK
+    category: 奶瓶奶嘴
+    keywords:
+      - NUK NUK玻璃奶瓶 宽口250ml
+      - NUK宽口250ml
+    reference_price: 88.00
+
+  - sku_id: SKU0231
+    name: NUK玻璃奶瓶 标准口110ml
+    brand: NUK
+    category: 奶瓶奶嘴
+    keywords:
+      - NUK NUK玻璃奶瓶 标准口110ml
+      - NUK标准口110ml
+    reference_price: 58.00
+
+  - sku_id: SKU0232
+    name: NUK玻璃奶瓶 标准口230ml
+    brand: NUK
+    category: 奶瓶奶嘴
+    keywords:
+      - NUK NUK玻璃奶瓶 标准口230ml
+      - NUK标准口230ml
+    reference_price: 78.00
+
+  - sku_id: SKU0233
+    name: NUK玻璃奶瓶 PA150ml
+    brand: NUK
+    category: 奶瓶奶嘴
+    keywords:
+      - NUK NUK玻璃奶瓶 PA150ml
+      - NUKPA150ml
+    reference_price: 108.00
+
+  - sku_id: SKU0234
+    name: NUK玻璃奶瓶 PA300ml
+    brand: NUK
+    category: 奶瓶奶嘴
+    keywords:
+      - NUK NUK玻璃奶瓶 PA300ml
+      - NUKPA300ml
+    reference_price: 128.00
+
+  - sku_id: SKU0235
+    name: NUK塑料奶瓶 宽口150ml
+    brand: NUK
+    category: 奶瓶奶嘴
+    keywords:
+      - NUK NUK塑料奶瓶 宽口150ml
+      - NUK宽口150ml
+    reference_price: 68.00
+
+  - sku_id: SKU0236
+    name: NUK塑料奶瓶 宽口250ml
+    brand: NUK
+    category: 奶瓶奶嘴
+    keywords:
+      - NUK NUK塑料奶瓶 宽口250ml
+      - NUK宽口250ml
+    reference_price: 88.00
+
+  - sku_id: SKU0237
+    name: NUK塑料奶瓶 标准口110ml
+    brand: NUK
+    category: 奶瓶奶嘴
+    keywords:
+      - NUK NUK塑料奶瓶 标准口110ml
+      - NUK标准口110ml
+    reference_price: 58.00
+
+  - sku_id: SKU0238
+    name: NUK塑料奶瓶 标准口230ml
+    brand: NUK
+    category: 奶瓶奶嘴
+    keywords:
+      - NUK NUK塑料奶瓶 标准口230ml
+      - NUK标准口230ml
+    reference_price: 78.00
+
+  - sku_id: SKU0239
+    name: NUK塑料奶瓶 PA150ml
+    brand: NUK
+    category: 奶瓶奶嘴
+    keywords:
+      - NUK NUK塑料奶瓶 PA150ml
+      - NUKPA150ml
+    reference_price: 108.00
+
+  - sku_id: SKU0240
+    name: NUK塑料奶瓶 PA300ml
+    brand: NUK
+    category: 奶瓶奶嘴
+    keywords:
+      - NUK NUK塑料奶瓶 PA300ml
+      - NUKPA300ml
+    reference_price: 128.00
+
+  - sku_id: SKU0241
+    name: NUK硅胶奶嘴 宽口150ml
+    brand: NUK
+    category: 奶瓶奶嘴
+    keywords:
+      - NUK NUK硅胶奶嘴 宽口150ml
+      - NUK宽口150ml
+    reference_price: 68.00
+
+  - sku_id: SKU0242
+    name: NUK硅胶奶嘴 宽口250ml
+    brand: NUK
+    category: 奶瓶奶嘴
+    keywords:
+      - NUK NUK硅胶奶嘴 宽口250ml
+      - NUK宽口250ml
+    reference_price: 88.00
+
+  - sku_id: SKU0243
+    name: NUK硅胶奶嘴 标准口110ml
+    brand: NUK
+    category: 奶瓶奶嘴
+    keywords:
+      - NUK NUK硅胶奶嘴 标准口110ml
+      - NUK标准口110ml
+    reference_price: 58.00
+
+  - sku_id: SKU0244
+    name: NUK硅胶奶嘴 标准口230ml
+    brand: NUK
+    category: 奶瓶奶嘴
+    keywords:
+      - NUK NUK硅胶奶嘴 标准口230ml
+      - NUK标准口230ml
+    reference_price: 78.00
+
+  - sku_id: SKU0245
+    name: NUK硅胶奶嘴 PA150ml
+    brand: NUK
+    category: 奶瓶奶嘴
+    keywords:
+      - NUK NUK硅胶奶嘴 PA150ml
+      - NUKPA150ml
+    reference_price: 108.00
+
+  - sku_id: SKU0246
+    name: NUK硅胶奶嘴 PA300ml
+    brand: NUK
+    category: 奶瓶奶嘴
+    keywords:
+      - NUK NUK硅胶奶嘴 PA300ml
+      - NUKPA300ml
+    reference_price: 128.00
+
+  - sku_id: SKU0247
+    name: NUK乳胶奶嘴 宽口150ml
+    brand: NUK
+    category: 奶瓶奶嘴
+    keywords:
+      - NUK NUK乳胶奶嘴 宽口150ml
+      - NUK宽口150ml
+    reference_price: 68.00
+
+  - sku_id: SKU0248
+    name: NUK乳胶奶嘴 宽口250ml
+    brand: NUK
+    category: 奶瓶奶嘴
+    keywords:
+      - NUK NUK乳胶奶嘴 宽口250ml
+      - NUK宽口250ml
+    reference_price: 88.00
+
+  - sku_id: SKU0249
+    name: NUK乳胶奶嘴 标准口110ml
+    brand: NUK
+    category: 奶瓶奶嘴
+    keywords:
+      - NUK NUK乳胶奶嘴 标准口110ml
+      - NUK标准口110ml
+    reference_price: 58.00
+
+  - sku_id: SKU0250
+    name: NUK乳胶奶嘴 标准口230ml
+    brand: NUK
+    category: 奶瓶奶嘴
+    keywords:
+      - NUK NUK乳胶奶嘴 标准口230ml
+      - NUK标准口230ml
+    reference_price: 78.00
+
+  - sku_id: SKU0251
+    name: NUK乳胶奶嘴 PA150ml
+    brand: NUK
+    category: 奶瓶奶嘴
+    keywords:
+      - NUK NUK乳胶奶嘴 PA150ml
+      - NUKPA150ml
+    reference_price: 108.00
+
+  - sku_id: SKU0252
+    name: NUK乳胶奶嘴 PA300ml
+    brand: NUK
+    category: 奶瓶奶嘴
+    keywords:
+      - NUK NUK乳胶奶嘴 PA300ml
+      - NUKPA300ml
+    reference_price: 128.00
+
+  - sku_id: SKU0253
+    name: 新安怡自然原生玻璃奶瓶 宽口125ml
+    brand: 新安怡
+    category: 奶瓶奶嘴
+    keywords:
+      - 新安怡 新安怡自然原生玻璃奶瓶 宽口125ml
+      - 新安怡宽口125ml
+    reference_price: 78.00
+
+  - sku_id: SKU0254
+    name: 新安怡自然原生玻璃奶瓶 宽口260ml
+    brand: 新安怡
+    category: 奶瓶奶嘴
+    keywords:
+      - 新安怡 新安怡自然原生玻璃奶瓶 宽口260ml
+      - 新安怡宽口260ml
+    reference_price: 98.00
+
+  - sku_id: SKU0255
+    name: 新安怡自然原生玻璃奶瓶 原生125ml
+    brand: 新安怡
+    category: 奶瓶奶嘴
+    keywords:
+      - 新安怡 新安怡自然原生玻璃奶瓶 原生125ml
+      - 新安怡原生125ml
+    reference_price: 88.00
+
+  - sku_id: SKU0256
+    name: 新安怡自然原生玻璃奶瓶 原生260ml
+    brand: 新安怡
+    category: 奶瓶奶嘴
+    keywords:
+      - 新安怡 新安怡自然原生玻璃奶瓶 原生260ml
+      - 新安怡原生260ml
+    reference_price: 108.00
+
+  - sku_id: SKU0257
+    name: 新安怡自然原生玻璃奶瓶 PA材质125ml
+    brand: 新安怡
+    category: 奶瓶奶嘴
+    keywords:
+      - 新安怡 新安怡自然原生玻璃奶瓶 PA材质125ml
+      - 新安怡PA材质125ml
+    reference_price: 118.00
+
+  - sku_id: SKU0258
+    name: 新安怡自然原生玻璃奶瓶 PA材质260ml
+    brand: 新安怡
+    category: 奶瓶奶嘴
+    keywords:
+      - 新安怡 新安怡自然原生玻璃奶瓶 PA材质260ml
+      - 新安怡PA材质260ml
+    reference_price: 138.00
+
+  - sku_id: SKU0259
+    name: 新安怡宽口径PP奶瓶 宽口125ml
+    brand: 新安怡
+    category: 奶瓶奶嘴
+    keywords:
+      - 新安怡 新安怡宽口径PP奶瓶 宽口125ml
+      - 新安怡宽口125ml
+    reference_price: 78.00
+
+  - sku_id: SKU0260
+    name: 新安怡宽口径PP奶瓶 宽口260ml
+    brand: 新安怡
+    category: 奶瓶奶嘴
+    keywords:
+      - 新安怡 新安怡宽口径PP奶瓶 宽口260ml
+      - 新安怡宽口260ml
+    reference_price: 98.00
+
+  - sku_id: SKU0261
+    name: 新安怡宽口径PP奶瓶 原生125ml
+    brand: 新安怡
+    category: 奶瓶奶嘴
+    keywords:
+      - 新安怡 新安怡宽口径PP奶瓶 原生125ml
+      - 新安怡原生125ml
+    reference_price: 88.00
+
+  - sku_id: SKU0262
+    name: 新安怡宽口径PP奶瓶 原生260ml
+    brand: 新安怡
+    category: 奶瓶奶嘴
+    keywords:
+      - 新安怡 新安怡宽口径PP奶瓶 原生260ml
+      - 新安怡原生260ml
+    reference_price: 108.00
+
+  - sku_id: SKU0263
+    name: 新安怡宽口径PP奶瓶 PA材质125ml
+    brand: 新安怡
+    category: 奶瓶奶嘴
+    keywords:
+      - 新安怡 新安怡宽口径PP奶瓶 PA材质125ml
+      - 新安怡PA材质125ml
+    reference_price: 118.00
+
+  - sku_id: SKU0264
+    name: 新安怡宽口径PP奶瓶 PA材质260ml
+    brand: 新安怡
+    category: 奶瓶奶嘴
+    keywords:
+      - 新安怡 新安怡宽口径PP奶瓶 PA材质260ml
+      - 新安怡PA材质260ml
+    reference_price: 138.00
+
+  - sku_id: SKU0265
+    name: 新安怡硅胶奶嘴 宽口125ml
+    brand: 新安怡
+    category: 奶瓶奶嘴
+    keywords:
+      - 新安怡 新安怡硅胶奶嘴 宽口125ml
+      - 新安怡宽口125ml
+    reference_price: 78.00
+
+  - sku_id: SKU0266
+    name: 新安怡硅胶奶嘴 宽口260ml
+    brand: 新安怡
+    category: 奶瓶奶嘴
+    keywords:
+      - 新安怡 新安怡硅胶奶嘴 宽口260ml
+      - 新安怡宽口260ml
+    reference_price: 98.00
+
+  - sku_id: SKU0267
+    name: 新安怡硅胶奶嘴 原生125ml
+    brand: 新安怡
+    category: 奶瓶奶嘴
+    keywords:
+      - 新安怡 新安怡硅胶奶嘴 原生125ml
+      - 新安怡原生125ml
+    reference_price: 88.00
+
+  - sku_id: SKU0268
+    name: 新安怡硅胶奶嘴 原生260ml
+    brand: 新安怡
+    category: 奶瓶奶嘴
+    keywords:
+      - 新安怡 新安怡硅胶奶嘴 原生260ml
+      - 新安怡原生260ml
+    reference_price: 108.00
+
+  - sku_id: SKU0269
+    name: 新安怡硅胶奶嘴 PA材质125ml
+    brand: 新安怡
+    category: 奶瓶奶嘴
+    keywords:
+      - 新安怡 新安怡硅胶奶嘴 PA材质125ml
+      - 新安怡PA材质125ml
+    reference_price: 118.00
+
+  - sku_id: SKU0270
+    name: 新安怡硅胶奶嘴 PA材质260ml
+    brand: 新安怡
+    category: 奶瓶奶嘴
+    keywords:
+      - 新安怡 新安怡硅胶奶嘴 PA材质260ml
+      - 新安怡PA材质260ml
+    reference_price: 138.00
+
+  - sku_id: SKU0271
+    name: 可么多么硅胶奶瓶 150ml
+    brand: 可么多么
+    category: 奶瓶奶嘴
+    keywords:
+      - 可么多么 可么多么硅胶奶瓶 150ml
+      - 可么多么150ml
+    reference_price: 158.00
+
+  - sku_id: SKU0272
+    name: 可么多么硅胶奶瓶 250ml
+    brand: 可么多么
+    category: 奶瓶奶嘴
+    keywords:
+      - 可么多么 可么多么硅胶奶瓶 250ml
+      - 可么多么250ml
+    reference_price: 188.00
+
+  - sku_id: SKU0273
+    name: 可么多么硅胶奶瓶 150ml绿色
+    brand: 可么多么
+    category: 奶瓶奶嘴
+    keywords:
+      - 可么多么 可么多么硅胶奶瓶 150ml绿色
+      - 可么多么150ml绿色
+    reference_price: 168.00
+
+  - sku_id: SKU0274
+    name: 可么多么硅胶奶瓶 250ml绿色
+    brand: 可么多么
+    category: 奶瓶奶嘴
+    keywords:
+      - 可么多么 可么多么硅胶奶瓶 250ml绿色
+      - 可么多么250ml绿色
+    reference_price: 198.00
+
+  - sku_id: SKU0275
+    name: 可么多么硅胶奶瓶 150ml粉色
+    brand: 可么多么
+    category: 奶瓶奶嘴
+    keywords:
+      - 可么多么 可么多么硅胶奶瓶 150ml粉色
+      - 可么多么150ml粉色
+    reference_price: 168.00
+
+  - sku_id: SKU0276
+    name: 可么多么硅胶奶瓶 250ml粉色
+    brand: 可么多么
+    category: 奶瓶奶嘴
+    keywords:
+      - 可么多么 可么多么硅胶奶瓶 250ml粉色
+      - 可么多么250ml粉色
+    reference_price: 198.00
+
+  - sku_id: SKU0277
+    name: 可么多么COMOTOMO奶瓶 150ml
+    brand: 可么多么
+    category: 奶瓶奶嘴
+    keywords:
+      - 可么多么 可么多么COMOTOMO奶瓶 150ml
+      - 可么多么150ml
+    reference_price: 158.00
+
+  - sku_id: SKU0278
+    name: 可么多么COMOTOMO奶瓶 250ml
+    brand: 可么多么
+    category: 奶瓶奶嘴
+    keywords:
+      - 可么多么 可么多么COMOTOMO奶瓶 250ml
+      - 可么多么250ml
+    reference_price: 188.00
+
+  - sku_id: SKU0279
+    name: 可么多么COMOTOMO奶瓶 150ml绿色
+    brand: 可么多么
+    category: 奶瓶奶嘴
+    keywords:
+      - 可么多么 可么多么COMOTOMO奶瓶 150ml绿色
+      - 可么多么150ml绿色
+    reference_price: 168.00
+
+  - sku_id: SKU0280
+    name: 可么多么COMOTOMO奶瓶 250ml绿色
+    brand: 可么多么
+    category: 奶瓶奶嘴
+    keywords:
+      - 可么多么 可么多么COMOTOMO奶瓶 250ml绿色
+      - 可么多么250ml绿色
+    reference_price: 198.00
+
+  - sku_id: SKU0281
+    name: 可么多么COMOTOMO奶瓶 150ml粉色
+    brand: 可么多么
+    category: 奶瓶奶嘴
+    keywords:
+      - 可么多么 可么多么COMOTOMO奶瓶 150ml粉色
+      - 可么多么150ml粉色
+    reference_price: 168.00
+
+  - sku_id: SKU0282
+    name: 可么多么COMOTOMO奶瓶 250ml粉色
+    brand: 可么多么
+    category: 奶瓶奶嘴
+    keywords:
+      - 可么多么 可么多么COMOTOMO奶瓶 250ml粉色
+      - 可么多么250ml粉色
+    reference_price: 198.00
+
+  - sku_id: SKU0283
+    name: 汤美星Tommee Tippee奶瓶 150ml
+    brand: 汤美星
+    category: 奶瓶奶嘴
+    keywords:
+      - 汤美星 汤美星Tommee Tippee奶瓶 150ml
+      - 汤美星150ml
+    reference_price: 68.00
+
+  - sku_id: SKU0284
+    name: 汤美星Tommee Tippee奶瓶 260ml
+    brand: 汤美星
+    category: 奶瓶奶嘴
+    keywords:
+      - 汤美星 汤美星Tommee Tippee奶瓶 260ml
+      - 汤美星260ml
+    reference_price: 88.00
+
+  - sku_id: SKU0285
+    name: 汤美星Tommee Tippee奶瓶 340ml
+    brand: 汤美星
+    category: 奶瓶奶嘴
+    keywords:
+      - 汤美星 汤美星Tommee Tippee奶瓶 340ml
+      - 汤美星340ml
+    reference_price: 108.00
+
+  - sku_id: SKU0286
+    name: 汤美星Tommee Tippee奶瓶 玻璃150ml
+    brand: 汤美星
+    category: 奶瓶奶嘴
+    keywords:
+      - 汤美星 汤美星Tommee Tippee奶瓶 玻璃150ml
+      - 汤美星玻璃150ml
+    reference_price: 98.00
+
+  - sku_id: SKU0287
+    name: 汤美星Tommee Tippee奶瓶 玻璃250ml
+    brand: 汤美星
+    category: 奶瓶奶嘴
+    keywords:
+      - 汤美星 汤美星Tommee Tippee奶瓶 玻璃250ml
+      - 汤美星玻璃250ml
+    reference_price: 118.00
+
+  - sku_id: SKU0288
+    name: 汤美星硅胶奶嘴 150ml
+    brand: 汤美星
+    category: 奶瓶奶嘴
+    keywords:
+      - 汤美星 汤美星硅胶奶嘴 150ml
+      - 汤美星150ml
+    reference_price: 68.00
+
+  - sku_id: SKU0289
+    name: 汤美星硅胶奶嘴 260ml
+    brand: 汤美星
+    category: 奶瓶奶嘴
+    keywords:
+      - 汤美星 汤美星硅胶奶嘴 260ml
+      - 汤美星260ml
+    reference_price: 88.00
+
+  - sku_id: SKU0290
+    name: 汤美星硅胶奶嘴 340ml
+    brand: 汤美星
+    category: 奶瓶奶嘴
+    keywords:
+      - 汤美星 汤美星硅胶奶嘴 340ml
+      - 汤美星340ml
+    reference_price: 108.00
+
+  - sku_id: SKU0291
+    name: 汤美星硅胶奶嘴 玻璃150ml
+    brand: 汤美星
+    category: 奶瓶奶嘴
+    keywords:
+      - 汤美星 汤美星硅胶奶嘴 玻璃150ml
+      - 汤美星玻璃150ml
+    reference_price: 98.00
+
+  - sku_id: SKU0292
+    name: 汤美星硅胶奶嘴 玻璃250ml
+    brand: 汤美星
+    category: 奶瓶奶嘴
+    keywords:
+      - 汤美星 汤美星硅胶奶嘴 玻璃250ml
+      - 汤美星玻璃250ml
+    reference_price: 118.00
+
+  - sku_id: SKU0293
+    name: 汤美星防胀气奶瓶 150ml
+    brand: 汤美星
+    category: 奶瓶奶嘴
+    keywords:
+      - 汤美星 汤美星防胀气奶瓶 150ml
+      - 汤美星150ml
+    reference_price: 68.00
+
+  - sku_id: SKU0294
+    name: 汤美星防胀气奶瓶 260ml
+    brand: 汤美星
+    category: 奶瓶奶嘴
+    keywords:
+      - 汤美星 汤美星防胀气奶瓶 260ml
+      - 汤美星260ml
+    reference_price: 88.00
+
+  - sku_id: SKU0295
+    name: 汤美星防胀气奶瓶 340ml
+    brand: 汤美星
+    category: 奶瓶奶嘴
+    keywords:
+      - 汤美星 汤美星防胀气奶瓶 340ml
+      - 汤美星340ml
+    reference_price: 108.00
+
+  - sku_id: SKU0296
+    name: 汤美星防胀气奶瓶 玻璃150ml
+    brand: 汤美星
+    category: 奶瓶奶嘴
+    keywords:
+      - 汤美星 汤美星防胀气奶瓶 玻璃150ml
+      - 汤美星玻璃150ml
+    reference_price: 98.00
+
+  - sku_id: SKU0297
+    name: 汤美星防胀气奶瓶 玻璃250ml
+    brand: 汤美星
+    category: 奶瓶奶嘴
+    keywords:
+      - 汤美星 汤美星防胀气奶瓶 玻璃250ml
+      - 汤美星玻璃250ml
+    reference_price: 118.00
+
+  - sku_id: SKU0298
+    name: 童泰婴儿连体衣 52cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿连体衣 52cm
+      - 童泰52cm
+    reference_price: 38.00
+
+  - sku_id: SKU0299
+    name: 童泰婴儿连体衣 59cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿连体衣 59cm
+      - 童泰59cm
+    reference_price: 48.00
+
+  - sku_id: SKU0300
+    name: 童泰婴儿连体衣 66cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿连体衣 66cm
+      - 童泰66cm
+    reference_price: 58.00
+
+  - sku_id: SKU0301
+    name: 童泰婴儿连体衣 73cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿连体衣 73cm
+      - 童泰73cm
+    reference_price: 68.00
+
+  - sku_id: SKU0302
+    name: 童泰婴儿连体衣 80cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿连体衣 80cm
+      - 童泰80cm
+    reference_price: 78.00
+
+  - sku_id: SKU0303
+    name: 童泰婴儿连体衣 90cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿连体衣 90cm
+      - 童泰90cm
+    reference_price: 88.00
+
+  - sku_id: SKU0304
+    name: 童泰婴儿连体衣 100cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿连体衣 100cm
+      - 童泰100cm
+    reference_price: 98.00
+
+  - sku_id: SKU0305
+    name: 童泰婴儿哈衣 52cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿哈衣 52cm
+      - 童泰52cm
+    reference_price: 38.00
+
+  - sku_id: SKU0306
+    name: 童泰婴儿哈衣 59cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿哈衣 59cm
+      - 童泰59cm
+    reference_price: 48.00
+
+  - sku_id: SKU0307
+    name: 童泰婴儿哈衣 66cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿哈衣 66cm
+      - 童泰66cm
+    reference_price: 58.00
+
+  - sku_id: SKU0308
+    name: 童泰婴儿哈衣 73cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿哈衣 73cm
+      - 童泰73cm
+    reference_price: 68.00
+
+  - sku_id: SKU0309
+    name: 童泰婴儿哈衣 80cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿哈衣 80cm
+      - 童泰80cm
+    reference_price: 78.00
+
+  - sku_id: SKU0310
+    name: 童泰婴儿哈衣 90cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿哈衣 90cm
+      - 童泰90cm
+    reference_price: 88.00
+
+  - sku_id: SKU0311
+    name: 童泰婴儿哈衣 100cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿哈衣 100cm
+      - 童泰100cm
+    reference_price: 98.00
+
+  - sku_id: SKU0312
+    name: 童泰婴儿内衣套装 52cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿内衣套装 52cm
+      - 童泰52cm
+    reference_price: 38.00
+
+  - sku_id: SKU0313
+    name: 童泰婴儿内衣套装 59cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿内衣套装 59cm
+      - 童泰59cm
+    reference_price: 48.00
+
+  - sku_id: SKU0314
+    name: 童泰婴儿内衣套装 66cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿内衣套装 66cm
+      - 童泰66cm
+    reference_price: 58.00
+
+  - sku_id: SKU0315
+    name: 童泰婴儿内衣套装 73cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿内衣套装 73cm
+      - 童泰73cm
+    reference_price: 68.00
+
+  - sku_id: SKU0316
+    name: 童泰婴儿内衣套装 80cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿内衣套装 80cm
+      - 童泰80cm
+    reference_price: 78.00
+
+  - sku_id: SKU0317
+    name: 童泰婴儿内衣套装 90cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿内衣套装 90cm
+      - 童泰90cm
+    reference_price: 88.00
+
+  - sku_id: SKU0318
+    name: 童泰婴儿内衣套装 100cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿内衣套装 100cm
+      - 童泰100cm
+    reference_price: 98.00
+
+  - sku_id: SKU0319
+    name: 童泰婴儿睡袋 52cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿睡袋 52cm
+      - 童泰52cm
+    reference_price: 38.00
+
+  - sku_id: SKU0320
+    name: 童泰婴儿睡袋 59cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿睡袋 59cm
+      - 童泰59cm
+    reference_price: 48.00
+
+  - sku_id: SKU0321
+    name: 童泰婴儿睡袋 66cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿睡袋 66cm
+      - 童泰66cm
+    reference_price: 58.00
+
+  - sku_id: SKU0322
+    name: 童泰婴儿睡袋 73cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿睡袋 73cm
+      - 童泰73cm
+    reference_price: 68.00
+
+  - sku_id: SKU0323
+    name: 童泰婴儿睡袋 80cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿睡袋 80cm
+      - 童泰80cm
+    reference_price: 78.00
+
+  - sku_id: SKU0324
+    name: 童泰婴儿睡袋 90cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿睡袋 90cm
+      - 童泰90cm
+    reference_price: 88.00
+
+  - sku_id: SKU0325
+    name: 童泰婴儿睡袋 100cm
+    brand: 童泰
+    category: 婴儿服饰
+    keywords:
+      - 童泰 童泰婴儿睡袋 100cm
+      - 童泰100cm
+    reference_price: 98.00
+
+  - sku_id: SKU0326
+    name: 全棉时代婴儿连体衣 52cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿连体衣 52cm
+      - 全棉时代52cm
+    reference_price: 78.00
+
+  - sku_id: SKU0327
+    name: 全棉时代婴儿连体衣 59cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿连体衣 59cm
+      - 全棉时代59cm
+    reference_price: 98.00
+
+  - sku_id: SKU0328
+    name: 全棉时代婴儿连体衣 66cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿连体衣 66cm
+      - 全棉时代66cm
+    reference_price: 118.00
+
+  - sku_id: SKU0329
+    name: 全棉时代婴儿连体衣 73cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿连体衣 73cm
+      - 全棉时代73cm
+    reference_price: 138.00
+
+  - sku_id: SKU0330
+    name: 全棉时代婴儿连体衣 80cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿连体衣 80cm
+      - 全棉时代80cm
+    reference_price: 158.00
+
+  - sku_id: SKU0331
+    name: 全棉时代婴儿连体衣 90cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿连体衣 90cm
+      - 全棉时代90cm
+    reference_price: 178.00
+
+  - sku_id: SKU0332
+    name: 全棉时代婴儿连体衣 100cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿连体衣 100cm
+      - 全棉时代100cm
+    reference_price: 198.00
+
+  - sku_id: SKU0333
+    name: 全棉时代婴儿纱布衣 52cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿纱布衣 52cm
+      - 全棉时代52cm
+    reference_price: 78.00
+
+  - sku_id: SKU0334
+    name: 全棉时代婴儿纱布衣 59cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿纱布衣 59cm
+      - 全棉时代59cm
+    reference_price: 98.00
+
+  - sku_id: SKU0335
+    name: 全棉时代婴儿纱布衣 66cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿纱布衣 66cm
+      - 全棉时代66cm
+    reference_price: 118.00
+
+  - sku_id: SKU0336
+    name: 全棉时代婴儿纱布衣 73cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿纱布衣 73cm
+      - 全棉时代73cm
+    reference_price: 138.00
+
+  - sku_id: SKU0337
+    name: 全棉时代婴儿纱布衣 80cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿纱布衣 80cm
+      - 全棉时代80cm
+    reference_price: 158.00
+
+  - sku_id: SKU0338
+    name: 全棉时代婴儿纱布衣 90cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿纱布衣 90cm
+      - 全棉时代90cm
+    reference_price: 178.00
+
+  - sku_id: SKU0339
+    name: 全棉时代婴儿纱布衣 100cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿纱布衣 100cm
+      - 全棉时代100cm
+    reference_price: 198.00
+
+  - sku_id: SKU0340
+    name: 全棉时代婴儿浴巾 52cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿浴巾 52cm
+      - 全棉时代52cm
+    reference_price: 78.00
+
+  - sku_id: SKU0341
+    name: 全棉时代婴儿浴巾 59cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿浴巾 59cm
+      - 全棉时代59cm
+    reference_price: 98.00
+
+  - sku_id: SKU0342
+    name: 全棉时代婴儿浴巾 66cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿浴巾 66cm
+      - 全棉时代66cm
+    reference_price: 118.00
+
+  - sku_id: SKU0343
+    name: 全棉时代婴儿浴巾 73cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿浴巾 73cm
+      - 全棉时代73cm
+    reference_price: 138.00
+
+  - sku_id: SKU0344
+    name: 全棉时代婴儿浴巾 80cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿浴巾 80cm
+      - 全棉时代80cm
+    reference_price: 158.00
+
+  - sku_id: SKU0345
+    name: 全棉时代婴儿浴巾 90cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿浴巾 90cm
+      - 全棉时代90cm
+    reference_price: 178.00
+
+  - sku_id: SKU0346
+    name: 全棉时代婴儿浴巾 100cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿浴巾 100cm
+      - 全棉时代100cm
+    reference_price: 198.00
+
+  - sku_id: SKU0347
+    name: 全棉时代婴儿尿布 52cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿尿布 52cm
+      - 全棉时代52cm
+    reference_price: 78.00
+
+  - sku_id: SKU0348
+    name: 全棉时代婴儿尿布 59cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿尿布 59cm
+      - 全棉时代59cm
+    reference_price: 98.00
+
+  - sku_id: SKU0349
+    name: 全棉时代婴儿尿布 66cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿尿布 66cm
+      - 全棉时代66cm
+    reference_price: 118.00
+
+  - sku_id: SKU0350
+    name: 全棉时代婴儿尿布 73cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿尿布 73cm
+      - 全棉时代73cm
+    reference_price: 138.00
+
+  - sku_id: SKU0351
+    name: 全棉时代婴儿尿布 80cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿尿布 80cm
+      - 全棉时代80cm
+    reference_price: 158.00
+
+  - sku_id: SKU0352
+    name: 全棉时代婴儿尿布 90cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿尿布 90cm
+      - 全棉时代90cm
+    reference_price: 178.00
+
+  - sku_id: SKU0353
+    name: 全棉时代婴儿尿布 100cm
+    brand: 全棉时代
+    category: 婴儿服饰
+    keywords:
+      - 全棉时代 全棉时代婴儿尿布 100cm
+      - 全棉时代100cm
+    reference_price: 198.00
+
+  - sku_id: SKU0354
+    name: 英氏婴儿连体衣 66cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿连体衣 66cm
+      - 英氏66cm
+    reference_price: 88.00
+
+  - sku_id: SKU0355
+    name: 英氏婴儿连体衣 73cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿连体衣 73cm
+      - 英氏73cm
+    reference_price: 108.00
+
+  - sku_id: SKU0356
+    name: 英氏婴儿连体衣 80cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿连体衣 80cm
+      - 英氏80cm
+    reference_price: 128.00
+
+  - sku_id: SKU0357
+    name: 英氏婴儿连体衣 90cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿连体衣 90cm
+      - 英氏90cm
+    reference_price: 148.00
+
+  - sku_id: SKU0358
+    name: 英氏婴儿连体衣 100cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿连体衣 100cm
+      - 英氏100cm
+    reference_price: 168.00
+
+  - sku_id: SKU0359
+    name: 英氏婴儿连体衣 110cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿连体衣 110cm
+      - 英氏110cm
+    reference_price: 188.00
+
+  - sku_id: SKU0360
+    name: 英氏婴儿连体衣 120cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿连体衣 120cm
+      - 英氏120cm
+    reference_price: 208.00
+
+  - sku_id: SKU0361
+    name: 英氏婴儿外套 66cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿外套 66cm
+      - 英氏66cm
+    reference_price: 88.00
+
+  - sku_id: SKU0362
+    name: 英氏婴儿外套 73cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿外套 73cm
+      - 英氏73cm
+    reference_price: 108.00
+
+  - sku_id: SKU0363
+    name: 英氏婴儿外套 80cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿外套 80cm
+      - 英氏80cm
+    reference_price: 128.00
+
+  - sku_id: SKU0364
+    name: 英氏婴儿外套 90cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿外套 90cm
+      - 英氏90cm
+    reference_price: 148.00
+
+  - sku_id: SKU0365
+    name: 英氏婴儿外套 100cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿外套 100cm
+      - 英氏100cm
+    reference_price: 168.00
+
+  - sku_id: SKU0366
+    name: 英氏婴儿外套 110cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿外套 110cm
+      - 英氏110cm
+    reference_price: 188.00
+
+  - sku_id: SKU0367
+    name: 英氏婴儿外套 120cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿外套 120cm
+      - 英氏120cm
+    reference_price: 208.00
+
+  - sku_id: SKU0368
+    name: 英氏婴儿连衣裙 66cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿连衣裙 66cm
+      - 英氏66cm
+    reference_price: 88.00
+
+  - sku_id: SKU0369
+    name: 英氏婴儿连衣裙 73cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿连衣裙 73cm
+      - 英氏73cm
+    reference_price: 108.00
+
+  - sku_id: SKU0370
+    name: 英氏婴儿连衣裙 80cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿连衣裙 80cm
+      - 英氏80cm
+    reference_price: 128.00
+
+  - sku_id: SKU0371
+    name: 英氏婴儿连衣裙 90cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿连衣裙 90cm
+      - 英氏90cm
+    reference_price: 148.00
+
+  - sku_id: SKU0372
+    name: 英氏婴儿连衣裙 100cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿连衣裙 100cm
+      - 英氏100cm
+    reference_price: 168.00
+
+  - sku_id: SKU0373
+    name: 英氏婴儿连衣裙 110cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿连衣裙 110cm
+      - 英氏110cm
+    reference_price: 188.00
+
+  - sku_id: SKU0374
+    name: 英氏婴儿连衣裙 120cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿连衣裙 120cm
+      - 英氏120cm
+    reference_price: 208.00
+
+  - sku_id: SKU0375
+    name: 英氏婴儿内衣套装 66cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿内衣套装 66cm
+      - 英氏66cm
+    reference_price: 88.00
+
+  - sku_id: SKU0376
+    name: 英氏婴儿内衣套装 73cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿内衣套装 73cm
+      - 英氏73cm
+    reference_price: 108.00
+
+  - sku_id: SKU0377
+    name: 英氏婴儿内衣套装 80cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿内衣套装 80cm
+      - 英氏80cm
+    reference_price: 128.00
+
+  - sku_id: SKU0378
+    name: 英氏婴儿内衣套装 90cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿内衣套装 90cm
+      - 英氏90cm
+    reference_price: 148.00
+
+  - sku_id: SKU0379
+    name: 英氏婴儿内衣套装 100cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿内衣套装 100cm
+      - 英氏100cm
+    reference_price: 168.00
+
+  - sku_id: SKU0380
+    name: 英氏婴儿内衣套装 110cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿内衣套装 110cm
+      - 英氏110cm
+    reference_price: 188.00
+
+  - sku_id: SKU0381
+    name: 英氏婴儿内衣套装 120cm
+    brand: 英氏
+    category: 婴儿服饰
+    keywords:
+      - 英氏 英氏婴儿内衣套装 120cm
+      - 英氏120cm
+    reference_price: 208.00
+
+  - sku_id: SKU0382
+    name: 贝贝怡婴儿连体衣 52cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿连体衣 52cm
+      - 贝贝怡52cm
+    reference_price: 28.00
+
+  - sku_id: SKU0383
+    name: 贝贝怡婴儿连体衣 59cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿连体衣 59cm
+      - 贝贝怡59cm
+    reference_price: 38.00
+
+  - sku_id: SKU0384
+    name: 贝贝怡婴儿连体衣 66cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿连体衣 66cm
+      - 贝贝怡66cm
+    reference_price: 48.00
+
+  - sku_id: SKU0385
+    name: 贝贝怡婴儿连体衣 73cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿连体衣 73cm
+      - 贝贝怡73cm
+    reference_price: 58.00
+
+  - sku_id: SKU0386
+    name: 贝贝怡婴儿连体衣 80cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿连体衣 80cm
+      - 贝贝怡80cm
+    reference_price: 68.00
+
+  - sku_id: SKU0387
+    name: 贝贝怡婴儿连体衣 90cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿连体衣 90cm
+      - 贝贝怡90cm
+    reference_price: 78.00
+
+  - sku_id: SKU0388
+    name: 贝贝怡婴儿连体衣 100cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿连体衣 100cm
+      - 贝贝怡100cm
+    reference_price: 88.00
+
+  - sku_id: SKU0389
+    name: 贝贝怡婴儿哈衣 52cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿哈衣 52cm
+      - 贝贝怡52cm
+    reference_price: 28.00
+
+  - sku_id: SKU0390
+    name: 贝贝怡婴儿哈衣 59cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿哈衣 59cm
+      - 贝贝怡59cm
+    reference_price: 38.00
+
+  - sku_id: SKU0391
+    name: 贝贝怡婴儿哈衣 66cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿哈衣 66cm
+      - 贝贝怡66cm
+    reference_price: 48.00
+
+  - sku_id: SKU0392
+    name: 贝贝怡婴儿哈衣 73cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿哈衣 73cm
+      - 贝贝怡73cm
+    reference_price: 58.00
+
+  - sku_id: SKU0393
+    name: 贝贝怡婴儿哈衣 80cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿哈衣 80cm
+      - 贝贝怡80cm
+    reference_price: 68.00
+
+  - sku_id: SKU0394
+    name: 贝贝怡婴儿哈衣 90cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿哈衣 90cm
+      - 贝贝怡90cm
+    reference_price: 78.00
+
+  - sku_id: SKU0395
+    name: 贝贝怡婴儿哈衣 100cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿哈衣 100cm
+      - 贝贝怡100cm
+    reference_price: 88.00
+
+  - sku_id: SKU0396
+    name: 贝贝怡婴儿外套 52cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿外套 52cm
+      - 贝贝怡52cm
+    reference_price: 28.00
+
+  - sku_id: SKU0397
+    name: 贝贝怡婴儿外套 59cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿外套 59cm
+      - 贝贝怡59cm
+    reference_price: 38.00
+
+  - sku_id: SKU0398
+    name: 贝贝怡婴儿外套 66cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿外套 66cm
+      - 贝贝怡66cm
+    reference_price: 48.00
+
+  - sku_id: SKU0399
+    name: 贝贝怡婴儿外套 73cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿外套 73cm
+      - 贝贝怡73cm
+    reference_price: 58.00
+
+  - sku_id: SKU0400
+    name: 贝贝怡婴儿外套 80cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿外套 80cm
+      - 贝贝怡80cm
+    reference_price: 68.00
+
+  - sku_id: SKU0401
+    name: 贝贝怡婴儿外套 90cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿外套 90cm
+      - 贝贝怡90cm
+    reference_price: 78.00
+
+  - sku_id: SKU0402
+    name: 贝贝怡婴儿外套 100cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿外套 100cm
+      - 贝贝怡100cm
+    reference_price: 88.00
+
+  - sku_id: SKU0403
+    name: 贝贝怡婴儿毛衣 52cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿毛衣 52cm
+      - 贝贝怡52cm
+    reference_price: 28.00
+
+  - sku_id: SKU0404
+    name: 贝贝怡婴儿毛衣 59cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿毛衣 59cm
+      - 贝贝怡59cm
+    reference_price: 38.00
+
+  - sku_id: SKU0405
+    name: 贝贝怡婴儿毛衣 66cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿毛衣 66cm
+      - 贝贝怡66cm
+    reference_price: 48.00
+
+  - sku_id: SKU0406
+    name: 贝贝怡婴儿毛衣 73cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿毛衣 73cm
+      - 贝贝怡73cm
+    reference_price: 58.00
+
+  - sku_id: SKU0407
+    name: 贝贝怡婴儿毛衣 80cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿毛衣 80cm
+      - 贝贝怡80cm
+    reference_price: 68.00
+
+  - sku_id: SKU0408
+    name: 贝贝怡婴儿毛衣 90cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿毛衣 90cm
+      - 贝贝怡90cm
+    reference_price: 78.00
+
+  - sku_id: SKU0409
+    name: 贝贝怡婴儿毛衣 100cm
+    brand: 贝贝怡
+    category: 婴儿服饰
+    keywords:
+      - 贝贝怡 贝贝怡婴儿毛衣 100cm
+      - 贝贝怡100cm
+    reference_price: 88.00
+
+  - sku_id: SKU0410
+    name: 小猪班纳儿童T恤 80cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童T恤 80cm
+      - 小猪班纳80cm
+    reference_price: 58.00
+
+  - sku_id: SKU0411
+    name: 小猪班纳儿童T恤 90cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童T恤 90cm
+      - 小猪班纳90cm
+    reference_price: 78.00
+
+  - sku_id: SKU0412
+    name: 小猪班纳儿童T恤 100cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童T恤 100cm
+      - 小猪班纳100cm
+    reference_price: 98.00
+
+  - sku_id: SKU0413
+    name: 小猪班纳儿童T恤 110cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童T恤 110cm
+      - 小猪班纳110cm
+    reference_price: 118.00
+
+  - sku_id: SKU0414
+    name: 小猪班纳儿童T恤 120cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童T恤 120cm
+      - 小猪班纳120cm
+    reference_price: 138.00
+
+  - sku_id: SKU0415
+    name: 小猪班纳儿童T恤 130cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童T恤 130cm
+      - 小猪班纳130cm
+    reference_price: 158.00
+
+  - sku_id: SKU0416
+    name: 小猪班纳儿童T恤 140cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童T恤 140cm
+      - 小猪班纳140cm
+    reference_price: 178.00
+
+  - sku_id: SKU0417
+    name: 小猪班纳儿童外套 80cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童外套 80cm
+      - 小猪班纳80cm
+    reference_price: 58.00
+
+  - sku_id: SKU0418
+    name: 小猪班纳儿童外套 90cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童外套 90cm
+      - 小猪班纳90cm
+    reference_price: 78.00
+
+  - sku_id: SKU0419
+    name: 小猪班纳儿童外套 100cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童外套 100cm
+      - 小猪班纳100cm
+    reference_price: 98.00
+
+  - sku_id: SKU0420
+    name: 小猪班纳儿童外套 110cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童外套 110cm
+      - 小猪班纳110cm
+    reference_price: 118.00
+
+  - sku_id: SKU0421
+    name: 小猪班纳儿童外套 120cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童外套 120cm
+      - 小猪班纳120cm
+    reference_price: 138.00
+
+  - sku_id: SKU0422
+    name: 小猪班纳儿童外套 130cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童外套 130cm
+      - 小猪班纳130cm
+    reference_price: 158.00
+
+  - sku_id: SKU0423
+    name: 小猪班纳儿童外套 140cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童外套 140cm
+      - 小猪班纳140cm
+    reference_price: 178.00
+
+  - sku_id: SKU0424
+    name: 小猪班纳儿童裤子 80cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童裤子 80cm
+      - 小猪班纳80cm
+    reference_price: 58.00
+
+  - sku_id: SKU0425
+    name: 小猪班纳儿童裤子 90cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童裤子 90cm
+      - 小猪班纳90cm
+    reference_price: 78.00
+
+  - sku_id: SKU0426
+    name: 小猪班纳儿童裤子 100cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童裤子 100cm
+      - 小猪班纳100cm
+    reference_price: 98.00
+
+  - sku_id: SKU0427
+    name: 小猪班纳儿童裤子 110cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童裤子 110cm
+      - 小猪班纳110cm
+    reference_price: 118.00
+
+  - sku_id: SKU0428
+    name: 小猪班纳儿童裤子 120cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童裤子 120cm
+      - 小猪班纳120cm
+    reference_price: 138.00
+
+  - sku_id: SKU0429
+    name: 小猪班纳儿童裤子 130cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童裤子 130cm
+      - 小猪班纳130cm
+    reference_price: 158.00
+
+  - sku_id: SKU0430
+    name: 小猪班纳儿童裤子 140cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童裤子 140cm
+      - 小猪班纳140cm
+    reference_price: 178.00
+
+  - sku_id: SKU0431
+    name: 小猪班纳儿童套装 80cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童套装 80cm
+      - 小猪班纳80cm
+    reference_price: 58.00
+
+  - sku_id: SKU0432
+    name: 小猪班纳儿童套装 90cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童套装 90cm
+      - 小猪班纳90cm
+    reference_price: 78.00
+
+  - sku_id: SKU0433
+    name: 小猪班纳儿童套装 100cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童套装 100cm
+      - 小猪班纳100cm
+    reference_price: 98.00
+
+  - sku_id: SKU0434
+    name: 小猪班纳儿童套装 110cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童套装 110cm
+      - 小猪班纳110cm
+    reference_price: 118.00
+
+  - sku_id: SKU0435
+    name: 小猪班纳儿童套装 120cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童套装 120cm
+      - 小猪班纳120cm
+    reference_price: 138.00
+
+  - sku_id: SKU0436
+    name: 小猪班纳儿童套装 130cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童套装 130cm
+      - 小猪班纳130cm
+    reference_price: 158.00
+
+  - sku_id: SKU0437
+    name: 小猪班纳儿童套装 140cm
+    brand: 小猪班纳
+    category: 婴儿服饰
+    keywords:
+      - 小猪班纳 小猪班纳儿童套装 140cm
+      - 小猪班纳140cm
+    reference_price: 178.00
+
+  - sku_id: SKU0438
+    name: 贝亲婴儿沐浴露 200ml
+    brand: 贝亲
+    category: 洗护用品
+    keywords:
+      - 贝亲 贝亲婴儿沐浴露 200ml
+      - 贝亲200ml
+    reference_price: 28.00
+
+  - sku_id: SKU0439
+    name: 贝亲婴儿沐浴露 500ml
+    brand: 贝亲
+    category: 洗护用品
+    keywords:
+      - 贝亲 贝亲婴儿沐浴露 500ml
+      - 贝亲500ml
+    reference_price: 48.00
+
+  - sku_id: SKU0440
+    name: 贝亲婴儿沐浴露 800ml
+    brand: 贝亲
+    category: 洗护用品
+    keywords:
+      - 贝亲 贝亲婴儿沐浴露 800ml
+      - 贝亲800ml
+    reference_price: 68.00
+
+  - sku_id: SKU0441
+    name: 贝亲婴儿沐浴露 1L
+    brand: 贝亲
+    category: 洗护用品
+    keywords:
+      - 贝亲 贝亲婴儿沐浴露 1L
+      - 贝亲1L
+    reference_price: 88.00
+
+  - sku_id: SKU0442
+    name: 贝亲婴儿沐浴露 旅行装
+    brand: 贝亲
+    category: 洗护用品
+    keywords:
+      - 贝亲 贝亲婴儿沐浴露 旅行装
+      - 贝亲旅行装
+    reference_price: 18.00
+
+  - sku_id: SKU0443
+    name: 贝亲婴儿沐浴露 补充装
+    brand: 贝亲
+    category: 洗护用品
+    keywords:
+      - 贝亲 贝亲婴儿沐浴露 补充装
+      - 贝亲补充装
+    reference_price: 38.00
+
+  - sku_id: SKU0444
+    name: 贝亲婴儿洗发水 200ml
+    brand: 贝亲
+    category: 洗护用品
+    keywords:
+      - 贝亲 贝亲婴儿洗发水 200ml
+      - 贝亲200ml
+    reference_price: 28.00
+
+  - sku_id: SKU0445
+    name: 贝亲婴儿洗发水 500ml
+    brand: 贝亲
+    category: 洗护用品
+    keywords:
+      - 贝亲 贝亲婴儿洗发水 500ml
+      - 贝亲500ml
+    reference_price: 48.00
+
+  - sku_id: SKU0446
+    name: 贝亲婴儿洗发水 800ml
+    brand: 贝亲
+    category: 洗护用品
+    keywords:
+      - 贝亲 贝亲婴儿洗发水 800ml
+      - 贝亲800ml
+    reference_price: 68.00
+
+  - sku_id: SKU0447
+    name: 贝亲婴儿洗发水 1L
+    brand: 贝亲
+    category: 洗护用品
+    keywords:
+      - 贝亲 贝亲婴儿洗发水 1L
+      - 贝亲1L
+    reference_price: 88.00
+
+  - sku_id: SKU0448
+    name: 贝亲婴儿洗发水 旅行装
+    brand: 贝亲
+    category: 洗护用品
+    keywords:
+      - 贝亲 贝亲婴儿洗发水 旅行装
+      - 贝亲旅行装
+    reference_price: 18.00
+
+  - sku_id: SKU0449
+    name: 贝亲婴儿洗发水 补充装
+    brand: 贝亲
+    category: 洗护用品
+    keywords:
+      - 贝亲 贝亲婴儿洗发水 补充装
+      - 贝亲补充装
+    reference_price: 38.00
+
+  - sku_id: SKU0450
+    name: 贝亲婴儿润肤露 200ml
+    brand: 贝亲
+    category: 洗护用品
+    keywords:
+      - 贝亲 贝亲婴儿润肤露 200ml
+      - 贝亲200ml
+    reference_price: 28.00
+
+  - sku_id: SKU0451
+    name: 贝亲婴儿润肤露 500ml
+    brand: 贝亲
+    category: 洗护用品
+    keywords:
+      - 贝亲 贝亲婴儿润肤露 500ml
+      - 贝亲500ml
+    reference_price: 48.00
+
+  - sku_id: SKU0452
+    name: 贝亲婴儿润肤露 800ml
+    brand: 贝亲
+    category: 洗护用品
+    keywords:
+      - 贝亲 贝亲婴儿润肤露 800ml
+      - 贝亲800ml
+    reference_price: 68.00
+
+  - sku_id: SKU0453
+    name: 贝亲婴儿润肤露 1L
+    brand: 贝亲
+    category: 洗护用品
+    keywords:
+      - 贝亲 贝亲婴儿润肤露 1L
+      - 贝亲1L
+    reference_price: 88.00
+
+  - sku_id: SKU0454
+    name: 贝亲婴儿润肤露 旅行装
+    brand: 贝亲
+    category: 洗护用品
+    keywords:
+      - 贝亲 贝亲婴儿润肤露 旅行装
+      - 贝亲旅行装
+    reference_price: 18.00
+
+  - sku_id: SKU0455
+    name: 贝亲婴儿润肤露 补充装
+    brand: 贝亲
+    category: 洗护用品
+    keywords:
+      - 贝亲 贝亲婴儿润肤露 补充装
+      - 贝亲补充装
+    reference_price: 38.00
+
+  - sku_id: SKU0456
+    name: 贝亲婴儿润肤油 200ml
+    brand: 贝亲
+    category: 洗护用品
+    keywords:
+      - 贝亲 贝亲婴儿润肤油 200ml
+      - 贝亲200ml
+    reference_price: 28.00
+
+  - sku_id: SKU0457
+    name: 贝亲婴儿润肤油 500ml
+    brand: 贝亲
+    category: 洗护用品
+    keywords:
+      - 贝亲 贝亲婴儿润肤油 500ml
+      - 贝亲500ml
+    reference_price: 48.00
+
+  - sku_id: SKU0458
+    name: 贝亲婴儿润肤油 800ml
+    brand: 贝亲
+    category: 洗护用品
+    keywords:
+      - 贝亲 贝亲婴儿润肤油 800ml
+      - 贝亲800ml
+    reference_price: 68.00
+
+  - sku_id: SKU0459
+    name: 贝亲婴儿润肤油 1L
+    brand: 贝亲
+    category: 洗护用品
+    keywords:
+      - 贝亲 贝亲婴儿润肤油 1L
+      - 贝亲1L
+    reference_price: 88.00
+
+  - sku_id: SKU0460
+    name: 贝亲婴儿润肤油 旅行装
+    brand: 贝亲
+    category: 洗护用品
+    keywords:
+      - 贝亲 贝亲婴儿润肤油 旅行装
+      - 贝亲旅行装
+    reference_price: 18.00
+
+  - sku_id: SKU0461
+    name: 贝亲婴儿润肤油 补充装
+    brand: 贝亲
+    category: 洗护用品
+    keywords:
+      - 贝亲 贝亲婴儿润肤油 补充装
+      - 贝亲补充装
+    reference_price: 38.00
+
+  - sku_id: SKU0462
+    name: 强生婴儿沐浴露 200ml
+    brand: 强生
+    category: 洗护用品
+    keywords:
+      - 强生 强生婴儿沐浴露 200ml
+      - 强生200ml
+    reference_price: 22.00
+
+  - sku_id: SKU0463
+    name: 强生婴儿沐浴露 500ml
+    brand: 强生
+    category: 洗护用品
+    keywords:
+      - 强生 强生婴儿沐浴露 500ml
+      - 强生500ml
+    reference_price: 38.00
+
+  - sku_id: SKU0464
+    name: 强生婴儿沐浴露 800ml
+    brand: 强生
+    category: 洗护用品
+    keywords:
+      - 强生 强生婴儿沐浴露 800ml
+      - 强生800ml
+    reference_price: 58.00
+
+  - sku_id: SKU0465
+    name: 强生婴儿沐浴露 1L
+    brand: 强生
+    category: 洗护用品
+    keywords:
+      - 强生 强生婴儿沐浴露 1L
+      - 强生1L
+    reference_price: 78.00
+
+  - sku_id: SKU0466
+    name: 强生婴儿沐浴露 旅行装
+    brand: 强生
+    category: 洗护用品
+    keywords:
+      - 强生 强生婴儿沐浴露 旅行装
+      - 强生旅行装
+    reference_price: 15.00
+
+  - sku_id: SKU0467
+    name: 强生婴儿沐浴露 补充装
+    brand: 强生
+    category: 洗护用品
+    keywords:
+      - 强生 强生婴儿沐浴露 补充装
+      - 强生补充装
+    reference_price: 32.00
+
+  - sku_id: SKU0468
+    name: 强生婴儿洗发水 200ml
+    brand: 强生
+    category: 洗护用品
+    keywords:
+      - 强生 强生婴儿洗发水 200ml
+      - 强生200ml
+    reference_price: 22.00
+
+  - sku_id: SKU0469
+    name: 强生婴儿洗发水 500ml
+    brand: 强生
+    category: 洗护用品
+    keywords:
+      - 强生 强生婴儿洗发水 500ml
+      - 强生500ml
+    reference_price: 38.00
+
+  - sku_id: SKU0470
+    name: 强生婴儿洗发水 800ml
+    brand: 强生
+    category: 洗护用品
+    keywords:
+      - 强生 强生婴儿洗发水 800ml
+      - 强生800ml
+    reference_price: 58.00
+
+  - sku_id: SKU0471
+    name: 强生婴儿洗发水 1L
+    brand: 强生
+    category: 洗护用品
+    keywords:
+      - 强生 强生婴儿洗发水 1L
+      - 强生1L
+    reference_price: 78.00
+
+  - sku_id: SKU0472
+    name: 强生婴儿洗发水 旅行装
+    brand: 强生
+    category: 洗护用品
+    keywords:
+      - 强生 强生婴儿洗发水 旅行装
+      - 强生旅行装
+    reference_price: 15.00
+
+  - sku_id: SKU0473
+    name: 强生婴儿洗发水 补充装
+    brand: 强生
+    category: 洗护用品
+    keywords:
+      - 强生 强生婴儿洗发水 补充装
+      - 强生补充装
+    reference_price: 32.00
+
+  - sku_id: SKU0474
+    name: 强生婴儿润肤露 200ml
+    brand: 强生
+    category: 洗护用品
+    keywords:
+      - 强生 强生婴儿润肤露 200ml
+      - 强生200ml
+    reference_price: 22.00
+
+  - sku_id: SKU0475
+    name: 强生婴儿润肤露 500ml
+    brand: 强生
+    category: 洗护用品
+    keywords:
+      - 强生 强生婴儿润肤露 500ml
+      - 强生500ml
+    reference_price: 38.00
+
+  - sku_id: SKU0476
+    name: 强生婴儿润肤露 800ml
+    brand: 强生
+    category: 洗护用品
+    keywords:
+      - 强生 强生婴儿润肤露 800ml
+      - 强生800ml
+    reference_price: 58.00
+
+  - sku_id: SKU0477
+    name: 强生婴儿润肤露 1L
+    brand: 强生
+    category: 洗护用品
+    keywords:
+      - 强生 强生婴儿润肤露 1L
+      - 强生1L
+    reference_price: 78.00
+
+  - sku_id: SKU0478
+    name: 强生婴儿润肤露 旅行装
+    brand: 强生
+    category: 洗护用品
+    keywords:
+      - 强生 强生婴儿润肤露 旅行装
+      - 强生旅行装
+    reference_price: 15.00
+
+  - sku_id: SKU0479
+    name: 强生婴儿润肤露 补充装
+    brand: 强生
+    category: 洗护用品
+    keywords:
+      - 强生 强生婴儿润肤露 补充装
+      - 强生补充装
+    reference_price: 32.00
+
+  - sku_id: SKU0480
+    name: 强生婴儿爽身粉 200ml
+    brand: 强生
+    category: 洗护用品
+    keywords:
+      - 强生 强生婴儿爽身粉 200ml
+      - 强生200ml
+    reference_price: 22.00
+
+  - sku_id: SKU0481
+    name: 强生婴儿爽身粉 500ml
+    brand: 强生
+    category: 洗护用品
+    keywords:
+      - 强生 强生婴儿爽身粉 500ml
+      - 强生500ml
+    reference_price: 38.00
+
+  - sku_id: SKU0482
+    name: 强生婴儿爽身粉 800ml
+    brand: 强生
+    category: 洗护用品
+    keywords:
+      - 强生 强生婴儿爽身粉 800ml
+      - 强生800ml
+    reference_price: 58.00
+
+  - sku_id: SKU0483
+    name: 强生婴儿爽身粉 1L
+    brand: 强生
+    category: 洗护用品
+    keywords:
+      - 强生 强生婴儿爽身粉 1L
+      - 强生1L
+    reference_price: 78.00
+
+  - sku_id: SKU0484
+    name: 强生婴儿爽身粉 旅行装
+    brand: 强生
+    category: 洗护用品
+    keywords:
+      - 强生 强生婴儿爽身粉 旅行装
+      - 强生旅行装
+    reference_price: 15.00
+
+  - sku_id: SKU0485
+    name: 强生婴儿爽身粉 补充装
+    brand: 强生
+    category: 洗护用品
+    keywords:
+      - 强生 强生婴儿爽身粉 补充装
+      - 强生补充装
+    reference_price: 32.00
+
+  - sku_id: SKU0486
+    name: 嗳呵婴儿沐浴露 200ml
+    brand: 嗳呵
+    category: 洗护用品
+    keywords:
+      - 嗳呵 嗳呵婴儿沐浴露 200ml
+      - 嗳呵200ml
+    reference_price: 25.00
+
+  - sku_id: SKU0487
+    name: 嗳呵婴儿沐浴露 500ml
+    brand: 嗳呵
+    category: 洗护用品
+    keywords:
+      - 嗳呵 嗳呵婴儿沐浴露 500ml
+      - 嗳呵500ml
+    reference_price: 45.00
+
+  - sku_id: SKU0488
+    name: 嗳呵婴儿沐浴露 800ml
+    brand: 嗳呵
+    category: 洗护用品
+    keywords:
+      - 嗳呵 嗳呵婴儿沐浴露 800ml
+      - 嗳呵800ml
+    reference_price: 65.00
+
+  - sku_id: SKU0489
+    name: 嗳呵婴儿沐浴露 1L
+    brand: 嗳呵
+    category: 洗护用品
+    keywords:
+      - 嗳呵 嗳呵婴儿沐浴露 1L
+      - 嗳呵1L
+    reference_price: 85.00
+
+  - sku_id: SKU0490
+    name: 嗳呵婴儿沐浴露 旅行装
+    brand: 嗳呵
+    category: 洗护用品
+    keywords:
+      - 嗳呵 嗳呵婴儿沐浴露 旅行装
+      - 嗳呵旅行装
+    reference_price: 16.00
+
+  - sku_id: SKU0491
+    name: 嗳呵婴儿洗发水 200ml
+    brand: 嗳呵
+    category: 洗护用品
+    keywords:
+      - 嗳呵 嗳呵婴儿洗发水 200ml
+      - 嗳呵200ml
+    reference_price: 25.00
+
+  - sku_id: SKU0492
+    name: 嗳呵婴儿洗发水 500ml
+    brand: 嗳呵
+    category: 洗护用品
+    keywords:
+      - 嗳呵 嗳呵婴儿洗发水 500ml
+      - 嗳呵500ml
+    reference_price: 45.00
+
+  - sku_id: SKU0493
+    name: 嗳呵婴儿洗发水 800ml
+    brand: 嗳呵
+    category: 洗护用品
+    keywords:
+      - 嗳呵 嗳呵婴儿洗发水 800ml
+      - 嗳呵800ml
+    reference_price: 65.00
+
+  - sku_id: SKU0494
+    name: 嗳呵婴儿洗发水 1L
+    brand: 嗳呵
+    category: 洗护用品
+    keywords:
+      - 嗳呵 嗳呵婴儿洗发水 1L
+      - 嗳呵1L
+    reference_price: 85.00
+
+  - sku_id: SKU0495
+    name: 嗳呵婴儿洗发水 旅行装
+    brand: 嗳呵
+    category: 洗护用品
+    keywords:
+      - 嗳呵 嗳呵婴儿洗发水 旅行装
+      - 嗳呵旅行装
+    reference_price: 16.00
+
+  - sku_id: SKU0496
+    name: 嗳呵婴儿润肤霜 200ml
+    brand: 嗳呵
+    category: 洗护用品
+    keywords:
+      - 嗳呵 嗳呵婴儿润肤霜 200ml
+      - 嗳呵200ml
+    reference_price: 25.00
+
+  - sku_id: SKU0497
+    name: 嗳呵婴儿润肤霜 500ml
+    brand: 嗳呵
+    category: 洗护用品
+    keywords:
+      - 嗳呵 嗳呵婴儿润肤霜 500ml
+      - 嗳呵500ml
+    reference_price: 45.00
+
+  - sku_id: SKU0498
+    name: 嗳呵婴儿润肤霜 800ml
+    brand: 嗳呵
+    category: 洗护用品
+    keywords:
+      - 嗳呵 嗳呵婴儿润肤霜 800ml
+      - 嗳呵800ml
+    reference_price: 65.00
+
+  - sku_id: SKU0499
+    name: 嗳呵婴儿润肤霜 1L
+    brand: 嗳呵
+    category: 洗护用品
+    keywords:
+      - 嗳呵 嗳呵婴儿润肤霜 1L
+      - 嗳呵1L
+    reference_price: 85.00
+
+  - sku_id: SKU0500
+    name: 嗳呵婴儿润肤霜 旅行装
+    brand: 嗳呵
+    category: 洗护用品
+    keywords:
+      - 嗳呵 嗳呵婴儿润肤霜 旅行装
+      - 嗳呵旅行装
+    reference_price: 16.00
+
+  - sku_id: SKU0501
+    name: 嗳呵婴儿护臀膏 200ml
+    brand: 嗳呵
+    category: 洗护用品
+    keywords:
+      - 嗳呵 嗳呵婴儿护臀膏 200ml
+      - 嗳呵200ml
+    reference_price: 25.00
+
+  - sku_id: SKU0502
+    name: 嗳呵婴儿护臀膏 500ml
+    brand: 嗳呵
+    category: 洗护用品
+    keywords:
+      - 嗳呵 嗳呵婴儿护臀膏 500ml
+      - 嗳呵500ml
+    reference_price: 45.00
+
+  - sku_id: SKU0503
+    name: 嗳呵婴儿护臀膏 800ml
+    brand: 嗳呵
+    category: 洗护用品
+    keywords:
+      - 嗳呵 嗳呵婴儿护臀膏 800ml
+      - 嗳呵800ml
+    reference_price: 65.00
+
+  - sku_id: SKU0504
+    name: 嗳呵婴儿护臀膏 1L
+    brand: 嗳呵
+    category: 洗护用品
+    keywords:
+      - 嗳呵 嗳呵婴儿护臀膏 1L
+      - 嗳呵1L
+    reference_price: 85.00
+
+  - sku_id: SKU0505
+    name: 嗳呵婴儿护臀膏 旅行装
+    brand: 嗳呵
+    category: 洗护用品
+    keywords:
+      - 嗳呵 嗳呵婴儿护臀膏 旅行装
+      - 嗳呵旅行装
+    reference_price: 16.00
+
+  - sku_id: SKU0506
+    name: 哈罗闪婴儿沐浴露 200ml
+    brand: 哈罗闪
+    category: 洗护用品
+    keywords:
+      - 哈罗闪 哈罗闪婴儿沐浴露 200ml
+      - 哈罗闪200ml
+    reference_price: 48.00
+
+  - sku_id: SKU0507
+    name: 哈罗闪婴儿沐浴露 500ml
+    brand: 哈罗闪
+    category: 洗护用品
+    keywords:
+      - 哈罗闪 哈罗闪婴儿沐浴露 500ml
+      - 哈罗闪500ml
+    reference_price: 88.00
+
+  - sku_id: SKU0508
+    name: 哈罗闪婴儿沐浴露 800ml
+    brand: 哈罗闪
+    category: 洗护用品
+    keywords:
+      - 哈罗闪 哈罗闪婴儿沐浴露 800ml
+      - 哈罗闪800ml
+    reference_price: 128.00
+
+  - sku_id: SKU0509
+    name: 哈罗闪婴儿沐浴露 旅行装
+    brand: 哈罗闪
+    category: 洗护用品
+    keywords:
+      - 哈罗闪 哈罗闪婴儿沐浴露 旅行装
+      - 哈罗闪旅行装
+    reference_price: 28.00
+
+  - sku_id: SKU0510
+    name: 哈罗闪婴儿洗发水 200ml
+    brand: 哈罗闪
+    category: 洗护用品
+    keywords:
+      - 哈罗闪 哈罗闪婴儿洗发水 200ml
+      - 哈罗闪200ml
+    reference_price: 48.00
+
+  - sku_id: SKU0511
+    name: 哈罗闪婴儿洗发水 500ml
+    brand: 哈罗闪
+    category: 洗护用品
+    keywords:
+      - 哈罗闪 哈罗闪婴儿洗发水 500ml
+      - 哈罗闪500ml
+    reference_price: 88.00
+
+  - sku_id: SKU0512
+    name: 哈罗闪婴儿洗发水 800ml
+    brand: 哈罗闪
+    category: 洗护用品
+    keywords:
+      - 哈罗闪 哈罗闪婴儿洗发水 800ml
+      - 哈罗闪800ml
+    reference_price: 128.00
+
+  - sku_id: SKU0513
+    name: 哈罗闪婴儿洗发水 旅行装
+    brand: 哈罗闪
+    category: 洗护用品
+    keywords:
+      - 哈罗闪 哈罗闪婴儿洗发水 旅行装
+      - 哈罗闪旅行装
+    reference_price: 28.00
+
+  - sku_id: SKU0514
+    name: 哈罗闪婴儿润肤乳 200ml
+    brand: 哈罗闪
+    category: 洗护用品
+    keywords:
+      - 哈罗闪 哈罗闪婴儿润肤乳 200ml
+      - 哈罗闪200ml
+    reference_price: 48.00
+
+  - sku_id: SKU0515
+    name: 哈罗闪婴儿润肤乳 500ml
+    brand: 哈罗闪
+    category: 洗护用品
+    keywords:
+      - 哈罗闪 哈罗闪婴儿润肤乳 500ml
+      - 哈罗闪500ml
+    reference_price: 88.00
+
+  - sku_id: SKU0516
+    name: 哈罗闪婴儿润肤乳 800ml
+    brand: 哈罗闪
+    category: 洗护用品
+    keywords:
+      - 哈罗闪 哈罗闪婴儿润肤乳 800ml
+      - 哈罗闪800ml
+    reference_price: 128.00
+
+  - sku_id: SKU0517
+    name: 哈罗闪婴儿润肤乳 旅行装
+    brand: 哈罗闪
+    category: 洗护用品
+    keywords:
+      - 哈罗闪 哈罗闪婴儿润肤乳 旅行装
+      - 哈罗闪旅行装
+    reference_price: 28.00
+
+  - sku_id: SKU0518
+    name: 哈罗闪婴儿油 200ml
+    brand: 哈罗闪
+    category: 洗护用品
+    keywords:
+      - 哈罗闪 哈罗闪婴儿油 200ml
+      - 哈罗闪200ml
+    reference_price: 48.00
+
+  - sku_id: SKU0519
+    name: 哈罗闪婴儿油 500ml
+    brand: 哈罗闪
+    category: 洗护用品
+    keywords:
+      - 哈罗闪 哈罗闪婴儿油 500ml
+      - 哈罗闪500ml
+    reference_price: 88.00
+
+  - sku_id: SKU0520
+    name: 哈罗闪婴儿油 800ml
+    brand: 哈罗闪
+    category: 洗护用品
+    keywords:
+      - 哈罗闪 哈罗闪婴儿油 800ml
+      - 哈罗闪800ml
+    reference_price: 128.00
+
+  - sku_id: SKU0521
+    name: 哈罗闪婴儿油 旅行装
+    brand: 哈罗闪
+    category: 洗护用品
+    keywords:
+      - 哈罗闪 哈罗闪婴儿油 旅行装
+      - 哈罗闪旅行装
+    reference_price: 28.00
+
+  - sku_id: SKU0522
+    name: 妙思乐婴儿洗发沐浴露 200ml
+    brand: 妙思乐
+    category: 洗护用品
+    keywords:
+      - 妙思乐 妙思乐婴儿洗发沐浴露 200ml
+      - 妙思乐200ml
+    reference_price: 58.00
+
+  - sku_id: SKU0523
+    name: 妙思乐婴儿洗发沐浴露 500ml
+    brand: 妙思乐
+    category: 洗护用品
+    keywords:
+      - 妙思乐 妙思乐婴儿洗发沐浴露 500ml
+      - 妙思乐500ml
+    reference_price: 108.00
+
+  - sku_id: SKU0524
+    name: 妙思乐婴儿洗发沐浴露 800ml
+    brand: 妙思乐
+    category: 洗护用品
+    keywords:
+      - 妙思乐 妙思乐婴儿洗发沐浴露 800ml
+      - 妙思乐800ml
+    reference_price: 158.00
+
+  - sku_id: SKU0525
+    name: 妙思乐婴儿洗发沐浴露 旅行装
+    brand: 妙思乐
+    category: 洗护用品
+    keywords:
+      - 妙思乐 妙思乐婴儿洗发沐浴露 旅行装
+      - 妙思乐旅行装
+    reference_price: 38.00
+
+  - sku_id: SKU0526
+    name: 妙思乐婴儿润肤霜 200ml
+    brand: 妙思乐
+    category: 洗护用品
+    keywords:
+      - 妙思乐 妙思乐婴儿润肤霜 200ml
+      - 妙思乐200ml
+    reference_price: 58.00
+
+  - sku_id: SKU0527
+    name: 妙思乐婴儿润肤霜 500ml
+    brand: 妙思乐
+    category: 洗护用品
+    keywords:
+      - 妙思乐 妙思乐婴儿润肤霜 500ml
+      - 妙思乐500ml
+    reference_price: 108.00
+
+  - sku_id: SKU0528
+    name: 妙思乐婴儿润肤霜 800ml
+    brand: 妙思乐
+    category: 洗护用品
+    keywords:
+      - 妙思乐 妙思乐婴儿润肤霜 800ml
+      - 妙思乐800ml
+    reference_price: 158.00
+
+  - sku_id: SKU0529
+    name: 妙思乐婴儿润肤霜 旅行装
+    brand: 妙思乐
+    category: 洗护用品
+    keywords:
+      - 妙思乐 妙思乐婴儿润肤霜 旅行装
+      - 妙思乐旅行装
+    reference_price: 38.00
+
+  - sku_id: SKU0530
+    name: 妙思乐婴儿护臀霜 200ml
+    brand: 妙思乐
+    category: 洗护用品
+    keywords:
+      - 妙思乐 妙思乐婴儿护臀霜 200ml
+      - 妙思乐200ml
+    reference_price: 58.00
+
+  - sku_id: SKU0531
+    name: 妙思乐婴儿护臀霜 500ml
+    brand: 妙思乐
+    category: 洗护用品
+    keywords:
+      - 妙思乐 妙思乐婴儿护臀霜 500ml
+      - 妙思乐500ml
+    reference_price: 108.00
+
+  - sku_id: SKU0532
+    name: 妙思乐婴儿护臀霜 800ml
+    brand: 妙思乐
+    category: 洗护用品
+    keywords:
+      - 妙思乐 妙思乐婴儿护臀霜 800ml
+      - 妙思乐800ml
+    reference_price: 158.00
+
+  - sku_id: SKU0533
+    name: 妙思乐婴儿护臀霜 旅行装
+    brand: 妙思乐
+    category: 洗护用品
+    keywords:
+      - 妙思乐 妙思乐婴儿护臀霜 旅行装
+      - 妙思乐旅行装
+    reference_price: 38.00
+
+  - sku_id: SKU0534
+    name: 好孩子婴儿推车 轻便折叠款
+    brand: 好孩子
+    category: 婴儿推车
+    keywords:
+      - 好孩子 好孩子婴儿推车 轻便折叠款
+      - 好孩子轻便折叠款
+    reference_price: 598.00
+
+  - sku_id: SKU0535
+    name: 好孩子婴儿推车 高景观款
+    brand: 好孩子
+    category: 婴儿推车
+    keywords:
+      - 好孩子 好孩子婴儿推车 高景观款
+      - 好孩子高景观款
+    reference_price: 898.00
+
+  - sku_id: SKU0536
+    name: 好孩子婴儿推车 双向推行款
+    brand: 好孩子
+    category: 婴儿推车
+    keywords:
+      - 好孩子 好孩子婴儿推车 双向推行款
+      - 好孩子双向推行款
+    reference_price: 1298.00
+
+  - sku_id: SKU0537
+    name: 好孩子婴儿推车 三合一提篮款
+    brand: 好孩子
+    category: 婴儿推车
+    keywords:
+      - 好孩子 好孩子婴儿推车 三合一提篮款
+      - 好孩子三合一提篮款
+    reference_price: 1698.00
+
+  - sku_id: SKU0538
+    name: 好孩子婴儿推车 伞车型
+    brand: 好孩子
+    category: 婴儿推车
+    keywords:
+      - 好孩子 好孩子婴儿推车 伞车型
+      - 好孩子伞车型
+    reference_price: 398.00
+
+  - sku_id: SKU0539
+    name: 好孩子口袋车 轻便折叠款
+    brand: 好孩子
+    category: 婴儿推车
+    keywords:
+      - 好孩子 好孩子口袋车 轻便折叠款
+      - 好孩子轻便折叠款
+    reference_price: 598.00
+
+  - sku_id: SKU0540
+    name: 好孩子口袋车 高景观款
+    brand: 好孩子
+    category: 婴儿推车
+    keywords:
+      - 好孩子 好孩子口袋车 高景观款
+      - 好孩子高景观款
+    reference_price: 898.00
+
+  - sku_id: SKU0541
+    name: 好孩子口袋车 双向推行款
+    brand: 好孩子
+    category: 婴儿推车
+    keywords:
+      - 好孩子 好孩子口袋车 双向推行款
+      - 好孩子双向推行款
+    reference_price: 1298.00
+
+  - sku_id: SKU0542
+    name: 好孩子口袋车 三合一提篮款
+    brand: 好孩子
+    category: 婴儿推车
+    keywords:
+      - 好孩子 好孩子口袋车 三合一提篮款
+      - 好孩子三合一提篮款
+    reference_price: 1698.00
+
+  - sku_id: SKU0543
+    name: 好孩子口袋车 伞车型
+    brand: 好孩子
+    category: 婴儿推车
+    keywords:
+      - 好孩子 好孩子口袋车 伞车型
+      - 好孩子伞车型
+    reference_price: 398.00
+
+  - sku_id: SKU0544
+    name: 好孩子高景观推车 轻便折叠款
+    brand: 好孩子
+    category: 婴儿推车
+    keywords:
+      - 好孩子 好孩子高景观推车 轻便折叠款
+      - 好孩子轻便折叠款
+    reference_price: 598.00
+
+  - sku_id: SKU0545
+    name: 好孩子高景观推车 高景观款
+    brand: 好孩子
+    category: 婴儿推车
+    keywords:
+      - 好孩子 好孩子高景观推车 高景观款
+      - 好孩子高景观款
+    reference_price: 898.00
+
+  - sku_id: SKU0546
+    name: 好孩子高景观推车 双向推行款
+    brand: 好孩子
+    category: 婴儿推车
+    keywords:
+      - 好孩子 好孩子高景观推车 双向推行款
+      - 好孩子双向推行款
+    reference_price: 1298.00
+
+  - sku_id: SKU0547
+    name: 好孩子高景观推车 三合一提篮款
+    brand: 好孩子
+    category: 婴儿推车
+    keywords:
+      - 好孩子 好孩子高景观推车 三合一提篮款
+      - 好孩子三合一提篮款
+    reference_price: 1698.00
+
+  - sku_id: SKU0548
+    name: 好孩子高景观推车 伞车型
+    brand: 好孩子
+    category: 婴儿推车
+    keywords:
+      - 好孩子 好孩子高景观推车 伞车型
+      - 好孩子伞车型
+    reference_price: 398.00
+
+  - sku_id: SKU0549
+    name: 小龙哈彼婴儿推车 轻便款
+    brand: 小龙哈彼
+    category: 婴儿推车
+    keywords:
+      - 小龙哈彼 小龙哈彼婴儿推车 轻便款
+      - 小龙哈彼轻便款
+    reference_price: 298.00
+
+  - sku_id: SKU0550
+    name: 小龙哈彼婴儿推车 高景观款
+    brand: 小龙哈彼
+    category: 婴儿推车
+    keywords:
+      - 小龙哈彼 小龙哈彼婴儿推车 高景观款
+      - 小龙哈彼高景观款
+    reference_price: 498.00
+
+  - sku_id: SKU0551
+    name: 小龙哈彼婴儿推车 双向款
+    brand: 小龙哈彼
+    category: 婴儿推车
+    keywords:
+      - 小龙哈彼 小龙哈彼婴儿推车 双向款
+      - 小龙哈彼双向款
+    reference_price: 698.00
+
+  - sku_id: SKU0552
+    name: 小龙哈彼婴儿推车 三合一
+    brand: 小龙哈彼
+    category: 婴儿推车
+    keywords:
+      - 小龙哈彼 小龙哈彼婴儿推车 三合一
+      - 小龙哈彼三合一
+    reference_price: 998.00
+
+  - sku_id: SKU0553
+    name: 小龙哈彼婴儿推车 伞车
+    brand: 小龙哈彼
+    category: 婴儿推车
+    keywords:
+      - 小龙哈彼 小龙哈彼婴儿推车 伞车
+      - 小龙哈彼伞车
+    reference_price: 198.00
+
+  - sku_id: SKU0554
+    name: 小龙哈彼轻便推车 轻便款
+    brand: 小龙哈彼
+    category: 婴儿推车
+    keywords:
+      - 小龙哈彼 小龙哈彼轻便推车 轻便款
+      - 小龙哈彼轻便款
+    reference_price: 298.00
+
+  - sku_id: SKU0555
+    name: 小龙哈彼轻便推车 高景观款
+    brand: 小龙哈彼
+    category: 婴儿推车
+    keywords:
+      - 小龙哈彼 小龙哈彼轻便推车 高景观款
+      - 小龙哈彼高景观款
+    reference_price: 498.00
+
+  - sku_id: SKU0556
+    name: 小龙哈彼轻便推车 双向款
+    brand: 小龙哈彼
+    category: 婴儿推车
+    keywords:
+      - 小龙哈彼 小龙哈彼轻便推车 双向款
+      - 小龙哈彼双向款
+    reference_price: 698.00
+
+  - sku_id: SKU0557
+    name: 小龙哈彼轻便推车 三合一
+    brand: 小龙哈彼
+    category: 婴儿推车
+    keywords:
+      - 小龙哈彼 小龙哈彼轻便推车 三合一
+      - 小龙哈彼三合一
+    reference_price: 998.00
+
+  - sku_id: SKU0558
+    name: 小龙哈彼轻便推车 伞车
+    brand: 小龙哈彼
+    category: 婴儿推车
+    keywords:
+      - 小龙哈彼 小龙哈彼轻便推车 伞车
+      - 小龙哈彼伞车
+    reference_price: 198.00
+
+  - sku_id: SKU0559
+    name: 小龙哈彼高景观推车 轻便款
+    brand: 小龙哈彼
+    category: 婴儿推车
+    keywords:
+      - 小龙哈彼 小龙哈彼高景观推车 轻便款
+      - 小龙哈彼轻便款
+    reference_price: 298.00
+
+  - sku_id: SKU0560
+    name: 小龙哈彼高景观推车 高景观款
+    brand: 小龙哈彼
+    category: 婴儿推车
+    keywords:
+      - 小龙哈彼 小龙哈彼高景观推车 高景观款
+      - 小龙哈彼高景观款
+    reference_price: 498.00
+
+  - sku_id: SKU0561
+    name: 小龙哈彼高景观推车 双向款
+    brand: 小龙哈彼
+    category: 婴儿推车
+    keywords:
+      - 小龙哈彼 小龙哈彼高景观推车 双向款
+      - 小龙哈彼双向款
+    reference_price: 698.00
+
+  - sku_id: SKU0562
+    name: 小龙哈彼高景观推车 三合一
+    brand: 小龙哈彼
+    category: 婴儿推车
+    keywords:
+      - 小龙哈彼 小龙哈彼高景观推车 三合一
+      - 小龙哈彼三合一
+    reference_price: 998.00
+
+  - sku_id: SKU0563
+    name: 小龙哈彼高景观推车 伞车
+    brand: 小龙哈彼
+    category: 婴儿推车
+    keywords:
+      - 小龙哈彼 小龙哈彼高景观推车 伞车
+      - 小龙哈彼伞车
+    reference_price: 198.00
+
+  - sku_id: SKU0564
+    name: Graco葛莱婴儿推车 轻便款
+    brand: Graco葛莱
+    category: 婴儿推车
+    keywords:
+      - Graco葛莱 Graco葛莱婴儿推车 轻便款
+      - Graco葛莱轻便款
+    reference_price: 798.00
+
+  - sku_id: SKU0565
+    name: Graco葛莱婴儿推车 高景观款
+    brand: Graco葛莱
+    category: 婴儿推车
+    keywords:
+      - Graco葛莱 Graco葛莱婴儿推车 高景观款
+      - Graco葛莱高景观款
+    reference_price: 1298.00
+
+  - sku_id: SKU0566
+    name: Graco葛莱婴儿推车 双向款
+    brand: Graco葛莱
+    category: 婴儿推车
+    keywords:
+      - Graco葛莱 Graco葛莱婴儿推车 双向款
+      - Graco葛莱双向款
+    reference_price: 1698.00
+
+  - sku_id: SKU0567
+    name: Graco葛莱婴儿推车 三合一提篮款
+    brand: Graco葛莱
+    category: 婴儿推车
+    keywords:
+      - Graco葛莱 Graco葛莱婴儿推车 三合一提篮款
+      - Graco葛莱三合一提篮款
+    reference_price: 2298.00
+
+  - sku_id: SKU0568
+    name: Graco葛莱婴儿推车 双人款
+    brand: Graco葛莱
+    category: 婴儿推车
+    keywords:
+      - Graco葛莱 Graco葛莱婴儿推车 双人款
+      - Graco葛莱双人款
+    reference_price: 1898.00
+
+  - sku_id: SKU0569
+    name: 葛莱轻便折叠推车 轻便款
+    brand: Graco葛莱
+    category: 婴儿推车
+    keywords:
+      - Graco葛莱 葛莱轻便折叠推车 轻便款
+      - Graco葛莱轻便款
+    reference_price: 798.00
+
+  - sku_id: SKU0570
+    name: 葛莱轻便折叠推车 高景观款
+    brand: Graco葛莱
+    category: 婴儿推车
+    keywords:
+      - Graco葛莱 葛莱轻便折叠推车 高景观款
+      - Graco葛莱高景观款
+    reference_price: 1298.00
+
+  - sku_id: SKU0571
+    name: 葛莱轻便折叠推车 双向款
+    brand: Graco葛莱
+    category: 婴儿推车
+    keywords:
+      - Graco葛莱 葛莱轻便折叠推车 双向款
+      - Graco葛莱双向款
+    reference_price: 1698.00
+
+  - sku_id: SKU0572
+    name: 葛莱轻便折叠推车 三合一提篮款
+    brand: Graco葛莱
+    category: 婴儿推车
+    keywords:
+      - Graco葛莱 葛莱轻便折叠推车 三合一提篮款
+      - Graco葛莱三合一提篮款
+    reference_price: 2298.00
+
+  - sku_id: SKU0573
+    name: 葛莱轻便折叠推车 双人款
+    brand: Graco葛莱
+    category: 婴儿推车
+    keywords:
+      - Graco葛莱 葛莱轻便折叠推车 双人款
+      - Graco葛莱双人款
+    reference_price: 1898.00
+
+  - sku_id: SKU0574
+    name: 葛莱高景观推车 轻便款
+    brand: Graco葛莱
+    category: 婴儿推车
+    keywords:
+      - Graco葛莱 葛莱高景观推车 轻便款
+      - Graco葛莱轻便款
+    reference_price: 798.00
+
+  - sku_id: SKU0575
+    name: 葛莱高景观推车 高景观款
+    brand: Graco葛莱
+    category: 婴儿推车
+    keywords:
+      - Graco葛莱 葛莱高景观推车 高景观款
+      - Graco葛莱高景观款
+    reference_price: 1298.00
+
+  - sku_id: SKU0576
+    name: 葛莱高景观推车 双向款
+    brand: Graco葛莱
+    category: 婴儿推车
+    keywords:
+      - Graco葛莱 葛莱高景观推车 双向款
+      - Graco葛莱双向款
+    reference_price: 1698.00
+
+  - sku_id: SKU0577
+    name: 葛莱高景观推车 三合一提篮款
+    brand: Graco葛莱
+    category: 婴儿推车
+    keywords:
+      - Graco葛莱 葛莱高景观推车 三合一提篮款
+      - Graco葛莱三合一提篮款
+    reference_price: 2298.00
+
+  - sku_id: SKU0578
+    name: 葛莱高景观推车 双人款
+    brand: Graco葛莱
+    category: 婴儿推车
+    keywords:
+      - Graco葛莱 葛莱高景观推车 双人款
+      - Graco葛莱双人款
+    reference_price: 1898.00
+
+  - sku_id: SKU0579
+    name: Britax宝得适婴儿推车 轻便款
+    brand: Britax宝得适
+    category: 婴儿推车
+    keywords:
+      - Britax宝得适 Britax宝得适婴儿推车 轻便款
+      - Britax宝得适轻便款
+    reference_price: 1298.00
+
+  - sku_id: SKU0580
+    name: Britax宝得适婴儿推车 高景观款
+    brand: Britax宝得适
+    category: 婴儿推车
+    keywords:
+      - Britax宝得适 Britax宝得适婴儿推车 高景观款
+      - Britax宝得适高景观款
+    reference_price: 1998.00
+
+  - sku_id: SKU0581
+    name: Britax宝得适婴儿推车 双向款
+    brand: Britax宝得适
+    category: 婴儿推车
+    keywords:
+      - Britax宝得适 Britax宝得适婴儿推车 双向款
+      - Britax宝得适双向款
+    reference_price: 2598.00
+
+  - sku_id: SKU0582
+    name: Britax宝得适婴儿推车 三合一
+    brand: Britax宝得适
+    category: 婴儿推车
+    keywords:
+      - Britax宝得适 Britax宝得适婴儿推车 三合一
+      - Britax宝得适三合一
+    reference_price: 3298.00
+
+  - sku_id: SKU0583
+    name: Britax宝得适婴儿推车 至尊款
+    brand: Britax宝得适
+    category: 婴儿推车
+    keywords:
+      - Britax宝得适 Britax宝得适婴儿推车 至尊款
+      - Britax宝得适至尊款
+    reference_price: 3998.00
+
+  - sku_id: SKU0584
+    name: 宝得适轻便推车 轻便款
+    brand: Britax宝得适
+    category: 婴儿推车
+    keywords:
+      - Britax宝得适 宝得适轻便推车 轻便款
+      - Britax宝得适轻便款
+    reference_price: 1298.00
+
+  - sku_id: SKU0585
+    name: 宝得适轻便推车 高景观款
+    brand: Britax宝得适
+    category: 婴儿推车
+    keywords:
+      - Britax宝得适 宝得适轻便推车 高景观款
+      - Britax宝得适高景观款
+    reference_price: 1998.00
+
+  - sku_id: SKU0586
+    name: 宝得适轻便推车 双向款
+    brand: Britax宝得适
+    category: 婴儿推车
+    keywords:
+      - Britax宝得适 宝得适轻便推车 双向款
+      - Britax宝得适双向款
+    reference_price: 2598.00
+
+  - sku_id: SKU0587
+    name: 宝得适轻便推车 三合一
+    brand: Britax宝得适
+    category: 婴儿推车
+    keywords:
+      - Britax宝得适 宝得适轻便推车 三合一
+      - Britax宝得适三合一
+    reference_price: 3298.00
+
+  - sku_id: SKU0588
+    name: 宝得适轻便推车 至尊款
+    brand: Britax宝得适
+    category: 婴儿推车
+    keywords:
+      - Britax宝得适 宝得适轻便推车 至尊款
+      - Britax宝得适至尊款
+    reference_price: 3998.00
+
+  - sku_id: SKU0589
+    name: 宝得适高景观推车 轻便款
+    brand: Britax宝得适
+    category: 婴儿推车
+    keywords:
+      - Britax宝得适 宝得适高景观推车 轻便款
+      - Britax宝得适轻便款
+    reference_price: 1298.00
+
+  - sku_id: SKU0590
+    name: 宝得适高景观推车 高景观款
+    brand: Britax宝得适
+    category: 婴儿推车
+    keywords:
+      - Britax宝得适 宝得适高景观推车 高景观款
+      - Britax宝得适高景观款
+    reference_price: 1998.00
+
+  - sku_id: SKU0591
+    name: 宝得适高景观推车 双向款
+    brand: Britax宝得适
+    category: 婴儿推车
+    keywords:
+      - Britax宝得适 宝得适高景观推车 双向款
+      - Britax宝得适双向款
+    reference_price: 2598.00
+
+  - sku_id: SKU0592
+    name: 宝得适高景观推车 三合一
+    brand: Britax宝得适
+    category: 婴儿推车
+    keywords:
+      - Britax宝得适 宝得适高景观推车 三合一
+      - Britax宝得适三合一
+    reference_price: 3298.00
+
+  - sku_id: SKU0593
+    name: 宝得适高景观推车 至尊款
+    brand: Britax宝得适
+    category: 婴儿推车
+    keywords:
+      - Britax宝得适 宝得适高景观推车 至尊款
+      - Britax宝得适至尊款
+    reference_price: 3998.00
+
+  - sku_id: SKU0594
+    name: Babyzen YOYO2婴儿推车 YOYO2轻便款
+    brand: babyzen
+    category: 婴儿推车
+    keywords:
+      - babyzen Babyzen YOYO2婴儿推车 YOYO2轻便款
+      - babyzenYOYO2轻便款
+    reference_price: 3998.00
+
+  - sku_id: SKU0595
+    name: Babyzen YOYO2婴儿推车 YOYO Connect款
+    brand: babyzen
+    category: 婴儿推车
+    keywords:
+      - babyzen Babyzen YOYO2婴儿推车 YOYO Connect款
+      - babyzenYOYO Connect款
+    reference_price: 5298.00
+
+  - sku_id: SKU0596
+    name: Babyzen轻便折叠推车 YOYO2轻便款
+    brand: babyzen
+    category: 婴儿推车
+    keywords:
+      - babyzen Babyzen轻便折叠推车 YOYO2轻便款
+      - babyzenYOYO2轻便款
+    reference_price: 3998.00
+
+  - sku_id: SKU0597
+    name: Babyzen轻便折叠推车 YOYO Connect款
+    brand: babyzen
+    category: 婴儿推车
+    keywords:
+      - babyzen Babyzen轻便折叠推车 YOYO Connect款
+      - babyzenYOYO Connect款
+    reference_price: 5298.00
+
+  - sku_id: SKU0598
+    name: 保宁婴儿洗衣液 800ml
+    brand: 保宁
+    category: 婴儿洗衣
+    keywords:
+      - 保宁 保宁婴儿洗衣液 800ml
+      - 保宁800ml
+    reference_price: 48.00
+
+  - sku_id: SKU0599
+    name: 保宁婴儿洗衣液 1.5L
+    brand: 保宁
+    category: 婴儿洗衣
+    keywords:
+      - 保宁 保宁婴儿洗衣液 1.5L
+      - 保宁1.5L
+    reference_price: 78.00
+
+  - sku_id: SKU0600
+    name: 保宁婴儿洗衣液 3L
+    brand: 保宁
+    category: 婴儿洗衣
+    keywords:
+      - 保宁 保宁婴儿洗衣液 3L
+      - 保宁3L
+    reference_price: 128.00
+
+  - sku_id: SKU0601
+    name: 保宁婴儿洗衣液 5L
+    brand: 保宁
+    category: 婴儿洗衣
+    keywords:
+      - 保宁 保宁婴儿洗衣液 5L
+      - 保宁5L
+    reference_price: 188.00
+
+  - sku_id: SKU0602
+    name: 保宁婴儿洗衣液 柔顺剂1.5L
+    brand: 保宁
+    category: 婴儿洗衣
+    keywords:
+      - 保宁 保宁婴儿洗衣液 柔顺剂1.5L
+      - 保宁柔顺剂1.5L
+    reference_price: 68.00
+
+  - sku_id: SKU0603
+    name: 保宁婴儿洗衣液 洗衣皂5件装
+    brand: 保宁
+    category: 婴儿洗衣
+    keywords:
+      - 保宁 保宁婴儿洗衣液 洗衣皂5件装
+      - 保宁洗衣皂5件装
+    reference_price: 38.00
+
+  - sku_id: SKU0604
+    name: 保宁婴儿柔顺剂 800ml
+    brand: 保宁
+    category: 婴儿洗衣
+    keywords:
+      - 保宁 保宁婴儿柔顺剂 800ml
+      - 保宁800ml
+    reference_price: 48.00
+
+  - sku_id: SKU0605
+    name: 保宁婴儿柔顺剂 1.5L
+    brand: 保宁
+    category: 婴儿洗衣
+    keywords:
+      - 保宁 保宁婴儿柔顺剂 1.5L
+      - 保宁1.5L
+    reference_price: 78.00
+
+  - sku_id: SKU0606
+    name: 保宁婴儿柔顺剂 3L
+    brand: 保宁
+    category: 婴儿洗衣
+    keywords:
+      - 保宁 保宁婴儿柔顺剂 3L
+      - 保宁3L
+    reference_price: 128.00
+
+  - sku_id: SKU0607
+    name: 保宁婴儿柔顺剂 5L
+    brand: 保宁
+    category: 婴儿洗衣
+    keywords:
+      - 保宁 保宁婴儿柔顺剂 5L
+      - 保宁5L
+    reference_price: 188.00
+
+  - sku_id: SKU0608
+    name: 保宁婴儿柔顺剂 柔顺剂1.5L
+    brand: 保宁
+    category: 婴儿洗衣
+    keywords:
+      - 保宁 保宁婴儿柔顺剂 柔顺剂1.5L
+      - 保宁柔顺剂1.5L
+    reference_price: 68.00
+
+  - sku_id: SKU0609
+    name: 保宁婴儿柔顺剂 洗衣皂5件装
+    brand: 保宁
+    category: 婴儿洗衣
+    keywords:
+      - 保宁 保宁婴儿柔顺剂 洗衣皂5件装
+      - 保宁洗衣皂5件装
+    reference_price: 38.00
+
+  - sku_id: SKU0610
+    name: 保宁婴儿洗衣皂 800ml
+    brand: 保宁
+    category: 婴儿洗衣
+    keywords:
+      - 保宁 保宁婴儿洗衣皂 800ml
+      - 保宁800ml
+    reference_price: 48.00
+
+  - sku_id: SKU0611
+    name: 保宁婴儿洗衣皂 1.5L
+    brand: 保宁
+    category: 婴儿洗衣
+    keywords:
+      - 保宁 保宁婴儿洗衣皂 1.5L
+      - 保宁1.5L
+    reference_price: 78.00
+
+  - sku_id: SKU0612
+    name: 保宁婴儿洗衣皂 3L
+    brand: 保宁
+    category: 婴儿洗衣
+    keywords:
+      - 保宁 保宁婴儿洗衣皂 3L
+      - 保宁3L
+    reference_price: 128.00
+
+  - sku_id: SKU0613
+    name: 保宁婴儿洗衣皂 5L
+    brand: 保宁
+    category: 婴儿洗衣
+    keywords:
+      - 保宁 保宁婴儿洗衣皂 5L
+      - 保宁5L
+    reference_price: 188.00
+
+  - sku_id: SKU0614
+    name: 保宁婴儿洗衣皂 柔顺剂1.5L
+    brand: 保宁
+    category: 婴儿洗衣
+    keywords:
+      - 保宁 保宁婴儿洗衣皂 柔顺剂1.5L
+      - 保宁柔顺剂1.5L
+    reference_price: 68.00
+
+  - sku_id: SKU0615
+    name: 保宁婴儿洗衣皂 洗衣皂5件装
+    brand: 保宁
+    category: 婴儿洗衣
+    keywords:
+      - 保宁 保宁婴儿洗衣皂 洗衣皂5件装
+      - 保宁洗衣皂5件装
+    reference_price: 38.00
+
+  - sku_id: SKU0616
+    name: 嗳呵婴儿洗衣液 1L
+    brand: 嗳呵
+    category: 婴儿洗衣
+    keywords:
+      - 嗳呵 嗳呵婴儿洗衣液 1L
+      - 嗳呵1L
+    reference_price: 28.00
+
+  - sku_id: SKU0617
+    name: 嗳呵婴儿洗衣液 2L
+    brand: 嗳呵
+    category: 婴儿洗衣
+    keywords:
+      - 嗳呵 嗳呵婴儿洗衣液 2L
+      - 嗳呵2L
+    reference_price: 48.00
+
+  - sku_id: SKU0618
+    name: 嗳呵婴儿洗衣液 4L
+    brand: 嗳呵
+    category: 婴儿洗衣
+    keywords:
+      - 嗳呵 嗳呵婴儿洗衣液 4L
+      - 嗳呵4L
+    reference_price: 88.00
+
+  - sku_id: SKU0619
+    name: 嗳呵婴儿洗衣液 柔顺剂1L
+    brand: 嗳呵
+    category: 婴儿洗衣
+    keywords:
+      - 嗳呵 嗳呵婴儿洗衣液 柔顺剂1L
+      - 嗳呵柔顺剂1L
+    reference_price: 38.00
+
+  - sku_id: SKU0620
+    name: 嗳呵婴儿洗衣液 洗衣皂10件装
+    brand: 嗳呵
+    category: 婴儿洗衣
+    keywords:
+      - 嗳呵 嗳呵婴儿洗衣液 洗衣皂10件装
+      - 嗳呵洗衣皂10件装
+    reference_price: 28.00
+
+  - sku_id: SKU0621
+    name: 嗳呵婴儿柔顺剂 1L
+    brand: 嗳呵
+    category: 婴儿洗衣
+    keywords:
+      - 嗳呵 嗳呵婴儿柔顺剂 1L
+      - 嗳呵1L
+    reference_price: 28.00
+
+  - sku_id: SKU0622
+    name: 嗳呵婴儿柔顺剂 2L
+    brand: 嗳呵
+    category: 婴儿洗衣
+    keywords:
+      - 嗳呵 嗳呵婴儿柔顺剂 2L
+      - 嗳呵2L
+    reference_price: 48.00
+
+  - sku_id: SKU0623
+    name: 嗳呵婴儿柔顺剂 4L
+    brand: 嗳呵
+    category: 婴儿洗衣
+    keywords:
+      - 嗳呵 嗳呵婴儿柔顺剂 4L
+      - 嗳呵4L
+    reference_price: 88.00
+
+  - sku_id: SKU0624
+    name: 嗳呵婴儿柔顺剂 柔顺剂1L
+    brand: 嗳呵
+    category: 婴儿洗衣
+    keywords:
+      - 嗳呵 嗳呵婴儿柔顺剂 柔顺剂1L
+      - 嗳呵柔顺剂1L
+    reference_price: 38.00
+
+  - sku_id: SKU0625
+    name: 嗳呵婴儿柔顺剂 洗衣皂10件装
+    brand: 嗳呵
+    category: 婴儿洗衣
+    keywords:
+      - 嗳呵 嗳呵婴儿柔顺剂 洗衣皂10件装
+      - 嗳呵洗衣皂10件装
+    reference_price: 28.00
+
+  - sku_id: SKU0626
+    name: 嗳呵婴儿洗衣皂 1L
+    brand: 嗳呵
+    category: 婴儿洗衣
+    keywords:
+      - 嗳呵 嗳呵婴儿洗衣皂 1L
+      - 嗳呵1L
+    reference_price: 28.00
+
+  - sku_id: SKU0627
+    name: 嗳呵婴儿洗衣皂 2L
+    brand: 嗳呵
+    category: 婴儿洗衣
+    keywords:
+      - 嗳呵 嗳呵婴儿洗衣皂 2L
+      - 嗳呵2L
+    reference_price: 48.00
+
+  - sku_id: SKU0628
+    name: 嗳呵婴儿洗衣皂 4L
+    brand: 嗳呵
+    category: 婴儿洗衣
+    keywords:
+      - 嗳呵 嗳呵婴儿洗衣皂 4L
+      - 嗳呵4L
+    reference_price: 88.00
+
+  - sku_id: SKU0629
+    name: 嗳呵婴儿洗衣皂 柔顺剂1L
+    brand: 嗳呵
+    category: 婴儿洗衣
+    keywords:
+      - 嗳呵 嗳呵婴儿洗衣皂 柔顺剂1L
+      - 嗳呵柔顺剂1L
+    reference_price: 38.00
+
+  - sku_id: SKU0630
+    name: 嗳呵婴儿洗衣皂 洗衣皂10件装
+    brand: 嗳呵
+    category: 婴儿洗衣
+    keywords:
+      - 嗳呵 嗳呵婴儿洗衣皂 洗衣皂10件装
+      - 嗳呵洗衣皂10件装
+    reference_price: 28.00
+
+  - sku_id: SKU0631
+    name: 英氏婴儿米粉 1段200g
+    brand: 英氏
+    category: 婴儿辅食
+    keywords:
+      - 英氏 英氏婴儿米粉 1段200g
+      - 英氏1段200g
+    reference_price: 38.00
+
+  - sku_id: SKU0632
+    name: 英氏婴儿米粉 1段400g
+    brand: 英氏
+    category: 婴儿辅食
+    keywords:
+      - 英氏 英氏婴儿米粉 1段400g
+      - 英氏1段400g
+    reference_price: 68.00
+
+  - sku_id: SKU0633
+    name: 英氏婴儿米粉 2段200g
+    brand: 英氏
+    category: 婴儿辅食
+    keywords:
+      - 英氏 英氏婴儿米粉 2段200g
+      - 英氏2段200g
+    reference_price: 38.00
+
+  - sku_id: SKU0634
+    name: 英氏婴儿米粉 2段400g
+    brand: 英氏
+    category: 婴儿辅食
+    keywords:
+      - 英氏 英氏婴儿米粉 2段400g
+      - 英氏2段400g
+    reference_price: 68.00
+
+  - sku_id: SKU0635
+    name: 英氏婴儿米粉 3段200g
+    brand: 英氏
+    category: 婴儿辅食
+    keywords:
+      - 英氏 英氏婴儿米粉 3段200g
+      - 英氏3段200g
+    reference_price: 48.00
+
+  - sku_id: SKU0636
+    name: 英氏婴儿米粉 3段400g
+    brand: 英氏
+    category: 婴儿辅食
+    keywords:
+      - 英氏 英氏婴儿米粉 3段400g
+      - 英氏3段400g
+    reference_price: 78.00
+
+  - sku_id: SKU0637
+    name: 英氏营养面条 1段200g
+    brand: 英氏
+    category: 婴儿辅食
+    keywords:
+      - 英氏 英氏营养面条 1段200g
+      - 英氏1段200g
+    reference_price: 38.00
+
+  - sku_id: SKU0638
+    name: 英氏营养面条 1段400g
+    brand: 英氏
+    category: 婴儿辅食
+    keywords:
+      - 英氏 英氏营养面条 1段400g
+      - 英氏1段400g
+    reference_price: 68.00
+
+  - sku_id: SKU0639
+    name: 英氏营养面条 2段200g
+    brand: 英氏
+    category: 婴儿辅食
+    keywords:
+      - 英氏 英氏营养面条 2段200g
+      - 英氏2段200g
+    reference_price: 38.00
+
+  - sku_id: SKU0640
+    name: 英氏营养面条 2段400g
+    brand: 英氏
+    category: 婴儿辅食
+    keywords:
+      - 英氏 英氏营养面条 2段400g
+      - 英氏2段400g
+    reference_price: 68.00
+
+  - sku_id: SKU0641
+    name: 英氏营养面条 3段200g
+    brand: 英氏
+    category: 婴儿辅食
+    keywords:
+      - 英氏 英氏营养面条 3段200g
+      - 英氏3段200g
+    reference_price: 48.00
+
+  - sku_id: SKU0642
+    name: 英氏营养面条 3段400g
+    brand: 英氏
+    category: 婴儿辅食
+    keywords:
+      - 英氏 英氏营养面条 3段400g
+      - 英氏3段400g
+    reference_price: 78.00
+
+  - sku_id: SKU0643
+    name: 英氏婴儿肉酥 1段200g
+    brand: 英氏
+    category: 婴儿辅食
+    keywords:
+      - 英氏 英氏婴儿肉酥 1段200g
+      - 英氏1段200g
+    reference_price: 38.00
+
+  - sku_id: SKU0644
+    name: 英氏婴儿肉酥 1段400g
+    brand: 英氏
+    category: 婴儿辅食
+    keywords:
+      - 英氏 英氏婴儿肉酥 1段400g
+      - 英氏1段400g
+    reference_price: 68.00
+
+  - sku_id: SKU0645
+    name: 英氏婴儿肉酥 2段200g
+    brand: 英氏
+    category: 婴儿辅食
+    keywords:
+      - 英氏 英氏婴儿肉酥 2段200g
+      - 英氏2段200g
+    reference_price: 38.00
+
+  - sku_id: SKU0646
+    name: 英氏婴儿肉酥 2段400g
+    brand: 英氏
+    category: 婴儿辅食
+    keywords:
+      - 英氏 英氏婴儿肉酥 2段400g
+      - 英氏2段400g
+    reference_price: 68.00
+
+  - sku_id: SKU0647
+    name: 英氏婴儿肉酥 3段200g
+    brand: 英氏
+    category: 婴儿辅食
+    keywords:
+      - 英氏 英氏婴儿肉酥 3段200g
+      - 英氏3段200g
+    reference_price: 48.00
+
+  - sku_id: SKU0648
+    name: 英氏婴儿肉酥 3段400g
+    brand: 英氏
+    category: 婴儿辅食
+    keywords:
+      - 英氏 英氏婴儿肉酥 3段400g
+      - 英氏3段400g
+    reference_price: 78.00
+
+  - sku_id: SKU0649
+    name: 英氏磨牙棒 1段200g
+    brand: 英氏
+    category: 婴儿辅食
+    keywords:
+      - 英氏 英氏磨牙棒 1段200g
+      - 英氏1段200g
+    reference_price: 38.00
+
+  - sku_id: SKU0650
+    name: 英氏磨牙棒 1段400g
+    brand: 英氏
+    category: 婴儿辅食
+    keywords:
+      - 英氏 英氏磨牙棒 1段400g
+      - 英氏1段400g
+    reference_price: 68.00
+
+  - sku_id: SKU0651
+    name: 英氏磨牙棒 2段200g
+    brand: 英氏
+    category: 婴儿辅食
+    keywords:
+      - 英氏 英氏磨牙棒 2段200g
+      - 英氏2段200g
+    reference_price: 38.00
+
+  - sku_id: SKU0652
+    name: 英氏磨牙棒 2段400g
+    brand: 英氏
+    category: 婴儿辅食
+    keywords:
+      - 英氏 英氏磨牙棒 2段400g
+      - 英氏2段400g
+    reference_price: 68.00
+
+  - sku_id: SKU0653
+    name: 英氏磨牙棒 3段200g
+    brand: 英氏
+    category: 婴儿辅食
+    keywords:
+      - 英氏 英氏磨牙棒 3段200g
+      - 英氏3段200g
+    reference_price: 48.00
+
+  - sku_id: SKU0654
+    name: 英氏磨牙棒 3段400g
+    brand: 英氏
+    category: 婴儿辅食
+    keywords:
+      - 英氏 英氏磨牙棒 3段400g
+      - 英氏3段400g
+    reference_price: 78.00
+
+  - sku_id: SKU0655
+    name: 亨氏婴儿米粉 225g瓶装
+    brand: 亨氏
+    category: 婴儿辅食
+    keywords:
+      - 亨氏 亨氏婴儿米粉 225g瓶装
+      - 亨氏225g瓶装
+    reference_price: 18.00
+
+  - sku_id: SKU0656
+    name: 亨氏婴儿米粉 400g盒装
+    brand: 亨氏
+    category: 婴儿辅食
+    keywords:
+      - 亨氏 亨氏婴儿米粉 400g盒装
+      - 亨氏400g盒装
+    reference_price: 38.00
+
+  - sku_id: SKU0657
+    name: 亨氏婴儿米粉 200g罐装
+    brand: 亨氏
+    category: 婴儿辅食
+    keywords:
+      - 亨氏 亨氏婴儿米粉 200g罐装
+      - 亨氏200g罐装
+    reference_price: 28.00
+
+  - sku_id: SKU0658
+    name: 亨氏婴儿米粉 果汁125ml
+    brand: 亨氏
+    category: 婴儿辅食
+    keywords:
+      - 亨氏 亨氏婴儿米粉 果汁125ml
+      - 亨氏果汁125ml
+    reference_price: 8.00
+
+  - sku_id: SKU0659
+    name: 亨氏婴儿米粉 果泥113g
+    brand: 亨氏
+    category: 婴儿辅食
+    keywords:
+      - 亨氏 亨氏婴儿米粉 果泥113g
+      - 亨氏果泥113g
+    reference_price: 12.00
+
+  - sku_id: SKU0660
+    name: 亨氏婴儿果泥 225g瓶装
+    brand: 亨氏
+    category: 婴儿辅食
+    keywords:
+      - 亨氏 亨氏婴儿果泥 225g瓶装
+      - 亨氏225g瓶装
+    reference_price: 18.00
+
+  - sku_id: SKU0661
+    name: 亨氏婴儿果泥 400g盒装
+    brand: 亨氏
+    category: 婴儿辅食
+    keywords:
+      - 亨氏 亨氏婴儿果泥 400g盒装
+      - 亨氏400g盒装
+    reference_price: 38.00
+
+  - sku_id: SKU0662
+    name: 亨氏婴儿果泥 200g罐装
+    brand: 亨氏
+    category: 婴儿辅食
+    keywords:
+      - 亨氏 亨氏婴儿果泥 200g罐装
+      - 亨氏200g罐装
+    reference_price: 28.00
+
+  - sku_id: SKU0663
+    name: 亨氏婴儿果泥 果汁125ml
+    brand: 亨氏
+    category: 婴儿辅食
+    keywords:
+      - 亨氏 亨氏婴儿果泥 果汁125ml
+      - 亨氏果汁125ml
+    reference_price: 8.00
+
+  - sku_id: SKU0664
+    name: 亨氏婴儿果泥 果泥113g
+    brand: 亨氏
+    category: 婴儿辅食
+    keywords:
+      - 亨氏 亨氏婴儿果泥 果泥113g
+      - 亨氏果泥113g
+    reference_price: 12.00
+
+  - sku_id: SKU0665
+    name: 亨氏婴儿果汁 225g瓶装
+    brand: 亨氏
+    category: 婴儿辅食
+    keywords:
+      - 亨氏 亨氏婴儿果汁 225g瓶装
+      - 亨氏225g瓶装
+    reference_price: 18.00
+
+  - sku_id: SKU0666
+    name: 亨氏婴儿果汁 400g盒装
+    brand: 亨氏
+    category: 婴儿辅食
+    keywords:
+      - 亨氏 亨氏婴儿果汁 400g盒装
+      - 亨氏400g盒装
+    reference_price: 38.00
+
+  - sku_id: SKU0667
+    name: 亨氏婴儿果汁 200g罐装
+    brand: 亨氏
+    category: 婴儿辅食
+    keywords:
+      - 亨氏 亨氏婴儿果汁 200g罐装
+      - 亨氏200g罐装
+    reference_price: 28.00
+
+  - sku_id: SKU0668
+    name: 亨氏婴儿果汁 果汁125ml
+    brand: 亨氏
+    category: 婴儿辅食
+    keywords:
+      - 亨氏 亨氏婴儿果汁 果汁125ml
+      - 亨氏果汁125ml
+    reference_price: 8.00
+
+  - sku_id: SKU0669
+    name: 亨氏婴儿果汁 果泥113g
+    brand: 亨氏
+    category: 婴儿辅食
+    keywords:
+      - 亨氏 亨氏婴儿果汁 果泥113g
+      - 亨氏果泥113g
+    reference_price: 12.00
+
+  - sku_id: SKU0670
+    name: 亨氏磨牙棒 225g瓶装
+    brand: 亨氏
+    category: 婴儿辅食
+    keywords:
+      - 亨氏 亨氏磨牙棒 225g瓶装
+      - 亨氏225g瓶装
+    reference_price: 18.00
+
+  - sku_id: SKU0671
+    name: 亨氏磨牙棒 400g盒装
+    brand: 亨氏
+    category: 婴儿辅食
+    keywords:
+      - 亨氏 亨氏磨牙棒 400g盒装
+      - 亨氏400g盒装
+    reference_price: 38.00
+
+  - sku_id: SKU0672
+    name: 亨氏磨牙棒 200g罐装
+    brand: 亨氏
+    category: 婴儿辅食
+    keywords:
+      - 亨氏 亨氏磨牙棒 200g罐装
+      - 亨氏200g罐装
+    reference_price: 28.00
+
+  - sku_id: SKU0673
+    name: 亨氏磨牙棒 果汁125ml
+    brand: 亨氏
+    category: 婴儿辅食
+    keywords:
+      - 亨氏 亨氏磨牙棒 果汁125ml
+      - 亨氏果汁125ml
+    reference_price: 8.00
+
+  - sku_id: SKU0674
+    name: 亨氏磨牙棒 果泥113g
+    brand: 亨氏
+    category: 婴儿辅食
+    keywords:
+      - 亨氏 亨氏磨牙棒 果泥113g
+      - 亨氏果泥113g
+    reference_price: 12.00
+
+  - sku_id: SKU0675
+    name: 嘉宝婴儿米粉 250g瓶装
+    brand: 嘉宝
+    category: 婴儿辅食
+    keywords:
+      - 嘉宝 嘉宝婴儿米粉 250g瓶装
+      - 嘉宝250g瓶装
+    reference_price: 28.00
+
+  - sku_id: SKU0676
+    name: 嘉宝婴儿米粉 454g罐装
+    brand: 嘉宝
+    category: 婴儿辅食
+    keywords:
+      - 嘉宝 嘉宝婴儿米粉 454g罐装
+      - 嘉宝454g罐装
+    reference_price: 58.00
+
+  - sku_id: SKU0677
+    name: 嘉宝婴儿米粉 227g盒装
+    brand: 嘉宝
+    category: 婴儿辅食
+    keywords:
+      - 嘉宝 嘉宝婴儿米粉 227g盒装
+      - 嘉宝227g盒装
+    reference_price: 48.00
+
+  - sku_id: SKU0678
+    name: 嘉宝婴儿米粉 果泥12瓶
+    brand: 嘉宝
+    category: 婴儿辅食
+    keywords:
+      - 嘉宝 嘉宝婴儿米粉 果泥12瓶
+      - 嘉宝果泥12瓶
+    reference_price: 68.00
+
+  - sku_id: SKU0679
+    name: 嘉宝婴儿果泥 250g瓶装
+    brand: 嘉宝
+    category: 婴儿辅食
+    keywords:
+      - 嘉宝 嘉宝婴儿果泥 250g瓶装
+      - 嘉宝250g瓶装
+    reference_price: 28.00
+
+  - sku_id: SKU0680
+    name: 嘉宝婴儿果泥 454g罐装
+    brand: 嘉宝
+    category: 婴儿辅食
+    keywords:
+      - 嘉宝 嘉宝婴儿果泥 454g罐装
+      - 嘉宝454g罐装
+    reference_price: 58.00
+
+  - sku_id: SKU0681
+    name: 嘉宝婴儿果泥 227g盒装
+    brand: 嘉宝
+    category: 婴儿辅食
+    keywords:
+      - 嘉宝 嘉宝婴儿果泥 227g盒装
+      - 嘉宝227g盒装
+    reference_price: 48.00
+
+  - sku_id: SKU0682
+    name: 嘉宝婴儿果泥 果泥12瓶
+    brand: 嘉宝
+    category: 婴儿辅食
+    keywords:
+      - 嘉宝 嘉宝婴儿果泥 果泥12瓶
+      - 嘉宝果泥12瓶
+    reference_price: 68.00
+
+  - sku_id: SKU0683
+    name: 嘉宝婴儿果汁 250g瓶装
+    brand: 嘉宝
+    category: 婴儿辅食
+    keywords:
+      - 嘉宝 嘉宝婴儿果汁 250g瓶装
+      - 嘉宝250g瓶装
+    reference_price: 28.00
+
+  - sku_id: SKU0684
+    name: 嘉宝婴儿果汁 454g罐装
+    brand: 嘉宝
+    category: 婴儿辅食
+    keywords:
+      - 嘉宝 嘉宝婴儿果汁 454g罐装
+      - 嘉宝454g罐装
+    reference_price: 58.00
+
+  - sku_id: SKU0685
+    name: 嘉宝婴儿果汁 227g盒装
+    brand: 嘉宝
+    category: 婴儿辅食
+    keywords:
+      - 嘉宝 嘉宝婴儿果汁 227g盒装
+      - 嘉宝227g盒装
+    reference_price: 48.00
+
+  - sku_id: SKU0686
+    name: 嘉宝婴儿果汁 果泥12瓶
+    brand: 嘉宝
+    category: 婴儿辅食
+    keywords:
+      - 嘉宝 嘉宝婴儿果汁 果泥12瓶
+      - 嘉宝果泥12瓶
+    reference_price: 68.00
+
+  - sku_id: SKU0687
+    name: 嘉宝泡芙 250g瓶装
+    brand: 嘉宝
+    category: 婴儿辅食
+    keywords:
+      - 嘉宝 嘉宝泡芙 250g瓶装
+      - 嘉宝250g瓶装
+    reference_price: 28.00
+
+  - sku_id: SKU0688
+    name: 嘉宝泡芙 454g罐装
+    brand: 嘉宝
+    category: 婴儿辅食
+    keywords:
+      - 嘉宝 嘉宝泡芙 454g罐装
+      - 嘉宝454g罐装
+    reference_price: 58.00
+
+  - sku_id: SKU0689
+    name: 嘉宝泡芙 227g盒装
+    brand: 嘉宝
+    category: 婴儿辅食
+    keywords:
+      - 嘉宝 嘉宝泡芙 227g盒装
+      - 嘉宝227g盒装
+    reference_price: 48.00
+
+  - sku_id: SKU0690
+    name: 嘉宝泡芙 果泥12瓶
+    brand: 嘉宝
+    category: 婴儿辅食
+    keywords:
+      - 嘉宝 嘉宝泡芙 果泥12瓶
+      - 嘉宝果泥12瓶
+    reference_price: 68.00
+
+  - sku_id: SKU0691
+    name: 方广婴儿米粉 250g
+    brand: 方广
+    category: 婴儿辅食
+    keywords:
+      - 方广 方广婴儿米粉 250g
+      - 方广250g
+    reference_price: 28.00
+
+  - sku_id: SKU0692
+    name: 方广婴儿米粉 400g
+    brand: 方广
+    category: 婴儿辅食
+    keywords:
+      - 方广 方广婴儿米粉 400g
+      - 方广400g
+    reference_price: 48.00
+
+  - sku_id: SKU0693
+    name: 方广婴儿米粉 800g
+    brand: 方广
+    category: 婴儿辅食
+    keywords:
+      - 方广 方广婴儿米粉 800g
+      - 方广800g
+    reference_price: 88.00
+
+  - sku_id: SKU0694
+    name: 方广婴儿米粉 果汁125ml
+    brand: 方广
+    category: 婴儿辅食
+    keywords:
+      - 方广 方广婴儿米粉 果汁125ml
+      - 方广果汁125ml
+    reference_price: 10.00
+
+  - sku_id: SKU0695
+    name: 方广婴儿米粉 营养面300g
+    brand: 方广
+    category: 婴儿辅食
+    keywords:
+      - 方广 方广婴儿米粉 营养面300g
+      - 方广营养面300g
+    reference_price: 32.00
+
+  - sku_id: SKU0696
+    name: 方广婴儿面条 250g
+    brand: 方广
+    category: 婴儿辅食
+    keywords:
+      - 方广 方广婴儿面条 250g
+      - 方广250g
+    reference_price: 28.00
+
+  - sku_id: SKU0697
+    name: 方广婴儿面条 400g
+    brand: 方广
+    category: 婴儿辅食
+    keywords:
+      - 方广 方广婴儿面条 400g
+      - 方广400g
+    reference_price: 48.00
+
+  - sku_id: SKU0698
+    name: 方广婴儿面条 800g
+    brand: 方广
+    category: 婴儿辅食
+    keywords:
+      - 方广 方广婴儿面条 800g
+      - 方广800g
+    reference_price: 88.00
+
+  - sku_id: SKU0699
+    name: 方广婴儿面条 果汁125ml
+    brand: 方广
+    category: 婴儿辅食
+    keywords:
+      - 方广 方广婴儿面条 果汁125ml
+      - 方广果汁125ml
+    reference_price: 10.00
+
+  - sku_id: SKU0700
+    name: 方广婴儿面条 营养面300g
+    brand: 方广
+    category: 婴儿辅食
+    keywords:
+      - 方广 方广婴儿面条 营养面300g
+      - 方广营养面300g
+    reference_price: 32.00
+
+  - sku_id: SKU0701
+    name: 方广婴儿肉酥 250g
+    brand: 方广
+    category: 婴儿辅食
+    keywords:
+      - 方广 方广婴儿肉酥 250g
+      - 方广250g
+    reference_price: 28.00
+
+  - sku_id: SKU0702
+    name: 方广婴儿肉酥 400g
+    brand: 方广
+    category: 婴儿辅食
+    keywords:
+      - 方广 方广婴儿肉酥 400g
+      - 方广400g
+    reference_price: 48.00
+
+  - sku_id: SKU0703
+    name: 方广婴儿肉酥 800g
+    brand: 方广
+    category: 婴儿辅食
+    keywords:
+      - 方广 方广婴儿肉酥 800g
+      - 方广800g
+    reference_price: 88.00
+
+  - sku_id: SKU0704
+    name: 方广婴儿肉酥 果汁125ml
+    brand: 方广
+    category: 婴儿辅食
+    keywords:
+      - 方广 方广婴儿肉酥 果汁125ml
+      - 方广果汁125ml
+    reference_price: 10.00
+
+  - sku_id: SKU0705
+    name: 方广婴儿肉酥 营养面300g
+    brand: 方广
+    category: 婴儿辅食
+    keywords:
+      - 方广 方广婴儿肉酥 营养面300g
+      - 方广营养面300g
+    reference_price: 32.00
+
+  - sku_id: SKU0706
+    name: 方广磨牙饼干 250g
+    brand: 方广
+    category: 婴儿辅食
+    keywords:
+      - 方广 方广磨牙饼干 250g
+      - 方广250g
+    reference_price: 28.00
+
+  - sku_id: SKU0707
+    name: 方广磨牙饼干 400g
+    brand: 方广
+    category: 婴儿辅食
+    keywords:
+      - 方广 方广磨牙饼干 400g
+      - 方广400g
+    reference_price: 48.00
+
+  - sku_id: SKU0708
+    name: 方广磨牙饼干 800g
+    brand: 方广
+    category: 婴儿辅食
+    keywords:
+      - 方广 方广磨牙饼干 800g
+      - 方广800g
+    reference_price: 88.00
+
+  - sku_id: SKU0709
+    name: 方广磨牙饼干 果汁125ml
+    brand: 方广
+    category: 婴儿辅食
+    keywords:
+      - 方广 方广磨牙饼干 果汁125ml
+      - 方广果汁125ml
+    reference_price: 10.00
+
+  - sku_id: SKU0710
+    name: 方广磨牙饼干 营养面300g
+    brand: 方广
+    category: 婴儿辅食
+    keywords:
+      - 方广 方广磨牙饼干 营养面300g
+      - 方广营养面300g
+    reference_price: 32.00
+
+  - sku_id: SKU0711
+    name: 伊威婴儿米粉 200g
+    brand: 伊威
+    category: 婴儿辅食
+    keywords:
+      - 伊威 伊威婴儿米粉 200g
+      - 伊威200g
+    reference_price: 25.00
+
+  - sku_id: SKU0712
+    name: 伊威婴儿米粉 400g
+    brand: 伊威
+    category: 婴儿辅食
+    keywords:
+      - 伊威 伊威婴儿米粉 400g
+      - 伊威400g
+    reference_price: 45.00
+
+  - sku_id: SKU0713
+    name: 伊威婴儿米粉 800g
+    brand: 伊威
+    category: 婴儿辅食
+    keywords:
+      - 伊威 伊威婴儿米粉 800g
+      - 伊威800g
+    reference_price: 85.00
+
+  - sku_id: SKU0714
+    name: 伊威婴儿米粉 营养面250g
+    brand: 伊威
+    category: 婴儿辅食
+    keywords:
+      - 伊威 伊威婴儿米粉 营养面250g
+      - 伊威营养面250g
+    reference_price: 28.00
+
+  - sku_id: SKU0715
+    name: 伊威婴儿米粉 肝粉30袋
+    brand: 伊威
+    category: 婴儿辅食
+    keywords:
+      - 伊威 伊威婴儿米粉 肝粉30袋
+      - 伊威肝粉30袋
+    reference_price: 58.00
+
+  - sku_id: SKU0716
+    name: 伊威婴儿面条 200g
+    brand: 伊威
+    category: 婴儿辅食
+    keywords:
+      - 伊威 伊威婴儿面条 200g
+      - 伊威200g
+    reference_price: 25.00
+
+  - sku_id: SKU0717
+    name: 伊威婴儿面条 400g
+    brand: 伊威
+    category: 婴儿辅食
+    keywords:
+      - 伊威 伊威婴儿面条 400g
+      - 伊威400g
+    reference_price: 45.00
+
+  - sku_id: SKU0718
+    name: 伊威婴儿面条 800g
+    brand: 伊威
+    category: 婴儿辅食
+    keywords:
+      - 伊威 伊威婴儿面条 800g
+      - 伊威800g
+    reference_price: 85.00
+
+  - sku_id: SKU0719
+    name: 伊威婴儿面条 营养面250g
+    brand: 伊威
+    category: 婴儿辅食
+    keywords:
+      - 伊威 伊威婴儿面条 营养面250g
+      - 伊威营养面250g
+    reference_price: 28.00
+
+  - sku_id: SKU0720
+    name: 伊威婴儿面条 肝粉30袋
+    brand: 伊威
+    category: 婴儿辅食
+    keywords:
+      - 伊威 伊威婴儿面条 肝粉30袋
+      - 伊威肝粉30袋
+    reference_price: 58.00
+
+  - sku_id: SKU0721
+    name: 伊威婴儿肝粉 200g
+    brand: 伊威
+    category: 婴儿辅食
+    keywords:
+      - 伊威 伊威婴儿肝粉 200g
+      - 伊威200g
+    reference_price: 25.00
+
+  - sku_id: SKU0722
+    name: 伊威婴儿肝粉 400g
+    brand: 伊威
+    category: 婴儿辅食
+    keywords:
+      - 伊威 伊威婴儿肝粉 400g
+      - 伊威400g
+    reference_price: 45.00
+
+  - sku_id: SKU0723
+    name: 伊威婴儿肝粉 800g
+    brand: 伊威
+    category: 婴儿辅食
+    keywords:
+      - 伊威 伊威婴儿肝粉 800g
+      - 伊威800g
+    reference_price: 85.00
+
+  - sku_id: SKU0724
+    name: 伊威婴儿肝粉 营养面250g
+    brand: 伊威
+    category: 婴儿辅食
+    keywords:
+      - 伊威 伊威婴儿肝粉 营养面250g
+      - 伊威营养面250g
+    reference_price: 28.00
+
+  - sku_id: SKU0725
+    name: 伊威婴儿肝粉 肝粉30袋
+    brand: 伊威
+    category: 婴儿辅食
+    keywords:
+      - 伊威 伊威婴儿肝粉 肝粉30袋
+      - 伊威肝粉30袋
+    reference_price: 58.00
+
+  - sku_id: SKU0726
+    name: 伊威磨牙棒 200g
+    brand: 伊威
+    category: 婴儿辅食
+    keywords:
+      - 伊威 伊威磨牙棒 200g
+      - 伊威200g
+    reference_price: 25.00
+
+  - sku_id: SKU0727
+    name: 伊威磨牙棒 400g
+    brand: 伊威
+    category: 婴儿辅食
+    keywords:
+      - 伊威 伊威磨牙棒 400g
+      - 伊威400g
+    reference_price: 45.00
+
+  - sku_id: SKU0728
+    name: 伊威磨牙棒 800g
+    brand: 伊威
+    category: 婴儿辅食
+    keywords:
+      - 伊威 伊威磨牙棒 800g
+      - 伊威800g
+    reference_price: 85.00
+
+  - sku_id: SKU0729
+    name: 伊威磨牙棒 营养面250g
+    brand: 伊威
+    category: 婴儿辅食
+    keywords:
+      - 伊威 伊威磨牙棒 营养面250g
+      - 伊威营养面250g
+    reference_price: 28.00
+
+  - sku_id: SKU0730
+    name: 伊威磨牙棒 肝粉30袋
+    brand: 伊威
+    category: 婴儿辅食
+    keywords:
+      - 伊威 伊威磨牙棒 肝粉30袋
+      - 伊威肝粉30袋
+    reference_price: 58.00
+
+  - sku_id: SKU0731
+    name: 全棉时代婴儿湿巾 80抽3包
+    brand: 全棉时代
+    category: 湿巾纸巾
+    keywords:
+      - 全棉时代 全棉时代婴儿湿巾 80抽3包
+      - 全棉时代80抽3包
+    reference_price: 38.00
+
+  - sku_id: SKU0732
+    name: 全棉时代婴儿湿巾 80抽6包
+    brand: 全棉时代
+    category: 湿巾纸巾
+    keywords:
+      - 全棉时代 全棉时代婴儿湿巾 80抽6包
+      - 全棉时代80抽6包
+    reference_price: 68.00
+
+  - sku_id: SKU0733
+    name: 全棉时代婴儿湿巾 80抽12包
+    brand: 全棉时代
+    category: 湿巾纸巾
+    keywords:
+      - 全棉时代 全棉时代婴儿湿巾 80抽12包
+      - 全棉时代80抽12包
+    reference_price: 118.00
+
+  - sku_id: SKU0734
+    name: 全棉时代婴儿湿巾 25抽便携装
+    brand: 全棉时代
+    category: 湿巾纸巾
+    keywords:
+      - 全棉时代 全棉时代婴儿湿巾 25抽便携装
+      - 全棉时代25抽便携装
+    reference_price: 28.00
+
+  - sku_id: SKU0735
+    name: 全棉时代婴儿湿巾 棉柔巾100抽
+    brand: 全棉时代
+    category: 湿巾纸巾
+    keywords:
+      - 全棉时代 全棉时代婴儿湿巾 棉柔巾100抽
+      - 全棉时代棉柔巾100抽
+    reference_price: 48.00
+
+  - sku_id: SKU0736
+    name: 全棉时代婴儿棉柔巾 80抽3包
+    brand: 全棉时代
+    category: 湿巾纸巾
+    keywords:
+      - 全棉时代 全棉时代婴儿棉柔巾 80抽3包
+      - 全棉时代80抽3包
+    reference_price: 38.00
+
+  - sku_id: SKU0737
+    name: 全棉时代婴儿棉柔巾 80抽6包
+    brand: 全棉时代
+    category: 湿巾纸巾
+    keywords:
+      - 全棉时代 全棉时代婴儿棉柔巾 80抽6包
+      - 全棉时代80抽6包
+    reference_price: 68.00
+
+  - sku_id: SKU0738
+    name: 全棉时代婴儿棉柔巾 80抽12包
+    brand: 全棉时代
+    category: 湿巾纸巾
+    keywords:
+      - 全棉时代 全棉时代婴儿棉柔巾 80抽12包
+      - 全棉时代80抽12包
+    reference_price: 118.00
+
+  - sku_id: SKU0739
+    name: 全棉时代婴儿棉柔巾 25抽便携装
+    brand: 全棉时代
+    category: 湿巾纸巾
+    keywords:
+      - 全棉时代 全棉时代婴儿棉柔巾 25抽便携装
+      - 全棉时代25抽便携装
+    reference_price: 28.00
+
+  - sku_id: SKU0740
+    name: 全棉时代婴儿棉柔巾 棉柔巾100抽
+    brand: 全棉时代
+    category: 湿巾纸巾
+    keywords:
+      - 全棉时代 全棉时代婴儿棉柔巾 棉柔巾100抽
+      - 全棉时代棉柔巾100抽
+    reference_price: 48.00
+
+  - sku_id: SKU0741
+    name: 全棉时代婴儿手口湿巾 80抽3包
+    brand: 全棉时代
+    category: 湿巾纸巾
+    keywords:
+      - 全棉时代 全棉时代婴儿手口湿巾 80抽3包
+      - 全棉时代80抽3包
+    reference_price: 38.00
+
+  - sku_id: SKU0742
+    name: 全棉时代婴儿手口湿巾 80抽6包
+    brand: 全棉时代
+    category: 湿巾纸巾
+    keywords:
+      - 全棉时代 全棉时代婴儿手口湿巾 80抽6包
+      - 全棉时代80抽6包
+    reference_price: 68.00
+
+  - sku_id: SKU0743
+    name: 全棉时代婴儿手口湿巾 80抽12包
+    brand: 全棉时代
+    category: 湿巾纸巾
+    keywords:
+      - 全棉时代 全棉时代婴儿手口湿巾 80抽12包
+      - 全棉时代80抽12包
+    reference_price: 118.00
+
+  - sku_id: SKU0744
+    name: 全棉时代婴儿手口湿巾 25抽便携装
+    brand: 全棉时代
+    category: 湿巾纸巾
+    keywords:
+      - 全棉时代 全棉时代婴儿手口湿巾 25抽便携装
+      - 全棉时代25抽便携装
+    reference_price: 28.00
+
+  - sku_id: SKU0745
+    name: 全棉时代婴儿手口湿巾 棉柔巾100抽
+    brand: 全棉时代
+    category: 湿巾纸巾
+    keywords:
+      - 全棉时代 全棉时代婴儿手口湿巾 棉柔巾100抽
+      - 全棉时代棉柔巾100抽
+    reference_price: 48.00
+
+  - sku_id: SKU0746
+    name: 维达婴儿湿巾 80抽3包
+    brand: 维达
+    category: 湿巾纸巾
+    keywords:
+      - 维达 维达婴儿湿巾 80抽3包
+      - 维达80抽3包
+    reference_price: 22.00
+
+  - sku_id: SKU0747
+    name: 维达婴儿湿巾 80抽5包
+    brand: 维达
+    category: 湿巾纸巾
+    keywords:
+      - 维达 维达婴儿湿巾 80抽5包
+      - 维达80抽5包
+    reference_price: 36.00
+
+  - sku_id: SKU0748
+    name: 维达婴儿湿巾 80抽10包
+    brand: 维达
+    category: 湿巾纸巾
+    keywords:
+      - 维达 维达婴儿湿巾 80抽10包
+      - 维达80抽10包
+    reference_price: 65.00
+
+  - sku_id: SKU0749
+    name: 维达婴儿湿巾 30抽8包
+    brand: 维达
+    category: 湿巾纸巾
+    keywords:
+      - 维达 维达婴儿湿巾 30抽8包
+      - 维达30抽8包
+    reference_price: 20.00
+
+  - sku_id: SKU0750
+    name: 维达婴儿湿巾 10抽20包
+    brand: 维达
+    category: 湿巾纸巾
+    keywords:
+      - 维达 维达婴儿湿巾 10抽20包
+      - 维达10抽20包
+    reference_price: 18.00
+
+  - sku_id: SKU0751
+    name: 维达婴儿手口湿巾 80抽3包
+    brand: 维达
+    category: 湿巾纸巾
+    keywords:
+      - 维达 维达婴儿手口湿巾 80抽3包
+      - 维达80抽3包
+    reference_price: 22.00
+
+  - sku_id: SKU0752
+    name: 维达婴儿手口湿巾 80抽5包
+    brand: 维达
+    category: 湿巾纸巾
+    keywords:
+      - 维达 维达婴儿手口湿巾 80抽5包
+      - 维达80抽5包
+    reference_price: 36.00
+
+  - sku_id: SKU0753
+    name: 维达婴儿手口湿巾 80抽10包
+    brand: 维达
+    category: 湿巾纸巾
+    keywords:
+      - 维达 维达婴儿手口湿巾 80抽10包
+      - 维达80抽10包
+    reference_price: 65.00
+
+  - sku_id: SKU0754
+    name: 维达婴儿手口湿巾 30抽8包
+    brand: 维达
+    category: 湿巾纸巾
+    keywords:
+      - 维达 维达婴儿手口湿巾 30抽8包
+      - 维达30抽8包
+    reference_price: 20.00
+
+  - sku_id: SKU0755
+    name: 维达婴儿手口湿巾 10抽20包
+    brand: 维达
+    category: 湿巾纸巾
+    keywords:
+      - 维达 维达婴儿手口湿巾 10抽20包
+      - 维达10抽20包
+    reference_price: 18.00
+
+  - sku_id: SKU0756
+    name: 维达婴儿棉柔巾 80抽3包
+    brand: 维达
+    category: 湿巾纸巾
+    keywords:
+      - 维达 维达婴儿棉柔巾 80抽3包
+      - 维达80抽3包
+    reference_price: 22.00
+
+  - sku_id: SKU0757
+    name: 维达婴儿棉柔巾 80抽5包
+    brand: 维达
+    category: 湿巾纸巾
+    keywords:
+      - 维达 维达婴儿棉柔巾 80抽5包
+      - 维达80抽5包
+    reference_price: 36.00
+
+  - sku_id: SKU0758
+    name: 维达婴儿棉柔巾 80抽10包
+    brand: 维达
+    category: 湿巾纸巾
+    keywords:
+      - 维达 维达婴儿棉柔巾 80抽10包
+      - 维达80抽10包
+    reference_price: 65.00
+
+  - sku_id: SKU0759
+    name: 维达婴儿棉柔巾 30抽8包
+    brand: 维达
+    category: 湿巾纸巾
+    keywords:
+      - 维达 维达婴儿棉柔巾 30抽8包
+      - 维达30抽8包
+    reference_price: 20.00
+
+  - sku_id: SKU0760
+    name: 维达婴儿棉柔巾 10抽20包
+    brand: 维达
+    category: 湿巾纸巾
+    keywords:
+      - 维达 维达婴儿棉柔巾 10抽20包
+      - 维达10抽20包
+    reference_price: 18.00
+
+  - sku_id: SKU0761
+    name: 好奇婴儿湿巾 80抽3包
+    brand: 好奇
+    category: 湿巾纸巾
+    keywords:
+      - 好奇 好奇婴儿湿巾 80抽3包
+      - 好奇80抽3包
+    reference_price: 28.00
+
+  - sku_id: SKU0762
+    name: 好奇婴儿湿巾 80抽6包
+    brand: 好奇
+    category: 湿巾纸巾
+    keywords:
+      - 好奇 好奇婴儿湿巾 80抽6包
+      - 好奇80抽6包
+    reference_price: 52.00
+
+  - sku_id: SKU0763
+    name: 好奇婴儿湿巾 80抽12包
+    brand: 好奇
+    category: 湿巾纸巾
+    keywords:
+      - 好奇 好奇婴儿湿巾 80抽12包
+      - 好奇80抽12包
+    reference_price: 95.00
+
+  - sku_id: SKU0764
+    name: 好奇婴儿湿巾 30抽10包
+    brand: 好奇
+    category: 湿巾纸巾
+    keywords:
+      - 好奇 好奇婴儿湿巾 30抽10包
+      - 好奇30抽10包
+    reference_price: 32.00
+
+  - sku_id: SKU0765
+    name: 好奇婴儿手口湿巾 80抽3包
+    brand: 好奇
+    category: 湿巾纸巾
+    keywords:
+      - 好奇 好奇婴儿手口湿巾 80抽3包
+      - 好奇80抽3包
+    reference_price: 28.00
+
+  - sku_id: SKU0766
+    name: 好奇婴儿手口湿巾 80抽6包
+    brand: 好奇
+    category: 湿巾纸巾
+    keywords:
+      - 好奇 好奇婴儿手口湿巾 80抽6包
+      - 好奇80抽6包
+    reference_price: 52.00
+
+  - sku_id: SKU0767
+    name: 好奇婴儿手口湿巾 80抽12包
+    brand: 好奇
+    category: 湿巾纸巾
+    keywords:
+      - 好奇 好奇婴儿手口湿巾 80抽12包
+      - 好奇80抽12包
+    reference_price: 95.00
+
+  - sku_id: SKU0768
+    name: 好奇婴儿手口湿巾 30抽10包
+    brand: 好奇
+    category: 湿巾纸巾
+    keywords:
+      - 好奇 好奇婴儿手口湿巾 30抽10包
+      - 好奇30抽10包
+    reference_price: 32.00
+
+  - sku_id: SKU0769
+    name: 好奇超厚湿巾 80抽3包
+    brand: 好奇
+    category: 湿巾纸巾
+    keywords:
+      - 好奇 好奇超厚湿巾 80抽3包
+      - 好奇80抽3包
+    reference_price: 28.00
+
+  - sku_id: SKU0770
+    name: 好奇超厚湿巾 80抽6包
+    brand: 好奇
+    category: 湿巾纸巾
+    keywords:
+      - 好奇 好奇超厚湿巾 80抽6包
+      - 好奇80抽6包
+    reference_price: 52.00
+
+  - sku_id: SKU0771
+    name: 好奇超厚湿巾 80抽12包
+    brand: 好奇
+    category: 湿巾纸巾
+    keywords:
+      - 好奇 好奇超厚湿巾 80抽12包
+      - 好奇80抽12包
+    reference_price: 95.00
+
+  - sku_id: SKU0772
+    name: 好奇超厚湿巾 30抽10包
+    brand: 好奇
+    category: 湿巾纸巾
+    keywords:
+      - 好奇 好奇超厚湿巾 30抽10包
+      - 好奇30抽10包
+    reference_price: 32.00
+
+  - sku_id: SKU0773
+    name: 子初待产包 16件套
+    brand: 子初
+    category: 待产用品
+    keywords:
+      - 子初 子初待产包 16件套
+      - 子初16件套
+    reference_price: 168.00
+
+  - sku_id: SKU0774
+    name: 子初待产包 26件套
+    brand: 子初
+    category: 待产用品
+    keywords:
+      - 子初 子初待产包 26件套
+      - 子初26件套
+    reference_price: 268.00
+
+  - sku_id: SKU0775
+    name: 子初待产包 36件套
+    brand: 子初
+    category: 待产用品
+    keywords:
+      - 子初 子初待产包 36件套
+      - 子初36件套
+    reference_price: 368.00
+
+  - sku_id: SKU0776
+    name: 子初待产包 46件套
+    brand: 子初
+    category: 待产用品
+    keywords:
+      - 子初 子初待产包 46件套
+      - 子初46件套
+    reference_price: 468.00
+
+  - sku_id: SKU0777
+    name: 子初待产包 豪华60件套
+    brand: 子初
+    category: 待产用品
+    keywords:
+      - 子初 子初待产包 豪华60件套
+      - 子初豪华60件套
+    reference_price: 698.00
+
+  - sku_id: SKU0778
+    name: 子初孕妇入院包 16件套
+    brand: 子初
+    category: 待产用品
+    keywords:
+      - 子初 子初孕妇入院包 16件套
+      - 子初16件套
+    reference_price: 168.00
+
+  - sku_id: SKU0779
+    name: 子初孕妇入院包 26件套
+    brand: 子初
+    category: 待产用品
+    keywords:
+      - 子初 子初孕妇入院包 26件套
+      - 子初26件套
+    reference_price: 268.00
+
+  - sku_id: SKU0780
+    name: 子初孕妇入院包 36件套
+    brand: 子初
+    category: 待产用品
+    keywords:
+      - 子初 子初孕妇入院包 36件套
+      - 子初36件套
+    reference_price: 368.00
+
+  - sku_id: SKU0781
+    name: 子初孕妇入院包 46件套
+    brand: 子初
+    category: 待产用品
+    keywords:
+      - 子初 子初孕妇入院包 46件套
+      - 子初46件套
+    reference_price: 468.00
+
+  - sku_id: SKU0782
+    name: 子初孕妇入院包 豪华60件套
+    brand: 子初
+    category: 待产用品
+    keywords:
+      - 子初 子初孕妇入院包 豪华60件套
+      - 子初豪华60件套
+    reference_price: 698.00
+
+  - sku_id: SKU0783
+    name: 子初坐月子套装 16件套
+    brand: 子初
+    category: 待产用品
+    keywords:
+      - 子初 子初坐月子套装 16件套
+      - 子初16件套
+    reference_price: 168.00
+
+  - sku_id: SKU0784
+    name: 子初坐月子套装 26件套
+    brand: 子初
+    category: 待产用品
+    keywords:
+      - 子初 子初坐月子套装 26件套
+      - 子初26件套
+    reference_price: 268.00
+
+  - sku_id: SKU0785
+    name: 子初坐月子套装 36件套
+    brand: 子初
+    category: 待产用品
+    keywords:
+      - 子初 子初坐月子套装 36件套
+      - 子初36件套
+    reference_price: 368.00
+
+  - sku_id: SKU0786
+    name: 子初坐月子套装 46件套
+    brand: 子初
+    category: 待产用品
+    keywords:
+      - 子初 子初坐月子套装 46件套
+      - 子初46件套
+    reference_price: 468.00
+
+  - sku_id: SKU0787
+    name: 子初坐月子套装 豪华60件套
+    brand: 子初
+    category: 待产用品
+    keywords:
+      - 子初 子初坐月子套装 豪华60件套
+      - 子初豪华60件套
+    reference_price: 698.00
+
+  - sku_id: SKU0788
+    name: 十月结晶待产包 基础款24件套
+    brand: 十月结晶
+    category: 待产用品
+    keywords:
+      - 十月结晶 十月结晶待产包 基础款24件套
+      - 十月结晶基础款24件套
+    reference_price: 148.00
+
+  - sku_id: SKU0789
+    name: 十月结晶待产包 加强款36件套
+    brand: 十月结晶
+    category: 待产用品
+    keywords:
+      - 十月结晶 十月结晶待产包 加强款36件套
+      - 十月结晶加强款36件套
+    reference_price: 248.00
+
+  - sku_id: SKU0790
+    name: 十月结晶待产包 豪华款48件套
+    brand: 十月结晶
+    category: 待产用品
+    keywords:
+      - 十月结晶 十月结晶待产包 豪华款48件套
+      - 十月结晶豪华款48件套
+    reference_price: 348.00
+
+  - sku_id: SKU0791
+    name: 十月结晶待产包 至尊款60件套
+    brand: 十月结晶
+    category: 待产用品
+    keywords:
+      - 十月结晶 十月结晶待产包 至尊款60件套
+      - 十月结晶至尊款60件套
+    reference_price: 548.00
+
+  - sku_id: SKU0792
+    name: 十月结晶入院包 基础款24件套
+    brand: 十月结晶
+    category: 待产用品
+    keywords:
+      - 十月结晶 十月结晶入院包 基础款24件套
+      - 十月结晶基础款24件套
+    reference_price: 148.00
+
+  - sku_id: SKU0793
+    name: 十月结晶入院包 加强款36件套
+    brand: 十月结晶
+    category: 待产用品
+    keywords:
+      - 十月结晶 十月结晶入院包 加强款36件套
+      - 十月结晶加强款36件套
+    reference_price: 248.00
+
+  - sku_id: SKU0794
+    name: 十月结晶入院包 豪华款48件套
+    brand: 十月结晶
+    category: 待产用品
+    keywords:
+      - 十月结晶 十月结晶入院包 豪华款48件套
+      - 十月结晶豪华款48件套
+    reference_price: 348.00
+
+  - sku_id: SKU0795
+    name: 十月结晶入院包 至尊款60件套
+    brand: 十月结晶
+    category: 待产用品
+    keywords:
+      - 十月结晶 十月结晶入院包 至尊款60件套
+      - 十月结晶至尊款60件套
+    reference_price: 548.00
+
+  - sku_id: SKU0796
+    name: 十月结晶孕妇套装 基础款24件套
+    brand: 十月结晶
+    category: 待产用品
+    keywords:
+      - 十月结晶 十月结晶孕妇套装 基础款24件套
+      - 十月结晶基础款24件套
+    reference_price: 148.00
+
+  - sku_id: SKU0797
+    name: 十月结晶孕妇套装 加强款36件套
+    brand: 十月结晶
+    category: 待产用品
+    keywords:
+      - 十月结晶 十月结晶孕妇套装 加强款36件套
+      - 十月结晶加强款36件套
+    reference_price: 248.00
+
+  - sku_id: SKU0798
+    name: 十月结晶孕妇套装 豪华款48件套
+    brand: 十月结晶
+    category: 待产用品
+    keywords:
+      - 十月结晶 十月结晶孕妇套装 豪华款48件套
+      - 十月结晶豪华款48件套
+    reference_price: 348.00
+
+  - sku_id: SKU0799
+    name: 十月结晶孕妇套装 至尊款60件套
+    brand: 十月结晶
+    category: 待产用品
+    keywords:
+      - 十月结晶 十月结晶孕妇套装 至尊款60件套
+      - 十月结晶至尊款60件套
+    reference_price: 548.00
+
+  - sku_id: SKU0800
+    name: 新贝待产包 待产包18件套
+    brand: 新贝
+    category: 待产用品
+    keywords:
+      - 新贝 新贝待产包 待产包18件套
+      - 新贝待产包18件套
+    reference_price: 138.00
+

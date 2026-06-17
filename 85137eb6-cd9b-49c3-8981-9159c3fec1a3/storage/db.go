@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -47,13 +48,14 @@ type MonitorTask struct {
 }
 
 type CrawlStats struct {
-	TaskId       int64
-	TotalCount   int
-	SuccessCount int
-	FailedCount  int
-	StartTime    time.Time
-	EndTime      time.Time
-	Duration     time.Duration
+	TaskId        int64
+	TotalCount    int
+	SuccessCount  int
+	FailedCount   int
+	StartTime     time.Time
+	EndTime       time.Time
+	Duration      time.Duration
+	ErrorMessages []string
 }
 
 type Database struct {
@@ -66,6 +68,14 @@ var (
 	instance *Database
 	once     sync.Once
 )
+
+func ResetForTest() {
+	if instance != nil {
+		_ = instance.Close()
+	}
+	instance = nil
+	once = sync.Once{}
+}
 
 func GetInstance() *Database {
 	return instance
@@ -414,11 +424,16 @@ func (d *Database) SaveCrawlStats(stats *CrawlStats) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
+	errMsgs := ""
+	if len(stats.ErrorMessages) > 0 {
+		errMsgs = strings.Join(stats.ErrorMessages, " ||| ")
+	}
+
 	query := `INSERT INTO crawl_stats 
-		(total_count, success_count, failed_count, start_time, end_time, duration_ms)
-		VALUES (?, ?, ?, ?, ?, ?)`
+		(total_count, success_count, failed_count, start_time, end_time, duration_ms, error_messages)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`
 	_, err := d.db.Exec(query, stats.TotalCount, stats.SuccessCount, stats.FailedCount,
-		stats.StartTime, stats.EndTime, stats.Duration.Milliseconds())
+		stats.StartTime, stats.EndTime, stats.Duration.Milliseconds(), errMsgs)
 	return err
 }
 

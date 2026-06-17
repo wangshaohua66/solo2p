@@ -1,0 +1,12 @@
+[2026-06-17 20:06:38.271] [INFO ] [logger_test.go:103] test info hello
+[2026-06-17 20:06:38.271] [WARN ] [logger_test.go:104] test warn
+[2026-06-17 20:06:38.271] [ERROR] [logger_test.go:105] test error
+[2026-06-17 20:06:38.271] [INFO ] [logger_test.go:118] package info hello
+[2026-06-17 20:06:38.271] [WARN ] [logger_test.go:119] package warn
+[2026-06-17 20:06:38.271] [ERROR] [logger_test.go:120] package error
+[2026-06-17 20:06:42.202] [INFO ] [logger_test.go:103] test info hello
+[2026-06-17 20:06:42.202] [WARN ] [logger_test.go:104] test warn
+[2026-06-17 20:06:42.202] [ERROR] [logger_test.go:105] test error
+[2026-06-17 20:06:42.203] [INFO ] [logger_test.go:118] package info hello
+[2026-06-17 20:06:42.203] [WARN ] [logger_test.go:119] package warn
+[2026-06-17 20:06:42.203] [ERROR] [logger_test.go:120] package error
