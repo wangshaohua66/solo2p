@@ -4,7 +4,6 @@ using BloodCenter.Core.Interfaces;
 using BloodCenter.Core.Interfaces.Data;
 using BloodCenter.Core.Entities;
 using BloodCenter.Core.Entities.Enums;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace BloodCenter.Core.Services;
@@ -102,59 +101,32 @@ public class ScrapTraceService : IScrapTraceService
 
     public async Task<ScrapRecordDto?> GetScrapRecordByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var scrap = await _unitOfWork.ScrapRecords.Query()
-            .Where(s => s.Id == id && !s.IsDeleted)
-            .Include(s => s.BloodProduct)
-            .Include(s => s.Operator)
-            .Include(s => s.ApprovedBy)
-            .FirstOrDefaultAsync(cancellationToken);
+        var scrap = await _unitOfWork.ScrapRecords.FirstOrDefaultAsync(
+            s => s.Id == id && !s.IsDeleted,
+            new[] { "BloodProduct", "Operator", "ApprovedBy" },
+            cancellationToken);
 
         return scrap == null ? null : _mapper.Map<ScrapRecordDto>(scrap);
     }
 
     public async Task<PagedResult<ScrapRecordDto>> GetScrapRecordsAsync(SearchScrapQuery query, CancellationToken cancellationToken = default)
     {
-        var queryable = _unitOfWork.ScrapRecords.Query().Where(s => !s.IsDeleted);
-
-        if (query.ProductId.HasValue)
-        {
-            queryable = queryable.Where(s => s.BloodProductId == query.ProductId.Value);
-        }
-
-        if (query.Reason.HasValue)
-        {
-            queryable = queryable.Where(s => s.Reason == query.Reason.Value);
-        }
-
-        if (query.OperatorId.HasValue)
-        {
-            queryable = queryable.Where(s => s.OperatorId == query.OperatorId.Value);
-        }
-
-        if (query.StartDate.HasValue)
-        {
-            queryable = queryable.Where(s => s.ScrapDate >= query.StartDate.Value);
-        }
-
-        if (query.EndDate.HasValue)
-        {
-            queryable = queryable.Where(s => s.ScrapDate <= query.EndDate.Value);
-        }
-
-        if (query.ApprovedOnly == true)
-        {
-            queryable = queryable.Where(s => s.ApprovedById != null);
-        }
-
-        var totalCount = await queryable.CountAsync(cancellationToken);
-        var items = await queryable
-            .Include(s => s.BloodProduct)
-            .Include(s => s.Operator)
-            .Include(s => s.ApprovedBy)
-            .OrderByDescending(s => s.ScrapDate)
-            .Skip((query.PageNumber - 1) * query.PageSize)
-            .Take(query.PageSize)
-            .ToListAsync(cancellationToken);
+        var (items, totalCount) = await _unitOfWork.ScrapRecords.GetPagedAsync(
+            query.PageNumber,
+            query.PageSize,
+            s => !s.IsDeleted
+                && (!query.ProductId.HasValue || s.BloodProductId == query.ProductId.Value)
+                && (!query.Reason.HasValue || s.Reason == query.Reason.Value)
+                && (!query.OperatorId.HasValue || s.OperatorId == query.OperatorId.Value)
+                && (!query.StartDate.HasValue || s.ScrapDate >= query.StartDate.Value)
+                && (!query.EndDate.HasValue || s.ScrapDate <= query.EndDate.Value)
+                && (!query.ApprovedOnly.HasValue || !query.ApprovedOnly.Value || s.ApprovedById != null),
+            s => s.ScrapDate,
+            true,
+            null,
+            true,
+            new[] { "BloodProduct", "Operator", "ApprovedBy" },
+            cancellationToken);
 
         return new PagedResult<ScrapRecordDto>(
             _mapper.Map<IEnumerable<ScrapRecordDto>>(items),
@@ -165,12 +137,12 @@ public class ScrapTraceService : IScrapTraceService
 
     public async Task<IEnumerable<ScrapRecordDto>> GetScrapsByProductAsync(Guid productId, CancellationToken cancellationToken = default)
     {
-        var scraps = await _unitOfWork.ScrapRecords.Query()
-            .Where(s => s.BloodProductId == productId && !s.IsDeleted)
-            .Include(s => s.Operator)
-            .Include(s => s.ApprovedBy)
-            .OrderByDescending(s => s.ScrapDate)
-            .ToListAsync(cancellationToken);
+        var scraps = await _unitOfWork.ScrapRecords.FindAsync(
+            s => s.BloodProductId == productId && !s.IsDeleted,
+            s => s.ScrapDate,
+            true,
+            new[] { "Operator", "ApprovedBy" },
+            cancellationToken);
 
         return _mapper.Map<IEnumerable<ScrapRecordDto>>(scraps);
     }
@@ -178,22 +150,22 @@ public class ScrapTraceService : IScrapTraceService
     public async Task<int> ProcessAutoScrapForExpiredProductsAsync(CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;
-        var expiredProducts = await _unitOfWork.BloodProducts.Query()
-            .Where(bp => !bp.IsDeleted
+        var expiredProducts = await _unitOfWork.BloodProducts.FindAsync(
+            bp => !bp.IsDeleted
                 && (bp.Status == InventoryStatus.InStock || bp.Status == InventoryStatus.Reserved || bp.Status == InventoryStatus.ScrapPending)
-                && bp.ExpiryDate <= now)
-            .ToListAsync(cancellationToken);
+                && bp.ExpiryDate <= now,
+            cancellationToken);
 
-        var systemUserId = await _unitOfWork.Users.Query()
-            .Where(u => u.UserName == "system" && !u.IsDeleted)
-            .Select(u => u.Id)
-            .FirstOrDefaultAsync(cancellationToken);
+        var systemUser = await _unitOfWork.Users.FirstOrDefaultAsync(
+            u => u.UserName == "system" && !u.IsDeleted,
+            cancellationToken);
+        var systemUserId = systemUser?.Id ?? Guid.Empty;
 
         if (systemUserId == Guid.Empty)
         {
-            var firstAdmin = await _unitOfWork.Users.Query()
-                .Where(u => u.Role == UserRole.Administrator && !u.IsDeleted)
-                .FirstOrDefaultAsync(cancellationToken);
+            var firstAdmin = await _unitOfWork.Users.FirstOrDefaultAsync(
+                u => u.Role == UserRole.Administrator && !u.IsDeleted,
+                cancellationToken);
             systemUserId = firstAdmin?.Id ?? Guid.Empty;
         }
 
@@ -227,15 +199,10 @@ public class ScrapTraceService : IScrapTraceService
 
     public async Task<TraceResultDto> TraceProductForwardAsync(Guid productId, CancellationToken cancellationToken = default)
     {
-        var product = await _unitOfWork.BloodProducts.Query()
-            .Where(bp => bp.Id == productId && !bp.IsDeleted)
-            .Include(bp => bp.Donation)
-                .ThenInclude(d => d!.Donor)
-            .Include(bp => bp.CrossMatches)
-                .ThenInclude(cm => cm.BloodRequest)
-                    .ThenInclude(br => br!.Hospital)
-            .Include(bp => bp.ScrapRecords)
-            .FirstOrDefaultAsync(cancellationToken)
+        var product = await _unitOfWork.BloodProducts.FirstOrDefaultAsync(
+            bp => bp.Id == productId && !bp.IsDeleted,
+            new[] { "Donation.Donor", "CrossMatches.BloodRequest.Hospital", "ScrapRecords" },
+            cancellationToken)
             ?? throw new NotFoundException("BloodProduct", productId);
 
         var nodes = new List<TraceNodeDto>();
@@ -351,10 +318,10 @@ public class ScrapTraceService : IScrapTraceService
 
     public async Task<TraceResultDto> TraceByDonorAsync(Guid donorId, CancellationToken cancellationToken = default)
     {
-        var donations = await _unitOfWork.Donations.Query()
-            .Where(d => d.DonorId == donorId && !d.IsDeleted)
-            .Include(d => d.BloodProducts)
-            .ToListAsync(cancellationToken);
+        var donations = await _unitOfWork.Donations.FindAsync(
+            d => d.DonorId == donorId && !d.IsDeleted,
+            new[] { "BloodProducts" },
+            cancellationToken);
 
         var nodes = new List<TraceNodeDto>();
 
@@ -406,14 +373,10 @@ public class ScrapTraceService : IScrapTraceService
 
     public async Task<TraceResultDto> TraceByPatientAsync(string patientId, CancellationToken cancellationToken = default)
     {
-        var requests = await _unitOfWork.BloodRequests.Query()
-            .Where(r => r.PatientId == patientId && !r.IsDeleted)
-            .Include(r => r.CrossMatches)
-                .ThenInclude(cm => cm.BloodProduct)
-                    .ThenInclude(bp => bp!.Donation)
-                        .ThenInclude(d => d!.Donor)
-            .Include(r => r.Hospital)
-            .ToListAsync(cancellationToken);
+        var requests = await _unitOfWork.BloodRequests.FindAsync(
+            r => r.PatientId == patientId && !r.IsDeleted,
+            new[] { "CrossMatches.BloodProduct.Donation.Donor", "Hospital" },
+            cancellationToken);
 
         var nodes = new List<TraceNodeDto>();
 
@@ -468,10 +431,10 @@ public class ScrapTraceService : IScrapTraceService
 
     public async Task<ScrapStatsDto> GetScrapStatsAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
     {
-        var scraps = await _unitOfWork.ScrapRecords.Query()
-            .Where(s => s.ScrapDate >= startDate && s.ScrapDate <= endDate && !s.IsDeleted)
-            .Include(s => s.BloodProduct)
-            .ToListAsync(cancellationToken);
+        var scraps = await _unitOfWork.ScrapRecords.FindAsync(
+            s => s.ScrapDate >= startDate && s.ScrapDate <= endDate && !s.IsDeleted,
+            new[] { "BloodProduct" },
+            cancellationToken);
 
         var totalProducts = await _unitOfWork.BloodProducts.CountAsync(
             bp => bp.ProductionDate >= startDate && bp.ProductionDate <= endDate && !bp.IsDeleted,
@@ -492,12 +455,10 @@ public class ScrapTraceService : IScrapTraceService
 
     public async Task<IEnumerable<ProductTraceDto>> GetFullTraceChainAsync(Guid productId, CancellationToken cancellationToken = default)
     {
-        var product = await _unitOfWork.BloodProducts.Query()
-            .Where(bp => bp.Id == productId && !bp.IsDeleted)
-            .Include(bp => bp.Donation).ThenInclude(d => d!.Donor)
-            .Include(bp => bp.CrossMatches).ThenInclude(cm => cm.BloodRequest).ThenInclude(br => br!.Hospital)
-            .Include(bp => bp.ScrapRecords)
-            .FirstOrDefaultAsync(cancellationToken)
+        var product = await _unitOfWork.BloodProducts.FirstOrDefaultAsync(
+            bp => bp.Id == productId && !bp.IsDeleted,
+            new[] { "Donation.Donor", "CrossMatches.BloodRequest.Hospital", "ScrapRecords" },
+            cancellationToken)
             ?? throw new NotFoundException("BloodProduct", productId);
 
         var events = new List<TraceEventDto>();

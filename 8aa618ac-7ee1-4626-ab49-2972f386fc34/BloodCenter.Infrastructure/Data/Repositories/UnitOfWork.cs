@@ -25,6 +25,7 @@ public class UnitOfWork : IUnitOfWork
         CrossMatches = new Repository<CrossMatch>(context);
         ScrapRecords = new Repository<ScrapRecord>(context);
         InventorySettings = new Repository<InventorySetting>(context);
+        DeferralSettings = new Repository<DeferralSettings>(context);
     }
 
     public IRepository<User> Users { get; private set; }
@@ -40,6 +41,7 @@ public class UnitOfWork : IUnitOfWork
     public IRepository<CrossMatch> CrossMatches { get; private set; }
     public IRepository<ScrapRecord> ScrapRecords { get; private set; }
     public IRepository<InventorySetting> InventorySettings { get; private set; }
+    public IRepository<DeferralSettings> DeferralSettings { get; private set; }
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

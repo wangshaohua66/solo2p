@@ -5,7 +5,6 @@ using BloodCenter.Core.Interfaces.Data;
 using BloodCenter.Core.Entities;
 using BloodCenter.Core.Entities.Enums;
 using BloodCenter.Core.Entities.ValueObjects;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace BloodCenter.Core.Services;
@@ -27,10 +26,10 @@ public class ComponentPreparationService : IComponentPreparationService
     {
         _logger.LogInformation("Processing whole blood for donation {DonationId}", donationId);
 
-        var donation = await _unitOfWork.Donations.Query()
-            .Where(d => d.Id == donationId && !d.IsDeleted)
-            .Include(d => d.Donor)
-            .FirstOrDefaultAsync(cancellationToken)
+        var donation = await _unitOfWork.Donations.FirstOrDefaultAsync(
+            d => d.Id == donationId && !d.IsDeleted,
+            new[] { "Donor" },
+            cancellationToken)
             ?? throw new NotFoundException("Donation", donationId);
 
         if (donation.Status != DonationStatus.Released && donation.Status != DonationStatus.Completed)
@@ -46,9 +45,9 @@ public class ComponentPreparationService : IComponentPreparationService
         var preparer = await _unitOfWork.Users.GetByIdAsync(preparedById, cancellationToken)
             ?? throw new NotFoundException("Preparer", preparedById);
 
-        var existingProducts = await _unitOfWork.BloodProducts.Query()
-            .Where(bp => bp.DonationId == donationId && !bp.IsDeleted)
-            .ToListAsync(cancellationToken);
+        var existingProducts = await _unitOfWork.BloodProducts.FindAsync(
+            bp => bp.DonationId == donationId && !bp.IsDeleted,
+            cancellationToken);
 
         if (existingProducts.Any())
         {
@@ -62,6 +61,10 @@ public class ComponentPreparationService : IComponentPreparationService
             ABO = donation.BloodGroup.ABO,
             Rh = donation.BloodGroup.Rh
         };
+
+        var initialStatus = donation.Status == DonationStatus.Released
+            ? InventoryStatus.InStock
+            : InventoryStatus.Quarantined;
 
         var products = new List<BloodProduct>
         {
@@ -77,7 +80,7 @@ public class ComponentPreparationService : IComponentPreparationService
                 ExpiryDate = productionDate.AddDays(35),
                 StorageLocation = $"RBC-{bloodGroup}",
                 StorageTemperature = "2-6°C",
-                Status = InventoryStatus.InStock,
+                Status = initialStatus,
                 IsSpecialProduct = false,
                 PreparedById = preparedById,
                 PreparedAt = productionDate,
@@ -96,7 +99,7 @@ public class ComponentPreparationService : IComponentPreparationService
                 ExpiryDate = productionDate.AddDays(365),
                 StorageLocation = $"PLASMA-{bloodGroup}",
                 StorageTemperature = "-18°C",
-                Status = InventoryStatus.InStock,
+                Status = initialStatus,
                 IsSpecialProduct = false,
                 PreparedById = preparedById,
                 PreparedAt = productionDate,
@@ -115,7 +118,7 @@ public class ComponentPreparationService : IComponentPreparationService
                 ExpiryDate = productionDate.AddDays(5),
                 StorageLocation = $"PLT-{bloodGroup}",
                 StorageTemperature = "20-24°C",
-                Status = InventoryStatus.InStock,
+                Status = initialStatus,
                 IsSpecialProduct = false,
                 PreparedById = preparedById,
                 PreparedAt = productionDate,
@@ -200,78 +203,44 @@ public class ComponentPreparationService : IComponentPreparationService
 
     public async Task<BloodProductDto?> GetProductByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var product = await _unitOfWork.BloodProducts.Query()
-            .Where(bp => bp.Id == id && !bp.IsDeleted)
-            .Include(bp => bp.Donation)
-            .Include(bp => bp.PreparedBy)
-            .FirstOrDefaultAsync(cancellationToken);
+        var product = await _unitOfWork.BloodProducts.FirstOrDefaultAsync(
+            bp => bp.Id == id && !bp.IsDeleted,
+            new[] { "Donation", "PreparedBy" },
+            cancellationToken);
 
         return product == null ? null : _mapper.Map<BloodProductDto>(product);
     }
 
     public async Task<BloodProductDto?> GetProductByCodeAsync(string productCode, CancellationToken cancellationToken = default)
     {
-        var product = await _unitOfWork.BloodProducts.Query()
-            .Where(bp => bp.ProductCode == productCode && !bp.IsDeleted)
-            .Include(bp => bp.Donation)
-            .Include(bp => bp.PreparedBy)
-            .FirstOrDefaultAsync(cancellationToken);
+        var product = await _unitOfWork.BloodProducts.FirstOrDefaultAsync(
+            bp => bp.ProductCode == productCode && !bp.IsDeleted,
+            new[] { "Donation", "PreparedBy" },
+            cancellationToken);
 
         return product == null ? null : _mapper.Map<BloodProductDto>(product);
     }
 
     public async Task<PagedResult<BloodProductDto>> GetProductsAsync(SearchProductQuery query, CancellationToken cancellationToken = default)
     {
-        var queryable = _unitOfWork.BloodProducts.Query().Where(bp => !bp.IsDeleted);
-
-        if (query.DonationId.HasValue)
-        {
-            queryable = queryable.Where(bp => bp.DonationId == query.DonationId.Value);
-        }
-
-        if (query.ProductType.HasValue)
-        {
-            queryable = queryable.Where(bp => bp.ProductType == query.ProductType.Value);
-        }
-
-        if (query.BloodType.HasValue)
-        {
-            queryable = queryable.Where(bp => bp.BloodGroup.ABO == query.BloodType.Value);
-        }
-
-        if (query.RhFactor.HasValue)
-        {
-            queryable = queryable.Where(bp => bp.BloodGroup.Rh == query.RhFactor.Value);
-        }
-
-        if (query.Status.HasValue)
-        {
-            queryable = queryable.Where(bp => bp.Status == query.Status.Value);
-        }
-
-        if (query.ExpiryBefore.HasValue)
-        {
-            queryable = queryable.Where(bp => bp.ExpiryDate <= query.ExpiryBefore.Value);
-        }
-
-        if (query.ExpiryAfter.HasValue)
-        {
-            queryable = queryable.Where(bp => bp.ExpiryDate >= query.ExpiryAfter.Value);
-        }
-
-        if (!string.IsNullOrEmpty(query.StorageLocation))
-        {
-            queryable = queryable.Where(bp => bp.StorageLocation!.Contains(query.StorageLocation));
-        }
-
-        var totalCount = await queryable.CountAsync(cancellationToken);
-        var items = await queryable
-            .Include(bp => bp.Donation)
-            .Include(bp => bp.PreparedBy)
-            .OrderBy(bp => bp.ExpiryDate)
-            .Skip((query.PageNumber - 1) * query.PageSize)
-            .Take(query.PageSize)
-            .ToListAsync(cancellationToken);
+        var (items, totalCount) = await _unitOfWork.BloodProducts.GetPagedAsync(
+            query.PageNumber,
+            query.PageSize,
+            bp => !bp.IsDeleted
+                && (!query.DonationId.HasValue || bp.DonationId == query.DonationId.Value)
+                && (!query.ProductType.HasValue || bp.ProductType == query.ProductType.Value)
+                && (!query.BloodType.HasValue || bp.BloodGroup.ABO == query.BloodType.Value)
+                && (!query.RhFactor.HasValue || bp.BloodGroup.Rh == query.RhFactor.Value)
+                && (!query.Status.HasValue || bp.Status == query.Status.Value)
+                && (!query.ExpiryBefore.HasValue || bp.ExpiryDate <= query.ExpiryBefore.Value)
+                && (!query.ExpiryAfter.HasValue || bp.ExpiryDate >= query.ExpiryAfter.Value)
+                && (string.IsNullOrEmpty(query.StorageLocation) || bp.StorageLocation!.Contains(query.StorageLocation)),
+            bp => bp.ExpiryDate,
+            false,
+            null,
+            true,
+            new[] { "Donation", "PreparedBy" },
+            cancellationToken);
 
         return new PagedResult<BloodProductDto>(
             _mapper.Map<IEnumerable<BloodProductDto>>(items),
@@ -282,11 +251,12 @@ public class ComponentPreparationService : IComponentPreparationService
 
     public async Task<IEnumerable<BloodProductDto>> GetProductsByDonationAsync(Guid donationId, CancellationToken cancellationToken = default)
     {
-        var products = await _unitOfWork.BloodProducts.Query()
-            .Where(bp => bp.DonationId == donationId && !bp.IsDeleted)
-            .Include(bp => bp.PreparedBy)
-            .OrderBy(bp => bp.ProductType)
-            .ToListAsync(cancellationToken);
+        var products = await _unitOfWork.BloodProducts.FindAsync(
+            bp => bp.DonationId == donationId && !bp.IsDeleted,
+            bp => bp.ProductType,
+            false,
+            new[] { "PreparedBy" },
+            cancellationToken);
 
         return _mapper.Map<IEnumerable<BloodProductDto>>(products);
     }
@@ -308,38 +278,40 @@ public class ComponentPreparationService : IComponentPreparationService
     public async Task<IEnumerable<BloodProductDto>> GetExpiringProductsAsync(int withinHours, CancellationToken cancellationToken = default)
     {
         var threshold = DateTime.UtcNow.AddHours(withinHours);
-        var products = await _unitOfWork.BloodProducts.Query()
-            .Where(bp => !bp.IsDeleted
+        var products = await _unitOfWork.BloodProducts.FindAsync(
+            bp => !bp.IsDeleted
                 && bp.Status == InventoryStatus.InStock
                 && bp.ExpiryDate <= threshold
-                && bp.ExpiryDate > DateTime.UtcNow)
-            .Include(bp => bp.Donation)
-            .OrderBy(bp => bp.ExpiryDate)
-            .ToListAsync(cancellationToken);
+                && bp.ExpiryDate > DateTime.UtcNow,
+            bp => bp.ExpiryDate,
+            false,
+            new[] { "Donation" },
+            cancellationToken);
 
         return _mapper.Map<IEnumerable<BloodProductDto>>(products);
     }
 
     public async Task<IEnumerable<BloodProductDto>> GetProductsToQuarantineAsync(CancellationToken cancellationToken = default)
     {
-        var products = await _unitOfWork.BloodProducts.Query()
-            .Where(bp => !bp.IsDeleted && bp.Status == InventoryStatus.Quarantined)
-            .Include(bp => bp.Donation)
-            .OrderBy(bp => bp.ExpiryDate)
-            .ToListAsync(cancellationToken);
+        var products = await _unitOfWork.BloodProducts.FindAsync(
+            bp => !bp.IsDeleted && bp.Status == InventoryStatus.Quarantined,
+            bp => bp.ExpiryDate,
+            false,
+            new[] { "Donation" },
+            cancellationToken);
 
         return _mapper.Map<IEnumerable<BloodProductDto>>(products);
     }
 
     public async Task<PreparationStatsDto> GetPreparationStatsAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
     {
-        var products = await _unitOfWork.BloodProducts.Query()
-            .Where(bp => bp.ProductionDate >= startDate && bp.ProductionDate <= endDate && !bp.IsDeleted)
-            .Include(bp => bp.Donation)
-            .ToListAsync(cancellationToken);
+        var products = await _unitOfWork.BloodProducts.FindAsync(
+            bp => bp.ProductionDate >= startDate && bp.ProductionDate <= endDate && !bp.IsDeleted,
+            new[] { "Donation" },
+            cancellationToken);
 
         return new PreparationStatsDto(
-            TotalProducts: products.Count,
+            TotalProducts: products.Count(),
             StandardProducts: products.Count(p => !p.IsSpecialProduct),
             SpecialProducts: products.Count(p => p.IsSpecialProduct),
             ByProductType: products.GroupBy(p => p.ProductType).ToDictionary(g => g.Key, g => g.Count()),

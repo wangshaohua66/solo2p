@@ -4,7 +4,6 @@ using BloodCenter.Core.Interfaces;
 using BloodCenter.Core.Interfaces.Data;
 using BloodCenter.Core.Entities;
 using BloodCenter.Core.Entities.Enums;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace BloodCenter.Core.Services;
@@ -87,9 +86,9 @@ public class BloodTestService : IBloodTestService
             throw new ForbiddenException("Cannot review own test results");
         }
 
-        var donationTests = await _unitOfWork.BloodTests.Query()
-            .Where(t => t.DonationId == test.DonationId && !t.IsDeleted)
-            .ToListAsync(cancellationToken);
+        var donationTests = await _unitOfWork.BloodTests.FindAsync(
+            t => t.DonationId == test.DonationId && !t.IsDeleted,
+            cancellationToken);
 
         var alreadyReviewed = donationTests
             .Where(t => t.IsReReviewed && t.SecondReviewerId.HasValue && t.Id != testId)
@@ -138,77 +137,47 @@ public class BloodTestService : IBloodTestService
 
     public async Task<BloodTestDto?> GetTestByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var test = await _unitOfWork.BloodTests.Query()
-            .Where(t => t.Id == id && !t.IsDeleted)
-            .Include(t => t.Donation)
-            .Include(t => t.Technician)
-            .Include(t => t.SecondReviewer)
-            .FirstOrDefaultAsync(cancellationToken);
+        var test = await _unitOfWork.BloodTests.FirstOrDefaultAsync(
+            t => t.Id == id && !t.IsDeleted,
+            new[] { "Donation", "Technician", "SecondReviewer" },
+            cancellationToken);
 
         return test == null ? null : _mapper.Map<BloodTestDto>(test);
     }
 
     public async Task<IEnumerable<BloodTestDto>> GetTestsByDonationAsync(Guid donationId, CancellationToken cancellationToken = default)
     {
-        var tests = await _unitOfWork.BloodTests.Query()
-            .Where(t => t.DonationId == donationId && !t.IsDeleted)
-            .Include(t => t.Technician)
-            .Include(t => t.SecondReviewer)
-            .OrderBy(t => t.TestType)
-            .ThenBy(t => t.TestItem)
-            .ToListAsync(cancellationToken);
+        var tests = await _unitOfWork.BloodTests.FindAsync(
+            t => t.DonationId == donationId && !t.IsDeleted,
+            t => t.TestType,
+            false,
+            new[] { "Technician", "SecondReviewer" },
+            cancellationToken);
+
+        tests = tests.OrderBy(t => t.TestType).ThenBy(t => t.TestItem).ToList();
 
         return _mapper.Map<IEnumerable<BloodTestDto>>(tests);
     }
 
     public async Task<PagedResult<BloodTestDto>> GetTestsAsync(SearchBloodTestQuery query, CancellationToken cancellationToken = default)
     {
-        var queryable = _unitOfWork.BloodTests.Query().Where(t => !t.IsDeleted);
-
-        if (query.DonationId.HasValue)
-        {
-            queryable = queryable.Where(t => t.DonationId == query.DonationId.Value);
-        }
-
-        if (query.TechnicianId.HasValue)
-        {
-            queryable = queryable.Where(t => t.TechnicianId == query.TechnicianId.Value);
-        }
-
-        if (query.TestType.HasValue)
-        {
-            queryable = queryable.Where(t => t.TestType == query.TestType.Value);
-        }
-
-        if (query.TestItem.HasValue)
-        {
-            queryable = queryable.Where(t => t.TestItem == query.TestItem.Value);
-        }
-
-        if (query.Result.HasValue)
-        {
-            queryable = queryable.Where(t => t.Result == query.Result.Value);
-        }
-
-        if (query.StartDate.HasValue)
-        {
-            queryable = queryable.Where(t => t.TestTime >= query.StartDate.Value);
-        }
-
-        if (query.EndDate.HasValue)
-        {
-            queryable = queryable.Where(t => t.TestTime <= query.EndDate.Value);
-        }
-
-        var totalCount = await queryable.CountAsync(cancellationToken);
-        var items = await queryable
-            .Include(t => t.Donation)
-            .Include(t => t.Technician)
-            .Include(t => t.SecondReviewer)
-            .OrderByDescending(t => t.TestTime)
-            .Skip((query.PageNumber - 1) * query.PageSize)
-            .Take(query.PageSize)
-            .ToListAsync(cancellationToken);
+        var (items, totalCount) = await _unitOfWork.BloodTests.GetPagedAsync(
+            query.PageNumber,
+            query.PageSize,
+            t => !t.IsDeleted
+                && (!query.DonationId.HasValue || t.DonationId == query.DonationId.Value)
+                && (!query.TechnicianId.HasValue || t.TechnicianId == query.TechnicianId.Value)
+                && (!query.TestType.HasValue || t.TestType == query.TestType.Value)
+                && (!query.TestItem.HasValue || t.TestItem == query.TestItem.Value)
+                && (!query.Result.HasValue || t.Result == query.Result.Value)
+                && (!query.StartDate.HasValue || t.TestTime >= query.StartDate.Value)
+                && (!query.EndDate.HasValue || t.TestTime <= query.EndDate.Value),
+            t => t.TestTime,
+            true,
+            null,
+            true,
+            new[] { "Donation", "Technician", "SecondReviewer" },
+            cancellationToken);
 
         return new PagedResult<BloodTestDto>(
             _mapper.Map<IEnumerable<BloodTestDto>>(items),
@@ -219,16 +188,16 @@ public class BloodTestService : IBloodTestService
 
     public async Task<TestSummaryDto> GetTestsSummaryAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
     {
-        var tests = await _unitOfWork.BloodTests.Query()
-            .Where(t => t.TestTime >= startDate && t.TestTime <= endDate && !t.IsDeleted)
-            .ToListAsync(cancellationToken);
+        var tests = await _unitOfWork.BloodTests.FindAsync(
+            t => t.TestTime >= startDate && t.TestTime <= endDate && !t.IsDeleted,
+            cancellationToken);
 
         return new TestSummaryDto(
-            TotalTests: tests.Count,
+            TotalTests: tests.Count(),
             PositiveTests: tests.Count(t => t.Result == TestResult.Positive || t.Result == TestResult.Reactive),
             NegativeTests: tests.Count(t => t.Result == TestResult.Negative || t.Result == TestResult.NonReactive),
             PendingTests: tests.Count(t => t.Result == TestResult.Pending),
-            PositiveRate: tests.Any() ? Math.Round((decimal)tests.Count(t => t.Result == TestResult.Positive || t.Result == TestResult.Reactive) / tests.Count * 100, 2) : 0,
+            PositiveRate: tests.Any() ? Math.Round((decimal)tests.Count(t => t.Result == TestResult.Positive || t.Result == TestResult.Reactive) / tests.Count() * 100, 2) : 0,
             ByTestItem: tests.GroupBy(t => t.TestItem).ToDictionary(g => g.Key, g => g.Count()),
             ByTestType: tests.GroupBy(t => t.TestType).ToDictionary(g => g.Key, g => g.Count())
         );
@@ -252,9 +221,9 @@ public class BloodTestService : IBloodTestService
             TestItem.HIVRNA, TestItem.HCVRNA, TestItem.HBVRNA
         };
 
-        var tests = await _unitOfWork.BloodTests.Query()
-            .Where(t => t.DonationId == donationId && !t.IsDeleted)
-            .ToListAsync(cancellationToken);
+        var tests = await _unitOfWork.BloodTests.FindAsync(
+            t => t.DonationId == donationId && !t.IsDeleted,
+            cancellationToken);
 
         var missingElisaFirst = new List<string>();
         var missingElisaSecond = new List<string>();
@@ -314,10 +283,10 @@ public class BloodTestService : IBloodTestService
 
     public async Task QuarantineDonorProductsAsync(Guid donorId, string reason, CancellationToken cancellationToken = default)
     {
-        var donationIds = await _unitOfWork.Donations.Query()
-            .Where(d => d.DonorId == donorId && !d.IsDeleted)
-            .Select(d => d.Id)
-            .ToListAsync(cancellationToken);
+        var donations = await _unitOfWork.Donations.FindAsync(
+            d => d.DonorId == donorId && !d.IsDeleted,
+            cancellationToken);
+        var donationIds = donations.Select(d => d.Id).ToList();
 
         foreach (var donationId in donationIds)
         {
@@ -377,6 +346,18 @@ public class BloodTestService : IBloodTestService
         donation.UpdatedAt = DateTime.UtcNow;
 
         _unitOfWork.Donations.Update(donation);
+
+        var products = await _unitOfWork.BloodProducts.FindAsync(
+            bp => bp.DonationId == donationId && !bp.IsDeleted && bp.Status == InventoryStatus.Quarantined,
+            cancellationToken);
+
+        foreach (var product in products)
+        {
+            product.Status = InventoryStatus.InStock;
+            product.UpdatedAt = DateTime.UtcNow;
+            _unitOfWork.BloodProducts.Update(product);
+        }
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Donation {DonationId} released", donationId);
@@ -403,9 +384,9 @@ public class BloodTestService : IBloodTestService
             _unitOfWork.Donations.Update(donation);
         }
 
-        var products = await _unitOfWork.BloodProducts.Query()
-            .Where(bp => bp.DonationId == donationId && !bp.IsDeleted)
-            .ToListAsync(cancellationToken);
+        var products = await _unitOfWork.BloodProducts.FindAsync(
+            bp => bp.DonationId == donationId && !bp.IsDeleted,
+            cancellationToken);
 
         foreach (var product in products)
         {
@@ -423,8 +404,21 @@ public class BloodTestService : IBloodTestService
         {
             donation.Status = DonationStatus.Released;
             donation.AllTestsPassed = true;
+            donation.IsQuarantined = false;
             donation.UpdatedAt = DateTime.UtcNow;
             _unitOfWork.Donations.Update(donation);
+
+            var products = await _unitOfWork.BloodProducts.FindAsync(
+                bp => bp.DonationId == donation.Id && !bp.IsDeleted && bp.Status == InventoryStatus.Quarantined,
+                cancellationToken);
+
+            foreach (var product in products)
+            {
+                product.Status = InventoryStatus.InStock;
+                product.UpdatedAt = DateTime.UtcNow;
+                _unitOfWork.BloodProducts.Update(product);
+            }
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
     }

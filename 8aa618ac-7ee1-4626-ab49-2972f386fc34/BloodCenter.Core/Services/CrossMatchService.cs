@@ -5,7 +5,6 @@ using BloodCenter.Core.Interfaces.Data;
 using BloodCenter.Core.Entities;
 using BloodCenter.Core.Entities.Enums;
 using BloodCenter.Core.Entities.ValueObjects;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace BloodCenter.Core.Services;
@@ -58,75 +57,43 @@ public class CrossMatchService : ICrossMatchService
 
     public async Task<BloodRequestDto?> GetRequestByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var request = await _unitOfWork.BloodRequests.Query()
-            .Where(r => r.Id == id && !r.IsDeleted)
-            .Include(r => r.Hospital)
-            .Include(r => r.CrossMatches)
-            .FirstOrDefaultAsync(cancellationToken);
+        var request = await _unitOfWork.BloodRequests.FirstOrDefaultAsync(
+            r => r.Id == id && !r.IsDeleted,
+            new[] { "Hospital", "CrossMatches" },
+            cancellationToken);
 
         return request == null ? null : _mapper.Map<BloodRequestDto>(request);
     }
 
     public async Task<BloodRequestDto?> GetRequestByNumberAsync(string requestNumber, CancellationToken cancellationToken = default)
     {
-        var request = await _unitOfWork.BloodRequests.Query()
-            .Where(r => r.RequestNumber == requestNumber && !r.IsDeleted)
-            .Include(r => r.Hospital)
-            .Include(r => r.CrossMatches)
-            .FirstOrDefaultAsync(cancellationToken);
+        var request = await _unitOfWork.BloodRequests.FirstOrDefaultAsync(
+            r => r.RequestNumber == requestNumber && !r.IsDeleted,
+            new[] { "Hospital", "CrossMatches" },
+            cancellationToken);
 
         return request == null ? null : _mapper.Map<BloodRequestDto>(request);
     }
 
     public async Task<PagedResult<BloodRequestDto>> GetRequestsAsync(SearchBloodRequestQuery query, CancellationToken cancellationToken = default)
     {
-        var queryable = _unitOfWork.BloodRequests.Query()
-            .Where(r => !r.IsDeleted)
-            .Include(r => r.Hospital)
-            .Include(r => r.CrossMatches);
-
-        if (query.HospitalId.HasValue)
-        {
-            queryable = queryable.Where(r => r.HospitalId == query.HospitalId.Value);
-        }
-
-        if (!string.IsNullOrEmpty(query.PatientId))
-        {
-            queryable = queryable.Where(r => r.PatientId.Contains(query.PatientId));
-        }
-
-        if (query.ProductType.HasValue)
-        {
-            queryable = queryable.Where(r => r.ProductType == query.ProductType.Value);
-        }
-
-        if (query.Urgency.HasValue)
-        {
-            queryable = queryable.Where(r => r.Urgency == query.Urgency.Value);
-        }
-
-        if (query.Status.HasValue)
-        {
-            queryable = queryable.Where(r => r.Status == query.Status.Value);
-        }
-
-        if (query.StartDate.HasValue)
-        {
-            queryable = queryable.Where(r => r.CreatedAt >= query.StartDate.Value);
-        }
-
-        if (query.EndDate.HasValue)
-        {
-            queryable = queryable.Where(r => r.CreatedAt <= query.EndDate.Value);
-        }
-
-        var totalCount = await queryable.CountAsync(cancellationToken);
-        var items = await queryable
-            .OrderByDescending(r => r.Urgency)
-            .ThenByDescending(r => r.CreatedAt)
-            .Skip((query.PageNumber - 1) * query.PageSize)
-            .Take(query.PageSize)
-            .ToListAsync(cancellationToken);
+        var (items, totalCount) = await _unitOfWork.BloodRequests.GetPagedAsync(
+            query.PageNumber,
+            query.PageSize,
+            r => !r.IsDeleted
+                && (!query.HospitalId.HasValue || r.HospitalId == query.HospitalId.Value)
+                && (string.IsNullOrEmpty(query.PatientId) || r.PatientId.Contains(query.PatientId))
+                && (!query.ProductType.HasValue || r.ProductType == query.ProductType.Value)
+                && (!query.Urgency.HasValue || r.Urgency == query.Urgency.Value)
+                && (!query.Status.HasValue || r.Status == query.Status.Value)
+                && (!query.StartDate.HasValue || r.CreatedAt >= query.StartDate.Value)
+                && (!query.EndDate.HasValue || r.CreatedAt <= query.EndDate.Value),
+            r => r.Urgency,
+            true,
+            r => r.CreatedAt,
+            true,
+            new[] { "Hospital", "CrossMatches" },
+            cancellationToken);
 
         return new PagedResult<BloodRequestDto>(
             _mapper.Map<IEnumerable<BloodRequestDto>>(items),
@@ -137,12 +104,12 @@ public class CrossMatchService : ICrossMatchService
 
     public async Task<IEnumerable<BloodRequestDto>> GetRequestsByHospitalAsync(Guid hospitalId, CancellationToken cancellationToken = default)
     {
-        var requests = await _unitOfWork.BloodRequests.Query()
-            .Where(r => r.HospitalId == hospitalId && !r.IsDeleted)
-            .Include(r => r.Hospital)
-            .Include(r => r.CrossMatches)
-            .OrderByDescending(r => r.CreatedAt)
-            .ToListAsync(cancellationToken);
+        var requests = await _unitOfWork.BloodRequests.FindAsync(
+            r => r.HospitalId == hospitalId && !r.IsDeleted,
+            r => r.CreatedAt,
+            true,
+            new[] { "Hospital", "CrossMatches" },
+            cancellationToken);
 
         return _mapper.Map<IEnumerable<BloodRequestDto>>(requests);
     }
@@ -151,9 +118,9 @@ public class CrossMatchService : ICrossMatchService
     {
         _logger.LogInformation("Performing cross match for request {RequestId}", requestId);
 
-        var request = await _unitOfWork.BloodRequests.Query()
-            .Where(r => r.Id == requestId && !r.IsDeleted)
-            .FirstOrDefaultAsync(cancellationToken)
+        var request = await _unitOfWork.BloodRequests.FirstOrDefaultAsync(
+            r => r.Id == requestId && !r.IsDeleted,
+            cancellationToken)
             ?? throw new NotFoundException("BloodRequest", requestId);
 
         var technician = await _unitOfWork.Users.GetByIdAsync(technicianId, cancellationToken)
@@ -292,10 +259,10 @@ public class CrossMatchService : ICrossMatchService
     {
         _logger.LogInformation("Issuing products for request {RequestId}", requestId);
 
-        var request = await _unitOfWork.BloodRequests.Query()
-            .Where(r => r.Id == requestId && !r.IsDeleted)
-            .Include(r => r.CrossMatches)
-            .FirstOrDefaultAsync(cancellationToken)
+        var request = await _unitOfWork.BloodRequests.FirstOrDefaultAsync(
+            r => r.Id == requestId && !r.IsDeleted,
+            new[] { "CrossMatches" },
+            cancellationToken)
             ?? throw new NotFoundException("BloodRequest", requestId);
 
         var compatibleMatches = request.CrossMatches
@@ -386,9 +353,9 @@ public class CrossMatchService : ICrossMatchService
 
     public async Task<IEnumerable<CompatibleProductDto>> FindCompatibleProductsAsync(Guid requestId, CancellationToken cancellationToken = default)
     {
-        var request = await _unitOfWork.BloodRequests.Query()
-            .Where(r => r.Id == requestId && !r.IsDeleted)
-            .FirstOrDefaultAsync(cancellationToken)
+        var request = await _unitOfWork.BloodRequests.FirstOrDefaultAsync(
+            r => r.Id == requestId && !r.IsDeleted,
+            cancellationToken)
             ?? throw new NotFoundException("BloodRequest", requestId);
 
         var patientBloodGroup = new BloodGroup
@@ -397,12 +364,12 @@ public class CrossMatchService : ICrossMatchService
             Rh = request.PatientBloodGroup.Rh
         };
 
-        var products = await _unitOfWork.BloodProducts.Query()
-            .Where(bp => !bp.IsDeleted
+        var products = await _unitOfWork.BloodProducts.FindAsync(
+            bp => !bp.IsDeleted
                 && bp.Status == InventoryStatus.InStock
                 && bp.ProductType == request.ProductType
-                && bp.ExpiryDate > DateTime.UtcNow)
-            .ToListAsync(cancellationToken);
+                && bp.ExpiryDate > DateTime.UtcNow,
+            cancellationToken);
 
         var compatible = products
             .Where(bp => bp.BloodGroup.IsCompatibleWith(patientBloodGroup))
@@ -426,9 +393,9 @@ public class CrossMatchService : ICrossMatchService
 
     public async Task<RequestStatsDto> GetRequestStatsAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
     {
-        var requests = await _unitOfWork.BloodRequests.Query()
-            .Where(r => r.CreatedAt >= startDate && r.CreatedAt <= endDate && !r.IsDeleted)
-            .ToListAsync(cancellationToken);
+        var requests = await _unitOfWork.BloodRequests.FindAsync(
+            r => r.CreatedAt >= startDate && r.CreatedAt <= endDate && !r.IsDeleted,
+            cancellationToken);
 
         var fulfilledRequests = requests.Where(r => r.Status == RequestStatus.Fulfilled).ToList();
         var responseTimes = fulfilledRequests
@@ -452,10 +419,10 @@ public class CrossMatchService : ICrossMatchService
 
     public async Task CancelRequestAsync(Guid requestId, string reason, CancellationToken cancellationToken = default)
     {
-        var request = await _unitOfWork.BloodRequests.Query()
-            .Where(r => r.Id == requestId && !r.IsDeleted)
-            .Include(r => r.CrossMatches)
-            .FirstOrDefaultAsync(cancellationToken)
+        var request = await _unitOfWork.BloodRequests.FirstOrDefaultAsync(
+            r => r.Id == requestId && !r.IsDeleted,
+            new[] { "CrossMatches" },
+            cancellationToken)
             ?? throw new NotFoundException("BloodRequest", requestId);
 
         request.Status = RequestStatus.Cancelled;

@@ -2,10 +2,13 @@ using BloodCenter.API.Middleware;
 using BloodCenter.Core.Entities;
 using BloodCenter.Core.Interfaces;
 using BloodCenter.Core.Interfaces.Data;
+using BloodCenter.Core.Options;
 using BloodCenter.Core.Services;
 using BloodCenter.Core.Services.Workers;
 using BloodCenter.Infrastructure.Data;
 using BloodCenter.Infrastructure.Data.Repositories;
+using BloodCenter.Infrastructure.Notifications;
+using BloodCenter.Infrastructure.Workers;
 using FluentValidation.AspNetCore;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -101,8 +104,15 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 
 builder.Services.Configure<DeferralOptions>(builder.Configuration.GetSection("DeferralOptions"));
 builder.Services.Configure<BackgroundWorkerOptions>(builder.Configuration.GetSection("BackgroundWorkerOptions"));
+builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
+builder.Services.Configure<SmsSettings>(builder.Configuration.GetSection("SmsSettings"));
+
+builder.Services.AddSingleton<INotificationQueue, NotificationQueue>();
+builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+builder.Services.AddHttpClient<ISmsSender, SmsNotificationSender>();
 
 builder.Services.AddHostedService<ExpiredProductsBackgroundService>();
+builder.Services.AddHostedService<NotificationQueueHostedService>();
 
 builder.Services.AddAutoMapper(typeof(Program).Assembly);
 builder.Services.AddFluentValidation(fv => fv.RegisterValidatorsFromAssemblyContaining<Program>());

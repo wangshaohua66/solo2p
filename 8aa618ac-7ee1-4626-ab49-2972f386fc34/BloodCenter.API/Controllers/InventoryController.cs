@@ -19,9 +19,9 @@ public class InventoryController : ControllerBase
 
     [HttpGet("summary")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<InventoryItemDto>>> GetSummary(CancellationToken cancellationToken)
+    public async Task<ActionResult<PagedResult<InventoryItemDto>>> GetSummary([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
     {
-        var result = await _inventoryService.GetInventorySummaryAsync(cancellationToken);
+        var result = await _inventoryService.GetInventorySummaryAsync(pageNumber, pageSize, cancellationToken);
         return Ok(result);
     }
 

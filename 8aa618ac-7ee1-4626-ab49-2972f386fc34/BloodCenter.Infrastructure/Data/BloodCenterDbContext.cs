@@ -24,6 +24,7 @@ public class BloodCenterDbContext : DbContext
     public DbSet<CrossMatch> CrossMatches => Set<CrossMatch>();
     public DbSet<ScrapRecord> ScrapRecords => Set<ScrapRecord>();
     public DbSet<InventorySetting> InventorySettings => Set<InventorySetting>();
+    public DbSet<DeferralSettings> DeferralSettings => Set<DeferralSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

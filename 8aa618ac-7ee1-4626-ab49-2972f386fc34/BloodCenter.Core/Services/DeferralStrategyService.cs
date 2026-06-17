@@ -1,25 +1,67 @@
 using BloodCenter.Core.Entities;
 using BloodCenter.Core.Entities.Enums;
 using BloodCenter.Core.Interfaces;
+using BloodCenter.Core.Interfaces.Data;
 using Microsoft.Extensions.Options;
 
 namespace BloodCenter.Core.Services;
 
 public class DeferralStrategyService : IDeferralStrategy
 {
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IOptions<DeferralOptions> _optionsSnapshot;
     private DeferralOptions _options;
+    private bool _isLoaded;
+    private readonly object _lock = new();
 
-    public DeferralStrategyService(IOptions<DeferralOptions> options)
+    public DeferralStrategyService(IUnitOfWork unitOfWork, IOptions<DeferralOptions> optionsSnapshot)
     {
-        _options = options.Value;
+        _unitOfWork = unitOfWork;
+        _optionsSnapshot = optionsSnapshot;
+        _options = optionsSnapshot.Value;
     }
 
-    public Task<DeferralResult> EvaluateInitialScreeningAsync(
+    private async Task EnsureLoadedAsync(CancellationToken cancellationToken = default)
+    {
+        if (_isLoaded)
+            return;
+
+        lock (_lock)
+        {
+            if (_isLoaded)
+                return;
+        }
+
+        var settings = await _unitOfWork.DeferralSettings.FirstOrDefaultAsync(
+            s => s.Key == "Default",
+            cancellationToken);
+
+        if (settings != null)
+        {
+            _options = MapToOptions(settings);
+        }
+        else
+        {
+            var defaultSettings = MapFromOptions(_optionsSnapshot.Value);
+            await _unitOfWork.DeferralSettings.AddAsync(defaultSettings, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            _options = _optionsSnapshot.Value;
+        }
+
+        lock (_lock)
+        {
+            _isLoaded = true;
+        }
+    }
+
+    public async Task<DeferralResult> EvaluateInitialScreeningAsync(
         double hemoglobin,
         double alt,
         TestResult hbsAg,
         CancellationToken cancellationToken = default)
     {
+        await EnsureLoadedAsync(cancellationToken);
+
         var deferralReasons = new List<string>();
         DeferralReason? primaryReason = null;
         int? deferralDays = null;
@@ -52,19 +94,21 @@ public class DeferralStrategyService : IDeferralStrategy
         bool isEligible = deferralReasons.Count == 0;
         int? finalDeferralDays = isPermanent ? -1 : (isEligible ? null : deferralDays);
 
-        return Task.FromResult(new DeferralResult(
+        return new DeferralResult(
             isEligible,
             primaryReason,
             finalDeferralDays,
-            deferralReasons));
+            deferralReasons);
     }
 
-    public Task<DeferralResult> EvaluateMedicalHistoryAsync(
+    public async Task<DeferralResult> EvaluateMedicalHistoryAsync(
         MedicalHistoryFlags history,
         DateTime? donorLastDonationDate,
         DateTime donorDateOfBirth,
         CancellationToken cancellationToken = default)
     {
+        await EnsureLoadedAsync(cancellationToken);
+
         var deferralReasons = new List<string>();
         DeferralReason? primaryReason = null;
         int maxDeferralDays = 0;
@@ -227,16 +271,18 @@ public class DeferralStrategyService : IDeferralStrategy
             finalDeferralDays = maxDeferralDays > 0 ? maxDeferralDays : null;
         }
 
-        return Task.FromResult(new DeferralResult(
+        return new DeferralResult(
             isEligible,
             primaryReason,
             finalDeferralDays,
-            deferralReasons));
+            deferralReasons);
     }
 
-    public Task<DeferralConfiguration> GetConfigurationAsync(CancellationToken cancellationToken = default)
+    public async Task<DeferralConfiguration> GetConfigurationAsync(CancellationToken cancellationToken = default)
     {
-        var config = new DeferralConfiguration(
+        await EnsureLoadedAsync(cancellationToken);
+
+        return new DeferralConfiguration(
             _options.MinimumHemoglobin,
             _options.MaximumALT,
             _options.DaysAfterSurgery,
@@ -251,27 +297,101 @@ public class DeferralStrategyService : IDeferralStrategy
             _options.DaysBetweenDonations,
             _options.MinimumAge,
             _options.MaximumAge);
-
-        return Task.FromResult(config);
     }
 
-    public Task UpdateConfigurationAsync(DeferralConfiguration configuration, CancellationToken cancellationToken = default)
+    public async Task UpdateConfigurationAsync(DeferralConfiguration configuration, CancellationToken cancellationToken = default)
     {
-        _options.MinimumHemoglobin = configuration.MinimumHemoglobin;
-        _options.MaximumALT = configuration.MaximumALT;
-        _options.DaysAfterSurgery = configuration.DaysAfterSurgery;
-        _options.DaysAfterTransfusion = configuration.DaysAfterTransfusion;
-        _options.DaysAfterTattoo = configuration.DaysAfterTattoo;
-        _options.DaysAfterDentalWork = configuration.DaysAfterDentalWork;
-        _options.DaysAfterVaccination = configuration.DaysAfterVaccination;
-        _options.DaysAfterMalariaTravel = configuration.DaysAfterMalariaTravel;
-        _options.DaysPostPregnancy = configuration.DaysPostPregnancy;
-        _options.DaysPostBreastfeeding = configuration.DaysPostBreastfeeding;
-        _options.DaysAfterFever = configuration.DaysAfterFever;
-        _options.DaysBetweenDonations = configuration.DaysBetweenDonations;
-        _options.MinimumAge = configuration.MinimumAge;
-        _options.MaximumAge = configuration.MaximumAge;
+        await EnsureLoadedAsync(cancellationToken);
 
-        return Task.CompletedTask;
+        var settings = await _unitOfWork.DeferralSettings.FirstOrDefaultAsync(
+            s => s.Key == "Default",
+            cancellationToken);
+
+        if (settings == null)
+        {
+            settings = new DeferralSettings { Key = "Default" };
+            MapFromConfiguration(configuration, settings);
+            await _unitOfWork.DeferralSettings.AddAsync(settings, cancellationToken);
+        }
+        else
+        {
+            MapFromConfiguration(configuration, settings);
+            _unitOfWork.DeferralSettings.Update(settings);
+        }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        _options = MapToOptions(settings);
+    }
+
+    private static DeferralOptions MapToOptions(DeferralSettings settings)
+    {
+        return new DeferralOptions
+        {
+            MinimumHemoglobin = settings.MinimumHemoglobin,
+            MaximumALT = settings.MaximumALT,
+            LowHemoglobinDeferralDays = settings.LowHemoglobinDeferralDays,
+            HighALTDeferralDays = settings.HighALTDeferralDays,
+            HBsAgPermanentDeferral = settings.HBsAgPermanentDeferral,
+            DaysAfterSurgery = settings.DaysAfterSurgery,
+            DaysAfterTransfusion = settings.DaysAfterTransfusion,
+            DaysAfterTattoo = settings.DaysAfterTattoo,
+            DaysAfterDentalWork = settings.DaysAfterDentalWork,
+            DaysAfterVaccination = settings.DaysAfterVaccination,
+            DaysAfterMalariaTravel = settings.DaysAfterMalariaTravel,
+            DaysPostPregnancy = settings.DaysPostPregnancy,
+            DaysPostBreastfeeding = settings.DaysPostBreastfeeding,
+            DaysAfterFever = settings.DaysAfterFever,
+            DaysBetweenDonations = settings.DaysBetweenDonations,
+            MinimumAge = settings.MinimumAge,
+            MaximumAge = settings.MaximumAge,
+            InfectiousDiseasePermanentDeferral = settings.InfectiousDiseasePermanentDeferral,
+            DrugUsePermanentDeferral = settings.DrugUsePermanentDeferral
+        };
+    }
+
+    private static DeferralSettings MapFromOptions(DeferralOptions options)
+    {
+        return new DeferralSettings
+        {
+            Key = "Default",
+            MinimumHemoglobin = options.MinimumHemoglobin,
+            MaximumALT = options.MaximumALT,
+            LowHemoglobinDeferralDays = options.LowHemoglobinDeferralDays,
+            HighALTDeferralDays = options.HighALTDeferralDays,
+            HBsAgPermanentDeferral = options.HBsAgPermanentDeferral,
+            DaysAfterSurgery = options.DaysAfterSurgery,
+            DaysAfterTransfusion = options.DaysAfterTransfusion,
+            DaysAfterTattoo = options.DaysAfterTattoo,
+            DaysAfterDentalWork = options.DaysAfterDentalWork,
+            DaysAfterVaccination = options.DaysAfterVaccination,
+            DaysAfterMalariaTravel = options.DaysAfterMalariaTravel,
+            DaysPostPregnancy = options.DaysPostPregnancy,
+            DaysPostBreastfeeding = options.DaysPostBreastfeeding,
+            DaysAfterFever = options.DaysAfterFever,
+            DaysBetweenDonations = options.DaysBetweenDonations,
+            MinimumAge = options.MinimumAge,
+            MaximumAge = options.MaximumAge,
+            InfectiousDiseasePermanentDeferral = options.InfectiousDiseasePermanentDeferral,
+            DrugUsePermanentDeferral = options.DrugUsePermanentDeferral
+        };
+    }
+
+    private static void MapFromConfiguration(DeferralConfiguration configuration, DeferralSettings settings)
+    {
+        settings.MinimumHemoglobin = configuration.MinimumHemoglobin;
+        settings.MaximumALT = configuration.MaximumALT;
+        settings.DaysAfterSurgery = configuration.DaysAfterSurgery;
+        settings.DaysAfterTransfusion = configuration.DaysAfterTransfusion;
+        settings.DaysAfterTattoo = configuration.DaysAfterTattoo;
+        settings.DaysAfterDentalWork = configuration.DaysAfterDentalWork;
+        settings.DaysAfterVaccination = configuration.DaysAfterVaccination;
+        settings.DaysAfterMalariaTravel = configuration.DaysAfterMalariaTravel;
+        settings.DaysPostPregnancy = configuration.DaysPostPregnancy;
+        settings.DaysPostBreastfeeding = configuration.DaysPostBreastfeeding;
+        settings.DaysAfterFever = configuration.DaysAfterFever;
+        settings.DaysBetweenDonations = configuration.DaysBetweenDonations;
+        settings.MinimumAge = configuration.MinimumAge;
+        settings.MaximumAge = configuration.MaximumAge;
     }
 }

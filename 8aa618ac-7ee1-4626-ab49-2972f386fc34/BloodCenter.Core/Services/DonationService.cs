@@ -4,7 +4,6 @@ using BloodCenter.Core.Interfaces;
 using BloodCenter.Core.Interfaces.Data;
 using BloodCenter.Core.Entities;
 using BloodCenter.Core.Entities.Enums;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace BloodCenter.Core.Services;
@@ -94,72 +93,42 @@ public class DonationService : IDonationService
 
     public async Task<DonationDto?> GetDonationByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var donation = await _unitOfWork.Donations.Query()
-            .Where(d => d.Id == id && !d.IsDeleted)
-            .Include(d => d.Donor)
-            .Include(d => d.CollectionSite)
-            .Include(d => d.Nurse)
-            .FirstOrDefaultAsync(cancellationToken);
+        var donation = await _unitOfWork.Donations.FirstOrDefaultAsync(
+            d => d.Id == id && !d.IsDeleted,
+            new[] { "Donor", "CollectionSite", "Nurse" },
+            cancellationToken);
 
         return donation == null ? null : _mapper.Map<DonationDto>(donation);
     }
 
     public async Task<DonationDto?> GetDonationByNumberAsync(string donationNumber, CancellationToken cancellationToken = default)
     {
-        var donation = await _unitOfWork.Donations.Query()
-            .Where(d => d.DonationNumber == donationNumber && !d.IsDeleted)
-            .Include(d => d.Donor)
-            .Include(d => d.CollectionSite)
-            .Include(d => d.Nurse)
-            .FirstOrDefaultAsync(cancellationToken);
+        var donation = await _unitOfWork.Donations.FirstOrDefaultAsync(
+            d => d.DonationNumber == donationNumber && !d.IsDeleted,
+            new[] { "Donor", "CollectionSite", "Nurse" },
+            cancellationToken);
 
         return donation == null ? null : _mapper.Map<DonationDto>(donation);
     }
 
     public async Task<PagedResult<DonationDto>> GetDonationsAsync(SearchDonationQuery query, CancellationToken cancellationToken = default)
     {
-        var queryable = _unitOfWork.Donations.Query()
-            .Where(d => !d.IsDeleted)
-            .Include(d => d.Donor)
-            .Include(d => d.CollectionSite)
-            .Include(d => d.Nurse);
-
-        if (query.DonorId.HasValue)
-        {
-            queryable = queryable.Where(d => d.DonorId == query.DonorId.Value);
-        }
-
-        if (query.CollectionSiteId.HasValue)
-        {
-            queryable = queryable.Where(d => d.CollectionSiteId == query.CollectionSiteId.Value);
-        }
-
-        if (query.NurseId.HasValue)
-        {
-            queryable = queryable.Where(d => d.NurseId == query.NurseId.Value);
-        }
-
-        if (query.Status.HasValue)
-        {
-            queryable = queryable.Where(d => d.Status == query.Status.Value);
-        }
-
-        if (query.StartDate.HasValue)
-        {
-            queryable = queryable.Where(d => d.DonationDate >= query.StartDate.Value);
-        }
-
-        if (query.EndDate.HasValue)
-        {
-            queryable = queryable.Where(d => d.DonationDate <= query.EndDate.Value);
-        }
-
-        var totalCount = await queryable.CountAsync(cancellationToken);
-        var items = await queryable
-            .OrderByDescending(d => d.DonationDate)
-            .Skip((query.PageNumber - 1) * query.PageSize)
-            .Take(query.PageSize)
-            .ToListAsync(cancellationToken);
+        var (items, totalCount) = await _unitOfWork.Donations.GetPagedAsync(
+            query.PageNumber,
+            query.PageSize,
+            d => !d.IsDeleted
+                && (!query.DonorId.HasValue || d.DonorId == query.DonorId.Value)
+                && (!query.CollectionSiteId.HasValue || d.CollectionSiteId == query.CollectionSiteId.Value)
+                && (!query.NurseId.HasValue || d.NurseId == query.NurseId.Value)
+                && (!query.Status.HasValue || d.Status == query.Status.Value)
+                && (!query.StartDate.HasValue || d.DonationDate >= query.StartDate.Value)
+                && (!query.EndDate.HasValue || d.DonationDate <= query.EndDate.Value),
+            d => d.DonationDate,
+            true,
+            null,
+            true,
+            new[] { "Donor", "CollectionSite", "Nurse" },
+            cancellationToken);
 
         return new PagedResult<DonationDto>(
             _mapper.Map<IEnumerable<DonationDto>>(items),
@@ -274,25 +243,25 @@ public class DonationService : IDonationService
 
     public async Task<IEnumerable<DonationDto>> GetDonationsByDonorAsync(Guid donorId, CancellationToken cancellationToken = default)
     {
-        var donations = await _unitOfWork.Donations.Query()
-            .Where(d => d.DonorId == donorId && !d.IsDeleted)
-            .Include(d => d.CollectionSite)
-            .Include(d => d.Nurse)
-            .OrderByDescending(d => d.DonationDate)
-            .ToListAsync(cancellationToken);
+        var donations = await _unitOfWork.Donations.FindAsync(
+            d => d.DonorId == donorId && !d.IsDeleted,
+            d => d.DonationDate,
+            true,
+            new[] { "CollectionSite", "Nurse" },
+            cancellationToken);
 
         return _mapper.Map<IEnumerable<DonationDto>>(donations);
     }
 
     public async Task<DonationStatsDto> GetDonationStatsAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
     {
-        var donations = await _unitOfWork.Donations.Query()
-            .Where(d => d.DonationDate >= startDate && d.DonationDate <= endDate && !d.IsDeleted)
-            .Include(d => d.Donor)
-            .ToListAsync(cancellationToken);
+        var donations = await _unitOfWork.Donations.FindAsync(
+            d => d.DonationDate >= startDate && d.DonationDate <= endDate && !d.IsDeleted,
+            new[] { "Donor" },
+            cancellationToken);
 
         var stats = new DonationStatsDto(
-            TotalDonations: donations.Count,
+            TotalDonations: donations.Count(),
             SuccessfulDonations: donations.Count(d => d.Status == DonationStatus.Completed || d.Status == DonationStatus.Released),
             DeferredDonations: donations.Count(d => d.Status == DonationStatus.Deferred || d.Status == DonationStatus.Rejected),
             TotalVolume: donations.Sum(d => d.Volume),

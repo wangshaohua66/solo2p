@@ -20,9 +20,22 @@ public class Repository<T> : IRepository<T> where T : class
         return await _dbSet.FindAsync(new object[] { id }, cancellationToken);
     }
 
+    public virtual async Task<T?> GetByIdAsync(Guid id, string[] includes, CancellationToken cancellationToken = default)
+    {
+        var query = ApplyIncludes(_dbSet.AsQueryable(), includes);
+        var entity = await query.FirstOrDefaultAsync(e => EF.Property<Guid>(e, "Id") == id, cancellationToken);
+        return entity;
+    }
+
     public virtual async Task<IEnumerable<T>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         return await _dbSet.ToListAsync(cancellationToken);
+    }
+
+    public virtual async Task<IEnumerable<T>> GetAllAsync(string[] includes, CancellationToken cancellationToken = default)
+    {
+        var query = ApplyIncludes(_dbSet.AsQueryable(), includes);
+        return await query.ToListAsync(cancellationToken);
     }
 
     public virtual async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
@@ -30,9 +43,39 @@ public class Repository<T> : IRepository<T> where T : class
         return await _dbSet.Where(predicate).ToListAsync(cancellationToken);
     }
 
+    public virtual async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate, string[] includes, CancellationToken cancellationToken = default)
+    {
+        var query = ApplyIncludes(_dbSet.Where(predicate), includes);
+        return await query.ToListAsync(cancellationToken);
+    }
+
+    public virtual async Task<IEnumerable<T>> FindAsync(
+        Expression<Func<T, bool>> predicate,
+        Expression<Func<T, object>> orderBy,
+        bool orderDescending = true,
+        string[]? includes = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _dbSet.Where(predicate);
+
+        var ordered = orderDescending
+            ? query.OrderByDescending(orderBy)
+            : query.OrderBy(orderBy);
+
+        query = ApplyIncludes(ordered, includes);
+
+        return await query.ToListAsync(cancellationToken);
+    }
+
     public virtual async Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
     {
         return await _dbSet.FirstOrDefaultAsync(predicate, cancellationToken);
+    }
+
+    public virtual async Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate, string[] includes, CancellationToken cancellationToken = default)
+    {
+        var query = ApplyIncludes(_dbSet.Where(predicate), includes);
+        return await query.FirstOrDefaultAsync(cancellationToken);
     }
 
     public virtual async Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
@@ -75,16 +118,64 @@ public class Repository<T> : IRepository<T> where T : class
         return await _dbSet.CountAsync(predicate, cancellationToken);
     }
 
-    public virtual async Task<IEnumerable<T>> GetPagedAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+    public virtual async Task<(IEnumerable<T> Items, int TotalCount)> GetPagedAsync(
+        int pageNumber,
+        int pageSize,
+        Expression<Func<T, bool>>? predicate = null,
+        Expression<Func<T, object>>? orderBy = null,
+        bool orderDescending = true,
+        Expression<Func<T, object>>? thenBy = null,
+        bool thenByDescending = true,
+        string[]? includes = null,
+        CancellationToken cancellationToken = default)
     {
-        return await _dbSet
+        var query = _dbSet.AsQueryable();
+
+        if (predicate != null)
+        {
+            query = query.Where(predicate);
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        if (orderBy != null)
+        {
+            var ordered = orderDescending
+                ? query.OrderByDescending(orderBy)
+                : query.OrderBy(orderBy);
+
+            if (thenBy != null)
+            {
+                ordered = thenByDescending
+                    ? ordered.ThenByDescending(thenBy)
+                    : ordered.ThenBy(thenBy);
+            }
+
+            query = ordered;
+        }
+
+        query = ApplyIncludes(query, includes);
+
+        var items = await query
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
     }
 
-    public virtual IQueryable<T> Query()
+    protected static IQueryable<T> ApplyIncludes(IQueryable<T> query, string[]? includes)
     {
-        return _dbSet;
+        if (includes == null || includes.Length == 0)
+        {
+            return query;
+        }
+
+        foreach (var include in includes)
+        {
+            query = query.Include(include);
+        }
+
+        return query;
     }
 }

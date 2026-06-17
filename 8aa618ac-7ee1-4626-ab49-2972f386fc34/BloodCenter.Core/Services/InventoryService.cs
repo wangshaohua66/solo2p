@@ -3,7 +3,6 @@ using BloodCenter.Core.Interfaces;
 using BloodCenter.Core.Interfaces.Data;
 using BloodCenter.Core.Entities;
 using BloodCenter.Core.Entities.Enums;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace BloodCenter.Core.Services;
@@ -21,14 +20,26 @@ public class InventoryService : IInventoryService
         _notificationService = notificationService;
     }
 
-    public async Task<IEnumerable<InventoryItemDto>> GetInventorySummaryAsync(CancellationToken cancellationToken = default)
+    public async Task<PagedResult<InventoryItemDto>> GetInventorySummaryAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default)
     {
-        var products = await _unitOfWork.BloodProducts.Query()
-            .Where(bp => !bp.IsDeleted && bp.Status == InventoryStatus.InStock)
-            .OrderBy(bp => bp.ExpiryDate)
-            .ToListAsync(cancellationToken);
+        var (items, totalCount) = await _unitOfWork.BloodProducts.GetPagedAsync(
+            pageNumber,
+            pageSize,
+            bp => !bp.IsDeleted && bp.Status == InventoryStatus.InStock,
+            bp => bp.ExpiryDate,
+            false,
+            null,
+            true,
+            null,
+            cancellationToken);
 
-        return products.Select(MapToInventoryItem);
+        var dtos = items.Select(MapToInventoryItem).ToList();
+
+        return new PagedResult<InventoryItemDto>(
+            dtos,
+            totalCount,
+            pageNumber,
+            pageSize);
     }
 
     public async Task<IEnumerable<InventoryAlertDto>> GetInventoryAlertsAsync(CancellationToken cancellationToken = default)
@@ -53,12 +64,12 @@ public class InventoryService : IInventoryService
             ));
         }
 
-        var expiringProducts = await _unitOfWork.BloodProducts.Query()
-            .Where(bp => !bp.IsDeleted
+        var expiringProducts = await _unitOfWork.BloodProducts.FindAsync(
+            bp => !bp.IsDeleted
                 && bp.Status == InventoryStatus.InStock
                 && bp.ExpiryDate <= now.AddHours(24)
-                && bp.ExpiryDate > now)
-            .ToListAsync(cancellationToken);
+                && bp.ExpiryDate > now,
+            cancellationToken);
 
         foreach (var product in expiringProducts)
         {
@@ -76,11 +87,11 @@ public class InventoryService : IInventoryService
             ));
         }
 
-        var expiredProducts = await _unitOfWork.BloodProducts.Query()
-            .Where(bp => !bp.IsDeleted
+        var expiredProducts = await _unitOfWork.BloodProducts.FindAsync(
+            bp => !bp.IsDeleted
                 && (bp.Status == InventoryStatus.InStock || bp.Status == InventoryStatus.Reserved)
-                && bp.ExpiryDate <= now)
-            .ToListAsync(cancellationToken);
+                && bp.ExpiryDate <= now,
+            cancellationToken);
 
         foreach (var product in expiredProducts)
         {
@@ -103,20 +114,21 @@ public class InventoryService : IInventoryService
 
     public async Task<BloodTypeBalanceDto> GetBloodTypeBalanceAnalysisAsync(CancellationToken cancellationToken = default)
     {
-        var products = await _unitOfWork.BloodProducts.Query()
-            .Where(bp => !bp.IsDeleted && bp.Status == InventoryStatus.InStock)
-            .ToListAsync(cancellationToken);
+        var products = await _unitOfWork.BloodProducts.FindAsync(
+            bp => !bp.IsDeleted && bp.Status == InventoryStatus.InStock,
+            cancellationToken);
 
-        var issuedProducts = await _unitOfWork.BloodProducts.Query()
-            .Where(bp => !bp.IsDeleted && bp.Status == InventoryStatus.Issued)
-            .ToListAsync(cancellationToken);
+        var issuedProducts = await _unitOfWork.BloodProducts.FindAsync(
+            bp => !bp.IsDeleted && bp.Status == InventoryStatus.Issued,
+            cancellationToken);
 
-        var inventorySettings = await _unitOfWork.InventorySettings.Query()
-            .Where(s => !s.IsDeleted)
-            .ToDictionaryAsync(
-                s => (s.ProductType, s.BloodType, s.RhFactor),
-                s => s.MinimumLevel,
-                cancellationToken);
+        var settingsList = await _unitOfWork.InventorySettings.FindAsync(
+            s => !s.IsDeleted,
+            cancellationToken);
+
+        var inventorySettings = settingsList.ToDictionary(
+            s => (s.ProductType, s.BloodType, s.RhFactor),
+            s => s.MinimumLevel);
 
         var inventoryByType = new List<BloodTypeInventoryItem>();
         var allBloodTypes = Enum.GetValues<BloodType>();
@@ -199,44 +211,22 @@ public class InventoryService : IInventoryService
 
     public async Task<PagedResult<InventoryItemDto>> GetInventoryItemsAsync(SearchInventoryQuery query, CancellationToken cancellationToken = default)
     {
-        var queryable = _unitOfWork.BloodProducts.Query().Where(bp => !bp.IsDeleted);
-
-        if (query.ProductType.HasValue)
-        {
-            queryable = queryable.Where(bp => bp.ProductType == query.ProductType.Value);
-        }
-
-        if (query.BloodType.HasValue)
-        {
-            queryable = queryable.Where(bp => bp.BloodGroup.ABO == query.BloodType.Value);
-        }
-
-        if (query.RhFactor.HasValue)
-        {
-            queryable = queryable.Where(bp => bp.BloodGroup.Rh == query.RhFactor.Value);
-        }
-
-        if (query.Status.HasValue)
-        {
-            queryable = queryable.Where(bp => bp.Status == query.Status.Value);
-        }
-
-        if (!string.IsNullOrEmpty(query.StorageLocation))
-        {
-            queryable = queryable.Where(bp => bp.StorageLocation!.Contains(query.StorageLocation));
-        }
-
-        if (query.ExpiringSoon == true)
-        {
-            queryable = queryable.Where(bp => bp.ExpiryDate <= DateTime.UtcNow.AddHours(24));
-        }
-
-        var totalCount = await queryable.CountAsync(cancellationToken);
-        var items = await queryable
-            .OrderBy(bp => bp.ExpiryDate)
-            .Skip((query.PageNumber - 1) * query.PageSize)
-            .Take(query.PageSize)
-            .ToListAsync(cancellationToken);
+        var (items, totalCount) = await _unitOfWork.BloodProducts.GetPagedAsync(
+            query.PageNumber,
+            query.PageSize,
+            bp => !bp.IsDeleted
+                && (!query.ProductType.HasValue || bp.ProductType == query.ProductType.Value)
+                && (!query.BloodType.HasValue || bp.BloodGroup.ABO == query.BloodType.Value)
+                && (!query.RhFactor.HasValue || bp.BloodGroup.Rh == query.RhFactor.Value)
+                && (!query.Status.HasValue || bp.Status == query.Status.Value)
+                && (string.IsNullOrEmpty(query.StorageLocation) || bp.StorageLocation!.Contains(query.StorageLocation))
+                && (!query.ExpiringSoon.HasValue || !query.ExpiringSoon.Value || bp.ExpiryDate <= DateTime.UtcNow.AddHours(24)),
+            bp => bp.ExpiryDate,
+            false,
+            null,
+            true,
+            null,
+            cancellationToken);
 
         var dtos = items.Select(MapToInventoryItem).ToList();
 
@@ -305,11 +295,11 @@ public class InventoryService : IInventoryService
     public async Task ProcessExpiredProductsAsync(CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;
-        var expiredProducts = await _unitOfWork.BloodProducts.Query()
-            .Where(bp => !bp.IsDeleted
+        var expiredProducts = await _unitOfWork.BloodProducts.FindAsync(
+            bp => !bp.IsDeleted
                 && (bp.Status == InventoryStatus.InStock || bp.Status == InventoryStatus.Reserved)
-                && bp.ExpiryDate <= now)
-            .ToListAsync(cancellationToken);
+                && bp.ExpiryDate <= now,
+            cancellationToken);
 
         foreach (var product in expiredProducts)
         {
@@ -325,9 +315,9 @@ public class InventoryService : IInventoryService
 
     public async Task<IEnumerable<InventoryHistoryDto>> GetInventoryHistoryAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
     {
-        var products = await _unitOfWork.BloodProducts.Query()
-            .Where(bp => bp.ProductionDate >= startDate && bp.ProductionDate <= endDate && !bp.IsDeleted)
-            .ToListAsync(cancellationToken);
+        var products = await _unitOfWork.BloodProducts.FindAsync(
+            bp => bp.ProductionDate >= startDate && bp.ProductionDate <= endDate && !bp.IsDeleted,
+            cancellationToken);
 
         var history = products
             .GroupBy(p => new { p.ProductionDate.Date, p.ProductType, p.BloodGroup.ABO, p.BloodGroup.Rh })
@@ -351,9 +341,9 @@ public class InventoryService : IInventoryService
     public async Task<InventoryTrendDto> GetInventoryTrendAsync(int days, CancellationToken cancellationToken = default)
     {
         var startDate = DateTime.UtcNow.AddDays(-days);
-        var products = await _unitOfWork.BloodProducts.Query()
-            .Where(bp => bp.ProductionDate >= startDate && !bp.IsDeleted)
-            .ToListAsync(cancellationToken);
+        var products = await _unitOfWork.BloodProducts.FindAsync(
+            bp => bp.ProductionDate >= startDate && !bp.IsDeleted,
+            cancellationToken);
 
         var dailyPoints = Enumerable.Range(0, days)
             .Select(i => {
@@ -386,12 +376,12 @@ public class InventoryService : IInventoryService
 
     public async Task SetSafetyStockLevelAsync(BloodProductType productType, BloodType bloodType, RhFactor rhFactor, int minimumLevel, CancellationToken cancellationToken = default)
     {
-        var setting = await _unitOfWork.InventorySettings.Query()
-            .FirstOrDefaultAsync(s => s.ProductType == productType
+        var setting = await _unitOfWork.InventorySettings.FirstOrDefaultAsync(
+            s => s.ProductType == productType
                 && s.BloodType == bloodType
                 && s.RhFactor == rhFactor
                 && !s.IsDeleted,
-                cancellationToken);
+            cancellationToken);
 
         if (setting == null)
         {
@@ -424,9 +414,9 @@ public class InventoryService : IInventoryService
 
     public async Task<InventorySettingsDto> GetInventorySettingsAsync(CancellationToken cancellationToken = default)
     {
-        var settings = await _unitOfWork.InventorySettings.Query()
-            .Where(s => !s.IsDeleted)
-            .ToListAsync(cancellationToken);
+        var settings = await _unitOfWork.InventorySettings.FindAsync(
+            s => !s.IsDeleted,
+            cancellationToken);
 
         var levels = settings.Select(s => new SafetyStockLevel(
             s.ProductType,
@@ -461,12 +451,12 @@ public class InventoryService : IInventoryService
             alertsSent++;
         }
 
-        var expiringProducts = await _unitOfWork.BloodProducts.Query()
-            .Where(bp => !bp.IsDeleted
+        var expiringProducts = await _unitOfWork.BloodProducts.FindAsync(
+            bp => !bp.IsDeleted
                 && bp.Status == InventoryStatus.InStock
                 && bp.ExpiryDate <= now.AddHours(24)
-                && bp.ExpiryDate > now)
-            .ToListAsync(cancellationToken);
+                && bp.ExpiryDate > now,
+            cancellationToken);
 
         foreach (var product in expiringProducts)
         {
@@ -485,25 +475,26 @@ public class InventoryService : IInventoryService
 
     private async Task<IEnumerable<(BloodProductType ProductType, BloodType BloodType, RhFactor RhFactor, int CurrentStock, int SafetyStock)>> GetLowStockItemsAsync(CancellationToken cancellationToken)
     {
-        var settings = await _unitOfWork.InventorySettings.Query()
-            .Where(s => !s.IsDeleted)
-            .ToListAsync(cancellationToken);
+        var settings = await _unitOfWork.InventorySettings.FindAsync(
+            s => !s.IsDeleted,
+            cancellationToken);
 
-        var products = await _unitOfWork.BloodProducts.Query()
-            .Where(bp => !bp.IsDeleted && bp.Status == InventoryStatus.InStock)
+        var products = await _unitOfWork.BloodProducts.FindAsync(
+            bp => !bp.IsDeleted && bp.Status == InventoryStatus.InStock,
+            cancellationToken);
+
+        var productCounts = products
             .GroupBy(bp => new { bp.ProductType, bp.BloodGroup.ABO, bp.BloodGroup.Rh })
-            .Select(g => new { g.Key.ProductType, g.Key.ABO, g.Key.Rh, Count = g.Count() })
-            .ToDictionaryAsync(
-                g => (g.ProductType, g.ABO, g.Rh),
-                g => g.Count,
-                cancellationToken);
+            .ToDictionary(
+                g => (g.Key.ProductType, g.Key.ABO, g.Key.Rh),
+                g => g.Count());
 
         var result = new List<(BloodProductType, BloodType, RhFactor, int, int)>();
 
         foreach (var setting in settings)
         {
             var key = (setting.ProductType, setting.BloodType, setting.RhFactor);
-            var currentStock = products.TryGetValue(key, out var count) ? count : 0;
+            var currentStock = productCounts.TryGetValue(key, out var count) ? count : 0;
             if (currentStock < setting.MinimumLevel)
             {
                 result.Add((setting.ProductType, setting.BloodType, setting.RhFactor, currentStock, setting.MinimumLevel));

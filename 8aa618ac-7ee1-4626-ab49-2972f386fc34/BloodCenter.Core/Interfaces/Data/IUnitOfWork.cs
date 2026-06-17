@@ -17,6 +17,7 @@ public interface IUnitOfWork : IDisposable
     IRepository<CrossMatch> CrossMatches { get; }
     IRepository<ScrapRecord> ScrapRecords { get; }
     IRepository<InventorySetting> InventorySettings { get; }
+    IRepository<DeferralSettings> DeferralSettings { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     int SaveChanges();

@@ -4,7 +4,7 @@ namespace BloodCenter.Core.Interfaces;
 
 public interface IInventoryService
 {
-    Task<IEnumerable<InventoryItemDto>> GetInventorySummaryAsync(CancellationToken cancellationToken = default);
+    Task<PagedResult<InventoryItemDto>> GetInventorySummaryAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default);
     Task<IEnumerable<InventoryAlertDto>> GetInventoryAlertsAsync(CancellationToken cancellationToken = default);
     Task<BloodTypeBalanceDto> GetBloodTypeBalanceAnalysisAsync(CancellationToken cancellationToken = default);
     Task<BloodCollectionPlanDto> GenerateCollectionPlanAsync(CancellationToken cancellationToken = default);

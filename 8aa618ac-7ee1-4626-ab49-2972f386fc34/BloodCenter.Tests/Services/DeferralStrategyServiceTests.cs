@@ -1,8 +1,11 @@
 using BloodCenter.Core.Entities;
 using BloodCenter.Core.Entities.Enums;
 using BloodCenter.Core.Interfaces;
+using BloodCenter.Core.Interfaces.Data;
 using BloodCenter.Core.Services;
 using Microsoft.Extensions.Options;
+using Moq;
+using System.Linq.Expressions;
 
 namespace BloodCenter.Tests.Services;
 
@@ -10,6 +13,8 @@ public class DeferralStrategyServiceTests
 {
     private readonly DeferralOptions _options;
     private readonly Mock<IOptions<DeferralOptions>> _optionsMock;
+    private readonly Mock<IUnitOfWork> _unitOfWorkMock;
+    private readonly Mock<IRepository<DeferralSettings>> _deferralSettingsRepoMock;
     private readonly DeferralStrategyService _deferralService;
 
     public DeferralStrategyServiceTests()
@@ -39,7 +44,27 @@ public class DeferralStrategyServiceTests
 
         _optionsMock = new Mock<IOptions<DeferralOptions>>();
         _optionsMock.Setup(o => o.Value).Returns(_options);
-        _deferralService = new DeferralStrategyService(_optionsMock.Object);
+
+        _deferralSettingsRepoMock = new Mock<IRepository<DeferralSettings>>();
+        _deferralSettingsRepoMock
+            .Setup(r => r.FirstOrDefaultAsync(
+                It.IsAny<Expression<Func<DeferralSettings, bool>>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((DeferralSettings?)null);
+
+        _deferralSettingsRepoMock
+            .Setup(r => r.AddAsync(
+                It.IsAny<DeferralSettings>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        _unitOfWorkMock = new Mock<IUnitOfWork>();
+        _unitOfWorkMock.Setup(u => u.DeferralSettings).Returns(_deferralSettingsRepoMock.Object);
+        _unitOfWorkMock
+            .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
+
+        _deferralService = new DeferralStrategyService(_unitOfWorkMock.Object, _optionsMock.Object);
     }
 
     [Fact]

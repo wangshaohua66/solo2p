@@ -5,7 +5,6 @@ using BloodCenter.Core.Interfaces.Data;
 using BloodCenter.Core.Entities;
 using BloodCenter.Core.Entities.Enums;
 using BloodCenter.Core.Entities.ValueObjects;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace BloodCenter.Core.Services;
@@ -85,40 +84,21 @@ public class DonorService : IDonorService
 
     public async Task<PagedResult<DonorDto>> SearchDonorsAsync(SearchDonorQuery query, CancellationToken cancellationToken = default)
     {
-        var queryable = _unitOfWork.Donors.Query().Where(d => !d.IsDeleted);
-
-        if (!string.IsNullOrEmpty(query.Name))
-        {
-            queryable = queryable.Where(d =>
-                d.FirstName.Contains(query.Name) || d.LastName.Contains(query.Name));
-        }
-
-        if (!string.IsNullOrEmpty(query.DonorNumber))
-        {
-            queryable = queryable.Where(d => d.DonorNumber.Contains(query.DonorNumber));
-        }
-
-        if (!string.IsNullOrEmpty(query.PhoneNumber))
-        {
-            queryable = queryable.Where(d => d.PhoneNumber.Contains(query.PhoneNumber));
-        }
-
-        if (!string.IsNullOrEmpty(query.IdCardNumber))
-        {
-            queryable = queryable.Where(d => d.IdCardNumber.Contains(query.IdCardNumber));
-        }
-
-        if (query.Status.HasValue)
-        {
-            queryable = queryable.Where(d => d.Status == query.Status.Value);
-        }
-
-        var totalCount = await queryable.CountAsync(cancellationToken);
-        var items = await queryable
-            .OrderByDescending(d => d.CreatedAt)
-            .Skip((query.PageNumber - 1) * query.PageSize)
-            .Take(query.PageSize)
-            .ToListAsync(cancellationToken);
+        var (items, totalCount) = await _unitOfWork.Donors.GetPagedAsync(
+            query.PageNumber,
+            query.PageSize,
+            d => !d.IsDeleted
+                && (string.IsNullOrEmpty(query.Name) || d.FirstName.Contains(query.Name) || d.LastName.Contains(query.Name))
+                && (string.IsNullOrEmpty(query.DonorNumber) || d.DonorNumber.Contains(query.DonorNumber))
+                && (string.IsNullOrEmpty(query.PhoneNumber) || d.PhoneNumber.Contains(query.PhoneNumber))
+                && (string.IsNullOrEmpty(query.IdCardNumber) || d.IdCardNumber.Contains(query.IdCardNumber))
+                && (!query.Status.HasValue || d.Status == query.Status.Value),
+            d => d.CreatedAt,
+            true,
+            null,
+            true,
+            null,
+            cancellationToken);
 
         return new PagedResult<DonorDto>(
             _mapper.Map<IEnumerable<DonorDto>>(items),
@@ -249,13 +229,15 @@ public class DonorService : IDonorService
     public async Task<IEnumerable<DonorDto>> GetDonorsForRecallAsync(int daysBefore, CancellationToken cancellationToken = default)
     {
         var recallDate = DateTime.UtcNow.AddDays(daysBefore);
-        var donors = await _unitOfWork.Donors.Query()
-            .Where(d => !d.IsDeleted
+        var donors = await _unitOfWork.Donors.FindAsync(
+            d => !d.IsDeleted
                 && d.Status == DonorStatus.Eligible
                 && d.NextEligibleDate.HasValue
-                && d.NextEligibleDate.Value <= recallDate)
-            .OrderBy(d => d.NextEligibleDate)
-            .ToListAsync(cancellationToken);
+                && d.NextEligibleDate.Value <= recallDate,
+            d => d.NextEligibleDate,
+            false,
+            null,
+            cancellationToken);
 
         return _mapper.Map<IEnumerable<DonorDto>>(donors);
     }
@@ -265,12 +247,12 @@ public class DonorService : IDonorService
         var donor = await _unitOfWork.Donors.GetByIdAsync(donorId, cancellationToken)
             ?? throw new NotFoundException("Donor", donorId);
 
-        var donations = await _unitOfWork.Donations.Query()
-            .Where(d => d.DonorId == donorId && !d.IsDeleted)
-            .Include(d => d.CollectionSite)
-            .Include(d => d.Nurse)
-            .OrderByDescending(d => d.DonationDate)
-            .ToListAsync(cancellationToken);
+        var donations = await _unitOfWork.Donations.FindAsync(
+            d => d.DonorId == donorId && !d.IsDeleted,
+            d => d.DonationDate,
+            true,
+            new[] { "CollectionSite", "Nurse" },
+            cancellationToken);
 
         return _mapper.Map<IEnumerable<DonationRecordDto>>(donations);
     }
