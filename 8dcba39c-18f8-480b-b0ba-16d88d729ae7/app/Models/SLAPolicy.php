@@ -18,6 +18,7 @@ class SLAPolicy extends Model
         'first_response_minutes', 'response_minutes', 'resolution_minutes',
         'target_fcr_percent', 'target_resolution_percent',
         'business_hours', 'apply_holidays', 'escalation_rules',
+        'use_business_hours', 'is_default',
         'pause_on_pending', 'pending_statuses', 'status', 'priority',
     ];
 
@@ -27,6 +28,8 @@ class SLAPolicy extends Model
         'escalation_rules' => 'array',
         'apply_holidays' => 'boolean',
         'pause_on_pending' => 'boolean',
+        'use_business_hours' => 'boolean',
+        'is_default' => 'boolean',
     ];
 
     public function tickets(): HasMany
@@ -156,8 +159,11 @@ class SLAPolicy extends Model
         return $levels;
     }
 
-    public static function findBestMatch(int $tenantId, array $ticketData): ?self
+    public static function findBestMatch(Ticket $ticket, ?int $tenantId = null, ?array $ticketData = null): ?self
     {
+        $tenantId = $tenantId ?? $ticket->tenant_id;
+        $ticketData = $ticketData ?? $ticket->toArray();
+
         return Cache::remember("tenant:{$tenantId}:sla_policies", 600, function () use ($tenantId) {
             return self::forTenant($tenantId)
                 ->where('status', 1)

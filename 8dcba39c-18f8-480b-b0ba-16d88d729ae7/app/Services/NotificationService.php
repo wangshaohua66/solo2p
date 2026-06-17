@@ -135,7 +135,7 @@ class NotificationService
                 'name' => $tpl['name'],
                 'channel' => $tpl['channel'],
                 'subject' => $tpl['subject'],
-                'content' => $tpl['body'],
+                'body' => $tpl['body'],
                 'is_system' => true,
                 'status' => 1,
             ]);

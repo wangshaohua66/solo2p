@@ -16,6 +16,7 @@ class TicketComment extends Model
     public const TYPE_REPLY = 'reply';
     public const TYPE_NOTE = 'note';
     public const TYPE_INTERNAL = 'internal';
+    public const TYPE_PUBLIC = 'public';
     public const TYPE_SYSTEM = 'system';
 
     protected $fillable = [

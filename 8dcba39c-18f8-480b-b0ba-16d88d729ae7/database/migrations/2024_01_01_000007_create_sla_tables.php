@@ -22,6 +22,8 @@ return new class extends Migration
             $table->json('business_hours')->nullable();
             $table->boolean('apply_holidays')->default(false);
             $table->json('escalation_rules')->nullable();
+            $table->boolean('use_business_hours')->default(true);
+            $table->boolean('is_default')->default(false);
             $table->boolean('pause_on_pending')->default(true);
             $table->string('pending_statuses', 255)->default('pending,on_hold');
             $table->tinyInteger('status')->default(1);
@@ -72,11 +74,19 @@ return new class extends Migration
             $table->boolean('notified')->default(false);
             $table->timestamp('notified_at')->nullable();
             $table->json('notified_users')->nullable();
+            $table->unsignedInteger('level')->default(1);
+            $table->string('type', 32)->nullable();
+            $table->unsignedBigInteger('policy_id')->nullable();
+            $table->timestamp('breached_at')->nullable();
+            $table->unsignedInteger('target_minutes')->nullable();
+            $table->unsignedInteger('actual_minutes')->nullable();
+            $table->boolean('acknowledged')->default(false);
             $table->timestamps();
 
             $table->index(['tenant_id', 'ticket_id']);
             $table->index(['tenant_id', 'violated_at']);
             $table->index(['sla_policy_id', 'violation_type']);
+            $table->index(['level', 'acknowledged']);
             $table->foreign('tenant_id')->references('id')->on('tenants')->onDelete('cascade');
             $table->foreign('ticket_id')->references('id')->on('tickets')->onDelete('cascade');
             $table->foreign('timer_id')->references('id')->on('sla_timers')->onDelete('cascade');
@@ -87,6 +97,11 @@ return new class extends Migration
             $table->unsignedBigInteger('tenant_id');
             $table->unsignedBigInteger('sla_policy_id')->nullable();
             $table->date('metric_date');
+            $table->string('metric_type', 32)->default('daily')->comment('daily,first_response,resolution');
+            $table->unsignedBigInteger('total_count')->default(0);
+            $table->unsignedBigInteger('on_time_count')->default(0);
+            $table->unsignedBigInteger('breach_count')->default(0);
+            $table->unsignedBigInteger('total_minutes')->default(0);
             $table->unsignedBigInteger('total_tickets')->default(0);
             $table->unsignedBigInteger('first_response_met')->default(0);
             $table->unsignedBigInteger('first_response_violated')->default(0);
@@ -99,23 +114,24 @@ return new class extends Migration
             $table->decimal('sla_compliance_rate', 5, 2)->default(0);
             $table->timestamps();
 
-            $table->unique(['tenant_id', 'metric_date', 'sla_policy_id']);
+            $table->unique(['tenant_id', 'metric_date', 'sla_policy_id', 'metric_type']);
             $table->index(['tenant_id', 'metric_date']);
+            $table->index(['tenant_id', 'metric_type', 'metric_date']);
             $table->foreign('tenant_id')->references('id')->on('tenants')->onDelete('cascade');
         });
 
         Schema::create('business_hours', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->unsignedBigInteger('tenant_id');
-            $table->string('name', 128);
-            $table->string('timezone', 64)->default('Asia/Shanghai');
-            $table->json('weekly_schedule');
-            $table->json('holidays')->nullable();
-            $table->boolean('is_default')->default(false);
-            $table->tinyInteger('status')->default(1);
+            $table->unsignedTinyInteger('day_of_week')->comment('0:Sunday-6:Saturday');
+            $table->string('name', 32)->nullable();
+            $table->time('start_time')->nullable();
+            $table->time('end_time')->nullable();
+            $table->boolean('is_workday')->default(true);
             $table->timestamps();
 
-            $table->index(['tenant_id', 'status']);
+            $table->unique(['tenant_id', 'day_of_week']);
+            $table->index(['tenant_id', 'is_workday']);
             $table->foreign('tenant_id')->references('id')->on('tenants')->onDelete('cascade');
         });
     }

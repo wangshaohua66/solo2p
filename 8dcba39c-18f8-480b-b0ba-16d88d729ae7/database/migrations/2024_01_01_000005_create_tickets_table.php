@@ -47,6 +47,7 @@ return new class extends Migration
             $table->unsignedBigInteger('attachment_count')->default(0);
             $table->json('custom_fields')->nullable();
             $table->json('tags')->nullable();
+            $table->json('watchers')->nullable();
             $table->unsignedBigInteger('created_by');
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();

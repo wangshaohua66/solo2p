@@ -11,17 +11,25 @@ class SLAViolation extends Model
 {
     use HasFactory, BelongsToTenant;
 
+    public const LEVEL_MILD = 1;
+    public const LEVEL_SEVERE = 2;
+    public const LEVEL_CRITICAL = 3;
+
     protected $fillable = [
         'tenant_id', 'ticket_id', 'timer_id', 'sla_policy_id', 'violation_type',
         'violated_at', 'breach_seconds', 'escalation_level',
         'notified', 'notified_at', 'notified_users',
+        'level', 'type', 'policy_id', 'breached_at',
+        'target_minutes', 'actual_minutes', 'acknowledged',
     ];
 
     protected $casts = [
         'violated_at' => 'datetime',
+        'breached_at' => 'datetime',
         'notified_at' => 'datetime',
         'notified_users' => 'array',
         'notified' => 'boolean',
+        'acknowledged' => 'boolean',
     ];
 
     public function ticket(): BelongsTo
@@ -37,6 +45,16 @@ class SLAViolation extends Model
     public function policy(): BelongsTo
     {
         return $this->belongsTo(SLAPolicy::class, 'sla_policy_id');
+    }
+
+    public function getLevelName(): string
+    {
+        return match ((int) $this->level) {
+            self::LEVEL_MILD => '轻微',
+            self::LEVEL_SEVERE => '严重',
+            self::LEVEL_CRITICAL => '危急',
+            default => '未知',
+        };
     }
 
     public function getBreachMinutes(): int

@@ -27,11 +27,11 @@ class SlaMonitor
             $this->createDefaultBusinessHours($tenantId);
 
             $priorityMap = [
-                5 => ['name' => '紧急工单SLA', 'first_response_minutes' => 15, 'resolution_minutes' => 240, 'warning_percent' => 50],
-                4 => ['name' => '高优先级SLA', 'first_response_minutes' => 60, 'resolution_minutes' => 480, 'warning_percent' => 50],
-                3 => ['name' => '中优先级SLA', 'first_response_minutes' => 240, 'resolution_minutes' => 1440, 'warning_percent' => 60],
-                2 => ['name' => '低优先级SLA', 'first_response_minutes' => 480, 'resolution_minutes' => 2880, 'warning_percent' => 70],
-                1 => ['name' => '最低优先级SLA', 'first_response_minutes' => 1440, 'resolution_minutes' => 10080, 'warning_percent' => 70],
+                5 => ['name' => '紧急工单SLA', 'first_response_minutes' => 15, 'resolution_minutes' => 240],
+                4 => ['name' => '高优先级SLA', 'first_response_minutes' => 60, 'resolution_minutes' => 480],
+                3 => ['name' => '中优先级SLA', 'first_response_minutes' => 240, 'resolution_minutes' => 1440],
+                2 => ['name' => '低优先级SLA', 'first_response_minutes' => 480, 'resolution_minutes' => 2880],
+                1 => ['name' => '最低优先级SLA', 'first_response_minutes' => 1440, 'resolution_minutes' => 10080],
             ];
 
             $lastPolicy = null;
@@ -49,10 +49,9 @@ class SlaMonitor
                     ],
                     'first_response_minutes' => $config['first_response_minutes'],
                     'resolution_minutes' => $config['resolution_minutes'],
-                    'warning_percent' => $config['warning_percent'],
                     'pause_on_pending' => true,
                     'use_business_hours' => true,
-                    'escalation_levels' => $this->getDefaultEscalations($config),
+                    'escalation_rules' => $this->getDefaultEscalations($config),
                     'is_default' => $priority === 3,
                     'status' => 1,
                 ]);
@@ -95,7 +94,8 @@ class SlaMonitor
             [
                 'level' => 1,
                 'name' => '首次响应警告',
-                'trigger_at_percent' => $config['warning_percent'],
+                'trigger_at_percent' => 50,
+                'breach_minutes' => $warningMinutes,
                 'action' => 'notify_agent',
                 'channels' => ['email', 'in_app'],
                 'message' => '工单即将超过首次响应时间，请尽快处理！',
@@ -104,6 +104,7 @@ class SlaMonitor
                 'level' => 2,
                 'name' => '首次响应超时',
                 'trigger_at_percent' => 100,
+                'breach_minutes' => $breachMinutes,
                 'action' => 'notify_agent_and_supervisor',
                 'channels' => ['email', 'sms', 'in_app'],
                 'message' => '工单已超过首次响应时间！',
@@ -112,6 +113,7 @@ class SlaMonitor
                 'level' => 3,
                 'name' => '解决超时升级',
                 'trigger_at_percent' => 100,
+                'breach_minutes' => $config['resolution_minutes'],
                 'action' => 'escalate_to_group',
                 'channels' => ['email', 'sms', 'in_app', 'webhook'],
                 'message' => '工单已超过解决时间，自动升级至主管组！',
@@ -132,34 +134,30 @@ class SlaMonitor
 
         if ($policy->first_response_minutes && !$ticket->first_response_at) {
             $target = $this->calculateTargetTime($createdAt, $policy->first_response_minutes, $policy->use_business_hours, $ticket->tenant_id);
-            $warningAt = $this->calculateWarningTarget($createdAt, $target, $policy->warning_percent ?? 50);
 
             $timers[] = SLATimer::create([
                 'tenant_id' => $ticket->tenant_id,
                 'ticket_id' => $ticket->id,
-                'policy_id' => $policy->id,
+                'sla_policy_id' => $policy->id,
                 'timer_type' => SLATimer::TYPE_FIRST_RESPONSE,
                 'started_at' => $createdAt,
                 'target_at' => $target,
-                'warning_at' => $warningAt,
-                'paused_total_seconds' => 0,
+                'paused_seconds' => 0,
                 'status' => SLATimer::STATUS_RUNNING,
             ]);
         }
 
         if ($policy->resolution_minutes) {
             $target = $this->calculateTargetTime($createdAt, $policy->resolution_minutes, $policy->use_business_hours, $ticket->tenant_id);
-            $warningAt = $this->calculateWarningTarget($createdAt, $target, $policy->warning_percent ?? 50);
 
             $timers[] = SLATimer::create([
                 'tenant_id' => $ticket->tenant_id,
                 'ticket_id' => $ticket->id,
-                'policy_id' => $policy->id,
+                'sla_policy_id' => $policy->id,
                 'timer_type' => SLATimer::TYPE_RESOLUTION,
                 'started_at' => $createdAt,
                 'target_at' => $target,
-                'warning_at' => $warningAt,
-                'paused_total_seconds' => 0,
+                'paused_seconds' => 0,
                 'status' => SLATimer::STATUS_RUNNING,
             ]);
         }
@@ -244,13 +242,6 @@ class SlaMonitor
     {
         $now = now();
 
-        if ($timer->warning_at && $timer->warning_at > $now) {
-            $warningDelay = $timer->warning_at->diffInSeconds($now, false);
-            if ($warningDelay > 0 && $warningDelay < 86400) {
-                \App\Jobs\CheckSLATimerWarning::dispatch($timer->id)->delay($timer->warning_at);
-            }
-        }
-
         if ($timer->target_at) {
             $breachDelay = $timer->target_at->diffInSeconds($now, false);
             if ($breachDelay > 0 && $breachDelay < 86400 * 7) {
@@ -305,9 +296,9 @@ class SlaMonitor
         if (!$timer->isPaused() || !$timer->paused_at) {
             return;
         }
-        $policy = $policy ?? SLAPolicy::find($timer->policy_id);
+        $policy = $policy ?? SLAPolicy::find($timer->sla_policy_id);
         $pausedSeconds = now()->getTimestamp() - $timer->paused_at->getTimestamp();
-        $newPausedTotal = ($timer->paused_total_seconds ?? 0) + $pausedSeconds;
+        $newPausedTotal = ($timer->paused_seconds ?? 0) + $pausedSeconds;
 
         $totalMinutes = $policy
             ? ($timer->timer_type === SLATimer::TYPE_FIRST_RESPONSE ? $policy->first_response_minutes : $policy->resolution_minutes)
@@ -319,7 +310,7 @@ class SlaMonitor
         }
 
         $timer->update([
-            'paused_total_seconds' => $newPausedTotal,
+            'paused_seconds' => $newPausedTotal,
             'paused_at' => null,
             'target_at' => $newTarget ?? $timer->target_at,
             'status' => SLATimer::STATUS_RUNNING,
@@ -334,14 +325,13 @@ class SlaMonitor
 
     public function markCompleted(SLATimer $timer, \DateTimeInterface $completedAt): void
     {
-        $elapsed = $completedAt->getTimestamp() - $timer->started_at->getTimestamp() - ($timer->paused_total_seconds ?? 0);
+        $elapsed = $completedAt->getTimestamp() - $timer->started_at->getTimestamp() - ($timer->paused_seconds ?? 0);
         $targetElapsed = $timer->target_at ? $timer->target_at->getTimestamp() - $timer->started_at->getTimestamp() : null;
         $breached = $targetElapsed !== null && $elapsed > $targetElapsed;
 
         $timer->update([
             'completed_at' => $completedAt,
-            'actual_minutes' => (int) ceil($elapsed / 60),
-            'target_minutes' => $targetElapsed !== null ? (int) ceil($targetElapsed / 60) : null,
+            'elapsed_seconds' => $elapsed,
             'status' => $breached ? SLATimer::STATUS_BREACHED : SLATimer::STATUS_COMPLETED,
         ]);
 
@@ -357,22 +347,8 @@ class SlaMonitor
         if (!$timer->isRunning()) {
             return;
         }
-
-        $now = now()->getTimestamp();
-        $warningAt = $timer->warning_at?->getTimestamp();
-
-        if ($warningAt && $now >= $warningAt && !$timer->warning_triggered_at) {
-            $timer->update(['warning_triggered_at' => now()]);
-
-            $policy = SLAPolicy::find($timer->policy_id);
-            $escalation = $this->findMatchingEscalation($policy, 1);
-            if ($escalation) {
-                $this->executeEscalation($timer, $escalation);
-            }
-
-            app('notification.service')->notifySLAWarning($timer);
-            app('automation.engine')->triggerEvent('sla.warning', $timer->ticket, ['timer_id' => $timer->id]);
-        }
+        app('notification.service')->notifySLAWarning($timer);
+        app('automation.engine')->triggerEvent('sla.warning', $timer->ticket, ['timer_id' => $timer->id]);
     }
 
     public function checkBreach(SLATimer $timer): void
@@ -385,19 +361,17 @@ class SlaMonitor
         $targetAt = $timer->target_at?->getTimestamp();
 
         if ($targetAt && $now >= $targetAt) {
-            $elapsed = $now - $timer->started_at->getTimestamp() - ($timer->paused_total_seconds ?? 0);
+            $elapsed = $now - $timer->started_at->getTimestamp() - ($timer->paused_seconds ?? 0);
 
             $timer->update([
                 'status' => SLATimer::STATUS_BREACHED,
-                'breached_at' => now(),
-                'actual_minutes' => (int) ceil($elapsed / 60),
-                'target_minutes' => (int) ceil(($targetAt - $timer->started_at->getTimestamp()) / 60),
+                'elapsed_seconds' => $elapsed,
             ]);
 
             $level = $this->calculateBreachLevel($elapsed, $targetAt - $timer->started_at->getTimestamp());
             $this->createViolation($timer, $level);
 
-            $policy = SLAPolicy::find($timer->policy_id);
+            $policy = SLAPolicy::find($timer->sla_policy_id);
             $escalation = $this->findMatchingEscalation($policy, 2);
             if ($escalation) {
                 $this->executeEscalation($timer, $escalation);
@@ -438,7 +412,7 @@ class SlaMonitor
     {
         $existing = SLAViolation::where('tenant_id', $timer->tenant_id)
             ->where('timer_id', $timer->id)
-            ->where('level', $level)
+            ->where('escalation_level', $level)
             ->first();
         if ($existing) {
             return $existing;
@@ -448,22 +422,28 @@ class SlaMonitor
             'tenant_id' => $timer->tenant_id,
             'ticket_id' => $timer->ticket_id,
             'timer_id' => $timer->id,
-            'policy_id' => $timer->policy_id,
-            'type' => $timer->timer_type === SLATimer::TYPE_FIRST_RESPONSE ? 'first_response' : 'resolution',
+            'sla_policy_id' => $timer->sla_policy_id,
+            'violation_type' => $timer->timer_type,
+            'escalation_level' => $level,
+            'violated_at' => now(),
+            'breach_seconds' => $timer->getBreachSeconds(),
+            'notified' => false,
             'level' => $level,
+            'type' => $timer->timer_type,
+            'policy_id' => $timer->sla_policy_id,
             'breached_at' => now(),
-            'target_minutes' => $timer->target_minutes,
-            'actual_minutes' => $timer->actual_minutes,
+            'target_minutes' => (int) ceil(($timer->target_at?->getTimestamp() - $timer->started_at->getTimestamp()) / 60),
+            'actual_minutes' => (int) ceil($timer->calculateElapsedSeconds() / 60),
             'acknowledged' => false,
         ]);
     }
 
     protected function findMatchingEscalation(?SLAPolicy $policy, int $level): ?array
     {
-        if (!$policy || empty($policy->escalation_levels)) {
+        if (!$policy || empty($policy->escalation_rules)) {
             return null;
         }
-        foreach ($policy->escalation_levels as $esc) {
+        foreach ($policy->escalation_rules as $esc) {
             if (($esc['level'] ?? 0) === $level) {
                 return $esc;
             }
@@ -582,22 +562,7 @@ class SlaMonitor
     public function runScheduledChecks(int $limit = 1000): array
     {
         $now = now();
-        $processed = ['warnings' => 0, 'breaches' => 0];
-
-        SLATimer::whereIn('status', [SLATimer::STATUS_RUNNING, SLATimer::STATUS_PAUSED])
-            ->whereNotNull('warning_at')
-            ->where('warning_at', '<=', $now)
-            ->whereNull('warning_triggered_at')
-            ->take($limit)
-            ->get()
-            ->each(function (SLATimer $timer) use (&$processed) {
-                try {
-                    $this->checkWarning($timer);
-                    $processed['warnings']++;
-                } catch (\Exception $e) {
-                    Log::error('SLA warning check failed', ['timer_id' => $timer->id, 'error' => $e->getMessage()]);
-                }
-            });
+        $processed = ['breaches' => 0];
 
         SLATimer::whereIn('status', [SLATimer::STATUS_RUNNING, SLATimer::STATUS_PAUSED])
             ->whereNotNull('target_at')
@@ -624,9 +589,8 @@ class SlaMonitor
         }
         $violation->update([
             'acknowledged' => true,
-            'acknowledged_by' => $userId,
-            'acknowledged_at' => now(),
-            'acknowledgment_note' => $note,
+            'notified' => true,
+            'notified_at' => now(),
         ]);
         return $violation;
     }

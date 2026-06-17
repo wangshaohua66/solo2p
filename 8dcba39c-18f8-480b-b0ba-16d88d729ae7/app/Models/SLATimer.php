@@ -70,6 +70,11 @@ class SLATimer extends Model
         return $this->status === self::STATUS_BREACHED;
     }
 
+    public function isRunningOrPaused(): bool
+    {
+        return $this->isRunning() || $this->isPaused();
+    }
+
     public function pause(): void
     {
         if (!$this->isRunning()) {

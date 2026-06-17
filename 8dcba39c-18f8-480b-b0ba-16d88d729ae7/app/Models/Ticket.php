@@ -110,7 +110,7 @@ class Ticket extends Model
         'due_at', 'first_response_at', 'last_assigned_at', 'assigned_at',
         'resolved_at', 'closed_at', 'reopen_count',
         'comment_count', 'attachment_count', 'escalation_count',
-        'custom_fields', 'tags',
+        'custom_fields', 'tags', 'watchers',
         'created_by', 'updated_by',
         'escalation_level',
     ];
@@ -118,7 +118,8 @@ class Ticket extends Model
     protected $casts = [
         'custom_fields' => 'array',
         'tags' => 'array',
-        'due_at' => 'datetime',
+        'watchers' => 'array',
+        'rated_at' => 'datetime',
         'first_response_at' => 'datetime',
         'last_assigned_at' => 'datetime',
         'assigned_at' => 'datetime',
