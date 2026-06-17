@@ -135,7 +135,7 @@ class NotificationService
                 'name' => $tpl['name'],
                 'channel' => $tpl['channel'],
                 'subject' => $tpl['subject'],
-                'body' => $tpl['body'],
+                'content' => $tpl['body'],
                 'is_system' => true,
                 'status' => 1,
             ]);
@@ -431,17 +431,17 @@ class NotificationService
         $this->notify($ticket, 'ticket_comment', ['email', 'in_app']);
     }
 
-    public function notifyTicketStatusChanged(Ticket $ticket, int $oldStatus, int $newStatus, ?User $operator = null): void
+    public function notifyTicketStatusChanged(Ticket $ticket, $oldStatus, $newStatus, ?User $operator = null): void
     {
-        if ($newStatus === Ticket::STATUS_RESOLVED) {
+        if ((string) $newStatus === Ticket::STATUS_RESOLVED) {
             $this->notify($ticket, 'ticket_resolved', ['email', 'in_app'], array_filter([$ticket->requester_id]));
             return;
         }
-        if ($newStatus === Ticket::STATUS_CLOSED) {
+        if ((string) $newStatus === Ticket::STATUS_CLOSED) {
             $this->notify($ticket, 'ticket_closed', ['email'], array_filter([$ticket->requester_id]));
             return;
         }
-        if ($oldStatus === Ticket::STATUS_RESOLVED || $oldStatus === Ticket::STATUS_CLOSED) {
+        if ((string) $oldStatus === Ticket::STATUS_RESOLVED || (string) $oldStatus === Ticket::STATUS_CLOSED) {
             $this->notify($ticket, 'ticket_reopened', ['email', 'in_app']);
             return;
         }
@@ -636,6 +636,7 @@ class NotificationService
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $responseTimeMs = (int) (curl_getinfo($ch, CURLINFO_TOTAL_TIME) * 1000);
         $error = curl_error($ch);
         curl_close($ch);
 
@@ -645,14 +646,15 @@ class NotificationService
             'tenant_id' => $endpoint->tenant_id,
             'endpoint_id' => $endpoint->id,
             'event' => $event,
-            'url' => $url,
-            'request_headers' => $headers,
+            'ticket_id' => null,
+            'request_headers' => json_encode($headers, JSON_UNESCAPED_UNICODE),
             'request_body' => $body,
             'response_status' => $httpCode,
             'response_body' => is_string($response) ? substr($response, 0, 10000) : null,
-            'response_time_ms' => (int) (curl_getinfo($ch, CURLINFO_TOTAL_TIME) * 1000) ?? 0,
+            'response_time_ms' => $responseTimeMs,
             'success' => $success,
             'error_message' => $error ?: null,
+            'retry_count' => 0,
             'created_at' => now(),
             'updated_at' => now(),
         ]);

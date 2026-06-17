@@ -17,16 +17,19 @@ class NotificationLog extends Model
     public const STATUS_DELIVERED = 3;
 
     protected $fillable = [
-        'tenant_id', 'channel', 'event_type', 'template_id', 'ticket_id', 'user_id',
-        'recipient', 'subject', 'content', 'status', 'error_message',
+        'tenant_id', 'channel', 'event', 'template_id', 'ticket_id',
+        'recipient_user_id', 'recipient', 'subject', 'body',
+        'variables', 'status', 'error_message',
         'provider', 'provider_message_id', 'sent_at', 'delivered_at',
-        'retry_count', 'metadata',
+        'scheduled_at', 'retry_count', 'metadata',
     ];
 
     protected $casts = [
+        'variables' => 'array',
         'metadata' => 'array',
         'sent_at' => 'datetime',
         'delivered_at' => 'datetime',
+        'scheduled_at' => 'datetime',
     ];
 
     public function ticket(): BelongsTo
@@ -36,7 +39,7 @@ class NotificationLog extends Model
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'recipient_user_id');
     }
 
     public function template(): BelongsTo

@@ -26,6 +26,7 @@ class TicketHistory extends Model
     public const ACTION_REOPEN = 'reopen';
     public const ACTION_SATISFACTION = 'satisfaction';
     public const ACTION_SLA_BREACH = 'sla_breach';
+    public const ACTION_ESCALATION = 'escalation';
     public const ACTION_APPROVAL = 'approval';
     public const ACTION_WORKFLOW_TRANSITION = 'workflow_transition';
     public const ACTION_DELETE = 'delete';

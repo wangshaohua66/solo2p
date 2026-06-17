@@ -17,8 +17,8 @@ class NotificationTemplate extends Model
     public const CHANNEL_IN_APP = 'in_app';
 
     protected $fillable = [
-        'tenant_id', 'key', 'name', 'channel', 'subject', 'content',
-        'variables', 'is_system', 'is_enabled', 'language',
+        'tenant_id', 'key', 'name', 'channel', 'subject', 'body',
+        'variables', 'is_system', 'is_enabled', 'status', 'language',
     ];
 
     protected $casts = [
@@ -49,7 +49,7 @@ class NotificationTemplate extends Model
 
     public function render(array $data): array
     {
-        $result = ['content' => $this->replaceVariables($this->content, $data)];
+        $result = ['body' => $this->replaceVariables($this->body, $data)];
         if ($this->subject) {
             $result['subject'] = $this->replaceVariables($this->subject, $data);
         }

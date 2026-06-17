@@ -263,7 +263,7 @@ class SlaMonitor
     {
         $policy = SLAPolicy::find($ticket->sla_policy_id);
         $shouldPause = $policy?->pause_on_pending && $newState->isPendingCategory();
-        $shouldResume = $shouldPause === false && in_array($oldStatus, [Ticket::STATUS_PENDING, Ticket::STATUS_ON_HOLD]);
+        $shouldResume = $shouldPause === false && in_array($oldStatus, [Ticket::STATUS_PENDING]);
         $shouldComplete = $newState->isResolvedCategory() || $newState->isClosedCategory();
 
         $timers = SLATimer::forTenant($ticket->tenant_id)

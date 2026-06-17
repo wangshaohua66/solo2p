@@ -1022,7 +1022,7 @@ class TicketController extends Controller
         $ticket->update([
             'satisfaction_score' => $validated['score'],
             'satisfaction_comment' => $validated['comment'] ?? null,
-            'satisfaction_rated_at' => now(),
+            'rated_at' => now(),
         ]);
 
         $tenantId = app('currentTenantId');
@@ -1290,7 +1290,7 @@ class TicketController extends Controller
             $base['closed_at'] = optional($ticket->closed_at)->toIso8601String();
             $base['satisfaction_score'] = $ticket->satisfaction_score;
             $base['satisfaction_comment'] = $ticket->satisfaction_comment;
-            $base['satisfaction_rated_at'] = optional($ticket->satisfaction_rated_at)->toIso8601String();
+            $base['satisfaction_rated_at'] = optional($ticket->rated_at)->toIso8601String();
         }
 
         return $base;

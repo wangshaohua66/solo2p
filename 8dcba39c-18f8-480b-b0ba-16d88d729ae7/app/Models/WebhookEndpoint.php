@@ -22,15 +22,15 @@ class WebhookEndpoint extends Model
     public const AUTH_BASIC = 'basic';
 
     protected $fillable = [
-        'tenant_id', 'name', 'url', 'method', 'events', 'headers', 'secret',
-        'authentication_type', 'authentication_config', 'timeout_seconds',
+        'tenant_id', 'name', 'url', 'method', 'listens_to', 'headers', 'signing_secret',
+        'auth_type', 'auth_credentials', 'timeout_seconds',
         'verify_ssl', 'status', 'failure_count', 'last_success_at', 'last_failure_at',
     ];
 
     protected $casts = [
-        'events' => 'array',
+        'listens_to' => 'array',
         'headers' => 'array',
-        'authentication_config' => 'array',
+        'auth_credentials' => 'array',
         'verify_ssl' => 'boolean',
         'last_success_at' => 'datetime',
         'last_failure_at' => 'datetime',
@@ -48,36 +48,36 @@ class WebhookEndpoint extends Model
 
     public function listensTo(string $event): bool
     {
-        $events = (array) $this->events;
+        $events = (array) $this->listens_to;
         return in_array($event, $events, true) || in_array('*', $events, true);
     }
 
     public function generateSignature(string $body): string
     {
-        if (empty($this->secret)) {
+        if (empty($this->signing_secret)) {
             return '';
         }
-        return hash_hmac('sha256', $body, $this->secret);
+        return hash_hmac('sha256', $body, $this->signing_secret);
     }
 
     public function getAuthHeaders(): array
     {
         $headers = (array) $this->headers;
 
-        switch ($this->authentication_type) {
+        switch ($this->auth_type) {
             case self::AUTH_API_KEY:
-                $config = (array) $this->authentication_config;
+                $config = (array) $this->auth_credentials;
                 $headerName = $config['header_name'] ?? 'X-API-Key';
                 $headers[$headerName] = $config['api_key'] ?? '';
                 break;
 
             case self::AUTH_BEARER:
-                $config = (array) $this->authentication_config;
+                $config = (array) $this->auth_credentials;
                 $headers['Authorization'] = 'Bearer ' . ($config['token'] ?? '');
                 break;
 
             case self::AUTH_BASIC:
-                $config = (array) $this->authentication_config;
+                $config = (array) $this->auth_credentials;
                 $credentials = base64_encode(($config['username'] ?? '') . ':' . ($config['password'] ?? ''));
                 $headers['Authorization'] = 'Basic ' . $credentials;
                 break;

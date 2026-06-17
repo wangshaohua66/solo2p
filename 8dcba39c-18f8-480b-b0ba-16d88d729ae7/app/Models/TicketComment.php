@@ -15,6 +15,7 @@ class TicketComment extends Model
 
     public const TYPE_REPLY = 'reply';
     public const TYPE_NOTE = 'note';
+    public const TYPE_INTERNAL = 'internal';
     public const TYPE_SYSTEM = 'system';
 
     protected $fillable = [
@@ -35,6 +36,11 @@ class TicketComment extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function author(): BelongsTo
+    {
+        return $this->user();
     }
 
     public function attachments(): HasMany

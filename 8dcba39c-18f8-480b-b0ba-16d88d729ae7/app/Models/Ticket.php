@@ -67,6 +67,31 @@ class Ticket extends Model
         self::STATUS_REOPENED,
     ];
 
+    public const STATUS_NAMES = [
+        self::STATUS_OPEN => '待处理',
+        self::STATUS_IN_PROGRESS => '处理中',
+        self::STATUS_PENDING => '待跟进',
+        self::STATUS_RESOLVED => '已解决',
+        self::STATUS_CLOSED => '已关闭',
+        self::STATUS_REOPENED => '已重新打开',
+    ];
+
+    public const PRIORITY_NAMES = [
+        self::PRIORITY_LOW => '低',
+        self::PRIORITY_MEDIUM => '中',
+        self::PRIORITY_HIGH => '高',
+        self::PRIORITY_URGENT => '紧急',
+    ];
+
+    public const SOURCE_NAMES = [
+        self::SOURCE_WEB => 'Web表单',
+        self::SOURCE_EMAIL => '邮件',
+        self::SOURCE_PHONE => '电话',
+        self::SOURCE_API => 'API',
+        self::SOURCE_CHAT => '在线聊天',
+        self::SOURCE_SOCIAL => '社交媒体',
+    ];
+
     public const ACTIVE_STATUSES = [
         self::STATUS_OPEN,
         self::STATUS_IN_PROGRESS,
@@ -84,7 +109,7 @@ class Ticket extends Model
         'satisfaction_comment', 'satisfaction_submitted_at', 'rated_at',
         'due_at', 'first_response_at', 'last_assigned_at', 'assigned_at',
         'resolved_at', 'closed_at', 'reopen_count',
-        'comment_count', 'attachment_count',
+        'comment_count', 'attachment_count', 'escalation_count',
         'custom_fields', 'tags',
         'created_by', 'updated_by',
         'escalation_level',
@@ -265,11 +290,63 @@ class Ticket extends Model
         return $this->status === self::STATUS_PENDING;
     }
 
-    public function addComment(array $data): TicketComment
+    public static function getStatusName($status): string
     {
+        if (is_int($status)) {
+            $map = [
+                0 => self::STATUS_OPEN,
+                1 => self::STATUS_IN_PROGRESS,
+                2 => self::STATUS_PENDING,
+                3 => self::STATUS_RESOLVED,
+                4 => self::STATUS_CLOSED,
+                5 => self::STATUS_REOPENED,
+            ];
+            $status = $map[$status] ?? self::STATUS_OPEN;
+        }
+        return self::STATUS_NAMES[$status] ?? (string) $status;
+    }
+
+    public static function getPriorityName($priority): string
+    {
+        $p = is_numeric($priority) ? (int) $priority : (int) array_search($priority, self::PRIORITY_NAMES);
+        return self::PRIORITY_NAMES[$p] ?? (string) $priority;
+    }
+
+    public static function getSourceName($source): string
+    {
+        if (is_int($source)) {
+            $map = [
+                0 => self::SOURCE_WEB,
+                1 => self::SOURCE_EMAIL,
+                2 => self::SOURCE_PHONE,
+                3 => self::SOURCE_API,
+                4 => self::SOURCE_CHAT,
+                5 => self::SOURCE_SOCIAL,
+            ];
+            $source = $map[$source] ?? self::SOURCE_WEB;
+        }
+        return self::SOURCE_NAMES[$source] ?? (string) $source;
+    }
+
+    public function addComment(string $content, ?int $userId = null, ?string $type = null, ?bool $isPrivate = null): TicketComment
+    {
+        $data = [
+            'content' => $content,
+        ];
+        if ($userId !== null) {
+            $data['user_id'] = $userId;
+        } elseif (auth()->check()) {
+            $data['user_id'] = auth()->id();
+        }
+        if ($type !== null) {
+            $data['type'] = $type;
+        }
+        if ($isPrivate !== null) {
+            $data['is_public'] = !$isPrivate;
+        }
         $comment = $this->comments()->create($data);
         $this->increment('comment_count');
-        if (empty($this->first_response_at) && $comment->type === 'reply' && !$this->requester()->is($comment->user)) {
+        if (empty($this->first_response_at) && $comment->type === TicketComment::TYPE_REPLY && $comment->user_id && $this->requester_id !== (int) $comment->user_id) {
             $this->update(['first_response_at' => now()]);
         }
         return $comment;

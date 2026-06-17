@@ -11,10 +11,12 @@ use Illuminate\Support\Facades\Log;
 class AutomationEngine
 {
     protected $conditionEvaluator;
+    protected $notificationService;
 
-    public function __construct(ConditionEvaluator $conditionEvaluator)
+    public function __construct(ConditionEvaluator $conditionEvaluator, ?NotificationService $notificationService = null)
     {
         $this->conditionEvaluator = $conditionEvaluator;
+        $this->notificationService = $notificationService ?? app('notification.service');
     }
 
     public function triggerEvent(string $eventType, $entity, array $extra = []): void

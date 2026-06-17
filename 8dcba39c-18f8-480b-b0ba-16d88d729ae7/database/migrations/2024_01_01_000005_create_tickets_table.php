@@ -41,6 +41,7 @@ return new class extends Migration
             $table->timestamp('resolved_at')->nullable();
             $table->timestamp('closed_at')->nullable();
             $table->tinyInteger('escalation_level')->default(0);
+            $table->unsignedBigInteger('escalation_count')->default(0);
             $table->unsignedBigInteger('reopen_count')->default(0);
             $table->unsignedBigInteger('comment_count')->default(0);
             $table->unsignedBigInteger('attachment_count')->default(0);

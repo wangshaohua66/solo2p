@@ -12,12 +12,15 @@ class NotificationSubscription extends Model
     use HasFactory, BelongsToTenant;
 
     protected $fillable = [
-        'tenant_id', 'user_id', 'event_type', 'channels', 'is_enabled',
+        'tenant_id', 'user_id', 'event_key', 'channels',
+        'target_roles', 'is_system', 'enabled',
     ];
 
     protected $casts = [
         'channels' => 'array',
-        'is_enabled' => 'boolean',
+        'target_roles' => 'array',
+        'is_system' => 'boolean',
+        'enabled' => 'boolean',
     ];
 
     public function user(): BelongsTo
@@ -33,8 +36,8 @@ class NotificationSubscription extends Model
     public function getChannelsForEvent(User $user, string $eventType): array
     {
         $subscription = self::where('user_id', $user->id)
-            ->where('event_type', $eventType)
-            ->where('is_enabled', true)
+            ->where('event_key', $eventType)
+            ->where('enabled', true)
             ->first();
 
         if ($subscription) {

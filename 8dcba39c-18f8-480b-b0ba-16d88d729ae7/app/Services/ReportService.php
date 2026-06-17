@@ -390,7 +390,7 @@ class ReportService
         return Cache::remember($cacheKey, $this->cacheTtl, function () use ($tenantId, $startDate, $endDate) {
             $tickets = Ticket::forTenant($tenantId)
                 ->whereNotNull('satisfaction_score')
-                ->whereBetween('satisfaction_rated_at', [$startDate, $endDate])
+                ->whereBetween('rated_at', [$startDate, $endDate])
                 ->get();
 
             $total = $tickets->count();
@@ -422,7 +422,7 @@ class ReportService
                     'negative_count' => $negative,
                 ],
                 'distribution' => $distribution,
-                'trend' => $tickets->groupBy(fn ($t) => $t->satisfaction_rated_at->format('Y-m-d'))
+                'trend' => $tickets->groupBy(fn ($t) => optional($t->rated_at)->format('Y-m-d'))
                     ->map(fn ($group, $date) => [
                         'date' => $date,
                         'count' => $group->count(),

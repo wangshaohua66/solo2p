@@ -16,16 +16,21 @@ class AutomationRule extends Model
     public const TRIGGER_CONDITION = 'condition';
 
     protected $fillable = [
-        'tenant_id', 'name', 'description', 'trigger_type', 'trigger_config',
-        'conditions', 'actions', 'stop_on_match', 'priority', 'status',
-        'last_triggered_at', 'trigger_count',
+        'tenant_id', 'name', 'description', 'trigger_type',
+        'schedule_cron', 'trigger_conditions', 'trigger_config',
+        'conditions', 'actions',
+        'stop_on_error', 'stop_on_match', 'priority', 'status',
+        'last_run_at', 'last_triggered_at', 'trigger_count',
     ];
 
     protected $casts = [
         'trigger_config' => 'array',
+        'trigger_conditions' => 'array',
         'conditions' => 'array',
         'actions' => 'array',
+        'stop_on_error' => 'boolean',
         'stop_on_match' => 'boolean',
+        'last_run_at' => 'datetime',
         'last_triggered_at' => 'datetime',
     ];
 
@@ -44,7 +49,7 @@ class AutomationRule extends Model
         if ($this->trigger_type !== self::TRIGGER_EVENT) {
             return false;
         }
-        $eventName = $this->trigger_config['event'] ?? null;
+        $eventName = $this->trigger_conditions['event'] ?? ($this->trigger_config['event'] ?? null);
         return $eventName === $event || $eventName === '*';
     }
 
@@ -53,9 +58,9 @@ class AutomationRule extends Model
         if ($this->trigger_type !== self::TRIGGER_SCHEDULE) {
             return false;
         }
-        $cron = $this->trigger_config['cron'] ?? null;
+        $cron = $this->schedule_cron ?? ($this->trigger_config['cron'] ?? null);
         if (!$cron) {
-            return false;
+            return true;
         }
         return app('cron.expression')->isDue($cron, $time);
     }
@@ -88,7 +93,9 @@ class AutomationRule extends Model
             ->where('status', 1)
             ->where('trigger_type', self::TRIGGER_EVENT)
             ->where(function ($q) use ($eventType) {
-                $q->whereJsonContains('trigger_config->event', $eventType)
+                $q->whereJsonContains('trigger_conditions->event', $eventType)
+                    ->orWhereJsonContains('trigger_conditions->event', '*')
+                    ->orWhereJsonContains('trigger_config->event', $eventType)
                     ->orWhereJsonContains('trigger_config->event', '*');
             })
             ->orderByDesc('priority')

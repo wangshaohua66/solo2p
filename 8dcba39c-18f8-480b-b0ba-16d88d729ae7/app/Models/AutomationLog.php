@@ -12,53 +12,27 @@ class AutomationLog extends Model
     use HasFactory, BelongsToTenant;
 
     protected $fillable = [
-        'tenant_id', 'rule_id', 'trigger_type', 'ticket_id', 'user_id',
-        'conditions_met', 'actions_executed', 'actions_failed', 'success', 'error',
+        'tenant_id', 'rule_id', 'trigger_type', 'event',
+        'entity_type', 'entity_id', 'triggered',
+        'actions_executed', 'actions_total',
+        'execution_ms', 'errors',
     ];
 
     protected $casts = [
-        'conditions_met' => 'boolean',
-        'actions_executed' => 'array',
-        'actions_failed' => 'array',
-        'success' => 'boolean',
+        'triggered' => 'boolean',
+        'actions_executed' => 'integer',
+        'actions_total' => 'integer',
+        'execution_ms' => 'integer',
+        'errors' => 'array',
     ];
 
     public function rule(): BelongsTo
     {
-        return $this->belongsTo(AutomationRule::class);
+        return $this->belongsTo(AutomationRule::class, 'rule_id');
     }
 
-    public function ticket(): BelongsTo
+    public function isTriggered(): bool
     {
-        return $this->belongsTo(Ticket::class);
-    }
-
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
-    }
-
-    public static function record(
-        AutomationRule $rule,
-        string $triggerType,
-        bool $conditionsMet,
-        ?int $ticketId = null,
-        ?int $userId = null,
-        array $actionsExecuted = [],
-        array $actionsFailed = [],
-        ?string $error = null
-    ): self {
-        return self::create([
-            'tenant_id' => $rule->tenant_id,
-            'rule_id' => $rule->id,
-            'trigger_type' => $triggerType,
-            'ticket_id' => $ticketId,
-            'user_id' => $userId,
-            'conditions_met' => $conditionsMet,
-            'actions_executed' => $actionsExecuted,
-            'actions_failed' => $actionsFailed,
-            'success' => $conditionsMet && empty($actionsFailed) && empty($error),
-            'error' => $error,
-        ]);
+        return (bool) $this->triggered;
     }
 }
