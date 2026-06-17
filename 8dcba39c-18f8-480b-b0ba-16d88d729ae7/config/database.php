@@ -8,6 +8,14 @@ return [
 
     'connections' => [
 
+        'sqlite' => [
+            'driver' => 'sqlite',
+            'url' => env('DATABASE_URL'),
+            'database' => env('DB_DATABASE', database_path('database.sqlite')),
+            'prefix' => '',
+            'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
+        ],
+
         'mysql' => [
             'driver' => 'mysql',
             'url' => env('DATABASE_URL'),
@@ -24,7 +32,7 @@ return [
             'strict' => true,
             'engine' => 'InnoDB',
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                (class_exists('Pdo\Mysql') ? Pdo\Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
                 PDO::ATTR_PERSISTENT => true,
             ]) : [],
         ],
@@ -40,8 +48,8 @@ return [
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),
             'prefix' => env('REDIS_PREFIX', 'ticket_saas_'),
-            'serializer' => Redis::SERIALIZER_MSGPACK,
-            'compression' => Redis::COMPRESSION_LZ4,
+            'serializer' => extension_loaded('redis') ? Redis::SERIALIZER_MSGPACK : null,
+            'compression' => extension_loaded('redis') ? Redis::COMPRESSION_LZ4 : null,
         ],
 
         'default' => [

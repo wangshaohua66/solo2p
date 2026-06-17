@@ -22,7 +22,10 @@ return new class extends Migration
             $table->string('department', 128)->nullable();
             $table->tinyInteger('type')->default(2)->comment('1:owner,2:agent,3:customer');
             $table->tinyInteger('status')->default(1)->comment('1:active,2:inactive,3:banned');
+            $table->boolean('is_active')->default(true);
             $table->boolean('is_online')->default(false);
+            $table->string('timezone', 64)->default('Asia/Shanghai');
+            $table->string('language', 16)->default('zh_CN');
             $table->timestamp('last_active_at')->nullable();
             $table->rememberToken();
             $table->timestamps();

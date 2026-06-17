@@ -13,6 +13,7 @@ return new class extends Migration
             $table->unsignedBigInteger('tenant_id');
             $table->string('name', 64);
             $table->string('slug', 64);
+            $table->string('display_name', 128)->nullable();
             $table->string('description', 255)->nullable();
             $table->boolean('is_system')->default(false);
             $table->timestamps();
@@ -26,6 +27,7 @@ return new class extends Migration
             $table->bigIncrements('id');
             $table->string('name', 128);
             $table->string('slug', 64)->unique();
+            $table->string('display_name', 128)->nullable();
             $table->string('module', 64);
             $table->string('description', 255)->nullable();
             $table->timestamps();
@@ -41,6 +43,7 @@ return new class extends Migration
             $table->foreign('tenant_id')->references('id')->on('tenants')->onDelete('cascade');
             $table->foreign('role_id')->references('id')->on('roles')->onDelete('cascade');
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+            $table->timestamps();
         });
 
         Schema::create('permission_role', function (Blueprint $table) {
@@ -50,6 +53,7 @@ return new class extends Migration
             $table->primary(['permission_id', 'role_id']);
             $table->foreign('permission_id')->references('id')->on('permissions')->onDelete('cascade');
             $table->foreign('role_id')->references('id')->on('roles')->onDelete('cascade');
+            $table->timestamps();
         });
     }
 

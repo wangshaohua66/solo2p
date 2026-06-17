@@ -13,7 +13,9 @@ return new class extends Migration
             $table->unsignedBigInteger('tenant_id');
             $table->uuid('uuid')->unique();
             $table->string('number', 32);
+            $table->string('ticket_number', 32)->nullable();
             $table->string('subject', 255);
+            $table->text('description')->nullable();
             $table->text('content')->nullable();
             $table->unsignedBigInteger('category_id')->nullable();
             $table->unsignedBigInteger('subcategory_id')->nullable();
@@ -28,13 +30,17 @@ return new class extends Migration
             $table->unsignedBigInteger('current_state_id')->nullable();
             $table->unsignedBigInteger('sla_policy_id')->nullable();
             $table->decimal('satisfaction_score', 2, 1)->nullable();
+            $table->tinyInteger('satisfaction_rating')->nullable();
             $table->text('satisfaction_comment')->nullable();
             $table->timestamp('satisfaction_submitted_at')->nullable();
+            $table->timestamp('rated_at')->nullable();
             $table->timestamp('due_at')->nullable();
             $table->timestamp('first_response_at')->nullable();
             $table->timestamp('last_assigned_at')->nullable();
+            $table->timestamp('assigned_at')->nullable();
             $table->timestamp('resolved_at')->nullable();
             $table->timestamp('closed_at')->nullable();
+            $table->tinyInteger('escalation_level')->default(0);
             $table->unsignedBigInteger('reopen_count')->default(0);
             $table->unsignedBigInteger('comment_count')->default(0);
             $table->unsignedBigInteger('attachment_count')->default(0);

@@ -13,7 +13,7 @@ class Role extends Model
     use HasFactory, SoftDeletes, BelongsToTenant;
 
     protected $fillable = [
-        'tenant_id', 'name', 'slug', 'description', 'is_system',
+        'tenant_id', 'name', 'slug', 'display_name', 'description', 'is_system',
     ];
 
     protected $casts = [

@@ -30,7 +30,9 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton('sla.monitor', function ($app) {
-            return new SlaMonitor();
+            return new SlaMonitor(
+                $app->make('condition.evaluator')
+            );
         });
 
         $this->app->singleton('notification.service', function ($app) {

@@ -10,7 +10,7 @@ Route::prefix('tickets')->group(function () {
     Route::post('export', [TicketController::class, 'export']);
     Route::middleware('permission:tickets.upload')->post('{ticket}/attachments', [TicketController::class, 'uploadAttachment']);
 
-    Route::prefix('{ticket}')->where('ticket', '[0-9a-f-]+')->group(function () {
+    Route::prefix('{ticket}')->where(['ticket' => '[0-9a-f-]+'])->group(function () {
         Route::middleware('permission:tickets.view')->get('/', [TicketController::class, 'show']);
         Route::middleware('permission:tickets.edit')->put('/', [TicketController::class, 'update']);
         Route::middleware('permission:tickets.delete')->delete('/', [TicketController::class, 'destroy']);

@@ -45,7 +45,7 @@ class User extends Authenticatable
     protected $fillable = [
         'tenant_id', 'uuid', 'name', 'email', 'email_verified_at', 'password',
         'phone', 'avatar', 'job_title', 'department', 'type', 'status',
-        'is_online', 'last_active_at',
+        'is_active', 'is_online', 'timezone', 'language', 'last_active_at',
     ];
 
     protected $hidden = [
@@ -56,6 +56,7 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'last_active_at' => 'datetime',
         'is_online' => 'boolean',
+        'is_active' => 'boolean',
     ];
 
     public function roles(): BelongsToMany

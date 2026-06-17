@@ -13,7 +13,7 @@ class Permission extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'name', 'slug', 'module', 'description',
+        'name', 'slug', 'display_name', 'module', 'description',
     ];
 
     public function roles(): BelongsToMany

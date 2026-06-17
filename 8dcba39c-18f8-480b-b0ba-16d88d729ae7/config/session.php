@@ -13,7 +13,7 @@ return [
     'lottery' => [2, 100],
     'cookie' => env(
         'SESSION_COOKIE',
-        Str::slug(env('APP_NAME', 'saas-ticket'), '_').'_session'
+        'saas_ticket_session'
     ),
     'path' => '/',
     'domain' => env('SESSION_DOMAIN'),

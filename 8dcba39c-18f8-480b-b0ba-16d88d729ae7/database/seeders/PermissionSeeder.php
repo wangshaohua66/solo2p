@@ -58,8 +58,9 @@ class PermissionSeeder extends Seeder
         ];
 
         foreach ($permissions as $p) {
+            $p['slug'] = $p['name'];
             Permission::firstOrCreate(
-                ['name' => $p['name']],
+                ['slug' => $p['slug']],
                 $p
             );
         }

@@ -33,7 +33,7 @@ class DatabaseSeeder extends Seeder
                 'subdomain' => 'demo',
                 'email' => 'admin@demo-company.example.com',
                 'plan' => 'standard',
-                'status' => 'active',
+                'status' => 1,
                 'is_active' => true,
                 'timezone' => 'Asia/Shanghai',
                 'language' => 'zh_CN',
@@ -55,26 +55,33 @@ class DatabaseSeeder extends Seeder
             $ownerRole = Role::create([
                 'tenant_id' => $tenant->id,
                 'name' => 'owner',
+                'slug' => 'owner',
                 'display_name' => 'Owner',
                 'description' => 'Full system access',
+                'is_system' => true,
             ]);
 
             $adminRole = Role::create([
                 'tenant_id' => $tenant->id,
                 'name' => 'admin',
+                'slug' => 'admin',
                 'display_name' => '管理员',
                 'description' => '系统管理与用户权限',
+                'is_system' => true,
             ]);
 
             $agentRole = Role::create([
                 'tenant_id' => $tenant->id,
                 'name' => 'agent',
+                'slug' => 'agent',
                 'display_name' => '客服',
                 'description' => '处理日常工单',
+                'is_system' => true,
             ]);
 
             $owner = User::create([
                 'tenant_id' => $tenant->id,
+                'uuid' => '10000000-0000-0000-0000-000000000001',
                 'name' => '系统管理员',
                 'email' => 'owner@demo-company.example.com',
                 'password' => Hash::make('Owner@123456'),
@@ -82,28 +89,33 @@ class DatabaseSeeder extends Seeder
                 'timezone' => 'Asia/Shanghai',
                 'language' => 'zh_CN',
                 'is_active' => true,
+                'type' => 1,
             ]);
-            $owner->roles()->attach($ownerRole->id);
+            $owner->roles()->attach($ownerRole->id, ['tenant_id' => $tenant->id]);
 
             $admin = User::create([
                 'tenant_id' => $tenant->id,
+                'uuid' => '10000000-0000-0000-0000-000000000002',
                 'name' => '运营管理员',
                 'email' => 'admin@demo-company.example.com',
                 'password' => Hash::make('Admin@123456'),
                 'email_verified_at' => now(),
                 'is_active' => true,
+                'type' => 2,
             ]);
-            $admin->roles()->attach($adminRole->id);
+            $admin->roles()->attach($adminRole->id, ['tenant_id' => $tenant->id]);
 
             $agent = User::create([
                 'tenant_id' => $tenant->id,
+                'uuid' => '10000000-0000-0000-0000-000000000003',
                 'name' => '客服小李',
                 'email' => 'agent@demo-company.example.com',
                 'password' => Hash::make('Agent@123456'),
                 'email_verified_at' => now(),
                 'is_active' => true,
+                'type' => 2,
             ]);
-            $agent->roles()->attach($agentRole->id);
+            $agent->roles()->attach($agentRole->id, ['tenant_id' => $tenant->id]);
 
             DB::commit();
 
