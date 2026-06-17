@@ -1,4 +1,4 @@
-using BloodCenter.Infrastructure.Entities;
+using BloodCenter.Core.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 
@@ -23,6 +23,7 @@ public class BloodCenterDbContext : DbContext
     public DbSet<BloodRequest> BloodRequests => Set<BloodRequest>();
     public DbSet<CrossMatch> CrossMatches => Set<CrossMatch>();
     public DbSet<ScrapRecord> ScrapRecords => Set<ScrapRecord>();
+    public DbSet<InventorySetting> InventorySettings => Set<InventorySetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -52,6 +53,7 @@ public class BloodCenterDbContext : DbContext
             if (entry.State == EntityState.Added)
             {
                 entry.Entity.CreatedAt = now;
+                entry.Entity.UpdatedAt = now;
                 entry.Entity.IsDeleted = false;
             }
 
@@ -64,7 +66,7 @@ public class BloodCenterDbContext : DbContext
             {
                 entry.State = EntityState.Modified;
                 entry.Entity.IsDeleted = true;
-                entry.Entity.DeletedAt = now;
+                entry.Entity.UpdatedAt = now;
             }
         }
     }

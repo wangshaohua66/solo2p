@@ -1,10 +1,10 @@
 using AutoMapper;
 using BloodCenter.Core.Exceptions;
 using BloodCenter.Core.Interfaces;
-using BloodCenter.Infrastructure.Data.Repositories;
-using BloodCenter.Infrastructure.Entities;
-using BloodCenter.Infrastructure.Entities.Enums;
-using BloodCenter.Infrastructure.Entities.ValueObjects;
+using BloodCenter.Core.Interfaces.Data;
+using BloodCenter.Core.Entities;
+using BloodCenter.Core.Entities.Enums;
+using BloodCenter.Core.Entities.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -15,12 +15,14 @@ public class DonorService : IDonorService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<DonorService> _logger;
+    private readonly IDeferralStrategy _deferralStrategy;
 
-    public DonorService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<DonorService> logger)
+    public DonorService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<DonorService> logger, IDeferralStrategy deferralStrategy)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
+        _deferralStrategy = deferralStrategy;
     }
 
     public async Task<DonorDto> RegisterDonorAsync(CreateDonorDto donorDto, CancellationToken cancellationToken = default)
@@ -130,164 +132,67 @@ public class DonorService : IDonorService
         var donor = await _unitOfWork.Donors.GetByIdAsync(donorId, cancellationToken)
             ?? throw new NotFoundException("Donor", donorId);
 
-        var deferralReasons = new List<string>();
-        var deferralDays = 0;
-        var primaryDeferralReason = default(DeferralReason?);
+        var historyFlags = new MedicalHistoryFlags(
+            HadRecentSurgery: medicalHistory.HadRecentSurgery,
+            SurgeryDate: medicalHistory.SurgeryDate,
+            HasHepatitis: medicalHistory.HasHepatitis,
+            HasHIV: medicalHistory.HasHIV,
+            HasSyphilis: medicalHistory.HasSyphilis,
+            HasMalaria: medicalHistory.HasMalaria,
+            HadBloodTransfusion: medicalHistory.HadBloodTransfusion,
+            TransfusionDate: medicalHistory.TransfusionDate,
+            IsPregnant: medicalHistory.IsPregnant,
+            IsBreastfeeding: medicalHistory.IsBreastfeeding,
+            HadTattoo: medicalHistory.HadTattoo,
+            TattooDate: medicalHistory.TattooDate,
+            HadDentalWork: medicalHistory.HadDentalWork,
+            DentalWorkDate: medicalHistory.DentalWorkDate,
+            TraveledToMalariaArea: medicalHistory.TraveledToMalariaArea,
+            TravelDate: medicalHistory.TravelDate,
+            HadVaccination: medicalHistory.HadVaccination,
+            VaccinationDate: medicalHistory.VaccinationDate,
+            HasHighBloodPressure: medicalHistory.HasHighBloodPressure,
+            HasFever: medicalHistory.HasFever,
+            HadDrugs: medicalHistory.HadDrugs);
 
-        var age = DateTime.Today.Year - donor.DateOfBirth.Year;
-        if (donor.DateOfBirth > DateTime.Today.AddYears(-age)) age--;
-
-        if (age < 18 || age > 55)
-        {
-            deferralReasons.Add("Age outside eligible range (18-55 years)");
-            primaryDeferralReason = DeferralReason.Other;
-        }
-
-        var timeSinceLastDonation = DateTime.UtcNow - donor.LastDonationDate;
-        if (donor.LastDonationDate.HasValue && timeSinceLastDonation < TimeSpan.FromDays(56))
-        {
-            deferralReasons.Add("Less than 56 days since last donation");
-            deferralDays = Math.Max(0, 56 - (int)timeSinceLastDonation.Value.TotalDays);
-            primaryDeferralReason = DeferralReason.Other;
-        }
-
-        if (medicalHistory.HadRecentSurgery && medicalHistory.SurgeryDate.HasValue)
-        {
-            var timeSinceSurgery = DateTime.UtcNow - medicalHistory.SurgeryDate.Value;
-            if (timeSinceSurgery < TimeSpan.FromDays(180))
-            {
-                deferralReasons.Add("Recent surgery within 6 months");
-                primaryDeferralReason = DeferralReason.RecentSurgery;
-                deferralDays = Math.Max(deferralDays, 180 - (int)timeSinceSurgery.TotalDays);
-            }
-        }
-
-        if (medicalHistory.HasHepatitis || medicalHistory.HasHIV || medicalHistory.HasSyphilis || medicalHistory.HasMalaria)
-        {
-            deferralReasons.Add("History of infectious disease: hepatitis, HIV, syphilis, or malaria");
-            primaryDeferralReason = DeferralReason.InfectiousDiseaseHistory;
-            deferralDays = -1;
-        }
-
-        if (medicalHistory.HadBloodTransfusion && medicalHistory.TransfusionDate.HasValue)
-        {
-            var timeSinceTransfusion = DateTime.UtcNow - medicalHistory.TransfusionDate.Value;
-            if (timeSinceTransfusion < TimeSpan.FromDays(365))
-            {
-                deferralReasons.Add("Recent blood transfusion within 12 months");
-                primaryDeferralReason = DeferralReason.RecentBloodTransfusion;
-                deferralDays = Math.Max(deferralDays, 365 - (int)timeSinceTransfusion.TotalDays);
-            }
-        }
-
-        if (medicalHistory.IsPregnant)
-        {
-            deferralReasons.Add("Currently pregnant");
-            primaryDeferralReason = DeferralReason.Pregnancy;
-            deferralDays = 180;
-        }
-
-        if (medicalHistory.IsBreastfeeding)
-        {
-            deferralReasons.Add("Currently breastfeeding");
-            primaryDeferralReason = DeferralReason.Breastfeeding;
-            deferralDays = 90;
-        }
-
-        if (medicalHistory.HadTattoo && medicalHistory.TattooDate.HasValue)
-        {
-            var timeSinceTattoo = DateTime.UtcNow - medicalHistory.TattooDate.Value;
-            if (timeSinceTattoo < TimeSpan.FromDays(180))
-            {
-                deferralReasons.Add("Recent tattoo within 6 months");
-                primaryDeferralReason = DeferralReason.RecentTattoo;
-                deferralDays = Math.Max(deferralDays, 180 - (int)timeSinceTattoo.TotalDays);
-            }
-        }
-
-        if (medicalHistory.HadDentalWork && medicalHistory.DentalWorkDate.HasValue)
-        {
-            var timeSinceDentalWork = DateTime.UtcNow - medicalHistory.DentalWorkDate.Value;
-            if (timeSinceDentalWork < TimeSpan.FromDays(7))
-            {
-                deferralReasons.Add("Recent dental work within 7 days");
-                primaryDeferralReason = DeferralReason.RecentDentalWork;
-                deferralDays = Math.Max(deferralDays, 7 - (int)timeSinceDentalWork.TotalDays);
-            }
-        }
-
-        if (medicalHistory.TraveledToMalariaArea && medicalHistory.TravelDate.HasValue)
-        {
-            var timeSinceTravel = DateTime.UtcNow - medicalHistory.TravelDate.Value;
-            if (timeSinceTravel < TimeSpan.FromDays(365))
-            {
-                deferralReasons.Add("Travel to malaria area within 12 months");
-                primaryDeferralReason = DeferralReason.TravelToMalariaArea;
-                deferralDays = Math.Max(deferralDays, 365 - (int)timeSinceTravel.TotalDays);
-            }
-        }
-
-        if (medicalHistory.HadVaccination && medicalHistory.VaccinationDate.HasValue)
-        {
-            var timeSinceVaccination = DateTime.UtcNow - medicalHistory.VaccinationDate.Value;
-            if (timeSinceVaccination < TimeSpan.FromDays(28))
-            {
-                deferralReasons.Add("Recent vaccination within 4 weeks");
-                primaryDeferralReason = DeferralReason.RecentVaccination;
-                deferralDays = Math.Max(deferralDays, 28 - (int)timeSinceVaccination.TotalDays);
-            }
-        }
-
-        if (medicalHistory.HasHighBloodPressure)
-        {
-            deferralReasons.Add("High blood pressure");
-            primaryDeferralReason = DeferralReason.HighBloodPressure;
-        }
-
-        if (medicalHistory.HasFever)
-        {
-            deferralReasons.Add("Current fever");
-            primaryDeferralReason = DeferralReason.Fever;
-            deferralDays = Math.Max(deferralDays, 14);
-        }
-
-        if (medicalHistory.HadDrugs)
-        {
-            deferralReasons.Add("History of drug use");
-            primaryDeferralReason = DeferralReason.Other;
-            deferralDays = -1;
-        }
+        var deferralResult = await _deferralStrategy.EvaluateMedicalHistoryAsync(
+            historyFlags,
+            donor.LastDonationDate,
+            donor.DateOfBirth,
+            cancellationToken);
 
         var medicalHistoryRecord = _mapper.Map<DonorMedicalHistory>(medicalHistory);
         medicalHistoryRecord.DonorId = donorId;
-        medicalHistoryRecord.EligibilityResult = deferralReasons.Count == 0;
-        medicalHistoryRecord.DeferralReason = primaryDeferralReason.ToString();
-        medicalHistoryRecord.DeferralDays = deferralDays > 0 ? deferralDays : null;
+        medicalHistoryRecord.EligibilityResult = deferralResult.IsEligible;
+        medicalHistoryRecord.DeferralReason = deferralResult.PrimaryReason.ToString();
+        medicalHistoryRecord.DeferralDays = deferralResult.DeferralDays > 0 ? deferralResult.DeferralDays : null;
 
         await _unitOfWork.DonorMedicalHistories.AddAsync(medicalHistoryRecord, cancellationToken);
 
         DonorStatus status;
         DateTime? nextEligibleDate = null;
 
-        if (deferralReasons.Count == 0)
+        if (deferralResult.IsEligible)
         {
             status = DonorStatus.Eligible;
             nextEligibleDate = donor.LastDonationDate.HasValue
                 ? donor.LastDonationDate.Value.AddDays(56)
                 : DateTime.UtcNow;
         }
-        else if (deferralDays == -1)
+        else if (deferralResult.DeferralDays == -1)
         {
             status = DonorStatus.PermanentlyDeferred;
         }
         else
         {
             status = DonorStatus.TemporarilyDeferred;
-            nextEligibleDate = DateTime.UtcNow.AddDays(deferralDays);
+            nextEligibleDate = deferralResult.DeferralDays.HasValue
+                ? DateTime.UtcNow.AddDays(deferralResult.DeferralDays.Value)
+                : null;
         }
 
         donor.Status = status;
-        donor.DeferralReason = primaryDeferralReason;
+        donor.DeferralReason = deferralResult.PrimaryReason;
         donor.DeferralUntil = status == DonorStatus.TemporarilyDeferred ? nextEligibleDate : null;
         donor.NextEligibleDate = nextEligibleDate;
 
@@ -295,12 +200,12 @@ public class DonorService : IDonorService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new EligibilityCheckResult(
-            deferralReasons.Count == 0,
+            deferralResult.IsEligible,
             status,
-            primaryDeferralReason,
-            deferralDays > 0 ? deferralDays : null,
+            deferralResult.PrimaryReason,
+            deferralResult.DeferralDays > 0 ? deferralResult.DeferralDays : null,
             nextEligibleDate,
-            deferralReasons);
+            deferralResult.DeferralReasons);
     }
 
     public async Task<DonorDto> UpdateDonorStatusAsync(Guid id, DonorStatus status, DeferralReason? reason, DateTime? deferralUntil, CancellationToken cancellationToken = default)

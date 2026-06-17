@@ -1,10 +1,10 @@
 using AutoMapper;
 using BloodCenter.Core.Exceptions;
 using BloodCenter.Core.Interfaces;
-using BloodCenter.Infrastructure.Data.Repositories;
-using BloodCenter.Infrastructure.Entities;
-using BloodCenter.Infrastructure.Entities.Enums;
-using BloodCenter.Infrastructure.Entities.ValueObjects;
+using BloodCenter.Core.Interfaces.Data;
+using BloodCenter.Core.Entities;
+using BloodCenter.Core.Entities.Enums;
+using BloodCenter.Core.Entities.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 

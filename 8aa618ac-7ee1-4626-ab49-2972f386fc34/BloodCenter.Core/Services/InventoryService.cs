@@ -1,8 +1,8 @@
 using BloodCenter.Core.Exceptions;
 using BloodCenter.Core.Interfaces;
-using BloodCenter.Infrastructure.Data.Repositories;
-using BloodCenter.Infrastructure.Entities;
-using BloodCenter.Infrastructure.Entities.Enums;
+using BloodCenter.Core.Interfaces.Data;
+using BloodCenter.Core.Entities;
+using BloodCenter.Core.Entities.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -12,35 +12,13 @@ public class InventoryService : IInventoryService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<InventoryService> _logger;
+    private readonly INotificationService _notificationService;
 
-    private static readonly Dictionary<(BloodProductType, BloodType, RhFactor), int> DefaultSafetyStock = new()
-    {
-        { (BloodProductType.RedBloodCells, BloodType.O, RhFactor.Positive), 50 },
-        { (BloodProductType.RedBloodCells, BloodType.O, RhFactor.Negative), 20 },
-        { (BloodProductType.RedBloodCells, BloodType.A, RhFactor.Positive), 40 },
-        { (BloodProductType.RedBloodCells, BloodType.A, RhFactor.Negative), 15 },
-        { (BloodProductType.RedBloodCells, BloodType.B, RhFactor.Positive), 30 },
-        { (BloodProductType.RedBloodCells, BloodType.B, RhFactor.Negative), 10 },
-        { (BloodProductType.RedBloodCells, BloodType.AB, RhFactor.Positive), 15 },
-        { (BloodProductType.RedBloodCells, BloodType.AB, RhFactor.Negative), 5 },
-        { (BloodProductType.Plasma, BloodType.O, RhFactor.Positive), 30 },
-        { (BloodProductType.Plasma, BloodType.O, RhFactor.Negative), 15 },
-        { (BloodProductType.Plasma, BloodType.A, RhFactor.Positive), 25 },
-        { (BloodProductType.Plasma, BloodType.A, RhFactor.Negative), 10 },
-        { (BloodProductType.Plasma, BloodType.B, RhFactor.Positive), 20 },
-        { (BloodProductType.Plasma, BloodType.B, RhFactor.Negative), 8 },
-        { (BloodProductType.Plasma, BloodType.AB, RhFactor.Positive), 10 },
-        { (BloodProductType.Plasma, BloodType.AB, RhFactor.Negative), 5 },
-        { (BloodProductType.Platelets, BloodType.O, RhFactor.Positive), 20 },
-        { (BloodProductType.Platelets, BloodType.A, RhFactor.Positive), 15 },
-        { (BloodProductType.Platelets, BloodType.B, RhFactor.Positive), 12 },
-        { (BloodProductType.Platelets, BloodType.AB, RhFactor.Positive), 8 }
-    };
-
-    public InventoryService(IUnitOfWork unitOfWork, ILogger<InventoryService> logger)
+    public InventoryService(IUnitOfWork unitOfWork, ILogger<InventoryService> logger, INotificationService notificationService)
     {
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _notificationService = notificationService;
     }
 
     public async Task<IEnumerable<InventoryItemDto>> GetInventorySummaryAsync(CancellationToken cancellationToken = default)
@@ -133,6 +111,13 @@ public class InventoryService : IInventoryService
             .Where(bp => !bp.IsDeleted && bp.Status == InventoryStatus.Issued)
             .ToListAsync(cancellationToken);
 
+        var inventorySettings = await _unitOfWork.InventorySettings.Query()
+            .Where(s => !s.IsDeleted)
+            .ToDictionaryAsync(
+                s => (s.ProductType, s.BloodType, s.RhFactor),
+                s => s.MinimumLevel,
+                cancellationToken);
+
         var inventoryByType = new List<BloodTypeInventoryItem>();
         var allBloodTypes = Enum.GetValues<BloodType>();
         var allRhFactors = Enum.GetValues<RhFactor>();
@@ -143,7 +128,7 @@ public class InventoryService : IInventoryService
             {
                 var currentStock = products.Count(p => p.BloodGroup.ABO == bloodType && p.BloodGroup.Rh == rhFactor);
                 var weeklyUsage = issuedProducts.Count(p => p.BloodGroup.ABO == bloodType && p.BloodGroup.Rh == rhFactor && p.UpdatedAt >= DateTime.UtcNow.AddDays(-7));
-                var safetyStock = GetSafetyStockLevel(BloodProductType.RedBloodCells, bloodType, rhFactor);
+                var safetyStock = GetSafetyStockLevel(BloodProductType.RedBloodCells, bloodType, rhFactor, inventorySettings);
                 var daysOfSupply = weeklyUsage > 0 ? currentStock * 7 / weeklyUsage : currentStock * 7;
                 var status = currentStock < safetyStock ? "Low" : currentStock < safetyStock * 2 ? "Normal" : "Adequate";
 
@@ -399,53 +384,138 @@ public class InventoryService : IInventoryService
         );
     }
 
-    public Task SetSafetyStockLevelAsync(BloodProductType productType, BloodType bloodType, RhFactor rhFactor, int minimumLevel, CancellationToken cancellationToken = default)
+    public async Task SetSafetyStockLevelAsync(BloodProductType productType, BloodType bloodType, RhFactor rhFactor, int minimumLevel, CancellationToken cancellationToken = default)
     {
-        var key = (productType, bloodType, rhFactor);
-        DefaultSafetyStock[key] = minimumLevel;
-        return Task.CompletedTask;
+        var setting = await _unitOfWork.InventorySettings.Query()
+            .FirstOrDefaultAsync(s => s.ProductType == productType
+                && s.BloodType == bloodType
+                && s.RhFactor == rhFactor
+                && !s.IsDeleted,
+                cancellationToken);
+
+        if (setting == null)
+        {
+            setting = new InventorySetting
+            {
+                ProductType = productType,
+                BloodType = bloodType,
+                RhFactor = rhFactor,
+                MinimumLevel = minimumLevel,
+                WarningLevel = minimumLevel * 2,
+                EmergencyReserve = minimumLevel / 2,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            await _unitOfWork.InventorySettings.AddAsync(setting, cancellationToken);
+        }
+        else
+        {
+            setting.MinimumLevel = minimumLevel;
+            setting.UpdatedAt = DateTime.UtcNow;
+            _unitOfWork.InventorySettings.Update(setting);
+        }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Safety stock level updated for {ProductType} {BloodType}{RhFactor}: {MinimumLevel}",
+            productType, bloodType, rhFactor == RhFactor.Positive ? "+" : "-", minimumLevel);
     }
 
-    public Task<InventorySettingsDto> GetInventorySettingsAsync(CancellationToken cancellationToken = default)
+    public async Task<InventorySettingsDto> GetInventorySettingsAsync(CancellationToken cancellationToken = default)
     {
-        var levels = DefaultSafetyStock.Select(kvp => new SafetyStockLevel(
-            kvp.Key.Item1,
-            kvp.Key.Item2,
-            kvp.Key.Item3,
-            kvp.Value
+        var settings = await _unitOfWork.InventorySettings.Query()
+            .Where(s => !s.IsDeleted)
+            .ToListAsync(cancellationToken);
+
+        var levels = settings.Select(s => new SafetyStockLevel(
+            s.ProductType,
+            s.BloodType,
+            s.RhFactor,
+            s.MinimumLevel
         )).ToList();
 
-        return Task.FromResult(new InventorySettingsDto(
+        return new InventorySettingsDto(
             levels,
             ExpirationWarningHours: 24,
             EmergencyReservePercent: 20
-        ));
+        );
+    }
+
+    public async Task CheckAndSendAlertsAsync(CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Starting inventory alert check");
+
+        var now = DateTime.UtcNow;
+        var alertsSent = 0;
+
+        var lowStockItems = await GetLowStockItemsAsync(cancellationToken);
+        foreach (var item in lowStockItems)
+        {
+            var message = $"Low stock alert: {item.ProductType} {item.BloodType}{(item.RhFactor == RhFactor.Positive ? "+" : "-")} - {item.CurrentStock} units remaining, threshold: {item.SafetyStock}";
+            await _notificationService.SendInventoryAlertAsync(
+                "LowStock",
+                message,
+                "High",
+                cancellationToken);
+            alertsSent++;
+        }
+
+        var expiringProducts = await _unitOfWork.BloodProducts.Query()
+            .Where(bp => !bp.IsDeleted
+                && bp.Status == InventoryStatus.InStock
+                && bp.ExpiryDate <= now.AddHours(24)
+                && bp.ExpiryDate > now)
+            .ToListAsync(cancellationToken);
+
+        foreach (var product in expiringProducts)
+        {
+            var hoursUntilExpiry = (product.ExpiryDate - now).TotalHours;
+            var message = $"Expiring soon: Product {product.ProductCode} expires in {hoursUntilExpiry:F1} hours";
+            await _notificationService.SendInventoryAlertAsync(
+                "ExpiringSoon",
+                message,
+                "Critical",
+                cancellationToken);
+            alertsSent++;
+        }
+
+        _logger.LogInformation("Inventory alert check completed. {AlertsSent} alerts sent", alertsSent);
     }
 
     private async Task<IEnumerable<(BloodProductType ProductType, BloodType BloodType, RhFactor RhFactor, int CurrentStock, int SafetyStock)>> GetLowStockItemsAsync(CancellationToken cancellationToken)
     {
+        var settings = await _unitOfWork.InventorySettings.Query()
+            .Where(s => !s.IsDeleted)
+            .ToListAsync(cancellationToken);
+
         var products = await _unitOfWork.BloodProducts.Query()
             .Where(bp => !bp.IsDeleted && bp.Status == InventoryStatus.InStock)
-            .ToListAsync(cancellationToken);
+            .GroupBy(bp => new { bp.ProductType, bp.BloodGroup.ABO, bp.BloodGroup.Rh })
+            .Select(g => new { g.Key.ProductType, g.Key.ABO, g.Key.Rh, Count = g.Count() })
+            .ToDictionaryAsync(
+                g => (g.ProductType, g.ABO, g.Rh),
+                g => g.Count,
+                cancellationToken);
 
         var result = new List<(BloodProductType, BloodType, RhFactor, int, int)>();
 
-        foreach (var key in DefaultSafetyStock.Keys)
+        foreach (var setting in settings)
         {
-            var currentStock = products.Count(p => p.ProductType == key.Item1 && p.BloodGroup.ABO == key.Item2 && p.BloodGroup.Rh == key.Item3);
-            var safetyStock = DefaultSafetyStock[key];
-            if (currentStock < safetyStock)
+            var key = (setting.ProductType, setting.BloodType, setting.RhFactor);
+            var currentStock = products.TryGetValue(key, out var count) ? count : 0;
+            if (currentStock < setting.MinimumLevel)
             {
-                result.Add((key.Item1, key.Item2, key.Item3, currentStock, safetyStock));
+                result.Add((setting.ProductType, setting.BloodType, setting.RhFactor, currentStock, setting.MinimumLevel));
             }
         }
 
         return result;
     }
 
-    private static int GetSafetyStockLevel(BloodProductType productType, BloodType bloodType, RhFactor rhFactor)
+    private static int GetSafetyStockLevel(BloodProductType productType, BloodType bloodType, RhFactor rhFactor, Dictionary<(BloodProductType, BloodType, RhFactor), int> settings)
     {
-        return DefaultSafetyStock.TryGetValue((productType, bloodType, rhFactor), out var level) ? level : 10;
+        return settings.TryGetValue((productType, bloodType, rhFactor), out var level) ? level : 10;
     }
 
     private static InventoryItemDto MapToInventoryItem(BloodProduct product)

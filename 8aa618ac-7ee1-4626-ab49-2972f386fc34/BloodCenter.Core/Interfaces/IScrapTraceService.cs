@@ -1,4 +1,4 @@
-using BloodCenter.Infrastructure.Entities.Enums;
+using BloodCenter.Core.Entities.Enums;
 
 namespace BloodCenter.Core.Interfaces;
 
@@ -9,7 +9,7 @@ public interface IScrapTraceService
     Task<ScrapRecordDto?> GetScrapRecordByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<PagedResult<ScrapRecordDto>> GetScrapRecordsAsync(SearchScrapQuery query, CancellationToken cancellationToken = default);
     Task<IEnumerable<ScrapRecordDto>> GetScrapsByProductAsync(Guid productId, CancellationToken cancellationToken = default);
-    Task ProcessAutoScrapForExpiredProductsAsync(CancellationToken cancellationToken = default);
+    Task<int> ProcessAutoScrapForExpiredProductsAsync(CancellationToken cancellationToken = default);
     Task<TraceResultDto> TraceProductForwardAsync(Guid productId, CancellationToken cancellationToken = default);
     Task<TraceResultDto> TraceProductBackwardAsync(Guid productId, CancellationToken cancellationToken = default);
     Task<TraceResultDto> TraceByDonorAsync(Guid donorId, CancellationToken cancellationToken = default);

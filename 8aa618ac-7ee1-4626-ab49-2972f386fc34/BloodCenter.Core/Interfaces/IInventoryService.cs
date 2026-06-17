@@ -1,4 +1,4 @@
-using BloodCenter.Infrastructure.Entities.Enums;
+using BloodCenter.Core.Entities.Enums;
 
 namespace BloodCenter.Core.Interfaces;
 
@@ -18,6 +18,7 @@ public interface IInventoryService
     Task<InventoryTrendDto> GetInventoryTrendAsync(int days, CancellationToken cancellationToken = default);
     Task SetSafetyStockLevelAsync(BloodProductType productType, BloodType bloodType, RhFactor rhFactor, int minimumLevel, CancellationToken cancellationToken = default);
     Task<InventorySettingsDto> GetInventorySettingsAsync(CancellationToken cancellationToken = default);
+    Task CheckAndSendAlertsAsync(CancellationToken cancellationToken = default);
 }
 
 public record SearchInventoryQuery(

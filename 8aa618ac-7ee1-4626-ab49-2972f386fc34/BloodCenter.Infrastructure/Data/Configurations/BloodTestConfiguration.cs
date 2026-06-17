@@ -1,4 +1,4 @@
-using BloodCenter.Infrastructure.Entities;
+using BloodCenter.Core.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 

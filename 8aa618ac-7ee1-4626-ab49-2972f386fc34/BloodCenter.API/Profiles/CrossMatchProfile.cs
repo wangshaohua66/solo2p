@@ -1,7 +1,7 @@
 using AutoMapper;
 using BloodCenter.Core.Interfaces;
-using BloodCenter.Infrastructure.Entities;
-using BloodCenter.Infrastructure.Entities.ValueObjects;
+using BloodCenter.Core.Entities;
+using BloodCenter.Core.Entities.ValueObjects;
 
 namespace BloodCenter.API.Profiles;
 

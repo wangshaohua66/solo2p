@@ -1,5 +1,5 @@
 using BloodCenter.Core.Interfaces;
-using BloodCenter.Infrastructure.Entities.Enums;
+using BloodCenter.Core.Entities.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

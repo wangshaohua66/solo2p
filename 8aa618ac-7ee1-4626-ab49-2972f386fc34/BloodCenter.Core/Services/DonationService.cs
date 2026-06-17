@@ -1,9 +1,9 @@
 using AutoMapper;
 using BloodCenter.Core.Exceptions;
 using BloodCenter.Core.Interfaces;
-using BloodCenter.Infrastructure.Data.Repositories;
-using BloodCenter.Infrastructure.Entities;
-using BloodCenter.Infrastructure.Entities.Enums;
+using BloodCenter.Core.Interfaces.Data;
+using BloodCenter.Core.Entities;
+using BloodCenter.Core.Entities.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -14,12 +14,14 @@ public class DonationService : IDonationService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<DonationService> _logger;
+    private readonly IDeferralStrategy _deferralStrategy;
 
-    public DonationService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<DonationService> logger)
+    public DonationService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<DonationService> logger, IDeferralStrategy deferralStrategy)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
+        _deferralStrategy = deferralStrategy;
     }
 
     public async Task<DonationDto> CreateDonationAsync(CreateDonationDto donationDto, CancellationToken cancellationToken = default)
@@ -187,25 +189,14 @@ public class DonationService : IDonationService
         var screening = _mapper.Map<InitialScreening>(screeningDto);
         screening.DonationId = donationId;
 
-        var failureReasons = new List<string>();
+        var deferralResult = await _deferralStrategy.EvaluateInitialScreeningAsync(
+            (double)screeningDto.Hemoglobin,
+            (double)screeningDto.ALT,
+            screeningDto.HBsAg,
+            cancellationToken);
 
-        if (screeningDto.Hemoglobin < 120)
-        {
-            failureReasons.Add($"Low hemoglobin: {screeningDto.Hemoglobin}g/L (minimum 120g/L)");
-        }
-
-        if (screeningDto.ALT > 40)
-        {
-            failureReasons.Add($"High ALT: {screeningDto.ALT}U/L (maximum 40U/L)");
-        }
-
-        if (screeningDto.HBsAg == TestResult.Positive || screeningDto.HBsAg == TestResult.Reactive)
-        {
-            failureReasons.Add("HBsAg positive");
-        }
-
-        screening.Passed = failureReasons.Count == 0;
-        screening.FailureReason = string.Join("; ", failureReasons);
+        screening.Passed = deferralResult.IsEligible;
+        screening.FailureReason = deferralResult.IsEligible ? null : string.Join("; ", deferralResult.DeferralReasons);
         screening.CreatedAt = DateTime.UtcNow;
 
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
@@ -226,9 +217,19 @@ public class DonationService : IDonationService
                 var donor = await _unitOfWork.Donors.GetByIdAsync(donation.DonorId, cancellationToken);
                 if (donor != null)
                 {
-                    donor.Status = DonorStatus.TemporarilyDeferred;
-                    donor.DeferralReason = Enums.DeferralReason.LowHemoglobin;
-                    donor.DeferralUntil = DateTime.UtcNow.AddDays(90);
+                    if (deferralResult.DeferralDays == -1)
+                    {
+                        donor.Status = DonorStatus.PermanentlyDeferred;
+                        donor.DeferralUntil = null;
+                    }
+                    else
+                    {
+                        donor.Status = DonorStatus.TemporarilyDeferred;
+                        donor.DeferralUntil = deferralResult.DeferralDays.HasValue
+                            ? DateTime.UtcNow.AddDays(deferralResult.DeferralDays.Value)
+                            : null;
+                    }
+                    donor.DeferralReason = deferralResult.PrimaryReason;
                     _unitOfWork.Donors.Update(donor);
                 }
             }

@@ -1,9 +1,9 @@
 using AutoMapper;
 using BloodCenter.Core.Exceptions;
 using BloodCenter.Core.Interfaces;
-using BloodCenter.Infrastructure.Data.Repositories;
-using BloodCenter.Infrastructure.Entities;
-using BloodCenter.Infrastructure.Entities.Enums;
+using BloodCenter.Core.Interfaces.Data;
+using BloodCenter.Core.Entities;
+using BloodCenter.Core.Entities.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -175,7 +175,7 @@ public class ScrapTraceService : IScrapTraceService
         return _mapper.Map<IEnumerable<ScrapRecordDto>>(scraps);
     }
 
-    public async Task ProcessAutoScrapForExpiredProductsAsync(CancellationToken cancellationToken = default)
+    public async Task<int> ProcessAutoScrapForExpiredProductsAsync(CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;
         var expiredProducts = await _unitOfWork.BloodProducts.Query()
@@ -221,6 +221,8 @@ public class ScrapTraceService : IScrapTraceService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Auto-scrap processed {Count} expired products", expiredProducts.Count);
+
+        return expiredProducts.Count;
     }
 
     public async Task<TraceResultDto> TraceProductForwardAsync(Guid productId, CancellationToken cancellationToken = default)

@@ -1,4 +1,5 @@
-using BloodCenter.Infrastructure.Entities;
+using BloodCenter.Core.Entities;
+using BloodCenter.Core.Interfaces.Data;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace BloodCenter.Infrastructure.Data.Repositories;
@@ -23,6 +24,7 @@ public class UnitOfWork : IUnitOfWork
         BloodRequests = new Repository<BloodRequest>(context);
         CrossMatches = new Repository<CrossMatch>(context);
         ScrapRecords = new Repository<ScrapRecord>(context);
+        InventorySettings = new Repository<InventorySetting>(context);
     }
 
     public IRepository<User> Users { get; private set; }
@@ -37,6 +39,7 @@ public class UnitOfWork : IUnitOfWork
     public IRepository<BloodRequest> BloodRequests { get; private set; }
     public IRepository<CrossMatch> CrossMatches { get; private set; }
     public IRepository<ScrapRecord> ScrapRecords { get; private set; }
+    public IRepository<InventorySetting> InventorySettings { get; private set; }
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

@@ -1,4 +1,4 @@
-using BloodCenter.Infrastructure.Entities.Enums;
+using BloodCenter.Core.Entities.Enums;
 
 namespace BloodCenter.Core.Interfaces;
 
@@ -12,7 +12,7 @@ public interface ICrossMatchService
     Task<IEnumerable<CrossMatchResultDto>> PerformCrossMatchAsync(Guid requestId, Guid technicianId, CancellationToken cancellationToken = default);
     Task<CrossMatchResultDto> RecordCrossMatchResultAsync(RecordCrossMatchDto matchDto, CancellationToken cancellationToken = default);
     Task<IssueResultDto> IssueProductsAsync(Guid requestId, Guid operatorId, CancellationToken cancellationToken = default);
-    Task<BloodRequestDto> UpdateRequestStatusAsync(Guid requestId, string status, string? notes, CancellationToken cancellationToken = default);
+    Task<BloodRequestDto> UpdateRequestStatusAsync(Guid requestId, RequestStatus status, string? notes, CancellationToken cancellationToken = default);
     Task<IEnumerable<CompatibleProductDto>> FindCompatibleProductsAsync(Guid requestId, CancellationToken cancellationToken = default);
     Task<RequestStatsDto> GetRequestStatsAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default);
     Task CancelRequestAsync(Guid requestId, string reason, CancellationToken cancellationToken = default);
@@ -57,7 +57,7 @@ public record SearchBloodRequestQuery(
     string? PatientId,
     BloodProductType? ProductType,
     UrgencyLevel? Urgency,
-    string? Status,
+    RequestStatus? Status,
     DateTime? StartDate,
     DateTime? EndDate,
     int PageNumber = 1,
@@ -84,7 +84,7 @@ public record BloodRequestDto(
     string? BedNumber,
     string RequestedBy,
     string? RequestDoctor,
-    string Status,
+    RequestStatus Status,
     DateTime? FulfilledAt,
     string? Notes,
     DateTime CreatedAt,

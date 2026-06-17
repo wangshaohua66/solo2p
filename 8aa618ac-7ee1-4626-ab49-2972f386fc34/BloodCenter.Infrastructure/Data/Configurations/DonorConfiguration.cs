@@ -1,5 +1,5 @@
-using BloodCenter.Infrastructure.Entities;
-using BloodCenter.Infrastructure.Entities.ValueObjects;
+using BloodCenter.Core.Entities;
+using BloodCenter.Core.Entities.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 

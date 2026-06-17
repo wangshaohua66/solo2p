@@ -1,10 +1,10 @@
 using AutoMapper;
 using BloodCenter.Core.Exceptions;
 using BloodCenter.Core.Interfaces;
-using BloodCenter.Infrastructure.Data.Repositories;
-using BloodCenter.Infrastructure.Entities;
-using BloodCenter.Infrastructure.Entities.Enums;
-using BloodCenter.Infrastructure.Entities.ValueObjects;
+using BloodCenter.Core.Interfaces.Data;
+using BloodCenter.Core.Entities;
+using BloodCenter.Core.Entities.Enums;
+using BloodCenter.Core.Entities.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -47,7 +47,7 @@ public class CrossMatchService : ICrossMatchService
             ABO = requestDto.PatientBloodType,
             Rh = requestDto.PatientRhFactor
         };
-        request.Status = "Pending";
+        request.Status = RequestStatus.Pending;
         request.CreatedAt = DateTime.UtcNow;
 
         await _unitOfWork.BloodRequests.AddAsync(request, cancellationToken);
@@ -105,9 +105,9 @@ public class CrossMatchService : ICrossMatchService
             queryable = queryable.Where(r => r.Urgency == query.Urgency.Value);
         }
 
-        if (!string.IsNullOrEmpty(query.Status))
+        if (query.Status.HasValue)
         {
-            queryable = queryable.Where(r => r.Status == query.Status);
+            queryable = queryable.Where(r => r.Status == query.Status.Value);
         }
 
         if (query.StartDate.HasValue)
@@ -224,7 +224,7 @@ public class CrossMatchService : ICrossMatchService
 
         if (results.Any(r => r.OverallResult == CrossMatchResult.Compatible))
         {
-            request.Status = "Matched";
+            request.Status = RequestStatus.Processing;
             request.UpdatedAt = DateTime.UtcNow;
             _unitOfWork.BloodRequests.Update(request);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -340,7 +340,7 @@ public class CrossMatchService : ICrossMatchService
             }
 
             request.QuantityIssued += issuedProducts.Count;
-            request.Status = request.QuantityIssued >= request.QuantityRequested ? "Fulfilled" : "PartiallyFulfilled";
+            request.Status = request.QuantityIssued >= request.QuantityRequested ? RequestStatus.Fulfilled : RequestStatus.PartialFulfilled;
             request.FulfilledAt = issueTime;
             request.UpdatedAt = issueTime;
             _unitOfWork.BloodRequests.Update(request);
@@ -366,7 +366,7 @@ public class CrossMatchService : ICrossMatchService
         );
     }
 
-    public async Task<BloodRequestDto> UpdateRequestStatusAsync(Guid requestId, string status, string? notes, CancellationToken cancellationToken = default)
+    public async Task<BloodRequestDto> UpdateRequestStatusAsync(Guid requestId, RequestStatus status, string? notes, CancellationToken cancellationToken = default)
     {
         var request = await _unitOfWork.BloodRequests.GetByIdAsync(requestId, cancellationToken)
             ?? throw new NotFoundException("BloodRequest", requestId);
@@ -430,7 +430,7 @@ public class CrossMatchService : ICrossMatchService
             .Where(r => r.CreatedAt >= startDate && r.CreatedAt <= endDate && !r.IsDeleted)
             .ToListAsync(cancellationToken);
 
-        var fulfilledRequests = requests.Where(r => r.Status == "Fulfilled").ToList();
+        var fulfilledRequests = requests.Where(r => r.Status == RequestStatus.Fulfilled).ToList();
         var responseTimes = fulfilledRequests
             .Where(r => r.FulfilledAt.HasValue)
             .Select(r => r.FulfilledAt!.Value - r.CreatedAt)
@@ -439,8 +439,8 @@ public class CrossMatchService : ICrossMatchService
         return new RequestStatsDto(
             TotalRequests: requests.Count,
             FulfilledRequests: fulfilledRequests.Count,
-            PendingRequests: requests.Count(r => r.Status == "Pending"),
-            CancelledRequests: requests.Count(r => r.Status == "Cancelled"),
+            PendingRequests: requests.Count(r => r.Status == RequestStatus.Pending),
+            CancelledRequests: requests.Count(r => r.Status == RequestStatus.Cancelled),
             TotalUnitsRequested: requests.Sum(r => r.QuantityRequested),
             TotalUnitsIssued: requests.Sum(r => r.QuantityIssued),
             FulfillmentRate: requests.Any() ? Math.Round((decimal)fulfilledRequests.Count / requests.Count * 100, 2) : 0,
@@ -458,7 +458,7 @@ public class CrossMatchService : ICrossMatchService
             .FirstOrDefaultAsync(cancellationToken)
             ?? throw new NotFoundException("BloodRequest", requestId);
 
-        request.Status = "Cancelled";
+        request.Status = RequestStatus.Cancelled;
         request.Notes = string.IsNullOrEmpty(request.Notes) ? $"Cancelled: {reason}" : $"{request.Notes}; Cancelled: {reason}";
         request.UpdatedAt = DateTime.UtcNow;
 

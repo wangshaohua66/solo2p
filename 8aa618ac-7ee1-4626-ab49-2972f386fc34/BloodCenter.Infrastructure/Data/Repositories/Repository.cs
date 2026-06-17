@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using BloodCenter.Core.Interfaces.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace BloodCenter.Infrastructure.Data.Repositories;
@@ -42,37 +43,31 @@ public class Repository<T> : IRepository<T> where T : class
     public virtual async Task AddAsync(T entity, CancellationToken cancellationToken = default)
     {
         await _dbSet.AddAsync(entity, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public virtual async Task AddRangeAsync(IEnumerable<T> entities, CancellationToken cancellationToken = default)
     {
         await _dbSet.AddRangeAsync(entities, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public virtual void Update(T entity)
     {
         _dbSet.Update(entity);
-        _context.SaveChanges();
     }
 
     public virtual void UpdateRange(IEnumerable<T> entities)
     {
         _dbSet.UpdateRange(entities);
-        _context.SaveChanges();
     }
 
     public virtual void Delete(T entity)
     {
         _dbSet.Remove(entity);
-        _context.SaveChanges();
     }
 
     public virtual void DeleteRange(IEnumerable<T> entities)
     {
         _dbSet.RemoveRange(entities);
-        _context.SaveChanges();
     }
 
     public virtual async Task<int> CountAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)

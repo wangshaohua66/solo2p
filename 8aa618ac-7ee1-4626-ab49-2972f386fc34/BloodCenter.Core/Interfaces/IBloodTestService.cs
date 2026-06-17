@@ -1,4 +1,4 @@
-using BloodCenter.Infrastructure.Entities.Enums;
+using BloodCenter.Core.Entities.Enums;
 
 namespace BloodCenter.Core.Interfaces;
 
@@ -12,6 +12,7 @@ public interface IBloodTestService
     Task<PagedResult<BloodTestDto>> GetTestsAsync(SearchBloodTestQuery query, CancellationToken cancellationToken = default);
     Task<TestSummaryDto> GetTestsSummaryAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default);
     Task<bool> IsDonationSafeAsync(Guid donationId, CancellationToken cancellationToken = default);
+    Task<TestCoverageValidationResult> ValidateFullTestCoverageAsync(Guid donationId, CancellationToken cancellationToken = default);
     Task QuarantineDonorProductsAsync(Guid donorId, string reason, CancellationToken cancellationToken = default);
     Task ReleaseDonationAsync(Guid donationId, CancellationToken cancellationToken = default);
     Task DeleteTestAsync(Guid id, CancellationToken cancellationToken = default);
@@ -77,4 +78,12 @@ public record TestSummaryDto(
     decimal PositiveRate,
     Dictionary<TestItem, int> ByTestItem,
     Dictionary<TestType, int> ByTestType
+);
+
+public record TestCoverageValidationResult(
+    bool IsComplete,
+    IEnumerable<string> MissingElisaFirstItems,
+    IEnumerable<string> MissingElisaSecondItems,
+    IEnumerable<string> MissingNatItems,
+    IEnumerable<string> PositiveOrReactiveItems
 );

@@ -1,6 +1,9 @@
 using BloodCenter.API.Middleware;
+using BloodCenter.Core.Entities;
 using BloodCenter.Core.Interfaces;
+using BloodCenter.Core.Interfaces.Data;
 using BloodCenter.Core.Services;
+using BloodCenter.Core.Services.Workers;
 using BloodCenter.Infrastructure.Data;
 using BloodCenter.Infrastructure.Data.Repositories;
 using FluentValidation.AspNetCore;
@@ -93,6 +96,13 @@ builder.Services.AddScoped<IComponentPreparationService, ComponentPreparationSer
 builder.Services.AddScoped<IInventoryService, InventoryService>();
 builder.Services.AddScoped<ICrossMatchService, CrossMatchService>();
 builder.Services.AddScoped<IScrapTraceService, ScrapTraceService>();
+builder.Services.AddScoped<IDeferralStrategy, DeferralStrategyService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+
+builder.Services.Configure<DeferralOptions>(builder.Configuration.GetSection("DeferralOptions"));
+builder.Services.Configure<BackgroundWorkerOptions>(builder.Configuration.GetSection("BackgroundWorkerOptions"));
+
+builder.Services.AddHostedService<ExpiredProductsBackgroundService>();
 
 builder.Services.AddAutoMapper(typeof(Program).Assembly);
 builder.Services.AddFluentValidation(fv => fv.RegisterValidatorsFromAssemblyContaining<Program>());

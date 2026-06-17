@@ -1,9 +1,9 @@
 using AutoMapper;
 using BloodCenter.Core.Exceptions;
 using BloodCenter.Core.Interfaces;
-using BloodCenter.Infrastructure.Data.Repositories;
-using BloodCenter.Infrastructure.Entities;
-using BloodCenter.Infrastructure.Entities.Enums;
+using BloodCenter.Core.Interfaces.Data;
+using BloodCenter.Core.Entities;
+using BloodCenter.Core.Entities.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -86,6 +86,29 @@ public class BloodTestService : IBloodTestService
         {
             throw new ForbiddenException("Cannot review own test results");
         }
+
+        var donationTests = await _unitOfWork.BloodTests.Query()
+            .Where(t => t.DonationId == test.DonationId && !t.IsDeleted)
+            .ToListAsync(cancellationToken);
+
+        var alreadyReviewed = donationTests
+            .Where(t => t.IsReReviewed && t.SecondReviewerId.HasValue && t.Id != testId)
+            .ToList();
+
+        if (alreadyReviewed.Any())
+        {
+            var firstReviewerId = alreadyReviewed.First().SecondReviewerId;
+            if (firstReviewerId != reviewerId)
+            {
+                throw new ValidationException(
+                    "All tests for a donation must be reviewed by the same second reviewer. " +
+                    $"This donation's tests are already being reviewed by a different reviewer.");
+            }
+        }
+
+        var pendingTests = donationTests
+            .Where(t => !t.IsReReviewed && t.Id != testId)
+            .ToList();
 
         test.SecondReviewerId = reviewerId;
         test.Result = result;
@@ -213,9 +236,19 @@ public class BloodTestService : IBloodTestService
 
     public async Task<bool> IsDonationSafeAsync(Guid donationId, CancellationToken cancellationToken = default)
     {
-        var requiredItems = new[]
+        var result = await ValidateFullTestCoverageAsync(donationId, cancellationToken);
+        return result.IsComplete && !result.PositiveOrReactiveItems.Any();
+    }
+
+    public async Task<TestCoverageValidationResult> ValidateFullTestCoverageAsync(Guid donationId, CancellationToken cancellationToken = default)
+    {
+        var elisaItems = new[]
         {
-            TestItem.HBsAg, TestItem.AntiHIV, TestItem.AntiHCV, TestItem.AntiTP,
+            TestItem.HBsAg, TestItem.AntiHIV, TestItem.AntiHCV, TestItem.AntiTP
+        };
+
+        var natItems = new[]
+        {
             TestItem.HIVRNA, TestItem.HCVRNA, TestItem.HBVRNA
         };
 
@@ -223,30 +256,60 @@ public class BloodTestService : IBloodTestService
             .Where(t => t.DonationId == donationId && !t.IsDeleted)
             .ToListAsync(cancellationToken);
 
-        foreach (var item in requiredItems)
+        var missingElisaFirst = new List<string>();
+        var missingElisaSecond = new List<string>();
+        var missingNat = new List<string>();
+        var positiveOrReactive = new List<string>();
+
+        foreach (var item in elisaItems)
         {
-            var itemTests = tests.Where(t => t.TestItem == item).ToList();
-            if (!itemTests.Any())
+            var hasFirst = tests.Any(t => t.TestItem == item && t.TestType == TestType.ElisaFirst);
+            var hasSecond = tests.Any(t => t.TestItem == item && t.TestType == TestType.ElisaSecond);
+
+            if (!hasFirst)
             {
-                return false;
+                missingElisaFirst.Add(item.ToString());
             }
 
+            if (!hasSecond)
+            {
+                missingElisaSecond.Add(item.ToString());
+            }
+
+            var itemTests = tests.Where(t => t.TestItem == item).ToList();
             if (itemTests.Any(t => t.Result == TestResult.Positive || t.Result == TestResult.Reactive))
             {
-                return false;
+                positiveOrReactive.Add(item.ToString());
             }
         }
 
-        var elisaFirst = tests.Where(t => t.TestType == TestType.ElisaFirst).ToList();
-        var elisaSecond = tests.Where(t => t.TestType == TestType.ElisaSecond).ToList();
-        var nat = tests.Where(t => t.TestType == TestType.NucleicAcidTest).ToList();
-
-        if (elisaFirst.Count < 4 || elisaSecond.Count < 4 || nat.Count < 3)
+        foreach (var item in natItems)
         {
-            return false;
+            var hasNat = tests.Any(t => t.TestItem == item && t.TestType == TestType.NucleicAcidTest);
+
+            if (!hasNat)
+            {
+                missingNat.Add(item.ToString());
+            }
+
+            var itemTests = tests.Where(t => t.TestItem == item).ToList();
+            if (itemTests.Any(t => t.Result == TestResult.Positive || t.Result == TestResult.Reactive))
+            {
+                positiveOrReactive.Add(item.ToString());
+            }
         }
 
-        return true;
+        var isComplete = !missingElisaFirst.Any()
+                         && !missingElisaSecond.Any()
+                         && !missingNat.Any();
+
+        return new TestCoverageValidationResult(
+            isComplete,
+            missingElisaFirst,
+            missingElisaSecond,
+            missingNat,
+            positiveOrReactive.Distinct().ToList()
+        );
     }
 
     public async Task QuarantineDonorProductsAsync(Guid donorId, string reason, CancellationToken cancellationToken = default)
@@ -274,9 +337,35 @@ public class BloodTestService : IBloodTestService
 
     public async Task ReleaseDonationAsync(Guid donationId, CancellationToken cancellationToken = default)
     {
-        if (!await IsDonationSafeAsync(donationId, cancellationToken))
+        var coverageResult = await ValidateFullTestCoverageAsync(donationId, cancellationToken);
+
+        if (!coverageResult.IsComplete || coverageResult.PositiveOrReactiveItems.Any())
         {
-            throw new TestNotCompletedException(donationId);
+            var errors = new List<string>();
+
+            if (coverageResult.MissingElisaFirstItems.Any())
+            {
+                errors.Add($"Missing ELISA First tests: {string.Join(", ", coverageResult.MissingElisaFirstItems)}");
+            }
+
+            if (coverageResult.MissingElisaSecondItems.Any())
+            {
+                errors.Add($"Missing ELISA Second tests: {string.Join(", ", coverageResult.MissingElisaSecondItems)}");
+            }
+
+            if (coverageResult.MissingNatItems.Any())
+            {
+                errors.Add($"Missing NAT tests: {string.Join(", ", coverageResult.MissingNatItems)}");
+            }
+
+            if (coverageResult.PositiveOrReactiveItems.Any())
+            {
+                errors.Add($"Positive/Reactive results: {string.Join(", ", coverageResult.PositiveOrReactiveItems)}");
+            }
+
+            throw new ValidationException(
+                $"Cannot release donation {donationId}. Test coverage is incomplete.",
+                errors);
         }
 
         var donation = await _unitOfWork.Donations.GetByIdAsync(donationId, cancellationToken)

@@ -1,4 +1,5 @@
 using BloodCenter.Core.Interfaces;
+using BloodCenter.Core.Entities.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -133,5 +134,5 @@ public class BloodRequestsController : ControllerBase
 
 public record CrossMatchRequest(Guid TechnicianId);
 public record IssueRequest(Guid OperatorId);
-public record UpdateStatusRequest(string Status, string? Notes);
+public record UpdateStatusRequest(RequestStatus Status, string? Notes);
 public record CancelRequest(string Reason);

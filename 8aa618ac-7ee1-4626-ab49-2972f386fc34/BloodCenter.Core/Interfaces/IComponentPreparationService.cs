@@ -1,4 +1,4 @@
-using BloodCenter.Infrastructure.Entities.Enums;
+using BloodCenter.Core.Entities.Enums;
 
 namespace BloodCenter.Core.Interfaces;
 

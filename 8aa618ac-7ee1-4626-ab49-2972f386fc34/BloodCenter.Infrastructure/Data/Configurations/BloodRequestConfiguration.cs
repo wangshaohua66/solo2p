@@ -1,4 +1,4 @@
-using BloodCenter.Infrastructure.Entities;
+using BloodCenter.Core.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -33,7 +33,7 @@ public class BloodRequestConfiguration : IEntityTypeConfiguration<BloodRequest>
         builder.Property(br => br.RequestDoctor).HasMaxLength(100);
         builder.Property(br => br.TransfusionHistory).HasMaxLength(500);
         builder.Property(br => br.PregnancyHistory).HasMaxLength(500);
-        builder.Property(br => br.Status).IsRequired().HasMaxLength(50);
+        builder.Property(br => br.Status).IsRequired();
         builder.Property(br => br.Notes).HasMaxLength(1000);
 
         builder.OwnsOne(br => br.PatientBloodGroup, bg =>
