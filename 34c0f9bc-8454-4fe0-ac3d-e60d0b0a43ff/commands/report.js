@@ -12,6 +12,7 @@ const {
   validateProject,
   judgeResult,
   calculateParallelStats,
+  validateStatusTransition,
   ValidationError
 } = require('../lib/validator');
 const {
@@ -80,15 +81,38 @@ function inputTestResult(config, sampleId, projectName, values, operator, remark
   const total = sample.projects.length;
   let newStatus = sample.status;
   if (sample.status === 'pending') {
-    newStatus = 'testing';
+    const targetStatus = 'testing';
+    try {
+      validateStatusTransition(sample.status, targetStatus, config);
+    } catch (e) {
+      throw new ValidationError(
+        `录入检测结果触发自动状态流转失败: ${e.message}`,
+        'statusTransition',
+        { from: sample.status, to: targetStatus }
+      );
+    }
+    newStatus = targetStatus;
   }
   const isFailed = judgement.pass === false;
+  const needExceptionFlow = isFailed && newStatus !== 'exception';
+  if (needExceptionFlow) {
+    const targetStatus = 'exception';
+    try {
+      validateStatusTransition(newStatus, targetStatus, config);
+    } catch (e) {
+      throw new ValidationError(
+        `检测结果不合格无法自动流转至异常状态: ${e.message}。请先通过 progress transition 流转到允许的状态后再操作。`,
+        'statusTransition',
+        { from: newStatus, to: targetStatus }
+      );
+    }
+  }
   const updates = {
-    testResults,
-    status: newStatus
+    testResults
   };
   const newHistory = [...(sample.statusHistory || [])];
   if (newStatus !== sample.status) {
+    updates.status = newStatus;
     newHistory.push({
       status: newStatus,
       time: formatDateTimeLocal(new Date()),
@@ -109,7 +133,7 @@ function inputTestResult(config, sampleId, projectName, values, operator, remark
     }
     updates.isException = true;
     updates.exceptionReason = reasonList;
-    if (newStatus !== 'exception') {
+    if (needExceptionFlow) {
       updates.status = 'exception';
       newHistory.push({
         status: 'exception',
@@ -119,7 +143,7 @@ function inputTestResult(config, sampleId, projectName, values, operator, remark
       });
     } else {
       newHistory.push({
-        status: newStatus,
+        status: sample.status,
         time: formatDateTimeLocal(new Date()),
         operator: operator || 'system',
         reason: `追加异常: ${reasonText}`
