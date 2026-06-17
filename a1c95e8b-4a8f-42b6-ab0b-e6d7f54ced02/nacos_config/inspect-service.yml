@@ -1,0 +1,16 @@
+server:
+  port: 9500
+
+spring:
+  data:
+    mongodb:
+      uri: mongodb://${MONGO_HOST:localhost}:27017/heritage_inspect
+      auto-index-creation: true
+
+inspect:
+  alert:
+    auto-escalation-minutes: 60
+    notify-supervisor: true
+  routine:
+    default-interval-days: 30
+    overdue-warning-days: 7

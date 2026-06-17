@@ -1,0 +1,93 @@
+{
+  "settings": {
+    "number_of_shards": 3,
+    "number_of_replicas": 1,
+    "max_result_window": 100000,
+    "analysis": {
+      "analyzer": {
+        "ik_max_word": {
+          "type": "custom",
+          "tokenizer": "ik_max_word"
+        },
+        "ik_smart": {
+          "type": "custom",
+          "tokenizer": "ik_smart"
+        },
+        "pinyin_analyzer": {
+          "type": "custom",
+          "tokenizer": "pinyin_tokenizer",
+          "filter": ["lowercase"]
+        }
+      },
+      "tokenizer": {
+        "pinyin_tokenizer": {
+          "type": "pinyin",
+          "keep_first_letter": true,
+          "keep_separate_first_letter": false,
+          "keep_full_pinyin": true,
+          "keep_original": true,
+          "limit_first_letter_length": 16,
+          "lowercase": true
+        }
+      }
+    }
+  },
+  "mappings": {
+    "dynamic": "strict",
+    "properties": {
+      "id":           { "type": "keyword" },
+      "artifactCode": { "type": "keyword" },
+      "name": {
+        "type": "text",
+        "analyzer": "ik_max_word",
+        "search_analyzer": "ik_smart",
+        "term_vector": "with_positions_offsets",
+        "fields": {
+          "pinyin": { "type": "text", "analyzer": "pinyin_analyzer", "search_analyzer": "pinyin_analyzer" },
+          "keyword": { "type": "keyword", "ignore_above": 512 }
+        }
+      },
+      "subtitle":      { "type": "text", "analyzer": "ik_max_word", "search_analyzer": "ik_smart" },
+      "type":          { "type": "keyword" },
+      "level":         { "type": "keyword" },
+      "status":        { "type": "keyword" },
+      "dynasty": {
+        "type": "text", "analyzer": "ik_max_word",
+        "fields": { "keyword": { "type": "keyword" } }
+      },
+      "era":                 { "type": "text", "analyzer": "ik_max_word" },
+      "origin":              { "type": "text", "analyzer": "ik_max_word" },
+      "discoveryLocation":   { "type": "text", "analyzer": "ik_smart" },
+      "currentLocation":     { "type": "keyword" },
+      "material":            { "type": "text", "analyzer": "ik_max_word" },
+      "technique":           { "type": "text", "analyzer": "ik_max_word" },
+      "inscription":         { "type": "text", "analyzer": "ik_max_word" },
+      "description": {
+        "type": "text",
+        "analyzer": "ik_max_word",
+        "search_analyzer": "ik_smart",
+        "term_vector": "with_positions_offsets"
+      },
+      "historicalNote":  { "type": "text", "analyzer": "ik_max_word" },
+      "owner":           { "type": "keyword" },
+      "custodian":       { "type": "keyword" },
+      "createdBy":       { "type": "keyword" },
+      "dataAccessLevel": { "type": "integer" },
+      "createTime":      { "type": "date", "format": "yyyy-MM-dd'T'HH:mm:ss.SSS" },
+      "updateTime":      { "type": "date", "format": "yyyy-MM-dd'T'HH:mm:ss.SSS" },
+      "imageUrls":       { "type": "keyword" },
+      "allText": {
+        "type": "text",
+        "analyzer": "ik_max_word",
+        "search_analyzer": "ik_smart"
+      },
+      "tags": {
+        "type": "nested",
+        "properties": {
+          "key":   { "type": "keyword" },
+          "value": { "type": "text", "analyzer": "ik_max_word" }
+        }
+      }
+    }
+  }
+}

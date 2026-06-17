@@ -1,0 +1,14 @@
+server:
+  port: 9600
+
+spring:
+  data:
+    mongodb:
+      uri: mongodb://${MONGO_HOST:localhost}:27017/heritage_restoration
+      auto-index-creation: true
+
+restoration:
+  project-code-prefix: RS
+  auto-archive-days-after-acceptance: 90
+  progress-reminder-threshold-percent: 80
+  budget-overrun-alert-percent: 10

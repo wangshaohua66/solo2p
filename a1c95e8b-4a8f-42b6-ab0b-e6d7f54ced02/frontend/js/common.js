@@ -234,6 +234,7 @@ const Layout = {
       { key: 'dashboard', name: '工作台', icon: '🏠', href: 'dashboard.html', roles: ['ADMIN','EXPERT','RESTORER','ARCHIVIST','INSPECTOR'] },
       { key: 'artifact', name: '文物档案', icon: '🏺', href: 'artifacts.html', roles: ['ADMIN','EXPERT','RESTORER','ARCHIVIST','INSPECTOR'] },
       { key: 'trace', name: '修复溯源', icon: '🔗', href: 'trace.html', roles: ['ADMIN','RESTORER','ARCHIVIST'] },
+      { key: 'restoration', name: '修复项目', icon: '🔧', href: 'restoration.html', roles: ['ADMIN','RESTORER','ARCHIVIST'] },
       { key: 'collab', name: '专家协作', icon: '👥', href: 'collab.html', roles: ['ADMIN','EXPERT'] },
       { key: 'inspect', name: '巡查监测', icon: '📋', href: 'inspect.html', roles: ['ADMIN','INSPECTOR'] },
       { key: 'stats', name: '统计分析', icon: '📊', href: 'stats.html', roles: ['ADMIN','ARCHIVIST'] },
@@ -289,7 +290,7 @@ const Layout = {
   pageTitle(k) {
     const m = {
       dashboard: '工作台', artifact: '文物档案管理', trace: '文物流转与修复溯源',
-      collab: '专家协作鉴定', inspect: '文物巡查监测',
+      restoration: '修复项目管理', collab: '专家协作鉴定', inspect: '文物巡查监测',
       stats: '数据统计分析', users: '用户与权限管理'
     };
     return m[k] || '';

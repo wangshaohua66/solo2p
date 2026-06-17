@@ -53,33 +53,71 @@
       <div id="collab-workspace" style="display:none;">
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
           <h4 style="margin:0;" id="ws-title">鉴定协作空间</h4>
-          <div>
+          <div class="d-flex gap-2 flex-wrap">
+            <select id="img-select" class="form-select form-select-sm" style="width:220px;">
+              <option value="">选择图片...</option>
+            </select>
+            <button class="btn btn-outline-secondary" id="btn-annotations-load">📥 加载标注</button>
+            <button class="btn btn-success" id="btn-annotations-save">💾 保存标注</button>
+            <button class="btn btn-outline-secondary" id="btn-annotations-export">⬇ 导出JSON</button>
+            <button class="btn btn-outline-secondary" id="btn-annotations-clear">🗑️ 清空</button>
+            <button class="btn btn-outline-secondary" id="btn-annotations-undo">↶ 撤销</button>
+            <button class="btn btn-outline-secondary" id="btn-annotations-redo">↷ 重做</button>
             <button class="btn btn-outline-secondary" id="btn-back">← 返回列表</button>
             <button class="btn btn-warning" id="btn-submit-opinion">提交我的意见</button>
             <button class="btn btn-success" id="btn-complete">生成鉴定报告</button>
           </div>
         </div>
+
+        <div class="card mb-3">
+          <div class="card-body p-2 d-flex align-items-center flex-wrap gap-2">
+            <span class="text-muted small me-1">工具：</span>
+            <div class="btn-group" role="group" id="tool-group">
+              <button class="btn btn-sm tool-btn" data-tool="select" title="选择 (V)">🖱️ 选择</button>
+              <button class="btn btn-sm tool-btn btn-primary" data-tool="rectangle" title="矩形 (R)">⬜ 矩形</button>
+              <button class="btn btn-sm tool-btn" data-tool="circle" title="圆形 (C)">⭕ 圆形</button>
+              <button class="btn btn-sm tool-btn" data-tool="ellipse" title="椭圆 (O)">⬭ 椭圆</button>
+              <button class="btn btn-sm tool-btn" data-tool="arrow" title="箭头 (A)">➡️ 箭头</button>
+              <button class="btn btn-sm tool-btn" data-tool="freehand" title="自由画笔 (F)">✏️ 画笔</button>
+              <button class="btn btn-sm tool-btn" data-tool="measure" title="测量 (M)">📏 测量</button>
+              <button class="btn btn-sm tool-btn" data-tool="text" title="文字 (T)">🔤 文字</button>
+            </div>
+            <div class="vr mx-2"></div>
+            <label class="text-muted small mb-0">颜色:</label>
+            <input type="color" id="stroke-picker" class="form-control form-control-color p-0" style="width:42px;height:32px;" value="#00b42a" title="描边颜色">
+            <input type="color" id="fill-picker" class="form-control form-control-color p-0" style="width:42px;height:32px;" value="#00b42a22" title="填充颜色">
+            <label class="text-muted small mb-0 ms-1">线宽:</label>
+            <input type="range" id="line-width" min="0.5" max="12" step="0.5" value="2" style="width:120px;">
+            <span id="lw-val" class="small text-muted">2</span>
+            <label class="text-muted small mb-0 ms-2">字号:</label>
+            <input type="number" id="font-size" min="8" max="120" value="14" class="form-control form-control-sm" style="width:80px;">
+            <div class="vr mx-2"></div>
+            <label class="text-muted small mb-0">比例:</label>
+            <input type="number" id="scale-ratio" step="0.01" min="0.01" value="1" class="form-control form-control-sm" style="width:100px;" title="测量比例尺">
+            <select id="measure-unit" class="form-select form-select-sm" style="width:80px;">
+              <option value="px">px</option><option value="cm">cm</option>
+              <option value="mm">mm</option><option value="m">m</option>
+            </select>
+            <div class="vr mx-2"></div>
+            <span class="small text-muted" id="ann-count">共 0 处标注</span>
+            <div class="ms-auto small text-muted d-none d-md-block">
+              <kbd class="bg-light">Ctrl+Z</kbd> 撤销 ·
+              <kbd class="bg-light">Ctrl+Y</kbd> 重做 ·
+              <kbd class="bg-light">Delete</kbd> 删除 ·
+              双击添加文字
+            </div>
+          </div>
+        </div>
+
         <div class="collab-layout">
           <div class="collab-main">
-            <div class="collab-viewer" id="collab-viewer">
-              <div style="text-align:center;color:rgba(255,255,255,0.5);">
+            <div id="canvas-wrap" style="background:#1a1a1a;border-radius:10px;padding:8px;min-height:520px;display:flex;align-items:center;justify-content:center;">
+              <div style="color:rgba(255,255,255,0.5);text-align:center;" id="canvas-empty">
                 <div style="font-size:80px;">🏺</div>
-                <p>请选择文物图片进行标注</p>
+                <p>请选择一张文物图片开始标注</p>
+                <button class="btn btn-sm btn-outline-light" onclick="$('#img-select').click()">选择图片</button>
               </div>
-            </div>
-            <div class="collab-toolbar">
-              <button class="btn btn-sm btn-outline-secondary">🔍+ 放大</button>
-              <button class="btn btn-sm btn-outline-secondary">🔍- 缩小</button>
-              <button class="btn btn-sm btn-outline-secondary">↺ 旋转左</button>
-              <button class="btn btn-sm btn-outline-secondary">↻ 旋转右</button>
-              <div class="vr"></div>
-              <button class="btn btn-sm btn-primary">✏️ 添加标注</button>
-              <button class="btn btn-sm btn-outline-secondary">🖍️ 画笔</button>
-              <button class="btn btn-sm btn-outline-secondary">⬜ 方框</button>
-              <button class="btn btn-sm btn-outline-secondary">⭕ 圆形</button>
-              <button class="btn btn-sm btn-outline-secondary">📏 测量</button>
-              <div class="vr"></div>
-              <button class="btn btn-sm btn-outline-secondary">💾 保存标注</button>
+              <div id="canvas-container" style="display:none;"></div>
             </div>
           </div>
           <div class="collab-sidebar">
@@ -138,11 +176,17 @@
   <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/common.js"></script>
+  <script src="js/annotation-canvas.js"></script>
   <script>
     Layout.mount('collab');
+    const SAMPLE_IMAGES = [
+      { id:'img_bronze_ding', name:'青铜·鼎·正面', url:'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=1600' },
+      { id:'img_pottery',   name:'陶·双系罐',    url:'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=1600' },
+      { id:'img_jade_bi',   name:'玉·璧',       url:'https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1600' },
+      { id:'img_painting',  name:'绢·山水图',   url:'https://images.unsplash.com/photo-1578321272176-b7bbc0679853?w=1600' }
+    ];
     const CollabPage = {
-      currentTask: null,
-      currentStatus: '',
+      currentTask: null, currentStatus: '', canvas: null, currentImage: null,
       async load() {
         try {
           const url = this.currentStatus ? `/collab/appraisal?status=${this.currentStatus}&page=0&size=50` : '/collab/appraisal?page=0&size=50';
@@ -184,11 +228,14 @@
       back() {
         $('#collab-workspace').hide().prev().show();
         this.currentTask = null;
+        if (this.canvas) { this.canvas = null; $('#canvas-container').hide().empty(); $('#canvas-empty').show(); $('#ann-count').text('共 0 处标注'); }
       },
       async loadWorkspace() {
         try {
           const task = await Api.get('/collab/appraisal/' + this.currentTask);
           $('#ws-title').text(task.title || '鉴定协作空间');
+          $('#img-select').html('<option value="">选择图片...</option>' +
+            SAMPLE_IMAGES.map(i=>`<option value="${i.id}">${Utils.esc(i.name)}</option>`).join(''));
           const experts = [
             {id:'e1', name:'张教授', field:'青铜器', submitted: true, opinion:'此器型规整，铭文清晰，应为西周晚期重器。'},
             {id:'e2', name:'李研究员', field:'书画', submitted: false, opinion:''},
@@ -223,6 +270,66 @@
           `).join(''));
         } catch(e) {}
       },
+      async loadImage(imgId) {
+        const img = SAMPLE_IMAGES.find(x=>x.id===imgId);
+        if (!img) return;
+        this.currentImage = img;
+        $('#canvas-empty').hide();
+        $('#canvas-container').show().empty();
+        const user = Auth.getUser() || {};
+        this.canvas = new AnnotationCanvas('#canvas-container', {
+          imageUrl: img.url, imageId: img.id,
+          artifactId: 'demo_artifact_' + (this.currentTask||'task'),
+          appraisalId: this.currentTask || 'demo_task',
+          readOnly: false
+        }).onChange((type,payload)=>{
+          $('#ann-count').text('共 ' + (this.canvas?.annotations?.length||0) + ' 处标注');
+        });
+        try {
+          const list = await Api.get('/collab/annotations/list/image/' + img.id);
+          if (Array.isArray(list) && list.length) {
+            this.canvas.setAnnotations(list);
+            $('#ann-count').text('共 ' + list.length + ' 处标注');
+            Utils.toast('已加载 ' + list.length + ' 处历史标注','success');
+          }
+        } catch(e) {}
+      },
+      async saveAnnotations() {
+        if (!this.canvas) { Utils.toast('请先选择图片','warning'); return; }
+        if (!this.canvas.annotations.length) { Utils.toast('暂无标注可保存','warning'); return; }
+        try {
+          const r = await this.canvas.saveAll();
+          Utils.toast(r && r.code===200? ('保存成功：' + (r.data?.count||0) + ' 处') : '保存成功','success');
+          this.loadAnnotations();
+        } catch(e) { Utils.toast('保存失败: ' + e.message,'error'); }
+      },
+      async loadAnnotations() {
+        if (!this.canvas || !this.currentImage) return;
+        try {
+          const list = await Api.get('/collab/annotations/list/image/' + this.currentImage.id);
+          if (Array.isArray(list)) { this.canvas.setAnnotations(list); $('#ann-count').text('共 ' + list.length + ' 处标注'); }
+        } catch(e) {}
+      },
+      clearAnnotations() { if (this.canvas) this.canvas.clear(); $('#ann-count').text('共 0 处标注'); },
+      undo() { if (this.canvas) this.canvas.undo(); },
+      redo() { if (this.canvas) this.canvas.redo(); },
+      exportJSON() {
+        if (!this.canvas) return;
+        const txt = this.canvas.exportJSON(true);
+        const blob = new Blob([txt], {type:'application/json'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'annotations_' + (this.currentImage?.id||'image') + '_' + Date.now() + '.json';
+        a.click();
+        URL.revokeObjectURL(a.href);
+        Utils.toast('已导出','success');
+      },
+      setTool(t) {
+        if (!this.canvas) { Utils.toast('请先选择图片','warning'); return; }
+        this.canvas.setTool(t);
+        $('#tool-group .tool-btn').removeClass('btn-primary').addClass('btn-outline-secondary');
+        $('#tool-group [data-tool="'+t+'"]').addClass('btn-primary').removeClass('btn-outline-secondary');
+      },
       sendComment() {
         const txt = $('#comment-input').val().trim();
         if (!txt) return;
@@ -244,7 +351,7 @@
       submitOpinion() {
         const opinion = prompt('请输入您的鉴定意见：');
         if (opinion) {
-          Toast.success('鉴定意见已提交');
+          Utils.toast('鉴定意见已提交','success');
           this.loadWorkspace();
         }
       },
@@ -253,13 +360,13 @@
           const report = await Api.get('/collab/appraisal/' + id + '/report');
           alert('鉴定报告：\n\n' + (report.conclusion || JSON.stringify(report, null, 2)));
         } catch(e) {
-          Toast.info('报告功能演示中');
+          Utils.toast('报告功能演示中','info');
         }
       },
       async createTask() {
         const experts = $('input[id^="exp-"]:checked').toArray().map(e=>e.value);
         if (!$('#tk-name').val().trim()) {
-          Toast.warning('请输入任务名称'); return;
+          Utils.toast('请输入任务名称','warning'); return;
         }
         try {
           await Api.post('/collab/appraisal', {
@@ -268,7 +375,7 @@
             description: $('#tk-desc').val().trim(),
             expertIds: experts
           });
-          Toast.success('鉴定任务已创建');
+          Utils.toast('鉴定任务已创建','success');
           bootstrap.Modal.getInstance(document.getElementById('taskModal')).hide();
           this.load();
         } catch(e) {}
@@ -286,8 +393,25 @@
     $('#btn-create-task').on('click', () => CollabPage.createTask());
     $('#btn-send-comment').on('click', () => CollabPage.sendComment());
     $('#btn-submit-opinion').on('click', () => CollabPage.submitOpinion());
-    $('#btn-complete').on('click', () => { if (confirm('确认生成鉴定报告？')) Toast.success('鉴定报告已生成'); });
+    $('#btn-complete').on('click', () => { if (confirm('确认生成鉴定报告？')) Utils.toast('鉴定报告已生成','success'); });
+
+    $('#img-select').on('change', function(){ if (this.value) CollabPage.loadImage(this.value); });
+    $('#tool-group .tool-btn').on('click', function(){ CollabPage.setTool($(this).data('tool')); });
+    $('#btn-annotations-save').on('click', ()=>CollabPage.saveAnnotations());
+    $('#btn-annotations-load').on('click', ()=>CollabPage.loadAnnotations());
+    $('#btn-annotations-export').on('click', ()=>CollabPage.exportJSON());
+    $('#btn-annotations-clear').on('click', ()=>CollabPage.clearAnnotations());
+    $('#btn-annotations-undo').on('click', ()=>CollabPage.undo());
+    $('#btn-annotations-redo').on('click', ()=>CollabPage.redo());
+    $('#stroke-picker').on('input', function(){ if (CollabPage.canvas) CollabPage.canvas.setStyle('strokeStyle', this.value); });
+    $('#fill-picker').on('input', function(){ if (CollabPage.canvas) CollabPage.canvas.setStyle('fillStyle', this.value); });
+    $('#line-width').on('input', function(){ $('#lw-val').text(this.value); if (CollabPage.canvas) CollabPage.canvas.setStyle('lineWidth', parseFloat(this.value)); });
+    $('#font-size').on('input', function(){ if (CollabPage.canvas) CollabPage.canvas.setStyle('fontSize', parseInt(this.value)||14); });
+    $('#measure-unit').on('change', function(){ if (CollabPage.canvas) CollabPage.canvas.setStyle('measureUnit', this.value); });
+    $('#scale-ratio').on('input', function(){ if (CollabPage.canvas) CollabPage.canvas.setStyle('scaleRatio', parseFloat(this.value)||1); });
+
     CollabPage.load();
+    Utils.toast('提示：选择图片后可使用左侧工具进行标注，Ctrl+Z 撤销','info', 3500);
   </script>
 </body>
 </html>

@@ -49,6 +49,83 @@ services:
     networks:
       - heritage-net
 
+  nacos:
+    image: nacos/nacos-server:v2.3.2
+    container_name: heritage-nacos
+    restart: unless-stopped
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+      - "9849:9849"
+    environment:
+      - MODE=standalone
+      - SPRING_DATASOURCE_PLATFORM=mysql
+      - NACOS_AUTH_ENABLE=false
+      - NACOS_AUTH_IDENTITY_KEY=nacos
+      - NACOS_AUTH_IDENTITY_VALUE=nacos
+      - NACOS_REMOVABLE_CONFIG=true
+    volumes:
+      - nacos_data:/home/nacos/data
+      - ./nacos_config:/home/nacos/init-config:ro
+    networks:
+      - heritage-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8848/nacos/v1/console/health/liveness"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    container_name: heritage-es
+    restart: unless-stopped
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+      - ES_JAVA_OPTS=-Xms2g -Xmx2g
+      - "ELASTIC_PASSWORD=elastic123"
+      - cluster.name=heritage-cluster
+      - indices.fielddata.cache.size=30%
+      - http.cors.enabled=true
+      - http.cors.allow-origin=*
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    networks:
+      - heritage-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.13.4
+    container_name: heritage-kibana
+    restart: unless-stopped
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=["http://elasticsearch:9200"]
+      - I18N_LOCALE=zh-CN
+      - SERVER_NAME=heritage-kibana
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - heritage-net
+
   eureka-server:
     build:
       context: ./eureka-server
@@ -84,11 +161,15 @@ services:
       - REDIS_PORT=6379
       - REDIS_PASSWORD=redis123
       - JWT_SECRET=heritage-platform-jwt-secret-key-2024-very-long-and-secure
+      - NACOS_ADDR=nacos:8848
+      - NACOS_NAMESPACE=heritage
     depends_on:
       eureka-server:
         condition: service_healthy
       redis:
         condition: service_started
+      nacos:
+        condition: service_healthy
     networks:
       - heritage-net
 
@@ -106,11 +187,15 @@ services:
       - MONGODB_URI=mongodb://heritage:heritage123@mongodb:27017/heritage_auth?authSource=admin
       - JWT_SECRET=heritage-platform-jwt-secret-key-2024-very-long-and-secure
       - JWT_EXPIRATION=86400000
+      - NACOS_ADDR=nacos:8848
+      - NACOS_NAMESPACE=heritage
     depends_on:
       eureka-server:
         condition: service_healthy
       mongodb:
         condition: service_started
+      nacos:
+        condition: service_healthy
     networks:
       - heritage-net
 
@@ -121,7 +206,7 @@ services:
     container_name: heritage-artifact
     restart: unless-stopped
     ports:
-      - "9200:9200"
+      - "9201:9200"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_URI=http://eureka:eureka123@eureka-server:8761/eureka
@@ -130,12 +215,19 @@ services:
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin123
       - MINIO_BUCKET=heritage-artifact
+      - NACOS_ADDR=nacos:8848
+      - NACOS_NAMESPACE=heritage
+      - ES_HOST=elasticsearch
     depends_on:
       eureka-server:
         condition: service_healthy
       mongodb:
         condition: service_started
       minio:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      elasticsearch:
         condition: service_healthy
     networks:
       - heritage-net
@@ -147,16 +239,20 @@ services:
     container_name: heritage-trace
     restart: unless-stopped
     ports:
-      - "9300:9300"
+      - "9301:9300"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_URI=http://eureka:eureka123@eureka-server:8761/eureka
       - MONGODB_URI=mongodb://heritage:heritage123@mongodb:27017/heritage_trace?authSource=admin
+      - NACOS_ADDR=nacos:8848
+      - NACOS_NAMESPACE=heritage
     depends_on:
       eureka-server:
         condition: service_healthy
       mongodb:
         condition: service_started
+      nacos:
+        condition: service_healthy
     networks:
       - heritage-net
 
@@ -167,16 +263,20 @@ services:
     container_name: heritage-collab
     restart: unless-stopped
     ports:
-      - "9400:9400"
+      - "9401:9400"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_URI=http://eureka:eureka123@eureka-server:8761/eureka
       - MONGODB_URI=mongodb://heritage:heritage123@mongodb:27017/heritage_collab?authSource=admin
+      - NACOS_ADDR=nacos:8848
+      - NACOS_NAMESPACE=heritage
     depends_on:
       eureka-server:
         condition: service_healthy
       mongodb:
         condition: service_started
+      nacos:
+        condition: service_healthy
     networks:
       - heritage-net
 
@@ -187,7 +287,7 @@ services:
     container_name: heritage-inspect
     restart: unless-stopped
     ports:
-      - "9500:9500"
+      - "9501:9500"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_URI=http://eureka:eureka123@eureka-server:8761/eureka
@@ -196,12 +296,40 @@ services:
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin123
       - MINIO_BUCKET=heritage-inspect
+      - NACOS_ADDR=nacos:8848
+      - NACOS_NAMESPACE=heritage
     depends_on:
       eureka-server:
         condition: service_healthy
       mongodb:
         condition: service_started
       minio:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    networks:
+      - heritage-net
+
+  restoration-service:
+    build:
+      context: ./restoration-service
+      dockerfile: Dockerfile
+    container_name: heritage-restoration
+    restart: unless-stopped
+    ports:
+      - "9600:9600"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_URI=http://eureka:eureka123@eureka-server:8761/eureka
+      - MONGODB_URI=mongodb://heritage:heritage123@mongodb:27017/heritage_restoration?authSource=admin
+      - NACOS_ADDR=nacos:8848
+      - NACOS_NAMESPACE=heritage
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      mongodb:
+        condition: service_started
+      nacos:
         condition: service_healthy
     networks:
       - heritage-net
@@ -224,6 +352,8 @@ volumes:
   mongodb_data:
   minio_data:
   redis_data:
+  nacos_data:
+  es_data:
 
 networks:
   heritage-net:

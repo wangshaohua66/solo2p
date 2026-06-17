@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: inspect-service
+  cloud:
+    nacos:
+      config:
+        server-addr: ${NACOS_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:heritage}
+        group: HERITAGE_GROUP
+        file-extension: yml
+        shared-configs:
+          - data-id: common-heritage.yml
+            group: HERITAGE_GROUP
+            refresh: true
+        extension-configs:
+          - data-id: inspect-service.yml
+            group: HERITAGE_GROUP
+            refresh: true
+  config:
+    import:
+      - optional:nacos:inspect-service.yml?group=HERITAGE_GROUP

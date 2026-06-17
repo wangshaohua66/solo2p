@@ -1,0 +1,22 @@
+server:
+  port: 9300
+
+spring:
+  data:
+    mongodb:
+      uri: mongodb://${MONGO_HOST:localhost}:27017/heritage_trace
+      auto-index-creation: true
+
+trace:
+  blockchain:
+    hash-algorithm: SHA-256
+    merkle-enabled: true
+    auto-verify-interval-minutes: 60
+  event-types:
+    - REGISTER
+    - MOVE
+    - INSPECT
+    - START_RESTORE
+    - RESTORE_COMPLETE
+    - EXHIBITION
+    - HANDOVER

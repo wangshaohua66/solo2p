@@ -1,0 +1,27 @@
+server:
+  port: 9200
+
+spring:
+  data:
+    mongodb:
+      uri: mongodb://${MONGO_HOST:localhost}:27017/heritage_artifact
+      auto-index-creation: true
+    elasticsearch:
+      uris: ${ES_HOST:localhost}:9200
+      username: elastic
+      password: elastic123
+      socket-timeout: 30s
+      connection-timeout: 5s
+
+artifact:
+  search:
+    use-elasticsearch: true
+    fallback-to-mongo: true
+    highlight-pre-tags: "<mark>"
+    highlight-post-tags: "</mark>"
+    max-result-window: 10000
+  image:
+    thumbnail-width: 400
+    thumbnail-height: 300
+  sync:
+    es-batch-size: 100

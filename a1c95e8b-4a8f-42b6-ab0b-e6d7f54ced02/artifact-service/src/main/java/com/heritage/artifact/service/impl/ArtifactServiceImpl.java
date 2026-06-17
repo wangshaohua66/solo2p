@@ -37,6 +37,7 @@ public class ArtifactServiceImpl implements ArtifactService {
     private final ArtifactRepository artifactRepository;
     private final MinioService minioService;
     private final MongoTemplate mongoTemplate;
+    private final ArtifactSearchService searchService;
 
     @Override
     public Artifact createArtifact(Artifact artifact) {
@@ -48,7 +49,9 @@ public class ArtifactServiceImpl implements ArtifactService {
         }
         artifact.setCreateTime(LocalDateTime.now());
         artifact.setUpdateTime(LocalDateTime.now());
-        return artifactRepository.save(artifact);
+        Artifact saved = artifactRepository.save(artifact);
+        searchService.afterCommitSync(() -> searchService.syncSave(saved));
+        return saved;
     }
 
     @Override
@@ -75,28 +78,25 @@ public class ArtifactServiceImpl implements ArtifactService {
         if (artifact.getCustodian() != null) existing.setCustodian(artifact.getCustodian());
         if (artifact.getDataAccessLevel() != null) existing.setDataAccessLevel(artifact.getDataAccessLevel());
         existing.setUpdateTime(LocalDateTime.now());
-        return artifactRepository.save(existing);
+        Artifact saved = artifactRepository.save(existing);
+        searchService.afterCommitSync(() -> searchService.syncSave(saved));
+        return saved;
     }
 
     @Override
     public void deleteArtifact(String id) {
         Artifact artifact = getArtifactById(id);
         artifact.getImages().forEach(img -> {
-            try {
-                minioService.deleteFile(img.getFileName());
-            } catch (Exception ignored) {}
+            try { minioService.deleteFile(img.getFileName()); } catch (Exception ignored) {}
         });
         artifact.getModels3d().forEach(m -> {
-            try {
-                minioService.deleteFile(m.getFileName());
-            } catch (Exception ignored) {}
+            try { minioService.deleteFile(m.getFileName()); } catch (Exception ignored) {}
         });
         artifact.getDocuments().forEach(d -> {
-            try {
-                minioService.deleteFile(d.getFileName());
-            } catch (Exception ignored) {}
+            try { minioService.deleteFile(d.getFileName()); } catch (Exception ignored) {}
         });
         artifactRepository.deleteById(id);
+        searchService.afterCommitSync(() -> searchService.syncDelete(id));
     }
 
     @Override
@@ -113,40 +113,11 @@ public class ArtifactServiceImpl implements ArtifactService {
 
     @Override
     public Page<Artifact> searchArtifacts(ArtifactSearchDTO searchDTO) {
-        Query query = new Query();
-
-        if (searchDTO.getKeyword() != null && !searchDTO.getKeyword().isEmpty()) {
-            String regex = ".*" + searchDTO.getKeyword() + ".*";
-            query.addCriteria(new Criteria().orOperator(
-                Criteria.where("name").regex(regex, "i"),
-                Criteria.where("artifactCode").regex(regex, "i"),
-                Criteria.where("description").regex(regex, "i"),
-                Criteria.where("dynasty").regex(regex, "i"),
-                Criteria.where("material").regex(regex, "i")
-            ));
-        }
-        if (searchDTO.getType() != null) query.addCriteria(Criteria.where("type").is(searchDTO.getType()));
-        if (searchDTO.getLevel() != null) query.addCriteria(Criteria.where("level").is(searchDTO.getLevel()));
-        if (searchDTO.getStatus() != null) query.addCriteria(Criteria.where("status").is(searchDTO.getStatus()));
-        if (searchDTO.getDynasty() != null && !searchDTO.getDynasty().isEmpty())
-            query.addCriteria(Criteria.where("dynasty").regex(searchDTO.getDynasty(), "i"));
-        if (searchDTO.getEra() != null && !searchDTO.getEra().isEmpty())
-            query.addCriteria(Criteria.where("era").regex(searchDTO.getEra(), "i"));
-        if (searchDTO.getOrigin() != null && !searchDTO.getOrigin().isEmpty())
-            query.addCriteria(Criteria.where("origin").regex(searchDTO.getOrigin(), "i"));
-        if (searchDTO.getDataAccessLevel() != null)
-            query.addCriteria(Criteria.where("dataAccessLevel").lte(searchDTO.getDataAccessLevel()));
-
-        Sort sort = searchDTO.getSortDir().equalsIgnoreCase("asc")
-            ? Sort.by(searchDTO.getSortBy()).ascending()
-            : Sort.by(searchDTO.getSortBy()).descending();
-        PageRequest pageRequest = PageRequest.of(searchDTO.getPage(), searchDTO.getSize(), sort);
-        query.with(pageRequest);
-
-        List<Artifact> artifacts = mongoTemplate.find(query, Artifact.class);
-        long total = mongoTemplate.count(Query.of(query).limit(-1).skip(-1), Artifact.class);
-
-        return PageableExecutionUtils.getPage(artifacts, pageRequest, () -> total);
+        long t0 = System.nanoTime();
+        Page<Artifact> result = searchService.search(searchDTO, true);
+        long cost = (System.nanoTime() - t0) / 1_000_000L;
+        log.debug("全文检索: keyword={}, hits={}, 耗时={}ms", searchDTO.getKeyword(), result.getTotalElements(), cost);
+        return result;
     }
 
     @Override
@@ -167,7 +138,7 @@ public class ArtifactServiceImpl implements ArtifactService {
     @Override
     public ArtifactImage uploadImage(String artifactId, MultipartFile file, String description, boolean isCover) {
         Artifact artifact = getArtifactById(artifactId);
-        String fileName = "images/" + artifactId + "/" + UUID.randomUUID().toString() + getExtension(file.getOriginalFilename());
+        String fileName = "images/" + artifactId + "/" + UUID.randomUUID() + getExtension(file.getOriginalFilename());
         String fileUrl = minioService.uploadFile(file, fileName);
 
         ArtifactImage image = ArtifactImage.builder()
@@ -187,7 +158,9 @@ public class ArtifactServiceImpl implements ArtifactService {
             artifact.getImages().forEach(img -> img.setIsCover(false));
         }
         artifact.getImages().add(image);
-        artifactRepository.save(artifact);
+        artifact.setUpdateTime(LocalDateTime.now());
+        Artifact saved = artifactRepository.save(artifact);
+        searchService.afterCommitSync(() -> searchService.syncSave(saved));
         return image;
     }
 
@@ -196,20 +169,20 @@ public class ArtifactServiceImpl implements ArtifactService {
         Artifact artifact = getArtifactById(artifactId);
         artifact.getImages().removeIf(img -> {
             if (img.getId().equals(imageId)) {
-                try {
-                    minioService.deleteFile(img.getFileName());
-                } catch (Exception ignored) {}
+                try { minioService.deleteFile(img.getFileName()); } catch (Exception ignored) {}
                 return true;
             }
             return false;
         });
-        artifactRepository.save(artifact);
+        artifact.setUpdateTime(LocalDateTime.now());
+        Artifact saved = artifactRepository.save(artifact);
+        searchService.afterCommitSync(() -> searchService.syncSave(saved));
     }
 
     @Override
     public ArtifactModel3D uploadModel3D(String artifactId, MultipartFile file, String format, String description) {
         Artifact artifact = getArtifactById(artifactId);
-        String fileName = "models3d/" + artifactId + "/" + UUID.randomUUID().toString() + getExtension(file.getOriginalFilename());
+        String fileName = "models3d/" + artifactId + "/" + UUID.randomUUID() + getExtension(file.getOriginalFilename());
         String fileUrl = minioService.uploadFile(file, fileName);
 
         ArtifactModel3D model = ArtifactModel3D.builder()
@@ -225,7 +198,9 @@ public class ArtifactServiceImpl implements ArtifactService {
             .build();
 
         artifact.getModels3d().add(model);
-        artifactRepository.save(artifact);
+        artifact.setUpdateTime(LocalDateTime.now());
+        Artifact saved = artifactRepository.save(artifact);
+        searchService.afterCommitSync(() -> searchService.syncSave(saved));
         return model;
     }
 
@@ -234,20 +209,20 @@ public class ArtifactServiceImpl implements ArtifactService {
         Artifact artifact = getArtifactById(artifactId);
         artifact.getModels3d().removeIf(m -> {
             if (m.getId().equals(modelId)) {
-                try {
-                    minioService.deleteFile(m.getFileName());
-                } catch (Exception ignored) {}
+                try { minioService.deleteFile(m.getFileName()); } catch (Exception ignored) {}
                 return true;
             }
             return false;
         });
-        artifactRepository.save(artifact);
+        artifact.setUpdateTime(LocalDateTime.now());
+        Artifact saved = artifactRepository.save(artifact);
+        searchService.afterCommitSync(() -> searchService.syncSave(saved));
     }
 
     @Override
     public ArtifactDocument uploadDocument(String artifactId, MultipartFile file, String category, String description) {
         Artifact artifact = getArtifactById(artifactId);
-        String fileName = "documents/" + artifactId + "/" + UUID.randomUUID().toString() + getExtension(file.getOriginalFilename());
+        String fileName = "documents/" + artifactId + "/" + UUID.randomUUID() + getExtension(file.getOriginalFilename());
         String fileUrl = minioService.uploadFile(file, fileName);
 
         ArtifactDocument doc = ArtifactDocument.builder()
@@ -263,7 +238,9 @@ public class ArtifactServiceImpl implements ArtifactService {
             .build();
 
         artifact.getDocuments().add(doc);
-        artifactRepository.save(artifact);
+        artifact.setUpdateTime(LocalDateTime.now());
+        Artifact saved = artifactRepository.save(artifact);
+        searchService.afterCommitSync(() -> searchService.syncSave(saved));
         return doc;
     }
 
@@ -272,14 +249,14 @@ public class ArtifactServiceImpl implements ArtifactService {
         Artifact artifact = getArtifactById(artifactId);
         artifact.getDocuments().removeIf(d -> {
             if (d.getId().equals(documentId)) {
-                try {
-                    minioService.deleteFile(d.getFileName());
-                } catch (Exception ignored) {}
+                try { minioService.deleteFile(d.getFileName()); } catch (Exception ignored) {}
                 return true;
             }
             return false;
         });
-        artifactRepository.save(artifact);
+        artifact.setUpdateTime(LocalDateTime.now());
+        Artifact saved = artifactRepository.save(artifact);
+        searchService.afterCommitSync(() -> searchService.syncSave(saved));
     }
 
     @Override
@@ -287,7 +264,9 @@ public class ArtifactServiceImpl implements ArtifactService {
         Artifact artifact = getArtifactById(id);
         artifact.setStatus(ArtifactStatus.valueOf(status));
         artifact.setUpdateTime(LocalDateTime.now());
-        return artifactRepository.save(artifact);
+        Artifact saved = artifactRepository.save(artifact);
+        searchService.afterCommitSync(() -> searchService.syncSave(saved));
+        return saved;
     }
 
     @Override

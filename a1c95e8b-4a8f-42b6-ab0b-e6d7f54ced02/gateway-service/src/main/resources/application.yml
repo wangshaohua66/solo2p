@@ -52,6 +52,13 @@ spring:
           filters:
             - StripPrefix=2
 
+        - id: restoration-service
+          uri: lb://restoration-service
+          predicates:
+            - Path=/api/restoration/**
+          filters:
+            - StripPrefix=2
+
       globalcors:
         cors-configurations:
           '[/**]':

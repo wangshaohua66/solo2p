@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>修复项目管理 - 文化遗产数字化保护平台</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .project-card { border-left:4px solid var(--bs-primary); transition:all .2s; }
+    .project-card:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,.08); }
+    .project-card.draft { border-left-color:#6c757d; }
+    .project-card.approving { border-left-color:#ffc107; }
+    .project-card.in_progress { border-left-color:#0d6efd; }
+    .project-card.paused { border-left-color:#fd7e14; }
+    .project-card.completed { border-left-color:#198754; }
+    .project-card.accepted { border-left-color:#0f5132; }
+    .project-card.cancelled { border-left-color:#dc3545; }
+    .compare-slider { position:relative; overflow:hidden; border-radius:8px; background:#1a1a1a; }
+    .compare-slider img { width:100%; display:block; user-select:none; pointer-events:none; }
+    .compare-slider .before-layer { position:absolute; inset:0; overflow:hidden; width:50%; }
+    .compare-slider .before-layer img { width:calc(100% * (100 / var(--slider-pct,50))); }
+    .compare-handle { position:absolute; top:0; bottom:0; width:3px; background:#fff; left:var(--slider-pct,50%); cursor:ew-resize; box-shadow:0 0 0 1px rgba(0,0,0,.3); }
+    .compare-handle::before { content:"⇔"; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:#fff; color:#000; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; font-weight:bold; box-shadow:0 2px 6px rgba(0,0,0,.3); font-size:14px; }
+    .photo-tabs .nav-link { padding:6px 14px; font-size:13px; }
+    .tool-btn { min-width:42px; height:42px; }
+    .timeline-dot { width:12px; height:12px; border-radius:50%; background:#0d6efd; display:inline-block; margin-right:10px; }
+    .timeline-item { padding:10px 0; border-bottom:1px dashed #e9ecef; }
+    .material-row td { vertical-align:middle; }
+    .progress-label { font-size:12px; color:#6c757d; }
+    .photo-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:10px; }
+    .photo-grid .photo-item { border:1px solid #dee2e6; border-radius:6px; overflow:hidden; background:#f8f9fa; position:relative; }
+    .photo-grid .photo-item img { width:100%; height:120px; object-fit:cover; }
+    .photo-grid .photo-item .p-del { position:absolute; top:4px; right:4px; }
+    .photo-grid .photo-item .p-cap { padding:6px; font-size:12px; color:#495057; }
+    .badge-status { font-size:11px; padding:3px 8px; }
+    .stats-mini { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+    .stats-mini .s-item { padding:12px; background:linear-gradient(135deg,#f8f9fa,#e9ecef); border-radius:8px; text-align:center; }
+    .stats-mini .s-item .n { font-size:22px; font-weight:700; color:#0d6efd; }
+    .stats-mini .s-item .l { font-size:12px; color:#6c757d; }
+    .scrollable { max-height:420px; overflow-y:auto; }
+  </style>
+</head>
+<body>
+  <div class="sidebar" id="sidebar-root"></div>
+  <div class="main-content">
+    <div class="topbar" id="topbar-root"></div>
+    <div class="page-content">
+
+      <div class="stats-mini mb-3" id="statsMini"></div>
+
+      <div class="card mb-3">
+        <div class="card-header d-flex flex-wrap gap-2 align-items-center justify-content-between">
+          <h5 class="mb-0">🔧 修复项目列表</h5>
+          <div class="d-flex gap-2 flex-wrap">
+            <select id="filterStatus" class="form-select form-select-sm" style="width:140px;">
+              <option value="">全部状态</option>
+              <option value="DRAFT">草稿</option>
+              <option value="APPROVING">审批中</option>
+              <option value="APPROVED">已批准</option>
+              <option value="IN_PROGRESS">进行中</option>
+              <option value="PAUSED">已暂停</option>
+              <option value="COMPLETED">已完成</option>
+              <option value="ACCEPTED">已验收</option>
+              <option value="CANCELLED">已取消</option>
+            </select>
+            <input id="kw" type="text" class="form-control form-control-sm" placeholder="搜索项目名称/编码/文物" style="width:220px;">
+            <button class="btn btn-sm btn-outline-primary" onclick="Restoration.refresh()">🔍 查询</button>
+            <button class="btn btn-sm btn-primary" onclick="Restoration.openModal()">＋ 新建项目</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="row g-3" id="projectGrid"></div>
+          <nav class="mt-3" id="pager"></nav>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="modal fade" id="projectModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="pmTitle">新建修复项目</h5>
+          <button class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="pmForm">
+            <input type="hidden" id="pmId">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">关联文物ID *</label>
+                <div class="input-group">
+                  <input id="pmArtifactId" class="form-control" required>
+                  <button class="btn btn-outline-secondary" type="button" onclick="Restoration.pickArtifact()">选择</button>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">项目名称 *</label>
+                <input id="pmName" class="form-control" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">负责人ID *</label>
+                <input id="pmSupervisorId" class="form-control" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">负责人姓名 *</label>
+                <input id="pmSupervisorName" class="form-control" required>
+              </div>
+              <div class="col-md-12">
+                <label class="form-label">修复师ID列表（逗号分隔）</label>
+                <input id="pmRestorers" class="form-control" placeholder="如：u001,u002,u003">
+              </div>
+              <div class="col-md-12">
+                <label class="form-label">修复工艺类型（可多选）</label>
+                <div id="pmRepairTypes" class="d-flex flex-wrap gap-2"></div>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">预算（元）</label>
+                <input id="pmBudget" type="number" step="0.01" min="0" class="form-control" value="0">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">计划开始</label>
+                <input id="pmStart" type="date" class="form-control">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">计划结束</label>
+                <input id="pmEnd" type="date" class="form-control">
+              </div>
+              <div class="col-12">
+                <label class="form-label">项目描述</label>
+                <textarea id="pmDesc" rows="3" class="form-control"></textarea>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+          <button class="btn btn-primary" onclick="Restoration.save()">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="detailModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="dmTitle">项目详情</h5>
+          <button class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <ul class="nav nav-tabs mb-3" role="tablist">
+            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#dmBase">📋 基本信息</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#dmProgress">📈 进度与状态</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#dmCompare">🖼️ 前后对比</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#dmPhotos">📷 阶段照片</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#dmMaterials">🧪 材料消耗</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#dmLogs">📝 操作日志</button></li>
+          </ul>
+          <div class="tab-content">
+
+            <div class="tab-pane fade show active" id="dmBase">
+              <div id="dmBaseInfo" class="row g-3"></div>
+            </div>
+
+            <div class="tab-pane fade" id="dmProgress">
+              <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <h6 class="mb-0">状态流转</h6>
+                  <div>
+                    <select id="dmNewStatus" class="form-select form-select-sm d-inline-block" style="width:140px;"></select>
+                    <button class="btn btn-sm btn-primary ms-2" onclick="Restoration.changeStatus()">更新状态</button>
+                  </div>
+                </div>
+                <div class="card-body" id="dmStatusLine"></div>
+              </div>
+              <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <h6 class="mb-0">进度更新 <span class="progress-label">当前 <b id="dmCurProgress">0</b>%</span></h6>
+                  <div class="d-flex gap-2">
+                    <input id="dmNewProgress" type="number" min="0" max="100" class="form-control form-control-sm" style="width:100px;" placeholder="百分比">
+                    <input id="dmProgressNote" class="form-control form-control-sm" style="width:260px;" placeholder="更新备注">
+                    <button class="btn btn-sm btn-primary" onclick="Restoration.updateProgress()">更新进度</button>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <div class="progress" style="height:22px;border-radius:4px;">
+                    <div id="dmProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width:0%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-pane fade" id="dmCompare">
+              <div class="mb-3">
+                <label class="form-label">修复前照片</label>
+                <select id="cmpBefore" class="form-select form-select-sm mb-2" onchange="Restoration.renderCompare()"></select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">修复后照片</label>
+                <select id="cmpAfter" class="form-select form-select-sm mb-2" onchange="Restoration.renderCompare()"></select>
+              </div>
+              <div class="compare-slider" id="cmpSlider" style="--slider-pct:50%;aspect-ratio:4/3;background:#333;">
+                <img id="cmpAfterImg" src="" alt="after">
+                <div class="before-layer"><img id="cmpBeforeImg" src="" alt="before"></div>
+                <div class="compare-handle" id="cmpHandle"></div>
+              </div>
+              <small class="text-muted mt-2 d-block">💡 拖动中间滑块对比修复前后效果</small>
+            </div>
+
+            <div class="tab-pane fade" id="dmPhotos">
+              <div class="mb-3 d-flex gap-2 flex-wrap align-items-center">
+                <label class="form-label mb-0">阶段：</label>
+                <select id="photoStage" class="form-select form-select-sm" style="width:140px;">
+                  <option value="BEFORE">修复前</option>
+                  <option value="IN_PROGRESS">修复中</option>
+                  <option value="AFTER">修复后</option>
+                </select>
+                <input id="photoUrl" class="form-control form-control-sm" style="width:280px;" placeholder="图片URL">
+                <input id="photoCaption" class="form-control form-control-sm" style="width:200px;" placeholder="图片说明">
+                <button class="btn btn-sm btn-primary" onclick="Restoration.addPhoto()">＋ 添加</button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="Restoration.showBatchUpload()">批量上传</button>
+              </div>
+              <ul class="nav nav-tabs photo-tabs mb-2" id="photoTabsNav">
+                <li class="nav-item"><a class="nav-link active" data-stage="BEFORE" onclick="Restoration.switchPhotoStage('BEFORE',this)">修复前</a></li>
+                <li class="nav-item"><a class="nav-link" data-stage="IN_PROGRESS" onclick="Restoration.switchPhotoStage('IN_PROGRESS',this)">修复中</a></li>
+                <li class="nav-item"><a class="nav-link" data-stage="AFTER" onclick="Restoration.switchPhotoStage('AFTER',this)">修复后</a></li>
+              </ul>
+              <div id="photoList" class="photo-grid"></div>
+            </div>
+
+            <div class="tab-pane fade" id="dmMaterials">
+              <div class="mb-3 d-flex gap-2 flex-wrap">
+                <input id="matName" class="form-control form-control-sm" style="width:160px;" placeholder="材料名称">
+                <select id="matUnit" class="form-select form-select-sm" style="width:100px;">
+                  <option value="G">克(g)</option><option value="KG">千克(kg)</option>
+                  <option value="ML">毫升(ml)</option><option value="L">升(L)</option>
+                  <option value="M">米(m)</option><option value="PC">件(pc)</option>
+                </select>
+                <input id="matQty" type="number" step="0.01" min="0" class="form-control form-control-sm" style="width:100px;" placeholder="数量">
+                <input id="matUnitPrice" type="number" step="0.01" min="0" class="form-control form-control-sm" style="width:120px;" placeholder="单价(元)">
+                <input id="matSupplier" class="form-control form-control-sm" style="width:180px;" placeholder="供应商">
+                <button class="btn btn-sm btn-primary" onclick="Restoration.addMaterial()">＋ 添加</button>
+              </div>
+              <div class="table-responsive scrollable">
+                <table class="table table-sm table-hover align-middle mb-0">
+                  <thead class="table-light sticky-top"><tr>
+                    <th>材料</th><th>单位</th><th>数量</th><th>单价</th><th>小计</th><th>供应商</th><th>登记时间</th><th>操作</th>
+                  </tr></thead>
+                  <tbody id="matBody"></tbody>
+                  <tfoot><tr class="table-info">
+                    <td colspan="4" class="text-end"><b>总耗材成本</b></td>
+                    <td colspan="4" id="matTotal">¥ 0.00</td>
+                  </tr></tfoot>
+                </table>
+              </div>
+            </div>
+
+            <div class="tab-pane fade" id="dmLogs">
+              <div id="dmLogList" class="scrollable"></div>
+            </div>
+
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-sm btn-danger" id="dmDelBtn" onclick="Restoration.delCurrent()">删除项目</button>
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal">关闭</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+    Layout.mount('restoration');
+    const STATUS_LABEL = { DRAFT:'草稿', APPROVING:'审批中', APPROVED:'已批准', IN_PROGRESS:'进行中', PAUSED:'已暂停', COMPLETED:'已完成', ACCEPTED:'已验收', CANCELLED:'已取消' };
+    const STATUS_BADGE = { DRAFT:'bg-secondary', APPROVING:'bg-warning', APPROVED:'bg-info', IN_PROGRESS:'bg-primary', PAUSED:'bg-orange', COMPLETED:'bg-success', ACCEPTED:'bg-success', CANCELLED:'bg-danger' };
+    const REPAIR_TYPES = [
+      ['CLEANING','清洗'],['DESALINATION','脱盐'],['REINFORCEMENT','加固'],['RECOLORING','补色'],
+      ['REPAIR','修补'],['RESTORATION','复原'],['ANTISEPSIS','防腐'],['MOISTURE_PROOF','防潮'],
+      ['PACKAGING','封装'],['DOCUMENTATION','建档记录']
+    ];
+    const STAGE_LABEL = { BEFORE:'修复前', IN_PROGRESS:'修复中', AFTER:'修复后' };
+    const UNIT_LABEL = { G:'g', KG:'kg', ML:'ml', L:'L', M:'m', PC:'件' };
+
+    const Restoration = {
+      page:1, size:8, keyword:'', status:'', curId:null, curPhotos:null, curMaterials:null, photoStage:'BEFORE',
+      async init() {
+        this.renderRepairTypes();
+        await this.loadStats();
+        await this.refresh();
+        this.initCompareSlider();
+        $('#kw').on('keydown', e=>{ if(e.key==='Enter') this.refresh(); });
+        $('#filterStatus').on('change', ()=>{ this.page=1; this.refresh(); });
+      },
+      renderRepairTypes() {
+        $('#pmRepairTypes').html(REPAIR_TYPES.map(([v,l])=>`
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" id="rt_${v}" value="${v}">
+            <label class="form-check-label small" for="rt_${v}">${l}</label>
+          </div>`).join(''));
+      },
+      async loadStats() {
+        try {
+          const s = await Api.get('/restoration/stats/overview');
+          $('#statsMini').html(`
+            <div class="s-item"><div class="n">${s.total||0}</div><div class="l">项目总数</div></div>
+            <div class="s-item"><div class="n" style="color:#0d6efd">${s.inProgress||0}</div><div class="l">进行中</div></div>
+            <div class="s-item"><div class="n" style="color:#198754">${s.accepted||0}</div><div class="l">已验收</div></div>
+            <div class="s-item"><div class="n" style="color:#fd7e14">${s.thisMonth||0}</div><div class="l">本月新增</div></div>`);
+        } catch(e){}
+      },
+      async refresh() {
+        this.keyword = $('#kw').val().trim();
+        this.status = $('#filterStatus').val();
+        const r = await Api.post('/restoration/search', { keyword:this.keyword, status:this.status, page:this.page-1, size:this.size, sortBy:'createdAt', sortDir:'DESC' });
+        const list = r.content || [];
+        $('#projectGrid').html(list.length? list.map(p=>this.cardHTML(p)).join('') : `<div class="col-12 text-center text-muted py-5">暂无项目数据</div>`);
+        Utils.renderPager('#pager', r, this.page, this.size, p=>{ this.page=p; this.refresh(); });
+      },
+      cardHTML(p) {
+        const progress = p.progress||0;
+        const progressCls = progress>=100?'bg-success':progress>=60?'bg-primary':progress>=30?'bg-info':'bg-warning';
+        const s = (p.status||'DRAFT').toLowerCase();
+        return `<div class="col-md-6 col-xl-4">
+          <div class="card project-card ${s} h-100" onclick="Restoration.openDetail('${p.id}')" style="cursor:pointer;">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                  <div class="fw-bold text-truncate" style="max-width:260px;">${Utils.escape(p.name||'未命名')}</div>
+                  <small class="text-muted">${Utils.escape(p.projectCode||'')}</small>
+                </div>
+                <span class="badge ${STATUS_BADGE[p.status]||'bg-secondary'} badge-status">${STATUS_LABEL[p.status]||p.status}</span>
+              </div>
+              <div class="small text-muted mb-2">🏺 ${Utils.escape(p.artifactName||p.artifactId||'-')}</div>
+              <div class="small text-muted mb-2">👤 ${Utils.escape(p.supervisorName||'-')}</div>
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="progress-label">进度 ${progress}%</span>
+                <span class="progress-label small">${p.actualCost!=null?('¥'+Number(p.actualCost).toLocaleString()):(p.budget!=null?'预算 ¥'+Number(p.budget).toLocaleString():'')}</span>
+              </div>
+              <div class="progress mb-2" style="height:6px;"><div class="progress-bar ${progressCls}" style="width:${progress}%"></div></div>
+              <div class="d-flex justify-content-between small text-muted">
+                <span>📅 ${Utils.fmtDate(p.plannedStartTime)||'无计划'}</span>
+                <span>${p.repairTypes? p.repairTypes.slice(0,2).map(t=>STAGE_LABEL[t]||t).join('、')+(p.repairTypes.length>2?'...':'') : '无工艺'}</span>
+              </div>
+            </div>
+          </div>
+        </div>`;
+      },
+      openModal(editObj) {
+        $('#pmForm')[0].reset();
+        $('#pmId').val('');
+        REPAIR_TYPES.forEach(([v])=>$('#rt_'+v).prop('checked',false));
+        if (editObj) {
+          $('#pmTitle').text('编辑修复项目');
+          $('#pmId').val(editObj.id);
+          $('#pmArtifactId').val(editObj.artifactId||'');
+          $('#pmName').val(editObj.name||'');
+          $('#pmSupervisorId').val(editObj.supervisorId||'');
+          $('#pmSupervisorName').val(editObj.supervisorName||'');
+          $('#pmRestorers').val((editObj.restorerIds||[]).join(','));
+          (editObj.repairTypes||[]).forEach(v=>$('#rt_'+v).prop('checked',true));
+          $('#pmBudget').val(editObj.budget||0);
+          $('#pmStart').val(Utils.toDateInput(editObj.plannedStartTime));
+          $('#pmEnd').val(Utils.toDateInput(editObj.plannedEndTime));
+          $('#pmDesc').val(editObj.description||'');
+        } else {
+          $('#pmTitle').text('新建修复项目');
+        }
+        bootstrap.Modal.getOrCreateInstance($('#projectModal')[0]).show();
+      },
+      async save() {
+        if (!$('#pmForm')[0].checkValidity()) { $('#pmForm')[0].reportValidity(); return; }
+        const repairTypes = REPAIR_TYPES.filter(([v])=>$('#rt_'+v).prop('checked')).map(([v])=>v);
+        const body = {
+          artifactId: $('#pmArtifactId').val().trim(),
+          name: $('#pmName').val().trim(),
+          supervisorId: $('#pmSupervisorId').val().trim(),
+          supervisorName: $('#pmSupervisorName').val().trim(),
+          restorerIds: $('#pmRestorers').val().split(',').map(s=>s.trim()).filter(Boolean),
+          repairTypes,
+          budget: Number($('#pmBudget').val())||0,
+          plannedStartTime: $('#pmStart').value()? new Date($('#pmStart').value()).toISOString():null,
+          plannedEndTime: $('#pmEnd').value()? new Date($('#pmEnd').value()).toISOString():null,
+          description: $('#pmDesc').val().trim()
+        };
+        const id = $('#pmId').val();
+        if (id) await Api.put('/restoration/projects/'+id, body);
+        else await Api.post('/restoration/projects', body);
+        bootstrap.Modal.getOrCreateInstance($('#projectModal')[0]).hide();
+        Utils.toast(id?'更新成功':'创建成功','success');
+        this.loadStats(); this.refresh();
+      },
+      async openDetail(id) {
+        this.curId = id;
+        const d = await Api.get('/restoration/projects/'+id+'/full');
+        const p = d.project;
+        $('#dmTitle').text(`${p.name||''} · ${p.projectCode||''}`);
+        // base info
+        $('#dmBaseInfo').html(`
+          <div class="col-md-6"><b>项目编码：</b>${Utils.escape(p.projectCode||'-')}</div>
+          <div class="col-md-6"><b>状态：</b><span class="badge ${STATUS_BADGE[p.status]}">${STATUS_LABEL[p.status]}</span></div>
+          <div class="col-md-6"><b>关联文物：</b>${Utils.escape(p.artifactName||p.artifactId||'-')} <small class="text-muted">(${p.artifactCode||''})</small></div>
+          <div class="col-md-6"><b>负责人：</b>${Utils.escape(p.supervisorName||'-')} <small class="text-muted">(${p.supervisorId||''})</small></div>
+          <div class="col-md-12"><b>修复师：</b>${Utils.escape((p.restorerIds||[]).join('、')||'-')}</div>
+          <div class="col-md-12"><b>修复工艺：</b>${(p.repairTypes||[]).map(t=>`<span class="badge bg-light text-dark">${STAGE_LABEL[t]||t}</span>`).join(' ')||'-'}</div>
+          <div class="col-md-3"><b>预算：</b>¥ ${Utils.escape((p.budget||0).toLocaleString())}</div>
+          <div class="col-md-3"><b>实际支出：</b>¥ ${Utils.escape((p.actualCost||0).toLocaleString())}</div>
+          <div class="col-md-3"><b>计划开始：</b>${Utils.fmtDate(p.plannedStartTime)||'-'}</div>
+          <div class="col-md-3"><b>计划结束：</b>${Utils.fmtDate(p.plannedEndTime)||'-'}</div>
+          <div class="col-md-3"><b>实际开始：</b>${Utils.fmtDate(p.actualStartTime)||'-'}</div>
+          <div class="col-md-3"><b>实际结束：</b>${Utils.fmtDate(p.actualEndTime)||'-'}</div>
+          <div class="col-md-3"><b>验收结果：</b>${Utils.escape(p.acceptResult||'-')}</div>
+          <div class="col-md-3"><b>进度：</b>${p.progress||0}%</div>
+          <div class="col-md-12"><b>描述：</b><div class="mt-1 text-muted">${Utils.escape(p.description||'无')}</div></div>
+          <div class="col-12"><button class="btn btn-sm btn-outline-primary" onclick="Restoration.openModal(${JSON.stringify(p).replace(/"/g,'&quot;')})">✏️ 编辑</button></div>`);
+        // status
+        $('#dmNewStatus').html(Object.keys(STATUS_LABEL).map(k=>`<option value="${k}" ${k===p.status?'selected':''}>${STATUS_LABEL[k]}</option>`).join(''));
+        $('#dmStatusLine').html((d.logs||[]).filter(l=>l.actionType==='STATUS_CHANGE').map(l=>`
+          <div class="timeline-item"><span class="timeline-dot"></span>
+            <b>${STATUS_LABEL[l.newStatus]||l.newStatus}</b>
+            <span class="small text-muted ms-2">${Utils.fmtTime(l.createdAt)} · ${Utils.escape(l.operatorName||'')}</span>
+            ${l.remark?`<div class="small text-muted ms-4 mt-1">${Utils.escape(l.remark)}</div>`:''}
+          </div>`).join('') || '<small class="text-muted">暂无状态流转记录</small>');
+        $('#dmCurProgress').text(p.progress||0);
+        $('#dmProgressBar').css('width',(p.progress||0)+'%').attr('aria-valuenow',p.progress||0);
+        // photos
+        this.curPhotos = d.photosByStage || {BEFORE:[],IN_PROGRESS:[],AFTER:[]};
+        this.switchPhotoStage('BEFORE');
+        this.renderCompareOptions();
+        // materials
+        this.curMaterials = d.materials || [];
+        this.renderMaterials();
+        // logs
+        $('#dmLogList').html((d.logs||[]).map(l=>`
+          <div class="timeline-item"><span class="timeline-dot" style="background:${this.logColor(l.actionType)}"></span>
+            <b>${this.logLabel(l.actionType)}</b>
+            <span class="small text-muted ms-2">${Utils.fmtTime(l.createdAt)} · ${Utils.escape(l.operatorName||'')}</span>
+            ${l.remark?`<div class="small text-muted ms-4 mt-1">${Utils.escape(l.remark)}</div>`:''}
+            ${l.detail?`<pre class="small bg-light p-2 ms-4 mt-1 rounded" style="white-space:pre-wrap;max-height:120px;overflow:auto;">${Utils.escape(typeof l.detail==='string'?l.detail:JSON.stringify(l.detail,null,2))}</pre>`:''}
+          </div>`).join('') || '<small class="text-muted">暂无操作日志</small>');
+        bootstrap.Modal.getOrCreateInstance($('#detailModal')[0]).show();
+      },
+      logLabel(t){ const m={CREATE:'创建项目',STATUS_CHANGE:'状态变更',PROGRESS_UPDATE:'进度更新',MATERIAL_ADD:'材料登记',MATERIAL_DELETE:'材料移除',PHOTO_ADD:'照片上传',PHOTO_DELETE:'照片删除',PHOTO_BATCH:'批量上传照片',UPDATE:'编辑项目',DELETE:'删除项目'}; return m[t]||t; },
+      logColor(t){ const m={CREATE:'#6c757d',STATUS_CHANGE:'#0d6efd',PROGRESS_UPDATE:'#198754',MATERIAL_ADD:'#fd7e14',MATERIAL_DELETE:'#dc3545',PHOTO_ADD:'#0dcaf0',PHOTO_DELETE:'#dc3545',PHOTO_BATCH:'#0dcaf0',UPDATE:'#ffc107',DELETE:'#dc3545'}; return m[t]||'#6c757d'; },
+      async changeStatus() {
+        const s = $('#dmNewStatus').val();
+        if (!s) return;
+        const remark = prompt('请输入状态变更备注（可选）','');
+        await Api.put('/restoration/projects/'+this.curId+'/status?status='+s, { remark: remark||'' });
+        Utils.toast('状态已更新','success'); this.openDetail(this.curId); this.refresh();
+      },
+      async updateProgress() {
+        const p = Number($('#dmNewProgress').val());
+        const n = $('#dmProgressNote').val().trim();
+        if (isNaN(p)||p<0||p>100) { Utils.toast('进度需在0~100','warning'); return; }
+        await Api.post('/restoration/projects/'+this.curId+'/progress', { progress:p, remark:n });
+        Utils.toast('进度已更新','success'); this.openDetail(this.curId); this.refresh();
+      },
+      renderCompareOptions() {
+        const bef = (this.curPhotos.BEFORE||[]).map(p=>`<option value="${p.id}">${Utils.escape(p.caption||p.url.substring(0,40))}</option>`).join('');
+        const aft = (this.curPhotos.AFTER||[]).map(p=>`<option value="${p.id}">${Utils.escape(p.caption||p.url.substring(0,40))}</option>`).join('');
+        $('#cmpBefore').html(bef || '<option value="">请先上传修复前照片</option>');
+        $('#cmpAfter').html(aft || '<option value="">请先上传修复后照片</option>');
+        this.renderCompare();
+      },
+      renderCompare() {
+        const bId = $('#cmpBefore').val(), aId = $('#cmpAfter').val();
+        const b = (this.curPhotos.BEFORE||[]).find(p=>p.id==bId);
+        const a = (this.curPhotos.AFTER||[]).find(p=>p.id==aId);
+        $('#cmpBeforeImg').attr('src', b?b.url:'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect fill="%23444" width="400" height="300"/><text x="200" y="150" fill="%23ccc" text-anchor="middle" font-size="18">修复前</text></svg>');
+        $('#cmpAfterImg').attr('src', a?a.url:'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect fill="%23555" width="400" height="300"/><text x="200" y="150" fill="%23ccc" text-anchor="middle" font-size="18">修复后</text></svg>');
+      },
+      initCompareSlider() {
+        const slider = document.getElementById('cmpSlider');
+        const handle = document.getElementById('cmpHandle');
+        if (!slider||!handle) return;
+        let dragging = false;
+        const onMove = e => {
+          if (!dragging) return;
+          const r = slider.getBoundingClientRect();
+          const x = (e.touches?e.touches[0].clientX:e.clientX) - r.left;
+          const pct = Math.max(0,Math.min(100,x/r.width*100));
+          slider.style.setProperty('--slider-pct', pct+'%');
+        };
+        handle.addEventListener('mousedown', ()=>dragging=true);
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', ()=>dragging=false);
+        handle.addEventListener('touchstart', ()=>dragging=true, {passive:true});
+        document.addEventListener('touchmove', onMove, {passive:true});
+        document.addEventListener('touchend', ()=>dragging=false);
+      },
+      switchPhotoStage(stage, el) {
+        this.photoStage = stage||'BEFORE';
+        $('#photoTabsNav a').removeClass('active');
+        if (el) $(el).addClass('active'); else $('#photoTabsNav a[data-stage="'+this.photoStage+'"]').addClass('active');
+        const list = this.curPhotos[this.photoStage]||[];
+        $('#photoList').html(list.length? list.map(p=>`
+          <div class="photo-item">
+            <img src="${p.url}" alt="">
+            <button class="btn btn-sm btn-danger p-del" onclick="event.stopPropagation();Restoration.delPhoto('${p.id}')">×</button>
+            <div class="p-cap">${Utils.escape(p.caption||STAGE_LABEL[this.photoStage])}<br><small class="text-muted">${Utils.fmtDate(p.createdAt)}</small></div>
+          </div>`).join('') : '<small class="text-muted col-12">暂无'+STAGE_LABEL[this.photoStage]+'照片</small>');
+      },
+      async addPhoto() {
+        const url = $('#photoUrl').val().trim();
+        const cap = $('#photoCaption').val().trim();
+        const stage = $('#photoStage').val();
+        if (!url) { Utils.toast('请填写图片URL','warning'); return; }
+        await Api.post('/restoration/projects/'+this.curId+'/photos', { url, caption:cap, stage });
+        Utils.toast('照片已添加','success');
+        $('#photoUrl').val(''); $('#photoCaption').val('');
+        this.openDetail(this.curId);
+      },
+      async delPhoto(pid) {
+        if (!confirm('确定删除此照片?')) return;
+        await Api.del('/restoration/photos/'+pid);
+        Utils.toast('已删除','success'); this.openDetail(this.curId);
+      },
+      showBatchUpload() {
+        const urls = prompt('请输入多个图片URL（每行一个，格式：URL|说明|阶段[可选]）\n示例：\nhttps://xxx.com/a.jpg|正面|BEFORE\nhttps://xxx.com/b.jpg|侧面','');
+        if (!urls) return;
+        const arr = urls.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
+          const [u,c,s] = l.split('|');
+          return { url:u.trim(), caption:(c||'').trim(), stage:(s||$('#photoStage').val()).trim()||'IN_PROGRESS' };
+        }).filter(x=>x.url);
+        if (!arr.length) return;
+        Api.post('/restoration/projects/'+this.curId+'/photos/batch', arr).then(()=>{
+          Utils.toast('批量添加成功：'+arr.length+'张','success'); this.openDetail(this.curId);
+        });
+      },
+      renderMaterials() {
+        let total = 0;
+        $('#matBody').html(this.curMaterials.length? this.curMaterials.map(m=>{
+          const s = (m.quantity||0) * (m.unitPrice||0);
+          total += s;
+          return `<tr class="material-row">
+            <td>${Utils.escape(m.name||'')}</td>
+            <td>${UNIT_LABEL[m.unit]||m.unit}</td>
+            <td>${m.quantity}</td>
+            <td>¥ ${(m.unitPrice||0).toFixed(2)}</td>
+            <td>¥ ${s.toFixed(2)}</td>
+            <td>${Utils.escape(m.supplier||'-')}</td>
+            <td class="small text-muted">${Utils.fmtTime(m.createdAt)}</td>
+            <td><button class="btn btn-sm btn-outline-danger" onclick="Restoration.delMaterial('${m.id}')">删除</button></td>
+          </tr>`;
+        }).join('') : '<tr><td colspan="8" class="text-center text-muted py-4">暂无耗材登记</td></tr>');
+        $('#matTotal').text('¥ '+total.toFixed(2));
+      },
+      async addMaterial() {
+        const name = $('#matName').val().trim();
+        if (!name) { Utils.toast('请填写材料名称','warning'); return; }
+        const body = {
+          name, unit:$('#matUnit').val(),
+          quantity:Number($('#matQty').val())||0,
+          unitPrice:Number($('#matUnitPrice').val())||0,
+          supplier:$('#matSupplier').val().trim()
+        };
+        await Api.post('/restoration/projects/'+this.curId+'/materials', body);
+        Utils.toast('材料已登记','success');
+        ['#matName','#matQty','#matUnitPrice','#matSupplier'].forEach(s=>$(s).val(''));
+        this.openDetail(this.curId);
+      },
+      async delMaterial(mid) {
+        if (!confirm('确定删除此材料登记?')) return;
+        await Api.del('/restoration/materials/'+mid);
+        Utils.toast('已删除','success'); this.openDetail(this.curId);
+      },
+      async delCurrent() {
+        if (!confirm('确定删除整个项目？此操作不可恢复！')) return;
+        await Api.del('/restoration/projects/'+this.curId);
+        bootstrap.Modal.getOrCreateInstance($('#detailModal')[0]).hide();
+        Utils.toast('已删除','success'); this.loadStats(); this.refresh();
+      },
+      async pickArtifact() {
+        const id = prompt('请输入文物ID（或文物编码）：');
+        if (!id) return;
+        try {
+          const a = await Api.get('/artifact/'+id.trim());
+          $('#pmArtifactId').val(a.id||id);
+          $('#pmName').val(function(i,v){ return v || (a.name? (a.name+' - 修复方案') : v); });
+          Utils.toast('已关联文物：'+(a.name||id),'success');
+        } catch(e) {
+          $('#pmArtifactId').val(id.trim());
+          Utils.toast('ID已填入，未找到对应文物详情','warning');
+        }
+      }
+    };
+    $(()=>Restoration.init());
+  </script>
+</body>
+</html>

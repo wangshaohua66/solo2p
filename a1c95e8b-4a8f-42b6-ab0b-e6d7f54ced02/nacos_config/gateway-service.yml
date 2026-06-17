@@ -1,0 +1,66 @@
+server:
+  port: 9000
+
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: 6379
+      password:
+      database: 0
+
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - StripPrefix=2
+        - id: artifact-service
+          uri: lb://artifact-service
+          predicates:
+            - Path=/api/artifact/**
+          filters:
+            - StripPrefix=2
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 100
+                redis-rate-limiter.burstCapacity: 200
+                key-resolver: "#{@ipKeyResolver}"
+        - id: trace-service
+          uri: lb://trace-service
+          predicates:
+            - Path=/api/trace/**
+          filters:
+            - StripPrefix=2
+        - id: collab-service
+          uri: lb://collab-service
+          predicates:
+            - Path=/api/collab/**
+          filters:
+            - StripPrefix=2
+        - id: inspect-service
+          uri: lb://inspect-service
+          predicates:
+            - Path=/api/inspect/**
+          filters:
+            - StripPrefix=2
+        - id: restoration-service
+          uri: lb://restoration-service
+          predicates:
+            - Path=/api/restoration/**
+          filters:
+            - StripPrefix=2
+
+gateway:
+  rate-limit:
+    default-replenish-rate: 100
+    default-burst-capacity: 200
+  whitelist:
+    paths: /api/auth/login,/api/auth/register,/actuator/health

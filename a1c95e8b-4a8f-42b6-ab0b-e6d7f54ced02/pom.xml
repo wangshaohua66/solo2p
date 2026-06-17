@@ -26,6 +26,7 @@
         <module>trace-service</module>
         <module>collab-service</module>
         <module>inspect-service</module>
+        <module>restoration-service</module>
     </modules>
 
     <properties>
@@ -41,6 +42,7 @@
         <lombok.version>1.18.32</lombok.version>
         <hutool.version>5.8.27</hutool.version>
         <commons-lang3.version>3.14.0</commons-lang3.version>
+        <elasticsearch.version>8.13.4</elasticsearch.version>
     </properties>
 
     <dependencyManagement>

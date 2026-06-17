@@ -2,6 +2,7 @@ package com.heritage.trace.service.impl;
 
 import com.heritage.trace.entity.TraceRecord;
 import com.heritage.trace.enums.FlowType;
+import com.heritage.trace.feign.ArtifactClient;
 import com.heritage.trace.repository.TraceRecordRepository;
 import com.heritage.trace.service.BlockchainService;
 import com.heritage.trace.service.TraceService;
@@ -23,9 +24,25 @@ public class TraceServiceImpl implements TraceService {
 
     private final TraceRecordRepository repository;
     private final BlockchainService blockchainService;
+    private final ArtifactClient artifactClient;
 
     @Override
     public TraceRecord createRecord(TraceRecord record) {
+        if (record.getArtifactId() != null && FlowType.REGISTER != record.getFlowType()) {
+            try {
+                var res = artifactClient.getById(record.getArtifactId());
+                if (res != null && res.getCode() == 200 && res.getData() != null) {
+                    Object artName = ((Map<?,?>) res.getData()).get("name");
+                    Object artCode = ((Map<?,?>) res.getData()).get("artifactCode");
+                    if (artName != null) record.setRemark("关联文物: " + artName +
+                        (artCode != null ? (" (" + artCode + ")") : "") +
+                        (record.getRemark() != null ? " | " + record.getRemark() : ""));
+                    log.debug("Feign 校验文物成功: artifactId={}", record.getArtifactId());
+                }
+            } catch (Exception e) {
+                log.warn("Feign 调用 artifact-service 校验 artifactId={} 失败（跳过）: {}", record.getArtifactId(), e.getMessage());
+            }
+        }
         TraceRecord last = repository.findFirstByArtifactIdOrderByCreateTimeDesc(record.getArtifactId());
         if (last != null) {
             record.setPreviousHash(last.getBlockchainHash());
