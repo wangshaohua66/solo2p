@@ -1,0 +1,25 @@
+{
+  "name": "food-safety-inspection-cli",
+  "version": "1.0.0",
+  "description": "区域食品安全检测中心样品管理与检测系统",
+  "main": "cli.js",
+  "bin": {
+    "fscli": "./cli.js"
+  },
+  "type": "commonjs",
+  "scripts": {
+    "start": "node cli.js",
+    "test": "node cli.js --help"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "cli-progress": "^3.12.0",
+    "cli-table3": "^0.6.5",
+    "commander": "^12.1.0",
+    "csv-parse": "^5.5.6",
+    "uuid": "^9.0.1"
+  }
+}
