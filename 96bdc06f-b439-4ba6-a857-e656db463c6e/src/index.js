@@ -883,6 +883,217 @@ program
     }
   });
 
+const exportCommand = program.command('export')
+  .description('导出数据为CSV格式');
+
+exportCommand
+  .command('trademarks')
+  .description('导出商标信息')
+  .option('--class <class>', '按商标类别筛选')
+  .option('--type <type>', '按公告类型筛选')
+  .option('--limit <n>', '导出数量限制', '5000')
+  .action(async (options) => {
+    printBanner();
+    
+    try {
+      initDatabase();
+      const { batchExportCsv } = require('./parser/csvExporter');
+      
+      let sql = `SELECT t.*, a.announcement_number FROM trademarks t 
+                 LEFT JOIN announcements a ON t.announcement_id = a.id WHERE 1=1`;
+      const params = [];
+      
+      if (options.class) {
+        sql += ` AND t.class_number LIKE ?`;
+        params.push(`%${options.class}%`);
+      }
+      if (options.type) {
+        sql += ` AND t.announcement_type = ?`;
+        params.push(options.type);
+      }
+      sql += ` ORDER BY t.id DESC LIMIT ?`;
+      params.push(parseInt(options.limit));
+      
+      const trademarks = await allQuery(sql, params);
+      
+      console.log(chalk.cyan(`\n准备导出 ${trademarks.length} 条商标数据...`));
+      
+      const result = await batchExportCsv('trademarks', trademarks);
+      
+      console.log(chalk.green(`\n✓ 导出成功!`));
+      console.log(`  文件: ${chalk.cyan(result.filename)}`);
+      console.log(`  路径: ${chalk.gray(result.filePath)}`);
+      console.log(`  记录数: ${result.rowCount}`);
+      console.log(`  文件大小: ${(result.sizeBytes / 1024).toFixed(2)} KB`);
+      console.log(`  耗时: ${result.durationMs}ms`);
+      console.log();
+      
+    } catch (error) {
+      console.error(chalk.red('✗ 导出失败:'), error.message);
+    } finally {
+      closeDatabase();
+    }
+  });
+
+exportCommand
+  .command('matches')
+  .description('导出匹配结果')
+  .option('--client <clientId>', '按客户ID筛选')
+  .option('--risk <level>', '按风险等级筛选: high/medium/low')
+  .option('--type <type>', '按匹配类型筛选')
+  .option('--limit <n>', '导出数量限制', '5000')
+  .action(async (options) => {
+    printBanner();
+    
+    try {
+      initDatabase();
+      const { batchExportCsv } = require('./parser/csvExporter');
+      
+      let sql = `SELECT m.*, 
+                 ct.client_name, ct.client_id, ct.trademark_name as client_trademark_name,
+                 ct.class_number as client_class,
+                 t.trademark_name, t.applicant, t.application_number, t.class_number,
+                 t.announcement_type, t.announcement_date,
+                 a.announcement_number
+                 FROM match_results m
+                 LEFT JOIN client_trademarks ct ON m.client_trademark_id = ct.id
+                 LEFT JOIN trademarks t ON m.trademark_id = t.id
+                 LEFT JOIN announcements a ON t.announcement_id = a.id
+                 WHERE 1=1`;
+      const params = [];
+      
+      if (options.client) {
+        sql += ` AND ct.client_id = ?`;
+        params.push(options.client);
+      }
+      if (options.risk) {
+        sql += ` AND m.risk_level = ?`;
+        params.push(options.risk);
+      }
+      if (options.type) {
+        sql += ` AND m.match_type = ?`;
+        params.push(options.type);
+      }
+      sql += ` ORDER BY m.matched_at DESC LIMIT ?`;
+      params.push(parseInt(options.limit));
+      
+      const matches = await allQuery(sql, params);
+      
+      console.log(chalk.cyan(`\n准备导出 ${matches.length} 条匹配结果...`));
+      
+      const result = await batchExportCsv('matches', matches);
+      
+      console.log(chalk.green(`\n✓ 导出成功!`));
+      console.log(`  文件: ${chalk.cyan(result.filename)}`);
+      console.log(`  路径: ${chalk.gray(result.filePath)}`);
+      console.log(`  记录数: ${result.rowCount}`);
+      console.log(`  文件大小: ${(result.sizeBytes / 1024).toFixed(2)} KB`);
+      console.log();
+      
+    } catch (error) {
+      console.error(chalk.red('✗ 导出失败:'), error.message);
+    } finally {
+      closeDatabase();
+    }
+  });
+
+exportCommand
+  .command('clients')
+  .description('导出客户商标清单')
+  .action(async () => {
+    printBanner();
+    
+    try {
+      initDatabase();
+      const { batchExportCsv } = require('./parser/csvExporter');
+      
+      const clients = await allQuery('SELECT * FROM client_trademarks ORDER BY client_id, class_number');
+      
+      console.log(chalk.cyan(`\n准备导出 ${clients.length} 条客户商标数据...`));
+      
+      const result = await batchExportCsv('clients', clients);
+      
+      console.log(chalk.green(`\n✓ 导出成功!`));
+      console.log(`  文件: ${chalk.cyan(result.filename)}`);
+      console.log(`  路径: ${chalk.gray(result.filePath)}`);
+      console.log(`  记录数: ${result.rowCount}`);
+      console.log();
+      
+    } catch (error) {
+      console.error(chalk.red('✗ 导出失败:'), error.message);
+    } finally {
+      closeDatabase();
+    }
+  });
+
+exportCommand
+  .command('deadlines')
+  .description('导出异议期限预警列表')
+  .option('--days <n>', '未来N天内', '30')
+  .option('--urgency <level>', '紧急程度筛选')
+  .action(async (options) => {
+    printBanner();
+    
+    try {
+      initDatabase();
+      const { batchExportCsv } = require('./parser/csvExporter');
+      const { createScheduler } = require('./scraper/scheduler');
+      
+      const scheduler = createScheduler();
+      const deadlines = await scheduler.checkOppositionDeadlines();
+      
+      let filtered = deadlines;
+      if (options.urgency) {
+        filtered = deadlines.filter(d => d.urgency === options.urgency || d.alertClass === options.urgency);
+      }
+      
+      console.log(chalk.cyan(`\n准备导出 ${filtered.length} 条异议期限数据...`));
+      
+      const result = await batchExportCsv('deadlines', filtered);
+      
+      console.log(chalk.green(`\n✓ 导出成功!`));
+      console.log(`  文件: ${chalk.cyan(result.filename)}`);
+      console.log(`  路径: ${chalk.gray(result.filePath)}`);
+      console.log(`  记录数: ${result.rowCount}`);
+      console.log();
+      
+    } catch (error) {
+      console.error(chalk.red('✗ 导出失败:'), error.message);
+    } finally {
+      closeDatabase();
+    }
+  });
+
+exportCommand
+  .command('list')
+  .description('查看已导出的文件列表')
+  .action(() => {
+    printBanner();
+    
+    const { getExportsList } = require('./parser/csvExporter');
+    const files = getExportsList();
+    
+    if (files.length === 0) {
+      console.log(chalk.yellow('\n暂无导出文件'));
+      console.log();
+      return;
+    }
+    
+    console.log(chalk.cyan(`\n共 ${files.length} 个导出文件:\n`));
+    console.log(chalk.yellow('文件名'.padEnd(45)) + '大小'.padEnd(12) + '创建时间');
+    console.log(chalk.gray('─'.repeat(75)));
+    
+    files.forEach(f => {
+      console.log(
+        chalk.white(f.filename.padEnd(45)) +
+        chalk.cyan((f.sizeKB + ' KB').padEnd(12)) +
+        chalk.gray(f.createdAt)
+      );
+    });
+    
+    console.log();
+  });
+
 program
   .command('report')
   .description('生成统计报表')

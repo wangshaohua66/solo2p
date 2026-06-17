@@ -27,6 +27,33 @@ scraper:
     service: "third_party"
     apiKey: ""
     apiEndpoint: ""
+    type: "common"
+    length: 4
+    minLength: 3
+    maxLength: 8
+    caseSensitive: false
+    numeric: false
+    phrase: false
+    maxRetries: 3
+    maxSubmitAttempts: 3
+    retryDelay: 2000
+    timeout: 30000
+    refreshOnRetry: true
+    fallbackMode: "save_for_later"
+    blockDuration: 300000
+    ruoKuai:
+      username: ""
+      password: ""
+      softId: ""
+      typeId: "3040"
+  increment:
+    enabled: true
+    checkPointFile: "./data/cache/increment_checkpoint.json"
+    deduplicationField: "application_number"
+    allowPartialResume: true
+    maxResumeAttempts: 5
+    consistencyCheck: true
+    saveCheckpointInterval: 10
 
 parser:
   pdfExtractTimeout: 60000

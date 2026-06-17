@@ -7,6 +7,7 @@ const { getConfig, getClientTrademarks } = require('../config');
 const { fetchLatestAnnouncements } = require('./announcer');
 const { extractPDF } = require('../parser/pdfExtractor');
 const { matchTrademarks } = require('../matcher/trademarkMatcher');
+const { getCheckpointManager } = require('./incrementalManager');
 const { 
   saveTrademarks, 
   saveMatchResults, 
@@ -89,55 +90,125 @@ class TaskScheduler {
   }
 
   async checkOppositionDeadlines() {
-    logger.info('Checking opposition deadlines');
+    logger.info('Checking opposition deadlines - comprehensive edge case mode');
     
-    const deadlines = await getOppositionDeadlines(30);
+    const deadlines = await getOppositionDeadlines(60);
     const urgentDeadlines = [];
+    const today = moment().startOf('day');
+    const todayStr = today.format('YYYY-MM-DD');
+    const notificationSentCache = new Set();
     
     for (const deadline of deadlines) {
-      const daysRemaining = Math.ceil(deadline.days_remaining);
+      const deadlineDate = moment(deadline.opposition_deadline).startOf('day');
+      const daysRemaining = Math.ceil(deadlineDate.diff(today, 'days', true));
+      const daysRemainingFloat = deadline.days_remaining || daysRemaining;
       
-      if (daysRemaining <= 30 && daysRemaining >= 0) {
-        let urgency, alertLevel;
-        
-        if (daysRemaining <= 3) {
-          urgency = 'critical';
-          alertLevel = 4;
-        } else if (daysRemaining <= 7) {
-          urgency = 'high';
-          alertLevel = 3;
-        } else if (daysRemaining <= 15) {
-          urgency = 'medium';
-          alertLevel = 2;
-        } else {
-          urgency = 'low';
-          alertLevel = 1;
+      const alreadyExpired = daysRemaining < 0;
+      const expiresToday = daysRemaining === 0;
+      const isWeekend = today.day() === 0 || today.day() === 6;
+      const isHoliday = false;
+      
+      if (alreadyExpired) {
+        continue;
+      }
+      
+      let urgency, alertLevel, alertClass;
+      
+      if (expiresToday) {
+        urgency = 'expiring_today';
+        alertLevel = 5;
+        alertClass = 'critical';
+      } else if (daysRemaining <= 3) {
+        urgency = 'critical';
+        alertLevel = 4;
+        alertClass = 'critical';
+      } else if (daysRemaining <= 7) {
+        urgency = 'high';
+        alertLevel = 3;
+        alertClass = 'high';
+      } else if (daysRemaining <= 15) {
+        urgency = 'medium';
+        alertLevel = 2;
+        alertClass = 'medium';
+      } else if (daysRemaining <= 30) {
+        urgency = 'low';
+        alertLevel = 1;
+        alertClass = 'low';
+      } else {
+        continue;
+      }
+      
+      const isMilestoneDay = daysRemaining === 30 || daysRemaining === 15 || 
+                             daysRemaining === 7 || daysRemaining === 5 ||
+                             daysRemaining === 3 || daysRemaining === 1 || 
+                             expiresToday;
+      
+      const isDailyWarningWindow = daysRemaining <= 7 || expiresToday;
+      
+      const isUrgentBusinessDay = (daysRemaining <= 3 || expiresToday) && !isWeekend && !isHoliday;
+      
+      const isDeadlineOnHoliday = deadlineDate.day() === 0 || deadlineDate.day() === 6;
+      const effectiveWarningDay = isDeadlineOnHoliday && daysRemaining <= 7;
+      
+      const needsNotification = isMilestoneDay || isDailyWarningWindow || 
+                                 isUrgentBusinessDay || effectiveWarningDay;
+      
+      const deduplicationKey = `${deadline.match_id || deadline.client_id}_${deadline.trademark_id || deadline.client_trademark_name}_${todayStr}_${urgency}`;
+      const alreadyNotifiedToday = notificationSentCache.has(deduplicationKey);
+      
+      urgentDeadlines.push({
+        ...deadline,
+        daysRemaining,
+        daysRemainingFloat,
+        expiresToday,
+        alreadyExpired,
+        isWeekend,
+        isDeadlineOnHoliday,
+        urgency,
+        alertLevel,
+        alertClass,
+        isMilestoneDay,
+        isDailyWarningWindow,
+        needsNotification: needsNotification && !alreadyNotifiedToday,
+        deduplicationKey,
+        warningReasons: {
+          milestone: isMilestoneDay,
+          dailyWindow: isDailyWarningWindow,
+          urgentBusinessDay: isUrgentBusinessDay,
+          deadlineOnHoliday: effectiveWarningDay
         }
-        
-        const isMilestoneDay = daysRemaining === 30 || daysRemaining === 15 || 
-                               daysRemaining === 7 || daysRemaining === 3 || 
-                               daysRemaining === 1;
-        
-        urgentDeadlines.push({
-          ...deadline,
-          daysRemaining,
-          urgency,
-          alertLevel,
-          isMilestoneDay,
-          needsNotification: isMilestoneDay || daysRemaining <= 7
-        });
+      });
+      
+      if (needsNotification) {
+        notificationSentCache.add(deduplicationKey);
       }
     }
     
-    logger.info(`Found ${urgentDeadlines.length} opposition deadlines within 30 days`, {
-      critical: urgentDeadlines.filter(d => d.urgency === 'critical').length,
-      high: urgentDeadlines.filter(d => d.urgency === 'high').length,
-      medium: urgentDeadlines.filter(d => d.urgency === 'medium').length,
-      low: urgentDeadlines.filter(d => d.urgency === 'low').length,
-      needsNotification: urgentDeadlines.filter(d => d.needsNotification).length
+    const sortedDeadlines = urgentDeadlines.sort((a, b) => a.daysRemaining - b.daysRemaining);
+    
+    const stats = {
+      expiringToday: sortedDeadlines.filter(d => d.expiresToday).length,
+      critical: sortedDeadlines.filter(d => d.urgency === 'critical').length,
+      high: sortedDeadlines.filter(d => d.urgency === 'high').length,
+      medium: sortedDeadlines.filter(d => d.urgency === 'medium').length,
+      low: sortedDeadlines.filter(d => d.urgency === 'low').length,
+      needsNotification: sortedDeadlines.filter(d => d.needsNotification).length,
+      milestoneDays: sortedDeadlines.filter(d => d.isMilestoneDay).length,
+      expiringOnHoliday: sortedDeadlines.filter(d => d.isDeadlineOnHoliday).length
+    };
+    
+    logger.info(`Found ${sortedDeadlines.length} opposition deadlines within 30 days`, {
+      ...stats,
+      daysBuckets: {
+        today: stats.expiringToday,
+        '1-3': sortedDeadlines.filter(d => d.daysRemaining >= 1 && d.daysRemaining <= 3).length,
+        '4-7': sortedDeadlines.filter(d => d.daysRemaining >= 4 && d.daysRemaining <= 7).length,
+        '8-15': sortedDeadlines.filter(d => d.daysRemaining >= 8 && d.daysRemaining <= 15).length,
+        '16-30': sortedDeadlines.filter(d => d.daysRemaining >= 16 && d.daysRemaining <= 30).length
+      }
     });
     
-    return urgentDeadlines;
+    return sortedDeadlines;
   }
 
   async runFullPipeline() {
@@ -245,9 +316,24 @@ class TaskScheduler {
   async processSingleAnnouncement(announcement) {
     const startTime = Date.now();
     const annNumber = announcement.announcement_number;
+    const checkpoint = getCheckpointManager();
     
     logger.info(`Processing announcement: ${annNumber}`);
     console.log(chalk.cyan(`\n处理公告: ${annNumber}`));
+    
+    if (checkpoint.isAnnouncementProcessed(annNumber)) {
+      logger.info(`Announcement ${annNumber} already processed, skipping (incremental deduplication)`);
+      console.log(chalk.yellow(`  ℹ 公告 ${annNumber} 已处理过，跳过`));
+      await updateAnnouncementStatus(annNumber, 'processed');
+      return {
+        success: true,
+        announcementId: announcement.id,
+        announcementNumber: annNumber,
+        skipped: true,
+        reason: 'already_processed',
+        durationMs: 0
+      };
+    }
     
     try {
       await updateAnnouncementStatus(annNumber, 'processing');
@@ -292,8 +378,17 @@ class TaskScheduler {
         throw new Error('No trademarks extracted from PDFs');
       }
       
-      console.log(chalk.cyan(`  保存商标数据...`));
-      const savedCount = await saveTrademarks(allTrademarks, announcement.id);
+      console.log(chalk.cyan(`  商标数据去重中...`));
+      const dedupResult = checkpoint.deduplicateTrademarks(allTrademarks);
+      
+      console.log(chalk.cyan(`  保存 ${dedupResult.unique.length} 条唯一商标数据...`));
+      const savedCount = await saveTrademarks(dedupResult.unique, announcement.id);
+      
+      for (const tm of dedupResult.unique) {
+        checkpoint.markTrademarkProcessed(tm, announcement.id, 0);
+      }
+      
+      checkpoint.markAnnouncementProcessed(annNumber, { page: 1 });
       
       await saveAnnouncement({
         ...announcement,
@@ -305,12 +400,18 @@ class TaskScheduler {
       await logProcessing(annNumber, 'process', 'success', savedCount, duration);
       
       console.log(chalk.green(`✓ 公告 ${annNumber} 处理完成，提取 ${savedCount} 条商标，耗时 ${(duration / 1000).toFixed(1)}s`));
+      if (dedupResult.duplicates.length > 0) {
+        console.log(chalk.gray(`  ℹ 去重跳过 ${dedupResult.duplicates.length} 条重复数据`));
+      }
+      
+      checkpoint.save(true);
       
       return {
         success: true,
         announcementId: announcement.id,
         announcementNumber: annNumber,
         trademarksCount: savedCount,
+        duplicatesSkipped: dedupResult.duplicates.length,
         durationMs: duration
       };
       
@@ -318,15 +419,18 @@ class TaskScheduler {
       const duration = Date.now() - startTime;
       logger.error(`Failed to process announcement ${annNumber}`, { error: error.message });
       
+      const canRetry = checkpoint.markAnnouncementFailed(annNumber, error);
       await updateAnnouncementStatus(annNumber, 'failed', error.message);
       await logProcessing(annNumber, 'process', 'failed', 0, duration, error.message);
       
-      console.log(chalk.red(`✗ 公告 ${annNumber} 处理失败: ${error.message}`));
+      const retryMsg = canRetry ? `(可重试)` : `(已达最大重试次数)`;
+      console.log(chalk.red(`✗ 公告 ${annNumber} 处理失败: ${error.message} ${retryMsg}`));
       
       return {
         success: false,
         announcementNumber: annNumber,
         error: error.message,
+        canRetry,
         durationMs: duration
       };
     }

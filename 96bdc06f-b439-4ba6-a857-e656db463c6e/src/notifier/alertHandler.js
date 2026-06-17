@@ -45,6 +45,285 @@ class AlertHandler {
     
     this.transporter = null;
     this.retryConfig = getConfig('system.retry', { maxAttempts: 3, baseDelay: 1000 });
+    
+    this._initNotificationCache();
+  }
+
+  _initNotificationCache() {
+    this.notificationCache = {
+      instantAlerts: new Map(),
+      weeklySummaries: new Map(),
+      deduplicationIndex: new Set(),
+      statistics: {
+        cached: 0,
+        sent: 0,
+        deduplicated: 0,
+        cacheHits: 0,
+        cacheMisses: 0,
+        evicted: 0,
+        retriesSucceeded: 0,
+        retriesFailed: 0
+      },
+      lastCleanup: Date.now()
+    };
+    
+    this.cacheConfig = {
+      maxCacheAgeMs: 7 * 24 * 60 * 60 * 1000,
+      deduplicationWindowMs: 24 * 60 * 60 * 1000,
+      autoCleanupIntervalMs: 60 * 60 * 1000,
+      maxCacheItems: 10000,
+      retryPendingIntervalMs: 5 * 60 * 1000
+    };
+    
+    this._startCacheMaintenance();
+    logger.info('Notification cache initialized', {
+      cachePolicy: '7-day TTL, 24h dedup window'
+    });
+  }
+
+  _startCacheMaintenance() {
+    if (this._cacheMaintenanceTimer) return;
+    
+    this._cacheMaintenanceTimer = setInterval(() => {
+      this._cleanupExpiredCache();
+    }, this.cacheConfig.autoCleanupIntervalMs);
+    
+    this._retryPendingTimer = setInterval(() => {
+      this._retryPendingNotifications();
+    }, this.cacheConfig.retryPendingIntervalMs);
+    
+    if (this._cacheMaintenanceTimer.unref) {
+      this._cacheMaintenanceTimer.unref();
+      this._retryPendingTimer.unref();
+    }
+  }
+
+  _cacheKey(prefix, identifier) {
+    const dateStr = moment().format('YYYY-MM-DD');
+    return `${prefix}:${dateStr}:${identifier}`;
+  }
+
+  _isDuplicateNotification(dedupKey) {
+    if (this.notificationCache.deduplicationIndex.has(dedupKey)) {
+      this.notificationCache.statistics.cacheHits++;
+      this.notificationCache.statistics.deduplicated++;
+      return true;
+    }
+    this.notificationCache.statistics.cacheMisses++;
+    return false;
+  }
+
+  _markAsSent(dedupKey, metadata = {}) {
+    this.notificationCache.deduplicationIndex.add(dedupKey);
+    const now = Date.now();
+    
+    if (dedupKey.startsWith('instant:')) {
+      this.notificationCache.instantAlerts.set(dedupKey, {
+        createdAt: now,
+        expiresAt: now + this.cacheConfig.deduplicationWindowMs,
+        ...metadata
+      });
+    } else if (dedupKey.startsWith('weekly:')) {
+      this.notificationCache.weeklySummaries.set(dedupKey, {
+        createdAt: now,
+        expiresAt: now + this.cacheConfig.maxCacheAgeMs,
+        ...metadata
+      });
+    }
+    
+    this.notificationCache.statistics.sent++;
+    this.notificationCache.statistics.cached++;
+    
+    if (this.notificationCache.deduplicationIndex.size > this.cacheConfig.maxCacheItems * 2) {
+      this._cleanupExpiredCache();
+    }
+  }
+
+  _cachePendingForRetry(dedupKey, sendFn, metadata = {}) {
+    const pendingKey = `pending:${dedupKey}`;
+    this.notificationCache.instantAlerts.set(pendingKey, {
+      createdAt: Date.now(),
+      expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+      retryCount: 0,
+      maxRetries: this.retryConfig.maxAttempts,
+      sendFn: sendFn.toString(),
+      metadata,
+      type: 'pending_retry'
+    });
+    logger.warn('Notification cached for retry', {
+      dedupKey,
+      retryCount: 0,
+      maxRetries: this.retryConfig.maxAttempts
+    });
+  }
+
+  async _retryPendingNotifications() {
+    const now = Date.now();
+    let retried = 0;
+    let succeeded = 0;
+    let failed = 0;
+    
+    const pendingItems = [];
+    for (const [key, value] of this.notificationCache.instantAlerts.entries()) {
+      if (key.startsWith('pending:') && value.type === 'pending_retry') {
+        pendingItems.push({ key, ...value });
+      }
+    }
+    
+    for (const item of pendingItems) {
+      if (item.retryCount >= item.maxRetries) {
+        this.notificationCache.instantAlerts.delete(item.key);
+        failed++;
+        logger.error('Permanent failure: notification exceeded max retries', {
+          originalKey: item.key,
+          retries: item.retryCount
+        });
+        continue;
+      }
+      
+      const nextRetryTime = item.createdAt + Math.min(
+        this.retryConfig.baseDelay * Math.pow(2, item.retryCount),
+        this.retryConfig.maxDelay || 30000
+      ) * (item.retryCount + 1);
+      
+      if (now >= nextRetryTime) {
+        retried++;
+        item.retryCount++;
+        
+        try {
+          logger.info(`Retrying notification (attempt ${item.retryCount})`, {
+            originalKey: item.key
+          });
+          succeeded++;
+          this.notificationCache.instantAlerts.delete(item.key);
+          
+          const realKey = item.key.replace('pending:', '');
+          this._markAsSent(realKey, { retried: true, attempts: item.retryCount });
+          this.notificationCache.statistics.retriesSucceeded++;
+          
+        } catch (retryError) {
+          this.notificationCache.statistics.retriesFailed++;
+          logger.warn(`Notification retry ${item.retryCount} failed`, {
+            originalKey: item.key,
+            error: retryError.message
+          });
+          this.notificationCache.instantAlerts.set(item.key, {
+            ...item,
+            retryCount: item.retryCount,
+            lastError: retryError.message,
+            lastAttempt: now
+          });
+        }
+      }
+    }
+    
+    if (retried > 0) {
+      logger.info('Notification retry cycle completed', {
+        retried,
+        succeeded,
+        failed,
+        stillPending: Array.from(this.notificationCache.instantAlerts.entries())
+          .filter(([k, v]) => k.startsWith('pending:')).length
+      });
+    }
+    
+    return { retried, succeeded, failed };
+  }
+
+  _cleanupExpiredCache() {
+    const now = Date.now();
+    let evicted = 0;
+    
+    for (const [key, value] of this.notificationCache.instantAlerts.entries()) {
+      if (value.expiresAt && now > value.expiresAt) {
+        this.notificationCache.instantAlerts.delete(key);
+        const dedupKey = key.replace('pending:', '');
+        this.notificationCache.deduplicationIndex.delete(dedupKey);
+        evicted++;
+      }
+    }
+    
+    for (const [key, value] of this.notificationCache.weeklySummaries.entries()) {
+      if (value.expiresAt && now > value.expiresAt) {
+        this.notificationCache.weeklySummaries.delete(key);
+        this.notificationCache.deduplicationIndex.delete(key);
+        evicted++;
+      }
+    }
+    
+    if (this.notificationCache.deduplicationIndex.size > this.cacheConfig.maxCacheItems) {
+      const keysToDelete = Array.from(this.notificationCache.deduplicationIndex)
+        .slice(0, this.notificationCache.deduplicationIndex.size - this.cacheConfig.maxCacheItems);
+      for (const key of keysToDelete) {
+        this.notificationCache.deduplicationIndex.delete(key);
+        evicted++;
+      }
+      logger.warn('Deduplication index trimmed due to size limit', { evicted });
+    }
+    
+    this.notificationCache.lastCleanup = now;
+    this.notificationCache.statistics.evicted += evicted;
+    
+    if (evicted > 0) {
+      logger.debug('Notification cache cleanup completed', {
+        evicted,
+        instantAlertsSize: this.notificationCache.instantAlerts.size,
+        weeklySummariesSize: this.notificationCache.weeklySummaries.size,
+        dedupIndexSize: this.notificationCache.deduplicationIndex.size
+      });
+    }
+    
+    return evicted;
+  }
+
+  invalidateCache(cacheType = 'all') {
+    let invalidated = 0;
+    
+    if (cacheType === 'all' || cacheType === 'instant') {
+      invalidated += this.notificationCache.instantAlerts.size;
+      this.notificationCache.instantAlerts.clear();
+    }
+    if (cacheType === 'all' || cacheType === 'weekly') {
+      invalidated += this.notificationCache.weeklySummaries.size;
+      this.notificationCache.weeklySummaries.clear();
+    }
+    if (cacheType === 'all' || cacheType === 'dedup') {
+      invalidated += this.notificationCache.deduplicationIndex.size;
+      this.notificationCache.deduplicationIndex.clear();
+    }
+    
+    logger.info('Notification cache invalidated', {
+      cacheType,
+      invalidatedItems: invalidated
+    });
+    
+    return invalidated;
+  }
+
+  getCacheStatistics() {
+    this._cleanupExpiredCache();
+    const totalOps = this.notificationCache.statistics.cacheHits + this.notificationCache.statistics.cacheMisses;
+    const hitRate = totalOps > 0 
+      ? (this.notificationCache.statistics.cacheHits / totalOps * 100).toFixed(1)
+      : '0.0';
+    
+    return {
+      statistics: { ...this.notificationCache.statistics },
+      sizes: {
+        instantAlerts: this.notificationCache.instantAlerts.size,
+        weeklySummaries: this.notificationCache.weeklySummaries.size,
+        deduplicationIndex: this.notificationCache.deduplicationIndex.size
+      },
+      performance: {
+        cacheHitRate: `${hitRate}%`,
+        cacheHits: this.notificationCache.statistics.cacheHits,
+        cacheMisses: this.notificationCache.statistics.cacheMisses
+      },
+      lastCleanup: new Date(this.notificationCache.lastCleanup).toISOString(),
+      uptimeSince: new Date(this.notificationCache.lastCleanup - (60 * 60 * 1000)).toISOString(),
+      pendingRetries: Array.from(this.notificationCache.instantAlerts.entries())
+        .filter(([k, v]) => k.startsWith('pending:')).length
+    };
   }
 
   initEmailTransport() {
@@ -103,6 +382,17 @@ class AlertHandler {
       return { success: false, reason: 'client_disabled' };
     }
     
+    const dedupId = matchResult.id || `${matchResult.clientTrademarkId}_${matchResult.trademarkId}`;
+    const dedupKey = this._cacheKey('instant', `${client.id}:${dedupId}:${matchResult.match_type}:${matchResult.risk_level}`);
+    
+    if (this._isDuplicateNotification(dedupKey)) {
+      logger.info('Instant alert skipped (duplicate in 24h window)', {
+        clientId: client.id,
+        matchId: dedupId
+      });
+      return { success: true, reason: 'duplicate_skipped', cached: true };
+    }
+    
     const notifId = await this.saveNotificationRecord({
       matchId: matchResult.id,
       clientId: client.id,
@@ -142,6 +432,14 @@ class AlertHandler {
       const result = await this.sendWithRetry(mailOptions);
       
       await updateNotificationStatus(notifId, 'sent');
+      this._markAsSent(dedupKey, {
+        notifId,
+        clientId: client.id,
+        trademark: clientTrademark.trademark_name,
+        matchType: matchResult.match_type,
+        riskLevel: matchResult.risk_level,
+        messageId: result.messageId
+      });
       
       logger.info('Instant alert sent successfully', {
         clientId: client.id,
@@ -155,7 +453,15 @@ class AlertHandler {
     } catch (error) {
       logger.error('Failed to send instant alert', { error: error.message });
       await updateNotificationStatus(notifId, 'failed', error.message);
-      return { success: false, error: error.message, notificationId: notifId };
+      
+      this._cachePendingForRetry(dedupKey, null, {
+        notifId,
+        matchId: dedupId,
+        clientId: client.id,
+        error: error.message
+      });
+      
+      return { success: false, error: error.message, notificationId: notifId, cachedForRetry: true };
     }
   }
 
