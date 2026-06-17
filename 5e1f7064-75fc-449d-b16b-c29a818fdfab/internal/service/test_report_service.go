@@ -223,6 +223,7 @@ func (s *TestResultService) GetResults(sampleID uint) ([]model.TestResult, *appE
 type CriticalValueService struct {
 	db            *gorm.DB
 	criticalRepo  *repository.CriticalValueRecordRepository
+	alertRepo     *repository.CriticalAlertRepository
 	sampleRepo    *repository.SampleRepository
 	userRepo      *repository.UserRepository
 }
@@ -230,12 +231,14 @@ type CriticalValueService struct {
 func NewCriticalValueService(
 	db *gorm.DB,
 	criticalRepo *repository.CriticalValueRecordRepository,
+	alertRepo *repository.CriticalAlertRepository,
 	sampleRepo *repository.SampleRepository,
 	userRepo *repository.UserRepository,
 ) *CriticalValueService {
 	return &CriticalValueService{
 		db:           db,
 		criticalRepo: criticalRepo,
+		alertRepo:    alertRepo,
 		sampleRepo:   sampleRepo,
 		userRepo:     userRepo,
 	}
@@ -303,6 +306,28 @@ func (s *CriticalValueService) GetBySample(sampleID uint) ([]model.CriticalValue
 		return nil, appErr.ErrDatabaseError
 	}
 	return records, nil
+}
+
+func (s *CriticalValueService) ListAlerts(q *dto.CriticalAlertQuery, currentInstID uint) ([]model.CriticalAlert, int64, *appErr.ErrorCode) {
+	query := &repository.CriticalAlertListQuery{
+		SampleID:   q.SampleID,
+		TestItemID: q.TestItemID,
+		Status:     q.Status,
+		AlertType:  q.AlertType,
+		TargetType: q.TargetType,
+		Page:       q.Page,
+		PageSize:   q.PageSize,
+	}
+	if currentInstID > 0 {
+		query.InstitutionID = &currentInstID
+	} else if q.InstitutionID != nil {
+		query.InstitutionID = q.InstitutionID
+	}
+	list, total, err := s.alertRepo.List(query)
+	if err != nil {
+		return nil, 0, appErr.ErrDatabaseError
+	}
+	return list, total, nil
 }
 
 type ReportService struct {

@@ -70,7 +70,7 @@ func main() {
 	resultService := service.NewTestResultService(
 		db, resultRepo, sampleRepo, sampleItemRepo, itemRepo, criticalRepo, alertRepo, userRepo, instRepo,
 	)
-	criticalService := service.NewCriticalValueService(db, criticalRepo, sampleRepo, userRepo)
+	criticalService := service.NewCriticalValueService(db, criticalRepo, alertRepo, sampleRepo, userRepo)
 	reportService := service.NewReportService(
 		db, reportRepo, reportReadRepo, sampleRepo, resultRepo,
 		sampleItemRepo, itemRepo, criticalRepo, userRepo, instRepo,

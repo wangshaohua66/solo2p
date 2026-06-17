@@ -43,6 +43,8 @@ type ReportItemData struct {
 func registerUnicodeFont(pdf *gofpdf.Fpdf) {
 	pdf.AddUTF8Font("NotoSansSC", "", "NotoSansSC-Regular.ttf")
 	pdf.AddUTF8Font("NotoSansSC", "B", "NotoSansSC-Bold.ttf")
+	pdf.AddUTF8Font("NotoSansSC", "I", "NotoSansSC-Regular.ttf")
+	pdf.AddUTF8Font("NotoSansSC", "BI", "NotoSansSC-Bold.ttf")
 }
 
 func GenerateReportPDF(data *ReportData) ([]byte, error) {

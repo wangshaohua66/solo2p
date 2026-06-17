@@ -65,6 +65,7 @@ func SetupRouter(r *gin.Engine, deps *Dependencies) {
 		samples.GET("/:id/status-logs", deps.SampleCtrl.GetStatusLogs)
 		samples.GET("/:id/results", deps.SampleCtrl.GetTestResults)
 		samples.GET("/:id/critical-values", deps.SampleCtrl.GetCriticalValues)
+		samples.GET("/critical-alerts", deps.SampleCtrl.ListCriticalAlerts)
 
 		instOnly := samples.Group("")
 		instOnly.Use(deps.AuthMw.RoleAuth(model.UserRoleInstitution, model.UserRoleAdmin))

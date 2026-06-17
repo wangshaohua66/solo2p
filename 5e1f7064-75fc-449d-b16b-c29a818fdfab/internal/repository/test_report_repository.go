@@ -290,3 +290,51 @@ func (r *CriticalAlertRepository) IncrementRetry(id uint) error {
 	return r.db.Model(&model.CriticalAlert{}).Where("id = ?", id).
 		UpdateColumn("retry_count", gorm.Expr("retry_count + ?", 1)).Error
 }
+
+type CriticalAlertListQuery struct {
+	SampleID      *uint
+	TestItemID    *uint
+	InstitutionID *uint
+	Status        string
+	AlertType     string
+	TargetType    string
+	Page          int
+	PageSize      int
+}
+
+func (r *CriticalAlertRepository) List(q *CriticalAlertListQuery) ([]model.CriticalAlert, int64, error) {
+	var list []model.CriticalAlert
+	var total int64
+
+	query := r.db.Model(&model.CriticalAlert{})
+
+	if q.InstitutionID != nil {
+		query = query.Joins("JOIN samples s ON s.id = critical_alerts.sample_id").
+			Where("s.institution_id = ?", *q.InstitutionID)
+	}
+	if q.SampleID != nil {
+		query = query.Where("critical_alerts.sample_id = ?", *q.SampleID)
+	}
+	if q.TestItemID != nil {
+		query = query.Where("critical_alerts.test_item_id = ?", *q.TestItemID)
+	}
+	if q.Status != "" {
+		query = query.Where("critical_alerts.status = ?", q.Status)
+	}
+	if q.AlertType != "" {
+		query = query.Where("critical_alerts.alert_type = ?", q.AlertType)
+	}
+	if q.TargetType != "" {
+		query = query.Where("critical_alerts.target_type = ?", q.TargetType)
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (q.Page - 1) * q.PageSize
+	err := query.Order("critical_alerts.alert_time DESC").
+		Offset(offset).Limit(q.PageSize).
+		Find(&list).Error
+	return list, total, err
+}

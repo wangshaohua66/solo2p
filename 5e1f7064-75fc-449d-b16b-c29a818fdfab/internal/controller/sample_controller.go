@@ -201,3 +201,17 @@ func (c *SampleController) GetCriticalValues(ctx *gin.Context) {
 	}
 	response.Success(ctx, records)
 }
+
+func (c *SampleController) ListCriticalAlerts(ctx *gin.Context) {
+	var req dto.CriticalAlertQuery
+	if !c.bindAndValidate(ctx, &req) {
+		return
+	}
+	currentInstID := getCurrentInstitutionID(ctx)
+	list, total, ec := c.criticalValueService.ListAlerts(&req, currentInstID)
+	if ec != nil {
+		response.Fail(ctx, ec)
+		return
+	}
+	response.SuccessPage(ctx, list, total, req.Page, req.PageSize)
+}

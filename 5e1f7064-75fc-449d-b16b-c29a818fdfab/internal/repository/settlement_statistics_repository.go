@@ -289,6 +289,8 @@ func (r *StatisticsRepository) TATStats(start, end time.Time, instID *uint) (*TA
 	type rawRow struct {
 		Total       int64   `gorm:"column:total"`
 		AvgTotal    float64 `gorm:"column:avg_total"`
+		MedianTotal float64 `gorm:"column:median_total"`
+		P90Total    float64 `gorm:"column:p90_total"`
 		AvgR2T      float64 `gorm:"column:avg_r2t"`
 		AvgT2R      float64 `gorm:"column:avg_t2r"`
 		AvgR2D      float64 `gorm:"column:avg_r2d"`
@@ -298,22 +300,51 @@ func (r *StatisticsRepository) TATStats(start, end time.Time, instID *uint) (*TA
 
 	var row rawRow
 	sql := `
-		SELECT
-			COUNT(*) as total,
-			COALESCE(AVG(EXTRACT(EPOCH FROM (s.updated_at - s.created_at))/60), 0) as avg_total,
-			0 as avg_r2t,
-			0 as avg_t2r,
-			0 as avg_r2d,
-			COUNT(CASE WHEN EXTRACT(EPOCH FROM (s.updated_at - s.created_at))/60 <= 1440 THEN 1 END) as within_24h,
-			COUNT(CASE WHEN EXTRACT(EPOCH FROM (s.updated_at - s.created_at))/60 <= 240 THEN 1 END) as within_4h
-		FROM samples s
-		WHERE s.created_at BETWEEN ? AND ?
-		AND s.status = ?`
-	args := []interface{}{start, end, model.SampleStatusCompleted}
+		WITH sample_times AS (
+			SELECT
+				s.id as sample_id,
+				EXTRACT(EPOCH FROM (s.updated_at - s.created_at))/60 as total_min,
+				(SELECT EXTRACT(EPOCH FROM (l2.created_at - l1.created_at))/60
+				 FROM sample_status_logs l1
+				 JOIN sample_status_logs l2 ON l1.sample_id = l2.sample_id
+				 WHERE l1.sample_id = s.id AND l1.to_status = ? AND l2.to_status = ?
+				 ORDER BY l1.created_at LIMIT 1) as r2t_min,
+				(SELECT EXTRACT(EPOCH FROM (l2.created_at - l1.created_at))/60
+				 FROM sample_status_logs l1
+				 JOIN sample_status_logs l2 ON l1.sample_id = l2.sample_id
+				 WHERE l1.sample_id = s.id AND l1.to_status = ? AND l2.to_status = ?
+				 ORDER BY l1.created_at LIMIT 1) as t2r_min,
+				(SELECT EXTRACT(EPOCH FROM (l2.created_at - l1.created_at))/60
+				 FROM sample_status_logs l1
+				 JOIN sample_status_logs l2 ON l1.sample_id = l2.sample_id
+				 WHERE l1.sample_id = s.id AND l1.to_status = ? AND l2.to_status = ?
+				 ORDER BY l1.created_at LIMIT 1) as r2d_min
+			FROM samples s
+			WHERE s.created_at BETWEEN ? AND ?
+			AND s.status = ?`
+	args := []interface{}{
+		model.SampleStatusReceived, model.SampleStatusTesting,
+		model.SampleStatusTesting, model.SampleStatusReviewing,
+		model.SampleStatusReviewing, model.SampleStatusCompleted,
+		start, end, model.SampleStatusCompleted,
+	}
 	if instID != nil {
 		sql += " AND s.institution_id = ?"
 		args = append(args, *instID)
 	}
+	sql += `
+		)
+		SELECT
+			COUNT(*) as total,
+			COALESCE(AVG(total_min), 0) as avg_total,
+			COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY total_min), 0) as median_total,
+			COALESCE(PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY total_min), 0) as p90_total,
+			COALESCE(AVG(r2t_min), 0) as avg_r2t,
+			COALESCE(AVG(t2r_min), 0) as avg_t2r,
+			COALESCE(AVG(r2d_min), 0) as avg_r2d,
+			COUNT(CASE WHEN total_min <= 1440 THEN 1 END) as within_24h,
+			COUNT(CASE WHEN total_min <= 240 THEN 1 END) as within_4h
+		FROM sample_times`
 
 	err := r.db.Raw(sql, args...).Scan(&row).Error
 	if err != nil {
@@ -322,6 +353,8 @@ func (r *StatisticsRepository) TATStats(start, end time.Time, instID *uint) (*TA
 
 	result.TotalCompleted = row.Total
 	result.AvgTotalMin = row.AvgTotal
+	result.MedianTotalMin = row.MedianTotal
+	result.P90TotalMin = row.P90Total
 	result.AvgReceiveToTest = row.AvgR2T
 	result.AvgTestToReview = row.AvgT2R
 	result.AvgReviewToDone = row.AvgR2D

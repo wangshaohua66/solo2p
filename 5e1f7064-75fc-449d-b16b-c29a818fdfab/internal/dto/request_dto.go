@@ -194,3 +194,13 @@ type StatisticsQuery struct {
 	InstitutionID *uint     `form:"institution_id" binding:"omitempty,min=1"`
 	Dimension     string    `form:"dimension" binding:"required,oneof=institution category status item urgency tat tat_institution"`
 }
+
+type CriticalAlertQuery struct {
+	PageQuery
+	SampleID      *uint   `form:"sample_id" binding:"omitempty,min=1"`
+	TestItemID    *uint   `form:"test_item_id" binding:"omitempty,min=1"`
+	InstitutionID *uint   `form:"institution_id" binding:"omitempty,min=1"`
+	Status        string  `form:"status" binding:"omitempty,oneof=PENDING SENT FAILED"`
+	AlertType     string  `form:"alert_type" binding:"omitempty,oneof=SYSTEM SMS EMAIL WEBHOOK"`
+	TargetType    string  `form:"target_type" binding:"omitempty,oneof=USER INSTITUTION ADMIN"`
+}

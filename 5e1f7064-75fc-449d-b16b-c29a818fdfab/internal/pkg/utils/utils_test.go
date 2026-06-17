@@ -137,8 +137,15 @@ func TestGenerateReportSignature(t *testing.T) {
 }
 
 func TestGeneratePDF(t *testing.T) {
+	origDir, _ := os.Getwd()
+	defer os.Chdir(origDir)
+	os.Chdir("../../..")
+
 	if _, err := os.Stat(fontDir + "NotoSansSC-Regular.ttf"); os.IsNotExist(err) {
 		t.Skip("中文字体文件不存在，跳过PDF测试")
+	}
+	if _, err := os.Stat(fontDir + "NotoSansSC-Bold.ttf"); os.IsNotExist(err) {
+		t.Skip("中文字体Bold文件不存在，跳过PDF测试")
 	}
 	data := &ReportData{
 		ReportNo:    "RPT202401010001",
