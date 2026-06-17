@@ -283,3 +283,12 @@ export interface SalesStats {
   byChannel: Record<SalesChannel, number>
   byTicketType: Record<TicketType, number>
 }
+
+export interface Favorite {
+  id: string
+  userId: string
+  performanceId: string
+  performanceName: string
+  performanceImage?: string
+  createdAt: string
+}

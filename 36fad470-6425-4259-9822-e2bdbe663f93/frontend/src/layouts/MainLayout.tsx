@@ -30,6 +30,28 @@ const { Header, Sider, Content } = Layout
 type MenuItem = Exclude<MenuProps['items'], undefined>[number]
 
 const menuItems = (role: UserRole): MenuProps['items'] => {
+  if (role === UserRole.FINANCE) {
+    return [
+      {
+        key: 'settlement',
+        icon: <BarChartOutlined />,
+        label: '票房统计',
+        children: [
+          { key: '/settlement/stats', icon: <BarChartOutlined />, label: '销售统计' },
+          { key: '/settlement/list', icon: <FileTextOutlined />, label: '结算单' }
+        ]
+      },
+      {
+        key: 'sales',
+        icon: <ShoppingCartOutlined />,
+        label: '销售管理',
+        children: [
+          { key: '/sales/price-log', icon: <AuditOutlined />, label: '票价变更日志' }
+        ]
+      }
+    ]
+  }
+
   const performanceChildren: MenuItem[] = [
     { key: '/performance/calendar', icon: <CalendarOutlined />, label: '演出日历' },
     { key: '/performance/application', icon: <FileAddOutlined />, label: '演出申请' }
@@ -85,7 +107,7 @@ const menuItems = (role: UserRole): MenuProps['items'] => {
   const salesChildren: MenuItem[] = [
     { key: '/sales/verification', icon: <QrcodeOutlined />, label: '入场核销' }
   ]
-  if (role === UserRole.VENUE_ADMIN || role === UserRole.FINANCE) {
+  if (role === UserRole.VENUE_ADMIN) {
     salesChildren.push({
       key: '/sales/price-log',
       icon: <AuditOutlined />,

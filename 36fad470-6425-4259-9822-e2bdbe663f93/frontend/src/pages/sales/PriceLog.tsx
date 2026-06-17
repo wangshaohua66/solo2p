@@ -43,160 +43,6 @@ const ticketTypeLabels: Record<TicketType, string> = {
   [TicketType.GROUP]: '团体票'
 }
 
-const performanceOptions = [
-  { value: 'p1', label: '《雷雨》经典话剧' },
-  { value: 'p2', label: '新年交响音乐会' },
-  { value: 'p3', label: '儿童剧《白雪公主》' },
-  { value: 'p4', label: '天鹅湖芭蕾舞' },
-  { value: 'p5', label: '《茶馆》老舍经典' }
-]
-
-const operatorOptions = [
-  { value: 'op1', label: '李管理员' },
-  { value: 'op2', label: '王财务' },
-  { value: 'op3', label: '张运营' },
-  { value: 'op4', label: '赵主管' }
-]
-
-const mockPriceLogs: PriceChangeLog[] = [
-  {
-    id: 'pl_1',
-    performanceId: 'p1',
-    performanceName: '《雷雨》经典话剧',
-    sectionId: 'sec1',
-    sectionName: '池座A区',
-    ticketType: TicketType.REGULAR,
-    oldPrice: 380,
-    newPrice: 420,
-    operatorId: 'op1',
-    operatorName: '李管理员',
-    reason: '临近演出调整价格',
-    createdAt: '2026-06-15T09:30:00Z',
-    changeAmount: 40,
-    changePercent: 10.53,
-    ticketTypeLabel: '正价票'
-  },
-  {
-    id: 'pl_2',
-    performanceId: 'p1',
-    performanceName: '《雷雨》经典话剧',
-    sectionId: 'sec2',
-    sectionName: '楼座B区',
-    ticketType: TicketType.EARLY_BIRD,
-    oldPrice: 320,
-    newPrice: 280,
-    operatorId: 'op2',
-    operatorName: '王财务',
-    reason: '早鸟票促销降价',
-    createdAt: '2026-06-14T14:20:00Z',
-    changeAmount: -40,
-    changePercent: -12.5,
-    ticketTypeLabel: '早鸟票'
-  },
-  {
-    id: 'pl_3',
-    performanceId: 'p2',
-    performanceName: '新年交响音乐会',
-    sectionId: 'sec1',
-    sectionName: 'VIP区',
-    ticketType: TicketType.REGULAR,
-    oldPrice: 880,
-    newPrice: 980,
-    operatorId: 'op3',
-    operatorName: '张运营',
-    reason: 'VIP区域供不应求涨价',
-    createdAt: '2026-06-13T10:15:00Z',
-    changeAmount: 100,
-    changePercent: 11.36,
-    ticketTypeLabel: '正价票'
-  },
-  {
-    id: 'pl_4',
-    performanceId: 'p3',
-    performanceName: '儿童剧《白雪公主》',
-    sectionId: 'sec1',
-    sectionName: '家庭区',
-    ticketType: TicketType.GROUP,
-    oldPrice: 200,
-    newPrice: 180,
-    operatorId: 'op1',
-    operatorName: '李管理员',
-    reason: '儿童节团体优惠',
-    createdAt: '2026-06-12T16:45:00Z',
-    changeAmount: -20,
-    changePercent: -10,
-    ticketTypeLabel: '团体票'
-  },
-  {
-    id: 'pl_5',
-    performanceId: 'p4',
-    performanceName: '天鹅湖芭蕾舞',
-    sectionId: 'sec3',
-    sectionName: '侧座C区',
-    ticketType: TicketType.STUDENT,
-    oldPrice: 180,
-    newPrice: 150,
-    operatorId: 'op4',
-    operatorName: '赵主管',
-    reason: '学生票专属折扣',
-    createdAt: '2026-06-11T11:00:00Z',
-    changeAmount: -30,
-    changePercent: -16.67,
-    ticketTypeLabel: '学生票'
-  },
-  {
-    id: 'pl_6',
-    performanceId: 'p2',
-    performanceName: '新年交响音乐会',
-    sectionId: 'sec2',
-    sectionName: '普通区',
-    ticketType: TicketType.REGULAR,
-    oldPrice: 480,
-    newPrice: 520,
-    operatorId: 'op3',
-    operatorName: '张运营',
-    reason: '临近演出日期价格调整',
-    createdAt: '2026-06-10T08:30:00Z',
-    changeAmount: 40,
-    changePercent: 8.33,
-    ticketTypeLabel: '正价票'
-  },
-  {
-    id: 'pl_7',
-    performanceId: 'p5',
-    performanceName: '《茶馆》老舍经典',
-    sectionId: 'sec1',
-    sectionName: '池座A区',
-    ticketType: TicketType.EARLY_BIRD,
-    oldPrice: 420,
-    newPrice: 380,
-    operatorId: 'op2',
-    operatorName: '王财务',
-    reason: '新上映首周优惠',
-    createdAt: '2026-06-09T15:20:00Z',
-    changeAmount: -40,
-    changePercent: -9.52,
-    ticketTypeLabel: '早鸟票'
-  },
-  {
-    id: 'pl_8',
-    performanceId: 'p1',
-    performanceName: '《雷雨》经典话剧',
-    sectionId: 'sec4',
-    sectionName: '包厢区',
-    ticketType: TicketType.REGULAR,
-    oldPrice: 1280,
-    newPrice: 1380,
-    operatorId: 'op4',
-    operatorName: '赵主管',
-    reason: '包厢需求旺盛调整',
-    createdAt: '2026-06-08T13:10:00Z',
-    changeAmount: 100,
-    changePercent: 7.81,
-    ticketTypeLabel: '正价票'
-  }
-]
-
 export default function PriceLog() {
   const dispatch = useAppDispatch()
   const { logs: reduxLogs, loading } = useAppSelector((state) => state.priceLog)
@@ -210,6 +56,37 @@ export default function PriceLog() {
   const [modifyModalOpen, setModifyModalOpen] = useState(false)
   const [modifyForm] = Form.useForm()
   const [modifyLoading, setModifyLoading] = useState(false)
+  const [performanceOptions, setPerformanceOptions] = useState<{value: string; label: string}[]>([])
+  const [operatorOptions, setOperatorOptions] = useState<{value: string; label: string}[]>([])
+  const [optionsLoading, setOptionsLoading] = useState(false)
+
+  const loadOptions = async () => {
+    setOptionsLoading(true)
+    try {
+      const [perfRes, userRes] = await Promise.all([
+        api.get('/performances', { params: { pageSize: 100 } }),
+        api.get('/users', { params: { pageSize: 100 } })
+      ])
+      const performances = perfRes.data?.performances || perfRes.data?.data || []
+      const users = userRes.data?.users || userRes.data?.data || []
+      setPerformanceOptions(
+        performances.map((p: any) => ({
+          value: p.id || p._id,
+          label: p.name
+        }))
+      )
+      setOperatorOptions(
+        users.map((u: any) => ({
+          value: u.id || u._id,
+          label: u.name || u.username
+        }))
+      )
+    } catch {
+      message.error('加载选项失败')
+    } finally {
+      setOptionsLoading(false)
+    }
+  }
 
   const loadData = async () => {
     const params: PriceLogQueryParams = {}
@@ -248,6 +125,7 @@ export default function PriceLog() {
   }
 
   useEffect(() => {
+    loadOptions()
     loadData()
   }, [])
 
@@ -438,6 +316,7 @@ export default function PriceLog() {
               showSearch
               optionFilterProp="label"
               options={performanceOptions}
+              loading={optionsLoading}
             />
           </Form.Item>
           <Form.Item name="sectionId" label="区域ID（可选）">
@@ -486,6 +365,7 @@ export default function PriceLog() {
               value={performanceFilter}
               onChange={setPerformanceFilter}
               options={performanceOptions}
+              loading={optionsLoading}
             />
           </Col>
           <Col span={4}>
@@ -513,6 +393,7 @@ export default function PriceLog() {
               value={operatorFilter}
               onChange={setOperatorFilter}
               options={operatorOptions}
+              loading={optionsLoading}
               dropdownRender={(menu) => (
                 <div>
                   <div style={{ padding: '4px 8px' }}>

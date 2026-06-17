@@ -5,6 +5,7 @@ Page({
     performanceId: '',
     sections: [],
     selectedSeats: [],
+    totalPrice: 0,
     loading: false
   },
 
@@ -15,6 +16,17 @@ Page({
     }
   },
 
+  processSeatsWithSelection(sections, selectedSeats) {
+    const selectedKeys = new Set(selectedSeats.map((s) => s.key))
+    return sections.map((section) => ({
+      ...section,
+      seats: section.seats.map((seat) => ({
+        ...seat,
+        isSelected: selectedKeys.has(`${section.id}-${seat.row}-${seat.col}`)
+      }))
+    }))
+  },
+
   loadSeats(performanceId) {
     this.setData({ loading: true })
     app.request({
@@ -23,7 +35,8 @@ Page({
       data: { performanceId }
     }).then((res) => {
       const sections = res.data?.sections || res.data?.data || []
-      this.setData({ sections, loading: false })
+      const processedSections = this.processSeatsWithSelection(sections, this.data.selectedSeats)
+      this.setData({ sections: processedSections, loading: false })
     }).catch(() => {
       this.setData({ loading: false })
     })
@@ -50,7 +63,9 @@ Page({
       selected.push({ key, sectionId, row, col, price: Number(price) })
     }
 
-    this.setData({ selectedSeats: selected })
+    const totalPrice = selected.reduce((sum, s) => sum + s.price, 0)
+    const processedSections = this.processSeatsWithSelection(this.data.sections, selected)
+    this.setData({ selectedSeats: selected, sections: processedSections, totalPrice })
   },
 
   onConfirmTap() {

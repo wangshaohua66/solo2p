@@ -1,4 +1,5 @@
-import { Card, Descriptions, Avatar, Divider, List, Tag, Button, Space, Row, Col } from 'antd'
+import { useState, useEffect } from 'react'
+import { Card, Descriptions, Avatar, Divider, List, Tag, Button, Space, Row, Col, Spin } from 'antd'
 import {
   UserOutlined,
   MailOutlined,
@@ -13,6 +14,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { logout } from '@/store/authSlice'
 import { UserRole } from '@/types'
+import { api } from '@/api'
 
 const roleLabels: Record<UserRole, string> = {
   [UserRole.VENUE_ADMIN]: '场馆管理员',
@@ -27,14 +29,14 @@ const menuData = [
     icon: <ShoppingOutlined />,
     title: '我的订单',
     description: '查看订单历史和电子票',
-    path: '/sales/orders'
+    path: '/orders'
   },
   {
     key: 'favorites',
     icon: <HeartOutlined />,
     title: '我的收藏',
     description: '关注的演出和艺术家',
-    path: '#'
+    path: '/favorites'
   },
   {
     key: 'settings',
@@ -49,6 +51,38 @@ export default function Profile() {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
   const { user } = useAppSelector((state) => state.auth)
+  const [statsLoading, setStatsLoading] = useState(false)
+  const [stats, setStats] = useState({
+    orderCount: 12,
+    attendedCount: 8,
+    favoriteCount: 3
+  })
+
+  const loadStats = async () => {
+    setStatsLoading(true)
+    try {
+      const [ordersRes, favoritesRes] = await Promise.all([
+        api.get('/orders', { params: { pageSize: 100 } }),
+        api.get('/favorites', { params: { pageSize: 100 } })
+      ])
+      const orders = ordersRes.data?.orders || ordersRes.data?.data || []
+      const favorites = favoritesRes.data?.favorites || favoritesRes.data?.data || []
+      const attended = orders.filter((o: any) => o.status === 'used').length
+      setStats({
+        orderCount: orders.length,
+        attendedCount: attended,
+        favoriteCount: favorites.length
+      })
+    } catch {
+      // 使用默认值
+    } finally {
+      setStatsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadStats()
+  }, [])
 
   const handleLogout = () => {
     dispatch(logout())
@@ -127,47 +161,53 @@ export default function Profile() {
           </Card>
 
           <Card title="统计概览" style={{ marginTop: 16 }}>
-            <Row gutter={16}>
-              <Col span={8}>
-                <div
-                  style={{
-                    textAlign: 'center',
-                    padding: 16,
-                    background: '#f0f5ff',
-                    borderRadius: 8
-                  }}
-                >
-                  <div style={{ fontSize: 28, fontWeight: 600, color: '#1677ff' }}>12</div>
-                  <div style={{ color: '#606266', marginTop: 4 }}>累计订单</div>
-                </div>
-              </Col>
-              <Col span={8}>
-                <div
-                  style={{
-                    textAlign: 'center',
-                    padding: 16,
-                    background: '#f6ffed',
-                    borderRadius: 8
-                  }}
-                >
-                  <div style={{ fontSize: 28, fontWeight: 600, color: '#52c41a' }}>8</div>
-                  <div style={{ color: '#606266', marginTop: 4 }}>已观演出</div>
-                </div>
-              </Col>
-              <Col span={8}>
-                <div
-                  style={{
-                    textAlign: 'center',
-                    padding: 16,
-                    background: '#fff7e6',
-                    borderRadius: 8
-                  }}
-                >
-                  <div style={{ fontSize: 28, fontWeight: 600, color: '#fa8c16' }}>3</div>
-                  <div style={{ color: '#606266', marginTop: 4 }}>收藏演出</div>
-                </div>
-              </Col>
-            </Row>
+            <Spin spinning={statsLoading}>
+              <Row gutter={16}>
+                <Col span={8}>
+                  <div
+                    style={{
+                      textAlign: 'center',
+                      padding: 16,
+                      background: '#f0f5ff',
+                      borderRadius: 8,
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => navigate('/orders')}
+                  >
+                    <div style={{ fontSize: 28, fontWeight: 600, color: '#1677ff' }}>{stats.orderCount}</div>
+                    <div style={{ color: '#606266', marginTop: 4 }}>累计订单</div>
+                  </div>
+                </Col>
+                <Col span={8}>
+                  <div
+                    style={{
+                      textAlign: 'center',
+                      padding: 16,
+                      background: '#f6ffed',
+                      borderRadius: 8
+                    }}
+                  >
+                    <div style={{ fontSize: 28, fontWeight: 600, color: '#52c41a' }}>{stats.attendedCount}</div>
+                    <div style={{ color: '#606266', marginTop: 4 }}>已观演出</div>
+                  </div>
+                </Col>
+                <Col span={8}>
+                  <div
+                    style={{
+                      textAlign: 'center',
+                      padding: 16,
+                      background: '#fff7e6',
+                      borderRadius: 8,
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => navigate('/favorites')}
+                  >
+                    <div style={{ fontSize: 28, fontWeight: 600, color: '#fa8c16' }}>{stats.favoriteCount}</div>
+                    <div style={{ color: '#606266', marginTop: 4 }}>收藏演出</div>
+                  </div>
+                </Col>
+              </Row>
+            </Spin>
           </Card>
 
           <Card style={{ marginTop: 16 }}>

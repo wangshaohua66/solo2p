@@ -7,7 +7,7 @@
     </view>
     <view class="seat-grid">
       <view
-        class="seat {{seat.status === 'available' ? 'available' : seat.status === 'sold' ? 'sold' : 'locked'}} {{selectedSeats.length > 0 && selectedSeats.some(s => s.key === section.id + '-' + seat.row + '-' + seat.col) ? 'selected' : ''}}"
+        class="seat {{seat.status === 'available' ? 'available' : seat.status === 'sold' ? 'sold' : 'locked'}} {{seat.isSelected ? 'selected' : ''}}"
         wx:for="{{section.seats}}"
         wx:for-item="seat"
         wx:for-index="seatIdx"
@@ -28,7 +28,7 @@
     <view class="selected-info">
       <text class="selected-count">已选 {{selectedSeats.length}} 个座位</text>
       <text class="price" wx:if="{{selectedSeats.length > 0}}">
-        ¥{{selectedSeats.reduce((sum, s) => sum + s.price, 0)}}
+        ¥{{totalPrice}}
       </text>
     </view>
     <button class="btn-primary confirm-btn" bindtap="onConfirmTap">确认选座</button>

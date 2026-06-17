@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Card,
   DatePicker,
@@ -9,11 +9,14 @@ import {
   Row,
   Col,
   Statistic,
-  Alert
+  Alert,
+  Spin,
+  message
 } from 'antd'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
 import { DeviceCategory } from '@/types'
+import { api } from '@/api'
 
 const { RangePicker } = DatePicker
 
@@ -42,98 +45,6 @@ const categoryColors: Record<DeviceCategory, string> = {
   [DeviceCategory.STAGE]: '#722ed1'
 }
 
-const mockSchedule: ScheduleItem[] = [
-  {
-    id: 's1',
-    deviceId: 'light_2',
-    deviceName: 'LED帕灯',
-    category: DeviceCategory.LIGHTING,
-    performanceId: 'p1',
-    performanceName: '《雷雨》经典话剧',
-    startTime: dayjs().add(1, 'day').hour(14).minute(0).format('YYYY-MM-DD HH:mm:ss'),
-    endTime: dayjs().add(1, 'day').hour(22).minute(0).format('YYYY-MM-DD HH:mm:ss'),
-    quantity: 40
-  },
-  {
-    id: 's2',
-    deviceId: 'light_2',
-    deviceName: 'LED帕灯',
-    category: DeviceCategory.LIGHTING,
-    performanceId: 'p2',
-    performanceName: '新年交响音乐会',
-    startTime: dayjs().add(2, 'day').hour(10).minute(0).format('YYYY-MM-DD HH:mm:ss'),
-    endTime: dayjs().add(2, 'day').hour(23).minute(0).format('YYYY-MM-DD HH:mm:ss'),
-    quantity: 80,
-    conflict: true
-  },
-  {
-    id: 's3',
-    deviceId: 'sound_3',
-    deviceName: '无线手持话筒',
-    category: DeviceCategory.SOUND,
-    performanceId: 'p1',
-    performanceName: '《雷雨》经典话剧',
-    startTime: dayjs().add(1, 'day').hour(14).minute(0).format('YYYY-MM-DD HH:mm:ss'),
-    endTime: dayjs().add(1, 'day').hour(22).minute(0).format('YYYY-MM-DD HH:mm:ss'),
-    quantity: 8
-  },
-  {
-    id: 's4',
-    deviceId: 'sound_3',
-    deviceName: '无线手持话筒',
-    category: DeviceCategory.SOUND,
-    performanceId: 'p3',
-    performanceName: '儿童剧《白雪公主》',
-    startTime: dayjs().add(3, 'day').hour(9).minute(0).format('YYYY-MM-DD HH:mm:ss'),
-    endTime: dayjs().add(3, 'day').hour(18).minute(0).format('YYYY-MM-DD HH:mm:ss'),
-    quantity: 12
-  },
-  {
-    id: 's5',
-    deviceId: 'light_1',
-    deviceName: '230W摇头光束灯',
-    category: DeviceCategory.LIGHTING,
-    performanceId: 'p2',
-    performanceName: '新年交响音乐会',
-    startTime: dayjs().add(2, 'day').hour(10).minute(0).format('YYYY-MM-DD HH:mm:ss'),
-    endTime: dayjs().add(2, 'day').hour(23).minute(0).format('YYYY-MM-DD HH:mm:ss'),
-    quantity: 48
-  },
-  {
-    id: 's6',
-    deviceId: 'stage_2',
-    deviceName: '背景桁架',
-    category: DeviceCategory.STAGE,
-    performanceId: 'p1',
-    performanceName: '《雷雨》经典话剧',
-    startTime: dayjs().hour(8).minute(0).format('YYYY-MM-DD HH:mm:ss'),
-    endTime: dayjs().add(1, 'day').hour(23).minute(59).format('YYYY-MM-DD HH:mm:ss'),
-    quantity: 40
-  },
-  {
-    id: 's7',
-    deviceId: 'sound_1',
-    deviceName: '全频主音箱',
-    category: DeviceCategory.SOUND,
-    performanceId: 'p2',
-    performanceName: '新年交响音乐会',
-    startTime: dayjs().add(2, 'day').hour(8).minute(0).format('YYYY-MM-DD HH:mm:ss'),
-    endTime: dayjs().add(2, 'day').hour(23).minute(59).format('YYYY-MM-DD HH:mm:ss'),
-    quantity: 16
-  },
-  {
-    id: 's8',
-    deviceId: 'stage_1',
-    deviceName: '铝合金移动平台',
-    category: DeviceCategory.STAGE,
-    performanceId: 'p4',
-    performanceName: '天鹅湖芭蕾舞',
-    startTime: dayjs().add(4, 'day').hour(8).minute(0).format('YYYY-MM-DD HH:mm:ss'),
-    endTime: dayjs().add(5, 'day').hour(23).minute(0).format('YYYY-MM-DD HH:mm:ss'),
-    quantity: 20
-  }
-]
-
 export default function DeviceSchedule() {
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([
     dayjs().subtract(1, 'day'),
@@ -141,14 +52,34 @@ export default function DeviceSchedule() {
   ])
   const [categoryFilter, setCategoryFilter] = useState<DeviceCategory | undefined>()
   const [dateZoom, setDateZoom] = useState<'day' | 'hour'>('hour')
+  const [scheduleData, setScheduleData] = useState<ScheduleItem[]>([])
+  const [loading, setLoading] = useState(false)
+
+  const loadData = async () => {
+    setLoading(true)
+    try {
+      const params: Record<string, any> = {}
+      if (dateRange && dateRange[0]) params.startDate = dateRange[0].format('YYYY-MM-DD')
+      if (dateRange && dateRange[1]) params.endDate = dateRange[1].format('YYYY-MM-DD')
+      if (categoryFilter) params.category = categoryFilter
+
+      const res = await api.get('/devices/schedule', { params })
+      const data = res.data?.schedule || res.data?.data || []
+      setScheduleData(data)
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || '加载设备调度失败')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [dateRange, categoryFilter])
 
   const filteredSchedule = useMemo(() => {
-    let result = mockSchedule
-    if (categoryFilter) {
-      result = result.filter((s) => s.category === categoryFilter)
-    }
-    return result
-  }, [categoryFilter])
+    return scheduleData
+  }, [scheduleData])
 
   const conflictCount = filteredSchedule.filter((s) => s.conflict).length
 
@@ -309,6 +240,7 @@ export default function DeviceSchedule() {
       </Row>
 
       <Card>
+        <Spin spinning={loading}>
         <div style={{ display: 'flex', marginBottom: 8, flexWrap: 'wrap', gap: 12 }}>
           {Object.entries(categoryLabels).map(([cat, label]) => (
             <Space key={cat} size={4}>
@@ -397,6 +329,7 @@ export default function DeviceSchedule() {
             </div>
           ))}
         </div>
+        </Spin>
       </Card>
     </div>
   )

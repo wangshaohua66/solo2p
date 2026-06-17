@@ -8,6 +8,11 @@ use App\Document\Settlement;
 use App\Document\SettlementOrder;
 use App\Document\User;
 use Doctrine\ODM\MongoDB\DocumentManager;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Border;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -471,45 +476,102 @@ class SettlementController extends AbstractController
             throw $this->createNotFoundException('结算单不存在');
         }
 
+        $statusLabels = [
+            Settlement::STATUS_PENDING => '待确认',
+            Settlement::STATUS_CONFIRMED_VENUE => '场馆已确认',
+            Settlement::STATUS_CONFIRMED_ORGANIZER => '主办方已确认',
+            Settlement::STATUS_COMPLETED => '已完成'
+        ];
+
+        $channelLabels = [
+            Order::CHANNEL_WEBSITE => '官网',
+            Order::CHANNEL_WECHAT_MINIAPP => '微信小程序'
+        ];
+
         $response = new StreamedResponse();
-        $response->headers->set('Content-Type', 'text/csv; charset=UTF-8');
+        $response->headers->set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         $response->headers->set(
             'Content-Disposition',
-            'attachment; filename="settlement_' . $settlement->getMonth() . '_' . $settlement->getPerformanceId() . '.csv"'
+            'attachment; filename="settlement_' . $settlement->getMonth() . '_' . $settlement->getPerformanceId() . '.xlsx"'
         );
 
-        $response->setCallback(function () use ($settlement) {
-            $handle = fopen('php://output', 'w');
-            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+        $response->setCallback(function () use ($settlement, $statusLabels, $channelLabels) {
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->setTitle('结算单');
 
-            fputcsv($handle, ['演艺集团演出结算单']);
-            fputcsv($handle, []);
-            fputcsv($handle, ['月份', $settlement->getMonth()]);
-            fputcsv($handle, ['演出名称', $settlement->getPerformanceName()]);
-            fputcsv($handle, ['主办方', $settlement->getOrganizerName()]);
-            fputcsv($handle, ['状态', $settlement->getStatus()]);
-            fputcsv($handle, []);
-            fputcsv($handle, ['收入明细']);
-            fputcsv($handle, ['官网收入', $settlement->getWebsiteRevenue()]);
-            fputcsv($handle, ['小程序收入', $settlement->getWechatRevenue()]);
-            fputcsv($handle, ['总收入', $settlement->getTotalRevenue()]);
-            fputcsv($handle, ['退款支出', $settlement->getTotalRefunds()]);
-            fputcsv($handle, ['平台手续费(5%)', $settlement->getServiceFee()]);
-            fputcsv($handle, ['应结算金额', $settlement->getNetAmount()]);
-            fputcsv($handle, []);
-            fputcsv($handle, ['订单明细']);
-            fputcsv($handle, ['订单号', '销售渠道', '金额', '状态']);
+            $titleStyle = [
+                'font' => ['bold' => true, 'size' => 16],
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER]
+            ];
+            $headerStyle = [
+                'font' => ['bold' => true],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E6F3FF']],
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER]
+            ];
+            $cellStyle = [
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+                'alignment' => ['vertical' => Alignment::VERTICAL_CENTER]
+            ];
 
+            $sheet->mergeCells('A1:D1');
+            $sheet->setCellValue('A1', '演艺集团演出结算单');
+            $sheet->getStyle('A1')->applyFromArray($titleStyle);
+            $sheet->getRowDimension(1)->setRowHeight(30);
+
+            $sheet->setCellValue('A3', '月份');
+            $sheet->setCellValue('B3', $settlement->getMonth());
+            $sheet->setCellValue('A4', '演出名称');
+            $sheet->setCellValue('B4', $settlement->getPerformanceName());
+            $sheet->setCellValue('A5', '主办方');
+            $sheet->setCellValue('B5', $settlement->getOrganizerName());
+            $sheet->setCellValue('A6', '状态');
+            $sheet->setCellValue('B6', $statusLabels[$settlement->getStatus()] ?? $settlement->getStatus());
+
+            $sheet->setCellValue('A8', '收入明细');
+            $sheet->getStyle('A8')->getFont()->setBold(true);
+
+            $sheet->setCellValue('A9', '官网收入');
+            $sheet->setCellValue('B9', $settlement->getWebsiteRevenue());
+            $sheet->setCellValue('A10', '小程序收入');
+            $sheet->setCellValue('B10', $settlement->getWechatRevenue());
+            $sheet->setCellValue('A11', '总收入');
+            $sheet->setCellValue('B11', $settlement->getTotalRevenue());
+            $sheet->setCellValue('A12', '退款支出');
+            $sheet->setCellValue('B12', $settlement->getTotalRefunds());
+            $sheet->setCellValue('A13', '平台手续费(5%)');
+            $sheet->setCellValue('B13', $settlement->getServiceFee());
+            $sheet->setCellValue('A14', '应结算金额');
+            $sheet->setCellValue('B14', $settlement->getNetAmount());
+            $sheet->getStyle('B14')->getFont()->setBold(true);
+
+            $sheet->setCellValue('A16', '订单明细');
+            $sheet->getStyle('A16')->getFont()->setBold(true);
+
+            $sheet->setCellValue('A17', '订单号');
+            $sheet->setCellValue('B17', '销售渠道');
+            $sheet->setCellValue('C17', '金额');
+            $sheet->setCellValue('D17', '状态');
+            $sheet->getStyle('A17:D17')->applyFromArray($headerStyle);
+
+            $row = 18;
             foreach ($settlement->getOrders() as $order) {
-                fputcsv($handle, [
-                    $order->getOrderNo(),
-                    $order->getSalesChannel(),
-                    $order->getAmount(),
-                    $order->isMatched() ? '已匹配' : '差异'
-                ]);
+                $sheet->setCellValue('A' . $row, $order->getOrderNo());
+                $sheet->setCellValue('B' . $row, $channelLabels[$order->getSalesChannel()] ?? $order->getSalesChannel());
+                $sheet->setCellValue('C' . $row, $order->getAmount());
+                $sheet->setCellValue('D' . $row, $order->isMatched() ? '已匹配' : '差异');
+                $sheet->getStyle('A' . $row . ':D' . $row)->applyFromArray($cellStyle);
+                $row++;
             }
 
-            fclose($handle);
+            $sheet->getColumnDimension('A')->setWidth(25);
+            $sheet->getColumnDimension('B')->setWidth(20);
+            $sheet->getColumnDimension('C')->setWidth(15);
+            $sheet->getColumnDimension('D')->setWidth(15);
+
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
         });
 
         return $response;

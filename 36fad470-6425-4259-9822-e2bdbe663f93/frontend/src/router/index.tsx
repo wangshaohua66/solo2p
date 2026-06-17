@@ -18,6 +18,7 @@ import SettlementList from '@/pages/settlement/SettlementList'
 import UserManagement from '@/pages/system/UserManagement'
 import OrderList from '@/pages/OrderList'
 import Profile from '@/pages/Profile'
+import Favorites from '@/pages/Favorites'
 import NotFound from '@/pages/NotFound'
 
 function RequireAuth({ children, allowedRoles }: { children: JSX.Element; allowedRoles?: string[] }) {
@@ -109,6 +110,10 @@ export const router = createBrowserRouter([
       {
         path: 'profile',
         element: <Profile />
+      },
+      {
+        path: 'favorites',
+        element: <Favorites />
       },
       {
         path: 'device/management',

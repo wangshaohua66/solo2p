@@ -1,7 +1,13 @@
 import axios from 'axios'
 import { message } from 'antd'
-import { store } from '../store'
+import type { AppDispatch } from '../store'
 import { logout, setTokens } from '../store/authSlice'
+
+let dispatch: AppDispatch | null = null
+
+export function setDispatch(d: AppDispatch) {
+  dispatch = d
+}
 
 const api = axios.create({
   baseURL: '/api',
@@ -57,13 +63,13 @@ api.interceptors.response.use(
         const response = await axios.post('/api/auth/refresh', { refreshToken })
         const { accessToken, refreshToken: newRefreshToken } = response.data
 
-        store.dispatch(setTokens({ accessToken, refreshToken: newRefreshToken }))
+        dispatch?.(setTokens({ accessToken, refreshToken: newRefreshToken }))
         onRefreshed(accessToken)
 
         originalRequest.headers.Authorization = `Bearer ${accessToken}`
         return api(originalRequest)
       } catch (refreshError) {
-        store.dispatch(logout())
+        dispatch?.(logout())
         message.error('登录已过期，请重新登录')
         window.location.href = '/login'
         return Promise.reject(refreshError)

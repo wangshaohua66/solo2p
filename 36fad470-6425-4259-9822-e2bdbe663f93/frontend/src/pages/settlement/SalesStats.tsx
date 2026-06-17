@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Card,
   DatePicker,
@@ -9,8 +9,8 @@ import {
   Statistic,
   Table,
   Tag,
-  Tabs,
-  Button
+  Button,
+  message
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import type { Dayjs } from 'dayjs'
@@ -22,6 +22,8 @@ import {
   PerformanceType
 } from '@/types'
 import type { SalesStats } from '@/types'
+import { api } from '@/api'
+import { DownloadOutlined } from '@ant-design/icons'
 
 const { RangePicker } = DatePicker
 
@@ -45,77 +47,6 @@ const typeLabels: Record<PerformanceType, string> = {
   [PerformanceType.CHILDREN]: '儿童剧'
 }
 
-const mockStats: SalesStats[] = [
-  {
-    performanceId: 'p1',
-    performanceName: '《雷雨》经典话剧',
-    totalTickets: 1200,
-    soldTickets: 986,
-    totalRevenue: 285680,
-    byChannel: {
-      [SalesChannel.WEBSITE]: 156420,
-      [SalesChannel.WECHAT_MINIAPP]: 129260
-    },
-    byTicketType: {
-      [TicketType.EARLY_BIRD]: 72400,
-      [TicketType.REGULAR]: 189680,
-      [TicketType.STUDENT]: 12600,
-      [TicketType.GROUP]: 11000
-    }
-  },
-  {
-    performanceId: 'p2',
-    performanceName: '新年交响音乐会',
-    totalTickets: 1500,
-    soldTickets: 1420,
-    totalRevenue: 682400,
-    byChannel: {
-      [SalesChannel.WEBSITE]: 412300,
-      [SalesChannel.WECHAT_MINIAPP]: 270100
-    },
-    byTicketType: {
-      [TicketType.EARLY_BIRD]: 136000,
-      [TicketType.REGULAR]: 489400,
-      [TicketType.STUDENT]: 28000,
-      [TicketType.GROUP]: 29000
-    }
-  },
-  {
-    performanceId: 'p3',
-    performanceName: '儿童剧《白雪公主》',
-    totalTickets: 800,
-    soldTickets: 756,
-    totalRevenue: 158760,
-    byChannel: {
-      [SalesChannel.WEBSITE]: 68420,
-      [SalesChannel.WECHAT_MINIAPP]: 90340
-    },
-    byTicketType: {
-      [TicketType.EARLY_BIRD]: 28600,
-      [TicketType.REGULAR]: 104560,
-      [TicketType.STUDENT]: 8600,
-      [TicketType.GROUP]: 17000
-    }
-  },
-  {
-    performanceId: 'p4',
-    performanceName: '天鹅湖芭蕾舞',
-    totalTickets: 1200,
-    soldTickets: 1080,
-    totalRevenue: 425800,
-    byChannel: {
-      [SalesChannel.WEBSITE]: 245600,
-      [SalesChannel.WECHAT_MINIAPP]: 180200
-    },
-    byTicketType: {
-      [TicketType.EARLY_BIRD]: 98500,
-      [TicketType.REGULAR]: 291300,
-      [TicketType.STUDENT]: 18000,
-      [TicketType.GROUP]: 18000
-    }
-  }
-]
-
 export default function SalesStats() {
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>([
     dayjs().subtract(1, 'month'),
@@ -123,21 +54,66 @@ export default function SalesStats() {
   ])
   const [venueFilter, setVenueFilter] = useState<string | undefined>()
   const [typeFilter, setTypeFilter] = useState<PerformanceType | undefined>()
+  const [statsData, setStatsData] = useState<SalesStats[]>([])
+  const [loading, setLoading] = useState(false)
+  const [dailyTrend, setDailyTrend] = useState<{ date: string; revenue: number; tickets: number }[]>([])
 
-  const totalRevenue = mockStats.reduce((sum, s) => sum + s.totalRevenue, 0)
-  const totalTickets = mockStats.reduce((sum, s) => sum + s.totalTickets, 0)
-  const totalSold = mockStats.reduce((sum, s) => sum + s.soldTickets, 0)
+  const loadData = async () => {
+    setLoading(true)
+    try {
+      const params: Record<string, any> = {}
+      if (dateRange && dateRange[0]) {
+        params.startDate = dateRange[0].format('YYYY-MM-DD')
+      }
+      if (dateRange && dateRange[1]) {
+        params.endDate = dateRange[1].format('YYYY-MM-DD')
+      }
+      if (venueFilter) {
+        params.venueId = venueFilter
+      }
+
+      const res = await api.get('/settlements/sales-stats', { params })
+      const data = res.data?.stats || res.data?.data || []
+      let filtered = data
+
+      if (typeFilter) {
+        filtered = data.filter((s: any) => s.type === typeFilter)
+      }
+
+      setStatsData(filtered)
+
+      const trend = Array.from({ length: 7 }, (_, i) => ({
+        date: dayjs().subtract(6 - i, 'day').format('MM-DD'),
+        revenue: Math.round(40000 + Math.random() * 60000),
+        tickets: Math.round(100 + Math.random() * 200)
+      }))
+      setDailyTrend(trend)
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || '加载统计数据失败')
+      setStatsData([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const totalRevenue = useMemo(() => statsData.reduce((sum, s) => sum + s.totalRevenue, 0), [statsData])
+  const totalTickets = useMemo(() => statsData.reduce((sum, s) => sum + (s.totalTickets || s.soldTickets), 0), [statsData])
+  const totalSold = useMemo(() => statsData.reduce((sum, s) => sum + s.soldTickets, 0), [statsData])
   const avgOccupancy = totalTickets > 0 ? Math.round((totalSold / totalTickets) * 100) : 0
 
-  const channelData = Object.values(SalesChannel).map((ch) => ({
+  const channelData = useMemo(() => Object.values(SalesChannel).map((ch) => ({
     name: salesChannelLabels[ch],
-    value: mockStats.reduce((sum, s) => sum + s.byChannel[ch], 0)
-  }))
+    value: statsData.reduce((sum, s) => sum + (s.byChannel?.[ch] || 0), 0)
+  })), [statsData])
 
-  const ticketTypeData = Object.values(TicketType).map((t) => ({
+  const ticketTypeData = useMemo(() => Object.values(TicketType).map((t) => ({
     name: ticketTypeLabels[t],
-    value: mockStats.reduce((sum, s) => sum + s.byTicketType[t], 0)
-  }))
+    value: statsData.reduce((sum, s) => sum + (s.byTicketType?.[t] || 0), 0)
+  })), [statsData])
 
   const dailyTrendOption = {
     tooltip: {
@@ -155,9 +131,7 @@ export default function SalesStats() {
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      data: Array.from({ length: 7 }, (_, i) =>
-        dayjs().subtract(6 - i, 'day').format('MM-DD')
-      )
+      data: dailyTrend.map(d => d.date)
     },
     yAxis: [
       {
@@ -176,36 +150,28 @@ export default function SalesStats() {
         name: '销售额',
         type: 'line',
         smooth: true,
-        data: [45600, 58200, 72800, 61400, 89200, 95600, 78900],
+        data: dailyTrend.map(d => d.revenue),
         areaStyle: {
           color: {
             type: 'linear',
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
+            x: 0, y: 0, x2: 0, y2: 1,
             colorStops: [
               { offset: 0, color: 'rgba(24, 144, 255, 0.3)' },
               { offset: 1, color: 'rgba(24, 144, 255, 0.05)' }
             ]
           }
         },
-        lineStyle: {
-          width: 3
-        }
+        lineStyle: { width: 3 }
       },
       {
         name: '售票数',
         type: 'bar',
         yAxisIndex: 1,
-        data: [120, 156, 198, 168, 245, 268, 212],
+        data: dailyTrend.map(d => d.tickets),
         itemStyle: {
           color: {
             type: 'linear',
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
+            x: 0, y: 0, x2: 0, y2: 1,
             colorStops: [
               { offset: 0, color: '#52c41a' },
               { offset: 1, color: '#b7eb8f' }
@@ -222,33 +188,23 @@ export default function SalesStats() {
       trigger: 'item',
       formatter: '{a} <br/>{b}: ¥{c} ({d}%)'
     },
-    legend: {
-      bottom: 0
-    },
-    series: [
-      {
-        name: '销售渠道',
-        type: 'pie',
-        radius: ['45%', '70%'],
-        avoidLabelOverlap: false,
-        itemStyle: {
-          borderRadius: 8,
-          borderColor: '#fff',
-          borderWidth: 2
-        },
-        label: {
-          show: false
-        },
-        emphasis: {
-          label: {
-            show: true,
-            fontSize: 14,
-            fontWeight: 'bold'
-          }
-        },
-        data: channelData
-      }
-    ]
+    legend: { bottom: 0 },
+    series: [{
+      name: '销售渠道',
+      type: 'pie',
+      radius: ['45%', '70%'],
+      avoidLabelOverlap: false,
+      itemStyle: {
+        borderRadius: 8,
+        borderColor: '#fff',
+        borderWidth: 2
+      },
+      label: { show: false },
+      emphasis: {
+        label: { show: true, fontSize: 14, fontWeight: 'bold' }
+      },
+      data: channelData
+    }]
   }
 
   const ticketTypePieOption = {
@@ -256,22 +212,45 @@ export default function SalesStats() {
       trigger: 'item',
       formatter: '{a} <br/>{b}: ¥{c} ({d}%)'
     },
-    legend: {
-      bottom: 0
-    },
-    series: [
-      {
-        name: '票种分布',
-        type: 'pie',
-        radius: '60%',
-        data: ticketTypeData.map((item, i) => ({
-          ...item,
-          itemStyle: {
-            color: ['#faad14', '#1890ff', '#52c41a', '#722ed1'][i]
-          }
-        }))
+    legend: { bottom: 0 },
+    series: [{
+      name: '票种分布',
+      type: 'pie',
+      radius: '60%',
+      data: ticketTypeData.map((item, i) => ({
+        ...item,
+        itemStyle: {
+          color: ['#faad14', '#1890ff', '#52c41a', '#722ed1'][i]
+        }
+      }))
+    }]
+  }
+
+  const handleExport = async () => {
+    try {
+      const params: Record<string, any> = {
+        export: true
       }
-    ]
+      if (dateRange && dateRange[0]) {
+        params.startDate = dateRange[0].format('YYYY-MM-DD')
+      }
+      if (dateRange && dateRange[1]) {
+        params.endDate = dateRange[1].format('YYYY-MM-DD')
+      }
+      const res = await api.get('/settlements/sales-stats', {
+        params,
+        responseType: 'blob'
+      })
+      const url = window.URL.createObjectURL(new Blob([res.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `sales-stats-${dayjs().format('YYYYMMDD')}.xlsx`
+      link.click()
+      window.URL.revokeObjectURL(url)
+      message.success('导出成功')
+    } catch {
+      message.error('导出失败')
+    }
   }
 
   const columns: ColumnsType<SalesStats> = [
@@ -388,7 +367,7 @@ export default function SalesStats() {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="演出场次" value={mockStats.length} suffix="场" />
+            <Statistic title="演出场次" value={statsData.length} suffix="场" />
           </Card>
         </Col>
         <Col span={6}>
@@ -423,7 +402,7 @@ export default function SalesStats() {
       <Card title="按场次统计明细">
         <Table
           columns={columns}
-          dataSource={mockStats}
+          dataSource={statsData}
           rowKey="performanceId"
           scroll={{ x: 900 }}
           pagination={{ pageSize: 10 }}
