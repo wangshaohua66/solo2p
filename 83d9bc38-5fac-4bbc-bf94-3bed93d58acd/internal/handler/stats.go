@@ -49,43 +49,36 @@ func (h *StatsHandler) GetDashboardStats(c echo.Context) error {
 
 	stats, err := h.statsService.GetDashboardStats(ctx)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
-			"code":    500,
-			"message": "获取仪表盘数据失败",
-			"error":   err.Error(),
-		})
+		return errorResponse(c, http.StatusInternalServerError, "获取仪表盘数据失败")
 	}
 
 	result := map[string]interface{}{
-		"code": 200,
-		"data": map[string]interface{}{
-			"series": []map[string]interface{}{
-				{
-					"name":  "设备总数",
-					"value": stats.TotalEquipment,
-					"type":  "card",
-				},
-				{
-					"name":  "今日预约",
-					"value": stats.TodayBookings,
-					"type":  "card",
-				},
-				{
-					"name":  "本月利用率",
-					"value": stats.MonthlyUtilization,
-					"unit":  "%",
-					"type":  "card",
-				},
-				{
-					"name":  "待处理",
-					"value": stats.PendingCount,
-					"type":  "card",
-				},
+		"series": []map[string]interface{}{
+			{
+				"name":  "设备总数",
+				"value": stats.TotalEquipment,
+				"type":  "card",
+			},
+			{
+				"name":  "今日预约",
+				"value": stats.TodayBookings,
+				"type":  "card",
+			},
+			{
+				"name":  "本月利用率",
+				"value": stats.MonthlyUtilization,
+				"unit":  "%",
+				"type":  "card",
+			},
+			{
+				"name":  "待处理",
+				"value": stats.PendingCount,
+				"type":  "card",
 			},
 		},
 	}
 
-	return c.JSON(http.StatusOK, result)
+	return successResponse(c, result)
 }
 
 func (h *StatsHandler) GetUtilizationStats(c echo.Context) error {
@@ -93,20 +86,12 @@ func (h *StatsHandler) GetUtilizationStats(c echo.Context) error {
 
 	var query UtilizationQuery
 	if err := c.Bind(&query); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]interface{}{
-			"code":    400,
-			"message": "参数错误",
-			"error":   err.Error(),
-		})
+		return errorResponse(c, http.StatusBadRequest, "参数错误")
 	}
 
 	startDate, endDate, err := parseDateRange(query.StartDate, query.EndDate)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]interface{}{
-			"code":    400,
-			"message": "日期格式错误，应为 YYYY-MM-DD",
-			"error":   err.Error(),
-		})
+		return errorResponse(c, http.StatusBadRequest, "日期格式错误，应为 YYYY-MM-DD")
 	}
 
 	req := &service.UtilizationStatsRequest{
@@ -124,19 +109,12 @@ func (h *StatsHandler) GetUtilizationStats(c echo.Context) error {
 
 	data, err := h.statsService.GetUtilizationStats(ctx, req)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
-			"code":    500,
-			"message": "获取利用率统计失败",
-			"error":   err.Error(),
-		})
+		return errorResponse(c, http.StatusInternalServerError, "获取利用率统计失败")
 	}
 
 	result := h.formatUtilizationForECharts(data, query.Dimension)
 
-	return c.JSON(http.StatusOK, map[string]interface{}{
-		"code": 200,
-		"data": result,
-	})
+	return successResponse(c, result)
 }
 
 func (h *StatsHandler) formatUtilizationForECharts(data interface{}, dimension string) map[string]interface{} {
@@ -228,20 +206,12 @@ func (h *StatsHandler) GetPeakValleyStats(c echo.Context) error {
 
 	start, end, err := parseDateRange(startDate, endDate)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]interface{}{
-			"code":    400,
-			"message": "日期格式错误，应为 YYYY-MM-DD",
-			"error":   err.Error(),
-		})
+		return errorResponse(c, http.StatusBadRequest, "日期格式错误，应为 YYYY-MM-DD")
 	}
 
 	stats, err := h.statsService.GetPeakValleyStats(ctx, start, end)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
-			"code":    500,
-			"message": "获取峰谷分布统计失败",
-			"error":   err.Error(),
-		})
+		return errorResponse(c, http.StatusInternalServerError, "获取峰谷分布统计失败")
 	}
 
 	hourData := make([]int, 24)
@@ -284,10 +254,7 @@ func (h *StatsHandler) GetPeakValleyStats(c echo.Context) error {
 		},
 	}
 
-	return c.JSON(http.StatusOK, map[string]interface{}{
-		"code": 200,
-		"data": result,
-	})
+	return successResponse(c, result)
 }
 
 func (h *StatsHandler) GetTrendStats(c echo.Context) error {
@@ -307,11 +274,7 @@ func (h *StatsHandler) GetTrendStats(c echo.Context) error {
 
 	stats, err := h.statsService.GetTrendStats(ctx, req)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
-			"code":    500,
-			"message": "获取趋势数据失败",
-			"error":   err.Error(),
-		})
+		return errorResponse(c, http.StatusInternalServerError, "获取趋势数据失败")
 	}
 
 	dates := make([]string, 0, len(stats))
@@ -367,10 +330,7 @@ func (h *StatsHandler) GetTrendStats(c echo.Context) error {
 		},
 	}
 
-	return c.JSON(http.StatusOK, map[string]interface{}{
-		"code": 200,
-		"data": result,
-	})
+	return successResponse(c, result)
 }
 
 func (h *StatsHandler) GetEquipmentRanking(c echo.Context) error {
@@ -389,11 +349,7 @@ func (h *StatsHandler) GetEquipmentRanking(c echo.Context) error {
 
 	start, end, err := parseDateRange(startDate, endDate)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]interface{}{
-			"code":    400,
-			"message": "日期格式错误，应为 YYYY-MM-DD",
-			"error":   err.Error(),
-		})
+		return errorResponse(c, http.StatusBadRequest, "日期格式错误，应为 YYYY-MM-DD")
 	}
 
 	req := &service.EquipmentRankingRequest{
@@ -404,11 +360,7 @@ func (h *StatsHandler) GetEquipmentRanking(c echo.Context) error {
 
 	stats, err := h.statsService.GetEquipmentRanking(ctx, req)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
-			"code":    500,
-			"message": "获取设备利用率排名失败",
-			"error":   err.Error(),
-		})
+		return errorResponse(c, http.StatusInternalServerError, "获取设备利用率排名失败")
 	}
 
 	names := make([]string, 0, len(stats))
@@ -458,10 +410,7 @@ func (h *StatsHandler) GetEquipmentRanking(c echo.Context) error {
 		},
 	}
 
-	return c.JSON(http.StatusOK, map[string]interface{}{
-		"code": 200,
-		"data": result,
-	})
+	return successResponse(c, result)
 }
 
 func (h *StatsHandler) GetCenterStats(c echo.Context) error {
@@ -472,20 +421,12 @@ func (h *StatsHandler) GetCenterStats(c echo.Context) error {
 
 	start, end, err := parseDateRange(startDate, endDate)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]interface{}{
-			"code":    400,
-			"message": "日期格式错误，应为 YYYY-MM-DD",
-			"error":   err.Error(),
-		})
+		return errorResponse(c, http.StatusBadRequest, "日期格式错误，应为 YYYY-MM-DD")
 	}
 
 	stats, err := h.statsService.GetCenterStats(ctx, start, end)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
-			"code":    500,
-			"message": "获取各中心统计失败",
-			"error":   err.Error(),
-		})
+		return errorResponse(c, http.StatusInternalServerError, "获取各中心统计失败")
 	}
 
 	names := make([]string, 0, len(stats))
@@ -552,10 +493,7 @@ func (h *StatsHandler) GetCenterStats(c echo.Context) error {
 		},
 	}
 
-	return c.JSON(http.StatusOK, map[string]interface{}{
-		"code": 200,
-		"data": result,
-	})
+	return successResponse(c, result)
 }
 
 func parseDateRange(startDate, endDate string) (time.Time, time.Time, error) {

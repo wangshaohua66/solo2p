@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import axios from 'axios'
+import { notification as notificationApi } from '@/api'
 
 export interface Notification {
   id: number
@@ -42,9 +42,9 @@ export const useNotificationStore = defineStore('notification', () => {
   const fetchNotifications = async (params?: { page?: number; pageSize?: number; isRead?: boolean }) => {
     loading.value = true
     try {
-      const response = await axios.get<Notification[]>('/api/notifications', { params })
-      notifications.value = response.data
-      return response.data
+      const result = await notificationApi.getList(params)
+      notifications.value = result.items as Notification[]
+      return result.items
     } finally {
       loading.value = false
     }
@@ -53,9 +53,9 @@ export const useNotificationStore = defineStore('notification', () => {
   const fetchUnreadCount = async () => {
     loading.value = true
     try {
-      const response = await axios.get<UnreadCount>('/api/notifications/unread-count')
-      unreadCount.value = response.data
-      return response.data
+      const result = await notificationApi.getUnreadCount()
+      unreadCount.value = result as UnreadCount
+      return result
     } finally {
       loading.value = false
     }
@@ -64,7 +64,7 @@ export const useNotificationStore = defineStore('notification', () => {
   const markAsRead = async (id: number) => {
     loading.value = true
     try {
-      await axios.patch(`/api/notifications/${id}/read`)
+      await notificationApi.markAsRead(id)
       const notification = notifications.value.find(n => n.id === id)
       if (notification) {
         notification.isRead = true
@@ -80,7 +80,7 @@ export const useNotificationStore = defineStore('notification', () => {
   const markAllAsRead = async () => {
     loading.value = true
     try {
-      await axios.patch('/api/notifications/read-all')
+      await notificationApi.markAllAsRead()
       notifications.value.forEach(n => {
         n.isRead = true
       })

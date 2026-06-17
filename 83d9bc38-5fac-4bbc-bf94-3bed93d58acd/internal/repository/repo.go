@@ -119,6 +119,10 @@ func (r *equipmentRepository) ListWithFilter(ctx context.Context, centerID, cate
 		query = query.Offset(pagination.GetOffset()).Limit(pagination.GetLimit())
 	}
 
+	if pagination == nil {
+		pagination = &model.PaginationParams{Page: 1, PageSize: 10}
+	}
+
 	if err := query.Order("created_at DESC").Find(&items).Error; err != nil {
 		return nil, err
 	}
@@ -219,11 +223,21 @@ func (r *bookingRepository) ListByEquipmentAndTimeRange(ctx context.Context, equ
 		return nil, err
 	}
 
+	page := 1
+	pageSize := 10
+	if pagination != nil {
+		if pagination.Page > 0 {
+			page = pagination.Page
+		}
+		if pagination.PageSize > 0 {
+			pageSize = pagination.PageSize
+		}
+	}
 	return &model.PaginatedResult[model.Booking]{
 		Items:    items,
 		Total:    total,
-		Page:     pagination.Page,
-		PageSize: pagination.PageSize,
+		Page:     page,
+		PageSize: pageSize,
 	}, nil
 }
 
@@ -248,11 +262,21 @@ func (r *bookingRepository) ListByUser(ctx context.Context, userID uint64, pagin
 		return nil, err
 	}
 
+	page := 1
+	pageSize := 10
+	if pagination != nil {
+		if pagination.Page > 0 {
+			page = pagination.Page
+		}
+		if pagination.PageSize > 0 {
+			pageSize = pagination.PageSize
+		}
+	}
 	return &model.PaginatedResult[model.Booking]{
 		Items:    items,
 		Total:    total,
-		Page:     pagination.Page,
-		PageSize: pagination.PageSize,
+		Page:     page,
+		PageSize: pageSize,
 	}, nil
 }
 
@@ -303,6 +327,10 @@ func (r *waitlistRepository) ListByEquipment(ctx context.Context, equipmentID ui
 
 	if pagination != nil {
 		query = query.Offset(pagination.GetOffset()).Limit(pagination.GetLimit())
+	}
+
+	if pagination == nil {
+		pagination = &model.PaginationParams{Page: 1, PageSize: 10}
 	}
 
 	if err := query.Order("position ASC").Find(&items).Error; err != nil {
@@ -419,6 +447,10 @@ func (r *billingRepository) ListByUser(ctx context.Context, userID uint64, pagin
 		query = query.Offset(pagination.GetOffset()).Limit(pagination.GetLimit())
 	}
 
+	if pagination == nil {
+		pagination = &model.PaginationParams{Page: 1, PageSize: 10}
+	}
+
 	if err := query.Order("billing_date DESC").Find(&items).Error; err != nil {
 		return nil, err
 	}
@@ -452,6 +484,10 @@ func (r *billingRepository) ListByMonth(ctx context.Context, year, month int, pa
 		query = query.Offset(pagination.GetOffset()).Limit(pagination.GetLimit())
 	}
 
+	if pagination == nil {
+		pagination = &model.PaginationParams{Page: 1, PageSize: 10}
+	}
+
 	if err := query.Order("billing_date DESC").Find(&items).Error; err != nil {
 		return nil, err
 	}
@@ -480,6 +516,10 @@ func (r *billingRepository) ListByStatus(ctx context.Context, status string, pag
 
 	if pagination != nil {
 		query = query.Offset(pagination.GetOffset()).Limit(pagination.GetLimit())
+	}
+
+	if pagination == nil {
+		pagination = &model.PaginationParams{Page: 1, PageSize: 10}
 	}
 
 	if err := query.Order("billing_date DESC").Find(&items).Error; err != nil {
@@ -514,6 +554,10 @@ func (r *billingRepository) ListByUserAndMonth(ctx context.Context, userID uint6
 
 	if pagination != nil {
 		query = query.Offset(pagination.GetOffset()).Limit(pagination.GetLimit())
+	}
+
+	if pagination == nil {
+		pagination = &model.PaginationParams{Page: 1, PageSize: 10}
 	}
 
 	if err := query.Order("billing_date DESC").Find(&items).Error; err != nil {
@@ -593,6 +637,10 @@ func (r *maintenanceRepository) ListByEquipment(ctx context.Context, equipmentID
 		query = query.Offset(pagination.GetOffset()).Limit(pagination.GetLimit())
 	}
 
+	if pagination == nil {
+		pagination = &model.PaginationParams{Page: 1, PageSize: 10}
+	}
+
 	if err := query.Order("start_time DESC").Find(&items).Error; err != nil {
 		return nil, err
 	}
@@ -621,6 +669,10 @@ func (r *maintenanceRepository) ListByTimeRange(ctx context.Context, startTime, 
 
 	if pagination != nil {
 		query = query.Offset(pagination.GetOffset()).Limit(pagination.GetLimit())
+	}
+
+	if pagination == nil {
+		pagination = &model.PaginationParams{Page: 1, PageSize: 10}
 	}
 
 	if err := query.Order("start_time ASC").Find(&items).Error; err != nil {
@@ -652,6 +704,10 @@ func (r *maintenanceRepository) ListByEquipmentAndTimeRange(ctx context.Context,
 
 	if pagination != nil {
 		query = query.Offset(pagination.GetOffset()).Limit(pagination.GetLimit())
+	}
+
+	if pagination == nil {
+		pagination = &model.PaginationParams{Page: 1, PageSize: 10}
 	}
 
 	if err := query.Order("start_time ASC").Find(&items).Error; err != nil {
@@ -1106,6 +1162,10 @@ func (r *notificationRepository) ListByUser(ctx context.Context, userID uint64, 
 		query = query.Offset(pagination.GetOffset()).Limit(pagination.GetLimit())
 	}
 
+	if pagination == nil {
+		pagination = &model.PaginationParams{Page: 1, PageSize: 10}
+	}
+
 	if err := query.Order("created_at DESC").Find(&items).Error; err != nil {
 		return nil, err
 	}
@@ -1201,6 +1261,10 @@ func (r *auditLogRepository) List(ctx context.Context, pagination *model.Paginat
 		query = query.Offset(pagination.GetOffset()).Limit(pagination.GetLimit())
 	}
 
+	if pagination == nil {
+		pagination = &model.PaginationParams{Page: 1, PageSize: 10}
+	}
+
 	if err := query.Order("created_at DESC").Find(&items).Error; err != nil {
 		return nil, err
 	}
@@ -1227,6 +1291,10 @@ func (r *auditLogRepository) ListByUser(ctx context.Context, userID uint64, pagi
 
 	if pagination != nil {
 		query = query.Offset(pagination.GetOffset()).Limit(pagination.GetLimit())
+	}
+
+	if pagination == nil {
+		pagination = &model.PaginationParams{Page: 1, PageSize: 10}
 	}
 
 	if err := query.Order("created_at DESC").Find(&items).Error; err != nil {
@@ -1257,6 +1325,10 @@ func (r *auditLogRepository) ListByTable(ctx context.Context, tableName string, 
 		query = query.Offset(pagination.GetOffset()).Limit(pagination.GetLimit())
 	}
 
+	if pagination == nil {
+		pagination = &model.PaginationParams{Page: 1, PageSize: 10}
+	}
+
 	if err := query.Order("created_at DESC").Find(&items).Error; err != nil {
 		return nil, err
 	}
@@ -1283,6 +1355,10 @@ func (r *auditLogRepository) ListByAction(ctx context.Context, action string, pa
 
 	if pagination != nil {
 		query = query.Offset(pagination.GetOffset()).Limit(pagination.GetLimit())
+	}
+
+	if pagination == nil {
+		pagination = &model.PaginationParams{Page: 1, PageSize: 10}
 	}
 
 	if err := query.Order("created_at DESC").Find(&items).Error; err != nil {
@@ -1325,6 +1401,10 @@ func (r *auditLogRepository) ListWithFilter(ctx context.Context, userID *uint64,
 
 	if pagination != nil {
 		query = query.Offset(pagination.GetOffset()).Limit(pagination.GetLimit())
+	}
+
+	if pagination == nil {
+		pagination = &model.PaginationParams{Page: 1, PageSize: 10}
 	}
 
 	if err := query.Order("created_at DESC").Find(&items).Error; err != nil {
@@ -1421,6 +1501,10 @@ func (r *userRepository) List(ctx context.Context, pagination *model.PaginationP
 
 	if pagination != nil {
 		query = query.Offset(pagination.GetOffset()).Limit(pagination.GetLimit())
+	}
+
+	if pagination == nil {
+		pagination = &model.PaginationParams{Page: 1, PageSize: 10}
 	}
 
 	if err := query.Order("created_at DESC").Find(&items).Error; err != nil {
@@ -1523,6 +1607,10 @@ func (r *equipmentLogRepository) ListByEquipment(ctx context.Context, equipmentI
 
 	if pagination != nil {
 		query = query.Offset(pagination.GetOffset()).Limit(pagination.GetLimit())
+	}
+
+	if pagination == nil {
+		pagination = &model.PaginationParams{Page: 1, PageSize: 10}
 	}
 
 	if err := query.Order("created_at DESC").Find(&items).Error; err != nil {

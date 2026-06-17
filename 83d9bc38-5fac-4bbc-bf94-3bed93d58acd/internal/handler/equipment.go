@@ -37,7 +37,7 @@ func NewEquipmentHandler(equipmentService service.EquipmentService) *EquipmentHa
 
 func successResponse(c echo.Context, data interface{}) error {
 	return c.JSON(http.StatusOK, Response{
-		Code:    0,
+		Code:    200,
 		Message: "success",
 		Data:    data,
 	})
@@ -191,11 +191,7 @@ func (h *EquipmentHandler) CreateEquipment(c echo.Context) error {
 		return errorResponse(c, http.StatusBadRequest, err.Error())
 	}
 
-	return c.JSON(http.StatusCreated, Response{
-		Code:    0,
-		Message: "success",
-		Data:    created,
-	})
+	return successResponse(c, created)
 }
 
 // UpdateEquipment 更新设备

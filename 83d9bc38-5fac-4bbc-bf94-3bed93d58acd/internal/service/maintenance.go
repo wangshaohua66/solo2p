@@ -57,7 +57,10 @@ func (s *maintenanceService) CreateMaintenance(ctx context.Context, maintenance 
 			maintenance.StartTime.Format("2006-01-02 15:04"),
 			maintenance.EndTime.Format("2006-01-02 15:04"),
 		)
-		_ = s.notificationService.SendNotification(ctx, 0, "maintenance_created", notificationTitle, notificationContent)
+		affectedUsers := s.getAffectedUsers(ctx, maintenance.EquipmentID, maintenance.StartTime, maintenance.EndTime)
+		for _, userID := range affectedUsers {
+			_ = s.notificationService.SendNotification(ctx, userID, "maintenance_created", notificationTitle, notificationContent)
+		}
 	}
 
 	ipAddress := ""
@@ -96,7 +99,10 @@ func (s *maintenanceService) CompleteMaintenance(ctx context.Context, maintenanc
 	if err == nil {
 		notificationTitle := "设备维护已完成"
 		notificationContent := fmt.Sprintf("设备[%s]维护已完成，现已恢复可用。", equipment.Name)
-		_ = s.notificationService.SendNotification(ctx, 0, "maintenance_completed", notificationTitle, notificationContent)
+		affectedUsers := s.getAffectedUsers(ctx, maintenance.EquipmentID, maintenance.StartTime, maintenance.EndTime)
+		for _, userID := range affectedUsers {
+			_ = s.notificationService.SendNotification(ctx, userID, "maintenance_completed", notificationTitle, notificationContent)
+		}
 	}
 
 	ipAddress := ""
@@ -133,7 +139,10 @@ func (s *maintenanceService) CancelMaintenance(ctx context.Context, maintenanceI
 			maintenance.StartTime.Format("2006-01-02 15:04"),
 			maintenance.EndTime.Format("2006-01-02 15:04"),
 		)
-		_ = s.notificationService.SendNotification(ctx, 0, "maintenance_cancelled", notificationTitle, notificationContent)
+		affectedUsers := s.getAffectedUsers(ctx, maintenance.EquipmentID, maintenance.StartTime, maintenance.EndTime)
+		for _, userID := range affectedUsers {
+			_ = s.notificationService.SendNotification(ctx, userID, "maintenance_cancelled", notificationTitle, notificationContent)
+		}
 	}
 
 	ipAddress := ""
@@ -208,4 +217,25 @@ func (s *maintenanceService) GetMaintenanceList(ctx context.Context, equipmentID
 		return s.repos.Maintenance.ListByTimeRange(ctx, *startTime, *endTime, pagination)
 	}
 	return s.repos.Maintenance.List(ctx, pagination)
+}
+
+func (s *maintenanceService) getAffectedUsers(ctx context.Context, equipmentID uint64, startTime, endTime time.Time) []uint64 {
+	pagination := &model.PaginationParams{Page: 1, PageSize: 1000}
+	result, err := s.repos.Booking.ListByEquipmentAndTimeRange(ctx, equipmentID, startTime, endTime, pagination)
+	if err != nil {
+		return []uint64{}
+	}
+
+	userMap := make(map[uint64]bool)
+	for _, booking := range result.Items {
+		if booking.Status == "confirmed" {
+			userMap[booking.UserID] = true
+		}
+	}
+
+	userIDs := make([]uint64, 0, len(userMap))
+	for userID := range userMap {
+		userIDs = append(userIDs, userID)
+	}
+	return userIDs
 }

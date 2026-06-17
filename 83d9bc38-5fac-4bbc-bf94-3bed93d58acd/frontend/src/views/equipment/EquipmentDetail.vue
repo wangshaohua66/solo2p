@@ -15,15 +15,17 @@ const loading = ref(false)
 
 const equipmentId = computed(() => Number(route.params.id))
 
-const statusMap: Record<string, { text: string; type: string }> = {
+type TagType = 'success' | 'warning' | 'info' | 'primary' | 'danger'
+
+const statusMap: Record<string, { text: string; type: TagType }> = {
   available: { text: '可用', type: 'success' },
   maintenance: { text: '维修中', type: 'warning' },
   scrapped: { text: '已报废', type: 'danger' }
 }
 
-const statusInfo = computed(() => {
-  if (!detail.value) return { text: '未知', type: 'info' as const }
-  return statusMap[detail.value.status] || { text: detail.value.status, type: 'info' as const }
+const statusInfo = computed((): { text: string; type: TagType } => {
+  if (!detail.value) return { text: '未知', type: 'info' }
+  return statusMap[detail.value.status] || { text: detail.value.status, type: 'info' }
 })
 
 async function loadDetail() {
@@ -78,12 +80,10 @@ onMounted(() => {
             <span class="font-semibold">基本信息</span>
           </template>
           <el-descriptions v-if="detail" :column="2" border>
-            <el-descriptions-item label="设备编号">{{ detail.code }}</el-descriptions-item>
             <el-descriptions-item label="设备名称">{{ detail.name }}</el-descriptions-item>
             <el-descriptions-item label="设备型号">{{ detail.model }}</el-descriptions-item>
             <el-descriptions-item label="设备类别">{{ detail.category }}</el-descriptions-item>
-            <el-descriptions-item label="所属中心">{{ detail.centerName || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="存放位置">{{ detail.location || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="所属中心">{{ detail.center?.name || '-' }}</el-descriptions-item>
             <el-descriptions-item label="小时费率">
               <span class="text-orange-600 font-semibold">¥{{ detail.hourlyRate }}/小时</span>
             </el-descriptions-item>
@@ -94,7 +94,6 @@ onMounted(() => {
             <el-descriptions-item label="规格参数" :span="2">
               <pre class="text-sm bg-gray-50 p-3 rounded whitespace-pre-wrap">{{ detail.specs ? JSON.stringify(detail.specs, null, 2) : '-' }}</pre>
             </el-descriptions-item>
-            <el-descriptions-item label="备注说明" :span="2">{{ detail.description || '-' }}</el-descriptions-item>
           </el-descriptions>
           <el-empty v-else description="暂无数据" />
         </el-card>

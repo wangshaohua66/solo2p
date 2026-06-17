@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import axios from 'axios'
+import request, { equipment as equipmentApi, extractData } from '@/api'
 import type { Center } from './user'
-import type { EquipmentStatus } from '@/types'
+import type { EquipmentStatus, ApiResponse } from '@/types'
 
 export interface Equipment {
   id: number
@@ -92,18 +92,18 @@ export const useEquipmentStore = defineStore('equipment', () => {
   const fetchList = async (params?: { page?: number; pageSize?: number } & EquipmentFilters) => {
     loading.value = true
     try {
-      const response = await axios.get<PaginatedResult<Equipment>>('/api/equipment', {
-        params: {
-          page: params?.page ?? pagination.value.page,
-          pageSize: params?.pageSize ?? pagination.value.pageSize,
-          ...params
-        }
+      const result = await equipmentApi.getList({
+        page: params?.page ?? pagination.value.page,
+        pageSize: params?.pageSize ?? pagination.value.pageSize,
+        category: params?.category,
+        centerId: params?.centerId ? String(params.centerId) : undefined,
+        status: params?.status
       })
-      equipmentList.value = response.data.items
+      equipmentList.value = result.items as Equipment[]
       pagination.value = {
-        page: response.data.page,
-        pageSize: response.data.pageSize,
-        total: response.data.total
+        page: result.page,
+        pageSize: result.pageSize,
+        total: result.total
       }
       if (params) {
         filters.value = {
@@ -113,7 +113,7 @@ export const useEquipmentStore = defineStore('equipment', () => {
           keyword: params.keyword
         }
       }
-      return response.data
+      return result
     } finally {
       loading.value = false
     }
@@ -122,9 +122,9 @@ export const useEquipmentStore = defineStore('equipment', () => {
   const fetchDetail = async (id: number) => {
     loading.value = true
     try {
-      const response = await axios.get<Equipment>(`/api/equipment/${id}`)
-      equipmentDetail.value = response.data
-      return response.data
+      const result = await equipmentApi.getDetail(id)
+      equipmentDetail.value = result as Equipment
+      return result
     } finally {
       loading.value = false
     }
@@ -133,10 +133,10 @@ export const useEquipmentStore = defineStore('equipment', () => {
   const createEquipment = async (data: Omit<Equipment, 'id' | 'createdAt' | 'updatedAt' | 'centerName' | 'currentUser' | 'nextFreeTime' | 'center'> & { status?: EquipmentStatus }) => {
     loading.value = true
     try {
-      const response = await axios.post<Equipment>('/api/equipment', data)
-      equipmentList.value.unshift(response.data)
+      const result = await equipmentApi.create(data)
+      equipmentList.value.unshift(result as Equipment)
       pagination.value.total += 1
-      return response.data
+      return result
     } finally {
       loading.value = false
     }
@@ -145,15 +145,15 @@ export const useEquipmentStore = defineStore('equipment', () => {
   const updateEquipment = async (id: number, data: Partial<Equipment>) => {
     loading.value = true
     try {
-      const response = await axios.put<Equipment>(`/api/equipment/${id}`, data)
+      const result = await equipmentApi.update(id, data)
       const index = equipmentList.value.findIndex(eq => eq.id === id)
       if (index !== -1) {
-        equipmentList.value[index] = response.data
+        equipmentList.value[index] = result as Equipment
       }
       if (equipmentDetail.value?.id === id) {
-        equipmentDetail.value = response.data
+        equipmentDetail.value = result as Equipment
       }
-      return response.data
+      return result
     } finally {
       loading.value = false
     }
@@ -162,10 +162,7 @@ export const useEquipmentStore = defineStore('equipment', () => {
   const updateStatus = async (id: number, status: EquipmentStatus, remark?: string) => {
     loading.value = true
     try {
-      const response = await axios.patch<Equipment>(`/api/equipment/${id}/status`, {
-        status,
-        remark
-      })
+      const result = await equipmentApi.updateStatus(id, { status, remark })
       const index = equipmentList.value.findIndex(eq => eq.id === id)
       if (index !== -1) {
         equipmentList.value[index].status = status
@@ -173,7 +170,7 @@ export const useEquipmentStore = defineStore('equipment', () => {
       if (equipmentDetail.value?.id === id) {
         equipmentDetail.value.status = status
       }
-      return response.data
+      return result
     } finally {
       loading.value = false
     }
@@ -182,8 +179,8 @@ export const useEquipmentStore = defineStore('equipment', () => {
   const fetchStats = async () => {
     loading.value = true
     try {
-      const response = await axios.get<EquipmentStats>('/api/equipment/stats')
-      return response.data
+      const response = await request.get<ApiResponse<EquipmentStats>>('/equipment/stats')
+      return extractData(response)
     } finally {
       loading.value = false
     }

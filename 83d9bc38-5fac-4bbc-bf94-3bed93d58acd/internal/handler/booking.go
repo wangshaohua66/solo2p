@@ -59,7 +59,7 @@ func (h *BookingHandler) RegisterRoutes(e *echo.Group) {
 func (h *BookingHandler) GetBookingList(c echo.Context) error {
 	user, ok := middleware.GetUser(c.Request().Context())
 	if !ok {
-		return middleware.ErrUserNotFound
+		return errorResponse(c, http.StatusUnauthorized, "用户信息不存在")
 	}
 
 	var req service.GetBookingListRequest
@@ -67,7 +67,7 @@ func (h *BookingHandler) GetBookingList(c echo.Context) error {
 	if equipmentIDStr := c.QueryParam("equipment_id"); equipmentIDStr != "" {
 		equipmentID, err := strconv.ParseUint(equipmentIDStr, 10, 64)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "无效的设备ID")
+			return errorResponse(c, http.StatusBadRequest, "无效的设备ID")
 		}
 		req.EquipmentID = &equipmentID
 	}
@@ -75,7 +75,7 @@ func (h *BookingHandler) GetBookingList(c echo.Context) error {
 	if userIDStr := c.QueryParam("user_id"); userIDStr != "" {
 		userID, err := strconv.ParseUint(userIDStr, 10, 64)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "无效的用户ID")
+			return errorResponse(c, http.StatusBadRequest, "无效的用户ID")
 		}
 		req.UserID = &userID
 	}
@@ -83,7 +83,7 @@ func (h *BookingHandler) GetBookingList(c echo.Context) error {
 	if startTimeStr := c.QueryParam("start_time"); startTimeStr != "" {
 		startTime, err := time.Parse(time.RFC3339, startTimeStr)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "无效的开始时间格式，请使用RFC3339格式")
+			return errorResponse(c, http.StatusBadRequest, "无效的开始时间格式，请使用RFC3339格式")
 		}
 		req.StartTime = &startTime
 	}
@@ -91,7 +91,7 @@ func (h *BookingHandler) GetBookingList(c echo.Context) error {
 	if endTimeStr := c.QueryParam("end_time"); endTimeStr != "" {
 		endTime, err := time.Parse(time.RFC3339, endTimeStr)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "无效的结束时间格式，请使用RFC3339格式")
+			return errorResponse(c, http.StatusBadRequest, "无效的结束时间格式，请使用RFC3339格式")
 		}
 		req.EndTime = &endTime
 	}
@@ -106,47 +106,47 @@ func (h *BookingHandler) GetBookingList(c echo.Context) error {
 
 	pagination := &model.PaginationParams{}
 	if err := c.Bind(pagination); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "无效的分页参数")
+		return errorResponse(c, http.StatusBadRequest, "无效的分页参数")
 	}
 	req.Pagination = pagination
 
 	result, err := h.bookingService.GetBookingList(c.Request().Context(), &req)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "获取预约列表失败: "+err.Error())
+		return errorResponse(c, http.StatusInternalServerError, "获取预约列表失败: "+err.Error())
 	}
 
-	return c.JSON(http.StatusOK, result)
+	return successResponse(c, result)
 }
 
 func (h *BookingHandler) CreateBooking(c echo.Context) error {
 	user, ok := middleware.GetUser(c.Request().Context())
 	if !ok {
-		return middleware.ErrUserNotFound
+		return errorResponse(c, http.StatusUnauthorized, "用户信息不存在")
 	}
 
 	var req createBookingRequest
 	if err := c.Bind(&req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "无效的请求参数: "+err.Error())
+		return errorResponse(c, http.StatusBadRequest, "无效的请求参数: "+err.Error())
 	}
 
 	if req.EquipmentID == 0 {
-		return echo.NewHTTPError(http.StatusBadRequest, "设备ID不能为空")
+		return errorResponse(c, http.StatusBadRequest, "设备ID不能为空")
 	}
 
 	if req.StartTime.IsZero() {
-		return echo.NewHTTPError(http.StatusBadRequest, "开始时间不能为空")
+		return errorResponse(c, http.StatusBadRequest, "开始时间不能为空")
 	}
 
 	if req.EndTime.IsZero() {
-		return echo.NewHTTPError(http.StatusBadRequest, "结束时间不能为空")
+		return errorResponse(c, http.StatusBadRequest, "结束时间不能为空")
 	}
 
 	if req.EndTime.Before(req.StartTime) {
-		return echo.NewHTTPError(http.StatusBadRequest, "结束时间不能早于开始时间")
+		return errorResponse(c, http.StatusBadRequest, "结束时间不能早于开始时间")
 	}
 
 	if req.EndTime.Sub(req.StartTime).Minutes() < 30 {
-		return echo.NewHTTPError(http.StatusBadRequest, "预约时长至少为30分钟")
+		return errorResponse(c, http.StatusBadRequest, "预约时长至少为30分钟")
 	}
 
 	ipAddress := c.RealIP()
@@ -164,54 +164,54 @@ func (h *BookingHandler) CreateBooking(c echo.Context) error {
 	if err != nil {
 		switch err {
 		case service.ErrEquipmentUnavailable:
-			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+			return errorResponse(c, http.StatusBadRequest, err.Error())
 		case service.ErrBookingConflict:
-			return echo.NewHTTPError(http.StatusConflict, err.Error())
+			return errorResponse(c, http.StatusConflict, err.Error())
 		case service.ErrInsufficientBudget:
-			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+			return errorResponse(c, http.StatusBadRequest, err.Error())
 		case service.ErrInvalidTimeRange:
-			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+			return errorResponse(c, http.StatusBadRequest, err.Error())
 		default:
-			return echo.NewHTTPError(http.StatusInternalServerError, "创建预约失败: "+err.Error())
+			return errorResponse(c, http.StatusInternalServerError, "创建预约失败: "+err.Error())
 		}
 	}
 
-	return c.JSON(http.StatusCreated, booking)
+	return successResponse(c, booking)
 }
 
 func (h *BookingHandler) CreateSeriesBooking(c echo.Context) error {
 	user, ok := middleware.GetUser(c.Request().Context())
 	if !ok {
-		return middleware.ErrUserNotFound
+		return errorResponse(c, http.StatusUnauthorized, "用户信息不存在")
 	}
 
 	var req createSeriesBookingRequest
 	if err := c.Bind(&req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "无效的请求参数: "+err.Error())
+		return errorResponse(c, http.StatusBadRequest, "无效的请求参数: "+err.Error())
 	}
 
 	if req.EquipmentID == 0 {
-		return echo.NewHTTPError(http.StatusBadRequest, "设备ID不能为空")
+		return errorResponse(c, http.StatusBadRequest, "设备ID不能为空")
 	}
 
 	if req.StartTime.IsZero() {
-		return echo.NewHTTPError(http.StatusBadRequest, "开始时间不能为空")
+		return errorResponse(c, http.StatusBadRequest, "开始时间不能为空")
 	}
 
 	if req.EndTime.IsZero() {
-		return echo.NewHTTPError(http.StatusBadRequest, "结束时间不能为空")
+		return errorResponse(c, http.StatusBadRequest, "结束时间不能为空")
 	}
 
 	if req.EndTime.Before(req.StartTime) {
-		return echo.NewHTTPError(http.StatusBadRequest, "结束时间不能早于开始时间")
+		return errorResponse(c, http.StatusBadRequest, "结束时间不能早于开始时间")
 	}
 
 	if req.EndTime.Sub(req.StartTime).Minutes() < 30 {
-		return echo.NewHTTPError(http.StatusBadRequest, "预约时长至少为30分钟")
+		return errorResponse(c, http.StatusBadRequest, "预约时长至少为30分钟")
 	}
 
 	if req.SeriesWeeks <= 0 || req.SeriesWeeks > 52 {
-		return echo.NewHTTPError(http.StatusBadRequest, "系列预约周数必须在1-52周之间")
+		return errorResponse(c, http.StatusBadRequest, "系列预约周数必须在1-52周之间")
 	}
 
 	ipAddress := c.RealIP()
@@ -229,36 +229,36 @@ func (h *BookingHandler) CreateSeriesBooking(c echo.Context) error {
 	if err != nil {
 		switch err {
 		case service.ErrEquipmentUnavailable:
-			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+			return errorResponse(c, http.StatusBadRequest, err.Error())
 		case service.ErrBookingConflict:
-			return echo.NewHTTPError(http.StatusConflict, err.Error())
+			return errorResponse(c, http.StatusConflict, err.Error())
 		case service.ErrInsufficientBudget:
-			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+			return errorResponse(c, http.StatusBadRequest, err.Error())
 		case service.ErrInvalidTimeRange:
-			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+			return errorResponse(c, http.StatusBadRequest, err.Error())
 		default:
-			return echo.NewHTTPError(http.StatusInternalServerError, "创建系列预约失败: "+err.Error())
+			return errorResponse(c, http.StatusInternalServerError, "创建系列预约失败: "+err.Error())
 		}
 	}
 
-	return c.JSON(http.StatusCreated, bookings)
+	return successResponse(c, bookings)
 }
 
 func (h *BookingHandler) CancelBooking(c echo.Context) error {
 	user, ok := middleware.GetUser(c.Request().Context())
 	if !ok {
-		return middleware.ErrUserNotFound
+		return errorResponse(c, http.StatusUnauthorized, "用户信息不存在")
 	}
 
 	bookingIDStr := c.Param("id")
 	bookingID, err := strconv.ParseUint(bookingIDStr, 10, 64)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "无效的预约ID")
+		return errorResponse(c, http.StatusBadRequest, "无效的预约ID")
 	}
 
 	var req cancelBookingRequest
 	if err := c.Bind(&req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "无效的请求参数: "+err.Error())
+		return errorResponse(c, http.StatusBadRequest, "无效的请求参数: "+err.Error())
 	}
 
 	reason := req.Reason
@@ -270,57 +270,64 @@ func (h *BookingHandler) CancelBooking(c echo.Context) error {
 	if err != nil {
 		switch err {
 		case service.ErrBookingNotFound:
-			return echo.NewHTTPError(http.StatusNotFound, err.Error())
+			return errorResponse(c, http.StatusNotFound, err.Error())
 		case service.ErrBookingAlreadyCancelled:
-			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+			return errorResponse(c, http.StatusBadRequest, err.Error())
 		default:
-			return echo.NewHTTPError(http.StatusInternalServerError, "取消预约失败: "+err.Error())
+			return errorResponse(c, http.StatusInternalServerError, "取消预约失败: "+err.Error())
 		}
 	}
 
-	return c.JSON(http.StatusOK, echo.Map{
-		"message": "预约取消成功",
-	})
+	return successResponse(c, map[string]string{"message": "预约取消成功"})
 }
 
 func (h *BookingHandler) CheckConflict(c echo.Context) error {
 	_, ok := middleware.GetUser(c.Request().Context())
 	if !ok {
-		return middleware.ErrUserNotFound
+		return errorResponse(c, http.StatusUnauthorized, "用户信息不存在")
 	}
 
 	equipmentIDStr := c.QueryParam("equipment_id")
 	if equipmentIDStr == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "设备ID不能为空")
+		equipmentIDStr = c.QueryParam("equipmentId")
+	}
+	if equipmentIDStr == "" {
+		return errorResponse(c, http.StatusBadRequest, "设备ID不能为空")
 	}
 
 	equipmentID, err := strconv.ParseUint(equipmentIDStr, 10, 64)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "无效的设备ID")
+		return errorResponse(c, http.StatusBadRequest, "无效的设备ID")
 	}
 
 	startTimeStr := c.QueryParam("start_time")
 	if startTimeStr == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "开始时间不能为空")
+		startTimeStr = c.QueryParam("startTime")
+	}
+	if startTimeStr == "" {
+		return errorResponse(c, http.StatusBadRequest, "开始时间不能为空")
 	}
 
 	startTime, err := time.Parse(time.RFC3339, startTimeStr)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "无效的开始时间格式，请使用RFC3339格式")
+		return errorResponse(c, http.StatusBadRequest, "无效的开始时间格式，请使用RFC3339格式")
 	}
 
 	endTimeStr := c.QueryParam("end_time")
 	if endTimeStr == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "结束时间不能为空")
+		endTimeStr = c.QueryParam("endTime")
+	}
+	if endTimeStr == "" {
+		return errorResponse(c, http.StatusBadRequest, "结束时间不能为空")
 	}
 
 	endTime, err := time.Parse(time.RFC3339, endTimeStr)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "无效的结束时间格式，请使用RFC3339格式")
+		return errorResponse(c, http.StatusBadRequest, "无效的结束时间格式，请使用RFC3339格式")
 	}
 
 	if endTime.Before(startTime) {
-		return echo.NewHTTPError(http.StatusBadRequest, "结束时间不能早于开始时间")
+		return errorResponse(c, http.StatusBadRequest, "结束时间不能早于开始时间")
 	}
 
 	conflictReq := &service.CheckConflictRequest{
@@ -331,7 +338,7 @@ func (h *BookingHandler) CheckConflict(c echo.Context) error {
 
 	conflicts, err := h.bookingService.CheckConflict(c.Request().Context(), conflictReq)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "冲突检测失败: "+err.Error())
+		return errorResponse(c, http.StatusInternalServerError, "冲突检测失败: "+err.Error())
 	}
 
 	response := conflictCheckResponse{
@@ -339,34 +346,34 @@ func (h *BookingHandler) CheckConflict(c echo.Context) error {
 		ConflictingBookings: conflicts,
 	}
 
-	return c.JSON(http.StatusOK, response)
+	return successResponse(c, response)
 }
 
 func (h *BookingHandler) AddToWaitlist(c echo.Context) error {
 	user, ok := middleware.GetUser(c.Request().Context())
 	if !ok {
-		return middleware.ErrUserNotFound
+		return errorResponse(c, http.StatusUnauthorized, "用户信息不存在")
 	}
 
 	var req createBookingRequest
 	if err := c.Bind(&req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "无效的请求参数: "+err.Error())
+		return errorResponse(c, http.StatusBadRequest, "无效的请求参数: "+err.Error())
 	}
 
 	if req.EquipmentID == 0 {
-		return echo.NewHTTPError(http.StatusBadRequest, "设备ID不能为空")
+		return errorResponse(c, http.StatusBadRequest, "设备ID不能为空")
 	}
 
 	if req.StartTime.IsZero() {
-		return echo.NewHTTPError(http.StatusBadRequest, "开始时间不能为空")
+		return errorResponse(c, http.StatusBadRequest, "开始时间不能为空")
 	}
 
 	if req.EndTime.IsZero() {
-		return echo.NewHTTPError(http.StatusBadRequest, "结束时间不能为空")
+		return errorResponse(c, http.StatusBadRequest, "结束时间不能为空")
 	}
 
 	if req.EndTime.Before(req.StartTime) {
-		return echo.NewHTTPError(http.StatusBadRequest, "结束时间不能早于开始时间")
+		return errorResponse(c, http.StatusBadRequest, "结束时间不能早于开始时间")
 	}
 
 	ipAddress := c.RealIP()
@@ -381,8 +388,8 @@ func (h *BookingHandler) AddToWaitlist(c echo.Context) error {
 
 	waitlist, err := h.bookingService.AddToWaitlist(c.Request().Context(), waitlistReq)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		return errorResponse(c, http.StatusBadRequest, err.Error())
 	}
 
-	return c.JSON(http.StatusCreated, waitlist)
+	return successResponse(c, waitlist)
 }

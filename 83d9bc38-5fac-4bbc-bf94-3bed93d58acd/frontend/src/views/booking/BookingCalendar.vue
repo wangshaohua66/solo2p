@@ -290,10 +290,11 @@ import {
   Lock,
   Warning
 } from '@element-plus/icons-vue'
-import { useEquipmentStore, type Equipment } from '@/stores/equipment'
+import { useEquipmentStore } from '@/stores/equipment'
 import { useBookingStore, type Booking } from '@/stores/booking'
-import type { BookingStatus, EquipmentStatus } from '@/types'
+import type { EquipmentStatus } from '@/types'
 import { cn } from '@/lib/utils'
+import { maintenance as maintenanceApi } from '@/api'
 
 const equipmentStore = useEquipmentStore()
 const bookingStore = useBookingStore()
@@ -380,8 +381,8 @@ const getStatusDotColor = (status: EquipmentStatus) => {
   return colorMap[status] || 'bg-gray-400'
 }
 
-const getBookingStatusType = (status: BookingStatus) => {
-  const typeMap: Record<BookingStatus, 'success' | 'warning' | 'info' | 'danger'> = {
+const getBookingStatusType = (status: string) => {
+  const typeMap: Record<string, 'success' | 'warning' | 'info' | 'danger'> = {
     confirmed: 'success',
     waitlist: 'warning',
     completed: 'info',
@@ -390,8 +391,8 @@ const getBookingStatusType = (status: BookingStatus) => {
   return typeMap[status] || 'info'
 }
 
-const getBookingStatusText = (status: BookingStatus) => {
-  const textMap: Record<BookingStatus, string> = {
+const getBookingStatusText = (status: string) => {
+  const textMap: Record<string, string> = {
     confirmed: '已确认',
     waitlist: '等待中',
     completed: '已完成',
@@ -499,21 +500,25 @@ const selectEquipment = async (id: number) => {
   selectedEquipmentId.value = id
   quickBookingForm.value.equipmentId = id
   await loadBookings()
+  await loadMaintenanceSlots()
 }
 
 const prevWeek = () => {
   currentWeekStart.value = currentWeekStart.value.subtract(1, 'week')
   loadBookings()
+  loadMaintenanceSlots()
 }
 
 const nextWeek = () => {
   currentWeekStart.value = currentWeekStart.value.add(1, 'week')
   loadBookings()
+  loadMaintenanceSlots()
 }
 
 const goToToday = () => {
   currentWeekStart.value = dayjs().startOf('week')
   loadBookings()
+  loadMaintenanceSlots()
 }
 
 const loadEquipment = async () => {
@@ -532,6 +537,39 @@ const loadBookings = async () => {
     startDate,
     endDate
   })
+}
+
+const loadMaintenanceSlots = async () => {
+  if (!selectedEquipmentId.value) return
+  const startDate = currentWeekStart.value.format('YYYY-MM-DD')
+  const endDate = currentWeekStart.value.add(6, 'day').format('YYYY-MM-DD')
+  try {
+    const result = await maintenanceApi.getList({
+      equipmentId: selectedEquipmentId.value,
+      startTime: `${startDate}T00:00:00Z`,
+      endTime: `${endDate}T23:59:59Z`,
+      page: 1,
+      pageSize: 100
+    })
+    const slots = new Map<string, Set<number>>()
+    for (const m of result.items) {
+      const start = dayjs(m.startTime)
+      const end = dayjs(m.endTime)
+      let current = start.clone()
+      while (current.isBefore(end)) {
+        const date = current.format('YYYY-MM-DD')
+        const hour = current.hour()
+        if (!slots.has(date)) {
+          slots.set(date, new Set())
+        }
+        slots.get(date)!.add(hour)
+        current = current.add(1, 'hour')
+      }
+    }
+    maintenanceSlots.value = slots
+  } catch (err) {
+    console.error('加载维护时段失败:', err)
+  }
 }
 
 const showBookingDetail = (booking: Booking) => {
@@ -553,7 +591,7 @@ const handleCancelBooking = async () => {
   }
 }
 
-const startDrag = (event: MouseEvent, date: string, hour: number) => {
+const startDrag = (_event: MouseEvent, date: string, hour: number) => {
   if (isMaintenanceSlot(date, hour)) return
   isDragging.value = true
   dragStart.value = { date, hour }

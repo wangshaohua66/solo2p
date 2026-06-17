@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import axios from 'axios'
+import request, { auth, extractData } from '@/api'
+import type { ApiResponse } from '@/types'
 
 export interface Role {
   id: number
@@ -25,9 +26,13 @@ export interface UserInfo {
   name: string
   email: string
   roleId: number
+  roleName: string
   centerId: number
+  centerName: string
   budget: number
   advisorId?: number
+  advisorName?: string
+  avatar?: string
   createdAt: string
   updatedAt: string
   role?: Role
@@ -71,13 +76,12 @@ export const useUserStore = defineStore(
     const login = async (credentials: LoginRequest) => {
       loading.value = true
       try {
-        const response = await axios.post<LoginResponse>('/api/auth/login', credentials)
-        token.value = response.data.token
-        userInfo.value = response.data.user
-        permissions.value = response.data.permissions
+        const result = await auth.login(credentials)
+        token.value = result.token
+        userInfo.value = result.user as UserInfo
+        permissions.value = result.permissions
         isLoggedIn.value = true
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token.value}`
-        return response.data
+        return result
       } finally {
         loading.value = false
       }
@@ -86,7 +90,7 @@ export const useUserStore = defineStore(
     const logout = async () => {
       loading.value = true
       try {
-        await axios.post('/api/auth/logout')
+        await auth.logout()
       } finally {
         clearAuth()
         loading.value = false
@@ -96,10 +100,10 @@ export const useUserStore = defineStore(
     const fetchCurrentUser = async () => {
       loading.value = true
       try {
-        const response = await axios.get<UserInfo>('/api/auth/me')
-        userInfo.value = response.data
+        const result = await auth.getCurrentUser()
+        userInfo.value = result as UserInfo
         isLoggedIn.value = true
-        return response.data
+        return result
       } finally {
         loading.value = false
       }
@@ -110,15 +114,15 @@ export const useUserStore = defineStore(
       userInfo.value = null
       permissions.value = []
       isLoggedIn.value = false
-      delete axios.defaults.headers.common['Authorization']
     }
 
     const updateUserInfo = async (data: Partial<UserInfo>) => {
       loading.value = true
       try {
-        const response = await axios.put<UserInfo>('/api/users/me', data)
-        userInfo.value = response.data
-        return response.data
+        const response = await request.put<ApiResponse<UserInfo>>('/users/me', data)
+        const result = extractData(response)
+        userInfo.value = result
+        return result
       } finally {
         loading.value = false
       }

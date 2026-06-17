@@ -69,6 +69,15 @@ const routes: AppRouteRecordRaw[] = [
     }
   },
   {
+    path: '/booking/calendar',
+    name: 'BookingCalendarPage',
+    component: () => import('@/views/booking/BookingCalendar.vue'),
+    meta: {
+      title: '预约日历',
+      requiresAuth: true
+    }
+  },
+  {
     path: '/booking/list',
     name: 'BookingList',
     component: () => import('@/views/booking/BookingList.vue'),

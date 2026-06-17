@@ -41,69 +41,69 @@ type GetNotificationListRequest struct {
 func (h *NotificationHandler) GetNotificationList(c echo.Context) error {
 	user, ok := middleware.GetUser(c.Request().Context())
 	if !ok {
-		return middleware.ErrUserNotFound
+		return errorResponse(c, http.StatusUnauthorized, "用户信息不存在")
 	}
 
 	var req GetNotificationListRequest
 	if err := c.Bind(&req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "参数错误")
+		return errorResponse(c, http.StatusBadRequest, "参数错误")
 	}
 
 	result, err := h.notificationService.GetNotificationList(c.Request().Context(), user.UserID, req.IsRead, &req.PaginationParams)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "获取通知列表失败")
+		return errorResponse(c, http.StatusInternalServerError, "获取通知列表失败")
 	}
 
-	return c.JSON(http.StatusOK, result)
+	return successResponse(c, result)
 }
 
 func (h *NotificationHandler) GetUnreadCount(c echo.Context) error {
 	user, ok := middleware.GetUser(c.Request().Context())
 	if !ok {
-		return middleware.ErrUserNotFound
+		return errorResponse(c, http.StatusUnauthorized, "用户信息不存在")
 	}
 
 	stats, err := h.notificationService.CountUnread(c.Request().Context(), user.UserID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "获取未读数量失败")
+		return errorResponse(c, http.StatusInternalServerError, "获取未读数量失败")
 	}
 
-	return c.JSON(http.StatusOK, stats)
+	return successResponse(c, stats)
 }
 
 func (h *NotificationHandler) MarkAsRead(c echo.Context) error {
 	user, ok := middleware.GetUser(c.Request().Context())
 	if !ok {
-		return middleware.ErrUserNotFound
+		return errorResponse(c, http.StatusUnauthorized, "用户信息不存在")
 	}
 
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "无效的通知ID")
+		return errorResponse(c, http.StatusBadRequest, "无效的通知ID")
 	}
 
 	err = h.notificationService.MarkAsRead(c.Request().Context(), user.UserID, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return echo.NewHTTPError(http.StatusNotFound, "通知不存在")
+			return errorResponse(c, http.StatusNotFound, "通知不存在")
 		}
-		return echo.NewHTTPError(http.StatusInternalServerError, "标记已读失败")
+		return errorResponse(c, http.StatusInternalServerError, "标记已读失败")
 	}
 
-	return c.JSON(http.StatusOK, echo.Map{"message": "标记成功"})
+	return successResponse(c, map[string]string{"message": "标记成功"})
 }
 
 func (h *NotificationHandler) MarkAllAsRead(c echo.Context) error {
 	user, ok := middleware.GetUser(c.Request().Context())
 	if !ok {
-		return middleware.ErrUserNotFound
+		return errorResponse(c, http.StatusUnauthorized, "用户信息不存在")
 	}
 
 	err := h.notificationService.MarkAllAsRead(c.Request().Context(), user.UserID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "全部标记已读失败")
+		return errorResponse(c, http.StatusInternalServerError, "全部标记已读失败")
 	}
 
-	return c.JSON(http.StatusOK, echo.Map{"message": "全部标记成功"})
+	return successResponse(c, map[string]string{"message": "全部标记成功"})
 }

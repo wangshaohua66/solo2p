@@ -86,7 +86,7 @@ const handleError = (error: unknown): never => {
   throw new Error('Unknown error')
 }
 
-const extractData = <T>(response: AxiosResponse<ApiResponse<T>>): T => {
+export const extractData = <T>(response: AxiosResponse<ApiResponse<T>>): T => {
   if (response.data.code !== undefined && response.data.code !== 200) {
     ElMessage.error(response.data.message || '请求失败')
     throw new Error(response.data.message || 'Request failed')
@@ -101,6 +101,7 @@ export const auth = {
       return response.data
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
@@ -114,6 +115,7 @@ export const auth = {
       localStorage.removeItem('token')
       localStorage.removeItem('userInfo')
       handleError(error)
+      throw error
     }
   },
 
@@ -123,6 +125,7 @@ export const auth = {
       return response.data
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
@@ -132,6 +135,7 @@ export const auth = {
       return response.data
     } catch (error) {
       handleError(error)
+      throw error
     }
   }
 }
@@ -149,6 +153,7 @@ export const equipment = {
       return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
@@ -158,6 +163,7 @@ export const equipment = {
       return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
@@ -167,6 +173,7 @@ export const equipment = {
       return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
@@ -176,6 +183,7 @@ export const equipment = {
       return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
@@ -185,6 +193,7 @@ export const equipment = {
       return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
@@ -194,6 +203,7 @@ export const equipment = {
       return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   }
 }
@@ -209,37 +219,41 @@ export const booking = {
     pageSize?: number
   }): Promise<PaginatedResponse<Booking>> => {
     try {
-      const response = await request.get<PaginatedResponse<Booking>>('/bookings', { params })
-      return response.data
+      const response = await request.get<ApiResponse<PaginatedResponse<Booking>>>('/bookings', { params })
+      return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
   create: async (data: BookingCreateRequest): Promise<Booking> => {
     try {
-      const response = await request.post<Booking>('/bookings', data)
-      return response.data
+      const response = await request.post<ApiResponse<Booking>>('/bookings', data)
+      return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
   createSeries: async (data: BookingSeriesRequest): Promise<Booking[]> => {
     try {
-      const response = await request.post<Booking[]>('/bookings/series', data)
-      return response.data
+      const response = await request.post<ApiResponse<Booking[]>>('/bookings/series', data)
+      return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
   cancel: async (id: number, reason?: string): Promise<{ message: string }> => {
     try {
-      const response = await request.post<{ message: string }>(`/bookings/${id}/cancel`, { reason })
-      return response.data
+      const response = await request.post<ApiResponse<{ message: string }>>(`/bookings/${id}/cancel`, { reason })
+      return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
@@ -249,19 +263,21 @@ export const booking = {
     endTime: string
   }): Promise<ConflictCheckResponse> => {
     try {
-      const response = await request.get<ConflictCheckResponse>('/bookings/conflict', { params })
-      return response.data
+      const response = await request.get<ApiResponse<ConflictCheckResponse>>('/bookings/conflict', { params })
+      return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
   addWaitlist: async (data: WaitlistRequest): Promise<{ position: number; equipmentId: number; userId: number }> => {
     try {
-      const response = await request.post<{ position: number; equipmentId: number; userId: number }>('/bookings/waitlist', data)
-      return response.data
+      const response = await request.post<ApiResponse<{ position: number; equipmentId: number; userId: number }>>('/bookings/waitlist', data)
+      return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   }
 }
@@ -269,19 +285,21 @@ export const booking = {
 export const billing = {
   getList: async (params?: BillingFilter & PaginationParams): Promise<PaginatedResponse<Billing>> => {
     try {
-      const response = await request.get<PaginatedResponse<Billing>>('/billing', { params })
-      return response.data
+      const response = await request.get<ApiResponse<PaginatedResponse<Billing>>>('/billing', { params })
+      return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
   getDetail: async (id: number): Promise<Billing> => {
     try {
-      const response = await request.get<Billing>(`/billing/${id}`)
-      return response.data
+      const response = await request.get<ApiResponse<Billing>>(`/billing/${id}`)
+      return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
@@ -293,24 +311,27 @@ export const billing = {
       return response.data
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
   getBudget: async (): Promise<{ userId: number; budget: number }> => {
     try {
-      const response = await request.get<{ userId: number; budget: number }>('/billing/budget')
-      return response.data
+      const response = await request.get<ApiResponse<{ userId: number; budget: number }>>('/billing/budget')
+      return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
   updateBudget: async (data: { userId: number; amount: number; remark?: string }): Promise<{ userId: number; newBudget: number; amount: number }> => {
     try {
-      const response = await request.post<{ userId: number; newBudget: number; amount: number }>('/billing/budget', data)
-      return response.data
+      const response = await request.post<ApiResponse<{ userId: number; newBudget: number; amount: number }>>('/billing/budget', data)
+      return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   }
 }
@@ -325,46 +346,51 @@ export const maintenance = {
     pageSize?: number
   }): Promise<PaginatedResponse<Maintenance>> => {
     try {
-      const response = await request.get<PaginatedResponse<Maintenance>>('/maintenance', { params })
-      return response.data
+      const response = await request.get<ApiResponse<PaginatedResponse<Maintenance>>>('/maintenance', { params })
+      return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
   create: async (data: MaintenanceCreateRequest): Promise<Maintenance> => {
     try {
-      const response = await request.post<Maintenance>('/maintenance', data)
-      return response.data
+      const response = await request.post<ApiResponse<Maintenance>>('/maintenance', data)
+      return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
   update: async (id: number, data: MaintenanceUpdateRequest): Promise<Maintenance> => {
     try {
-      const response = await request.put<Maintenance>(`/maintenance/${id}`, data)
-      return response.data
+      const response = await request.put<ApiResponse<Maintenance>>(`/maintenance/${id}`, data)
+      return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
   complete: async (id: number, remark?: string): Promise<Maintenance> => {
     try {
-      const response = await request.post<Maintenance>(`/maintenance/${id}/complete`, { remark })
-      return response.data
+      const response = await request.post<ApiResponse<Maintenance>>(`/maintenance/${id}/complete`, { remark })
+      return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
   cancel: async (id: number): Promise<{ message: string }> => {
     try {
-      const response = await request.delete<{ message: string }>(`/maintenance/${id}`)
-      return response.data
+      const response = await request.delete<ApiResponse<{ message: string }>>(`/maintenance/${id}`)
+      return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   }
 }
@@ -383,6 +409,7 @@ export const stats = {
       }
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
@@ -403,6 +430,7 @@ export const stats = {
       }
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
@@ -416,6 +444,7 @@ export const stats = {
       }
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
@@ -429,6 +458,7 @@ export const stats = {
       }
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
@@ -442,6 +472,7 @@ export const stats = {
       }
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
@@ -455,6 +486,7 @@ export const stats = {
       }
     } catch (error) {
       handleError(error)
+      throw error
     }
   }
 }
@@ -462,37 +494,41 @@ export const stats = {
 export const notification = {
   getList: async (params?: { isRead?: boolean } & PaginationParams): Promise<PaginatedResponse<Notification>> => {
     try {
-      const response = await request.get<PaginatedResponse<Notification>>('/notification', { params })
-      return response.data
+      const response = await request.get<ApiResponse<PaginatedResponse<Notification>>>('/notification', { params })
+      return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
   getUnreadCount: async (): Promise<UnreadCount> => {
     try {
-      const response = await request.get<UnreadCount>('/notification/unread-count')
-      return response.data
+      const response = await request.get<ApiResponse<UnreadCount>>('/notification/unread-count')
+      return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
   markAsRead: async (id: number): Promise<{ message: string }> => {
     try {
-      const response = await request.patch<{ message: string }>(`/notification/${id}/read`)
-      return response.data
+      const response = await request.patch<ApiResponse<{ message: string }>>(`/notification/${id}/read`)
+      return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
   markAllAsRead: async (): Promise<{ message: string }> => {
     try {
-      const response = await request.patch<{ message: string }>('/notification/read-all')
-      return response.data
+      const response = await request.patch<ApiResponse<{ message: string }>>('/notification/read-all')
+      return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   }
 }
@@ -500,19 +536,21 @@ export const notification = {
 export const audit = {
   getLogs: async (params?: AuditLogFilter & PaginationParams): Promise<PaginatedResponse<AuditLog>> => {
     try {
-      const response = await request.get<PaginatedResponse<AuditLog>>('/audit/logs', { params })
-      return response.data
+      const response = await request.get<ApiResponse<PaginatedResponse<AuditLog>>>('/audit/logs', { params })
+      return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
   getLogDetail: async (id: number): Promise<AuditLog & { fieldDiffs: FieldDiff[] }> => {
     try {
-      const response = await request.get<AuditLog & { fieldDiffs: FieldDiff[] }>(`/audit/logs/${id}`)
-      return response.data
+      const response = await request.get<ApiResponse<AuditLog & { fieldDiffs: FieldDiff[] }>>(`/audit/logs/${id}`)
+      return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   }
 }
@@ -524,6 +562,7 @@ export const user = {
       return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
@@ -533,6 +572,7 @@ export const user = {
       return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
@@ -542,6 +582,7 @@ export const user = {
       return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
@@ -551,6 +592,7 @@ export const user = {
       return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
@@ -559,6 +601,7 @@ export const user = {
       await request.delete<ApiResponse<void>>(`/user/${id}`)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
@@ -568,6 +611,7 @@ export const user = {
       return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
@@ -577,6 +621,7 @@ export const user = {
       return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   },
 
@@ -586,6 +631,7 @@ export const user = {
       return extractData(response)
     } catch (error) {
       handleError(error)
+      throw error
     }
   }
 }

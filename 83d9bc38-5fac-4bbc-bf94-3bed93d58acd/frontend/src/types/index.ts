@@ -31,6 +31,8 @@ export interface User {
   centerName: string;
   budget: number;
   advisorId?: number;
+  advisorName?: string;
+  avatar?: string;
   createdAt: string;
   updatedAt: string;
   role?: Role;
@@ -47,13 +49,20 @@ export interface LoginResponse {
   permissions: string[];
 }
 
+export interface Center {
+  id: number;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Equipment {
   id: number;
   name: string;
   model: string;
   category: string;
   centerId: number;
-  centerName: string;
+  centerName?: string;
   hourlyRate: number;
   status: EquipmentStatus;
   specs: Record<string, any>;
@@ -61,6 +70,7 @@ export interface Equipment {
   nextFreeTime?: string;
   createdAt: string;
   updatedAt: string;
+  center?: Center;
 }
 
 export interface EquipmentStats {
@@ -107,17 +117,19 @@ export interface EquipmentUpdateRequest {
 export interface Booking {
   id: number;
   equipmentId: number;
-  equipmentName: string;
+  equipmentName?: string;
   userId: number;
-  userName: string;
+  userName?: string;
   startTime: string;
   endTime: string;
-  status: BookingStatus;
+  status: BookingStatus | string;
   isSeries: boolean;
   seriesId?: string;
   waitlistPosition?: number;
   createdAt: string;
   updatedAt: string;
+  equipment?: Equipment;
+  user?: User;
 }
 
 export interface BookingCreateRequest {
@@ -157,6 +169,9 @@ export interface Billing {
   billingDate: string;
   equipmentName: string;
   createdAt: string;
+  user?: User;
+  startTime?: string;
+  endTime?: string;
 }
 
 export interface BillingFilter {
@@ -186,6 +201,8 @@ export interface Maintenance {
   operatorName?: string;
   createdAt: string;
   updatedAt: string;
+  equipment?: Equipment;
+  operator?: User;
 }
 
 export interface MaintenanceCreateRequest {
@@ -283,6 +300,7 @@ export interface AuditLog {
   newValue: Record<string, any>;
   ipAddress: string;
   createdAt: string;
+  fieldDiffs?: FieldDiff[];
 }
 
 export interface AuditLogFilter {

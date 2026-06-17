@@ -336,11 +336,7 @@ func (h *UserHandler) CreateUser(c echo.Context) error {
 		ipAddress,
 	)
 
-	return c.JSON(http.StatusCreated, Response{
-		Code:    0,
-		Message: "success",
-		Data:    newUser,
-	})
+	return successResponse(c, newUser)
 }
 
 // UpdateUser 更新用户信息
