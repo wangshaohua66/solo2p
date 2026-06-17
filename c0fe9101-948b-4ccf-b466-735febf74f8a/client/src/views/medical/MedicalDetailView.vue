@@ -17,7 +17,7 @@
           <template #header>
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span style="font-weight:600">就诊信息</span>
-              <el-tag :type="record?.visit_type === 'emergency' ? 'danger' : ''" size="small">{{ VISIT_TYPE_LABELS[record?.visit_type || 'outpatient'] }}</el-tag>
+              <el-tag :type="record?.visit_type === 'emergency' ? 'danger' : undefined" size="small">{{ VISIT_TYPE_LABELS[record?.visit_type || 'outpatient'] }}</el-tag>
             </div>
           </template>
           <el-descriptions :column="3" border size="small">
@@ -172,7 +172,7 @@
             <div v-for="a in record?.attachments" :key="a.id" class="attachment-item" :title="a.file_name">
               <div class="attach-img">
                 <el-icon v-if="!isImage(a.file_name)" :size="48" color="#909399"><Document /></el-icon>
-                <el-image v-else :src="a.file_path" fit="cover" lazy preview-src-list="[a.file_path]" style="width:100%;height:100%" />
+                <el-image v-else :src="a.file_path" fit="cover" lazy :preview-src-list="a.file_path ? [a.file_path] : []" style="width:100%;height:100%" />
               </div>
               <div class="attach-name">{{ a.file_name }}</div>
               <el-tag size="small" effect="plain">{{ a.file_type }}</el-tag>
@@ -231,7 +231,7 @@
         </el-form-item>
         <el-form-item label="接诊医生">
           <el-select v-model="referralForm.doctor_id" style="width:100%" placeholder="可选" clearable>
-            <el-option label="暂不指定" :value="null" />
+            <el-option label="暂不指定" :value="''" />
           </el-select>
         </el-form-item>
       </el-form>
@@ -316,7 +316,7 @@ const prescForm = reactive({
 })
 
 function prescStatusType(s: PrescStatus) {
-  return s === 'dispensed' ? 'success' : s === 'cancelled' ? 'info' : s === 'second_approved' ? 'primary' : 'warning'
+  return s === 'dispensed' ? 'success' : s === 'cancelled' ? 'info' : s === 'second_approved' ? 'primary' : 'warning' as const
 }
 function isImage(name: string) {
   return /\.(png|jpe?g|gif|bmp|webp)$/i.test(name)
@@ -331,74 +331,26 @@ async function loadRecord() {
         try {
           const petRes = await medicalApi.getPetRecords(res.data.pet_id, { per_page: 10 })
           relatedRecords.value = petRes.data?.items || []
-        } catch {}
+        } catch (e: any) {
+          relatedRecords.value = []
+        }
       }
     }
-  } catch {
-    record.value = generateMockRecord()
-    relatedRecords.value = Array.from({ length: 5 }, (_, i) => ({
-      id: recordId + (i - 2), visit_date: new Date(Date.now() - (i + 1) * 10 * 86400000).toISOString(),
-      department: ['内科', '外科'][i % 2], visit_type: 'outpatient' as any, diagnosis: i === 0 ? '同前' : ''
-    }))
+  } catch (e: any) {
+    record.value = null
+    relatedRecords.value = []
+    ElMessage.error(e.message || '加载病历失败')
   }
   if (!medicines.value.length) loadMedicines()
-}
-
-function generateMockRecord(): MedicalRecord {
-  return {
-    id: recordId, pet_id: 100, pet_name: '豆豆', owner_name: '张先生',
-    hospital_id: 1, hospital_name: '总院-和平路宠物医院', doctor_id: 1, doctor_name: '张医生',
-    department: '内科', visit_type: 'outpatient', status: 'in_progress',
-    visit_date: new Date().toISOString(),
-    temperature: 38.9, heart_rate: 120, respiratory_rate: 28,
-    chief_complaint: '食欲不振3天，呕吐2次，精神萎靡',
-    present_illness: '3天前开始食欲下降，昨日起呕吐2次，为未消化食物。饮水尚可，排便略软。',
-    past_history: '去年曾患肠胃炎，已治愈。疫苗齐全，已驱虫。',
-    physical_exam: 'T:38.9℃, P:120, R:28, BW:28.5kg。鼻镜干燥，口腔黏膜略苍白，腹部触诊敏感，听诊肠鸣音减弱。',
-    diagnosis: '急性肠胃炎，轻度脱水',
-    treatment_plan: '1. 补液支持治疗\n2. 止吐（马罗匹坦）\n3. 胃黏膜保护剂\n4. 益生菌调理\n5. 低脂易消化饮食',
-    prescriptions: [{
-      id: 1001, prescribed_by_name: '张医生', created_at: new Date().toISOString(),
-      status: 'second_approved', has_controlled: false,
-      first_approver_name: '王院长', second_approver_name: '无(无需)',
-      total_amount: 188.5,
-      items: [
-        { medicine_name: '马罗匹坦', medicine_spec: '100mg', dosage: '每日1次 半片', quantity: 6, unit_price: 12.5, subtotal: 75 },
-        { medicine_name: '奥美拉唑', medicine_spec: '20mg', dosage: '每日1次 1粒', quantity: 7, unit_price: 3.5, subtotal: 24.5 },
-        { medicine_name: '益生菌', medicine_spec: '5g*20袋', dosage: '每日2次 1袋', quantity: 10, unit_price: 8.9, subtotal: 89 }
-      ]
-    }],
-    lab_results: [{
-      id: 2001, category: '血常规+生化', status: 'completed', has_abnormal: true,
-      requesting_doctor_name: '张医生', technician_name: '李技师',
-      submitted_at: new Date(Date.now() - 3600000).toISOString(),
-      created_at: new Date().toISOString(),
-      overall_conclusion: '白细胞及中性粒细胞升高提示感染，ALT轻度升高需保肝治疗',
-      items: [
-        { test_name: '白细胞WBC', result_value: 22.5, unit: '10^9/L', reference_min: 6, reference_max: 17, is_abnormal: true, abnormal_type: 'high' },
-        { test_name: '中性粒细胞NEU%', result_value: 82, unit: '%', reference_min: 60, reference_max: 77, is_abnormal: true, abnormal_type: 'high' },
-        { test_name: '红细胞RBC', result_value: 6.8, unit: '10^12/L', reference_min: 5.5, reference_max: 8.5, is_abnormal: false },
-        { test_name: '血红蛋白HGB', result_value: 148, unit: 'g/L', reference_min: 120, reference_max: 180, is_abnormal: false },
-        { test_name: '谷丙转氨酶ALT', result_value: 168, unit: 'U/L', reference_min: 10, reference_max: 125, is_abnormal: true, abnormal_type: 'high' },
-        { test_name: '血糖GLU', result_value: 5.8, unit: 'mmol/L', reference_min: 3.9, reference_max: 8.3, is_abnormal: false }
-      ]
-    }],
-    attachments: []
-  }
 }
 
 async function loadMedicines() {
   try {
     const res = await pharmacyApi.getMedicines({ per_page: 200 })
     if (res.code === 200) medicines.value = res.data.items
-  } catch {}
-  if (!medicines.value.length) {
-    medicines.value = Array.from({ length: 8 }, (_, i) => ({
-      id: i + 1, name: ['阿莫西林', '美洛昔康', '奥美拉唑', '益生菌', '马罗匹坦', '头孢氨苄', '甲硝唑', '维生素B'][i],
-      spec: ['500mg*12', '7.5mg*10', '20mg*14', '5g*20', '100mg', '250mg*24', '250mg*100', '100片'][i],
-      stock_quantity: 100 - i * 8, safety_stock: 20, unit_price: [68, 45, 48, 88, 12, 52, 22, 12][i],
-      is_controlled: i === 4
-    })) as Medicine[]
+  } catch (e: any) {
+    medicines.value = []
+    ElMessage.error(e.message || '加载药品列表失败')
   }
 }
 
@@ -406,8 +358,8 @@ async function saveEdit() {
   try {
     const res = await medicalApi.updateRecord(recordId, record.value as any)
     if (res.code === 200) { record.value = res.data; editMode.value = false; ElMessage.success('已保存') }
-  } catch {
-    editMode.value = false; ElMessage.success('已保存')
+  } catch (e: any) {
+    ElMessage.error(e.message || '保存失败')
   }
 }
 
@@ -418,7 +370,13 @@ async function confirmReferral() {
   try {
     const res = await medicalApi.createReferral(recordId, { target_hospital_id: referralForm.hospital_id!, target_doctor_id: referralForm.doctor_id || undefined })
     if (res.code === 200) { ElMessage.success('转诊成功'); router.push(`/medical/${res.data.id}`) }
-  } catch { ElMessage.success('转诊已发起'); referralDialog.value = false }
+  } catch (e: any) {
+    if (e.code === 409 || e.message?.includes('409') || e.message?.includes('重复')) {
+      ElMessage.error('该病历已存在转诊记录，请勿重复发起')
+    } else {
+      ElMessage.error(e.message || '转诊失败')
+    }
+  }
 }
 
 function goPet() { if (record.value?.pet_id) router.push(`/pets/${record.value.pet_id}`) }
@@ -428,8 +386,8 @@ async function submitPresc() {
   try {
     const res = await pharmacyApi.createPrescription({ medical_record_id: recordId, hospital_id: userStore.currentHospital?.id || 1, items: prescForm.items, remark: prescForm.remark })
     if (res.code === 200) { ElMessage.success('处方已提交'); prescDialog.value = false; loadRecord() }
-  } catch {
-    ElMessage.success('处方已提交'); prescDialog.value = false
+  } catch (e: any) {
+    ElMessage.error(e.message || '处方提交失败')
   }
 }
 

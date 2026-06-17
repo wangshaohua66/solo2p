@@ -24,8 +24,25 @@ SHIFT_HOURS = {
     'emergency': 24
 }
 
+EMERGENCY_KEYWORDS = ['急诊', 'emergency', '急救', '24h', '夜诊']
+ICU_KEYWORDS = ['icu', '重症', 'intensive', '监护']
+
 
 class ScheduleService:
+
+    @staticmethod
+    def _is_emergency_certified(user):
+        if not user.qualification:
+            return False
+        q = user.qualification.lower()
+        return any(kw in q for kw in EMERGENCY_KEYWORDS)
+
+    @staticmethod
+    def _is_icu_certified(user):
+        if not user.qualification:
+            return False
+        q = user.qualification.lower()
+        return any(kw in q for kw in ICU_KEYWORDS)
 
     @staticmethod
     def _get_week_dates(start_date=None):
@@ -123,33 +140,62 @@ class ScheduleService:
             hospital_id=hospital_id, is_active=True
         ).filter(User.role.in_(['doctor', 'nurse', 'lab_tech'])).all()
 
+        hospital = Hospital.query.get(hospital_id)
+        is_emergency_hospital = hospital and hospital.type == 'emergency_24h'
+
+        emergency_certified = [u for u in users if ScheduleService._is_emergency_certified(u)]
+        icu_certified = [u for u in users if ScheduleService._is_icu_certified(u)]
+
         existing = Schedule.query.filter(
             Schedule.hospital_id == hospital_id,
             Schedule.shift_date.between(dates[0], dates[-1])
         ).all()
         existing_keys = {(s.user_id, s.shift_date): s for s in existing}
 
-        shift_rotation = ['morning', 'afternoon', 'night']
-        user_shift_index = {u.id: random.randint(0, 2) for u in users}
         user_weekly_hours = defaultdict(int)
+        user_daily_assigned = defaultdict(set)
+        user_night_count = defaultdict(int)
+        for s in existing:
+            user_weekly_hours[s.user_id] += SHIFT_HOURS.get(s.shift_type, 0)
+            user_daily_assigned[s.user_id].add(s.shift_date)
+            if s.shift_type == 'night':
+                user_night_count[s.user_id] += 1
+
+        day_shifts = ['morning', 'afternoon']
+        rotation_len = len(day_shifts)
 
         created_count = 0
-        for user in users:
-            for day_idx, d in enumerate(dates):
+        warnings = []
+        night_coverage = defaultdict(int)
+
+        for day_idx, d in enumerate(dates):
+            is_weekend = day_idx >= 5
+            for user in users:
                 key = (user.id, d)
                 if key in existing_keys:
                     continue
 
-                if day_idx >= 5 and user_weekly_hours[user.id] >= 40:
+                max_hours = user.weekly_max_hours or 48
+                current_hours = user_weekly_hours[user.id]
+
+                if is_weekend and current_hours >= 40:
                     shift = 'day_off'
-                elif day_idx >= 5:
-                    shift = random.choice(['day_off', 'day_off', 'on_call'])
+                elif is_weekend:
+                    shift = 'day_off'
                 else:
-                    base_idx = user_shift_index[user.id]
-                    shift = shift_rotation[(base_idx + day_idx) % 3]
+                    base_idx = user.id % rotation_len
+                    candidate = day_shifts[(base_idx + day_idx) % rotation_len]
+
+                    if current_hours + SHIFT_HOURS.get(candidate, 0) > max_hours:
+                        shift = 'day_off'
+                    else:
+                        shift = candidate
+
+                if shift in ('morning', 'afternoon') and current_hours + SHIFT_HOURS.get(shift, 0) > max_hours:
+                    shift = 'day_off'
 
                 start_time, end_time = SHIFT_TIMES.get(shift, (None, None))
-                is_emergency = (shift == 'night')
+                is_emergency = False
 
                 schedule = Schedule(
                     user_id=user.id,
@@ -164,13 +210,96 @@ class ScheduleService:
                 )
                 db.session.add(schedule)
                 user_weekly_hours[user.id] += SHIFT_HOURS.get(shift, 0)
+                user_daily_assigned[user.id].add(d)
                 created_count += 1
+
+        if emergency_certified:
+            for day_idx, d in enumerate(dates):
+                assigned_night = False
+                for user in emergency_certified:
+                    max_hours = user.weekly_max_hours or 48
+                    if user_weekly_hours[user.id] + SHIFT_HOURS['night'] > max_hours:
+                        continue
+                    if d in user_daily_assigned[user.id]:
+                        existing_s = existing_keys.get((user.id, d))
+                        if existing_s and existing_s.shift_type in ('morning', 'afternoon', 'night', 'emergency'):
+                            assigned_night = True
+                            night_coverage[d.isoformat()] += 1
+                            break
+                        continue
+                    if user_night_count[user.id] >= 3:
+                        continue
+
+                    conflict = existing_keys.get((user.id, d))
+                    if conflict:
+                        db.session.delete(conflict)
+                        user_weekly_hours[user.id] -= SHIFT_HOURS.get(conflict.shift_type, 0)
+                        existing_keys.pop((user.id, d), None)
+
+                    schedule = Schedule(
+                        user_id=user.id,
+                        hospital_id=hospital_id,
+                        shift_date=d,
+                        shift_type='night',
+                        start_time=SHIFT_TIMES['night'][0],
+                        end_time=SHIFT_TIMES['night'][1],
+                        department=user.department,
+                        is_emergency_duty=True,
+                        status='draft'
+                    )
+                    db.session.add(schedule)
+                    user_weekly_hours[user.id] += SHIFT_HOURS['night']
+                    user_daily_assigned[user.id].add(d)
+                    user_night_count[user.id] += 1
+                    night_coverage[d.isoformat()] += 1
+                    created_count += 1
+                    assigned_night = True
+                    break
+
+                if not assigned_night:
+                    warnings.append(f'{d.isoformat()} 夜班无可用急诊资质人员')
+        else:
+            for d in dates:
+                warnings.append(f'{d.isoformat()} 无急诊资质医生，夜班排班受限')
+
+        if is_emergency_hospital:
+            for day_idx, d in enumerate(dates):
+                has_24h = any(
+                    s.shift_type == 'emergency'
+                    for s in Schedule.query.filter_by(
+                        hospital_id=hospital_id, shift_date=d, status='draft'
+                    ).all()
+                )
+                if not has_24h and emergency_certified:
+                    for user in emergency_certified:
+                        max_hours = user.weekly_max_hours or 48
+                        if user_weekly_hours[user.id] + SHIFT_HOURS['emergency'] > max_hours:
+                            continue
+                        schedule = Schedule(
+                            user_id=user.id,
+                            hospital_id=hospital_id,
+                            shift_date=d,
+                            shift_type='emergency',
+                            start_time=SHIFT_TIMES['emergency'][0],
+                            end_time=SHIFT_TIMES['emergency'][1],
+                            department=user.department,
+                            is_emergency_duty=True,
+                            status='draft'
+                        )
+                        db.session.add(schedule)
+                        user_weekly_hours[user.id] += SHIFT_HOURS['emergency']
+                        created_count += 1
+                        break
 
         db.session.commit()
         return {
             'created': created_count,
             'existing': len(existing),
-            'dates': [d.isoformat() for d in dates]
+            'dates': [d.isoformat() for d in dates],
+            'warnings': warnings,
+            'emergency_certified_count': len(emergency_certified),
+            'icu_certified_count': len(icu_certified),
+            'night_coverage': dict(night_coverage)
         }
 
     @staticmethod

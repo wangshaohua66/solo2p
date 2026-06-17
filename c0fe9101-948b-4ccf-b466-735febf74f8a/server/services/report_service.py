@@ -25,7 +25,17 @@ class ReportService:
     @staticmethod
     def get_board_summary(hospital_id=None, start_date=None, end_date=None):
         start_date, end_date = ReportService._parse_date_range(start_date, end_date)
-        previous_start = start_date - (end_date - start_date)
+
+        try:
+            yoy_start = date(start_date.year - 1, start_date.month, start_date.day)
+            yoy_end = date(end_date.year - 1, end_date.month, end_date.day)
+        except ValueError:
+            yoy_start = start_date - timedelta(days=365)
+            yoy_end = end_date - timedelta(days=365)
+
+        period_length = (end_date - start_date).days + 1
+        mom_start = start_date - timedelta(days=period_length)
+        mom_end = start_date - timedelta(days=1)
 
         def _stats(sd, ed):
             records_q = MedicalRecord.query.filter(
@@ -73,14 +83,27 @@ class ReportService:
             }
 
         current = _stats(start_date, end_date)
-        previous = _stats(previous_start, start_date - timedelta(days=1))
+        yoy_previous = _stats(yoy_start, yoy_end)
+        mom_previous = _stats(mom_start, mom_end)
 
         comparison = {}
         for k in current:
-            if isinstance(current[k], (int, float)) and previous[k] != 0:
-                comparison[f'{k}_yoy'] = round((current[k] - previous[k]) / previous[k] * 100, 1)
+            if isinstance(current[k], (int, float)):
+                yoy_diff = round(current[k] - yoy_previous[k], 2)
+                mom_diff = round(current[k] - mom_previous[k], 2)
+                comparison[f'{k}_yoy_diff'] = yoy_diff
+                comparison[f'{k}_yoy_pct'] = round(
+                    (yoy_diff / yoy_previous[k] * 100) if yoy_previous[k] != 0 else 0, 1
+                )
+                comparison[f'{k}_mom_diff'] = mom_diff
+                comparison[f'{k}_mom_pct'] = round(
+                    (mom_diff / mom_previous[k] * 100) if mom_previous[k] != 0 else 0, 1
+                )
             else:
-                comparison[f'{k}_yoy'] = None
+                comparison[f'{k}_yoy_diff'] = None
+                comparison[f'{k}_yoy_pct'] = None
+                comparison[f'{k}_mom_diff'] = None
+                comparison[f'{k}_mom_pct'] = None
 
         active_cages_q = Cage.query
         if hospital_id:
@@ -100,7 +123,8 @@ class ReportService:
 
         return {
             'current': current,
-            'previous': previous,
+            'yoy_previous': yoy_previous,
+            'mom_previous': mom_previous,
             'comparison': comparison,
             'realtime': {
                 'total_cages': total_cages,
@@ -111,7 +135,11 @@ class ReportService:
             },
             'date_range': {
                 'start': start_date.isoformat(),
-                'end': end_date.isoformat()
+                'end': end_date.isoformat(),
+                'yoy_start': yoy_start.isoformat(),
+                'yoy_end': yoy_end.isoformat(),
+                'mom_start': mom_start.isoformat(),
+                'mom_end': mom_end.isoformat()
             }
         }
 

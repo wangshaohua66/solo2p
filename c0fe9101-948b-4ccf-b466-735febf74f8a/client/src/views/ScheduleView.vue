@@ -41,44 +41,84 @@
       <div class="shift-legend">
         <span v-for="(c, k) in SHIFT_TYPE_COLORS" :key="k" class="legend-item">
           <span class="legend-color" :style="{ background: c }"></span>
-          {{ SHIFT_TYPE_LABELS[k as ShiftType] }}
+          {{ SHIFT_TYPE_LABELS[k] }}
         </span>
       </div>
 
       <el-card shadow="never" class="matrix-card" body-style="padding:0">
-        <el-table :data="matrix" border stripe size="small" v-loading="loadingMatrix" height="calc(100vh - 320px)">
-          <el-table-column prop="user_name" label="人员" width="120" fixed="left">
-            <template #default="{ row }">
-              <div>
-                <div style="font-weight:600">{{ row.user_name }}</div>
-                <div style="font-size:11px;color:#909399">
-                  {{ row.user_role ? ROLE_LABELS[row.user_role as UserRole] : row.department || '-' }}
+        <div v-loading="loadingMatrix" class="calendar-grid-wrapper">
+          <div class="calendar-grid">
+            <div class="calendar-header">
+              <div class="calendar-corner">人员 / 日期</div>
+              <div v-for="d in dates" :key="d.date"
+                   class="calendar-header-cell"
+                   :class="{ 'is-weekend': d.weekday === 6 || d.weekday === 7 }">
+                <div class="weekday-label">{{ d.label.split(' ')[0] }}</div>
+                <div class="date-label">{{ d.label.split(' ')[1] }}</div>
+              </div>
+            </div>
+
+            <div v-for="row in matrix" :key="row.user_id" class="calendar-row">
+              <div class="calendar-person-cell">
+                <div class="person-name">{{ row.user_name }}</div>
+                <div class="person-meta">
+                  {{ row.user_role ? ROLE_LABELS[row.user_role] : row.department || '-' }}
+                </div>
+                <div class="person-hours" :class="{ 'text-danger': row._total_hours > 44 }">
+                  {{ row._total_hours }}h
                 </div>
               </div>
-            </template>
-          </el-table-column>
-          <el-table-column v-for="d in dates" :key="d.date" :label="d.label" :class-name="'col-date-' + d.weekday" align="center" width="140">
-            <template #default="{ row }">
-              <div class="shift-cell"
-                   :class="'shift-' + (row[d.date]?.shift_type || 'empty')"
-                   @click="openShiftDialog(row, d)">
-                <span v-if="row[d.date]">
-                  <strong>{{ SHIFT_TYPE_LABELS[row[d.date].shift_type] }}</strong>
-                  <small v-if="row[d.date].start_time">{{ row[d.date].start_time.slice(0,5) }}-{{ row[d.date].end_time?.slice(0,5) }}</small>
-                  <el-tag v-if="row[d.date].is_emergency_duty" size="small" type="danger" effect="dark" style="margin-top:2px">急诊值</el-tag>
-                </span>
-                <span v-else class="empty-hint">点击排班</span>
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column label="工时" width="90" align="center" fixed="right">
-            <template #default="{ row }">
-              <span :class="row._total_hours > 44 ? 'text-danger' : ''">
-                {{ row._total_hours }}h
-              </span>
-            </template>
-          </el-table-column>
-        </el-table>
+
+              <draggable
+                v-for="d in dates"
+                :key="row.user_id + '-' + d.date"
+                v-model="row._schedules[d.date]"
+                :group="{ name: 'shift-group', pull: true, put: true }"
+                item-key="id"
+                class="calendar-cell"
+                :class="[
+                  'cell-' + d.date,
+                  { 'is-weekend': d.weekday === 6 || d.weekday === 7 },
+                  { 'is-empty': (row._schedules[d.date] || []).length === 0 }
+                ]"
+                ghost-class="shift-ghost"
+                drag-class="shift-drag"
+                chosen-class="shift-chosen"
+                :animation="150"
+                @end="(evt: any) => onDragEnd(evt, row, d)"
+                @click="openShiftDialog(row, d)"
+              >
+                <template #item="{ element }">
+                  <div class="shift-item"
+                       :class="'shift-' + element.shift_type"
+                       :style="{ borderColor: SHIFT_TYPE_COLORS[element.shift_type] }"
+                       draggable="true"
+                       @click.stop>
+                    <div class="shift-type-label" :style="{ background: SHIFT_TYPE_COLORS[element.shift_type] }">
+                      {{ SHIFT_TYPE_LABELS[element.shift_type] }}
+                    </div>
+                    <div v-if="element.start_time" class="shift-time">
+                      {{ element.start_time?.slice(0, 5) }}-{{ element.end_time?.slice(0, 5) }}
+                    </div>
+                    <el-tag v-if="element.is_emergency_duty" size="small" type="danger" effect="dark" class="shift-tag">
+                      急诊值
+                    </el-tag>
+                    <div class="shift-actions" @click.stop>
+                      <el-button link size="small" type="primary" @click.stop="openShiftDialog(row, d, element)">
+                        编辑
+                      </el-button>
+                      <el-button link size="small" type="warning" @click.stop="openSwapDialog(row, d, element)">
+                        换班
+                      </el-button>
+                    </div>
+                  </div>
+                </template>
+              </draggable>
+            </div>
+
+            <el-empty v-if="!loadingMatrix && matrix.length === 0" description="暂无排班数据" :image-size="80" class="grid-empty" />
+          </div>
+        </div>
       </el-card>
 
       <div class="summary-bar">
@@ -86,8 +126,8 @@
           <el-descriptions-item v-for="d in dates" :key="d.date" :label="d.label">
             <div v-if="dailySummary[d.date]">
               <div v-for="(cnt, tp) in dailySummary[d.date]" :key="tp" style="font-size:12px">
-                <span :style="{ color: SHIFT_TYPE_COLORS[tp as ShiftType] }">●</span>
-                {{ SHIFT_TYPE_LABELS[tp as ShiftType] }}：{{ cnt }}人
+                <span :style="{ color: SHIFT_TYPE_COLORS[tp] }">●</span>
+                {{ SHIFT_TYPE_LABELS[tp] }}：{{ cnt }}人
               </div>
             </div>
           </el-descriptions-item>
@@ -108,7 +148,7 @@
             <el-form label-position="top" size="default">
               <el-form-item label="当前位置（坐标）">
                 <el-input v-model="emergencyAddr" placeholder="输入地址或使用定位" />
-                <el-button type="primary" plain style="margin-top:6px;width:100%" @click="mockLocate">
+                <el-button type="primary" plain style="margin-top:6px;width:100%" @click="handleLocate">
                   <el-icon><Location /></el-icon>获取当前位置
                 </el-button>
               </el-form-item>
@@ -134,12 +174,12 @@
               <div style="flex:1;margin-left:10px">
                 <div style="font-weight:600">{{ s.user_name }}</div>
                 <div style="font-size:12px;color:#909399">
-                  {{ ROLE_LABELS[s.user_role as UserRole] || '医生' }} · {{ s.shift_date }}
+                  {{ ROLE_LABELS[s.user_role || ''] || '医生' }} · {{ s.shift_date }}
                 </div>
               </div>
               <el-tag size="small" type="danger">{{ SHIFT_TYPE_LABELS[s.shift_type] }}</el-tag>
             </div>
-            <el-empty v-if="!onCallList.length" description="暂无值班人员" :image-size="60" />
+            <el-empty v-if="!loadingEmergency && onCallList.length === 0" description="暂无值班人员" :image-size="60" />
           </el-card>
         </el-col>
 
@@ -263,7 +303,7 @@
         <el-form-item label="原排班">{{ swapForm.from_name }} · {{ swapForm.date_display }} · {{ SHIFT_TYPE_LABELS[swapForm.from_shift] }}</el-form-item>
         <el-form-item label="换班人员" required>
           <el-select v-model="swapForm.to_user_id" filterable placeholder="选择人员" style="width:100%">
-            <el-option v-for="u in users" :key="u.id" :label="`${u.user_name} (${u.department || u.user_role})`" :value="u.id" />
+            <el-option v-for="u in users" :key="u.id" :label="u.user_name + ' (' + (u.department || u.user_role) + ')'" :value="u.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="原因">
@@ -281,11 +321,19 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+// @ts-ignore
+import draggable from 'vuedraggable'
 import { MagicStick, Promotion, Refresh, Location, Search, Bell, Phone } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { scheduleApi } from '@/api/schedule'
-import type { Schedule, ShiftType, UserRole, Hospital, UserInfo } from '@/types'
+import type { Schedule, ShiftType, UserRole, Hospital } from '@/types'
 import { SHIFT_TYPE_LABELS, SHIFT_TYPE_COLORS, ROLE_LABELS } from '@/types'
+
+interface DateInfo {
+  date: string
+  label: string
+  weekday: number
+}
 
 const userStore = useUserStore()
 const activeTab = ref<'schedule' | 'emergency'>('schedule')
@@ -308,12 +356,12 @@ const filterDept = ref('')
 const loadingMatrix = ref(false)
 const matrixStatus = ref<'draft' | 'confirmed'>('draft')
 
-const dates = ref<{ date: string; label: string; weekday: number }[]>([])
+const dates = ref<DateInfo[]>([])
 const matrix = ref<any[]>([])
 const dailySummary = ref<Record<string, Record<string, number>>>({})
 
-function buildDates(start: string) {
-  const arr = []
+function buildDates(start: string): DateInfo[] {
+  const arr: DateInfo[] = []
   const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
   const s = new Date(start)
   for (let i = 0; i < 7; i++) {
@@ -322,11 +370,21 @@ function buildDates(start: string) {
     const ds = d.toISOString().slice(0, 10)
     arr.push({
       date: ds,
-      label: `${weekdays[i]} ${ds.slice(5)}`,
+      label: weekdays[i] + ' ' + ds.slice(5),
       weekday: i + 1
     })
   }
   return arr
+}
+
+function getCellSchedules(row: any, date: string): Schedule[] {
+  if (!row._schedules) {
+    row._schedules = {}
+  }
+  if (!row._schedules[date]) {
+    row._schedules[date] = row[date] ? [row[date]] : []
+  }
+  return row._schedules[date]
 }
 
 async function loadMatrix() {
@@ -334,86 +392,58 @@ async function loadMatrix() {
   dates.value = buildDates(weekStart.value)
   try {
     const res = await scheduleApi.getWeekMatrix(
-      userStore.currentHospitalId || undefined,
+      userStore.currentHospital?.id,
       weekStart.value,
       filterDept.value || undefined
     )
     dates.value = res.data.dates || dates.value
     matrix.value = res.data.matrix || []
     dailySummary.value = res.data.daily_summary || {}
-  } catch (e) {
-    const r = mockMatrix(dates.value)
-    matrix.value = r.matrix
-    dailySummary.value = r.dailySummary
-    matrixStatus.value = Math.random() > 0.5 ? 'draft' : 'confirmed'
+    matrixStatus.value = (res.data as any).status || 'draft'
+    matrix.value.forEach((row: any) => {
+      row._schedules = {}
+      dates.value.forEach((d: DateInfo) => {
+        row._schedules[d.date] = row[d.date] ? [row[d.date]] : []
+      })
+    })
+  } catch (e: any) {
+    matrix.value = []
+    dailySummary.value = {}
+    ElMessage.error(e.message || '加载排班失败')
   } finally {
     loadingMatrix.value = false
   }
 }
 
-function mockMatrix(dts: { date: string }[]) {
-  const names = ['张伟', '李娜', '王芳', '刘洋', '陈静', '杨帆', '赵敏', '黄磊', '周婷', '吴强',
-    '徐丽', '孙浩', '马琳', '朱峰', '胡军', '郭燕', '何勇', '罗晶', '梁超', '宋诗']
-  const roles: UserRole[] = ['doctor', 'doctor', 'nurse', 'lab_tech', 'pharmacist', 'doctor', 'nurse']
-  const depts = ['内科', '外科', '影像科', '检验科', '护理', '急诊']
-  const shifts: ShiftType[] = ['morning', 'afternoon', 'night', 'day_off', 'on_call', 'emergency']
-  const m: any[] = []
-  const daily: Record<string, Record<string, number>> = {}
-  for (const d of dts) daily[d.date] = {}
-
-  for (let i = 0; i < 20; i++) {
-    const row: any = {
-      user_id: 100 + i,
-      user_name: names[i],
-      user_role: roles[i % roles.length],
-      department: depts[i % depts.length],
-      _total_hours: 0
-    }
-    let totalH = 0
-    for (const d of dts) {
-      if (Math.random() > 0.15) {
-        let st: ShiftType
-        if (d.weekday === 6 || d.weekday === 7) st = Math.random() > 0.4 ? 'day_off' : shifts[Math.floor(Math.random() * 4)]
-        else st = shifts[Math.floor(Math.random() * 4)]
-        const h = st === 'day_off' ? 0 : st === 'night' ? 10 : st === 'morning' ? 8 : 6
-        totalH += h
-        row[d.date] = {
-          id: 10000 + i * 10 + dts.indexOf(d),
-          shift_type: st,
-          start_time: st === 'morning' ? '08:00:00' : st === 'afternoon' ? '14:00:00' : st === 'night' ? '22:00:00' : undefined,
-          end_time: st === 'morning' ? '16:00:00' : st === 'afternoon' ? '22:00:00' : st === 'night' ? '08:00:00' : undefined,
-          is_emergency_duty: st === 'emergency' || (st !== 'day_off' && Math.random() > 0.85)
-        }
-        daily[d.date][st] = (daily[d.date][st] || 0) + 1
-      }
-    }
-    row._total_hours = totalH
-    m.push(row)
-  }
-  return { matrix: m, dailySummary: daily }
-}
-
-function openShiftDialog(row: any, d: { date: string; label: string }) {
-  const existing = row[d.date]
-  shiftForm.id = existing?.id
+function openShiftDialog(row: any, d: DateInfo, existing?: Schedule) {
+  const cellList = row._schedules?.[d.date] || []
+  const shift = existing || cellList[0] || row[d.date]
+  shiftForm.id = shift?.id || 0
   shiftForm.user_id = row.user_id
   shiftForm.user_name = row.user_name
   shiftForm.date = d.date
   shiftForm.date_display = d.label
-  shiftForm.shift_type = existing?.shift_type || 'morning'
-  shiftForm.start_time = existing?.start_time || '08:00:00'
-  shiftForm.end_time = existing?.end_time || '16:00:00'
-  shiftForm.is_emergency_duty = existing?.is_emergency_duty || false
-  shiftForm.remark = existing?.remark || ''
+  shiftForm.shift_type = shift?.shift_type || 'morning'
+  shiftForm.start_time = shift?.start_time || '08:00:00'
+  shiftForm.end_time = shift?.end_time || '16:00:00'
+  shiftForm.is_emergency_duty = shift?.is_emergency_duty || false
+  shiftForm.remark = shift?.remark || ''
   shiftDialogVisible.value = true
 }
 
 const shiftDialogVisible = ref(false)
 const shiftDialogTitle = computed(() => shiftForm.id ? '编辑排班' : '新增排班')
 const shiftForm = reactive({
-  id: 0, user_id: 0, user_name: '', date: '', date_display: '',
-  shift_type: 'morning' as ShiftType, start_time: '08:00:00', end_time: '16:00:00',
-  is_emergency_duty: false, remark: ''
+  id: 0,
+  user_id: 0,
+  user_name: '',
+  date: '',
+  date_display: '',
+  shift_type: 'morning' as ShiftType,
+  start_time: '08:00:00',
+  end_time: '16:00:00',
+  is_emergency_duty: false,
+  remark: ''
 })
 
 async function saveShift() {
@@ -421,7 +451,7 @@ async function saveShift() {
     await scheduleApi.createOrUpdate({
       id: shiftForm.id || undefined,
       user_id: shiftForm.user_id,
-      hospital_id: userStore.currentHospitalId || 1,
+      hospital_id: userStore.currentHospital?.id || 1,
       shift_date: shiftForm.date,
       shift_type: shiftForm.shift_type,
       start_time: shiftForm.start_time,
@@ -430,11 +460,11 @@ async function saveShift() {
       remark: shiftForm.remark
     })
     ElMessage.success('保存成功')
-  } catch (e) {
-    ElMessage.success('保存成功')
+    shiftDialogVisible.value = false
+    loadMatrix()
+  } catch (e: any) {
+    ElMessage.error(e.message || '操作失败')
   }
-  shiftDialogVisible.value = false
-  loadMatrix()
 }
 
 async function handleDeleteShift() {
@@ -442,11 +472,11 @@ async function handleDeleteShift() {
   try {
     await scheduleApi.deleteSchedule(shiftForm.id)
     ElMessage.success('删除成功')
-  } catch (e) {
-    ElMessage.success('删除成功')
+    shiftDialogVisible.value = false
+    loadMatrix()
+  } catch (e: any) {
+    ElMessage.error(e.message || '操作失败')
   }
-  shiftDialogVisible.value = false
-  loadMatrix()
 }
 
 async function handleGenerate() {
@@ -454,52 +484,98 @@ async function handleGenerate() {
   loadingMatrix.value = true
   try {
     await scheduleApi.generate({
-      hospital_id: userStore.currentHospitalId || undefined,
+      hospital_id: userStore.currentHospital?.id,
       start_date: weekStart.value
     })
     ElMessage.success('排班生成完成，请检查后发布')
-  } catch (e) {
-    await new Promise(r => setTimeout(r, 800))
-    ElMessage.success('排班生成完成，请检查后发布')
     matrixStatus.value = 'draft'
+    loadMatrix()
+  } catch (e: any) {
+    ElMessage.error(e.message || '操作失败')
+    loadingMatrix.value = false
   }
-  loadMatrix()
 }
 
 async function handlePublish() {
   await ElMessageBox.confirm('发布后将通知所有相关人员，确认发布？', '发布排班', { type: 'warning' })
   try {
     await scheduleApi.publish({
-      hospital_id: userStore.currentHospitalId || undefined,
+      hospital_id: userStore.currentHospital?.id,
       start_date: weekStart.value
     })
     matrixStatus.value = 'confirmed'
     ElMessage.success('排班已发布')
-  } catch (e) {
-    matrixStatus.value = 'confirmed'
-    ElMessage.success('排班已发布')
+  } catch (e: any) {
+    ElMessage.error(e.message || '操作失败')
   }
 }
 
 const swapDialogVisible = ref(false)
 const swapForm = reactive({
-  id: 0, from_name: '', date_display: '', from_shift: 'morning' as ShiftType,
-  to_user_id: null as number | null, reason: ''
+  id: 0,
+  from_name: '',
+  date_display: '',
+  from_shift: 'morning' as ShiftType,
+  to_user_id: null as number | null,
+  reason: ''
 })
 const users = computed(() => matrix.value.map((r: any) => ({
-  id: r.user_id, user_name: r.user_name, department: r.department, user_role: r.user_role
+  id: r.user_id,
+  user_name: r.user_name,
+  department: r.department,
+  user_role: r.user_role
 })))
 
+function openSwapDialog(row: any, d: DateInfo, shift: Schedule) {
+  swapForm.id = shift.id
+  swapForm.from_name = row.user_name
+  swapForm.date_display = d.label
+  swapForm.from_shift = shift.shift_type
+  swapForm.to_user_id = null
+  swapForm.reason = ''
+  swapDialogVisible.value = true
+}
+
 async function confirmSwap() {
-  if (!swapForm.to_user_id) { ElMessage.warning('请选择换班人员'); return }
+  if (!swapForm.to_user_id) {
+    ElMessage.warning('请选择换班人员')
+    return
+  }
   try {
     await scheduleApi.swap(swapForm.id, swapForm.to_user_id)
     ElMessage.success('换班申请已提交')
-  } catch (e) {
-    ElMessage.success('换班成功')
+    swapDialogVisible.value = false
+    loadMatrix()
+  } catch (e: any) {
+    ElMessage.error(e.message || '操作失败')
   }
-  swapDialogVisible.value = false
-  loadMatrix()
+}
+
+async function onDragEnd(evt: any, row: any, d: DateInfo) {
+  if (!evt || !evt.item || !evt.from || !evt.to) return
+  if (evt.from === evt.to && evt.oldIndex === evt.newIndex) return
+
+  const schedule = evt.item._underlying_vm_
+  if (!schedule || !schedule.id) return
+
+  try {
+    await scheduleApi.createOrUpdate({
+      id: schedule.id,
+      user_id: row.user_id,
+      hospital_id: userStore.currentHospital?.id || 1,
+      shift_date: d.date,
+      shift_type: schedule.shift_type,
+      start_time: schedule.start_time,
+      end_time: schedule.end_time,
+      is_emergency_duty: schedule.is_emergency_duty,
+      remark: schedule.remark
+    })
+    ElMessage.success('班次调整成功')
+    loadMatrix()
+  } catch (e: any) {
+    ElMessage.error(e.message || '操作失败')
+    loadMatrix()
+  }
 }
 
 const loadingEmergency = ref(false)
@@ -511,134 +587,443 @@ const onCallList = ref<Schedule[]>([])
 const nearestList = ref<any[]>([])
 const selectedHospital = ref<any>(null)
 
-function mockLocate() {
-  currentPos.value = { lat: 39.9042 + (Math.random() - 0.5) * 0.05, lng: 116.4074 + (Math.random() - 0.5) * 0.05 }
-  emergencyAddr.value = `当前位置 (${currentPos.value.lat.toFixed(4)}, ${currentPos.value.lng.toFixed(4)})`
-  findNearestEmergency()
+function handleLocate() {
+  if (!navigator.geolocation) {
+    ElMessage.error('浏览器不支持定位功能')
+    return
+  }
+  loadingEmergency.value = true
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      currentPos.value = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude
+      }
+      emergencyAddr.value = '当前位置 (' + currentPos.value.lat.toFixed(4) + ', ' + currentPos.value.lng.toFixed(4) + ')'
+      loadingEmergency.value = false
+      findNearestEmergency()
+    },
+    () => {
+      ElMessage.error('获取位置失败，请手动输入地址')
+      loadingEmergency.value = false
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  )
 }
 
 async function loadEmergencyData() {
   loadingEmergency.value = true
   try {
-    const res = await scheduleApi.getEmergencyOnCall(userStore.currentHospitalId || undefined)
+    const res = await scheduleApi.getEmergencyOnCall(userStore.currentHospital?.id)
     onCallList.value = res.data || []
-  } catch (e) {
-    onCallList.value = [
-      { id: 1, user_id: 101, user_name: '张伟', user_role: 'doctor', hospital_id: 1, shift_date: getMonday(), shift_type: 'emergency', start_time: '08:00:00', end_time: '20:00:00', is_emergency_duty: true, status: 'confirmed' },
-      { id: 2, user_id: 107, user_name: '赵敏', user_role: 'doctor', hospital_id: 1, shift_date: getMonday(), shift_type: 'on_call', start_time: '20:00:00', end_time: '08:00:00', is_emergency_duty: true, status: 'confirmed' },
-      { id: 3, user_id: 111, user_name: '孙浩', user_role: 'nurse', hospital_id: 1, shift_date: getMonday(), shift_type: 'emergency', start_time: '08:00:00', end_time: '20:00:00', is_emergency_duty: true, status: 'confirmed' }
-    ]
+  } catch (e: any) {
+    onCallList.value = []
+    ElMessage.error(e.message || '加载值班数据失败')
   } finally {
     loadingEmergency.value = false
   }
 }
 
 async function findNearestEmergency() {
-  if (!currentPos.value) mockLocate()
+  if (!currentPos.value) {
+    ElMessage.warning('请先获取当前位置')
+    return
+  }
   loadingEmergency.value = true
   try {
-    const res = await scheduleApi.findNearestEmergency(currentPos.value!.lat, currentPos.value!.lng, searchRadius.value)
-    nearestList.value = res.data || []
-  } catch (e) {
-    nearestList.value = mockEmergency()
+    const res = await scheduleApi.findNearestEmergency(currentPos.value.lat, currentPos.value.lng, searchRadius.value)
+    const list = res.data || []
+    nearestList.value = list.map((hp: any) => ({
+      ...hp,
+      _posStyle: currentPos.value ? {
+        left: (50 + ((hp.longitude || hp.lng || 0) - currentPos.value.lng) * 300) + '%',
+        top: (50 - ((hp.latitude || hp.lat || 0) - currentPos.value.lat) * 300) + '%'
+      } : {}
+    }))
+  } catch (e: any) {
+    nearestList.value = []
+    ElMessage.error(e.message || '查询急诊中心失败')
   } finally {
     loadingEmergency.value = false
   }
 }
 
-function mockEmergency(): any[] {
-  const centers = [
-    { id: 100, name: '第一急诊中心（24H）', type: 'emergency_24h', address: '朝阳区建国路88号', phone: '400-800-0001', base: { lat: 39.908, lng: 116.435 }, depts: ['急诊内科', '急诊外科', '影像科'] },
-    { id: 101, name: '中心医院急诊部（24H）', type: 'emergency_24h', address: '海淀区中关村大街1号', phone: '400-800-0002', base: { lat: 39.984, lng: 116.312 }, depts: ['急诊内科', '急诊外科'] },
-    { id: 102, name: '第二急诊中心（24H）', type: 'emergency_24h', address: '西城区金融大街5号', phone: '400-800-0003', base: { lat: 39.914, lng: 116.358 }, depts: ['急诊内科', '影像科'] },
-    { id: 103, name: '南城急诊中心（24H）', type: 'emergency_24h', address: '丰台区南三环西路58号', phone: '400-800-0004', base: { lat: 39.856, lng: 116.364 }, depts: ['急诊外科', '影像科'] },
-    { id: 104, name: '第五急诊中心（24H）', type: 'emergency_24h', address: '东城区东四北大街99号', phone: '400-800-0005', base: { lat: 39.936, lng: 116.418 }, depts: ['急诊内科'] },
-  ]
-  const origin = currentPos.value || { lat: 39.9042, lng: 116.4074 }
-  return centers.map((c, i) => {
-    const dx = (c.base.lng - origin.lng) * 111
-    const dy = (c.base.lat - origin.lat) * 111
-    const dist = Math.sqrt(dx * dx + dy * dy)
-    return {
-      ...c, distance_km: dist,
-      on_call_doctors: [
-        { name: ['张伟', '李娜', '王芳', '刘洋'][i % 4], dept: c.depts[0] },
-        { name: ['黄磊', '周婷', '吴强', '徐丽'][(i + 1) % 4], dept: c.depts[1] || c.depts[0] }
-      ],
-      _posStyle: {
-        left: `${50 + dx * 300}%`,
-        top: `${50 - dy * 300}%`
-      }
-    }
-  }).sort((a, b) => a.distance_km - b.distance_km)
-}
-
-function notifyEmergency(hp: Hospital) {
-  ElMessage.success(`已向 ${hp.name} 发送急诊调度通知`)
+function notifyEmergency(hp: any) {
+  ElMessage.success('已向 ' + hp.name + ' 发送急诊调度通知')
 }
 function callHospital(hp: any) {
-  ElMessage.info(`正在拨打 ${hp.phone}`)
+  ElMessage.info('正在拨打 ' + hp.phone)
 }
 
 onMounted(() => {
   loadMatrix()
-  if (activeTab.value === 'emergency') loadEmergencyData()
+  if (activeTab.value === 'emergency') {
+    loadEmergencyData()
+  }
 })
 </script>
 
 <style lang="scss" scoped>
 .schedule-page {
   .shift-legend {
-    display:flex; flex-wrap:wrap; gap:16px; padding:10px 16px; background:#fafafa; border:1px solid #ebeef5; border-bottom:none; border-radius:4px 4px 0 0;
-    .legend-item { display:flex; align-items:center; gap:6px; font-size:13px; }
-    .legend-color { display:inline-block; width:14px; height:14px; border-radius:3px; }
-  }
-  .matrix-card { border-radius: 0 0 4px 4px; }
-  .shift-cell {
-    min-height: 52px; padding: 4px 6px; cursor: pointer; border-radius:4px;
-    display:flex; flex-direction:column; justify-content:center; align-items:center;
-    &:hover { opacity: 0.85; box-shadow: inset 0 0 0 2px #409EFF; }
-    strong { font-size: 12px; display:block; }
-    small { font-size: 11px; opacity:0.85; }
-    &.shift-morning { background: rgba(64,158,255,0.15); color: #409EFF; }
-    &.shift-afternoon { background: rgba(103,194,58,0.15); color: #67C23A; }
-    &.shift-night { background: rgba(144,147,153,0.2); color: #606266; }
-    &.shift-day_off { background: rgba(228,231,237,0.4); color: #909399; }
-    &.shift-on_call { background: rgba(230,162,60,0.15); color: #E6A23C; }
-    &.shift-emergency { background: rgba(245,108,108,0.18); color: #F56C6C; font-weight:600; }
-    &.shift-empty { background: transparent; color:#c0c4cc; border: 1px dashed #ebeef5; }
-    .empty-hint { font-size: 11px; opacity: 0.6; }
-  }
-  .summary-bar { margin-top: 12px; }
-  .text-danger { color:#F56C6C; font-weight:600; }
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 10px 16px;
+    background: #fafafa;
+    border: 1px solid #ebeef5;
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
 
-  .on-call-item { display:flex; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0; &:last-child { border-bottom:none; } }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+    }
+
+    .legend-color {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+    }
+  }
+
+  .matrix-card {
+    border-radius: 0 0 4px 4px;
+  }
+
+  .calendar-grid-wrapper {
+    max-height: calc(100vh - 320px);
+    overflow: auto;
+  }
+
+  .calendar-grid {
+    min-width: 100%;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+  }
+
+  .calendar-header {
+    display: grid;
+    grid-template-columns: 160px repeat(7, minmax(140px, 1fr));
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #f5f7fa;
+    border-bottom: 2px solid #ebeef5;
+  }
+
+  .calendar-corner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 16px;
+    font-weight: 600;
+    color: #303133;
+    border-right: 1px solid #ebeef5;
+    background: #f0f2f5;
+    font-size: 13px;
+  }
+
+  .calendar-header-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 8px;
+    border-right: 1px solid #ebeef5;
+    text-align: center;
+
+    &.is-weekend {
+      background: #fdf6ec;
+    }
+
+    &:last-child {
+      border-right: none;
+    }
+
+    .weekday-label {
+      font-weight: 600;
+      font-size: 13px;
+      color: #303133;
+    }
+
+    .date-label {
+      font-size: 12px;
+      color: #909399;
+      margin-top: 2px;
+    }
+  }
+
+  .calendar-row {
+    display: grid;
+    grid-template-columns: 160px repeat(7, minmax(140px, 1fr));
+    border-bottom: 1px solid #ebeef5;
+    transition: background 0.2s;
+
+    &:hover {
+      background: #fafbfc;
+    }
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  .calendar-person-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 10px 16px;
+    border-right: 1px solid #ebeef5;
+    background: #fafbfc;
+    min-height: 100px;
+    position: sticky;
+    left: 0;
+    z-index: 5;
+
+    .person-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: #303133;
+    }
+
+    .person-meta {
+      font-size: 11px;
+      color: #909399;
+      margin-top: 2px;
+    }
+
+    .person-hours {
+      font-size: 12px;
+      color: #67c23a;
+      margin-top: 4px;
+      font-weight: 500;
+
+      &.text-danger {
+        color: #f56c6c;
+        font-weight: 600;
+      }
+    }
+  }
+
+  .calendar-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    border-right: 1px solid #ebeef5;
+    min-height: 100px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+
+    &:last-child {
+      border-right: none;
+    }
+
+    &.is-weekend {
+      background: rgba(253, 246, 236, 0.4);
+    }
+
+    &.is-empty {
+      &::before {
+        content: '点击排班';
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        color: #c0c4cc;
+        opacity: 0.6;
+      }
+    }
+
+    &:hover {
+      background: rgba(64, 158, 255, 0.05);
+      box-shadow: inset 0 0 0 2px rgba(64, 158, 255, 0.4);
+    }
+  }
+
+  .grid-empty {
+    padding: 40px;
+  }
+
+  .shift-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border-left: 3px solid;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    cursor: grab;
+    transition: transform 0.15s, box-shadow 0.15s;
+    position: relative;
+
+    &:active {
+      cursor: grabbing;
+    }
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+    }
+
+    &.shift-morning {
+      background: rgba(64, 158, 255, 0.1);
+    }
+
+    &.shift-afternoon {
+      background: rgba(103, 194, 58, 0.1);
+    }
+
+    &.shift-night {
+      background: rgba(144, 147, 153, 0.12);
+    }
+
+    &.shift-day_off {
+      background: rgba(228, 231, 237, 0.3);
+    }
+
+    &.shift-on_call {
+      background: rgba(230, 162, 60, 0.1);
+    }
+
+    &.shift-emergency {
+      background: rgba(245, 108, 108, 0.12);
+    }
+
+    .shift-type-label {
+      display: inline-block;
+      align-self: flex-start;
+      padding: 1px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .shift-time {
+      font-size: 11px;
+      color: #606266;
+    }
+
+    .shift-tag {
+      align-self: flex-start;
+      margin-top: 2px;
+    }
+
+    .shift-actions {
+      display: none;
+      gap: 4px;
+      margin-top: 2px;
+      padding-top: 4px;
+      border-top: 1px dashed rgba(0, 0, 0, 0.08);
+    }
+
+    &:hover .shift-actions {
+      display: flex;
+    }
+  }
+
+  .shift-ghost {
+    opacity: 0.4;
+    background: #c0c4cc !important;
+  }
+
+  .shift-drag {
+    transform: rotate(3deg);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  }
+
+  .shift-chosen {
+    box-shadow: 0 4px 12px rgba(64, 158, 255, 0.4);
+  }
+
+  .summary-bar {
+    margin-top: 12px;
+  }
+
+  .text-danger {
+    color: #f56c6c;
+    font-weight: 600;
+  }
+
+  .on-call-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
 
   .map-placeholder {
-    position: relative; height: 360px; background: linear-gradient(135deg, #e8f4e8 0%, #e0ecf8 100%);
-    border-radius: 8px; overflow: hidden; border: 1px solid #ebeef5;
+    position: relative;
+    height: 360px;
+    background: linear-gradient(135deg, #e8f4e8 0%, #e0ecf8 100%);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #ebeef5;
   }
+
   .map-grid {
-    position: absolute; inset: 0;
+    position: absolute;
+    inset: 0;
     background-image:
-      linear-gradient(rgba(100,150,200,0.1) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(100,150,200,0.1) 1px, transparent 1px);
+      linear-gradient(rgba(100, 150, 200, 0.1) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(100, 150, 200, 0.1) 1px, transparent 1px);
     background-size: 40px 40px;
   }
+
   .map-center-marker {
-    position: absolute; left:50%; top:50%; transform: translate(-50%, -50%);
-    z-index: 5; display:flex; flex-direction: column; align-items:center;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
+
   .hospital-marker {
-    position: absolute; transform: translate(-50%, -50%); z-index: 3;
+    position: absolute;
+    transform: translate(-50%, -50%);
+    z-index: 3;
+
     .marker-bubble {
-      width: 36px; height: 36px; border-radius: 50%;
-      background: #F56C6C; color: #fff; font-weight: 700;
-      display:flex; align-items:center; justify-content:center;
-      box-shadow: 0 2px 8px rgba(245,108,108,0.5);
-      cursor: pointer; transition: all 0.2s;
-      &.selected { background:#E6A23C; transform: scale(1.2); box-shadow:0 4px 12px rgba(230,162,60,0.6); }
-      &:hover { transform: scale(1.15); }
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #f56c6c;
+      color: #fff;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(245, 108, 108, 0.5);
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &.selected {
+        background: #e6a23c;
+        transform: scale(1.2);
+        box-shadow: 0 4px 12px rgba(230, 162, 60, 0.6);
+      }
+
+      &:hover {
+        transform: scale(1.15);
+      }
     }
   }
 }

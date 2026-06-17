@@ -117,15 +117,25 @@ def update_record(record_id):
 @medical_bp.route('/records/<int:record_id>/referral', methods=['POST'])
 @require_permissions('medical_record:write')
 def create_referral(record_id):
-    data = request.get_json()
+    data = request.get_json() or {}
     target_hospital_id = data.get('target_hospital_id')
     target_doctor_id = data.get('target_doctor_id')
+    skip_duplicate_check = data.get('skip_duplicate_check', False)
     if not target_hospital_id:
         return jsonify({'code': 400, 'message': '请指定目标院区'}), 400
 
-    new_record = MedicalService.create_referral(record_id, target_hospital_id, target_doctor_id)
-    if not new_record:
-        return jsonify({'code': 404, 'message': '原病历不存在'}), 404
+    new_record, error = MedicalService.create_referral(
+        record_id, target_hospital_id, target_doctor_id,
+        skip_duplicate_check=skip_duplicate_check
+    )
+    if error:
+        if isinstance(error, dict) and error.get('error') == 'duplicate_detected':
+            return jsonify({
+                'code': 409,
+                'message': error.get('message', '检测到重复检验项目'),
+                'data': {'duplicate_tests': error.get('duplicate_tests', [])}
+            }), 409
+        return jsonify({'code': 400, 'message': str(error)}), 400
     return jsonify({'code': 200, 'message': '转诊成功', 'data': new_record.to_dict(include_details=True)})
 
 

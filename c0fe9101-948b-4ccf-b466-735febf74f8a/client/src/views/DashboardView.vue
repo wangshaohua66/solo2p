@@ -30,13 +30,13 @@
               </el-radio-group>
             </div>
           </template>
-          <VChart class="main-chart" :option="trendOption" autoresize />
+          <VChart class="main-chart" :option="trendOption" :style="{height: chartHeight + 'px'}" autoresize />
         </el-card>
       </el-col>
       <el-col :xs="24" :md="8">
         <el-card shadow="never" class="chart-card">
           <template #header><span style="font-weight:600">科室分布</span></template>
-          <VChart class="mini-chart" :option="deptPieOption" autoresize />
+          <VChart class="mini-chart" :option="deptPieOption" :style="{height: chartHeight + 'px'}" autoresize />
         </el-card>
       </el-col>
     </el-row>
@@ -121,11 +121,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowUp, ArrowDown, User, Coin, Document, Microscope, Warning, Clock, Plus, DocumentAdd, HomeFilled, Setting } from '@element-plus/icons-vue'
+import { ArrowUp, ArrowDown, User, Coin, Document, DataAnalysis, Warning, Clock, Plus, DocumentAdd, HomeFilled, Setting } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores'
 import { reportApi, hospitalizationApi, pharmacyApi } from '@/api'
 import { HOSP_STATUS_LABELS, type BoardSummary, type DailyTrendPoint, type Hospitalization, type Medicine } from '@/types'
 import { formatDateTime, formatCurrency, formatNumber } from '@/utils'
+import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
 
 const router = useRouter()
@@ -138,19 +139,21 @@ const deptBreakdown = ref<any[]>([])
 const cageSummary = ref({ total_cages: 0, occupied_cages: 0, cage_occupancy: 0 })
 const upcomingDischarges = ref<Hospitalization[]>([])
 const lowStockMeds = ref<Medicine[]>([])
+const isMobile = computed(() => userStore.isMobile || window.innerWidth < 768)
+const chartHeight = computed(() => isMobile.value ? 240 : 280)
 
 const quickActions = [
   { label: '新建病历', icon: DocumentAdd, color: '#409EFF', path: '/medical' },
   { label: '住院登记', icon: HomeFilled, color: '#67C23A', path: '/hospitalization' },
-  { label: '检验申请', icon: Microscope, color: '#E6A23C', path: '/lab' },
+  { label: '检验申请', icon: DataAnalysis, color: '#E6A23C', path: '/lab' },
   { label: '排班管理', icon: Setting, color: '#909399', path: '/schedule' }
 ]
 
 const statCards = computed(() => summary.value ? [
-  { label: '接诊量', value: summary.value.current.visits, change: summary.value.comparison.visits_yoy || 0, icon: User, color: '#409EFF' },
-  { label: '营收(元)', value: formatCurrency(summary.value.current.revenue, ''), change: summary.value.comparison.revenue_yoy || 0, icon: Coin, color: '#67C23A' },
-  { label: '处方数', value: summary.value.current.prescriptions, change: summary.value.comparison.prescriptions_yoy || 0, icon: Document, color: '#E6A23C' },
-  { label: '检验数', value: summary.value.current.lab_tests, change: summary.value.comparison.lab_tests_yoy || 0, icon: Microscope, color: '#F56C6C' }
+  { label: '接诊量', value: summary.value.current.visits, change: summary.value.mom_diff.visits_pct || 0, icon: User, color: '#409EFF' },
+  { label: '营收(元)', value: formatCurrency(summary.value.current.revenue, ''), change: summary.value.mom_diff.revenue_pct || 0, icon: Coin, color: '#67C23A' },
+  { label: '处方数', value: summary.value.current.prescriptions, change: summary.value.mom_diff.prescriptions_pct || 0, icon: Document, color: '#E6A23C' },
+  { label: '检验数', value: summary.value.current.lab_tests, change: summary.value.mom_diff.lab_tests_pct || 0, icon: DataAnalysis, color: '#F56C6C' }
 ] : [])
 
 const cageStats = computed(() => {
@@ -170,15 +173,16 @@ const trendOption = computed(() => {
   const dates = trend.value.map(t => t.date.slice(5))
   const isRevenue = trendType.value === 'revenue'
   const data = trend.value.map(t => isRevenue ? t.revenue : t.visits)
+  const mobile = isMobile.value
   return {
-    tooltip: { trigger: 'axis' },
-    grid: { left: 40, right: 20, top: 20, bottom: 30 },
-    xAxis: { type: 'category', data: dates, boundaryGap: false, axisLine: { lineStyle: { color: '#dcdfe6' } }, axisLabel: { color: '#909399' } },
-    yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f0f2f5' } }, axisLabel: { color: '#909399' } },
+    tooltip: { trigger: 'axis', confine: true },
+    grid: mobile ? { left: 35, right: 10, top: 10, bottom: 20 } : { left: 40, right: 20, top: 20, bottom: 30 },
+    xAxis: { type: 'category', data: dates, boundaryGap: false, axisLine: { lineStyle: { color: '#dcdfe6' } }, axisLabel: { color: '#909399', fontSize: mobile ? 10 : 12 } },
+    yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f0f2f5' } }, axisLabel: { color: '#909399', fontSize: mobile ? 10 : 12 } },
     series: [{
-      data, type: 'line', smooth: true, symbol: 'circle', symbolSize: 6,
+      data, type: 'line', smooth: true, symbol: mobile ? 'none' : 'circle', symbolSize: mobile ? 0 : 6,
       areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: isRevenue ? 'rgba(103,194,58,0.3)' : 'rgba(64,158,255,0.3)' }, { offset: 1, color: 'rgba(255,255,255,0)' }] } },
-      lineStyle: { color: isRevenue ? '#67C23A' : '#409EFF', width: 3 },
+      lineStyle: { color: isRevenue ? '#67C23A' : '#409EFF', width: mobile ? 2 : 3 },
       itemStyle: { color: isRevenue ? '#67C23A' : '#409EFF' }
     }]
   }
@@ -186,11 +190,12 @@ const trendOption = computed(() => {
 
 const deptPieOption = computed(() => {
   const data = deptBreakdown.value.map(d => ({ name: d.department, value: d.visits }))
+  const mobile = isMobile.value
   return {
-    tooltip: { trigger: 'item' },
-    legend: { bottom: 0, icon: 'circle', textStyle: { fontSize: 12 } },
+    tooltip: { trigger: 'item', confine: true },
+    legend: mobile ? { show: false } : { bottom: 0, icon: 'circle', textStyle: { fontSize: 12 } },
     series: [{
-      type: 'pie', radius: ['40%', '70%'], center: ['50%', '42%'], avoidLabelOverlap: false,
+      type: 'pie', radius: mobile ? ['35%', '65%'] : ['40%', '70%'], center: ['50%', mobile ? '50%' : '42%'], avoidLabelOverlap: false,
       itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
       label: { show: false },
       data,
@@ -213,13 +218,12 @@ async function loadData() {
     if (t.code === 200) trend.value = t.data
     if (d.code === 200) deptBreakdown.value = d.data
     if (g.code === 200) cageSummary.value = g.data.summary
-  } catch (e) { /* mock */ }
-
-  if (!summary.value) {
-    summary.value = generateMockSummary()
-    trend.value = generateMockTrend()
-    deptBreakdown.value = generateMockDepts()
-    cageSummary.value = { total_cages: 340, occupied_cages: 218, cage_occupancy: 64 }
+  } catch (e: any) {
+    summary.value = null
+    trend.value = []
+    deptBreakdown.value = []
+    cageSummary.value = { total_cages: 0, occupied_cages: 0, cage_occupancy: 0 }
+    ElMessage.error(e.message || '加载经营概览失败')
   }
 
   try {
@@ -229,50 +233,11 @@ async function loadData() {
     ])
     if (discharges.code === 200) upcomingDischarges.value = discharges.data
     if (meds.code === 200) lowStockMeds.value = meds.data
-  } catch {
-    upcomingDischarges.value = generateMockDischarges()
-    lowStockMeds.value = generateMockLowStock()
+  } catch (e: any) {
+    upcomingDischarges.value = []
+    lowStockMeds.value = []
+    ElMessage.error(e.message || '加载住院和药品信息失败')
   }
-}
-
-function generateMockSummary(): BoardSummary {
-  return {
-    current: { visits: 2856, unique_pets: 1923, revisits: 842, revisit_rate: 43.8, revenue: 586420.5, prescriptions: 2156, lab_tests: 3892, abnormal_lab_rate: 18.6 },
-    previous: { visits: 2612, unique_pets: 1780, revisits: 756, revisit_rate: 42.5, revenue: 523180.2, prescriptions: 1980, lab_tests: 3512, abnormal_lab_rate: 17.2 },
-    comparison: { visits_yoy: 9.3, unique_pets_yoy: 8.0, revisits_yoy: 11.4, revisit_rate_yoy: 3.1, revenue_yoy: 12.1, prescriptions_yoy: 8.9, lab_tests_yoy: 10.8, abnormal_lab_rate_yoy: 8.1 },
-    realtime: { total_cages: 340, occupied_cages: 218, cage_occupancy: 64, active_hospitalizations: 86, doctors_on_duty: 48 },
-    date_range: { start: dateRange.value[0], end: dateRange.value[1] }
-  }
-}
-function generateMockTrend() {
-  return Array.from({ length: 30 }, (_, i) => ({
-    date: dayjs().subtract(29 - i, 'day').format('YYYY-MM-DD'),
-    visits: 80 + Math.floor(Math.random() * 50),
-    revenue: 15000 + Math.floor(Math.random() * 8000),
-    emergency: Math.floor(Math.random() * 10)
-  }))
-}
-function generateMockDepts() {
-  return [
-    { department: '内科', visits: 1024 },
-    { department: '外科', visits: 680 },
-    { department: '影像科', visits: 512 },
-    { department: '检验科', visits: 640 }
-  ]
-}
-function generateMockDischarges(): Hospitalization[] {
-  return [
-    { id: 1, pet_name: '豆豆', cage_code: 'A05', status: 'admitted', expected_discharge_date: dayjs().add(1, 'day').toISOString() } as Hospitalization,
-    { id: 2, pet_name: '毛毛', cage_code: 'B02', status: 'admitted', expected_discharge_date: dayjs().add(2, 'day').toISOString() } as Hospitalization,
-    { id: 3, pet_name: '小白', cage_code: 'C01', status: 'admitted', expected_discharge_date: dayjs().add(1, 'day').toISOString() } as Hospitalization,
-  ]
-}
-function generateMockLowStock(): Medicine[] {
-  return [
-    { id: 1, name: '地西泮', spec: '5mg*100片', stock_quantity: 8, safety_stock: 10, is_low_stock: true } as Medicine,
-    { id: 2, name: '胰岛素', spec: '40IU/ml 10ml', stock_quantity: 3, safety_stock: 5, is_low_stock: true } as Medicine,
-    { id: 3, name: '布洛芬', spec: '200mg*24片', stock_quantity: 5, safety_stock: 15, is_low_stock: true } as Medicine,
-  ]
 }
 
 watch(dateRange, loadData)

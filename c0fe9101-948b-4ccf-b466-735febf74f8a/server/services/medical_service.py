@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy import and_, or_, desc, func
-from models import db, Pet, Owner, MedicalRecord, Hospital, User, RecordAttachment
+from models import db, Pet, Owner, MedicalRecord, Hospital, User, RecordAttachment, LabResult, LabResultItem, LabTest
 
 
 class MedicalService:
@@ -97,10 +97,45 @@ class MedicalService:
         return record
 
     @staticmethod
-    def create_referral(source_record_id, target_hospital_id, target_doctor_id=None):
+    def detect_duplicate_lab_tests(pet_id, source_record_id, within_days=7):
+        recent_cutoff = datetime.utcnow() - timedelta(days=within_days)
+        recent_results = LabResult.query.filter(
+            LabResult.medical_record_id == MedicalRecord.id,
+            MedicalRecord.pet_id == pet_id,
+            LabResult.created_at >= recent_cutoff,
+            LabResult.status.in_(['completed', 'reviewed'])
+        ).join(MedicalRecord, LabResult.medical_record_id == MedicalRecord.id).all()
+
+        duplicate_tests = []
+        seen_test_ids = set()
+        for lr in recent_results:
+            for item in lr.items:
+                if item.lab_test_id and item.lab_test_id not in seen_test_ids:
+                    seen_test_ids.add(item.lab_test_id)
+                    test = LabTest.query.get(item.lab_test_id)
+                    duplicate_tests.append({
+                        'lab_test_id': item.lab_test_id,
+                        'test_name': test.name if test else f'项目#{item.lab_test_id}',
+                        'test_code': test.code if test else None,
+                        'completed_at': lr.submitted_at.isoformat() if lr.submitted_at else lr.created_at.isoformat(),
+                        'source_record_id': lr.medical_record_id,
+                        'source_hospital': lr.hospital.name if lr.hospital else None
+                    })
+        return duplicate_tests
+
+    @staticmethod
+    def create_referral(source_record_id, target_hospital_id, target_doctor_id=None, skip_duplicate_check=False):
         source = MedicalRecord.query.get(source_record_id)
         if not source:
-            return None
+            return None, '源病历不存在'
+
+        duplicates = MedicalService.detect_duplicate_lab_tests(source.pet_id, source_record_id)
+        if duplicates and not skip_duplicate_check:
+            return None, {
+                'error': 'duplicate_detected',
+                'message': f'检测到{len(duplicates)}项检验在近7天内已完成，转诊可能导致重复检查',
+                'duplicate_tests': duplicates
+            }
 
         new_record = MedicalRecord(
             pet_id=source.pet_id,
@@ -111,6 +146,12 @@ class MedicalService:
             visit_type='referral',
             referral_from_id=source_record_id,
             chief_complaint=source.chief_complaint,
+            present_illness=source.present_illness,
+            past_history=source.past_history,
+            physical_exam=source.physical_exam,
+            temperature=source.temperature,
+            heart_rate=source.heart_rate,
+            respiratory_rate=source.respiratory_rate,
             diagnosis=source.diagnosis,
             treatment_plan=source.treatment_plan,
             status='in_progress',
@@ -119,7 +160,19 @@ class MedicalService:
         db.session.add(new_record)
         source.status = 'referred'
         db.session.commit()
-        return new_record
+
+        if source.doctor_id:
+            from services.auth_service import create_notification
+            create_notification(
+                user_id=source.doctor_id,
+                type='system',
+                title='转诊已创建',
+                content=f'宠物{source.pet.name if source.pet else ""}已转诊至目标院区，历史检验结果已关联可避免重复检查',
+                related_type='MedicalRecord',
+                related_id=new_record.id
+            )
+
+        return new_record, None
 
     @staticmethod
     def search_pets(keyword, hospital_id=None, page=1, per_page=20):

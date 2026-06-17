@@ -180,6 +180,9 @@ class PharmacyService:
         if not prescription:
             return None, '处方不存在'
 
+        if prescription.prescribed_by_id == approver_id:
+            return None, '处方开具人不可参与审核'
+
         if approval_level == 1:
             if prescription.first_approver_id:
                 return None, '已通过一审'
@@ -195,9 +198,15 @@ class PharmacyService:
                 return None, '需先通过一审'
             elif prescription.second_approver_id:
                 return None, '已通过二审'
+            elif not prescription.first_approver_id:
+                return None, '需先通过一审'
+            elif prescription.first_approver_id == approver_id:
+                return None, '二审审核人不可与一审审核人相同，请更换审核人'
             else:
                 prescription.second_approver_id = approver_id
                 prescription.status = 'second_approved'
+        else:
+            return None, '无效的审核级别'
 
         db.session.commit()
 

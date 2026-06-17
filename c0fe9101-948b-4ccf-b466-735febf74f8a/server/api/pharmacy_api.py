@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from services.auth_service import get_current_user, require_permissions
+from services.auth_service import get_current_user, require_permissions, ROLE_PERMISSIONS
 from services.pharmacy_service import PharmacyService
 
 pharmacy_bp = Blueprint('pharmacy', __name__, url_prefix='/api/pharmacy')
@@ -9,8 +9,13 @@ pharmacy_bp = Blueprint('pharmacy', __name__, url_prefix='/api/pharmacy')
 @require_permissions('pharmacy:read')
 def get_medicines():
     user = get_current_user()
+    requested_hospital_id = request.args.get('hospital_id', type=int)
+    if user.role in ('director',):
+        hospital_id = requested_hospital_id or user.hospital_id
+    else:
+        hospital_id = user.hospital_id
     params = {
-        'hospital_id': request.args.get('hospital_id', type=int) or user.hospital_id,
+        'hospital_id': hospital_id,
         'category': request.args.get('category'),
         'is_controlled': request.args.get('is_controlled', type=lambda x: x.lower() == 'true' if x else None),
         'is_low_stock': request.args.get('is_low_stock', 'false').lower() == 'true',
@@ -19,8 +24,6 @@ def get_medicines():
         'page': request.args.get('page', 1, type=int),
         'per_page': request.args.get('per_page', 50, type=int)
     }
-    if user.role not in ('director', 'manager'):
-        pass
     result = PharmacyService.get_medicines(**params)
     return jsonify({'code': 200, 'data': result})
 
@@ -28,9 +31,11 @@ def get_medicines():
 @pharmacy_bp.route('/medicines/low-stock', methods=['GET'])
 @require_permissions('pharmacy:read')
 def get_low_stock():
-    hospital_id = request.args.get('hospital_id', type=int)
     user = get_current_user()
-    if not hospital_id:
+    requested_hospital_id = request.args.get('hospital_id', type=int)
+    if user.role == 'director':
+        hospital_id = requested_hospital_id or user.hospital_id
+    else:
         hospital_id = user.hospital_id
     meds = PharmacyService.get_low_stock_medicines(hospital_id)
     return jsonify({'code': 200, 'data': [m.to_dict() for m in meds]})
@@ -78,8 +83,13 @@ def update_stock(id):
 @require_permissions('prescription:read')
 def get_prescriptions():
     user = get_current_user()
+    requested_hospital_id = request.args.get('hospital_id', type=int)
+    if user.role == 'director':
+        hospital_id = requested_hospital_id or user.hospital_id
+    else:
+        hospital_id = user.hospital_id
     params = {
-        'hospital_id': request.args.get('hospital_id', type=int) or user.hospital_id,
+        'hospital_id': hospital_id,
         'status': request.args.get('status'),
         'has_controlled': request.args.get('has_controlled', type=lambda x: x.lower() == 'true' if x else None),
         'prescribed_by_id': request.args.get('prescribed_by_id', type=int),
@@ -107,13 +117,23 @@ def create_prescription():
 
 
 @pharmacy_bp.route('/prescriptions/<int:id>/approve', methods=['POST'])
-@require_permissions('prescription:approve_1st', 'prescription:approve_2nd')
 def approve_prescription(id):
-    data = request.get_json()
     user = get_current_user()
+    if not user:
+        return jsonify({'code': 401, 'message': '未登录或登录已过期'}), 401
+
+    data = request.get_json()
     level = data.get('level', 1)
-    if level == 2 and user.role != 'pharmacist':
-        return jsonify({'code': 403, 'message': '二审需药师操作'}), 403
+
+    user_perms = set(ROLE_PERMISSIONS.get(user.role, []))
+    if user.role == 'director':
+        for perms in ROLE_PERMISSIONS.values():
+            user_perms.update(perms)
+
+    required_perm = 'prescription:approve_1st' if level == 1 else 'prescription:approve_2nd'
+    if required_perm not in user_perms:
+        return jsonify({'code': 403, 'message': f'无{("一审" if level == 1 else "二审")}审核权限'}), 403
+
     pres, err = PharmacyService.approve_prescription(id, approver_id=user.id, approval_level=level)
     if err:
         return jsonify({'code': 400, 'message': err}), 400
@@ -134,9 +154,14 @@ def dispense_prescription(id):
 @require_permissions('pharmacy:read')
 def get_stock_logs():
     user = get_current_user()
+    requested_hospital_id = request.args.get('hospital_id', type=int)
+    if user.role == 'director':
+        hospital_id = requested_hospital_id or user.hospital_id
+    else:
+        hospital_id = user.hospital_id
     params = {
         'medicine_id': request.args.get('medicine_id', type=int),
-        'hospital_id': request.args.get('hospital_id', type=int) or user.hospital_id,
+        'hospital_id': hospital_id,
         'change_type': request.args.get('change_type'),
         'start_date': request.args.get('start_date'),
         'end_date': request.args.get('end_date'),

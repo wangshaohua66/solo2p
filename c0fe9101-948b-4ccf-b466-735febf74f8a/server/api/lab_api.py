@@ -39,8 +39,13 @@ def create_lab_test():
 @require_permissions('lab:read')
 def search_results():
     user = get_current_user()
+    requested_hospital_id = request.args.get('hospital_id', type=int)
+    if user.role == 'director':
+        hospital_id = requested_hospital_id or user.hospital_id
+    else:
+        hospital_id = user.hospital_id
     params = {
-        'hospital_id': request.args.get('hospital_id', type=int) or user.hospital_id,
+        'hospital_id': hospital_id,
         'status': request.args.get('status'),
         'category': request.args.get('category'),
         'priority': request.args.get('priority'),
@@ -53,9 +58,6 @@ def search_results():
         'page': request.args.get('page', 1, type=int),
         'per_page': request.args.get('per_page', 20, type=int)
     }
-    if user.role not in ('director',):
-        if request.args.get('hospital_id') is None:
-            pass
     result = LabService.search_lab_results(**params)
     return jsonify({'code': 200, 'data': result})
 

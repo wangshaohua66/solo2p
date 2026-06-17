@@ -9,7 +9,7 @@ import ECharts from 'vue-echarts'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import {
-  LineChart, BarChart, PieChart, AreaChart, GaugeChart, FunnelChart
+  LineChart, BarChart, PieChart, GaugeChart, FunnelChart
 } from 'echarts/charts'
 import {
   GridComponent, TooltipComponent, LegendComponent, TitleComponent,
@@ -22,7 +22,7 @@ import '@/assets/styles/global.scss'
 
 use([
   CanvasRenderer,
-  LineChart, BarChart, PieChart, AreaChart, GaugeChart, FunnelChart,
+  LineChart, BarChart, PieChart, GaugeChart, FunnelChart,
   GridComponent, TooltipComponent, LegendComponent, TitleComponent,
   DataZoomComponent, ToolboxComponent, MarkLineComponent, MarkPointComponent
 ])

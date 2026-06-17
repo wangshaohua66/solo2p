@@ -136,3 +136,11 @@ def upcoming_discharges():
         hospital_id = user.hospital_id
     result = HospitalizationService.get_upcoming_discharges(hospital_id, days)
     return jsonify({'code': 200, 'data': result})
+
+
+@hospitalization_bp.route('/hospitalizations/discharge-reminder/trigger', methods=['POST'])
+@require_permissions('hospitalization:write')
+def trigger_discharge_reminder():
+    days = request.args.get('days', 3, type=int)
+    count = HospitalizationService.check_and_notify_upcoming_discharges(days=days)
+    return jsonify({'code': 200, 'message': f'已检查并发送{count}条到期提醒', 'data': {'notified_count': count}})

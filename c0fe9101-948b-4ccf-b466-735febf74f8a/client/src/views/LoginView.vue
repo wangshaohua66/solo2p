@@ -8,9 +8,9 @@
     <div class="login-box">
       <div class="login-header">
         <div class="logo">
-          <el-icon :size="40" color="#409EFF"><PawPrint /></el-icon>
+          <el-icon :size="40" color="#409EFF"><FirstAidKit /></el-icon>
         </div>
-        <h1 class="title">{{ import.meta.env.VITE_APP_TITLE }}</h1>
+        <h1 class="title">{{ appTitle }}</h1>
         <p class="subtitle">Pet Medical Chain Management System</p>
       </div>
       <el-form
@@ -78,11 +78,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { User, Lock, PawPrint } from '@element-plus/icons-vue'
+import { User, Lock, FirstAidKit } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores'
+
+const appTitle = computed(() => import.meta.env.VITE_APP_TITLE || '宠物医疗连锁管理系统')
 
 const router = useRouter()
 const route = useRoute()

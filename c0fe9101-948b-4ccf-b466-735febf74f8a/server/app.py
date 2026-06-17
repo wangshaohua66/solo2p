@@ -20,6 +20,7 @@ from api.lab_api import lab_bp
 from api.pharmacy_api import pharmacy_bp
 from api.schedule_api import schedule_bp
 from api.report_api import report_bp
+from services.hospitalization_service import start_discharge_reminder_scheduler
 
 
 def create_app():
@@ -120,6 +121,13 @@ def create_app():
             except Exception as e:
                 app.logger.warning(f'Seed data skipped: {str(e)}')
 
+    if os.environ.get('ENABLE_SCHEDULER', 'true').lower() == 'true':
+        try:
+            start_discharge_reminder_scheduler(app, interval_seconds=3600)
+            app.logger.info('Discharge reminder scheduler started (interval=3600s)')
+        except Exception as e:
+            app.logger.warning(f'Scheduler start skipped: {str(e)}')
+
     return app
 
 
@@ -203,6 +211,16 @@ def seed_data(app):
                 hospital = hospitals[h_idx]
                 dept = random.choice(dept_names) if role in ('doctor', 'nurse', 'lab_tech') else None
                 name = random.choice(first_names) + random.choice(last_names)
+                qualification = f'{title}执业资格证#{idx:06d}'
+                if role == 'doctor':
+                    cert_roll = random.random()
+                    if cert_roll < 0.35:
+                        qualification += '；急诊执业资格'
+                    elif cert_roll < 0.50:
+                        qualification += '；ICU重症监护资格'
+                elif role == 'nurse':
+                    if random.random() < 0.25:
+                        qualification += '；急诊护理资格'
                 user = User(
                     username=f'{role}{idx:03d}',
                     real_name=name,
@@ -211,7 +229,7 @@ def seed_data(app):
                     department=dept,
                     phone=f'138{random.randint(10000000, 99999999)}',
                     email=f'{role}{idx:03d}@petmed.com',
-                    qualification=f'{title}执业资格证#{idx:06d}',
+                    qualification=qualification,
                     weekly_max_hours=48
                 )
                 user.set_password('123456')

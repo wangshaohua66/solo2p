@@ -131,7 +131,15 @@
           </div>
 
           <h4 style="margin:8px 0 12px">检验项目明细</h4>
-          <el-table :data="selected.items" border stripe size="small" max-height="340">
+          <el-table
+            :data="selected.items"
+            border
+            stripe
+            size="small"
+            max-height="340"
+            highlight-current-row
+            @row-click="handleRowClick"
+          >
             <el-table-column prop="subcategory" label="分类" width="100">
               <template #default="{row}">{{ row.subcategory || row.category || '-' }}</template>
             </el-table-column>
@@ -155,12 +163,19 @@
                   ? `${row.reference_min} ~ ${row.reference_max}${row.unit ? ' ' + row.unit : ''}` : '-') }}
               </template>
             </el-table-column>
-            <el-table-column label="趋势图" width="120" align="center">
-              <template #default="{row}">
-                <el-button link type="primary" size="small" @click="showTrend(row)" :disabled="!row.result_value">查看趋势</el-button>
-              </template>
-            </el-table-column>
           </el-table>
+
+          <div v-if="trendData.test" class="trend-section">
+            <h4 style="margin:16px 0 12px">
+              {{ trendData.test.name }}
+              <span v-if="trendData.test.code" style="font-weight:400;color:var(--text-secondary);margin-left:6px">（{{ trendData.test.code }}）</span>
+              <span style="font-weight:400;color:var(--text-secondary);margin-left:12px">
+                参考：{{ trendData.test.reference_text || (trendData.test.reference_min != null ? `${trendData.test.reference_min} ~ ${trendData.test.reference_max} ${trendData.test.unit || ''}` : '-') }}
+              </span>
+            </h4>
+            <VChart :option="trendOption" autoresize style="height:320px" />
+          </div>
+          <el-empty v-else-if="selectedTrendTest && !trendData.test" description="暂无该项目的历史趋势数据" :image-size="80" style="padding:20px 0" />
 
           <div v-if="selected.overall_conclusion" style="margin-top:16px">
             <el-alert type="warning" :closable="false" show-icon>
@@ -170,23 +185,12 @@
 
           <div v-if="selected.attachment_path" style="margin-top:16px">
             <h4 style="margin-bottom:10px">附件</h4>
-            <el-image :src="selected.attachment_path" style="width:100%;max-height:400px;border-radius:6px" fit="contain" lazy preview-src-list="[selected.attachment_path]" />
+            <el-image :src="selected.attachment_path" style="width:100%;max-height:400px;border-radius:6px" fit="contain" lazy :preview-src-list="selected.attachment_path ? [selected.attachment_path] : []" />
           </div>
         </el-card>
         <el-empty v-else description="请选择左侧查看检验详情" style="margin-top:120px" />
       </el-col>
     </el-row>
-    <el-dialog v-model="trendDialog" title="历史趋势图" width="640px" top="8vh">
-      <div v-if="trendData.test">
-        <h4 style="margin-bottom:12px">
-          {{ trendData.test.name }}（{{ trendData.test.code }}）
-          <span style="font-weight:400;color:var(--text-secondary);margin-left:12px">
-            参考：{{ trendData.test.reference_text || (trendData.test.reference_min != null ? `${trendData.test.reference_min} ~ ${trendData.test.reference_max} ${trendData.test.unit || ''}` : '-') }}
-          </span>
-        </h4>
-        <VChart :option="trendOption" autoresize style="height:360px" />
-      </div>
-    </el-dialog>
     <el-dialog v-model="createDialog" title="申请检验" width="620px">
       <el-form label-width="100px">
         <el-form-item label="病历号" required><el-input v-model="createForm.medical_record_id" placeholder="填写关联病历号" /></el-form-item>
@@ -237,7 +241,7 @@ const submitMode = ref(false)
 const createDialog = ref(false)
 const createForm = reactive({ medical_record_id: '', category: '血常规', priority: 'normal' as any })
 
-const trendDialog = ref(false)
+const selectedTrendTest = ref<any>(null)
 const trendData = ref<any>({ test: null, trend: [] })
 const trendOption = computed(() => {
   const data = trendData.value
@@ -282,6 +286,17 @@ function selectResult(lr: LabResult) {
   selectedId.value = lr.id
   selected.value = lr
   submitMode.value = false
+  selectedTrendTest.value = null
+  trendData.value = { test: null, trend: [] }
+}
+
+function handleRowClick(row: any) {
+  if (row.result_value != null && row.lab_test_id) {
+    loadTrend(row)
+  } else {
+    selectedTrendTest.value = null
+    trendData.value = { test: null, trend: [] }
+  }
 }
 
 async function loadList() {
@@ -299,37 +314,10 @@ async function loadList() {
       if (!selectedId.value && results.value.length) selectResult(results.value[0])
     }
   } catch {
-    results.value = generateMockResults()
-    total.value = 80
-    if (!selectedId.value && results.value.length) selectResult(results.value[0])
+    results.value = []
+    total.value = 0
+    ElMessage.error('加载检验列表失败')
   }
-}
-
-function generateMockResults(): LabResult[] {
-  const categories = ['血常规', '生化全套', '胸部X光', '腹部B超', '尿常规', '病理活检']
-  return Array.from({ length: 20 }, (_, i) => {
-    const hasItems = i >= 3
-    const status = i < 2 ? 'pending' : i < 6 ? 'completed' : 'reviewed'
-    const abnormal = i % 3 === 0
-    return {
-      id: 1000 + i, medical_record_id: 100 + i, hospital_id: 1,
-      hospital_name: '总院', category: categories[i % categories.length],
-      status, has_abnormal: abnormal, priority: i % 11 === 0 ? 'emergency' : i % 7 === 0 ? 'urgent' : 'normal',
-      requesting_doctor_name: ['张医生', '李医生', '王医生'][i % 3],
-      technician_name: status !== 'pending' ? ['李技师', '王技师', '赵技师'][i % 3] : null,
-      created_at: new Date(Date.now() - i * 3600000).toISOString(),
-      submitted_at: status !== 'pending' ? new Date(Date.now() - i * 3600000 + 1800000).toISOString() : null,
-      reviewed_at: status === 'reviewed' ? new Date(Date.now() - i * 3600000 + 3600000).toISOString() : null,
-      overall_conclusion: status !== 'pending' ? (abnormal ? '多项指标异常，请结合临床进一步诊断' : '各项指标正常范围') : null,
-      items: hasItems ? [
-        { test_name: '白细胞WBC', subcategory: '血常规', result_value: 6 + i % 15, unit: '10^9/L', reference_min: 6, reference_max: 17, is_abnormal: i % 3 === 0, abnormal_type: i % 2 ? 'high' : 'low' },
-        { test_name: '红细胞RBC', subcategory: '血常规', result_value: 5.5 + (i % 5) * 0.5, unit: '10^12/L', reference_min: 5.5, reference_max: 8.5, is_abnormal: false },
-        { test_name: '血红蛋白HGB', subcategory: '血常规', result_value: 120 + i * 3, unit: 'g/L', reference_min: 120, reference_max: 180, is_abnormal: false },
-        { test_name: '谷丙转氨酶ALT', subcategory: '生化', result_value: 20 + i * 10, unit: 'U/L', reference_min: 10, reference_max: 125, is_abnormal: i % 5 === 0, abnormal_type: 'high' },
-        { test_name: '血糖GLU', subcategory: '生化', result_value: 4 + (i % 8), unit: 'mmol/L', reference_min: 3.9, reference_max: 8.3, is_abnormal: false }
-      ] : []
-    }
-  })
 }
 
 async function submitLabResult() {
@@ -345,18 +333,7 @@ async function submitLabResult() {
     })
     if (res.code === 200) { selected.value = res.data; submitMode.value = false; ElMessage.success('已提交') }
   } catch {
-    submitMode.value = false
-    if (selected.value) {
-      selected.value.status = 'completed'
-      selected.value.technician_name = userStore.userInfo?.real_name
-      ;(selected.value.items || []).forEach(it => {
-        if (it.result_value != null && it.reference_min != null && it.result_value < it.reference_min) { it.is_abnormal = true; it.abnormal_type = 'low' }
-        else if (it.result_value != null && it.reference_max != null && it.result_value > it.reference_max) { it.is_abnormal = true; it.abnormal_type = 'high' }
-        else { it.is_abnormal = false }
-      })
-      selected.value.has_abnormal = selected.value.items?.some(it => it.is_abnormal)
-    }
-    ElMessage.success('已提交')
+    ElMessage.error('提交结果失败')
   }
   loadList()
 }
@@ -367,27 +344,20 @@ async function reviewResult() {
     const res = await labApi.reviewResult(selected.value.id)
     if (res.code === 200) { selected.value = res.data; ElMessage.success('已审核') }
   } catch {
-    if (selected.value) selected.value.status = 'reviewed'
-    ElMessage.success('已审核')
+    ElMessage.error('审核失败')
   }
   loadList()
 }
 
-async function showTrend(row: any) {
+async function loadTrend(row: any) {
+  selectedTrendTest.value = row
+  trendData.value = { test: null, trend: [] }
   try {
     const res = await labApi.getTestTrend(1, row.lab_test_id, 20)
     if (res.code === 200) trendData.value = res.data
   } catch {
-    trendData.value = {
-      test: { code: row.test_code || 'WBC', name: row.test_name, unit: row.unit, reference_min: row.reference_min, reference_max: row.reference_max, reference_text: row.reference_text },
-      trend: Array.from({ length: 8 }, (_, i) => ({
-        date: new Date(Date.now() - (7 - i) * 7 * 86400000).toISOString(),
-        value: (row.reference_min || 6) + Math.random() * ((row.reference_max || 17) - (row.reference_min || 6) + 4),
-        is_abnormal: i === 2 || i === 6, abnormal_type: i === 2 ? 'high' : 'low'
-      }))
-    }
+    ElMessage.error('加载趋势图失败')
   }
-  trendDialog.value = true
 }
 
 function uploadAttach(f: any) { ElMessage.success(`附件 ${f.name} 已上传`) }
@@ -423,6 +393,13 @@ onMounted(loadList)
     .ri-time { margin-left: auto; font-size: 11px; color: var(--text-secondary); }
     .ri-title { font-size: 14px; margin-bottom: 4px; }
     .ri-meta { font-size: 12px; color: var(--text-secondary); display: flex; gap: 8px; flex-wrap: wrap; }
+  }
+  .trend-section {
+    margin-top: 16px;
+    padding: 12px 16px;
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    background: #fafbfc;
   }
 }
 </style>

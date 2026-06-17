@@ -28,7 +28,7 @@ export interface UserInfo {
 
 export type UserRole = 'doctor' | 'lab_tech' | 'pharmacist' | 'nurse' | 'manager' | 'director'
 
-export const ROLE_LABELS: Record<UserRole, string> = {
+export const ROLE_LABELS: Record<string, string> = {
   doctor: '接诊医生',
   lab_tech: '检验技师',
   pharmacist: '药房管理员',
@@ -78,7 +78,7 @@ export interface Pet {
 }
 
 export type VisitType = 'outpatient' | 'emergency' | 'referral' | 'revisit'
-export const VISIT_TYPE_LABELS: Record<VisitType, string> = {
+export const VISIT_TYPE_LABELS: Record<string, string> = {
   outpatient: '门诊',
   emergency: '急诊',
   referral: '转诊',
@@ -93,6 +93,7 @@ export interface MedicalRecord {
   pet_name?: string
   owner_id?: number
   owner_name?: string
+  owner_phone?: string
   hospital_id: number
   hospital_name?: string
   doctor_id?: number
@@ -131,7 +132,7 @@ export type CageType = 'standard' | 'emergency' | 'ICU' | 'isolation'
 export type CageSize = 'small' | 'medium' | 'large'
 export type CageStatus = 'available' | 'occupied' | 'reserved' | 'cleaning' | 'maintenance'
 
-export const CAGE_STATUS_COLORS: Record<CageStatus, string> = {
+export const CAGE_STATUS_COLORS: Record<string, string> = {
   available: '#67C23A',
   occupied: '#F56C6C',
   reserved: '#E6A23C',
@@ -139,7 +140,7 @@ export const CAGE_STATUS_COLORS: Record<CageStatus, string> = {
   maintenance: '#C0C4CC'
 }
 
-export const CAGE_STATUS_LABELS: Record<CageStatus, string> = {
+export const CAGE_STATUS_LABELS: Record<string, string> = {
   available: '空闲',
   occupied: '占用',
   reserved: '预约',
@@ -160,7 +161,7 @@ export interface Cage {
 }
 
 export type HospStatus = 'reserved' | 'admitted' | 'discharged' | 'cancelled'
-export const HOSP_STATUS_LABELS: Record<HospStatus, string> = {
+export const HOSP_STATUS_LABELS: Record<string, string> = {
   reserved: '已预约',
   admitted: '住院中',
   discharged: '已出院',
@@ -211,7 +212,7 @@ export interface Medicine {
 }
 
 export type PrescStatus = 'pending' | 'first_approved' | 'second_approved' | 'dispensed' | 'cancelled'
-export const PRESC_STATUS_LABELS: Record<PrescStatus, string> = {
+export const PRESC_STATUS_LABELS: Record<string, string> = {
   pending: '待审核',
   first_approved: '一审通过',
   second_approved: '二审通过',
@@ -270,7 +271,7 @@ export interface LabTest {
 }
 
 export type LabStatus = 'pending' | 'in_progress' | 'completed' | 'reviewed'
-export const LAB_STATUS_LABELS: Record<LabStatus, string> = {
+export const LAB_STATUS_LABELS: Record<string, string> = {
   pending: '待检验',
   in_progress: '检验中',
   completed: '已完成',
@@ -319,7 +320,7 @@ export interface LabResultItem {
 }
 
 export type ShiftType = 'morning' | 'afternoon' | 'night' | 'day_off' | 'on_call' | 'emergency'
-export const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
+export const SHIFT_TYPE_LABELS: Record<string, string> = {
   morning: '早班',
   afternoon: '午班',
   night: '夜班',
@@ -327,7 +328,7 @@ export const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
   on_call: '待命',
   emergency: '急诊'
 }
-export const SHIFT_TYPE_COLORS: Record<ShiftType, string> = {
+export const SHIFT_TYPE_COLORS: Record<string, string> = {
   morning: '#409EFF',
   afternoon: '#67C23A',
   night: '#909399',
@@ -357,7 +358,7 @@ export interface Schedule {
 }
 
 export type NotifType = 'lab_result' | 'prescription' | 'schedule' | 'emergency' | 'system'
-export const NOTIF_TYPE_LABELS: Record<NotifType, string> = {
+export const NOTIF_TYPE_LABELS: Record<string, string> = {
   lab_result: '检验通知',
   prescription: '处方通知',
   schedule: '排班通知',
@@ -380,7 +381,7 @@ export interface Notification {
 }
 
 export type StockChangeType = 'purchase' | 'dispense' | 'return' | 'adjust' | 'expiry'
-export const STOCK_CHANGE_LABELS: Record<StockChangeType, string> = {
+export const STOCK_CHANGE_LABELS: Record<string, string> = {
   purchase: '入库',
   dispense: '发药',
   return: '退药',
@@ -404,28 +405,42 @@ export interface StockLog {
   created_at?: string
 }
 
+export interface BoardSummaryMetric {
+  visits: number
+  unique_pets: number
+  revisits: number
+  revisit_rate: number
+  revenue: number
+  prescriptions: number
+  lab_tests: number
+  abnormal_lab_rate: number
+}
+
+export interface BoardSummaryDiff {
+  visits_diff: number | null
+  visits_pct: number | null
+  unique_pets_diff: number | null
+  unique_pets_pct: number | null
+  revisits_diff: number | null
+  revisits_pct: number | null
+  revisit_rate_diff: number | null
+  revisit_rate_pct: number | null
+  revenue_diff: number | null
+  revenue_pct: number | null
+  prescriptions_diff: number | null
+  prescriptions_pct: number | null
+  lab_tests_diff: number | null
+  lab_tests_pct: number | null
+  abnormal_lab_rate_diff: number | null
+  abnormal_lab_rate_pct: number | null
+}
+
 export interface BoardSummary {
-  current: {
-    visits: number
-    unique_pets: number
-    revisits: number
-    revisit_rate: number
-    revenue: number
-    prescriptions: number
-    lab_tests: number
-    abnormal_lab_rate: number
-  }
-  previous: {
-    visits: number
-    unique_pets: number
-    revisits: number
-    revisit_rate: number
-    revenue: number
-    prescriptions: number
-    lab_tests: number
-    abnormal_lab_rate: number
-  }
-  comparison: Record<string, number | null>
+  current: BoardSummaryMetric
+  yoy_previous: BoardSummaryMetric
+  mom_previous: BoardSummaryMetric
+  yoy_diff: BoardSummaryDiff
+  mom_diff: BoardSummaryDiff
   realtime: {
     total_cages: number
     occupied_cages: number
@@ -433,7 +448,14 @@ export interface BoardSummary {
     active_hospitalizations: number
     doctors_on_duty: number
   }
-  date_range: { start: string; end: string }
+  date_range: {
+    start: string
+    end: string
+    yoy_start: string
+    yoy_end: string
+    mom_start: string
+    mom_end: string
+  }
 }
 
 export interface DailyTrendPoint {

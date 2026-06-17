@@ -358,23 +358,10 @@ const loadLowStock = async () => {
   try {
     const res = await pharmacyApi.getLowStock()
     lowStockList.value = res.data || []
-  } catch (e) {
-    lowStockList.value = mockLowStock()
+  } catch (e: any) {
+    lowStockList.value = []
+    ElMessage.error(e.message || '加载库存预警失败')
   }
-}
-
-function mockLowStock(): Medicine[] {
-  const arr: Medicine[] = []
-  const names = ['阿莫西林克拉维酸', '美洛昔康', '头孢氨苄', '芬苯达唑', '伊维菌素', '地塞米松', '氯胺酮']
-  for (let i = 0; i < 6; i++) {
-    arr.push({
-      id: i + 1, name: names[i], generic_name: names[i], spec: '50mg*10片', category: '抗生素',
-      is_controlled: i === 6, is_prescription: true, unit: '盒',
-      stock_quantity: Math.floor(Math.random() * 8) + 2, safety_stock: 20, unit_price: 45 + Math.random() * 80,
-      is_active: true, is_low_stock: true
-    })
-  }
-  return arr
 }
 
 const prescFilters = reactive({ status: '' as PrescStatus | '', onlyControlled: false })
@@ -390,7 +377,7 @@ const firstApprovedCount = computed(() => prescriptions.value.filter(p => p.stat
 const dispensedToday = computed(() => prescriptions.value.filter(p => p.status === 'dispensed' && p.dispense_date?.slice(0, 10) === new Date().toISOString().slice(0, 10)).length)
 
 function prescStatusType(s: PrescStatus) {
-  return s === 'pending' ? 'warning' : s === 'dispensed' ? 'success' : s === 'cancelled' ? 'info' : s === 'second_approved' ? 'primary' : ''
+  return s === 'pending' ? 'warning' : s === 'dispensed' ? 'success' : s === 'cancelled' ? 'info' : s === 'second_approved' ? 'primary' : undefined
 }
 function canApprove(level: 1 | 2) {
   if (!selectedPrescription.value) return false
@@ -422,70 +409,39 @@ async function loadPrescriptions() {
     })
     prescriptions.value = res.data.items
     prescTotal.value = res.data.total
-  } catch (e) {
-    prescriptions.value = mockPrescriptions(20)
-    prescTotal.value = 127
-    if (prescriptions.value.length) selectPrescription(prescriptions.value[0])
+    if (prescriptions.value.length && !selectedPrescId.value) selectPrescription(prescriptions.value[0])
+  } catch (e: any) {
+    prescriptions.value = []
+    prescTotal.value = 0
+    selectedPrescId.value = null
+    selectedPrescription.value = null
+    ElMessage.error(e.message || '加载处方列表失败')
   }
-}
-
-function mockPrescriptions(n: number): Prescription[] {
-  const meds = ['阿莫西林', '美洛昔康', '头孢氨苄', '芬苯达唑', '伊维菌素', '氯胺酮', '咪达唑仑']
-  const arr: Prescription[] = []
-  for (let i = 1; i <= n; i++) {
-    const itemsCnt = 1 + Math.floor(Math.random() * 4)
-    const items = []
-    let total = 0
-    let hasC = false
-    for (let j = 0; j < itemsCnt; j++) {
-      const idx = Math.floor(Math.random() * meds.length)
-      const price = 20 + Math.random() * 150
-      const qty = 1 + Math.floor(Math.random() * 5)
-      const isControlled = idx >= 5
-      if (isControlled) hasC = true
-      items.push({
-        id: j + 1, medicine_id: idx + 1, medicine_name: meds[idx], medicine_spec: `${50 * (j + 1)}mg`,
-        is_controlled: isControlled, dosage: '每日2次 口服', quantity: qty,
-        unit_price: +price.toFixed(2), subtotal: +(price * qty).toFixed(2)
-      })
-      total += price * qty
-    }
-    const st: PrescStatus = (['pending', 'first_approved', 'second_approved', 'dispensed'] as PrescStatus[])[i % 4]
-    arr.push({
-      id: 1000 + i, medical_record_id: 2000 + i, hospital_id: 1,
-      prescribed_by_id: 3, prescribed_by_name: ['张医生', '李医生', '王医生', '赵医生'][i % 4],
-      first_approver_id: st !== 'pending' ? 5 : undefined,
-      first_approver_name: st !== 'pending' ? '刘药师' : undefined,
-      second_approver_id: hasC && (st === 'second_approved' || st === 'dispensed') ? 6 : undefined,
-      second_approver_name: hasC && (st === 'second_approved' || st === 'dispensed') ? '陈主管' : undefined,
-      has_controlled: hasC, status: st, dispense_date: st === 'dispensed' ? new Date().toISOString() : undefined,
-      dispensed_by_id: st === 'dispensed' ? 5 : undefined, dispensed_by_name: st === 'dispensed' ? '刘药师' : undefined,
-      total_amount: +total.toFixed(2), remark: i % 3 === 0 ? '需随餐服用' : '',
-      created_at: new Date(Date.now() - i * 3600 * 1000).toISOString(), items
-    })
-  }
-  return arr
 }
 
 async function handleApprove(level: 1 | 2) {
   if (!selectedPrescription.value) return
+  const p = selectedPrescription.value
+  if (level === 1 && p.prescribed_by_id === userStore.userInfo?.id) {
+    ElMessage.error('不能审核自己开具的处方')
+    return
+  }
+  if (level === 2 && p.first_approver_id === userStore.userInfo?.id) {
+    ElMessage.error('二审不能由一审同一人操作')
+    return
+  }
   try {
-    const res = await pharmacyApi.approvePrescription(selectedPrescription.value.id, level)
+    const res = await pharmacyApi.approvePrescription(p.id, level)
     selectedPrescription.value = res.data
     ElMessage.success(`${level === 1 ? '一审' : '二审'}通过`)
     loadPrescriptions()
-  } catch (e) {
-    const p = selectedPrescription.value
-    if (level === 1) {
-      p.status = 'first_approved'
-      p.first_approver_id = userStore.user?.id
-      p.first_approver_name = userStore.user?.real_name
+  } catch (e: any) {
+    const msg = e.message || `${level === 1 ? '一审' : '二审'}失败`
+    if (msg.includes('同一人') || msg.includes('same') || msg.includes('409')) {
+      ElMessage.error(level === 2 ? '二审不能由一审同一人操作' : '不能审核自己开具的处方')
     } else {
-      p.status = 'second_approved'
-      p.second_approver_id = userStore.user?.id
-      p.second_approver_name = userStore.user?.real_name
+      ElMessage.error(msg)
     }
-    ElMessage.success(`${level === 1 ? '一审' : '二审'}通过`)
   }
 }
 
@@ -497,13 +453,8 @@ async function handleDispense() {
     selectedPrescription.value = res.data
     ElMessage.success('发药完成')
     loadPrescriptions()
-  } catch (e) {
-    const p = selectedPrescription.value
-    p.status = 'dispensed'
-    p.dispense_date = new Date().toISOString()
-    p.dispensed_by_id = userStore.user?.id
-    p.dispensed_by_name = userStore.user?.real_name
-    ElMessage.success('发药完成')
+  } catch (e: any) {
+    ElMessage.error(e.message || '发药失败')
   }
 }
 
@@ -526,35 +477,14 @@ async function loadMedicines() {
     medicines.value = res.data.items
     medTotal.value = res.data.total
     medicinesAll.value = res.data.items
-  } catch (e) {
-    medicines.value = mockMedicines(30)
-    medicinesAll.value = medicines.value
-    medTotal.value = 87
+  } catch (e: any) {
+    medicines.value = []
+    medicinesAll.value = []
+    medTotal.value = 0
+    ElMessage.error(e.message || '加载药品列表失败')
   } finally {
     loadingMeds.value = false
   }
-}
-
-function mockMedicines(n: number): Medicine[] {
-  const cats = ['抗生素', '抗炎药', '止痛药', '麻醉药', '抗寄生虫', '营养补充', '外用药', '疫苗']
-  const arr: Medicine[] = []
-  const names = ['阿莫西林克拉维酸', '美洛昔康', '头孢氨苄', '芬苯达唑', '伊维菌素', '地塞米松',
-    '氯胺酮', '咪达唑仑', '多西环素', '恩诺沙星', '甲硝唑', '奥美拉唑', '塞拉菌素', '莫昔克丁']
-  for (let i = 1; i <= n; i++) {
-    const ni = (i - 1) % names.length
-    const stock = Math.floor(Math.random() * 200) + 5
-    const safety = 15 + Math.floor(Math.random() * 30)
-    arr.push({
-      id: i, name: names[ni], generic_name: names[ni],
-      spec: ['50mg*10片', '100mg*10片', '10ml', '50ml'][i % 4],
-      category: cats[(i - 1) % cats.length], is_controlled: ni >= 6, is_prescription: true,
-      unit: ['盒', '瓶', '支'][i % 3], stock_quantity: stock, safety_stock: safety,
-      unit_price: +(20 + Math.random() * 280).toFixed(2),
-      expiry_date: new Date(Date.now() + (100 + Math.random() * 500) * 86400000).toISOString().slice(0, 10),
-      storage_condition: '阴凉干燥处保存', is_active: true, is_low_stock: stock < safety
-    })
-  }
-  return arr
 }
 
 function isExpiringSoon(d?: string) {
@@ -578,38 +508,19 @@ async function loadStockLogs() {
     })
     stockLogs.value = res.data.items
     logTotal.value = res.data.total
-  } catch (e) {
-    stockLogs.value = mockStockLogs(30)
-    logTotal.value = 256
+  } catch (e: any) {
+    stockLogs.value = []
+    logTotal.value = 0
+    ElMessage.error(e.message || '加载库存流水失败')
   } finally {
     loadingLogs.value = false
   }
-}
-
-function mockStockLogs(n: number): StockLog[] {
-  const arr: StockLog[] = []
-  const meds = ['阿莫西林', '美洛昔康', '头孢氨苄', '芬苯达唑', '伊维菌素', '氯胺酮']
-  const cts: StockChangeType[] = ['purchase', 'dispense', 'return', 'adjust', 'expiry']
-  for (let i = 1; i <= n; i++) {
-    const ct = cts[i % 5]
-    const qty = ct === 'purchase' || ct === 'return' ? 10 + Math.floor(Math.random() * 50) : -(1 + Math.floor(Math.random() * 8))
-    arr.push({
-      id: i, medicine_id: (i % 6) + 1, medicine_name: meds[i % 6], hospital_id: 1,
-      change_type: ct, quantity_change: qty, balance_after: 30 + Math.floor(Math.random() * 150),
-      related_type: ct === 'dispense' ? 'prescription' : ct === 'purchase' ? 'purchase' : '',
-      related_id: ct === 'dispense' ? 1000 + i : undefined,
-      operator_id: 5, operator_name: '刘药师', remark: ct === 'expiry' ? '过期药品清理' : '',
-      created_at: new Date(Date.now() - i * 5 * 3600 * 1000).toISOString()
-    })
-  }
-  return arr
 }
 
 const logDrawerVisible = ref(false)
 const currentLogs = ref<StockLog[]>([])
 function viewLogs(medId: number) {
   currentLogs.value = stockLogs.value.filter(l => l.medicine_id === medId)
-  if (!currentLogs.value.length) currentLogs.value = mockStockLogs(15).map(l => ({ ...l, medicine_id: medId }))
   logDrawerVisible.value = true
 }
 
@@ -631,8 +542,8 @@ async function handleStockIn() {
       remark: stockInForm.remark || '入库'
     })
     ElMessage.success('入库成功')
-  } catch (e) {
-    ElMessage.success('入库成功')
+  } catch (e: any) {
+    ElMessage.error(e.message || '入库失败')
   }
   stockInDialogVisible.value = false
   loadMedicines()
@@ -648,7 +559,7 @@ const stockEditForm = reactive({
   medicine_id: 0, medicine_name: '', current_stock: 0, unit: '',
   quantity_change: 0, change_type: 'adjust' as StockChangeType, remark: ''
 })
-function openStockEdit(row: Medicine) {
+function openStockEdit(row: any) {
   stockEditForm.medicine_id = row.id
   stockEditForm.medicine_name = row.name
   stockEditForm.current_stock = row.stock_quantity
@@ -667,8 +578,8 @@ async function handleStockEdit() {
       remark: stockEditForm.remark
     })
     ElMessage.success('调整成功')
-  } catch (e) {
-    ElMessage.success('调整成功')
+  } catch (e: any) {
+    ElMessage.error(e.message || '调整失败')
   }
   stockEditDialogVisible.value = false
   loadMedicines()

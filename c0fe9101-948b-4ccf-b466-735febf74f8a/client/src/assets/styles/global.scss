@@ -50,6 +50,15 @@ a {
 .el-table {
   border-radius: var(--radius-base);
   overflow: hidden;
+  min-width: 100%;
+}
+
+.el-table-wrapper {
+  overflow-x: auto;
+}
+
+* :deep(.el-table-wrapper) {
+  overflow-x: auto;
 }
 
 .el-card {

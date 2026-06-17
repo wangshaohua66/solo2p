@@ -48,8 +48,8 @@
         </template>
         <el-tab-pane v-for="z in zones" :key="z.zone" :label="`${z.zone} (${z.cages.length})`">
           <div class="zone-stats" v-if="z.stats">
-            <el-tag v-for="(v, k) in z.stats" :key="k" size="small" effect="plain" :color="CAGE_STATUS_COLORS[k as any] || ''">
-              {{ CAGE_STATUS_LABELS[k as keyof typeof CAGE_STATUS_LABELS] || k }}：{{ v }}
+            <el-tag v-for="(v, k) in z.stats" :key="k" size="small" effect="plain" :color="CAGE_STATUS_COLORS[String(k)] || ''">
+              {{ CAGE_STATUS_LABELS[String(k)] || k }}：{{ v }}
             </el-tag>
           </div>
           <div class="cage-grid">
@@ -255,40 +255,10 @@ async function loadCageGrid() {
         selectedZone.value = zones.value[0].zone
       }
     }
-  } catch {
-    cageData.value = generateMockCages()
-    if (zones.value.length) selectedZone.value = zones.value[0].zone
+  } catch (e: any) {
+    cageData.value = { zones: [], summary: {} }
+    ElMessage.error(e.message || '加载笼位信息失败')
   }
-}
-
-function generateMockCages() {
-  const zoneNames = ['A区-标准', 'B区-标准', 'C区-ICU', 'D区-隔离', 'E区-急诊']
-  const types = ['standard', 'standard', 'ICU', 'isolation', 'emergency'] as CageType[]
-  const statuses: CageStatus[] = ['available', 'available', 'available', 'occupied', 'reserved', 'cleaning']
-  const zones = zoneNames.map((name, zi) => {
-    const cages = Array.from({ length: 12 }, (_, i) => {
-      const status = statuses[(zi + i) % statuses.length]
-      return {
-        id: zi * 100 + i, hospital_id: 1, zone: name,
-        code: `${name.charAt(0)}${String(i + 1).padStart(2, '0')}`,
-        type: types[zi], size: i % 3 === 0 ? 'small' : i % 3 === 1 ? 'medium' : 'large',
-        status,
-        current_hospitalization: status === 'occupied' || status === 'reserved' ? {
-          id: 1, pet_name: ['豆豆', '毛毛', '小白', '可乐', '布丁'][i % 5], pet_species: i % 2 ? '犬' : '猫',
-          admission_date: new Date(Date.now() - i * 86400000).toISOString(),
-          expected_discharge_date: dayjs().add((i % 5) + 1, 'day').toISOString(),
-          admitting_doctor_name: '张医生'
-        } : null,
-        is_emergency: status === 'occupied' && zi === 4
-      } as Cage
-    })
-    const stats: any = { total: 12, available: 0, occupied: 0, reserved: 0, cleaning: 0, maintenance: 0 }
-    cages.forEach(c => stats[c.status] = (stats[c.status] || 0) + 1)
-    return { zone: name, cages, stats }
-  })
-  const total = zones.reduce((s, z) => s + z.cages.length, 0)
-  const occ = zones.reduce((s, z) => s + (z.stats.occupied + z.stats.reserved), 0)
-  return { zones, summary: { total_cages: total, occupied_cages: occ, cage_occupancy: Math.round(occ / total * 100) } }
 }
 
 function openCageDetail(c: Cage) {
@@ -302,24 +272,32 @@ async function changeCageStatus() {
   try {
     const res = await hospitalizationApi.updateCageStatus(currentCage.value.id, newStatus.value)
     if (res.code === 200) { ElMessage.success('状态已更新'); cageDrawerVisible.value = false; loadCageGrid() }
-  } catch {
-    currentCage.value.status = newStatus.value
-    ElMessage.success('状态已更新')
-    cageDrawerVisible.value = false
+    else ElMessage.error('状态更新失败')
+  } catch (e: any) {
+    ElMessage.error(e.message || '状态更新失败')
   }
 }
 
-function openHospDialog(cage?: Cage) {
+function openHospDialog(cage?: any) {
   hospDialogVisible.value = true
-  if (cage) { hospForm.cage_id = cage.id; hospForm.cageCode = cage.code }
+  if (cage && typeof cage === 'object' && 'id' in cage) { hospForm.cage_id = cage.id; hospForm.cageCode = cage.code }
 }
 
-function submitHosp() {
+async function submitHosp() {
   if (!hospForm.cage_id) { ElMessage.warning('请选择笼位'); return }
   if (!hospForm.admission_reason) { ElMessage.warning('请填写入院原因'); return }
-  ElMessage.success('住院登记成功')
-  hospDialogVisible.value = false
-  loadCageGrid(); loadList()
+  try {
+    const res = await hospitalizationApi.create(hospForm)
+    if (res.code === 200) {
+      ElMessage.success('住院登记成功')
+      hospDialogVisible.value = false
+      loadCageGrid(); loadList()
+    } else {
+      ElMessage.error('住院登记失败')
+    }
+  } catch (e: any) {
+    ElMessage.error(e.message || '住院登记失败')
+  }
 }
 
 function openEmergencyDialog() {
@@ -328,20 +306,24 @@ function openEmergencyDialog() {
       try {
         const res = await hospitalizationApi.emergencyAdmission({ pet_id: 1, hospital_id: userStore.currentHospital?.id })
         if (res.code === 200) ElMessage.success(`已分配笼位 ${res.data.cage_code}`)
-        else ElMessage.success('急诊分配完成，笼位 E01')
-      } catch { ElMessage.success('急诊分配完成，笼位 E01') }
+        else ElMessage.error('急诊分配失败')
+      } catch (e: any) {
+        ElMessage.error(e.message || '急诊分配失败')
+      }
       loadCageGrid()
     }).catch(() => {})
 }
 
-function viewDetail(row: Hospitalization) { ElMessage.info(`查看住院 #${row.id}`) }
-async function discharge(row: Hospitalization) {
+function viewDetail(row: any) { ElMessage.info(`查看住院 #${row.id}`) }
+async function discharge(row: any) {
   ElMessageBox.confirm(`确认${row.pet_name}已出院？`, '出院确认', { type: 'info' })
     .then(async () => {
       try {
         await hospitalizationApi.update(row.id, { status: 'discharged' })
         ElMessage.success('已办理出院')
-      } catch { ElMessage.success('已办理出院') }
+      } catch (e: any) {
+        ElMessage.error(e.message || '出院办理失败')
+      }
       loadList(); loadCageGrid()
     }).catch(() => {})
 }
@@ -357,34 +339,20 @@ async function loadList() {
       listTotal.value = res.data.total
       hospList.value = res.data.items
     }
-  } catch {
-    hospList.value = generateMockList()
-    listTotal.value = 100
+  } catch (e: any) {
+    hospList.value = []
+    listTotal.value = 0
+    ElMessage.error(e.message || '加载住院列表失败')
   } finally { listLoading.value = false }
-}
-
-function generateMockList(): Hospitalization[] {
-  return Array.from({ length: 20 }, (_, i) => ({
-    id: i + 1,
-    pet_id: 1, pet_name: ['豆豆', '毛毛', '小白', '可乐', '布丁', '奶茶', '咖啡'][i % 7],
-    pet_species: i % 2 ? '犬' : '猫',
-    cage_id: i + 1, cage_code: `${['A', 'B', 'C', 'D', 'E'][i % 5]}${String(i % 12 + 1).padStart(2, '0')}`,
-    hospital_id: 1, hospital_name: '总院',
-    admitting_doctor_name: ['张医生', '李医生', '王医生'][i % 3],
-    status: (['admitted', 'admitted', 'reserved', 'discharged'] as any)[i % 4],
-    admission_reason: ['术后恢复', '重症观察', '输液治疗', '骨折固定'][i % 4],
-    admission_date: new Date(Date.now() - i * 2 * 86400000).toISOString(),
-    expected_discharge_date: dayjs().add(5 - (i % 6), 'day').toISOString(),
-    is_emergency: i % 7 === 0
-  }))
 }
 
 async function loadDischargeSoon() {
   try {
     const res = await hospitalizationApi.upcomingDischarges(userStore.currentHospital?.id, 3)
     if (res.code === 200) dischargeSoon.value = res.data
-  } catch {
-    dischargeSoon.value = generateMockList().slice(0, 3)
+  } catch (e: any) {
+    dischargeSoon.value = []
+    ElMessage.error(e.message || '加载即将出院失败')
   }
 }
 

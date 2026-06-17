@@ -2,7 +2,7 @@
   <div class="app-layout" :class="{ collapsed: userStore.sidebarCollapsed, 'is-mobile': userStore.isMobile }">
     <aside v-show="!userStore.isMobile || showMobileSidebar" class="sidebar" :class="{ 'mobile-sidebar': userStore.isMobile }">
       <div class="logo-area" @click="router.push('/dashboard')">
-        <el-icon :size="24" color="#fff"><PawPrint /></el-icon>
+        <el-icon :size="24" color="#fff"><FirstAidKit /></el-icon>
         <span v-if="!userStore.sidebarCollapsed" class="logo-text">宠物医疗</span>
       </div>
       <el-scrollbar class="sidebar-scroll">
@@ -93,7 +93,7 @@
           </transition>
         </router-view>
       </main>
-      <div v-if="userStore.isMobile" class="mobile-tabbar">
+      <div v-if="userStore.isMobile" class="mobile-tabbar" :style="tabbarStyle">
         <div
           v-for="item in tabbarItems"
           :key="item.path"
@@ -145,7 +145,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox, ElNotification, type FormInstance, type FormRules } from 'element-plus'
 import {
   Menu, Fold, Expand, Close, Bell, User, Lock, SwitchButton, CaretBottom,
-  DataBoard, Document, HomeFilled, Microscope, Medicine, Calendar, TrendCharts, PawPrint
+  DataBoard, Document, HomeFilled, DataAnalysis, Goods, Calendar, TrendCharts, FirstAidKit
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores'
 import { authApi } from '@/api'
@@ -168,13 +168,21 @@ const menuItems = [
   { path: '/dashboard', title: '工作台', icon: DataBoard, roles: ['doctor', 'lab_tech', 'pharmacist', 'nurse', 'manager', 'director'] },
   { path: '/medical', title: '病历管理', icon: Document, roles: ['doctor', 'nurse', 'manager', 'director'] },
   { path: '/hospitalization', title: '住院管理', icon: HomeFilled, roles: ['doctor', 'nurse', 'manager', 'director'] },
-  { path: '/lab', title: '检验中心', icon: Microscope, roles: ['doctor', 'lab_tech', 'nurse', 'manager', 'director'] },
-  { path: '/pharmacy', title: '药房管理', icon: Medicine, roles: ['doctor', 'pharmacist', 'manager', 'director'] },
+  { path: '/lab', title: '检验中心', icon: DataAnalysis, roles: ['doctor', 'lab_tech', 'nurse', 'manager', 'director'] },
+  { path: '/pharmacy', title: '药房管理', icon: Goods, roles: ['doctor', 'pharmacist', 'manager', 'director'] },
   { path: '/schedule', title: '排班调度', icon: Calendar, roles: ['doctor', 'lab_tech', 'pharmacist', 'nurse', 'manager', 'director'] },
   { path: '/report', title: '经营报表', icon: TrendCharts, roles: ['manager', 'director'] }
 ]
 
-const tabbarItems = computed(() => menuItems.filter(m => hasRole(m.roles)))
+const MAX_TABBAR_ITEMS = 5
+const tabbarItems = computed(() => {
+  const all = menuItems.filter(m => hasRole(m.roles))
+  return all.slice(0, MAX_TABBAR_ITEMS)
+})
+const tabbarStyle = computed(() => {
+  const count = Math.min(tabbarItems.value.length, MAX_TABBAR_ITEMS)
+  return { gridTemplateColumns: `repeat(${count}, 1fr)` }
+})
 
 function hasRole(roles: string[]) {
   return roles.includes(userStore.userInfo?.role || '')
@@ -388,7 +396,7 @@ onUnmounted(() => {
   border-top: 1px solid var(--border-light);
   display: none;
   z-index: 100;
-  @include respond-to(mobile) { display: grid; grid-template-columns: repeat(5, 1fr); }
+  @include respond-to(mobile) { display: grid; }
   .tab-item {
     display: flex;
     flex-direction: column;
@@ -398,6 +406,8 @@ onUnmounted(() => {
     color: var(--text-secondary);
     font-size: 11px;
     cursor: pointer;
+    min-width: 0;
+    overflow: hidden;
     &.active { color: var(--primary-color); }
   }
 }

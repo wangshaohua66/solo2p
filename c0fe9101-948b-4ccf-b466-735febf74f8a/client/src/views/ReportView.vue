@@ -53,7 +53,7 @@
                   </el-radio-group>
                 </div>
               </template>
-              <div ref="trendChartRef" style="height:340px"></div>
+              <div ref="trendChartRef" :style="{height: chartHeight + 'px'}"></div>
             </el-card>
           </el-col>
           <el-col :xs="24" :lg="8">
@@ -61,7 +61,7 @@
               <template #header>
                 <span style="font-weight:600">科室分布</span>
               </template>
-              <div ref="deptPieRef" style="height:340px"></div>
+              <div ref="deptPieRef" :style="{height: chartHeight + 'px'}"></div>
             </el-card>
           </el-col>
         </el-row>
@@ -71,7 +71,7 @@
               <template #header>
                 <span style="font-weight:600">月度同比对比（今年 vs 去年）</span>
               </template>
-              <div ref="monthlyChartRef" style="height:320px"></div>
+              <div ref="monthlyChartRef" :style="{height: isMobile ? '240px' : '320px'}"></div>
             </el-card>
           </el-col>
           <el-col :xs="24" :md="12">
@@ -118,7 +118,7 @@
               </el-tooltip>
             </div>
           </template>
-          <div ref="hospitalChartRef" style="height:420px"></div>
+          <div ref="hospitalChartRef" :style="{height: chartHeightLarge + 'px'}"></div>
         </el-card>
         <el-table :data="hospitalTableData" border stripe size="small" style="margin-top:16px">
           <el-table-column prop="rank" label="排名" width="70" align="center">
@@ -166,7 +166,7 @@
               <template #header>
                 <span style="font-weight:600">各科室收入对比</span>
               </template>
-              <div ref="deptRevenueRef" style="height:400px"></div>
+              <div ref="deptRevenueRef" :style="{height: isMobile ? '260px' : '400px'}"></div>
             </el-card>
           </el-col>
           <el-col :xs="24" :md="10">
@@ -174,7 +174,7 @@
               <template #header>
                 <span style="font-weight:600">科室接诊量占比</span>
               </template>
-              <div ref="deptVisitsRef" style="height:400px"></div>
+              <div ref="deptVisitsRef" :style="{height: isMobile ? '260px' : '400px'}"></div>
             </el-card>
           </el-col>
         </el-row>
@@ -214,7 +214,7 @@
                   </el-radio-group>
                 </div>
               </template>
-              <div ref="doctorChartRef" style="height:500px"></div>
+              <div ref="doctorChartRef" :style="{height: isMobile ? '300px' : '500px'}"></div>
             </el-card>
           </el-col>
           <el-col :xs="24" :md="8">
@@ -254,7 +254,7 @@
               </el-radio-group>
             </div>
           </template>
-          <div ref="medChartRef" style="height:480px"></div>
+          <div ref="medChartRef" :style="{height: isMobile ? '280px' : '480px'}"></div>
         </el-card>
         <el-table :data="medTableData" border stripe size="small" style="margin-top:16px">
           <el-table-column prop="rank" label="排名" width="70" align="center" />
@@ -305,7 +305,7 @@
           <template #header>
             <span style="font-weight:600">医疗质量趋势</span>
           </template>
-          <div ref="qualityTrendRef" style="height:360px"></div>
+          <div ref="qualityTrendRef" :style="{height: isMobile ? '240px' : '360px'}"></div>
         </el-card>
       </el-tab-pane>
     </el-tabs>
@@ -333,6 +333,9 @@ const medRankKey = ref('amount')
 const hospitalSortKey = ref('revenue')
 const reportHospitalId = ref<number | null>(null)
 const hospitals = ref<Hospital[]>([])
+const isMobile = computed(() => userStore.isMobile || window.innerWidth < 768)
+const chartHeight = computed(() => isMobile.value ? 240 : 340)
+const chartHeightLarge = computed(() => isMobile.value ? 280 : 420)
 
 const today = new Date().toISOString().slice(0, 10)
 const before30d = new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10)
@@ -346,36 +349,41 @@ const dateShortcuts = [
   { text: '本季度', value: () => { const now = new Date(); const m = Math.floor(now.getMonth() / 3) * 3; const s = new Date(now.getFullYear(), m, 1); return [s, now] } }
 ]
 
+const emptyMetric = () => ({ visits: 0, unique_pets: 0, revisits: 0, revisit_rate: 0, revenue: 0, prescriptions: 0, lab_tests: 0, abnormal_lab_rate: 0 })
+const emptyDiff = () => ({
+  visits_diff: null, visits_pct: null, unique_pets_diff: null, unique_pets_pct: null,
+  revisits_diff: null, revisits_pct: null, revisit_rate_diff: null, revisit_rate_pct: null,
+  revenue_diff: null, revenue_pct: null, prescriptions_diff: null, prescriptions_pct: null,
+  lab_tests_diff: null, lab_tests_pct: null, abnormal_lab_rate_diff: null, abnormal_lab_rate_pct: null
+})
 const summary = ref<BoardSummary>({
-  current: { visits: 0, unique_pets: 0, revisits: 0, revisit_rate: 0, revenue: 0, prescriptions: 0, lab_tests: 0, abnormal_lab_rate: 0 },
-  previous: { visits: 0, unique_pets: 0, revisits: 0, revisit_rate: 0, revenue: 0, prescriptions: 0, lab_tests: 0, abnormal_lab_rate: 0 },
-  comparison: {}, realtime: { total_cages: 0, occupied_cages: 0, cage_occupancy: 0, active_hospitalizations: 0, doctors_on_duty: 0 },
-  date_range: { start: before30d, end: today }
+  current: emptyMetric(),
+  yoy_previous: emptyMetric(),
+  mom_previous: emptyMetric(),
+  yoy_diff: emptyDiff(),
+  mom_diff: emptyDiff(),
+  realtime: { total_cages: 0, occupied_cages: 0, cage_occupancy: 0, active_hospitalizations: 0, doctors_on_duty: 0 },
+  date_range: { start: before30d, end: today, yoy_start: '', yoy_end: '', mom_start: '', mom_end: '' }
 })
 
-function pct(cur: number, prev: number) {
-  if (!prev) return null
-  return +((cur - prev) / prev * 100).toFixed(1)
-}
-
 const kpiList = computed(() => {
-  const c = summary.value.current, p = summary.value.previous
+  const c = summary.value.current, p = summary.value.mom_previous, d = summary.value.mom_diff
   return [
-    { key: 'visits', label: '总接诊量', icon: DataLine, current: c.visits, previous: p.visits, comparison: pct(c.visits, p.visits),
+    { key: 'visits', label: '总接诊量', icon: DataLine, current: c.visits, previous: p.visits, comparison: d.visits_pct,
       formatter: (v: number) => v.toLocaleString() },
-    { key: 'revenue', label: '总收入(¥)', icon: Money, current: c.revenue, previous: p.revenue, comparison: pct(c.revenue, p.revenue),
+    { key: 'revenue', label: '总收入(¥)', icon: Money, current: c.revenue, previous: p.revenue, comparison: d.revenue_pct,
       formatter: (v: number) => '¥' + v.toLocaleString() },
-    { key: 'unique_pets', label: '就诊宠物', icon: User, current: c.unique_pets, previous: p.unique_pets, comparison: pct(c.unique_pets, p.unique_pets),
+    { key: 'unique_pets', label: '就诊宠物', icon: User, current: c.unique_pets, previous: p.unique_pets, comparison: d.unique_pets_pct,
       formatter: (v: number) => v.toLocaleString() },
-    { key: 'revisit_rate', label: '复诊率', icon: TrendCharts, current: c.revisit_rate, previous: p.revisit_rate, comparison: pct(c.revisit_rate, p.revisit_rate),
+    { key: 'revisit_rate', label: '复诊率', icon: TrendCharts, current: c.revisit_rate, previous: p.revisit_rate, comparison: d.revisit_rate_pct,
       formatter: (v: number) => v.toFixed(1) + '%' },
-    { key: 'prescriptions', label: '处方数', icon: Goods, current: c.prescriptions, previous: p.prescriptions, comparison: pct(c.prescriptions, p.prescriptions),
+    { key: 'prescriptions', label: '处方数', icon: Goods, current: c.prescriptions, previous: p.prescriptions, comparison: d.prescriptions_pct,
       formatter: (v: number) => v.toLocaleString() },
-    { key: 'lab_tests', label: '检验数', icon: DataBoard, current: c.lab_tests, previous: p.lab_tests, comparison: pct(c.lab_tests, p.lab_tests),
+    { key: 'lab_tests', label: '检验数', icon: DataBoard, current: c.lab_tests, previous: p.lab_tests, comparison: d.lab_tests_pct,
       formatter: (v: number) => v.toLocaleString() },
-    { key: 'abnormal', label: '异常检验率', icon: Warning, current: c.abnormal_lab_rate, previous: p.abnormal_lab_rate, comparison: pct(c.abnormal_lab_rate, p.abnormal_lab_rate),
+    { key: 'abnormal', label: '异常检验率', icon: Warning, current: c.abnormal_lab_rate, previous: p.abnormal_lab_rate, comparison: d.abnormal_lab_rate_pct,
       formatter: (v: number) => v.toFixed(1) + '%' },
-    { key: 'cage_occ', label: '笼位占用率', icon: Monitor, current: summary.value.realtime.cage_occupancy, previous: 62, comparison: pct(summary.value.realtime.cage_occupancy, 62),
+    { key: 'cage_occ', label: '笼位占用率', icon: Monitor, current: summary.value.realtime.cage_occupancy, previous: 62, comparison: null,
       formatter: (v: number) => v.toFixed(1) + '%' }
   ]
 })
@@ -411,34 +419,8 @@ async function loadSummary() {
       dateRange.value[0], dateRange.value[1]
     )
     summary.value = res.data
-  } catch (e) {
-    const r = 30 + Math.random() * 20
-    const cur = {
-      visits: Math.floor(12000 + Math.random() * 5000),
-      unique_pets: Math.floor(8000 + Math.random() * 3000),
-      revisits: Math.floor(3000 + Math.random() * 1500),
-      revisit_rate: +r.toFixed(1),
-      revenue: Math.floor(2000000 + Math.random() * 1500000),
-      prescriptions: Math.floor(9000 + Math.random() * 4000),
-      lab_tests: Math.floor(7000 + Math.random() * 3000),
-      abnormal_lab_rate: +(18 + Math.random() * 7).toFixed(1)
-    }
-    const ratio = 0.85 + Math.random() * 0.25
-    summary.value = {
-      current: cur,
-      previous: {
-        visits: Math.floor(cur.visits * ratio), unique_pets: Math.floor(cur.unique_pets * ratio),
-        revisits: Math.floor(cur.revisits * ratio), revisit_rate: +(r - 2 + Math.random() * 3).toFixed(1),
-        revenue: Math.floor(cur.revenue * ratio), prescriptions: Math.floor(cur.prescriptions * ratio),
-        lab_tests: Math.floor(cur.lab_tests * ratio), abnormal_lab_rate: +(cur.abnormal_lab_rate - 1 + Math.random() * 2).toFixed(1)
-      },
-      comparison: {},
-      realtime: { total_cages: 340, occupied_cages: Math.floor(340 * (0.65 + Math.random() * 0.2)),
-        cage_occupancy: +(65 + Math.random() * 20).toFixed(1),
-        active_hospitalizations: Math.floor(80 + Math.random() * 80),
-        doctors_on_duty: Math.floor(40 + Math.random() * 25) },
-      date_range: { start: dateRange.value[0], end: dateRange.value[1] }
-    }
+  } catch (e: any) {
+    ElMessage.error(e.message || '加载经营概览失败')
   }
 }
 
@@ -447,17 +429,9 @@ async function loadTrend() {
   try {
     const res = await reportApi.getDailyTrend(reportHospitalId.value || undefined, trendDays.value)
     trendData.value = res.data
-  } catch (e) {
-    const arr: DailyTrendPoint[] = []
-    for (let i = trendDays.value - 1; i >= 0; i--) {
-      const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10)
-      arr.push({
-        date: d, visits: 200 + Math.floor(Math.random() * 300 + (trendDays.value - i) * 2),
-        revenue: 30000 + Math.floor(Math.random() * 60000),
-        emergency: Math.floor(Math.random() * 20)
-      })
-    }
-    trendData.value = arr
+  } catch (e: any) {
+    trendData.value = []
+    ElMessage.error(e.message || '加载趋势数据失败')
   }
   renderTrendChart()
 }
@@ -467,21 +441,22 @@ function renderTrendChart() {
     if (!trendChartRef.value) return
     initChart('trend', trendChartRef.value)
     const dates = trendData.value.map(d => d.date.slice(5))
+    const mobile = isMobile.value
     charts.trend?.setOption({
-      tooltip: { trigger: 'axis' },
-      legend: { data: ['接诊量', '收入', '急诊'], top: 0 },
-      grid: { left: 50, right: 50, bottom: 30, top: 40 },
-      xAxis: { type: 'category', data: dates },
+      tooltip: { trigger: 'axis', confine: true },
+      legend: mobile ? { show: false } : { data: ['接诊量', '收入', '急诊'], top: 0 },
+      grid: mobile ? { left: 40, right: 20, bottom: 24, top: 10 } : { left: 50, right: 50, bottom: 30, top: 40 },
+      xAxis: { type: 'category', data: dates, axisLabel: { fontSize: mobile ? 10 : 12 } },
       yAxis: [
-        { type: 'value', name: '接诊量' },
-        { type: 'value', name: '收入(¥)', axisLabel: { formatter: v => (v / 1000) + 'k' } }
+        { type: 'value', name: mobile ? '' : '接诊量', axisLabel: { fontSize: mobile ? 10 : 12 } },
+        { type: 'value', name: mobile ? '' : '收入(¥)', axisLabel: { formatter: (v: number) => (v / 1000) + 'k', fontSize: mobile ? 10 : 12 } }
       ],
       series: [
         { name: '接诊量', type: 'bar', data: trendData.value.map(d => d.visits), itemStyle: { color: '#409EFF' } },
         { name: '收入', type: 'line', smooth: true, yAxisIndex: 1, data: trendData.value.map(d => d.revenue),
-          itemStyle: { color: '#67C23A' }, areaStyle: { opacity: 0.2 } },
+          itemStyle: { color: '#67C23A' }, areaStyle: { opacity: 0.2 }, showSymbol: mobile ? false : true },
         { name: '急诊', type: 'line', data: trendData.value.map(d => d.emergency),
-          itemStyle: { color: '#F56C6C' }, lineStyle: { type: 'dashed' } }
+          itemStyle: { color: '#F56C6C' }, lineStyle: { type: 'dashed' }, showSymbol: mobile ? false : true }
       ]
     })
   })
@@ -492,13 +467,9 @@ async function loadDeptBreakdown() {
   try {
     const res = await reportApi.getDeptBreakdown(reportHospitalId.value || undefined, dateRange.value[0], dateRange.value[1])
     deptBreakdown.value = res.data
-  } catch (e) {
-    const names = ['内科', '外科', '影像科', '检验科', '药房', '护理', '急诊']
-    const total = 100
-    deptBreakdown.value = names.map((n, i) => {
-      const v = Math.floor((total - i * 8) * (0.7 + Math.random() * 0.6))
-      return { department: n, visits: v, revenue: v * (200 + Math.random() * 400), prescriptions: v * 0.6, lab_tests: v * 0.4 }
-    })
+  } catch (e: any) {
+    deptBreakdown.value = []
+    ElMessage.error(e.message || '加载科室数据失败')
   }
   renderDeptPie()
 }
@@ -525,13 +496,9 @@ async function loadMonthly() {
   try {
     const res = await reportApi.getMonthlyComparison(reportHospitalId.value || undefined, new Date().getFullYear())
     monthlyData.value = res.data
-  } catch (e) {
-    const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
-    monthlyData.value = months.map((m, i) => {
-      const cur = 800 + Math.floor(Math.random() * 800 + i * 30)
-      return { month: m, visits_cur: cur, visits_prev: Math.floor(cur * (0.85 + Math.random() * 0.2)),
-        revenue_cur: cur * (300 + Math.random() * 200), revenue_prev: Math.floor(cur * 0.9) * (280 + Math.random() * 200) }
-    })
+  } catch (e: any) {
+    monthlyData.value = []
+    ElMessage.error(e.message || '加载月度对比失败')
   }
   renderMonthlyChart()
 }
@@ -547,7 +514,7 @@ function renderMonthlyChart() {
       xAxis: { type: 'category', data: monthlyData.value.map(m => m.month) },
       yAxis: [
         { type: 'value', name: '接诊量' },
-        { type: 'value', name: '收入', axisLabel: { formatter: v => (v / 10000).toFixed(0) + '万' } }
+        { type: 'value', name: '收入', axisLabel: { formatter: (v: number) => (v / 10000).toFixed(0) + '万' } }
       ],
       series: [
         { name: '今年接诊', type: 'bar', data: monthlyData.value.map(m => m.visits_cur), itemStyle: { color: '#409EFF' } },
@@ -569,21 +536,9 @@ async function loadHospitalComparison() {
   try {
     const res = await reportApi.getHospitalComparison(dateRange.value[0], dateRange.value[1])
     hospitalData.value = res.data
-  } catch (e) {
-    const names = ['中心医院', '朝阳区一院', '海淀区二院', '西城区三院', '丰台区四院', '东城区五院', '石景山六院',
-      '通州分院', '昌平分院', '大兴分院', '顺义分院', '房山分院', '急诊中心A', '急诊中心B', '急诊中心C', '急诊中心D', '急诊中心E']
-    hospitalData.value = names.map((n, i) => {
-      const v = Math.floor(800 + (17 - i) * 80 + Math.random() * 300)
-      const rev = v * (250 + Math.random() * 300)
-      return {
-        id: i + 1, name: n, type: i >= 12 ? 'emergency_24h' : 'normal',
-        visits: v, revenue: Math.floor(rev), avg_price: +(rev / v).toFixed(0),
-        yoy: +((-5 + Math.random() * 30)).toFixed(1),
-        revisit_rate: +(25 + Math.random() * 15).toFixed(1),
-        abnormal_rate: +(15 + Math.random() * 10).toFixed(1),
-        doctors: 5 + Math.floor(Math.random() * 10)
-      }
-    })
+  } catch (e: any) {
+    hospitalData.value = []
+    ElMessage.error(e.message || '加载院区对比失败')
   }
   renderHospitalChart()
 }
@@ -606,7 +561,7 @@ function renderHospitalChart() {
           value: s[valKey],
           itemStyle: { color: s.type === 'emergency_24h' ? '#F56C6C' : '#409EFF' }
         })).reverse(),
-        label: { show: true, position: 'right', formatter: p => p.value?.toLocaleString() }
+        label: { show: true, position: 'right', formatter: (p: { value: number }) => p.value?.toLocaleString() }
       }]
     })
   })
@@ -639,7 +594,7 @@ async function loadDeptCharts() {
         ],
         series: [
           { name: '收入', type: 'bar', data: sorted.map(s => s.revenue), itemStyle: { color: '#409EFF' },
-            label: { show: true, position: 'top', formatter: p => (p.value / 10000).toFixed(1) + '万' } },
+            label: { show: true, position: 'top', formatter: (p: { value: number }) => (p.value / 10000).toFixed(1) + '万' } },
           { name: '接诊量', type: 'line', yAxisIndex: 1, smooth: true, data: sorted.map(s => s.visits), itemStyle: { color: '#E6A23C' } }
         ]
       })
@@ -666,18 +621,9 @@ async function loadDoctorRanking() {
   try {
     const res = await reportApi.getDoctorRanking(reportHospitalId.value || undefined, dateRange.value[0], dateRange.value[1], 15)
     doctorRanking.value = res.data
-  } catch (e) {
-    const names = ['张伟', '李娜', '王芳', '刘洋', '陈静', '杨帆', '赵敏', '黄磊', '周婷', '吴强', '徐丽', '孙浩', '马琳', '朱峰', '胡军']
-    const depts = ['内科', '外科', '影像科', '检验科', '急诊']
-    doctorRanking.value = names.map((n, i) => {
-      const v = Math.floor(300 + (15 - i) * 20 + Math.random() * 50)
-      return {
-        id: 100 + i, name: n, department: depts[i % depts.length],
-        visits: v, revenue: v * (400 + Math.random() * 400),
-        revisit_rate: +(30 + Math.random() * 25).toFixed(1),
-        avg_score: +(4.3 + Math.random() * 0.7).toFixed(1)
-      }
-    }).sort((a, b) => b[doctorRankKey.value] - a[doctorRankKey.value])
+  } catch (e: any) {
+    doctorRanking.value = []
+    ElMessage.error(e.message || '加载医生排名失败')
   }
   renderDoctorChart()
 }
@@ -702,7 +648,7 @@ function renderDoctorChart() {
             borderRadius: [0, 4, 4, 0]
           }
         })),
-        label: { show: true, position: 'right', formatter: p => p.value?.toLocaleString() + unit }
+        label: { show: true, position: 'right', formatter: (p: { value: number }) => p.value?.toLocaleString() + unit }
       }]
     })
   })
@@ -726,17 +672,9 @@ async function loadMedicineConsumption() {
   try {
     const res = await reportApi.getMedicineConsumption(reportHospitalId.value || undefined, dateRange.value[0], dateRange.value[1], 20)
     medConsumption.value = res.data
-  } catch (e) {
-    const cats = ['抗生素', '抗炎药', '止痛药', '麻醉药', '抗寄生虫', '营养补充', '外用药']
-    const names = ['阿莫西林克拉维酸', '美洛昔康', '头孢氨苄', '芬苯达唑', '伊维菌素', '地塞米松', '氯胺酮', '咪达唑仑', '多西环素', '恩诺沙星', '甲硝唑', '奥美拉唑', '塞拉菌素', '莫昔克丁', '阿托伐醌', '马罗匹坦', '昂丹司琼', '环孢素', '泼尼松', '特比萘芬']
-    medConsumption.value = names.map((n, i) => {
-      const q = Math.floor(100 + (20 - i) * 30 + Math.random() * 200)
-      const p = 30 + Math.random() * 270
-      return {
-        id: i + 1, name: n, category: cats[i % cats.length], is_controlled: i === 6 || i === 7,
-        unit: ['盒', '瓶', '支', '片'][i % 4], quantity: q, amount: Math.floor(q * p)
-      }
-    })
+  } catch (e: any) {
+    medConsumption.value = []
+    ElMessage.error(e.message || '加载药品消耗失败')
   }
   renderMedChart()
 }
@@ -762,7 +700,7 @@ function renderMedChart() {
             borderRadius: [0, 4, 4, 0]
           }
         })),
-        label: { show: true, position: 'right', formatter: p => (p.value as number).toLocaleString() + unit }
+        label: { show: true, position: 'right', formatter: (p: { value: number }) => p.value.toLocaleString() + unit }
       }]
     })
   })
@@ -820,10 +758,9 @@ async function loadHospitals() {
   try {
     const res = await authApi.getHospitals()
     hospitals.value = res.data
-  } catch (e) {
-    const names = ['集团全部', '中心医院', '朝阳区一院', '海淀区二院', '西城区三院', '丰台区四院', '东城区五院',
-      '石景山六院', '通州分院', '昌平分院', '大兴分院', '顺义分院', '房山分院', '急诊中心A', '急诊中心B']
-    hospitals.value = names.map((n, i) => ({ id: i, name: n, address: '', phone: '', type: 'normal', is_active: true }))
+  } catch (e: any) {
+    hospitals.value = []
+    ElMessage.error(e.message || '加载院区列表失败')
   }
 }
 

@@ -78,7 +78,7 @@ class User(db.Model, TimestampMixin):
 
     medical_records = db.relationship('MedicalRecord', backref='doctor', foreign_keys='MedicalRecord.doctor_id', lazy=True)
     lab_results_submitted = db.relationship('LabResult', backref='technician', foreign_keys='LabResult.technician_id', lazy=True)
-    schedules = db.relationship('Schedule', backref='user', lazy=True)
+    schedules = db.relationship('Schedule', backref='user', foreign_keys='Schedule.user_id', lazy=True)
     notifications_received = db.relationship('Notification', backref='user', lazy=True)
 
     def set_password(self, password):

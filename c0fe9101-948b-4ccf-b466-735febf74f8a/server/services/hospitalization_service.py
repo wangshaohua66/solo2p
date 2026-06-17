@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from sqlalchemy import and_, or_, desc
-from models import db, Cage, Hospitalization, Pet, Hospital, User
+from models import db, Cage, Hospitalization, Pet, Hospital, User, Notification
 from services.auth_service import create_notification
 
 
@@ -184,6 +184,61 @@ class HospitalizationService:
         return [r.to_dict() for r in records]
 
     @staticmethod
+    def check_and_notify_upcoming_discharges(days=3):
+        now = datetime.utcnow()
+        threshold = now + timedelta(days=days)
+        upcoming = Hospitalization.query.filter(
+            Hospitalization.status == 'admitted',
+            Hospitalization.expected_discharge_date <= threshold,
+            Hospitalization.expected_discharge_date >= now
+        ).all()
+
+        notified_count = 0
+        for h in upcoming:
+            existing = Notification.query.filter(
+                Notification.related_type == 'Hospitalization',
+                Notification.related_id == h.id,
+                Notification.type == 'discharge_reminder'
+            ).first()
+            if existing:
+                continue
+
+            pet_name = h.pet.name if h.pet else f'宠物#{h.pet_id}'
+            hospital_name = h.hospital.name if h.hospital else f'院区#{h.hospital_id}'
+            discharge_str = h.expected_discharge_date.strftime('%Y-%m-%d %H:%M') if h.expected_discharge_date else '未设置'
+            remaining_hours = round((h.expected_discharge_date - now).total_seconds() / 3600, 1) if h.expected_discharge_date else None
+
+            priority = 'urgent' if remaining_hours is not None and remaining_hours < 24 else 'high'
+            content = (
+                f'住院宠物「{pet_name}」预计将于{discharge_str}到期出院。'
+                f'院区：{hospital_name}，笼位：{h.cage.code if h.cage else "未知"}。'
+                f'剩余约{remaining_hours}小时，请及时安排出院手续或延期。'
+            )
+
+            recipients = set()
+            if h.admitting_doctor_id:
+                recipients.add(h.admitting_doctor_id)
+            managers = User.query.filter_by(hospital_id=h.hospital_id, role='manager', is_active=True).all()
+            for m in managers:
+                recipients.add(m.id)
+            nurses = User.query.filter_by(hospital_id=h.hospital_id, role='nurse', is_active=True).all()
+            for n in nurses:
+                recipients.add(n.id)
+
+            for uid in recipients:
+                create_notification(
+                    user_id=uid,
+                    type='discharge_reminder',
+                    title=f'住院到期提醒：{pet_name}',
+                    content=content,
+                    related_type='Hospitalization',
+                    related_id=h.id,
+                    priority=priority
+                )
+            notified_count += 1
+        return notified_count
+
+    @staticmethod
     def update_cage_status(cage_id, status, remark=None):
         cage = Cage.query.get(cage_id)
         if not cage:
@@ -211,3 +266,28 @@ class HospitalizationService:
         db.session.add(cage)
         db.session.commit()
         return cage, None
+
+
+def start_discharge_reminder_scheduler(app, interval_seconds=3600):
+    import threading
+    import time as _time
+    from models import db as _db
+
+    def run_scheduler():
+        with app.app_context():
+            while True:
+                try:
+                    count = HospitalizationService.check_and_notify_upcoming_discharges(days=3)
+                    if count > 0:
+                        app.logger.info(f'[DischargeReminder] Sent reminders for {count} hospitalizations')
+                except Exception as e:
+                    app.logger.error(f'[DischargeReminder] Error: {str(e)}')
+                    try:
+                        _db.session.rollback()
+                    except Exception:
+                        pass
+                _time.sleep(interval_seconds)
+
+    thread = threading.Thread(target=run_scheduler, daemon=True, name='discharge-reminder-scheduler')
+    thread.start()
+    return thread
