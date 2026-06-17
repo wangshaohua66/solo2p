@@ -96,16 +96,35 @@ function inputTestResult(config, sampleId, projectName, values, operator, remark
       reason: '录入检测结果自动流转'
     });
   }
+  let reasonList = null;
   if (isFailed) {
-    updates.isException = true;
     const reasonText = `检测项目[${projectName}]不合格: 均值${stats.mean}${threshold?.unit || ''} ${judgement.compare} (依据${judgement.standard || 'N/A'})`;
-    updates.exceptionReason = reasonText;
-    newHistory.push({
-      status: newStatus,
-      time: formatDateTimeLocal(new Date()),
-      operator: operator || 'system',
-      reason: `自动标记异常: ${reasonText}`
-    });
+    const existing = sample.exceptionReason;
+    if (Array.isArray(existing)) {
+      reasonList = [...existing, reasonText];
+    } else if (existing && typeof existing === 'string' && existing.trim()) {
+      reasonList = [existing, reasonText];
+    } else {
+      reasonList = [reasonText];
+    }
+    updates.isException = true;
+    updates.exceptionReason = reasonList;
+    if (newStatus !== 'exception') {
+      updates.status = 'exception';
+      newHistory.push({
+        status: 'exception',
+        time: formatDateTimeLocal(new Date()),
+        operator: operator || 'system',
+        reason: `自动流转异常: ${reasonText}`
+      });
+    } else {
+      newHistory.push({
+        status: newStatus,
+        time: formatDateTimeLocal(new Date()),
+        operator: operator || 'system',
+        reason: `追加异常: ${reasonText}`
+      });
+    }
   }
   updates.statusHistory = newHistory;
   const updated = updateSample(config, sampleId, updates);
@@ -129,8 +148,11 @@ function inputTestResult(config, sampleId, projectName, values, operator, remark
   }
   console.log(`  项目完成: ${completed}/${total}`);
   if (isFailed) {
-    console.log(chalk.red.bold(`\n⚠ 检测结果不合格！样品已自动标记为异常！`));
-    console.log(chalk.red(`  异常原因: ${updates.exceptionReason}`));
+    const reasons = reasonList || [];
+    console.log(chalk.red.bold(`\n⚠ 检测结果不合格！样品已自动标记为异常并流转至异常状态！`));
+    reasons.forEach((r, i) => {
+      console.log(chalk.red(`  [${i + 1}] ${r}`));
+    });
     console.log(chalk.red(`  请及时处理或重新检测。`));
   }
   return updated;
@@ -187,12 +209,12 @@ function generateTextReport(sample, config) {
   const cat = config.categories[sample.category];
   const overall = judgeSampleOverall(sample, config);
   const fields = template.fields || {};
-  const colProject = fields.project?.width || 22;
-  const colResult = fields.result?.width || 12;
-  const colUnit = fields.unit?.width || 12;
-  const colJudge = fields.judged?.width || 8;
-  const colStd = fields.standard?.width || 17;
-  const W = 1 + colProject + colResult + colUnit + colJudge + colStd;
+  const sections = template.sections || [];
+  const resultsSection = sections.find(s => s.key === 'results');
+  const resultFields = (resultsSection && resultsSection.fields && resultsSection.fields.length > 0)
+    ? resultsSection.fields
+    : ['name', 'mean', 'unit', 'judged', 'standard'];
+  const W = 1 + resultFields.reduce((sum, fk) => sum + (fields[fk]?.width || 12), 0);
   const header = template.header || config.report.header || '检测报告';
   const border = (l, r) => chalk.cyan(l) + '═'.repeat(W) + chalk.cyan(r);
   const line = (content) => chalk.cyan('║') + padEndVisual(content, W) + chalk.cyan('║');
@@ -201,57 +223,135 @@ function generateTextReport(sample, config) {
     const v = valueColor ? valueColor(String(value)) : String(value);
     return line(` ${chalk.yellow(label)}: ${v}`);
   };
-  const sectionKeys = (template.sections || []).map(s => s.key);
+
+  const sampleFieldMap = {
+    id: () => ({ label: '报告编号', value: sample.id }),
+    name: () => ({ label: '样品名称', value: sample.name }),
+    batch: () => sample.batch ? { label: '批次号', value: sample.batch } : null,
+    category: () => ({ label: '检测类别', value: cat.name }),
+    source: () => ({ label: '采样来源', value: sample.source }),
+    producer: () => sample.producer ? { label: '生产单位', value: sample.producer } : null,
+    sampler: () => ({ label: '采样人员', value: sample.sampler }),
+    sampleDate: () => ({ label: '采样日期', value: sample.sampleDate }),
+    quantity: () => ({ label: '样品数量', value: `${sample.quantity} ${sample.unit}` }),
+    unit: () => null
+  };
+
+  const labFieldMap = {
+    name: () => ({ label: '实验室', value: config.lab.name }),
+    code: () => ({ label: '实验室代码', value: config.lab.code }),
+    reportId: () => ({ label: '报告编号', value: sample.id })
+  };
+
+  const overallFieldMap = {
+    result: () => ({ label: '综合判定', value: overall.overall === 'passed' ? '合格' : overall.overall === 'failed' ? '不合格' : '待检' }),
+    passed: () => ({ label: '合格项目', value: overall.passed }),
+    failed: () => ({ label: '不合格项目', value: overall.failed }),
+    pending: () => ({ label: '待检项目', value: overall.pending }),
+    total: () => ({ label: '项目总数', value: overall.total })
+  };
+
   const lines = [];
   lines.push(border('╔', '╗'));
   lines.push(line(centerVisual(chalk.white.bold(header), W)));
-  if (sectionKeys.includes('lab')) {
-    lines.push(border('╠', '╣'));
-    lines.push(pad('实验室', config.lab.name));
-    lines.push(pad('报告编号', sample.id));
-  }
-  if (sectionKeys.includes('sample')) {
-    lines.push(sep('╠', '╣'));
-    lines.push(pad('样品名称', sample.name));
-    if (sample.batch) lines.push(pad('批次号', sample.batch));
-    lines.push(pad('检测类别', cat.name));
-    lines.push(pad('采样来源', sample.source));
-    if (sample.producer) lines.push(pad('生产单位', sample.producer));
-    lines.push(pad('采样人员', sample.sampler));
-    lines.push(pad('采样日期', sample.sampleDate));
-    lines.push(pad('样品数量', `${sample.quantity} ${sample.unit}`));
-  }
-  if (sectionKeys.includes('overall')) {
-    lines.push(pad('综合判定', overall.overall === 'passed' ? '合格' : overall.overall === 'failed' ? '不合格' : '待检'));
-    lines.push(pad('检测进度', `${overall.passed + overall.failed}/${overall.total} 合格:${overall.passed} 不合格:${overall.failed} 待检:${overall.pending}`));
-  }
-  if (sectionKeys.includes('results')) {
-    lines.push(border('╠', '╣'));
-    const colHeader = ` ${chalk.white.bold(padEndVisual(fields.project?.label || '检测项目', colProject))}${padEndVisual(fields.result?.label || '结果', colResult)}${padEndVisual(fields.unit?.label || '单位', colUnit)}${padEndVisual(fields.judged?.label || '判定', colJudge)}${padEndVisual(fields.standard?.label || '标准', colStd)}`;
-    lines.push(line(colHeader));
-    lines.push(sep('╠', '╣'));
-    for (const project of sample.projects) {
-      const results = sample.testResults?.[project] || [];
-      if (results.length === 0) {
-        lines.push(line(` ${padEndVisual(project, colProject)}${chalk.yellow('待检')}`));
-        continue;
+
+  let firstSection = true;
+
+  for (const section of sections) {
+    const { key: sKey, label: sLabel, fields: sFields } = section;
+    const sectionStart = firstSection ? border : sep;
+    firstSection = false;
+
+    if (sKey === 'lab') {
+      lines.push(sectionStart('╠', '╣'));
+      const outFields = (sFields && sFields.length > 0) ? sFields : Object.keys(labFieldMap);
+      for (const fKey of outFields) {
+        const getter = labFieldMap[fKey];
+        if (typeof getter !== 'function') continue;
+        const r = getter();
+        if (!r) continue;
+        const { label, value } = r;
+        const finalLabel = fields[fKey]?.label || label;
+        lines.push(pad(finalLabel, value));
       }
-      const last = results[results.length - 1];
-      const threshold = getThreshold(config, project);
-      const unit = last.unit || threshold?.unit || '';
-      let tag = '';
-      if (last.judged === true) tag = chalk.green('合格');
-      else if (last.judged === false) tag = chalk.red('不合格');
-      else tag = chalk.gray('-');
-      const std = threshold?.standard || '-';
-      const valStr = String(last.mean);
-      lines.push(line(` ${padEndVisual(project, colProject)}${padEndVisual(valStr, colResult)}${padEndVisual(unit, colUnit)}${padEndVisual(tag, colJudge)}${padEndVisual(std, colStd)}`));
-      if (last.count > 1) {
-        const detail = chalk.gray(`   平行${last.count}次 均值:${last.mean} RSD:${last.rsd}% 范围:${last.min}~${last.max}`);
-        lines.push(line(detail));
+    } else if (sKey === 'sample') {
+      lines.push(sectionStart('╠', '╣'));
+      const outFields = (sFields && sFields.length > 0) ? sFields : Object.keys(sampleFieldMap);
+      for (const fKey of outFields) {
+        const getter = sampleFieldMap[fKey];
+        if (typeof getter !== 'function') continue;
+        const r = getter();
+        if (!r) continue;
+        const { label, value } = r;
+        const finalLabel = fields[fKey]?.label || label;
+        lines.push(pad(finalLabel, value));
+      }
+    } else if (sKey === 'overall') {
+      lines.push(sectionStart('╠', '╣'));
+      if (sLabel) {
+        lines.push(line(centerVisual(chalk.white.bold(sLabel), W)));
+        lines.push(sep('╠', '╣'));
+      }
+      const outFields = (sFields && sFields.length > 0) ? sFields : Object.keys(overallFieldMap);
+      for (const fKey of outFields) {
+        const getter = overallFieldMap[fKey];
+        if (typeof getter !== 'function') continue;
+        const r = getter();
+        if (!r) continue;
+        const { label, value } = r;
+        const finalLabel = fields[fKey]?.label || label;
+        lines.push(pad(finalLabel, value));
+      }
+    } else if (sKey === 'results') {
+      lines.push(border('╠', '╣'));
+      if (sLabel) {
+        lines.push(line(centerVisual(chalk.white.bold(sLabel), W)));
+        lines.push(sep('╠', '╣'));
+      }
+      const outFields = (sFields && sFields.length > 0) ? sFields : resultFields;
+      const hdr = outFields.map(fk => {
+        const cfg = fields[fk];
+        if (!cfg) return '';
+        const txt = chalk.white.bold(cfg.label || fk);
+        return padEndVisual(txt, cfg.width || 12);
+      }).join('');
+      lines.push(line(' ' + hdr));
+      lines.push(sep('╠', '╣'));
+      for (const project of sample.projects) {
+        const results = sample.testResults?.[project] || [];
+        if (results.length === 0) {
+          const nameW = fields.name?.width || 22;
+          const pname = outFields.includes('name') ? padEndVisual(project, nameW) : '';
+          const pendingStr = chalk.yellow('待检');
+          lines.push(line(' ' + pname + pendingStr));
+          continue;
+        }
+        const last = results[results.length - 1];
+        const threshold = getThreshold(config, project);
+        const unit = last.unit || threshold?.unit || '';
+        const judged = last.judged === true ? chalk.green('合格') : last.judged === false ? chalk.red('不合格') : chalk.gray('-');
+        const std = threshold?.standard || '-';
+        const projectData = {
+          name: project,
+          mean: String(last.mean),
+          unit: unit,
+          judged: judged,
+          standard: std
+        };
+        const row = outFields.map(fk => {
+          const cfg = fields[fk];
+          if (!cfg) return '';
+          return padEndVisual(projectData[fk] || '', cfg.width || 12);
+        }).join('');
+        lines.push(line(' ' + row));
+        if (last.count > 1) {
+          const detail = chalk.gray(`   平行${last.count}次 均值:${last.mean} RSD:${last.rsd}% 范围:${last.min}~${last.max}`);
+          lines.push(line(detail));
+        }
       }
     }
   }
+
   lines.push(border('╠', '╣'));
   lines.push(pad('报告日期', formatDateLocal(new Date())));
   lines.push(border('╚', '╝'));

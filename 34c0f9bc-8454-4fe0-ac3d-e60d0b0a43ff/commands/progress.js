@@ -68,7 +68,17 @@ function printSampleProgress(sample, config, detailed = false) {
   console.log(kv('采样员', sample.sampler));
   console.log(kv('登记时间', displayDateTime(sample.registeredAt)));
   if (sample.isException && sample.exceptionReason) {
-    console.log(kv(chalk.red('异常原因'), sample.exceptionReason));
+    const reasons = Array.isArray(sample.exceptionReason)
+      ? sample.exceptionReason
+      : [sample.exceptionReason];
+    if (reasons.length > 0) {
+      console.log(kv(chalk.red('异常原因'), reasons.length === 1 ? reasons[0] : ''));
+      if (reasons.length > 1) {
+        reasons.forEach((r, i) => {
+          console.log(line(`  ${chalk.red(`[${i + 1}]`)} ${r}`));
+        });
+      }
+    }
   }
   console.log(border('└', '┘'));
   if (detailed && sample.statusHistory && sample.statusHistory.length > 0) {
@@ -153,7 +163,16 @@ function transitionStatus(config, sampleId, newStatus, operator, reason) {
   };
   if (newStatus === 'exception') {
     updates.isException = true;
-    if (reason) updates.exceptionReason = reason;
+    if (reason) {
+      const existing = sample.exceptionReason;
+      if (Array.isArray(existing)) {
+        updates.exceptionReason = [...existing, reason];
+      } else if (existing && typeof existing === 'string' && existing.trim()) {
+        updates.exceptionReason = [existing, reason];
+      } else {
+        updates.exceptionReason = [reason];
+      }
+    }
   } else if (sample.isException && newStatus !== 'exception') {
     updates.isException = false;
   }
@@ -206,7 +225,10 @@ function showDashboard(config) {
     console.log(chalk.red.bold(`\n⚠ 存在 ${exceptions} 个异常样品，请及时处理！`));
     const exSamples = querySamples(config, { hasException: true }).slice(0, 5);
     for (const s of exSamples) {
-      console.log(chalk.red(`  - ${s.id} ${s.name} (${s.exceptionReason || '未填写原因'})`));
+      const reasons = Array.isArray(s.exceptionReason) ? s.exceptionReason : (s.exceptionReason ? [s.exceptionReason] : []);
+      const firstReason = reasons[0] || '未填写原因';
+      const more = reasons.length > 1 ? ` +${reasons.length - 1}项` : '';
+      console.log(chalk.red(`  - ${s.id} ${s.name} (${firstReason}${more})`));
     }
   }
 }

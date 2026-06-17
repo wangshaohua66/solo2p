@@ -79,7 +79,7 @@ function createSample(config, data) {
     projects,
     status: 'pending',
     isException: false,
-    exceptionReason: '',
+    exceptionReason: [],
     testResults: {},
     statusHistory: [
       { status: 'pending', time: now, operator: data.sampler || 'system' }
