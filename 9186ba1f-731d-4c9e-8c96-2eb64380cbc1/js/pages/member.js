@@ -414,14 +414,20 @@ const MemberPage = (function() {
         `;
 
         $('#main-content').html(html);
-        initDatePicker();
         bindEvents();
         loadMemberCardOptions();
         loadMemberStats();
         loadMembers();
+        initDatePicker();
     }
 
     function initDatePicker() {
+        try {
+            $('.datepicker').datepicker('destroy');
+        } catch (e) {}
+        $('.datepicker').off('click.datepicker-init').on('click.datepicker-init', function() {
+            $(this).datepicker('show');
+        });
         $('.datepicker').datepicker({
             format: 'yyyy-mm-dd',
             autoclose: true,
@@ -457,6 +463,9 @@ const MemberPage = (function() {
             $('#prepaidField').toggle(type === 'prepaid');
             $('#countField').toggle(type === 'count');
             $('#yearField').toggle(type === 'year');
+            if (type === 'year') {
+                setTimeout(() => initDatePicker(), 30);
+            }
         });
 
         $('#btnConfirmRecharge').on('click', handleRecharge);
@@ -551,7 +560,10 @@ const MemberPage = (function() {
         $('#consumptionTab').toggle(tab === 'consumption');
 
         if (tab === 'consumption') {
-            loadConsumptionRecords();
+            setTimeout(() => {
+                initDatePicker();
+                loadConsumptionRecords();
+            }, 100);
         }
     }
 
@@ -607,6 +619,7 @@ const MemberPage = (function() {
         modal.show();
 
         setTimeout(() => {
+            initDatePicker();
             $('#memberName').focus();
         }, 500);
     }
