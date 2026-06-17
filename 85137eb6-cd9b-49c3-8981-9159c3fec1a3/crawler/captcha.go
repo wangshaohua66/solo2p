@@ -168,17 +168,6 @@ func truncateBody(b []byte, max int) string {
 	return string(b[:max]) + "..."
 }
 
-type DummySolver struct{}
-
-func NewDummySolver() *DummySolver { return &DummySolver{} }
-func (s *DummySolver) Name() string { return "dummy" }
-
-func (s *DummySolver) Solve(req *CaptchaRequest) (*CaptchaResponse, error) {
-	return nil, fmt.Errorf("captcha detected (site=%s type=%s) but no real solver configured: "+
-		"set captcha_solver.enabled=true, captcha_solver.provider=ocrspace and captcha_solver.api_key in config "+
-		"or CAPTCHA_SOLVER_API_KEY env var", req.SiteID, req.Type)
-}
-
 type CaptchaManager struct {
 	solvers map[string]CaptchaSolver
 	order   []string

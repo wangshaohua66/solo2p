@@ -8,32 +8,6 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-func TestDummySolverName(t *testing.T) {
-	solver := &DummySolver{}
-	if solver.Name() != "dummy" {
-		t.Errorf("Expected name 'dummy', got %s", solver.Name())
-	}
-}
-
-func TestDummySolverSolve(t *testing.T) {
-	solver := &DummySolver{}
-	req := &CaptchaRequest{
-		SiteID:   "test",
-		ImageURL: "http://example.com/captcha.jpg",
-		Type:     CaptchaTypeImage,
-	}
-	resp, err := solver.Solve(req)
-	if err == nil {
-		t.Fatal("DummySolver.Solve should return error when no real solver configured")
-	}
-	if resp != nil {
-		t.Error("Response should be nil when DummySolver errors")
-	}
-	if !strings.Contains(err.Error(), "no real solver configured") {
-		t.Errorf("Error should mention 'no real solver configured', got: %v", err)
-	}
-}
-
 func TestNewOCRSpaceSolver(t *testing.T) {
 	solver := NewOCRSpaceSolver("test-api-key")
 	if solver == nil {
@@ -203,7 +177,7 @@ func TestCaptchaResponseFields(t *testing.T) {
 		Success:  true,
 		Code:     "abcd1234",
 		Message:  "OK",
-		Provider: "dummy",
+		Provider: "ocrspace",
 	}
 	if resp.Code != "abcd1234" {
 		t.Error("Code mismatch")
