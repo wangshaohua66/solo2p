@@ -1,0 +1,54 @@
+<view class="container">
+  <view class="search-bar">
+    <view class="search-input" bindtap="onSearchTap">
+      <text class="search-icon">🔍</text>
+      <text class="search-placeholder">搜索演出、艺术家</text>
+    </view>
+  </view>
+
+  <swiper class="banner" indicator-dots circular autoplay interval="4000">
+    <swiper-item wx:for="{{banners}}" wx:key="id">
+      <view class="banner-item">
+        <text class="banner-title">{{item.title}}</text>
+      </view>
+    </swiper-item>
+  </swiper>
+
+  <scroll-view scroll-x class="category-bar">
+    <view
+      class="category-item {{activeCategory === item.type ? 'active' : ''}}"
+      wx:for="{{categories}}"
+      wx:key="type"
+      data-type="{{item.type}}"
+      bindtap="onCategoryTap"
+    >
+      {{item.label}}
+    </view>
+  </scroll-view>
+
+  <view class="performance-list">
+    <block wx:if="{{performances.length > 0}}">
+      <view
+        class="perf-card"
+        wx:for="{{performances}}"
+        wx:key="id"
+        data-id="{{item.id}}"
+        bindtap="onPerformanceTap"
+      >
+        <view class="perf-info">
+          <view class="perf-name">{{item.name}}</view>
+          <view class="perf-meta">
+            <text class="tag tag-blue">{{item.typeLabel || '演出'}}</text>
+            <text class="perf-venue">{{item.venueName || '大剧院'}}</text>
+          </view>
+          <view class="perf-time">{{item.startTimeText || item.startTime}}</view>
+          <view class="perf-price">
+            <text class="price">¥{{item.minPrice || 180}}</text>
+            <text class="price-suffix">起</text>
+          </view>
+        </view>
+      </view>
+    </block>
+    <view wx:else class="empty">暂无演出，下拉刷新</view>
+  </view>
+</view>

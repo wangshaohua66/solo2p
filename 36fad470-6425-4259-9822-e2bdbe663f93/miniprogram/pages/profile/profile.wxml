@@ -1,0 +1,47 @@
+<view class="container">
+  <view class="profile-header">
+    <block wx:if="{{isLogin}}">
+      <view class="avatar">{{userInfo.name[0] || 'U'}}</view>
+      <view class="user-name">{{userInfo.name}}</view>
+      <view class="user-tag">普通用户</view>
+    </block>
+    <view wx:else class="login-area" bindtap="onLoginTap">
+      <view class="avatar default-avatar">👤</view>
+      <view class="login-text">点击登录</view>
+    </view>
+  </view>
+
+  <view class="card menu-card">
+    <view
+      class="menu-item"
+      wx:for="{{menuList}}"
+      wx:key="label"
+      data-url="{{item.url}}"
+      bindtap="onMenuTap"
+    >
+      <text class="menu-icon">{{item.icon}}</text>
+      <text class="menu-label">{{item.label}}</text>
+      <text class="menu-arrow">›</text>
+    </view>
+  </view>
+
+  <view class="card stats-card" wx:if="{{isLogin}}">
+    <view class="card-title">数据统计</view>
+    <view class="stats-row">
+      <view class="stat-item">
+        <text class="stat-num">0</text>
+        <text class="stat-label">总订单</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-num">0</text>
+        <text class="stat-label">已使用</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-num">0</text>
+        <text class="stat-label">收藏</text>
+      </view>
+    </view>
+  </view>
+
+  <button wx:if="{{isLogin}}" class="btn-primary logout-btn" bindtap="onLogoutTap">退出登录</button>
+</view>

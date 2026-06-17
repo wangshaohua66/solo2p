@@ -1,0 +1,98 @@
+.hero {
+  margin: -24rpx -24rpx 24rpx;
+}
+
+.hero-bg {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 48rpx 32rpx;
+  border-radius: 0 0 32rpx 32rpx;
+}
+
+.hero-title {
+  color: #fff;
+  font-size: 40rpx;
+  font-weight: 600;
+  margin-bottom: 16rpx;
+}
+
+.hero-meta {
+  display: flex;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  color: #909399;
+}
+
+.info-value {
+  color: #333;
+  font-weight: 500;
+}
+
+.ticket-type {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.ticket-type:last-child {
+  border-bottom: none;
+}
+
+.tt-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.tt-label {
+  font-size: 30rpx;
+  font-weight: 500;
+  margin-bottom: 4rpx;
+}
+
+.tt-desc {
+  font-size: 24rpx;
+  color: #909399;
+}
+
+.desc-text {
+  color: #606266;
+  line-height: 1.6;
+  font-size: 28rpx;
+}
+
+.bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 32rpx;
+  background: #fff;
+  box-shadow: 0 -2rpx 12rpx rgba(0,0,0,0.06);
+}
+
+.price-area {
+  display: flex;
+  align-items: baseline;
+}
+
+.buy-btn {
+  flex: 1;
+  margin-left: 32rpx;
+  max-width: 400rpx;
+}

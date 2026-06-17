@@ -1,0 +1,52 @@
+<view class="container" wx:if="{{performance}}">
+  <view class="hero">
+    <view class="hero-bg">
+      <view class="hero-title">{{performance.name}}</view>
+      <view class="hero-meta">
+        <text class="tag tag-blue">{{performance.typeLabel || '演出'}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="card-title">演出信息</view>
+    <view class="info-row">
+      <text class="info-label">时间</text>
+      <text class="info-value">{{performance.startTimeText || performance.startTime}}</text>
+    </view>
+    <view class="info-row">
+      <text class="info-label">场馆</text>
+      <text class="info-value">{{performance.venueName || '大剧院'}}</text>
+    </view>
+    <view class="info-row">
+      <text class="info-label">时长</text>
+      <text class="info-value">{{performance.duration || 120}}分钟</text>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="card-title">票种说明</view>
+    <view class="ticket-type" wx:for="{{ticketTypes}}" wx:key="type">
+      <view class="tt-left">
+        <text class="tt-label">{{item.label}}</text>
+        <text class="tt-desc">{{item.desc}}</text>
+      </view>
+      <text class="price">¥{{performance.minPrice || 180}}</text>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="card-title">演出简介</view>
+    <view class="desc-text">{{performance.description || '精彩演出，敬请期待！'}}</view>
+  </view>
+
+  <view class="bottom-bar">
+    <view class="price-area">
+      <text class="price">¥{{performance.minPrice || 180}}</text>
+      <text class="price-suffix">起</text>
+    </view>
+    <button class="btn-primary buy-btn" bindtap="onBuyTap">立即购票</button>
+  </view>
+</view>
+
+<view wx:else class="empty">加载中...</view>

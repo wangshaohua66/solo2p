@@ -24,10 +24,62 @@ export const restoreAuth = createAsyncThunk('auth/restore', async () => {
 })
 
 export const refreshToken = createAsyncThunk('auth/refresh', async () => {
-  const refreshToken = localStorage.getItem('refresh_token')
-  const response = await api.post('/auth/refresh', { refreshToken })
+  const refreshTokenVal = localStorage.getItem('refresh_token')
+  if (!refreshTokenVal) {
+    throw new Error('No refresh token')
+  }
+  const response = await api.post('/auth/refresh', { refreshToken: refreshTokenVal })
   return response.data
 })
+
+function decodeJwtExp(token: string): number | null {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
+    return payload?.exp ? Number(payload.exp) : null
+  } catch {
+    return null
+  }
+}
+
+let refreshTimer: ReturnType<typeof setTimeout> | null = null
+
+export function scheduleTokenRefresh(dispatch: (action: any) => void) {
+  if (refreshTimer) {
+    clearTimeout(refreshTimer)
+    refreshTimer = null
+  }
+
+  const token = localStorage.getItem('access_token')
+  if (!token) return
+
+  const exp = decodeJwtExp(token)
+  if (!exp) return
+
+  const now = Math.floor(Date.now() / 1000)
+  const remaining = exp - now
+
+  if (remaining <= 0) {
+    dispatch(refreshToken() as any)
+  } else {
+    const refreshAt = (remaining - 300) * 1000
+    if (refreshAt <= 0) {
+      dispatch(refreshToken() as any)
+    } else {
+      refreshTimer = setTimeout(() => {
+        dispatch(refreshToken() as any)
+      }, refreshAt)
+    }
+  }
+}
+
+export function clearRefreshTimer() {
+  if (refreshTimer) {
+    clearTimeout(refreshTimer)
+    refreshTimer = null
+  }
+}
 
 const authSlice = createSlice({
   name: 'auth',
@@ -41,6 +93,7 @@ const authSlice = createSlice({
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
       localStorage.removeItem('user')
+      clearRefreshTimer()
     },
     setTokens: (state, action: PayloadAction<{ accessToken: string; refreshToken: string }>) => {
       state.accessToken = action.payload.accessToken
@@ -74,7 +127,21 @@ const authSlice = createSlice({
       })
       .addCase(refreshToken.fulfilled, (state, action) => {
         state.accessToken = action.payload.accessToken
+        if (action.payload.refreshToken) {
+          state.refreshToken = action.payload.refreshToken
+          localStorage.setItem('refresh_token', action.payload.refreshToken)
+        }
         localStorage.setItem('access_token', action.payload.accessToken)
+      })
+      .addCase(refreshToken.rejected, (state) => {
+        state.user = null
+        state.accessToken = null
+        state.refreshToken = null
+        state.isAuthenticated = false
+        localStorage.removeItem('access_token')
+        localStorage.removeItem('refresh_token')
+        localStorage.removeItem('user')
+        clearRefreshTimer()
       })
   }
 })

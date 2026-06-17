@@ -1,0 +1,115 @@
+.search-bar {
+  margin-bottom: 24rpx;
+}
+
+.search-input {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border-radius: 48rpx;
+  padding: 16rpx 32rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.06);
+}
+
+.search-icon {
+  font-size: 32rpx;
+  margin-right: 16rpx;
+}
+
+.search-placeholder {
+  color: #909399;
+  font-size: 28rpx;
+}
+
+.banner {
+  height: 240rpx;
+  border-radius: 16rpx;
+  margin-bottom: 24rpx;
+  overflow: hidden;
+}
+
+.banner-item {
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.banner-title {
+  color: #fff;
+  font-size: 40rpx;
+  font-weight: 600;
+}
+
+.category-bar {
+  white-space: nowrap;
+  margin-bottom: 24rpx;
+}
+
+.category-item {
+  display: inline-block;
+  padding: 12rpx 32rpx;
+  margin-right: 16rpx;
+  background: #fff;
+  border-radius: 32rpx;
+  font-size: 26rpx;
+  color: #606266;
+}
+
+.category-item.active {
+  background: #1677ff;
+  color: #fff;
+}
+
+.performance-list {
+  padding-bottom: 40rpx;
+}
+
+.perf-card {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+}
+
+.perf-name {
+  font-size: 34rpx;
+  font-weight: 600;
+  margin-bottom: 12rpx;
+}
+
+.perf-meta {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 12rpx;
+}
+
+.perf-venue {
+  font-size: 24rpx;
+  color: #909399;
+}
+
+.perf-time {
+  font-size: 26rpx;
+  color: #606266;
+  margin-bottom: 16rpx;
+}
+
+.perf-price {
+  display: flex;
+  align-items: baseline;
+}
+
+.price {
+  font-size: 36rpx;
+  font-weight: 600;
+}
+
+.price-suffix {
+  font-size: 22rpx;
+  color: #909399;
+  margin-left: 8rpx;
+}

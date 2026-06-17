@@ -1,0 +1,41 @@
+<view class="container">
+  <scroll-view scroll-x class="tab-bar">
+    <view
+      class="tab-item {{activeTab === item.key ? 'active' : ''}}"
+      wx:for="{{tabs}}"
+      wx:key="key"
+      data-key="{{item.key}}"
+      bindtap="onTabTap"
+    >
+      {{item.label}}
+    </view>
+  </scroll-view>
+
+  <view class="order-list">
+    <block wx:if="{{orders.length > 0}}">
+      <view
+        class="order-card"
+        wx:for="{{orders}}"
+        wx:key="id"
+        data-id="{{item.id}}"
+        bindtap="onOrderTap"
+      >
+        <view class="order-header">
+          <text class="order-no">订单号：{{item.orderNo}}</text>
+          <text class="tag {{item.status === 'paid' ? 'tag-green' : item.status === 'pending' ? 'tag-orange' : 'tag-blue'}}">
+            {{item.statusText}}
+          </text>
+        </view>
+        <view class="order-body">
+          <view class="order-name">{{item.performanceName || '演出'}}</view>
+          <view class="order-seats">{{item.seatCount || 1}}张 · {{item.sectionName || ''}}</view>
+        </view>
+        <view class="order-footer">
+          <text class="price">¥{{item.totalAmount}}</text>
+          <text class="order-time">{{item.createdAt}}</text>
+        </view>
+      </view>
+    </block>
+    <view wx:else class="empty">暂无订单</view>
+  </view>
+</view>

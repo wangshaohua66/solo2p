@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Document\PriceChangeLog;
 use App\Document\Seat;
+use App\Document\Performance;
 use App\Document\User;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -158,6 +159,82 @@ class PriceLogController extends AbstractController
             'unchanged' => count($logs) - $increaseCount - $decreaseCount,
             'totalNetChange' => round($totalChangeAmount, 2),
             'byTicketType' => $byTicketType
+        ]);
+    }
+
+    #[Route('/update-price', name: 'api_price_logs_update_price', methods: ['POST'])]
+    public function updatePrice(Request $request): JsonResponse
+    {
+        $user = $this->getUser();
+        if (!$user) {
+            return new JsonResponse(['message' => '请先登录'], 401);
+        }
+        if (!in_array($user->getRole(), [User::ROLE_VENUE_ADMIN, User::ROLE_FINANCE])) {
+            return new JsonResponse(['message' => '无权修改票价'], 403);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $performanceId = $data['performanceId'] ?? '';
+        $sectionId = $data['sectionId'] ?? null;
+        $ticketType = $data['ticketType'] ?? Seat::TICKET_REGULAR;
+        $newPrice = (float)($data['newPrice'] ?? 0);
+        $reason = $data['reason'] ?? null;
+
+        if (empty($performanceId) || $newPrice <= 0) {
+            return new JsonResponse(['message' => '参数不合法'], 400);
+        }
+
+        $performance = $this->dm->getRepository(Performance::class)->find($performanceId);
+        if (!$performance) {
+            return new JsonResponse(['message' => '演出不存在'], 404);
+        }
+
+        $qb = $this->dm->getRepository(Seat::class)->createQueryBuilder()
+            ->field('performanceId')->equals($performanceId)
+            ->field('status')->equals(Seat::STATUS_AVAILABLE);
+
+        if ($sectionId) {
+            $qb->field('sectionId')->equals($sectionId);
+        }
+
+        if ($ticketType) {
+            $qb->field('ticketType')->equals($ticketType);
+        }
+
+        $seats = $qb->getQuery()->toArray();
+        if (empty($seats)) {
+            return new JsonResponse(['message' => '未找到符合条件的可售座位'], 404);
+        }
+
+        $oldPrice = $seats[0]->getPrice();
+        $sectionName = $sectionId ? ('区域 ' . $sectionId) : '全部区域';
+
+        foreach ($seats as $seat) {
+            $seat->setPrice($newPrice);
+        }
+
+        $log = new PriceChangeLog();
+        $log->setPerformanceId($performanceId)
+            ->setPerformanceName($performance->getName())
+            ->setSectionId($sectionId)
+            ->setSectionName($sectionName)
+            ->setTicketType($ticketType)
+            ->setOldPrice($oldPrice)
+            ->setNewPrice($newPrice)
+            ->setOperatorId($user->getId())
+            ->setOperatorName($user->getName())
+            ->setReason($reason);
+
+        $this->dm->persist($log);
+        $this->dm->flush();
+
+        return new JsonResponse([
+            'message' => '票价修改成功',
+            'affectedSeats' => count($seats),
+            'oldPrice' => $oldPrice,
+            'newPrice' => $newPrice,
+            'changeAmount' => round($newPrice - $oldPrice, 2),
+            'log' => json_decode($this->serializer->serialize($log, 'json', ['groups' => ['price_log:read']]), true)
         ]);
     }
 }

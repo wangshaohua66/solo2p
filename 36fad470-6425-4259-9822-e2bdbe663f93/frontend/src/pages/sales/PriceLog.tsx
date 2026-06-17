@@ -11,7 +11,10 @@ import {
   Col,
   Tag,
   message,
-  Input
+  Input,
+  Form,
+  InputNumber,
+  Modal
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import type { Dayjs } from 'dayjs'
@@ -27,6 +30,7 @@ import {
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { fetchPriceLogs } from '@/store/priceLogSlice'
 import type { PriceLogQueryParams } from '@/store/priceLogSlice'
+import { api } from '@/api'
 import { TicketType } from '@/types'
 import type { PriceChangeLog } from '@/types'
 
@@ -202,7 +206,10 @@ export default function PriceLog() {
   const [ticketTypeFilter, setTicketTypeFilter] = useState<string | undefined>()
   const [operatorFilter, setOperatorFilter] = useState<string | undefined>()
   const [operatorKeyword, setOperatorKeyword] = useState('')
-  const [logs, setLogs] = useState<PriceChangeLog[]>(mockPriceLogs)
+  const [logs, setLogs] = useState<PriceChangeLog[]>([])
+  const [modifyModalOpen, setModifyModalOpen] = useState(false)
+  const [modifyForm] = Form.useForm()
+  const [modifyLoading, setModifyLoading] = useState(false)
 
   const loadData = async () => {
     const params: PriceLogQueryParams = {}
@@ -223,39 +230,20 @@ export default function PriceLog() {
     }
 
     try {
-      await dispatch(fetchPriceLogs(params))
-      if (reduxLogs && reduxLogs.length > 0) {
-        setLogs(reduxLogs)
-      } else {
-        let filtered = mockPriceLogs
-        if (dateRange && dateRange[0]) {
-          filtered = filtered.filter((log) =>
-            dayjs(log.createdAt).isAfter(dateRange[0]!.subtract(1, 'day'))
-          )
-        }
-        if (dateRange && dateRange[1]) {
-          filtered = filtered.filter((log) =>
-            dayjs(log.createdAt).isBefore(dateRange[1]!.add(1, 'day'))
-          )
-        }
-        if (performanceFilter) {
-          filtered = filtered.filter((log) => log.performanceId === performanceFilter)
-        }
-        if (ticketTypeFilter) {
-          filtered = filtered.filter((log) => log.ticketType === ticketTypeFilter)
-        }
-        if (operatorFilter) {
-          filtered = filtered.filter((log) => log.operatorId === operatorFilter)
-        }
-        if (operatorKeyword) {
-          filtered = filtered.filter((log) =>
-            log.operatorName.includes(operatorKeyword)
-          )
-        }
-        setLogs(filtered)
+      const result = await dispatch(fetchPriceLogs(params)).unwrap()
+      let data: PriceChangeLog[] = []
+      if (Array.isArray(result)) {
+        data = result
+      } else if (result && Array.isArray(result.logs)) {
+        data = result.logs
       }
+      if (operatorKeyword) {
+        data = data.filter((log) => log.operatorName?.includes(operatorKeyword))
+      }
+      setLogs(data)
     } catch {
       message.error('加载价格变更日志失败')
+      setLogs([])
     }
   }
 
@@ -269,8 +257,43 @@ export default function PriceLog() {
     setTicketTypeFilter(undefined)
     setOperatorFilter(undefined)
     setOperatorKeyword('')
-    setLogs(mockPriceLogs)
+    setLogs([])
+    loadData()
     message.info('已重置筛选条件')
+  }
+
+  const handleOpenModifyModal = () => {
+    modifyForm.resetFields()
+    modifyForm.setFieldsValue({
+      ticketType: TicketType.REGULAR,
+      newPrice: 380
+    })
+    setModifyModalOpen(true)
+  }
+
+  const handleModifyPrice = async () => {
+    try {
+      const values = await modifyForm.validateFields()
+      setModifyLoading(true)
+      await api.post('/price-logs/update-price', {
+        performanceId: values.performanceId,
+        sectionId: values.sectionId || undefined,
+        ticketType: values.ticketType,
+        newPrice: values.newPrice,
+        reason: values.reason || undefined
+      })
+      message.success('票价修改成功，日志已记录')
+      setModifyModalOpen(false)
+      loadData()
+    } catch (error: any) {
+      if (error?.response?.data?.message) {
+        message.error(error.response.data.message)
+      } else if (error?.message) {
+        message.error(error.message)
+      }
+    } finally {
+      setModifyLoading(false)
+    }
   }
 
   const totalChanges = logs.length
@@ -383,21 +406,63 @@ export default function PriceLog() {
       <div className="card-header">
         <div className="card-title">价格变更日志</div>
         <Space>
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={handleReset}
-          >
+          <Button type="primary" icon={<FundOutlined />} onClick={handleOpenModifyModal}>
+            修改票价
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={handleReset}>
             重置
           </Button>
-          <Button
-            type="primary"
-            icon={<SearchOutlined />}
-            onClick={loadData}
-          >
+          <Button type="primary" icon={<SearchOutlined />} onClick={loadData}>
             查询
           </Button>
         </Space>
       </div>
+
+      <Modal
+        title="修改票价"
+        open={modifyModalOpen}
+        onOk={handleModifyPrice}
+        onCancel={() => setModifyModalOpen(false)}
+        confirmLoading={modifyLoading}
+        okText="确认修改"
+        destroyOnClose
+      >
+        <Form form={modifyForm} layout="vertical" preserve={false}>
+          <Form.Item
+            name="performanceId"
+            label="演出"
+            rules={[{ required: true, message: '请选择演出' }]}
+          >
+            <Select
+              placeholder="选择演出"
+              showSearch
+              optionFilterProp="label"
+              options={performanceOptions}
+            />
+          </Form.Item>
+          <Form.Item name="sectionId" label="区域ID（可选）">
+            <Input placeholder="留空则修改全部区域" />
+          </Form.Item>
+          <Form.Item name="ticketType" label="票种" rules={[{ required: true }]}>
+            <Select
+              options={Object.entries(ticketTypeLabels).map(([value, label]) => ({
+                value,
+                label
+              }))}
+            />
+          </Form.Item>
+          <Form.Item
+            name="newPrice"
+            label="新票价（元）"
+            rules={[{ required: true, message: '请输入新票价' }]}
+          >
+            <InputNumber min={0} style={{ width: '100%' }} prefix="¥" />
+          </Form.Item>
+          <Form.Item name="reason" label="修改原因">
+            <Input.TextArea rows={2} placeholder="如：临近演出调整、促销降价等" />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       <Card style={{ marginBottom: 16 }}>
         <Row gutter={16}>
