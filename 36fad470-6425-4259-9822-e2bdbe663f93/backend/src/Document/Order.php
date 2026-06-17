@@ -111,6 +111,18 @@ class Order
     #[Groups(['order:read'])]
     private ?float $refundFee = null;
 
+    #[MongoDB\Field(type: 'date', nullable: true)]
+    #[Groups(['order:read', 'order:list'])]
+    private ?\DateTimeInterface $usedAt = null;
+
+    #[MongoDB\Field(type: 'string', nullable: true)]
+    #[Groups(['order:read'])]
+    private ?string $verifiedBy = null;
+
+    #[MongoDB\Field(type: 'string', nullable: true)]
+    #[Groups(['order:read'])]
+    private ?string $verifiedByName = null;
+
     public function __construct()
     {
         $this->seats = new ArrayCollection();
@@ -331,6 +343,39 @@ class Order
     public function setRefundFee(?float $refundFee): self
     {
         $this->refundFee = $refundFee;
+        return $this;
+    }
+
+    public function getUsedAt(): ?\DateTimeInterface
+    {
+        return $this->usedAt;
+    }
+
+    public function setUsedAt(?\DateTimeInterface $usedAt): self
+    {
+        $this->usedAt = $usedAt;
+        return $this;
+    }
+
+    public function getVerifiedBy(): ?string
+    {
+        return $this->verifiedBy;
+    }
+
+    public function setVerifiedBy(?string $verifiedBy): self
+    {
+        $this->verifiedBy = $verifiedBy;
+        return $this;
+    }
+
+    public function getVerifiedByName(): ?string
+    {
+        return $this->verifiedByName;
+    }
+
+    public function setVerifiedByName(?string $verifiedByName): self
+    {
+        $this->verifiedByName = $verifiedByName;
         return $this;
     }
 }

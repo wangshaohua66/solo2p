@@ -3,13 +3,15 @@ import authReducer from './authSlice'
 import ticketReducer from './ticketSlice'
 import performanceReducer from './performanceSlice'
 import venueReducer from './venueSlice'
+import priceLogReducer from './priceLogSlice'
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     ticket: ticketReducer,
     performance: performanceReducer,
-    venue: venueReducer
+    venue: venueReducer,
+    priceLog: priceLogReducer
   }
 })
 

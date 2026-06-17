@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Outlet, useLocation, useNavigate, useMatch } from 'react-router-dom'
 import { Layout, Menu, theme, Avatar, Dropdown, Badge, Drawer, Button } from 'antd'
 import {
@@ -15,7 +15,10 @@ import {
   UserOutlined,
   LogoutOutlined,
   MenuOutlined,
-  BellOutlined
+  BellOutlined,
+  HomeOutlined,
+  QrcodeOutlined,
+  AuditOutlined
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
@@ -79,6 +82,23 @@ const menuItems = (role: UserRole): MenuProps['items'] => {
     ]
   })
 
+  const salesChildren: MenuItem[] = [
+    { key: '/sales/verification', icon: <QrcodeOutlined />, label: '入场核销' }
+  ]
+  if (role === UserRole.VENUE_ADMIN || role === UserRole.FINANCE) {
+    salesChildren.push({
+      key: '/sales/price-log',
+      icon: <AuditOutlined />,
+      label: '票价变更日志'
+    })
+  }
+  items.push({
+    key: 'sales',
+    icon: <ShoppingCartOutlined />,
+    label: '销售管理',
+    children: salesChildren
+  })
+
   if (role === UserRole.VENUE_ADMIN) {
     items.push({
       key: 'system',
@@ -95,6 +115,7 @@ export default function MainLayout() {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
   const {
     token: { colorBgContainer, borderRadiusLG }
   } = theme.useToken()
@@ -103,6 +124,7 @@ export default function MainLayout() {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
   const { user } = useAppSelector((state) => state.auth)
+  const profileTabRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth <= 768)
@@ -117,6 +139,7 @@ export default function MainLayout() {
     if (path.startsWith('/venue')) return [path]
     if (path.startsWith('/device')) return [path]
     if (path.startsWith('/settlement')) return [path]
+    if (path.startsWith('/sales')) return [path]
     if (path.startsWith('/system')) return [path]
     return []
   }
@@ -127,6 +150,7 @@ export default function MainLayout() {
     if (path.startsWith('/venue')) return ['venue']
     if (path.startsWith('/device')) return ['device']
     if (path.startsWith('/settlement')) return ['settlement']
+    if (path.startsWith('/sales')) return ['sales']
     if (path.startsWith('/system')) return ['system']
     return []
   }
@@ -139,13 +163,35 @@ export default function MainLayout() {
   const handleLogout = () => {
     dispatch(logout())
     navigate('/login')
+    setProfileDropdownOpen(false)
+  }
+
+  const getActiveTabKey = (): string => {
+    const path = location.pathname
+    if (path.startsWith('/performance')) return 'home'
+    if (path.startsWith('/settlement')) return 'orders'
+    if (profileDropdownOpen) return 'profile'
+    return 'home'
+  }
+
+  const handleTabBarChange = (key: string) => {
+    if (key === 'home') {
+      navigate('/performance/calendar')
+      setProfileDropdownOpen(false)
+    } else if (key === 'orders') {
+      navigate('/settlement/stats')
+      setProfileDropdownOpen(false)
+    } else if (key === 'profile') {
+      setProfileDropdownOpen(!profileDropdownOpen)
+    }
   }
 
   const userMenuItems: MenuProps['items'] = [
     {
       key: 'profile',
       icon: <UserOutlined />,
-      label: '个人中心'
+      label: '个人中心',
+      onClick: () => setProfileDropdownOpen(false)
     },
     { type: 'divider' },
     {
@@ -256,11 +302,11 @@ export default function MainLayout() {
             </Dropdown>
           </div>
         </Header>
-        <Content style={{ margin: '16px' }}>
+        <Content style={{ margin: '16px', paddingBottom: isMobile ? 60 : 0 }}>
           <div
             style={{
               padding: 24,
-              minHeight: 'calc(100vh - 160px)',
+              minHeight: isMobile ? 'calc(100vh - 220px)' : 'calc(100vh - 160px)',
               background: colorBgContainer,
               borderRadius: borderRadiusLG
             }}
@@ -269,6 +315,72 @@ export default function MainLayout() {
           </div>
         </Content>
       </Layout>
+      {isMobile && (
+        <>
+          <Dropdown
+            menu={{ items: userMenuItems }}
+            placement="topRight"
+            open={profileDropdownOpen}
+            onOpenChange={setProfileDropdownOpen}
+            trigger={[]}
+          >
+            <span
+              ref={profileTabRef}
+              style={{
+                position: 'fixed',
+                bottom: 50,
+                right: '16.67%',
+                transform: 'translateX(50%)',
+                width: 60,
+                height: 10,
+                zIndex: 99,
+                pointerEvents: 'none'
+              }}
+            />
+          </Dropdown>
+          <div
+            style={{
+              position: 'fixed',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              zIndex: 100,
+              display: 'flex',
+              background: '#fff',
+              borderTop: '1px solid #f0f0f0',
+              boxShadow: '0 -2px 8px rgba(0,0,0,0.06)'
+            }}
+          >
+            {[
+              { key: 'home', icon: <HomeOutlined />, label: '首页' },
+              { key: 'orders', icon: <ShoppingCartOutlined />, label: '订单' },
+              { key: 'profile', icon: <UserOutlined />, label: '我的' }
+            ].map((tab) => {
+              const active = getActiveTabKey() === tab.key
+              return (
+                <div
+                  key={tab.key}
+                  onClick={() => handleTabBarChange(tab.key)}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '8px 0',
+                    color: active ? '#1677ff' : '#909399',
+                    cursor: 'pointer',
+                    fontSize: 12
+                  }}
+                >
+                  <span style={{ fontSize: 20 }}>{tab.icon}</span>
+                  <span style={{ marginTop: 2 }}>{tab.label}</span>
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )}
     </Layout>
   )
 }

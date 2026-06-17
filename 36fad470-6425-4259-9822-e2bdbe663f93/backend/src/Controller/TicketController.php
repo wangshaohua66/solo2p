@@ -45,6 +45,12 @@ class TicketController extends AbstractController
             $seats = $this->generateSeats($performance);
         }
 
+        $earlyBirdActive = $performance->isEarlyBirdActive();
+        $earlyBirdDeadline = $performance->getEarlyBirdDeadline();
+        if ($earlyBirdDeadline === null && $performance->getStartTime() !== null) {
+            $earlyBirdDeadline = (clone $performance->getStartTime())->modify('-14 days');
+        }
+
         return new JsonResponse([
             'performance' => json_decode($this->serializer->serialize(
                 $performance,
@@ -55,7 +61,14 @@ class TicketController extends AbstractController
                 $seats,
                 'json',
                 ['groups' => ['seat:read']]
-            ), true)
+            ), true),
+            'ticketAvailability' => [
+                'earlyBirdActive' => $earlyBirdActive,
+                'earlyBirdDeadline' => $earlyBirdDeadline?->format('Y-m-d H:i:s'),
+                'regularActive' => true,
+                'studentActive' => true,
+                'groupActive' => true
+            ]
         ]);
     }
 
@@ -142,9 +155,24 @@ class TicketController extends AbstractController
         $performanceId = $data['performanceId'];
         $seatIds = $data['seatIds'] ?? [];
         $ticketType = $data['ticketType'] ?? Seat::TICKET_REGULAR;
+        $warnings = [];
 
         if (empty($seatIds)) {
             return new JsonResponse(['message' => '请选择座位'], 400);
+        }
+
+        $performance = $this->dm->getRepository(Performance::class)->find($performanceId);
+        if (!$performance) {
+            return new JsonResponse(['message' => '演出不存在'], 404);
+        }
+
+        if ($ticketType === Seat::TICKET_EARLY_BIRD && !$performance->isEarlyBirdActive()) {
+            $ticketType = Seat::TICKET_REGULAR;
+            $warnings[] = '早鸟票已截止，已自动切换为普通票';
+        }
+
+        if ($ticketType === Seat::TICKET_GROUP && count($seatIds) < 10) {
+            return new JsonResponse(['message' => '团体票至少需要10张'], 400);
         }
 
         $this->dm->flush();
@@ -173,14 +201,20 @@ class TicketController extends AbstractController
 
         $this->dm->flush();
 
-        return new JsonResponse([
+        $response = [
             'message' => '座位锁定成功',
+            'ticketType' => $ticketType,
             'locks' => array_map(fn($seat) => [
                 'seatId' => $seat->getId(),
                 'lockedAt' => $seat->getLockedAt()?->format('Y-m-d H:i:s'),
                 'expiresAt' => (clone $seat->getLockedAt())->modify('+15 minutes')->format('Y-m-d H:i:s')
             ], $availableSeats)
-        ]);
+        ];
+        if (!empty($warnings)) {
+            $response['warnings'] = $warnings;
+        }
+
+        return new JsonResponse($response);
     }
 
     #[Route('/release', name: 'api_tickets_release', methods: ['POST'])]
@@ -228,6 +262,7 @@ class TicketController extends AbstractController
         $seatIds = $data['seatIds'] ?? [];
         $ticketType = $data['ticketType'] ?? Seat::TICKET_REGULAR;
         $salesChannel = $data['salesChannel'] ?? Order::CHANNEL_WEBSITE;
+        $warnings = [];
 
         if (empty($seatIds)) {
             return new JsonResponse(['message' => '请选择座位'], 400);
@@ -236,6 +271,11 @@ class TicketController extends AbstractController
         $performance = $this->dm->getRepository(Performance::class)->find($performanceId);
         if (!$performance || $performance->getStatus() !== Performance::STATUS_APPROVED) {
             return new JsonResponse(['message' => '该演出不可售票'], 400);
+        }
+
+        if ($ticketType === Seat::TICKET_EARLY_BIRD && !$performance->isEarlyBirdActive()) {
+            $ticketType = Seat::TICKET_REGULAR;
+            $warnings[] = '早鸟票已截止，已自动切换为普通票';
         }
 
         if ($ticketType === Seat::TICKET_GROUP && count($seatIds) < 10) {
@@ -263,21 +303,19 @@ class TicketController extends AbstractController
         $order->setSalesChannel($salesChannel);
         $order->setStatus(Order::STATUS_PENDING);
 
+        $originalTotal = 0;
         $totalAmount = 0;
         foreach ($lockedSeats as $seat) {
-            $price = $this->applyTicketDiscount($seat->getPrice(), $ticketType, count($seatIds));
+            $basePrice = $seat->getPrice();
+            $originalTotal += $basePrice;
+            $price = $this->applyTicketDiscount($basePrice, $ticketType, count($seatIds));
             $totalAmount += $price;
             $seat->setPrice($price);
             $seat->setTicketType($ticketType);
             $order->addSeat($seat);
         }
 
-        $discountAmount = array_reduce($lockedSeats, fn($sum, $seat) => $sum + $seat->getPrice(), 0);
-        $originalTotal = count($lockedSeats) > 0 ?
-            ($totalAmount / (count($lockedSeats) * (end($lockedSeats)->getPrice() / end($lockedSeats)->getPrice()))) *
-            array_sum(array_map(fn($s) => $s->getPrice(), $lockedSeats)) : 0;
-
-        $order->setTotalAmount($totalAmount);
+        $order->setTotalAmount($originalTotal);
         $order->setDiscountAmount(max(0, $originalTotal - $totalAmount));
         $order->setPayAmount($totalAmount);
 
@@ -289,14 +327,19 @@ class TicketController extends AbstractController
 
         $this->dm->flush();
 
-        return new JsonResponse([
+        $response = [
             'message' => '订单创建成功',
             'order' => json_decode($this->serializer->serialize(
                 $order,
                 'json',
                 ['groups' => ['order:read']]
             ), true)
-        ], 201);
+        ];
+        if (!empty($warnings)) {
+            $response['warnings'] = $warnings;
+        }
+
+        return new JsonResponse($response, 201);
     }
 
     private function applyTicketDiscount(float $price, string $ticketType, int $quantity): float
@@ -486,6 +529,171 @@ class TicketController extends AbstractController
                 'json',
                 ['groups' => ['order:read']]
             ), true)
+        ]);
+    }
+
+    #[Route('/verify', name: 'api_tickets_verify', methods: ['POST'])]
+    public function verifyTicket(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $user = $this->getUser();
+
+        if (!$user) {
+            return new JsonResponse(['message' => '请先登录'], 401);
+        }
+        if (!in_array($user->getRole(), [User::ROLE_VENUE_ADMIN, User::ROLE_FINANCE])) {
+            return new JsonResponse(['message' => '无权操作核销'], 403);
+        }
+
+        $qrCode = $data['qrCode'] ?? '';
+        $orderNo = $data['orderNo'] ?? '';
+
+        if (empty($qrCode) && empty($orderNo)) {
+            return new JsonResponse(['message' => '请提供核销码或订单号'], 400);
+        }
+
+        $qb = $this->dm->getRepository(Order::class)->createQueryBuilder();
+        if (!empty($qrCode)) {
+            $qb->field('qrCode')->equals($qrCode);
+        } else {
+            $qb->field('orderNo')->equals($orderNo);
+        }
+
+        $order = $qb->getQuery()->getSingleResult();
+        if (!$order) {
+            return new JsonResponse(['message' => '订单不存在'], 404);
+        }
+
+        if ($order->getStatus() === Order::STATUS_USED) {
+            return new JsonResponse([
+                'message' => '该订单已核销',
+                'usedAt' => $order->getUsedAt()?->format('Y-m-d H:i:s'),
+                'order' => json_decode($this->serializer->serialize($order, 'json', ['groups' => ['order:read']]), true)
+            ], 409);
+        }
+
+        if ($order->getStatus() !== Order::STATUS_PAID) {
+            return new JsonResponse([
+                'message' => '订单状态异常，当前状态：' . $order->getStatus(),
+                'orderStatus' => $order->getStatus()
+            ], 400);
+        }
+
+        $now = new \DateTime();
+        $performance = $this->dm->getRepository(Performance::class)->find($order->getPerformanceId());
+        if ($performance && $performance->getStartTime()) {
+            $startTime = $performance->getStartTime();
+            $diffHours = ($startTime->getTimestamp() - $now->getTimestamp()) / 3600;
+            if ($diffHours > 4) {
+                return new JsonResponse([
+                    'message' => '距离演出开始超过4小时，暂不可核销',
+                    'startTime' => $startTime->format('Y-m-d H:i:s')
+                ], 400);
+            }
+        }
+
+        $order->setStatus(Order::STATUS_USED);
+        $order->setUsedAt($now);
+        $order->setVerifiedBy($user->getId());
+        $order->setVerifiedByName($user->getName());
+
+        $this->dm->flush();
+
+        return new JsonResponse([
+            'message' => '核销成功',
+            'verifiedAt' => $now->format('Y-m-d H:i:s'),
+            'verifiedBy' => $user->getName(),
+            'seatCount' => $order->getSeats()->count(),
+            'order' => json_decode($this->serializer->serialize($order, 'json', ['groups' => ['order:read']]), true)
+        ]);
+    }
+
+    #[Route('/verify/batch', name: 'api_tickets_verify_batch', methods: ['POST'])]
+    public function verifyBatch(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $user = $this->getUser();
+
+        if (!$user) {
+            return new JsonResponse(['message' => '请先登录'], 401);
+        }
+        if (!in_array($user->getRole(), [User::ROLE_VENUE_ADMIN, User::ROLE_FINANCE])) {
+            return new JsonResponse(['message' => '无权操作核销'], 403);
+        }
+
+        $items = $data['items'] ?? [];
+        if (empty($items)) {
+            return new JsonResponse(['message' => '请提供核销列表'], 400);
+        }
+
+        $now = new \DateTime();
+        $results = ['success' => 0, 'failed' => 0, 'skipped' => 0, 'details' => []];
+
+        foreach ($items as $idx => $item) {
+            $qrCode = $item['qrCode'] ?? '';
+            $orderNo = $item['orderNo'] ?? '';
+
+            try {
+                $qb = $this->dm->getRepository(Order::class)->createQueryBuilder();
+                if (!empty($qrCode)) {
+                    $qb->field('qrCode')->equals($qrCode);
+                } elseif (!empty($orderNo)) {
+                    $qb->field('orderNo')->equals($orderNo);
+                } else {
+                    $results['failed']++;
+                    $results['details'][] = ['index' => $idx, 'status' => 'failed', 'reason' => '缺少核销标识'];
+                    continue;
+                }
+
+                $order = $qb->getQuery()->getSingleResult();
+                if (!$order) {
+                    $results['failed']++;
+                    $results['details'][] = ['index' => $idx, 'status' => 'failed', 'reason' => '订单不存在'];
+                    continue;
+                }
+
+                if ($order->getStatus() === Order::STATUS_USED) {
+                    $results['skipped']++;
+                    $results['details'][] = ['index' => $idx, 'orderNo' => $order->getOrderNo(), 'status' => 'skipped', 'reason' => '已核销'];
+                    continue;
+                }
+
+                if ($order->getStatus() !== Order::STATUS_PAID) {
+                    $results['failed']++;
+                    $results['details'][] = ['index' => $idx, 'orderNo' => $order->getOrderNo(), 'status' => 'failed', 'reason' => '状态异常: ' . $order->getStatus()];
+                    continue;
+                }
+
+                $order->setStatus(Order::STATUS_USED);
+                $order->setUsedAt($now);
+                $order->setVerifiedBy($user->getId());
+                $order->setVerifiedByName($user->getName());
+
+                $results['success']++;
+                $results['details'][] = [
+                    'index' => $idx,
+                    'orderNo' => $order->getOrderNo(),
+                    'status' => 'success',
+                    'seats' => $order->getSeats()->count(),
+                    'customer' => $order->getUserName()
+                ];
+            } catch (\Exception $e) {
+                $results['failed']++;
+                $results['details'][] = ['index' => $idx, 'status' => 'failed', 'reason' => $e->getMessage()];
+            }
+        }
+
+        $this->dm->flush();
+
+        return new JsonResponse([
+            'message' => '批量核销完成',
+            'total' => count($items),
+            'success' => $results['success'],
+            'failed' => $results['failed'],
+            'skipped' => $results['skipped'],
+            'verifiedAt' => $now->format('Y-m-d H:i:s'),
+            'verifiedBy' => $user->getName(),
+            'details' => $results['details']
         ]);
     }
 }

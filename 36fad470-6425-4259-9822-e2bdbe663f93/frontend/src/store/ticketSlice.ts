@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
-import type { Seat, Order, TicketType } from '@/types'
+import type { Seat, Order, TicketType, TicketAvailability } from '@/types'
 import { SeatStatus } from '@/types'
 import { api } from '@/api'
 
@@ -10,6 +10,7 @@ interface TicketState {
   loading: boolean
   currentOrder: Order | null
   lockTimeout: number
+  ticketAvailability: TicketAvailability | null
 }
 
 const initialState: TicketState = {
@@ -18,7 +19,8 @@ const initialState: TicketState = {
   currentTicketType: 'regular' as TicketType,
   loading: false,
   currentOrder: null,
-  lockTimeout: 900
+  lockTimeout: 900,
+  ticketAvailability: null
 }
 
 export const fetchSeats = createAsyncThunk(
@@ -74,6 +76,22 @@ export const refundOrder = createAsyncThunk(
   }
 )
 
+export const verifyTicket = createAsyncThunk(
+  'ticket/verifyTicket',
+  async (params: { qrCode?: string; orderNo?: string }) => {
+    const response = await api.post('/tickets/verify', params)
+    return response.data
+  }
+)
+
+export const verifyBatch = createAsyncThunk(
+  'ticket/verifyBatch',
+  async (items: Array<{ qrCode?: string; orderNo?: string }>) => {
+    const response = await api.post('/tickets/verify/batch', { items })
+    return response.data
+  }
+)
+
 const ticketSlice = createSlice({
   name: 'ticket',
   initialState,
@@ -86,6 +104,9 @@ const ticketSlice = createSlice({
       } else if (seat.status === SeatStatus.AVAILABLE) {
         state.selectedSeats.push(seat)
       }
+    },
+    setSelectedSeats: (state, action: PayloadAction<Seat[]>) => {
+      state.selectedSeats = action.payload
     },
     clearSelectedSeats: (state) => {
       state.selectedSeats = []
@@ -108,6 +129,7 @@ const ticketSlice = createSlice({
       .addCase(fetchSeats.fulfilled, (state, action) => {
         state.loading = false
         state.seats = action.payload.seats
+        state.ticketAvailability = action.payload.ticketAvailability || null
       })
       .addCase(lockSeats.fulfilled, (state) => {
         state.selectedSeats.forEach((seat) => {
@@ -125,6 +147,11 @@ const ticketSlice = createSlice({
       .addCase(refundOrder.fulfilled, (state, action) => {
         state.currentOrder = action.payload.order
       })
+      .addCase(verifyTicket.fulfilled, (state, action) => {
+        if (action.payload.order) {
+          state.currentOrder = action.payload.order
+        }
+      })
   }
 })
 
@@ -132,6 +159,7 @@ export const {
   toggleSeatSelection,
   clearSelectedSeats,
   setTicketType,
-  updateSeatStatuses
+  updateSeatStatuses,
+  setSelectedSeats
 } = ticketSlice.actions
 export default ticketSlice.reducer

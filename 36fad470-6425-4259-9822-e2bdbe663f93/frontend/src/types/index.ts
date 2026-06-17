@@ -168,6 +168,35 @@ export interface Order {
   qrCode?: string
   refundAmount?: number
   refundFee?: number
+  usedAt?: string
+  verifiedBy?: string
+  verifiedByName?: string
+}
+
+export interface TicketAvailability {
+  earlyBirdActive: boolean
+  earlyBirdDeadline?: string
+  regularActive: boolean
+  studentActive: boolean
+  groupActive: boolean
+}
+
+export interface PriceChangeLog {
+  id: string
+  performanceId: string
+  performanceName: string
+  sectionId?: string
+  sectionName?: string
+  ticketType: TicketType
+  oldPrice: number
+  newPrice: number
+  operatorId: string
+  operatorName: string
+  reason?: string
+  createdAt: string
+  changeAmount?: number
+  changePercent?: number
+  ticketTypeLabel?: string
 }
 
 export enum DeviceCategory {

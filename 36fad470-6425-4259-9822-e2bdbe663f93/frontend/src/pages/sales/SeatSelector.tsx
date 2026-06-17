@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Card,
@@ -14,9 +14,15 @@ import {
   Modal,
   Form,
   Input,
-  Select
+  Select,
+  Alert
 } from 'antd'
-import { ArrowLeftOutlined, ShoppingCartOutlined } from '@ant-design/icons'
+import {
+  ArrowLeftOutlined,
+  ShoppingCartOutlined,
+  ScissorOutlined,
+  InfoCircleOutlined
+} from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import {
@@ -25,7 +31,8 @@ import {
   clearSelectedSeats,
   setTicketType,
   createOrder,
-  payOrder
+  payOrder,
+  setSelectedSeats
 } from '@/store/ticketSlice'
 import { fetchPerformance } from '@/store/performanceSlice'
 import {
@@ -65,9 +72,8 @@ export default function SeatSelector() {
   const { performanceId } = useParams<{ performanceId: string }>()
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
-  const { seats, selectedSeats, currentTicketType, loading, currentOrder } = useAppSelector(
-    (state) => state.ticket
-  )
+  const { seats, selectedSeats, currentTicketType, loading, currentOrder, ticketAvailability } =
+    useAppSelector((state) => state.ticket)
   const { currentPerformance } = useAppSelector((state) => state.performance)
   const [hoveredSeat, setHoveredSeat] = useState<Seat | null>(null)
   const [payModalVisible, setPayModalVisible] = useState(false)
@@ -75,12 +81,31 @@ export default function SeatSelector() {
   const [orderDetailVisible, setOrderDetailVisible] = useState(false)
   const [form] = Form.useForm()
 
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null)
+  const [dragEnd, setDragEnd] = useState<{ x: number; y: number } | null>(null)
+  const [dragAddMode, setDragAddMode] = useState<boolean>(true)
+  const containerRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const [dragSelectedIds, setDragSelectedIds] = useState<Set<string>>(new Set())
+  const [lastWarnings, setLastWarnings] = useState<string[]>([])
+
   useEffect(() => {
     if (performanceId) {
       dispatch(fetchSeats(performanceId))
       dispatch(fetchPerformance(performanceId))
     }
   }, [performanceId, dispatch])
+
+  useEffect(() => {
+    if (
+      ticketAvailability &&
+      ticketAvailability.earlyBirdActive === false &&
+      currentTicketType === TicketType.EARLY_BIRD
+    ) {
+      dispatch(setTicketType(TicketType.REGULAR))
+      message.warning('早鸟票已截止，已自动切换为正价票')
+    }
+  }, [ticketAvailability, currentTicketType, dispatch])
 
   const seatMap = useMemo(() => {
     const map: Record<string, Seat[]> = {}
@@ -150,6 +175,101 @@ export default function SeatSelector() {
     dispatch(toggleSeatSelection(seat))
   }
 
+  const getSectionBounds = (sectionId: string) => {
+    const container = containerRefs.current[sectionId]
+    if (!container) return null
+    return container.getBoundingClientRect()
+  }
+
+  const isSeatInSelection = (seatEl: HTMLElement) => {
+    if (!dragStart || !dragEnd) return false
+    const rect = seatEl.getBoundingClientRect()
+    const minX = Math.min(dragStart.x, dragEnd.x)
+    const maxX = Math.max(dragStart.x, dragEnd.x)
+    const minY = Math.min(dragStart.y, dragEnd.y)
+    const maxY = Math.max(dragStart.y, dragEnd.y)
+    return (
+      rect.left < maxX &&
+      rect.right > minX &&
+      rect.top < maxY &&
+      rect.bottom > minY
+    )
+  }
+
+  const handleMouseDown = (sectionId: string, e: React.MouseEvent) => {
+    if (e.button !== 0) return
+    const seatEl = (e.target as HTMLElement).closest('.seat-item')
+    const container = containerRefs.current[sectionId]
+    if (!container) return
+
+    const initialSelected = !!seatEl?.classList.contains('selected')
+    setDragAddMode(!initialSelected)
+    setIsDragging(true)
+    setDragStart({ x: e.clientX, y: e.clientY })
+    setDragEnd({ x: e.clientX, y: e.clientY })
+    setDragSelectedIds(new Set())
+
+    if (seatEl) {
+      const seatData = seats.find((s) => seatEl.getAttribute('data-seat-id') === s.id)
+      if (seatData) {
+        if (
+          seatData.status === SeatStatus.AVAILABLE ||
+          selectedSeats.find((s) => s.id === seatData.id)
+        ) {
+          dispatch(toggleSeatSelection(seatData))
+          setDragSelectedIds(new Set([seatData.id]))
+        }
+      }
+    }
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return
+    setDragEnd({ x: e.clientX, y: e.clientY })
+
+    const newSelected = new Set<string>(dragSelectedIds)
+    document.querySelectorAll('.seat-grid .seat-item').forEach((el) => {
+      const seatEl = el as HTMLElement
+      const seatId = seatEl.getAttribute('data-seat-id')
+      if (!seatId) return
+      if (newSelected.has(seatId)) return
+
+      if (isSeatInSelection(seatEl)) {
+        const seatData = seats.find((s) => s.id === seatId)
+        if (
+          seatData &&
+          (seatData.status === SeatStatus.AVAILABLE ||
+            selectedSeats.find((s) => s.id === seatId))
+        ) {
+          const isSelected = !!seatEl.classList.contains('selected')
+          if (dragAddMode && !isSelected) {
+            dispatch(toggleSeatSelection(seatData))
+            newSelected.add(seatId)
+          } else if (!dragAddMode && isSelected) {
+            dispatch(toggleSeatSelection(seatData))
+            newSelected.add(seatId)
+          }
+        }
+      }
+    })
+    setDragSelectedIds(newSelected)
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+    setDragStart(null)
+    setDragEnd(null)
+    setDragSelectedIds(new Set())
+  }
+
+  useEffect(() => {
+    if (isDragging) {
+      const globalUp = () => handleMouseUp()
+      window.addEventListener('mouseup', globalUp)
+      return () => window.removeEventListener('mouseup', globalUp)
+    }
+  }, [isDragging, dragStart, dragEnd, dragAddMode, dragSelectedIds, seats, selectedSeats, dispatch])
+
   const handleCreateOrder = async () => {
     if (selectedSeats.length === 0) {
       message.warning('请先选择座位')
@@ -184,6 +304,11 @@ export default function SeatSelector() {
         })
       ).unwrap()
 
+      if (result.warnings && result.warnings.length > 0) {
+        setLastWarnings(result.warnings)
+        result.warnings.forEach((w: string) => message.warning(w))
+      }
+
       await dispatch(
         payOrder({
           orderId: result.order.id,
@@ -196,6 +321,9 @@ export default function SeatSelector() {
       setOrderDetailVisible(true)
       dispatch(clearSelectedSeats())
     } catch (error: any) {
+      if (error?.warnings) {
+        error.warnings.forEach((w: string) => message.warning(w))
+      }
       message.error(error?.message || '支付失败')
     } finally {
       setPayLoading(false)
@@ -263,13 +391,45 @@ export default function SeatSelector() {
         <div className="card-header">
           <div className="card-title">票价类型</div>
         </div>
+        {ticketAvailability?.earlyBirdActive === false && (
+          <Alert
+            style={{ marginBottom: 16 }}
+            type="warning"
+            showIcon
+            icon={<InfoCircleOutlined />}
+            message="早鸟票已截止"
+            description={
+              ticketAvailability.earlyBirdDeadline
+                ? `截止时间：${ticketAvailability.earlyBirdDeadline}，已自动切换为正价票`
+                : '当前演出早鸟票已截止，已自动切换为正价票'
+            }
+          />
+        )}
+        {lastWarnings.length > 0 && (
+          <Alert
+            style={{ marginBottom: 16 }}
+            type="warning"
+            showIcon
+            message={lastWarnings.join('；')}
+          />
+        )}
         <Radio.Group
           value={currentTicketType}
           onChange={(e) => dispatch(setTicketType(e.target.value))}
           style={{ marginBottom: 16 }}
         >
-          <Radio.Button value={TicketType.EARLY_BIRD}>
-            早鸟票 (85折，开演前14天截止)
+          <Radio.Button
+            value={TicketType.EARLY_BIRD}
+            disabled={ticketAvailability?.earlyBirdActive === false}
+          >
+            早鸟票
+            {ticketAvailability?.earlyBirdActive ? ' (85折)' : ' (已截止)'}
+            {ticketAvailability?.earlyBirdDeadline &&
+              ticketAvailability.earlyBirdActive && (
+                <span style={{ fontSize: 12, color: '#909399', marginLeft: 4 }}>
+                  截止：{dayjs(ticketAvailability.earlyBirdDeadline).format('MM-DD HH:mm')}
+                </span>
+              )}
           </Radio.Button>
           <Radio.Button value={TicketType.REGULAR}>正价票</Radio.Button>
           <Radio.Button value={TicketType.STUDENT}>学生票 (5折)</Radio.Button>
@@ -279,7 +439,14 @@ export default function SeatSelector() {
         <Divider />
 
         <div className="card-header">
-          <div className="card-title">座位图例</div>
+          <div className="card-title">
+            <Space>
+              座位图例
+              <Tag icon={<ScissorOutlined />} color="blue" style={{ marginLeft: 8 }}>
+                提示：按住鼠标拖拽可框选多座位
+              </Tag>
+            </Space>
+          </div>
         </div>
         <Space wrap>
           <Space>
@@ -311,7 +478,33 @@ export default function SeatSelector() {
             <div className="card-title">{sectionNames[sectionId]}</div>
           </div>
           <div className="stage-diagram">舞 台</div>
-          <div className="seat-grid">
+          <div
+            ref={(el) => {
+              containerRefs.current[sectionId] = el
+            }}
+            className="seat-grid"
+            onMouseDown={(e) => handleMouseDown(sectionId, e)}
+            onMouseMove={handleMouseMove}
+            style={{ position: 'relative', userSelect: 'none' }}
+          >
+            {isDragging && dragStart && dragEnd && (
+              <div
+                style={{
+                  position: 'absolute',
+                  pointerEvents: 'none',
+                  zIndex: 100,
+                  left: Math.min(dragStart.x, dragEnd.x) -
+                    (containerRefs.current[sectionId]?.getBoundingClientRect().left || 0),
+                  top: Math.min(dragStart.y, dragEnd.y) -
+                    (containerRefs.current[sectionId]?.getBoundingClientRect().top || 0),
+                  width: Math.abs(dragEnd.x - dragStart.x),
+                  height: Math.abs(dragEnd.y - dragStart.y),
+                  background: 'rgba(22, 119, 255, 0.12)',
+                  border: '1px dashed #1677ff',
+                  borderRadius: 2
+                }}
+              />
+            )}
             {Object.keys(rows)
               .sort((a, b) => Number(a) - Number(b))
               .map((rowNum) => (
@@ -331,6 +524,7 @@ export default function SeatSelector() {
                   {rows[Number(rowNum)].map((seat) => (
                     <div
                       key={seat.id}
+                      data-seat-id={seat.id}
                       className={getSeatClass(seat)}
                       onClick={() => handleSeatClick(seat)}
                       onMouseEnter={() => setHoveredSeat(seat)}

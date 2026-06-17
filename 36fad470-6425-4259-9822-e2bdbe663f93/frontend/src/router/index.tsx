@@ -9,11 +9,15 @@ import PerformanceApproval from '@/pages/performance/Approval'
 import SeatConfig from '@/pages/venue/SeatConfig'
 import SeatSelector from '@/pages/sales/SeatSelector'
 import OrderDetail from '@/pages/sales/OrderDetail'
+import Verification from '@/pages/sales/Verification'
+import PriceLog from '@/pages/sales/PriceLog'
 import DeviceManagement from '@/pages/device/Management'
 import DeviceSchedule from '@/pages/device/Schedule'
 import SalesStats from '@/pages/settlement/SalesStats'
 import SettlementList from '@/pages/settlement/SettlementList'
 import UserManagement from '@/pages/system/UserManagement'
+import OrderList from '@/pages/OrderList'
+import Profile from '@/pages/Profile'
 import NotFound from '@/pages/NotFound'
 
 function RequireAuth({ children, allowedRoles }: { children: JSX.Element; allowedRoles?: string[] }) {
@@ -81,6 +85,30 @@ export const router = createBrowserRouter([
       {
         path: 'sales/order/:orderId',
         element: <OrderDetail />
+      },
+      {
+        path: 'sales/verification',
+        element: (
+          <RequireAuth allowedRoles={['venue_admin', 'finance']}>
+            <Verification />
+          </RequireAuth>
+        )
+      },
+      {
+        path: 'sales/price-log',
+        element: (
+          <RequireAuth allowedRoles={['venue_admin', 'finance']}>
+            <PriceLog />
+          </RequireAuth>
+        )
+      },
+      {
+        path: 'orders',
+        element: <OrderList />
+      },
+      {
+        path: 'profile',
+        element: <Profile />
       },
       {
         path: 'device/management',

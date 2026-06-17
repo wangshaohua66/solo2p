@@ -348,42 +348,118 @@ class SettlementController extends AbstractController
         $startDate = $request->query->get('startDate');
         $endDate = $request->query->get('endDate');
 
-        $qb = $this->dm->getRepository(Order::class)->createQueryBuilder()
-            ->field('status')->in([Order::STATUS_PAID, Order::STATUS_USED]);
+        if (!$startDate) {
+            $startDate = date('Y-m-01 00:00:00');
+        } else {
+            $startDate = date('Y-m-d 00:00:00', strtotime($startDate));
+        }
+        if (!$endDate) {
+            $endDate = date('Y-m-t 23:59:59');
+        } else {
+            $endDate = date('Y-m-d 23:59:59', strtotime($endDate));
+        }
 
-        if ($startDate) {
-            $qb->field('paidAt')->gte(new \DateTime($startDate));
-        }
-        if ($endDate) {
-            $qb->field('paidAt')->lte(new \DateTime($endDate));
-        }
+        $qb = $this->dm->getRepository(Order::class)->createQueryBuilder()
+            ->field('status')->in([Order::STATUS_PAID, Order::STATUS_USED, Order::STATUS_REFUNDED])
+            ->field('paidAt')->gte(new \DateTime($startDate))
+            ->field('paidAt')->lte(new \DateTime($endDate));
 
         $orders = $qb->getQuery()->toArray();
 
         $websiteOrders = [];
         $wechatOrders = [];
+        $allOrderNos = [];
 
         foreach ($orders as $order) {
+            $orderNo = $order->getOrderNo();
+            $record = [
+                'orderNo' => $orderNo,
+                'amount' => $order->getPayAmount(),
+                'status' => $order->getStatus(),
+                'paidAt' => $order->getPaidAt() ? $order->getPaidAt()->format('Y-m-d H:i:s') : null
+            ];
+            $allOrderNos[$orderNo] = true;
+
             if ($order->getSalesChannel() === Order::CHANNEL_WEBSITE) {
-                $websiteOrders[$order->getOrderNo()] = $order->getPayAmount();
+                $websiteOrders[$orderNo] = $record;
             } else {
-                $wechatOrders[$order->getOrderNo()] = $order->getPayAmount();
+                $wechatOrders[$orderNo] = $record;
             }
         }
 
-        $websiteTotal = array_sum($websiteOrders);
-        $wechatTotal = array_sum($wechatOrders);
+        $websiteTotal = 0;
+        foreach ($websiteOrders as $o) {
+            $websiteTotal += $o['amount'];
+        }
+        $wechatTotal = 0;
+        foreach ($wechatOrders as $o) {
+            $wechatTotal += $o['amount'];
+        }
+
+        $differences = [];
+        foreach (array_keys($allOrderNos) as $orderNo) {
+            $inWebsite = isset($websiteOrders[$orderNo]);
+            $inWechat = isset($wechatOrders[$orderNo]);
+
+            $diffType = null;
+            $websiteAmount = $inWebsite ? $websiteOrders[$orderNo]['amount'] : 0;
+            $wechatAmount = $inWechat ? $wechatOrders[$orderNo]['amount'] : 0;
+            $diffAmount = 0;
+            $note = '';
+
+            if ($inWebsite && $inWechat) {
+                if (abs($websiteAmount - $wechatAmount) > 0.01) {
+                    $diffType = 'amount_mismatch';
+                    $diffAmount = abs($websiteAmount - $wechatAmount);
+                    $note = '两渠道金额不一致';
+                }
+            } elseif ($inWebsite && !$inWechat) {
+                $diffType = 'website_only';
+                $diffAmount = $websiteAmount;
+                $note = '仅官网有记录，微信小程序缺失';
+            } elseif (!$inWebsite && $inWechat) {
+                $diffType = 'wechat_only';
+                $diffAmount = $wechatAmount;
+                $note = '仅微信小程序有记录，官网缺失';
+            }
+
+            if ($diffType !== null) {
+                $differences[] = [
+                    'orderNo' => $orderNo,
+                    'type' => $diffType,
+                    'websiteAmount' => $websiteAmount,
+                    'wechatAmount' => $wechatAmount,
+                    'diffAmount' => $diffAmount,
+                    'note' => $note,
+                    'status' => $inWebsite ? $websiteOrders[$orderNo]['status'] : $wechatOrders[$orderNo]['status'],
+                    'paidAt' => $inWebsite ? $websiteOrders[$orderNo]['paidAt'] : $wechatOrders[$orderNo]['paidAt']
+                ];
+            }
+        }
+
+        $matchedCount = count($orders) - count($differences);
 
         return new JsonResponse([
             'website' => [
-                'total' => $websiteTotal,
+                'total' => round($websiteTotal, 2),
                 'orderCount' => count($websiteOrders)
             ],
             'wechat' => [
-                'total' => $wechatTotal,
+                'total' => round($wechatTotal, 2),
                 'orderCount' => count($wechatOrders)
             ],
-            'differences' => []
+            'summary' => [
+                'dateRange' => [
+                    'start' => $startDate,
+                    'end' => $endDate
+                ],
+                'totalOrders' => count($orders),
+                'matchedOrders' => $matchedCount,
+                'diffOrders' => count($differences),
+                'diffTotal' => round(array_reduce($differences, fn($s, $d) => $s + $d['diffAmount'], 0), 2),
+                'grandTotal' => round($websiteTotal + $wechatTotal, 2)
+            ],
+            'differences' => $differences
         ]);
     }
 

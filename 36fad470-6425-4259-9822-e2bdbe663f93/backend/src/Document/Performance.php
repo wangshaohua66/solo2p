@@ -92,6 +92,10 @@ class Performance
     #[Groups(['performance:read'])]
     private ?\DateTimeInterface $approvedAt = null;
 
+    #[MongoDB\Field(type: 'date', nullable: true)]
+    #[Groups(['performance:read', 'performance:list'])]
+    private ?\DateTimeInterface $earlyBirdDeadline = null;
+
     public function __construct()
     {
         $this->devices = new ArrayCollection();
@@ -279,5 +283,28 @@ class Performance
     {
         $this->approvedAt = $approvedAt;
         return $this;
+    }
+
+    public function getEarlyBirdDeadline(): ?\DateTimeInterface
+    {
+        return $this->earlyBirdDeadline;
+    }
+
+    public function setEarlyBirdDeadline(?\DateTimeInterface $earlyBirdDeadline): self
+    {
+        $this->earlyBirdDeadline = $earlyBirdDeadline;
+        return $this;
+    }
+
+    public function isEarlyBirdActive(): bool
+    {
+        if ($this->earlyBirdDeadline === null) {
+            if ($this->startTime === null) {
+                return false;
+            }
+            $defaultDeadline = (clone $this->startTime)->modify('-14 days');
+            return new \DateTime() < $defaultDeadline;
+        }
+        return new \DateTime() < $this->earlyBirdDeadline;
     }
 }

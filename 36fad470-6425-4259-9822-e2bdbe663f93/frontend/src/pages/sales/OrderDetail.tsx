@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Card,
@@ -12,11 +12,13 @@ import {
   List,
   message,
   Popconfirm,
-  Alert
+  Alert,
+  Modal,
+  App
 } from 'antd'
 import { ArrowLeftOutlined, DownloadOutlined, QrcodeOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { QRCodeSVG } from 'qrcode.react'
+import { QRCodeCanvas } from 'qrcode.react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { fetchSeats, refundOrder } from '@/store/ticketSlice'
 import {
@@ -67,11 +69,223 @@ export default function OrderDetail() {
   const dispatch = useAppDispatch()
   const { currentOrder, seats } = useAppSelector((state) => state.ticket)
 
+  const { modal } = App.useApp()
+  const qrWrapperRef = useRef<HTMLDivElement>(null)
+  const highQrWrapperRef = useRef<HTMLDivElement>(null)
+
+  const getQrCanvas = (high = false): HTMLCanvasElement | null => {
+    const wrapper = high ? highQrWrapperRef.current : qrWrapperRef.current
+    if (!wrapper) return null
+    return wrapper.querySelector('canvas')
+  }
+  const touchTimerRef = useRef<number | null>(null)
+  const touchMovedRef = useRef(false)
+  const [qrModalOpen, setQrModalOpen] = useState(false)
+  const [cardImageUrl, setCardImageUrl] = useState('')
+  const [actionSheetOpen, setActionSheetOpen] = useState(false)
+
   useEffect(() => {
     if (orderId && currentOrder?.id !== orderId) {
       dispatch(fetchSeats(currentOrder?.performanceId || ''))
     }
   }, [orderId, currentOrder, dispatch])
+
+  const isMobile = useCallback(() => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent
+    )
+  }, [])
+
+  const generateCardImage = useCallback(async (): Promise<string> => {
+    if (!currentOrder) return ''
+
+    const highQrForWait = getQrCanvas(true)
+    if (highQrForWait) {
+      if (typeof highQrForWait.toDataURL === 'function') {
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      }
+    }
+
+    const cardWidth = 750
+    const cardHeight = 1100
+    const tempCanvas = document.createElement('canvas')
+    tempCanvas.width = cardWidth
+    tempCanvas.height = cardHeight
+    const ctx = tempCanvas.getContext('2d')
+    if (!ctx) return ''
+
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, cardWidth, cardHeight)
+
+    ctx.fillStyle = '#000000'
+    ctx.font = 'bold 28px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    ctx.textAlign = 'center'
+    const performanceName = currentOrder.performanceName || ''
+    const maxWidth = 650
+    let displayName = performanceName
+    if (ctx.measureText(performanceName).width > maxWidth) {
+      let truncated = performanceName
+      while (ctx.measureText(truncated + '...').width > maxWidth && truncated.length > 0) {
+        truncated = truncated.slice(0, -1)
+      }
+      displayName = truncated + '...'
+    }
+    ctx.fillText(displayName, cardWidth / 2, 70)
+
+    const highQrCanvas = getQrCanvas(true)
+    if (highQrCanvas) {
+      const qrSize = 512
+      const qrX = (cardWidth - qrSize) / 2
+      const qrY = 120
+      ctx.drawImage(highQrCanvas, qrX, qrY, qrSize, qrSize)
+
+      ctx.strokeStyle = '#e8e8e8'
+      ctx.lineWidth = 2
+      ctx.strokeRect(qrX - 10, qrY - 10, qrSize + 20, qrSize + 20)
+    }
+
+    ctx.fillStyle = '#333333'
+    ctx.font = '24px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    ctx.textAlign = 'center'
+
+    const infoStartY = 700
+    ctx.fillText(`订单号：${currentOrder.orderNo}`, cardWidth / 2, infoStartY)
+    ctx.fillText(
+      `座位数：${currentOrder.seats.length} 张`,
+      cardWidth / 2,
+      infoStartY + 50
+    )
+    ctx.fillStyle = '#f5222d'
+    ctx.font = 'bold 32px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    ctx.fillText(
+      `订单金额：¥${currentOrder.payAmount}`,
+      cardWidth / 2,
+      infoStartY + 110
+    )
+
+    ctx.fillStyle = '#999999'
+    ctx.font = '20px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    ctx.fillText('请在入场时出示此二维码核销', cardWidth / 2, infoStartY + 180)
+
+    return tempCanvas.toDataURL('image/png')
+  }, [currentOrder])
+
+  const handleDownload = useCallback(async () => {
+    if (!currentOrder) return
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 200))
+      const dataUrl = await generateCardImage()
+      if (!dataUrl) {
+        message.error('生成图片失败')
+        return
+      }
+      const link = document.createElement('a')
+      link.download = `订单二维码-${currentOrder.orderNo}.png`
+      link.href = dataUrl
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      message.success('图片已保存')
+    } catch (error) {
+      console.error('下载失败', error)
+      message.error('保存图片失败')
+    }
+  }, [currentOrder, generateCardImage])
+
+  const handleSaveQrCode = useCallback(async () => {
+    if (!currentOrder) return
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      const canvas = getQrCanvas(true) || getQrCanvas(false)
+      if (!canvas) {
+        message.error('获取二维码失败')
+        return
+      }
+      const dataUrl = canvas.toDataURL('image/png')
+      if (isMobile()) {
+        setCardImageUrl(dataUrl)
+        setQrModalOpen(true)
+        modal.info({
+          title: '保存提示',
+          content: '请长按图片，选择"保存到相册"或通过浏览器菜单保存',
+          okText: '我知道了'
+        })
+      } else {
+        const link = document.createElement('a')
+        link.download = `order-${currentOrder.orderNo}.png`
+        link.href = dataUrl
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        message.success('图片已开始下载')
+      }
+      setActionSheetOpen(false)
+    } catch (error) {
+      console.error('保存二维码失败', error)
+      message.error('保存图片失败')
+    }
+  }, [currentOrder, isMobile, modal])
+
+  const handleCopyQrContent = useCallback(async () => {
+    if (!currentOrder) return
+    try {
+      const content = currentOrder.qrCode || currentOrder.orderNo
+      await navigator.clipboard.writeText(content)
+      message.success('二维码内容已复制')
+      setActionSheetOpen(false)
+    } catch (error) {
+      console.error('复制失败', error)
+      message.error('复制失败，请手动复制')
+    }
+  }, [currentOrder])
+
+  const handleLongPress = useCallback(() => {
+    if (!currentOrder) return
+    setActionSheetOpen(true)
+  }, [currentOrder])
+
+  const handleTouchStart = useCallback(() => {
+    touchMovedRef.current = false
+    if (touchTimerRef.current) {
+      clearTimeout(touchTimerRef.current)
+    }
+    touchTimerRef.current = window.setTimeout(() => {
+      if (!touchMovedRef.current) {
+        handleLongPress()
+      }
+    }, 500)
+  }, [handleLongPress])
+
+  const handleTouchMove = useCallback(() => {
+    touchMovedRef.current = true
+    if (touchTimerRef.current) {
+      clearTimeout(touchTimerRef.current)
+      touchTimerRef.current = null
+    }
+  }, [])
+
+  const handleTouchEnd = useCallback(() => {
+    if (touchTimerRef.current) {
+      clearTimeout(touchTimerRef.current)
+      touchTimerRef.current = null
+    }
+  }, [])
+
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      handleLongPress()
+    },
+    [handleLongPress]
+  )
+
+  useEffect(() => {
+    return () => {
+      if (touchTimerRef.current) {
+        clearTimeout(touchTimerRef.current)
+      }
+    }
+  }, [])
 
   const handleRefund = async () => {
     if (!currentOrder) return
@@ -194,6 +408,20 @@ export default function OrderDetail() {
                 )}
               </Descriptions>
 
+              {currentOrder.status === OrderStatus.USED && (
+                <Descriptions column={2} bordered size="small" style={{ marginTop: 16 }}>
+                  <Descriptions.Item label="核销时间" span={2}>
+                    <Tag color="blue">已核销</Tag>{' '}
+                    {currentOrder.usedAt
+                      ? dayjs(currentOrder.usedAt).format('YYYY-MM-DD HH:mm:ss')
+                      : '-'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="核销人" span={2}>
+                    {currentOrder.verifiedByName || '-'}
+                  </Descriptions.Item>
+                </Descriptions>
+              )}
+
               {canRefund && tip && (
                 <div style={{ marginTop: 16 }}>
                   <Alert
@@ -227,10 +455,21 @@ export default function OrderDetail() {
               title="电子票"
               extra={
                 <Space>
-                  <Button icon={<QrcodeOutlined />} size="small">
+                  <Button
+                    icon={<QrcodeOutlined />}
+                    size="small"
+                    onClick={() => {
+                      setQrModalOpen(true)
+                      handleLongPress()
+                    }}
+                  >
                     查看二维码
                   </Button>
-                  <Button icon={<DownloadOutlined />} size="small">
+                  <Button
+                    icon={<DownloadOutlined />}
+                    size="small"
+                    onClick={handleDownload}
+                  >
                     保存图片
                   </Button>
                 </Space>
@@ -243,17 +482,45 @@ export default function OrderDetail() {
                     padding: 16,
                     background: '#fff',
                     border: '1px solid #e8e8e8',
-                    borderRadius: 8
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    WebkitUserSelect: 'none',
+                    userSelect: 'none',
+                    WebkitTouchCallout: 'none'
                   }}
+                  onContextMenu={handleContextMenu}
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
                 >
-                  <QRCodeSVG
+                  <div ref={qrWrapperRef}>
+                  <QRCodeCanvas
                     value={currentOrder.qrCode || currentOrder.orderNo}
                     size={200}
                     level="H"
                   />
                 </div>
-                <div style={{ marginTop: 16, color: '#606266' }}>
+                </div>
+                <div style={{ display: 'none' }} onContextMenu={(e) => e.preventDefault()}>
+                  <div ref={highQrWrapperRef}>
+                    <QRCodeCanvas
+                      value={currentOrder.qrCode || currentOrder.orderNo}
+                      size={512}
+                      level="H"
+                    />
+                  </div>
+                </div>
+                <div style={{ marginTop: 16, color: '#606266', fontSize: 13 }}>
                   请在入场时出示此二维码核销
+                </div>
+                <div
+                  style={{
+                    marginTop: 12,
+                    color: '#909399',
+                    fontSize: 12
+                  }}
+                >
+                  长按二维码可保存图片
                 </div>
                 <div
                   style={{
@@ -290,6 +557,80 @@ export default function OrderDetail() {
           <div>订单加载中...</div>
         </Card>
       )}
+
+      <Modal
+        open={qrModalOpen}
+        footer={null}
+        onCancel={() => setQrModalOpen(false)}
+        centered
+      >
+        <div style={{ textAlign: 'center', padding: 16 }}>
+          {cardImageUrl ? (
+            <img
+              src={cardImageUrl}
+              alt="订单二维码"
+              style={{ maxWidth: '100%', maxHeight: '70vh' }}
+            />
+          ) : (
+            currentOrder && (
+              <QRCodeCanvas
+                value={currentOrder.qrCode || currentOrder.orderNo}
+                size={320}
+                level="H"
+              />
+            )
+          )}
+          <div style={{ marginTop: 16, color: '#909399', fontSize: 12 }}>
+            长按图片可保存到相册
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={actionSheetOpen}
+        footer={null}
+        onCancel={() => setActionSheetOpen(false)}
+        centered
+        style={{ maxWidth: 320 }}
+        styles={{ body: { padding: 0 } }}
+      >
+        <div
+          onClick={handleSaveQrCode}
+          style={{
+            padding: '16px 24px',
+            fontSize: 16,
+            textAlign: 'center',
+            borderBottom: '1px solid #f0f0f0',
+            cursor: 'pointer'
+          }}
+        >
+          保存到相册
+        </div>
+        <div
+          onClick={handleCopyQrContent}
+          style={{
+            padding: '16px 24px',
+            fontSize: 16,
+            textAlign: 'center',
+            borderBottom: '1px solid #f0f0f0',
+            cursor: 'pointer'
+          }}
+        >
+          复制二维码内容
+        </div>
+        <div
+          onClick={() => setActionSheetOpen(false)}
+          style={{
+            padding: '16px 24px',
+            fontSize: 16,
+            textAlign: 'center',
+            color: '#909399',
+            cursor: 'pointer'
+          }}
+        >
+          取消
+        </div>
+      </Modal>
     </div>
   )
 }
