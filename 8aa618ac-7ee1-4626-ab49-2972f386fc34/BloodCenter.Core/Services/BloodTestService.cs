@@ -30,7 +30,7 @@ public class BloodTestService : IBloodTestService
 
         if (donation.Status != DonationStatus.Completed)
         {
-            throw new InvalidOperationException($"Cannot record test for donation in {donation.Status} status");
+            throw new System.InvalidOperationException($"Cannot record test for donation in {donation.Status} status");
         }
 
         var technician = await _unitOfWork.Users.GetByIdAsync(testDto.TechnicianId, cancellationToken)

@@ -265,7 +265,7 @@ public class DonorService : IDonorService
         var hasDonations = await _unitOfWork.Donations.ExistsAsync(d => d.DonorId == id && !d.IsDeleted, cancellationToken);
         if (hasDonations)
         {
-            throw new InvalidOperationException("Cannot delete donor with existing donation records");
+            throw new System.InvalidOperationException("Cannot delete donor with existing donation records");
         }
 
         _unitOfWork.Donors.Delete(donor);

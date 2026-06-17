@@ -10,17 +10,20 @@ public class NotificationQueueHostedService : BackgroundService
     private readonly ILogger<NotificationQueueHostedService> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly INotificationQueue _queue;
+    private readonly IExternalMessageQueue _externalMessageQueue;
     private const int MaxRetryCount = 5;
     private const int RetryDelaySeconds = 30;
 
     public NotificationQueueHostedService(
         ILogger<NotificationQueueHostedService> logger,
         IServiceScopeFactory scopeFactory,
-        INotificationQueue queue)
+        INotificationQueue queue,
+        IExternalMessageQueue externalMessageQueue)
     {
         _logger = logger;
         _scopeFactory = scopeFactory;
         _queue = queue;
+        _externalMessageQueue = externalMessageQueue;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -88,8 +91,9 @@ public class NotificationQueueHostedService : BackgroundService
             }
             else if (channel == NotificationChannel.MessageQueue.ToString())
             {
+                await _externalMessageQueue.PublishAsync(message, stoppingToken);
                 _logger.LogInformation(
-                    "Message queue notification processed (Type={Type}, Recipient={Recipient}): {Subject}",
+                    "Message published to external message queue: Type={Type}, Recipient={Recipient}, Subject={Subject}",
                     message.Type, message.Recipient, message.Subject);
                 delivered = true;
             }

@@ -34,12 +34,12 @@ public class ComponentPreparationService : IComponentPreparationService
 
         if (donation.Status != DonationStatus.Released && donation.Status != DonationStatus.Completed)
         {
-            throw new InvalidOperationException($"Cannot process donation in {donation.Status} status");
+            throw new System.InvalidOperationException($"Cannot process donation in {donation.Status} status");
         }
 
         if (donation.IsQuarantined)
         {
-            throw new InvalidOperationException("Cannot process quarantined donation");
+            throw new System.InvalidOperationException("Cannot process quarantined donation");
         }
 
         var preparer = await _unitOfWork.Users.GetByIdAsync(preparedById, cancellationToken)
@@ -150,9 +150,14 @@ public class ComponentPreparationService : IComponentPreparationService
         var donation = await _unitOfWork.Donations.GetByIdAsync(productDto.DonationId, cancellationToken)
             ?? throw new NotFoundException("Donation", productDto.DonationId);
 
+        if (donation.Status != DonationStatus.Released && donation.Status != DonationStatus.Completed)
+        {
+            throw new System.InvalidOperationException($"Cannot process donation in {donation.Status} status");
+        }
+
         if (donation.IsQuarantined)
         {
-            throw new InvalidOperationException("Cannot prepare products from quarantined donation");
+            throw new System.InvalidOperationException("Cannot prepare products from quarantined donation");
         }
 
         var preparer = await _unitOfWork.Users.GetByIdAsync(productDto.PreparedById, cancellationToken)
@@ -165,6 +170,10 @@ public class ComponentPreparationService : IComponentPreparationService
             BloodProductType.WashedRedCells => 24,
             _ => 35
         };
+
+        var initialStatus = donation.Status == DonationStatus.Released
+            ? InventoryStatus.InStock
+            : InventoryStatus.Quarantined;
 
         var product = new BloodProduct
         {
@@ -187,7 +196,7 @@ public class ComponentPreparationService : IComponentPreparationService
                 BloodProductType.WashedRedCells => "2-6°C",
                 _ => "2-6°C"
             },
-            Status = InventoryStatus.InStock,
+            Status = initialStatus,
             IsSpecialProduct = true,
             SpecialProductReason = productDto.SpecialProductReason,
             PreparationMethod = productDto.PreparationMethod,
@@ -330,7 +339,7 @@ public class ComponentPreparationService : IComponentPreparationService
 
         if (hasCrossMatches)
         {
-            throw new InvalidOperationException("Cannot delete product with existing cross match records");
+            throw new System.InvalidOperationException("Cannot delete product with existing cross match records");
         }
 
         _unitOfWork.BloodProducts.Delete(product);

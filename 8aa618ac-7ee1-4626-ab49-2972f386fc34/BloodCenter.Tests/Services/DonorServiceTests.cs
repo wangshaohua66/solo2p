@@ -6,7 +6,6 @@ using BloodCenter.Core.Interfaces;
 using BloodCenter.Core.Interfaces.Data;
 using BloodCenter.Core.Services;
 using Microsoft.Extensions.Logging;
-using MockQueryable.Moq;
 using BcInvalidOperationException = BloodCenter.Core.Exceptions.InvalidOperationException;
 
 namespace BloodCenter.Tests.Services;
@@ -16,6 +15,7 @@ public class DonorServiceTests
     private readonly Mock<IUnitOfWork> _unitOfWorkMock;
     private readonly Mock<IMapper> _mapperMock;
     private readonly Mock<ILogger<DonorService>> _loggerMock;
+    private readonly Mock<IDeferralStrategy> _deferralStrategyMock;
     private readonly DonorService _donorService;
 
     public DonorServiceTests()
@@ -23,7 +23,8 @@ public class DonorServiceTests
         _unitOfWorkMock = new Mock<IUnitOfWork>();
         _mapperMock = new Mock<IMapper>();
         _loggerMock = new Mock<ILogger<DonorService>>();
-        _donorService = new DonorService(_unitOfWorkMock.Object, _mapperMock.Object, _loggerMock.Object);
+        _deferralStrategyMock = new Mock<IDeferralStrategy>();
+        _donorService = new DonorService(_unitOfWorkMock.Object, _mapperMock.Object, _loggerMock.Object, _deferralStrategyMock.Object);
     }
 
     [Fact]
@@ -206,7 +207,7 @@ public class DonorServiceTests
         {
             new() { Id = Guid.NewGuid(), FirstName = "John", LastName = "Doe", Status = DonorStatus.Eligible, CreatedAt = DateTime.UtcNow, IsDeleted = false },
             new() { Id = Guid.NewGuid(), FirstName = "Johnny", LastName = "Smith", Status = DonorStatus.Eligible, CreatedAt = DateTime.UtcNow.AddDays(-1), IsDeleted = false }
-        }.AsQueryable().BuildMock();
+        };
 
         var donorDtos = new List<DonorDto>
         {
@@ -214,7 +215,10 @@ public class DonorServiceTests
             new(Guid.NewGuid(), "D2024000002", "Johnny", "Smith", new DateTime(1985,1,1), "Male", "333", "444", null, null, "A+", BloodType.A, RhFactor.Positive, DonorStatus.Eligible, null, null, null, null, 0, 0, true, null, DateTime.UtcNow.AddDays(-1))
         };
 
-        _unitOfWorkMock.Setup(u => u.Donors.Query()).Returns(donors);
+        _unitOfWorkMock.Setup(u => u.Donors.FindAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<Donor, bool>>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(donors);
         _mapperMock.Setup(m => m.Map<IEnumerable<DonorDto>>(It.IsAny<IEnumerable<Donor>>()))
             .Returns(donorDtos);
 
@@ -431,7 +435,7 @@ public class DonorServiceTests
         {
             Id = donorId,
             FirstName = "Young",
-            LastName: "Person",
+            LastName = "Person",
             DateOfBirth = DateTime.Today.AddYears(-16),
             Status = DonorStatus.Eligible
         };

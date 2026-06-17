@@ -31,7 +31,7 @@ public class CrossMatchService : ICrossMatchService
 
         if (!hospital.IsActive)
         {
-            throw new InvalidOperationException("Hospital is not active");
+            throw new System.InvalidOperationException("Hospital is not active");
         }
 
         if (requestDto.QuantityRequested <= 0)
@@ -404,13 +404,13 @@ public class CrossMatchService : ICrossMatchService
             .ToList();
 
         return new RequestStatsDto(
-            TotalRequests: requests.Count,
-            FulfilledRequests: fulfilledRequests.Count,
+            TotalRequests: requests.Count(),
+            FulfilledRequests: fulfilledRequests.Count(),
             PendingRequests: requests.Count(r => r.Status == RequestStatus.Pending),
             CancelledRequests: requests.Count(r => r.Status == RequestStatus.Cancelled),
             TotalUnitsRequested: requests.Sum(r => r.QuantityRequested),
             TotalUnitsIssued: requests.Sum(r => r.QuantityIssued),
-            FulfillmentRate: requests.Any() ? Math.Round((decimal)fulfilledRequests.Count / requests.Count * 100, 2) : 0,
+            FulfillmentRate: requests.Any() ? Math.Round((decimal)fulfilledRequests.Count() / requests.Count() * 100, 2) : 0,
             AverageResponseTime: responseTimes.Any() ? TimeSpan.FromTicks((long)responseTimes.Average(t => t.Ticks)) : TimeSpan.Zero,
             ByUrgency: requests.GroupBy(r => r.Urgency).ToDictionary(g => g.Key, g => g.Count()),
             ByProductType: requests.GroupBy(r => r.ProductType).ToDictionary(g => g.Key, g => g.Count())

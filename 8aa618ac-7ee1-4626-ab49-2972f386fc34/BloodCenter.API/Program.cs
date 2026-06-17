@@ -106,13 +106,16 @@ builder.Services.Configure<DeferralOptions>(builder.Configuration.GetSection("De
 builder.Services.Configure<BackgroundWorkerOptions>(builder.Configuration.GetSection("BackgroundWorkerOptions"));
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
 builder.Services.Configure<SmsSettings>(builder.Configuration.GetSection("SmsSettings"));
+builder.Services.Configure<FileBasedMessageQueueOptions>(builder.Configuration.GetSection("MessageQueue"));
 
 builder.Services.AddSingleton<INotificationQueue, NotificationQueue>();
+builder.Services.AddSingleton<IExternalMessageQueue, FileBasedMessageQueue>();
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 builder.Services.AddHttpClient<ISmsSender, SmsNotificationSender>();
 
 builder.Services.AddHostedService<ExpiredProductsBackgroundService>();
 builder.Services.AddHostedService<NotificationQueueHostedService>();
+builder.Services.AddHostedService<ExternalMessageQueueConsumerHostedService>();
 
 builder.Services.AddAutoMapper(typeof(Program).Assembly);
 builder.Services.AddFluentValidation(fv => fv.RegisterValidatorsFromAssemblyContaining<Program>());
@@ -150,7 +153,7 @@ builder.Services.AddResponseCaching();
 builder.Services.AddMemoryCache();
 
 builder.Services.AddHealthChecks()
-    .AddDbContext<BloodCenterDbContext>();
+    .AddDbContextCheck<BloodCenterDbContext>();
 
 builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
 {

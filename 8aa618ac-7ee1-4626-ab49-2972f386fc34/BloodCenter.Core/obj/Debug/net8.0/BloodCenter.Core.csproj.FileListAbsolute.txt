@@ -1,0 +1,13 @@
+/Users/paul/WorkSpace/TestSoloCoder/8aa618ac-7ee1-4626-ab49-2972f386fc34/BloodCenter.Core/obj/Debug/net8.0/BloodCenter.Core.csproj.AssemblyReference.cache
+/Users/paul/WorkSpace/TestSoloCoder/8aa618ac-7ee1-4626-ab49-2972f386fc34/BloodCenter.Core/obj/Debug/net8.0/BloodCenter.Core.GeneratedMSBuildEditorConfig.editorconfig
+/Users/paul/WorkSpace/TestSoloCoder/8aa618ac-7ee1-4626-ab49-2972f386fc34/BloodCenter.Core/obj/Debug/net8.0/BloodCenter.Core.AssemblyInfoInputs.cache
+/Users/paul/WorkSpace/TestSoloCoder/8aa618ac-7ee1-4626-ab49-2972f386fc34/BloodCenter.Core/obj/Debug/net8.0/BloodCenter.Core.AssemblyInfo.cs
+/Users/paul/WorkSpace/TestSoloCoder/8aa618ac-7ee1-4626-ab49-2972f386fc34/BloodCenter.Core/obj/Debug/net8.0/BloodCenter.Core.csproj.CoreCompileInputs.cache
+/Users/paul/WorkSpace/TestSoloCoder/8aa618ac-7ee1-4626-ab49-2972f386fc34/BloodCenter.Core/obj/Debug/net8.0/BloodCenter.Core.sourcelink.json
+/Users/paul/WorkSpace/TestSoloCoder/8aa618ac-7ee1-4626-ab49-2972f386fc34/BloodCenter.Core/bin/Debug/net8.0/BloodCenter.Core.deps.json
+/Users/paul/WorkSpace/TestSoloCoder/8aa618ac-7ee1-4626-ab49-2972f386fc34/BloodCenter.Core/bin/Debug/net8.0/BloodCenter.Core.dll
+/Users/paul/WorkSpace/TestSoloCoder/8aa618ac-7ee1-4626-ab49-2972f386fc34/BloodCenter.Core/bin/Debug/net8.0/BloodCenter.Core.pdb
+/Users/paul/WorkSpace/TestSoloCoder/8aa618ac-7ee1-4626-ab49-2972f386fc34/BloodCenter.Core/obj/Debug/net8.0/BloodCenter.Core.dll
+/Users/paul/WorkSpace/TestSoloCoder/8aa618ac-7ee1-4626-ab49-2972f386fc34/BloodCenter.Core/obj/Debug/net8.0/refint/BloodCenter.Core.dll
+/Users/paul/WorkSpace/TestSoloCoder/8aa618ac-7ee1-4626-ab49-2972f386fc34/BloodCenter.Core/obj/Debug/net8.0/BloodCenter.Core.pdb
+/Users/paul/WorkSpace/TestSoloCoder/8aa618ac-7ee1-4626-ab49-2972f386fc34/BloodCenter.Core/obj/Debug/net8.0/ref/BloodCenter.Core.dll

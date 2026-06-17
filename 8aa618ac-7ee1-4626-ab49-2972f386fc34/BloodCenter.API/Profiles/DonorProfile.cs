@@ -45,8 +45,8 @@ public class DonorProfile : Profile
 
         CreateMap<Donor, DonorDto>()
             .ForMember(d => d.BloodGroupDisplay, opt => opt.MapFrom(s => s.BloodGroup != null ? s.BloodGroup.ToString() : "Unknown"))
-            .ForMember(d => d.BloodType, opt => opt.MapFrom(s => s.BloodGroup != null ? (Infrastructure.Entities.Enums.BloodType?)s.BloodGroup.ABO : null))
-            .ForMember(d => d.RhFactor, opt => opt.MapFrom(s => s.BloodGroup != null ? (Infrastructure.Entities.Enums.RhFactor?)s.BloodGroup.Rh : null))
+            .ForMember(d => d.BloodType, opt => opt.MapFrom(s => s.BloodGroup != null ? (BloodCenter.Core.Entities.Enums.BloodType?)s.BloodGroup.ABO : null))
+            .ForMember(d => d.RhFactor, opt => opt.MapFrom(s => s.BloodGroup != null ? (BloodCenter.Core.Entities.Enums.RhFactor?)s.BloodGroup.Rh : null))
             .ForMember(d => d.Address, opt => opt.MapFrom(s => s.Address != null ? new AddressDto(s.Address.Street, s.Address.City, s.Address.Province, s.Address.PostalCode) : null));
 
         CreateMap<AddressDto, Address>()

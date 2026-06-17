@@ -4,9 +4,8 @@ using BloodCenter.Core.Entities.ValueObjects;
 using BloodCenter.Core.Interfaces;
 using BloodCenter.Core.Interfaces.Data;
 using BloodCenter.Core.Services;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using MockQueryable.Moq;
+using Moq;
 
 namespace BloodCenter.Tests.Services;
 
@@ -34,18 +33,22 @@ public class InventoryServiceTests
             new() { Id = Guid.NewGuid(), ProductCode = "P002", ProductType = BloodProductType.RedBloodCells, BloodGroup = new BloodGroup { ABO = BloodType.A, Rh = RhFactor.Positive }, Status = InventoryStatus.InStock, ExpiryDate = DateTime.UtcNow.AddDays(30), ProductionDate = DateTime.UtcNow.AddDays(-10) },
             new() { Id = Guid.NewGuid(), ProductCode = "P003", ProductType = BloodProductType.RedBloodCells, BloodGroup = new BloodGroup { ABO = BloodType.O, Rh = RhFactor.Negative }, Status = InventoryStatus.InStock, ExpiryDate = DateTime.UtcNow.AddDays(30), ProductionDate = DateTime.UtcNow.AddDays(-10) },
             new() { Id = Guid.NewGuid(), ProductCode = "ISS001", ProductType = BloodProductType.RedBloodCells, BloodGroup = new BloodGroup { ABO = BloodType.A, Rh = RhFactor.Positive }, Status = InventoryStatus.Issued, UpdatedAt = DateTime.UtcNow.AddDays(-2), ProductionDate = DateTime.UtcNow.AddDays(-10) }
-        }.AsQueryable().BuildMock();
+        };
 
         var settings = new List<InventorySetting>
         {
             new() { Id = Guid.NewGuid(), ProductType = BloodProductType.RedBloodCells, BloodType = BloodType.A, RhFactor = RhFactor.Positive, MinimumLevel = 5, WarningLevel = 10, EmergencyReserve = 2 }
-        }.AsQueryable().BuildMock();
+        };
 
-        _unitOfWorkMock.Setup(u => u.BloodProducts.Query())
-            .Returns(allProducts);
+        _unitOfWorkMock.Setup(u => u.BloodProducts.FindAsync(
+                It.Is<System.Linq.Expressions.Expression<Func<BloodProduct, bool>>>(p => true),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(allProducts);
 
-        _unitOfWorkMock.Setup(u => u.InventorySettings.Query())
-            .Returns(settings);
+        _unitOfWorkMock.Setup(u => u.InventorySettings.FindAsync(
+                It.Is<System.Linq.Expressions.Expression<Func<InventorySetting, bool>>>(p => true),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(settings);
 
         var result = await _inventoryService.GetBloodTypeBalanceAnalysisAsync();
 
@@ -61,18 +64,22 @@ public class InventoryServiceTests
         var products = new List<BloodProduct>
         {
             new() { Id = Guid.NewGuid(), ProductCode = "P001", ProductType = BloodProductType.RedBloodCells, BloodGroup = new BloodGroup { ABO = BloodType.A, Rh = RhFactor.Positive }, Status = InventoryStatus.InStock, ExpiryDate = DateTime.UtcNow.AddDays(30), ProductionDate = DateTime.UtcNow.AddDays(-10) }
-        }.AsQueryable().BuildMock();
+        };
 
         var settings = new List<InventorySetting>
         {
             new() { Id = Guid.NewGuid(), ProductType = BloodProductType.RedBloodCells, BloodType = BloodType.A, RhFactor = RhFactor.Positive, MinimumLevel = 10, WarningLevel = 20, EmergencyReserve = 5 }
-        }.AsQueryable().BuildMock();
+        };
 
-        _unitOfWorkMock.Setup(u => u.BloodProducts.Query())
-            .Returns(products);
+        _unitOfWorkMock.Setup(u => u.BloodProducts.FindAsync(
+                It.Is<System.Linq.Expressions.Expression<Func<BloodProduct, bool>>>(p => true),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(products);
 
-        _unitOfWorkMock.Setup(u => u.InventorySettings.Query())
-            .Returns(settings);
+        _unitOfWorkMock.Setup(u => u.InventorySettings.FindAsync(
+                It.Is<System.Linq.Expressions.Expression<Func<InventorySetting, bool>>>(p => true),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(settings);
 
         var result = await _inventoryService.GetInventoryAlertsAsync();
 
@@ -95,8 +102,7 @@ public class InventoryServiceTests
                 ExpiryDate = DateTime.UtcNow.AddDays(35 - i),
                 Status = InventoryStatus.InStock
             })
-            .ToList()
-            .AsQueryable().BuildMock();
+            .ToList();
 
         var query = new SearchInventoryQuery(
             ProductType: null,
@@ -108,8 +114,17 @@ public class InventoryServiceTests
             PageNumber: 2,
             PageSize: 10);
 
-        _unitOfWorkMock.Setup(u => u.BloodProducts.Query())
-            .Returns(allProducts);
+        _unitOfWorkMock.Setup(u => u.BloodProducts.GetPagedAsync(
+                It.IsAny<int>(),
+                It.IsAny<int>(),
+                It.IsAny<System.Linq.Expressions.Expression<Func<BloodProduct, bool>>>(),
+                It.IsAny<System.Linq.Expressions.Expression<Func<BloodProduct, object>>>(),
+                It.IsAny<bool>(),
+                It.IsAny<System.Linq.Expressions.Expression<Func<BloodProduct, object>>>(),
+                It.IsAny<bool>(),
+                It.IsAny<string[]>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((allProducts.Skip(10).Take(10), 25));
 
         var result = await _inventoryService.GetInventoryItemsAsync(query);
 
@@ -126,18 +141,22 @@ public class InventoryServiceTests
         var products = new List<BloodProduct>
         {
             new() { Id = Guid.NewGuid(), ProductCode = "P001", ProductType = BloodProductType.RedBloodCells, BloodGroup = new BloodGroup { ABO = BloodType.B, Rh = RhFactor.Negative }, Status = InventoryStatus.InStock, ExpiryDate = DateTime.UtcNow.AddDays(30) }
-        }.AsQueryable().BuildMock();
+        };
 
         var settings = new List<InventorySetting>
         {
             new() { Id = Guid.NewGuid(), ProductType = BloodProductType.RedBloodCells, BloodType = BloodType.B, RhFactor = RhFactor.Negative, MinimumLevel = 5, WarningLevel = 10, EmergencyReserve = 2 }
-        }.AsQueryable().BuildMock();
+        };
 
-        _unitOfWorkMock.Setup(u => u.BloodProducts.Query())
-            .Returns(products);
+        _unitOfWorkMock.Setup(u => u.BloodProducts.FindAsync(
+                It.Is<System.Linq.Expressions.Expression<Func<BloodProduct, bool>>>(p => true),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(products);
 
-        _unitOfWorkMock.Setup(u => u.InventorySettings.Query())
-            .Returns(settings);
+        _unitOfWorkMock.Setup(u => u.InventorySettings.FindAsync(
+                It.Is<System.Linq.Expressions.Expression<Func<InventorySetting, bool>>>(p => true),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(settings);
 
         await _inventoryService.CheckAndSendAlertsAsync();
 
@@ -158,10 +177,12 @@ public class InventoryServiceTests
             new() { Id = Guid.NewGuid(), ProductType = BloodProductType.RedBloodCells, BloodType = BloodType.A, RhFactor = RhFactor.Positive, MinimumLevel = 10, WarningLevel = 20, EmergencyReserve = 5 },
             new() { Id = Guid.NewGuid(), ProductType = BloodProductType.RedBloodCells, BloodType = BloodType.O, RhFactor = RhFactor.Negative, MinimumLevel = 8, WarningLevel = 16, EmergencyReserve = 4 },
             new() { Id = Guid.NewGuid(), ProductType = BloodProductType.Plasma, BloodType = BloodType.B, RhFactor = RhFactor.Positive, MinimumLevel = 15, WarningLevel = 30, EmergencyReserve = 7 }
-        }.AsQueryable().BuildMock();
+        };
 
-        _unitOfWorkMock.Setup(u => u.InventorySettings.Query())
-            .Returns(settings);
+        _unitOfWorkMock.Setup(u => u.InventorySettings.FindAsync(
+                It.Is<System.Linq.Expressions.Expression<Func<InventorySetting, bool>>>(p => true),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(settings);
 
         var result = await _inventoryService.GetInventorySettingsAsync();
 
@@ -175,10 +196,20 @@ public class InventoryServiceTests
     [Fact]
     public async Task SetSafetyStockLevelAsync_CreatesNewSetting()
     {
-        var settings = new List<InventorySetting>().AsQueryable().BuildMock();
+        var settings = new List<InventorySetting>();
 
-        _unitOfWorkMock.Setup(u => u.InventorySettings.Query())
-            .Returns(settings);
+        _unitOfWorkMock.Setup(u => u.InventorySettings.FirstOrDefaultAsync(
+                It.Is<System.Linq.Expressions.Expression<Func<InventorySetting, bool>>>(p => true),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((InventorySetting?)null);
+
+        _unitOfWorkMock.Setup(u => u.InventorySettings.AddAsync(
+                It.IsAny<InventorySetting>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        _unitOfWorkMock.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
 
         await _inventoryService.SetSafetyStockLevelAsync(
             BloodProductType.RedBloodCells,
@@ -211,10 +242,13 @@ public class InventoryServiceTests
             EmergencyReserve = 2
         };
 
-        var settings = new List<InventorySetting> { existingSetting }.AsQueryable().BuildMock();
+        _unitOfWorkMock.Setup(u => u.InventorySettings.FirstOrDefaultAsync(
+                It.Is<System.Linq.Expressions.Expression<Func<InventorySetting, bool>>>(p => true),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingSetting);
 
-        _unitOfWorkMock.Setup(u => u.InventorySettings.Query())
-            .Returns(settings);
+        _unitOfWorkMock.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
 
         await _inventoryService.SetSafetyStockLevelAsync(
             BloodProductType.RedBloodCells,
@@ -240,7 +274,7 @@ public class InventoryServiceTests
             new() { Id = Guid.NewGuid(), ProductCode = "P002", ProductType = BloodProductType.RedBloodCells, BloodGroup = new BloodGroup { ABO = BloodType.B, Rh = RhFactor.Negative }, Status = InventoryStatus.InStock, ExpiryDate = DateTime.UtcNow.AddDays(30), Volume = 250, ProductionDate = DateTime.UtcNow.AddDays(-5) },
             new() { Id = Guid.NewGuid(), ProductCode = "P003", ProductType = BloodProductType.RedBloodCells, BloodGroup = new BloodGroup { ABO = BloodType.A, Rh = RhFactor.Negative }, Status = InventoryStatus.InStock, ExpiryDate = DateTime.UtcNow.AddDays(30), Volume = 250, ProductionDate = DateTime.UtcNow.AddDays(-5) },
             new() { Id = Guid.NewGuid(), ProductCode = "P004", ProductType = BloodProductType.Plasma, BloodGroup = new BloodGroup { ABO = BloodType.O, Rh = RhFactor.Positive }, Status = InventoryStatus.InStock, ExpiryDate = DateTime.UtcNow.AddDays(30), Volume = 200, ProductionDate = DateTime.UtcNow.AddDays(-5) }
-        }.AsQueryable().BuildMock();
+        };
 
         var query = new SearchInventoryQuery(
             ProductType: null,
@@ -252,8 +286,17 @@ public class InventoryServiceTests
             PageNumber: 1,
             PageSize: 20);
 
-        _unitOfWorkMock.Setup(u => u.BloodProducts.Query())
-            .Returns(products);
+        _unitOfWorkMock.Setup(u => u.BloodProducts.GetPagedAsync(
+                It.IsAny<int>(),
+                It.IsAny<int>(),
+                It.Is<System.Linq.Expressions.Expression<Func<BloodProduct, bool>>>(p => true),
+                It.IsAny<System.Linq.Expressions.Expression<Func<BloodProduct, object>>>(),
+                It.IsAny<bool>(),
+                It.IsAny<System.Linq.Expressions.Expression<Func<BloodProduct, object>>>(),
+                It.IsAny<bool>(),
+                It.IsAny<string[]>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((products.Where(p => p.BloodGroup.ABO == BloodType.A).ToList(), 2));
 
         var result = await _inventoryService.GetInventoryItemsAsync(query);
 
@@ -269,15 +312,19 @@ public class InventoryServiceTests
         {
             new() { Id = Guid.NewGuid(), ProductCode = "EXP001", ProductType = BloodProductType.RedBloodCells, BloodGroup = new BloodGroup { ABO = BloodType.O, Rh = RhFactor.Positive }, Status = InventoryStatus.InStock, ExpiryDate = DateTime.UtcNow.AddHours(12), Volume = 250, ProductionDate = DateTime.UtcNow.AddDays(-35) },
             new() { Id = Guid.NewGuid(), ProductCode = "SAFE001", ProductType = BloodProductType.RedBloodCells, BloodGroup = new BloodGroup { ABO = BloodType.A, Rh = RhFactor.Positive }, Status = InventoryStatus.InStock, ExpiryDate = DateTime.UtcNow.AddDays(30), Volume = 250, ProductionDate = DateTime.UtcNow.AddDays(-10) }
-        }.AsQueryable().BuildMock();
+        };
 
-        var settings = new List<InventorySetting>().AsQueryable().BuildMock();
+        var settings = new List<InventorySetting>();
 
-        _unitOfWorkMock.Setup(u => u.BloodProducts.Query())
-            .Returns(products);
+        _unitOfWorkMock.Setup(u => u.BloodProducts.FindAsync(
+                It.Is<System.Linq.Expressions.Expression<Func<BloodProduct, bool>>>(p => true),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(products);
 
-        _unitOfWorkMock.Setup(u => u.InventorySettings.Query())
-            .Returns(settings);
+        _unitOfWorkMock.Setup(u => u.InventorySettings.FindAsync(
+                It.Is<System.Linq.Expressions.Expression<Func<InventorySetting, bool>>>(p => true),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(settings);
 
         var result = await _inventoryService.GetInventoryAlertsAsync();
 
@@ -293,14 +340,24 @@ public class InventoryServiceTests
             new() { Id = Guid.NewGuid(), ProductCode = "INSTOCK01", ProductType = BloodProductType.RedBloodCells, BloodGroup = new BloodGroup { ABO = BloodType.O, Rh = RhFactor.Positive }, Status = InventoryStatus.InStock, ExpiryDate = DateTime.UtcNow.AddDays(30), Volume = 250, ProductionDate = DateTime.UtcNow.AddDays(-5) },
             new() { Id = Guid.NewGuid(), ProductCode = "ISSUED01", ProductType = BloodProductType.Plasma, BloodGroup = new BloodGroup { ABO = BloodType.A, Rh = RhFactor.Negative }, Status = InventoryStatus.Issued, ExpiryDate = DateTime.UtcNow.AddDays(30), Volume = 200, ProductionDate = DateTime.UtcNow.AddDays(-5) },
             new() { Id = Guid.NewGuid(), ProductCode = "QUARANTINED01", ProductType = BloodProductType.Platelets, BloodGroup = new BloodGroup { ABO = BloodType.B, Rh = RhFactor.Positive }, Status = InventoryStatus.Quarantined, ExpiryDate = DateTime.UtcNow.AddDays(5), Volume = 50, ProductionDate = DateTime.UtcNow.AddDays(-2) }
-        }.AsQueryable().BuildMock();
+        };
 
-        _unitOfWorkMock.Setup(u => u.BloodProducts.Query())
-            .Returns(products);
+        _unitOfWorkMock.Setup(u => u.BloodProducts.GetPagedAsync(
+                It.IsAny<int>(),
+                It.IsAny<int>(),
+                It.Is<System.Linq.Expressions.Expression<Func<BloodProduct, bool>>>(p => true),
+                It.IsAny<System.Linq.Expressions.Expression<Func<BloodProduct, object>>>(),
+                It.IsAny<bool>(),
+                It.IsAny<System.Linq.Expressions.Expression<Func<BloodProduct, object>>>(),
+                It.IsAny<bool>(),
+                It.IsAny<string[]>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((products.Where(p => p.Status == InventoryStatus.InStock).ToList(), 1));
 
-        var result = await _inventoryService.GetInventorySummaryAsync();
+        var result = await _inventoryService.GetInventorySummaryAsync(1, 20);
 
-        result.Should().HaveCount(1);
-        result.First().ProductCode.Should().Be("INSTOCK01");
+        result.Should().NotBeNull();
+        result.TotalCount.Should().Be(1);
+        result.Items.Should().OnlyContain(i => i.ProductCode == "INSTOCK01");
     }
 }

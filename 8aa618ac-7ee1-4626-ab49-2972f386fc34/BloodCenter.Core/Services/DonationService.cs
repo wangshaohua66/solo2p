@@ -4,6 +4,7 @@ using BloodCenter.Core.Interfaces;
 using BloodCenter.Core.Interfaces.Data;
 using BloodCenter.Core.Entities;
 using BloodCenter.Core.Entities.Enums;
+using BloodCenter.Core.Entities.ValueObjects;
 using Microsoft.Extensions.Logging;
 
 namespace BloodCenter.Core.Services;
@@ -59,7 +60,7 @@ public class DonationService : IDonationService
         var donation = _mapper.Map<Donation>(donationDto);
         donation.DonationNumber = await GenerateDonationNumber(cancellationToken);
         donation.Status = DonationStatus.InProgress;
-        donation.BloodGroup = new ValueObjects.BloodGroup
+        donation.BloodGroup = new BloodGroup
         {
             ABO = donationDto.BloodType,
             Rh = donationDto.RhFactor
@@ -144,7 +145,7 @@ public class DonationService : IDonationService
 
         if (donation.Status != DonationStatus.InProgress && donation.Status != DonationStatus.Completed)
         {
-            throw new InvalidOperationException($"Cannot record initial screening for donation in {donation.Status} status");
+            throw new System.InvalidOperationException($"Cannot record initial screening for donation in {donation.Status} status");
         }
 
         var technician = await _unitOfWork.Users.GetByIdAsync(screeningDto.TechnicianId, cancellationToken)
@@ -265,7 +266,7 @@ public class DonationService : IDonationService
             SuccessfulDonations: donations.Count(d => d.Status == DonationStatus.Completed || d.Status == DonationStatus.Released),
             DeferredDonations: donations.Count(d => d.Status == DonationStatus.Deferred || d.Status == DonationStatus.Rejected),
             TotalVolume: donations.Sum(d => d.Volume),
-            AverageVolume: donations.Any() ? Math.Round(donations.Average(d => d.Volume), 2) : 0,
+            AverageVolume: donations.Any() ? (decimal)Math.Round(donations.Average(d => d.Volume), 2) : 0,
             ByBloodType: donations.GroupBy(d => d.BloodGroup.ToString())
                 .ToDictionary(g => g.Key, g => g.Count()),
             BySite: donations.GroupBy(d => d.CollectionSiteId)
@@ -287,7 +288,7 @@ public class DonationService : IDonationService
 
         if (hasProducts)
         {
-            throw new InvalidOperationException("Cannot delete donation with existing blood products");
+            throw new System.InvalidOperationException("Cannot delete donation with existing blood products");
         }
 
         _unitOfWork.Donations.Delete(donation);

@@ -6,7 +6,6 @@ using BloodCenter.Core.Interfaces;
 using BloodCenter.Core.Interfaces.Data;
 using BloodCenter.Core.Services;
 using Microsoft.Extensions.Logging;
-using MockQueryable.Moq;
 
 namespace BloodCenter.Tests.Services;
 
@@ -66,10 +65,10 @@ public class BloodTestServiceTests
             });
         }
 
-        var testQueryable = tests.AsQueryable().BuildMock();
-
-        _unitOfWorkMock.Setup(u => u.BloodTests.Query())
-            .Returns(testQueryable);
+        _unitOfWorkMock.Setup(u => u.BloodTests.FindAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<BloodTest, bool>>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(tests);
 
         var result = await _bloodTestService.ValidateFullTestCoverageAsync(donationId);
 
@@ -126,10 +125,10 @@ public class BloodTestServiceTests
             });
         }
 
-        var testQueryable = tests.AsQueryable().BuildMock();
-
-        _unitOfWorkMock.Setup(u => u.BloodTests.Query())
-            .Returns(testQueryable);
+        _unitOfWorkMock.Setup(u => u.BloodTests.FindAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<BloodTest, bool>>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(tests);
 
         var result = await _bloodTestService.ValidateFullTestCoverageAsync(donationId);
 
@@ -184,10 +183,10 @@ public class BloodTestServiceTests
             });
         }
 
-        var testQueryable = tests.AsQueryable().BuildMock();
-
-        _unitOfWorkMock.Setup(u => u.BloodTests.Query())
-            .Returns(testQueryable);
+        _unitOfWorkMock.Setup(u => u.BloodTests.FindAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<BloodTest, bool>>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(tests);
 
         var result = await _bloodTestService.ValidateFullTestCoverageAsync(donationId);
 
@@ -238,10 +237,10 @@ public class BloodTestServiceTests
             });
         }
 
-        var testQueryable = tests.AsQueryable().BuildMock();
-
-        _unitOfWorkMock.Setup(u => u.BloodTests.Query())
-            .Returns(testQueryable);
+        _unitOfWorkMock.Setup(u => u.BloodTests.FindAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<BloodTest, bool>>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(tests);
 
         var result = await _bloodTestService.ValidateFullTestCoverageAsync(donationId);
 
@@ -271,8 +270,10 @@ public class BloodTestServiceTests
             tests.Add(new BloodTest { Id = Guid.NewGuid(), DonationId = donationId, TestType = TestType.NucleicAcidTest, TestItem = item, Result = TestResult.Negative });
         }
 
-        var testQueryable = tests.AsQueryable().BuildMock();
-        _unitOfWorkMock.Setup(u => u.BloodTests.Query()).Returns(testQueryable);
+        _unitOfWorkMock.Setup(u => u.BloodTests.FindAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<BloodTest, bool>>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(tests);
 
         var donation = new Donation { Id = donationId, Status = DonationStatus.Completed };
         _unitOfWorkMock.Setup(u => u.Donations.GetByIdAsync(donationId, It.IsAny<CancellationToken>()))
@@ -294,8 +295,8 @@ public class BloodTestServiceTests
 
         foreach (var item in elisaItems)
         {
-            var result = item == TestItem.HBsAg ? TestResult.Positive : TestResult.Negative;
-            tests.Add(new BloodTest { Id = Guid.NewGuid(), DonationId = donationId, TestType = TestType.ElisaFirst, TestItem = item, Result = result });
+            var testResult = item == TestItem.HBsAg ? TestResult.Positive : TestResult.Negative;
+            tests.Add(new BloodTest { Id = Guid.NewGuid(), DonationId = donationId, TestType = TestType.ElisaFirst, TestItem = item, Result = testResult });
             tests.Add(new BloodTest { Id = Guid.NewGuid(), DonationId = donationId, TestType = TestType.ElisaSecond, TestItem = item, Result = TestResult.Negative });
         }
 
@@ -304,8 +305,10 @@ public class BloodTestServiceTests
             tests.Add(new BloodTest { Id = Guid.NewGuid(), DonationId = donationId, TestType = TestType.NucleicAcidTest, TestItem = item, Result = TestResult.Negative });
         }
 
-        var testQueryable = tests.AsQueryable().BuildMock();
-        _unitOfWorkMock.Setup(u => u.BloodTests.Query()).Returns(testQueryable);
+        _unitOfWorkMock.Setup(u => u.BloodTests.FindAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<BloodTest, bool>>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(tests);
 
         var result = await _bloodTestService.IsDonationSafeAsync(donationId);
 
@@ -334,15 +337,14 @@ public class BloodTestServiceTests
         {
             Id = reviewerId,
             Role = UserRole.Technician,
-            FirstName = "Reviewer",
-            LastName = "Tech"
+            FullName = "Reviewer Tech"
         };
 
         var otherTests = new List<BloodTest>
         {
             test,
             new() { Id = Guid.NewGuid(), DonationId = donationId, TestType = TestType.ElisaSecond, TestItem = TestItem.HBsAg, Result = TestResult.Negative }
-        }.AsQueryable().BuildMock();
+        };
 
         var donation = new Donation
         {
@@ -379,8 +381,10 @@ public class BloodTestServiceTests
         _unitOfWorkMock.Setup(u => u.Users.GetByIdAsync(reviewerId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(reviewer);
 
-        _unitOfWorkMock.Setup(u => u.BloodTests.Query())
-            .Returns(otherTests);
+        _unitOfWorkMock.Setup(u => u.BloodTests.FindAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<BloodTest, bool>>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(otherTests);
 
         _unitOfWorkMock.Setup(u => u.Donations.GetByIdAsync(donationId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(donation);
@@ -404,10 +408,12 @@ public class BloodTestServiceTests
         var tests = new List<BloodTest>
         {
             new() { Id = Guid.NewGuid(), DonationId = donationId, TestType = TestType.ElisaFirst, TestItem = TestItem.HBsAg, Result = TestResult.Negative }
-        }.AsQueryable().BuildMock();
+        };
 
-        _unitOfWorkMock.Setup(u => u.BloodTests.Query())
-            .Returns(tests);
+        _unitOfWorkMock.Setup(u => u.BloodTests.FindAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<BloodTest, bool>>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(tests);
 
         Func<Task> act = async () => await _bloodTestService.ReleaseDonationAsync(donationId);
 
@@ -434,9 +440,8 @@ public class BloodTestServiceTests
         var reviewer = new User
         {
             Id = reviewerId,
-            Role = UserRole.Donor,
-            FirstName = "Regular",
-            LastName = "User"
+            Role = UserRole.HospitalInterface,
+            FullName = "Regular User"
         };
 
         _unitOfWorkMock.Setup(u => u.BloodTests.GetByIdAsync(testId, It.IsAny<CancellationToken>()))
@@ -464,10 +469,12 @@ public class BloodTestServiceTests
             new() { Id = Guid.NewGuid(), TestItem = TestItem.HCVRNA, TestType = TestType.NucleicAcidTest, Result = TestResult.Negative, TestTime = DateTime.UtcNow.AddDays(-1) },
             new() { Id = Guid.NewGuid(), TestItem = TestItem.HBsAg, TestType = TestType.ElisaSecond, Result = TestResult.Pending, TestTime = DateTime.UtcNow.AddDays(-1) },
             new() { Id = Guid.NewGuid(), TestItem = TestItem.AntiTP, TestType = TestType.ElisaFirst, Result = TestResult.Reactive, TestTime = DateTime.UtcNow.AddDays(-4) }
-        }.AsQueryable().BuildMock();
+        };
 
-        _unitOfWorkMock.Setup(u => u.BloodTests.Query())
-            .Returns(tests);
+        _unitOfWorkMock.Setup(u => u.BloodTests.FindAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<BloodTest, bool>>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(tests);
 
         var result = await _bloodTestService.GetTestsSummaryAsync(startDate, endDate);
 

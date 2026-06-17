@@ -310,7 +310,7 @@ public class InventoryService : IInventoryService
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Processed {Count} expired products", expiredProducts.Count);
+        _logger.LogInformation("Processed {Count} expired products", expiredProducts.Count());
     }
 
     public async Task<IEnumerable<InventoryHistoryDto>> GetInventoryHistoryAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
@@ -358,7 +358,7 @@ public class InventoryService : IInventoryService
             .ToList();
 
         var avgStock = dailyPoints.Any() ? (decimal)dailyPoints.Average(p => p.TotalUnits) : 0;
-        var totalReceived = products.Count;
+        var totalReceived = products.Count();
         var totalIssued = products.Count(p => p.Status == InventoryStatus.Issued);
         var turnoverRate = totalReceived > 0 ? Math.Round((decimal)totalIssued / totalReceived * 100, 2) : 0;
 

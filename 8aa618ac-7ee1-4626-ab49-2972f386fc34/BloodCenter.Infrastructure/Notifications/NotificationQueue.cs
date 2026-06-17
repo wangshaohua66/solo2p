@@ -34,9 +34,8 @@ public class NotificationQueue : INotificationQueue
         return _queue.Reader.ReadAsync(cancellationToken).AsTask();
     }
 
-    public async Task<bool> TryDequeueAsync(
+    public async Task<(bool Success, NotificationMessage? Message)> TryDequeueAsync(
         TimeSpan timeout,
-        out NotificationMessage? message,
         CancellationToken cancellationToken = default)
     {
         try
@@ -44,18 +43,16 @@ public class NotificationQueue : INotificationQueue
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(timeout);
 
-            message = await _queue.Reader.ReadAsync(cts.Token);
-            return true;
+            var message = await _queue.Reader.ReadAsync(cts.Token);
+            return (true, message);
         }
         catch (OperationCanceledException)
         {
-            message = null;
-            return false;
+            return (false, null);
         }
         catch (ChannelClosedException)
         {
-            message = null;
-            return false;
+            return (false, null);
         }
     }
 }

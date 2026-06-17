@@ -136,7 +136,7 @@ public class CreateBloodTestDtoValidator : AbstractValidator<CreateBloodTestDto>
             .NotEmpty().WithMessage("Technician ID is required");
 
         RuleFor(x => x.Result)
-            .NotEqual(Infrastructure.Entities.Enums.TestResult.Pending)
+            .NotEqual(BloodCenter.Core.Entities.Enums.TestResult.Pending)
             .WithMessage("Test result must not be Pending when recording");
 
         RuleFor(x => x.TestMethod)

@@ -17,14 +17,13 @@ public class Repository<T> : IRepository<T> where T : class
 
     public virtual async Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _dbSet.FindAsync(new object[] { id }, cancellationToken);
+        return await _dbSet.FirstOrDefaultAsync(e => EF.Property<Guid>(e, "Id") == id && !EF.Property<bool>(e, "IsDeleted"), cancellationToken);
     }
 
     public virtual async Task<T?> GetByIdAsync(Guid id, string[] includes, CancellationToken cancellationToken = default)
     {
         var query = ApplyIncludes(_dbSet.AsQueryable(), includes);
-        var entity = await query.FirstOrDefaultAsync(e => EF.Property<Guid>(e, "Id") == id, cancellationToken);
-        return entity;
+        return await query.FirstOrDefaultAsync(e => EF.Property<Guid>(e, "Id") == id && !EF.Property<bool>(e, "IsDeleted"), cancellationToken);
     }
 
     public virtual async Task<IEnumerable<T>> GetAllAsync(CancellationToken cancellationToken = default)

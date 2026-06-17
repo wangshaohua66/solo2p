@@ -2,7 +2,7 @@ namespace BloodCenter.Core.Exceptions;
 
 public abstract class BloodCenterException : Exception
 {
-    public int ErrorCode Code { get; }
+    public ErrorCode Code { get; }
 
     protected BloodCenterException(ErrorCode code, string message) : base(message)
     {

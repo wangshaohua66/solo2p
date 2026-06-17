@@ -11,7 +11,7 @@ public class DeferralStrategyService : IDeferralStrategy
     private readonly IUnitOfWork _unitOfWork;
     private readonly IOptions<DeferralOptions> _optionsSnapshot;
     private DeferralOptions _options;
-    private bool _isLoaded;
+    private volatile bool _isLoaded;
     private readonly object _lock = new();
 
     public DeferralStrategyService(IUnitOfWork unitOfWork, IOptions<DeferralOptions> optionsSnapshot)

@@ -192,9 +192,9 @@ public class ScrapTraceService : IScrapTraceService
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Auto-scrap processed {Count} expired products", expiredProducts.Count);
+        _logger.LogInformation("Auto-scrap processed {Count} expired products", expiredProducts.Count());
 
-        return expiredProducts.Count;
+        return expiredProducts.Count();
     }
 
     public async Task<TraceResultDto> TraceProductForwardAsync(Guid productId, CancellationToken cancellationToken = default)
@@ -264,7 +264,7 @@ public class ScrapTraceService : IScrapTraceService
                 $"Request: {crossMatch.BloodRequest?.RequestNumber} - Patient: {crossMatch.BloodRequest?.PatientName}",
                 crossMatch.BloodRequest?.CreatedAt ?? DateTime.MinValue,
                 crossMatch.BloodRequest?.RequestedBy,
-                crossMatch.BloodRequest?.Status ?? "Unknown",
+                crossMatch.BloodRequest != null ? crossMatch.BloodRequest.Status.ToString() : "Unknown",
                 new[]
                 {
                     new TraceLinkDto("sent_to", crossMatch.BloodRequest?.HospitalId.ToString() ?? "", "Hospital")
@@ -398,7 +398,7 @@ public class ScrapTraceService : IScrapTraceService
                 $"Request: {request.RequestNumber}",
                 request.CreatedAt,
                 request.RequestedBy,
-                request.Status,
+                request.Status.ToString(),
                 request.CrossMatches.Where(cm => !cm.IsDeleted)
                     .Select(cm => new TraceLinkDto("matched_with", cm.BloodProductId.ToString(), "BloodProduct"))
             ));
@@ -441,15 +441,15 @@ public class ScrapTraceService : IScrapTraceService
             cancellationToken);
 
         return new ScrapStatsDto(
-            TotalScrappedUnits: scraps.Count,
+            TotalScrappedUnits: scraps.Count(),
             ExpiredUnits: scraps.Count(s => s.Reason == ScrapReason.Expired),
             TestPositiveUnits: scraps.Count(s => s.Reason == ScrapReason.TestPositive),
             QualityUnits: scraps.Count(s => s.Reason == ScrapReason.Hemolysis || s.Reason == ScrapReason.BacterialContamination),
-            ScrapRate: totalProducts > 0 ? Math.Round((decimal)scraps.Count / totalProducts * 100, 2) : 0,
+            ScrapRate: totalProducts > 0 ? Math.Round((decimal)scraps.Count() / totalProducts * 100, 2) : 0,
             ByReason: scraps.GroupBy(s => s.Reason).ToDictionary(g => g.Key, g => g.Count()),
             ByProductType: scraps.GroupBy(s => s.BloodProduct.ProductType).ToDictionary(g => g.Key, g => g.Count()),
             ByBloodType: scraps.GroupBy(s => s.BloodProduct.BloodGroup.ABO).ToDictionary(g => g.Key, g => g.Count()),
-            FinancialImpact: scraps.Count * 200
+            FinancialImpact: scraps.Count() * 200
         );
     }
 
