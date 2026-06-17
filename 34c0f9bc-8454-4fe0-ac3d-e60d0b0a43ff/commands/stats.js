@@ -78,10 +78,12 @@ function computeStats(samples, config) {
     }
     let hasFailed = false;
     let hasPending = false;
+    let hasResults = false;
     if (s.testResults) {
       for (const project of Object.keys(s.testResults)) {
         const results = s.testResults[project];
         if (results.length > 0) {
+          hasResults = true;
           const last = results[results.length - 1];
           if (last.judged === false) {
             hasFailed = true;
@@ -97,23 +99,19 @@ function computeStats(samples, config) {
     }
     if (s.status === 'certified') {
       certified++;
-      if (hasFailed) {
-        failed++;
-        if (s.category && byCategory[s.category]) byCategory[s.category].failed++;
-        if (s.source && bySource[s.source]) bySource[s.source].failed++;
-      } else {
-        passed++;
-        if (s.category && byCategory[s.category]) byCategory[s.category].passed++;
-        if (s.source && bySource[s.source]) bySource[s.source].passed++;
-      }
-    } else {
-      if (hasFailed && !hasPending) {
-        partial++;
-      } else if (!hasPending && !hasFailed) {
-        partial++;
-      }
     }
-    if (s.category && byCategory[s.category] && hasPending) {
+    if (hasFailed) {
+      failed++;
+      if (s.category && byCategory[s.category]) byCategory[s.category].failed++;
+      if (s.source && bySource[s.source]) bySource[s.source].failed++;
+    } else if (!hasPending && hasResults) {
+      passed++;
+      if (s.category && byCategory[s.category]) byCategory[s.category].passed++;
+      if (s.source && bySource[s.source]) bySource[s.source].passed++;
+    } else if (hasResults) {
+      partial++;
+    }
+    if (s.category && byCategory[s.category] && hasPending && !hasFailed) {
       byCategory[s.category].pending++;
     }
   }

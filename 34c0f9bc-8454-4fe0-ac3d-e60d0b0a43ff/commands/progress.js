@@ -7,12 +7,9 @@ const { Command } = require('commander');
 const { loadConfig } = require('../lib/config');
 const {
   validateSampleId,
-  validateDate,
   validateDateRange,
   validateStatus,
   validateStatusTransition,
-  parseDate,
-  formatDate,
   ValidationError
 } = require('../lib/validator');
 const {

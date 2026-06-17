@@ -19,8 +19,7 @@ const {
   truncateVisual,
   stringWidth,
   formatDateLocal,
-  formatDateTimeLocal,
-  displayDateTime
+  formatDateTimeLocal
 } = require('../lib/utils');
 const {
   generateSampleId,

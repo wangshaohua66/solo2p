@@ -3,15 +3,13 @@
 const fs = require('fs');
 const path = require('path');
 const chalk = require('chalk');
-const Table = require('cli-table3');
 const { Command } = require('commander');
 
-const { loadConfig, getThreshold, getActiveThresholds } = require('../lib/config');
+const { loadConfig, getThreshold } = require('../lib/config');
 const {
   validateSampleId,
   validateTestValue,
   validateProject,
-  validateStatus,
   judgeResult,
   calculateParallelStats,
   ValidationError
@@ -20,8 +18,7 @@ const {
   padEndVisual,
   centerVisual,
   formatDateLocal,
-  formatDateTimeLocal,
-  displayDateTime
+  formatDateTimeLocal
 } = require('../lib/utils');
 const {
   getSampleById,
@@ -85,18 +82,33 @@ function inputTestResult(config, sampleId, projectName, values, operator, remark
   if (sample.status === 'pending') {
     newStatus = 'testing';
   }
-  const updated = updateSample(config, sampleId, {
+  const isFailed = judgement.pass === false;
+  const updates = {
     testResults,
-    status: newStatus,
-    statusHistory: newStatus !== sample.status
-      ? [...(sample.statusHistory || []), {
-          status: newStatus,
-          time: formatDateTimeLocal(new Date()),
-          operator: operator || 'system',
-          reason: '录入检测结果自动流转'
-        }]
-      : sample.statusHistory
-  });
+    status: newStatus
+  };
+  const newHistory = [...(sample.statusHistory || [])];
+  if (newStatus !== sample.status) {
+    newHistory.push({
+      status: newStatus,
+      time: formatDateTimeLocal(new Date()),
+      operator: operator || 'system',
+      reason: '录入检测结果自动流转'
+    });
+  }
+  if (isFailed) {
+    updates.isException = true;
+    const reasonText = `检测项目[${projectName}]不合格: 均值${stats.mean}${threshold?.unit || ''} ${judgement.compare} (依据${judgement.standard || 'N/A'})`;
+    updates.exceptionReason = reasonText;
+    newHistory.push({
+      status: newStatus,
+      time: formatDateTimeLocal(new Date()),
+      operator: operator || 'system',
+      reason: `自动标记异常: ${reasonText}`
+    });
+  }
+  updates.statusHistory = newHistory;
+  const updated = updateSample(config, sampleId, updates);
   const judgeTag = judgement.pass === true
     ? chalk.green('合格')
     : judgement.pass === false
@@ -116,6 +128,11 @@ function inputTestResult(config, sampleId, projectName, values, operator, remark
     console.log(`  依据: ${judgement.standard} (${judgement.compare})`);
   }
   console.log(`  项目完成: ${completed}/${total}`);
+  if (isFailed) {
+    console.log(chalk.red.bold(`\n⚠ 检测结果不合格！样品已自动标记为异常！`));
+    console.log(chalk.red(`  异常原因: ${updates.exceptionReason}`));
+    console.log(chalk.red(`  请及时处理或重新检测。`));
+  }
   return updated;
 }
 
@@ -144,64 +161,95 @@ function judgeSampleOverall(sample, config) {
   return { overall, passed, failed, pending, total: sample.projects.length };
 }
 
+function loadReportTemplate(config) {
+  const templatePath = config.report.templatePath;
+  if (!templatePath) {
+    throw new Error('配置中未指定 report.templatePath，无法加载报告模板');
+  }
+  const templateDir = path.isAbsolute(templatePath)
+    ? templatePath
+    : path.join(process.cwd(), templatePath);
+  const templateFile = path.join(templateDir, 'report_template.json');
+  if (!fs.existsSync(templateFile)) {
+    throw new Error(`报告模板文件不存在: ${templateFile}，请检查配置 report.templatePath`);
+  }
+  let template;
+  try {
+    template = JSON.parse(fs.readFileSync(templateFile, 'utf8'));
+  } catch (e) {
+    throw new Error(`报告模板文件解析失败: ${templateFile} - ${e.message}`);
+  }
+  return template;
+}
+
 function generateTextReport(sample, config) {
+  const template = loadReportTemplate(config);
   const cat = config.categories[sample.category];
   const overall = judgeSampleOverall(sample, config);
-  let overallTag;
-  switch (overall.overall) {
-    case 'passed': overallTag = chalk.green.bold('合格'); break;
-    case 'failed': overallTag = chalk.red.bold('不合格'); break;
-    default: overallTag = chalk.yellow('待检');
-  }
-  const W = 72;
+  const fields = template.fields || {};
+  const colProject = fields.project?.width || 22;
+  const colResult = fields.result?.width || 12;
+  const colUnit = fields.unit?.width || 12;
+  const colJudge = fields.judged?.width || 8;
+  const colStd = fields.standard?.width || 17;
+  const W = 1 + colProject + colResult + colUnit + colJudge + colStd;
+  const header = template.header || config.report.header || '检测报告';
   const border = (l, r) => chalk.cyan(l) + '═'.repeat(W) + chalk.cyan(r);
   const line = (content) => chalk.cyan('║') + padEndVisual(content, W) + chalk.cyan('║');
   const sep = (l, r) => chalk.cyan(l) + '─'.repeat(W) + chalk.cyan(r);
-  const COL = { project: 22, result: 12, unit: 12, judge: 8 };
-  const stdWidth = W - 1 - COL.project - COL.result - COL.unit - COL.judge;
   const pad = (label, value, valueColor) => {
     const v = valueColor ? valueColor(String(value)) : String(value);
     return line(` ${chalk.yellow(label)}: ${v}`);
   };
+  const sectionKeys = (template.sections || []).map(s => s.key);
   const lines = [];
   lines.push(border('╔', '╗'));
-  lines.push(line(centerVisual(chalk.white.bold(config.report.header), W)));
-  lines.push(border('╠', '╣'));
-  lines.push(pad('实验室', config.lab.name));
-  lines.push(pad('报告编号', sample.id));
-  lines.push(sep('╠', '╣'));
-  lines.push(pad('样品名称', sample.name));
-  if (sample.batch) lines.push(pad('批次号', sample.batch));
-  lines.push(pad('检测类别', cat.name));
-  lines.push(pad('采样来源', sample.source));
-  if (sample.producer) lines.push(pad('生产单位', sample.producer));
-  lines.push(pad('采样人员', sample.sampler));
-  lines.push(pad('采样日期', sample.sampleDate));
-  lines.push(pad('样品数量', `${sample.quantity} ${sample.unit}`));
-  lines.push(pad('综合判定', overall.overall === 'passed' ? '合格' : overall.overall === 'failed' ? '不合格' : '待检'));
-  lines.push(pad('检测进度', `${overall.passed + overall.failed}/${overall.total} 合格:${overall.passed} 不合格:${overall.failed} 待检:${overall.pending}`));
-  lines.push(border('╠', '╣'));
-  lines.push(line(` ${chalk.white.bold(padEndVisual('检测项目', COL.project))}${padEndVisual('结果', COL.result)}${padEndVisual('单位', COL.unit)}${padEndVisual('判定', COL.judge)}${padEndVisual('标准', stdWidth)}`));
-  lines.push(sep('╠', '╣'));
-  for (const project of sample.projects) {
-    const results = sample.testResults?.[project] || [];
-    if (results.length === 0) {
-      lines.push(line(` ${padEndVisual(project, COL.project)}${chalk.yellow('待检')}`));
-      continue;
-    }
-    const last = results[results.length - 1];
-    const threshold = getThreshold(config, project);
-    const unit = last.unit || threshold?.unit || '';
-    let tag = '';
-    if (last.judged === true) tag = chalk.green('合格');
-    else if (last.judged === false) tag = chalk.red('不合格');
-    else tag = chalk.gray('-');
-    const std = threshold?.standard || '-';
-    const valStr = String(last.mean);
-    lines.push(line(` ${padEndVisual(project, COL.project)}${padEndVisual(valStr, COL.result)}${padEndVisual(unit, COL.unit)}${padEndVisual(tag, COL.judge)}${padEndVisual(std, stdWidth)}`));
-    if (last.count > 1) {
-      const detail = chalk.gray(`   平行${last.count}次 均值:${last.mean} RSD:${last.rsd}% 范围:${last.min}~${last.max}`);
-      lines.push(line(detail));
+  lines.push(line(centerVisual(chalk.white.bold(header), W)));
+  if (sectionKeys.includes('lab')) {
+    lines.push(border('╠', '╣'));
+    lines.push(pad('实验室', config.lab.name));
+    lines.push(pad('报告编号', sample.id));
+  }
+  if (sectionKeys.includes('sample')) {
+    lines.push(sep('╠', '╣'));
+    lines.push(pad('样品名称', sample.name));
+    if (sample.batch) lines.push(pad('批次号', sample.batch));
+    lines.push(pad('检测类别', cat.name));
+    lines.push(pad('采样来源', sample.source));
+    if (sample.producer) lines.push(pad('生产单位', sample.producer));
+    lines.push(pad('采样人员', sample.sampler));
+    lines.push(pad('采样日期', sample.sampleDate));
+    lines.push(pad('样品数量', `${sample.quantity} ${sample.unit}`));
+  }
+  if (sectionKeys.includes('overall')) {
+    lines.push(pad('综合判定', overall.overall === 'passed' ? '合格' : overall.overall === 'failed' ? '不合格' : '待检'));
+    lines.push(pad('检测进度', `${overall.passed + overall.failed}/${overall.total} 合格:${overall.passed} 不合格:${overall.failed} 待检:${overall.pending}`));
+  }
+  if (sectionKeys.includes('results')) {
+    lines.push(border('╠', '╣'));
+    const colHeader = ` ${chalk.white.bold(padEndVisual(fields.project?.label || '检测项目', colProject))}${padEndVisual(fields.result?.label || '结果', colResult)}${padEndVisual(fields.unit?.label || '单位', colUnit)}${padEndVisual(fields.judged?.label || '判定', colJudge)}${padEndVisual(fields.standard?.label || '标准', colStd)}`;
+    lines.push(line(colHeader));
+    lines.push(sep('╠', '╣'));
+    for (const project of sample.projects) {
+      const results = sample.testResults?.[project] || [];
+      if (results.length === 0) {
+        lines.push(line(` ${padEndVisual(project, colProject)}${chalk.yellow('待检')}`));
+        continue;
+      }
+      const last = results[results.length - 1];
+      const threshold = getThreshold(config, project);
+      const unit = last.unit || threshold?.unit || '';
+      let tag = '';
+      if (last.judged === true) tag = chalk.green('合格');
+      else if (last.judged === false) tag = chalk.red('不合格');
+      else tag = chalk.gray('-');
+      const std = threshold?.standard || '-';
+      const valStr = String(last.mean);
+      lines.push(line(` ${padEndVisual(project, colProject)}${padEndVisual(valStr, colResult)}${padEndVisual(unit, colUnit)}${padEndVisual(tag, colJudge)}${padEndVisual(std, colStd)}`));
+      if (last.count > 1) {
+        const detail = chalk.gray(`   平行${last.count}次 均值:${last.mean} RSD:${last.rsd}% 范围:${last.min}~${last.max}`);
+        lines.push(line(detail));
+      }
     }
   }
   lines.push(border('╠', '╣'));
@@ -343,7 +391,12 @@ function register(program) {
         console.error(chalk.red('✗ 格式必须是 text 或 json'));
         process.exit(1);
       }
-      outputReport(config, sample, options.format, options.output);
+      try {
+        outputReport(config, sample, options.format, options.output);
+      } catch (e) {
+        console.error(chalk.red(`✗ ${e.message}`));
+        process.exit(1);
+      }
     });
 
   cmd

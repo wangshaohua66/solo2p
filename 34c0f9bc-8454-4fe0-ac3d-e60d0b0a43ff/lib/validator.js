@@ -1,6 +1,7 @@
 'use strict';
 
 const { getThreshold, getActiveThresholds } = require('./config');
+const { parseDateLocal, formatDateLocal } = require('./utils');
 
 class ValidationError extends Error {
   constructor(message, field, value) {
@@ -44,14 +45,7 @@ function validateDate(dateStr, fieldName = 'date') {
       dateStr
     );
   }
-  let date;
-  if (dateStr.includes('-')) {
-    date = new Date(dateStr);
-  } else {
-    date = new Date(
-      `${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`
-    );
-  }
+  const date = parseDateLocal(dateStr);
   if (isNaN(date.getTime())) {
     throw new ValidationError(`${fieldName}不是有效日期`, fieldName, dateStr);
   }
@@ -76,19 +70,11 @@ function validateDateRange(startDate, endDate) {
 }
 
 function parseDate(dateStr) {
-  if (dateStr.includes('-')) {
-    return new Date(dateStr);
-  }
-  return new Date(
-    `${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`
-  );
+  return parseDateLocal(dateStr);
 }
 
 function formatDate(date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+  return formatDateLocal(date);
 }
 
 function validateStatus(status, config) {

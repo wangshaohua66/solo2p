@@ -13,9 +13,10 @@
   "fields": {
     "reportId": { "label": "报告编号", "width": 24 },
     "sampleName": { "label": "样品名称", "width": 24 },
+    "project": { "label": "检测项目", "width": 22 },
     "result": { "label": "结果", "width": 12 },
-    "unit": { "label": "单位", "width": 10 },
+    "unit": { "label": "单位", "width": 12 },
     "judged": { "label": "判定", "width": 8 },
-    "standard": { "label": "标准", "width": 16 }
+    "standard": { "label": "标准", "width": 17 }
   }
 }
