@@ -135,11 +135,24 @@ public class CrossMatchService : ICrossMatchService
         var results = new List<CrossMatchResultDto>();
 
         var needed = request.QuantityRequested - request.QuantityIssued;
-        var productsToMatch = compatibleProducts
-            .OrderBy(p => request.Urgency == UrgencyLevel.Emergency ? p.DaysUntilExpiry : 0)
-            .ThenBy(p => p.ExpiryDate)
-            .Take(needed)
-            .ToList();
+        List<CompatibleProductDto> productsToMatch;
+        if (request.Urgency == UrgencyLevel.Emergency)
+        {
+            _logger.LogInformation("Emergency request {RequestId}: Sorting compatible products by DaysUntilExpiry (closest expiry first)", requestId);
+            productsToMatch = compatibleProducts
+                .OrderBy(p => p.DaysUntilExpiry)
+                .ThenBy(p => p.ExpiryDate)
+                .Take(needed)
+                .ToList();
+        }
+        else
+        {
+            _logger.LogInformation("Non-emergency request {RequestId}: Sorting compatible products by ExpiryDate ascending (oldest first, FIFO)", requestId);
+            productsToMatch = compatibleProducts
+                .OrderBy(p => p.ExpiryDate)
+                .Take(needed)
+                .ToList();
+        }
 
         foreach (var product in productsToMatch)
         {
@@ -371,7 +384,7 @@ public class CrossMatchService : ICrossMatchService
                 && bp.ExpiryDate > DateTime.UtcNow,
             cancellationToken);
 
-        var compatible = products
+        var compatibleQuery = products
             .Where(bp => bp.BloodGroup.IsCompatibleWith(patientBloodGroup))
             .Select(bp => new CompatibleProductDto(
                 bp.Id,
@@ -383,12 +396,24 @@ public class CrossMatchService : ICrossMatchService
                 (int)(bp.ExpiryDate - DateTime.UtcNow).TotalDays,
                 bp.StorageLocation,
                 request.Urgency == UrgencyLevel.Emergency
-            ))
-            .OrderBy(p => request.Urgency == UrgencyLevel.Emergency ? p.DaysUntilExpiry : 0)
-            .ThenBy(p => p.ExpiryDate)
-            .ToList();
+            ));
 
-        return compatible;
+        IEnumerable<CompatibleProductDto> sortedCompatible;
+        if (request.Urgency == UrgencyLevel.Emergency)
+        {
+            _logger.LogInformation("Emergency request {RequestId}: Finding compatible products sorted by DaysUntilExpiry (closest expiry first)", requestId);
+            sortedCompatible = compatibleQuery
+                .OrderBy(p => p.DaysUntilExpiry)
+                .ThenBy(p => p.ExpiryDate);
+        }
+        else
+        {
+            _logger.LogInformation("Non-emergency request {RequestId}: Finding compatible products sorted by ExpiryDate ascending (oldest first, FIFO)", requestId);
+            sortedCompatible = compatibleQuery
+                .OrderBy(p => p.ExpiryDate);
+        }
+
+        return sortedCompatible.ToList();
     }
 
     public async Task<RequestStatsDto> GetRequestStatsAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)

@@ -65,6 +65,7 @@ public class ComponentPreparationService : IComponentPreparationService
         var initialStatus = donation.Status == DonationStatus.Released
             ? InventoryStatus.InStock
             : InventoryStatus.Quarantined;
+        _logger.LogInformation("Standard products initial status set to {InitialStatus} based on donation status={DonationStatus}. Released donations skip quarantine for standard products.", initialStatus, donation.Status);
 
         var products = new List<BloodProduct>
         {
@@ -171,9 +172,8 @@ public class ComponentPreparationService : IComponentPreparationService
             _ => 35
         };
 
-        var initialStatus = donation.Status == DonationStatus.Released
-            ? InventoryStatus.InStock
-            : InventoryStatus.Quarantined;
+        var initialStatus = InventoryStatus.Quarantined;
+        _logger.LogInformation("Special product (type={ProductType}) always starts as Quarantined regardless of donation status (donation status={DonationStatus}). This ensures all special products go through proper release protocol.", productDto.ProductType, donation.Status);
 
         var product = new BloodProduct
         {

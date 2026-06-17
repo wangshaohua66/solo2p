@@ -1,4 +1,5 @@
 using BloodCenter.Core.Entities;
+using BloodCenter.Core.Entities.Enums;
 
 namespace BloodCenter.Core.Interfaces.Data;
 
@@ -24,4 +25,7 @@ public interface IUnitOfWork : IDisposable
     Task BeginTransactionAsync(CancellationToken cancellationToken = default);
     Task CommitTransactionAsync(CancellationToken cancellationToken = default);
     Task RollbackTransactionAsync(CancellationToken cancellationToken = default);
+
+    Task<List<(BloodType BloodType, RhFactor RhFactor, int Count)>> GroupInStockProductsByBloodTypeAsync(CancellationToken cancellationToken = default);
+    Task<List<(BloodType BloodType, RhFactor RhFactor, int Count)>> GroupIssuedProductsByBloodTypeAsync(DateTime sinceDate, CancellationToken cancellationToken = default);
 }

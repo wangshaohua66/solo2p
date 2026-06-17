@@ -49,8 +49,8 @@ public class BloodTestService : IBloodTestService
 
         if (testDto.Result == TestResult.Positive || testDto.Result == TestResult.Reactive)
         {
-            _logger.LogWarning("Positive test result detected for donation {DonationId}, item {TestItem}", testDto.DonationId, testDto.TestItem);
-            await QuarantineDonationProductsAsync(testDto.DonationId, $"Positive result for {testDto.TestItem}", cancellationToken);
+            _logger.LogWarning("Positive test result detected for donation {DonationId}, donor {DonorId}, item {TestItem}. Quarantining ALL donor products.", testDto.DonationId, donation.DonorId, testDto.TestItem);
+            await QuarantineDonorProductsAsync(donation.DonorId, $"Positive result for {testDto.TestItem}", cancellationToken);
         }
 
         await CheckAndReleaseDonationIfSafeAsync(donation, cancellationToken);
@@ -60,12 +60,154 @@ public class BloodTestService : IBloodTestService
 
     public async Task<IEnumerable<BloodTestDto>> RecordBatchTestsAsync(IEnumerable<CreateBloodTestDto> testDtos, CancellationToken cancellationToken = default)
     {
-        var results = new List<BloodTestDto>();
-        foreach (var testDto in testDtos)
+        _logger.LogInformation("Starting batch test recording with {Count} test entries", testDtos.Count());
+
+        var testDtoList = testDtos.ToList();
+
+        var distinctDonationIds = testDtoList
+            .Select(t => t.DonationId)
+            .Distinct()
+            .ToList();
+
+        _logger.LogInformation("Batch covers {Count} distinct donations: {DonationIds}", distinctDonationIds.Count, string.Join(", ", distinctDonationIds));
+
+        var elisaItems = new[]
         {
-            results.Add(await RecordTestResultAsync(testDto, cancellationToken));
+            TestItem.HBsAg, TestItem.AntiHIV, TestItem.AntiHCV, TestItem.AntiTP
+        };
+
+        var natItems = new[]
+        {
+            TestItem.HIVRNA, TestItem.HCVRNA, TestItem.HBVRNA
+        };
+
+        _logger.LogInformation("Validating complete test coverage for all donations before any writes...");
+        foreach (var donationId in distinctDonationIds)
+        {
+            _logger.LogDebug("Validating test coverage for donation {DonationId}", donationId);
+
+            var donationTests = testDtoList.Where(t => t.DonationId == donationId).ToList();
+
+            var missingElisaFirst = new List<string>();
+            var missingElisaSecond = new List<string>();
+            var missingNat = new List<string>();
+
+            foreach (var item in elisaItems)
+            {
+                var hasFirst = donationTests.Any(t => t.TestItem == item && t.TestType == TestType.ElisaFirst);
+                var hasSecond = donationTests.Any(t => t.TestItem == item && t.TestType == TestType.ElisaSecond);
+
+                if (!hasFirst) missingElisaFirst.Add(item.ToString());
+                if (!hasSecond) missingElisaSecond.Add(item.ToString());
+            }
+
+            foreach (var item in natItems)
+            {
+                var hasNat = donationTests.Any(t => t.TestItem == item && t.TestType == TestType.NucleicAcidTest);
+                if (!hasNat) missingNat.Add(item.ToString());
+            }
+
+            var errors = new List<string>();
+            if (missingElisaFirst.Any())
+                errors.Add($"Missing ELISA First tests: {string.Join(", ", missingElisaFirst)}");
+            if (missingElisaSecond.Any())
+                errors.Add($"Missing ELISA Second tests: {string.Join(", ", missingElisaSecond)}");
+            if (missingNat.Any())
+                errors.Add($"Missing NAT tests: {string.Join(", ", missingNat)}");
+
+            if (errors.Any())
+            {
+                _logger.LogError("Batch validation failed for donation {DonationId}: {Errors}", donationId, string.Join("; ", errors));
+                throw new ValidationException(
+                    $"Incomplete test panel for donation {donationId}. Batch must include all 11 required tests per donation (4 ELISA First, 4 ELISA Second, 3 NAT).",
+                    errors);
+            }
+
+            _logger.LogDebug("Test coverage valid for donation {DonationId} - all 11 required tests present", donationId);
         }
-        return results;
+
+        _logger.LogInformation("Batch validation passed for all {Count} donations. Proceeding with transaction...", distinctDonationIds.Count);
+
+        var createdTests = new List<BloodTest>();
+        var loadedDonations = new Dictionary<Guid, Donation>();
+
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            _logger.LogDebug("Transaction started. Creating test entities...");
+
+            foreach (var testDto in testDtoList)
+            {
+                _logger.LogDebug("Processing test: Donation={DonationId}, TestItem={TestItem}, TestType={TestType}, Result={Result}",
+                    testDto.DonationId, testDto.TestItem, testDto.TestType, testDto.Result);
+
+                if (!loadedDonations.ContainsKey(testDto.DonationId))
+                {
+                    _logger.LogDebug("Loading donation {DonationId} for validation", testDto.DonationId);
+                    var donation = await _unitOfWork.Donations.GetByIdAsync(testDto.DonationId, cancellationToken)
+                        ?? throw new NotFoundException("Donation", testDto.DonationId);
+
+                    if (donation.Status != DonationStatus.Completed)
+                    {
+                        _logger.LogError("Donation {DonationId} is in {Status} status, cannot record tests", testDto.DonationId, donation.Status);
+                        throw new System.InvalidOperationException($"Cannot record test for donation in {donation.Status} status");
+                    }
+
+                    loadedDonations[testDto.DonationId] = donation;
+                }
+
+                var technician = await _unitOfWork.Users.GetByIdAsync(testDto.TechnicianId, cancellationToken)
+                    ?? throw new NotFoundException("Technician", testDto.TechnicianId);
+
+                if (technician.Role != UserRole.Technician)
+                {
+                    _logger.LogError("User {TechnicianId} is not a technician (Role={Role})", testDto.TechnicianId, technician.Role);
+                    throw new ValidationException("User is not a technician");
+                }
+
+                var test = _mapper.Map<BloodTest>(testDto);
+                test.CreatedAt = DateTime.UtcNow;
+                test.TestTime = testDto.TestTime == default ? DateTime.UtcNow : testDto.TestTime;
+
+                await _unitOfWork.BloodTests.AddAsync(test, cancellationToken);
+                createdTests.Add(test);
+
+                _logger.LogDebug("Test entity created: Id={TestId}, Donation={DonationId}, Item={TestItem}", test.Id, testDto.DonationId, testDto.TestItem);
+            }
+
+            _logger.LogInformation("All {Count} test entities created. Checking for positive/reactive results...", createdTests.Count);
+
+            foreach (var test in createdTests)
+            {
+                if (test.Result == TestResult.Positive || test.Result == TestResult.Reactive)
+                {
+                    var donation = loadedDonations[test.DonationId];
+                    _logger.LogWarning("Positive/reactive result detected in batch: Test={TestId}, Donation={DonationId}, Donor={DonorId}, Item={TestItem}. Quarantining ALL donor products.",
+                        test.Id, test.DonationId, donation.DonorId, test.TestItem);
+                    await QuarantineDonorProductsAsync(donation.DonorId, $"Batch positive result for {test.TestItem}", cancellationToken);
+                }
+            }
+
+            _logger.LogInformation("Checking each donation for safe release...");
+            foreach (var kvp in loadedDonations)
+            {
+                _logger.LogDebug("Checking release eligibility for donation {DonationId}", kvp.Key);
+                await CheckAndReleaseDonationIfSafeAsync(kvp.Value, cancellationToken);
+            }
+
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            _logger.LogInformation("Batch test recording completed successfully. {Count} tests recorded across {DonationCount} donations.",
+                createdTests.Count, distinctDonationIds.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Batch test recording failed. Rolling back transaction...");
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            _logger.LogInformation("Transaction rolled back successfully");
+            throw;
+        }
+
+        return _mapper.Map<IEnumerable<BloodTestDto>>(createdTests);
     }
 
     public async Task<BloodTestDto> ReviewTestResultAsync(Guid testId, Guid reviewerId, TestResult result, string comment, CancellationToken cancellationToken = default)
@@ -121,7 +263,18 @@ public class BloodTestService : IBloodTestService
 
         if (result == TestResult.Positive || result == TestResult.Reactive)
         {
-            await QuarantineDonationProductsAsync(test.DonationId, $"Reviewed positive result for {test.TestItem}", cancellationToken);
+            _logger.LogWarning("Reviewed positive result for test {TestId}, donation {DonationId}, item {TestItem}. Loading donation to get donorId for full donor quarantine.", test.Id, test.DonationId, test.TestItem);
+            var testDonation = await _unitOfWork.Donations.GetByIdAsync(test.DonationId, cancellationToken);
+            if (testDonation != null)
+            {
+                _logger.LogWarning("Quarantining ALL products for donor {DonorId} due to reviewed positive result for {TestItem}", testDonation.DonorId, test.TestItem);
+                await QuarantineDonorProductsAsync(testDonation.DonorId, $"Reviewed positive result for {test.TestItem}", cancellationToken);
+            }
+            else
+            {
+                _logger.LogError("Donation {DonationId} not found when attempting to quarantine donor products", test.DonationId);
+                throw new NotFoundException("Donation", test.DonationId);
+            }
         }
         else
         {

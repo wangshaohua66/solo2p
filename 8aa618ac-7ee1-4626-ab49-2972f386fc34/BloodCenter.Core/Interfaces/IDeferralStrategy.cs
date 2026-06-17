@@ -47,6 +47,9 @@ public record MedicalHistoryFlags(
     DateTime? VaccinationDate,
     bool HasHighBloodPressure,
     bool HasFever,
+    bool HasHeartDisease,
+    bool HasDiabetes,
+    bool HasCancer,
     bool HadDrugs);
 
 public record DeferralConfiguration(

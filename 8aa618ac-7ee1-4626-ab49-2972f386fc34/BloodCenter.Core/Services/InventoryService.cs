@@ -12,12 +12,14 @@ public class InventoryService : IInventoryService
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<InventoryService> _logger;
     private readonly INotificationService _notificationService;
+    private readonly IScrapTraceService _scrapTraceService;
 
-    public InventoryService(IUnitOfWork unitOfWork, ILogger<InventoryService> logger, INotificationService notificationService)
+    public InventoryService(IUnitOfWork unitOfWork, ILogger<InventoryService> logger, INotificationService notificationService, IScrapTraceService scrapTraceService)
     {
         _unitOfWork = unitOfWork;
         _logger = logger;
         _notificationService = notificationService;
+        _scrapTraceService = scrapTraceService;
     }
 
     public async Task<PagedResult<InventoryItemDto>> GetInventorySummaryAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default)
@@ -114,13 +116,14 @@ public class InventoryService : IInventoryService
 
     public async Task<BloodTypeBalanceDto> GetBloodTypeBalanceAnalysisAsync(CancellationToken cancellationToken = default)
     {
-        var products = await _unitOfWork.BloodProducts.FindAsync(
-            bp => !bp.IsDeleted && bp.Status == InventoryStatus.InStock,
-            cancellationToken);
+        _logger.LogInformation("GetBloodTypeBalanceAnalysisAsync: Starting database-side aggregation queries");
 
-        var issuedProducts = await _unitOfWork.BloodProducts.FindAsync(
-            bp => !bp.IsDeleted && bp.Status == InventoryStatus.Issued,
-            cancellationToken);
+        var inStockAggregates = await _unitOfWork.GroupInStockProductsByBloodTypeAsync(cancellationToken);
+        _logger.LogInformation("GetBloodTypeBalanceAnalysisAsync: In-stock aggregation returned {Count} blood type groups", inStockAggregates.Count);
+
+        var weeklyUsageSince = DateTime.UtcNow.AddDays(-7);
+        var issuedAggregates = await _unitOfWork.GroupIssuedProductsByBloodTypeAsync(weeklyUsageSince, cancellationToken);
+        _logger.LogInformation("GetBloodTypeBalanceAnalysisAsync: Issued aggregation (last 7 days) returned {Count} blood type groups", issuedAggregates.Count);
 
         var settingsList = await _unitOfWork.InventorySettings.FindAsync(
             s => !s.IsDeleted,
@@ -130,6 +133,14 @@ public class InventoryService : IInventoryService
             s => (s.ProductType, s.BloodType, s.RhFactor),
             s => s.MinimumLevel);
 
+        var inStockLookup = inStockAggregates.ToDictionary(
+            x => (x.BloodType, x.RhFactor),
+            x => x.Count);
+
+        var issuedLookup = issuedAggregates.ToDictionary(
+            x => (x.BloodType, x.RhFactor),
+            x => x.Count);
+
         var inventoryByType = new List<BloodTypeInventoryItem>();
         var allBloodTypes = Enum.GetValues<BloodType>();
         var allRhFactors = Enum.GetValues<RhFactor>();
@@ -138,8 +149,9 @@ public class InventoryService : IInventoryService
         {
             foreach (var rhFactor in allRhFactors)
             {
-                var currentStock = products.Count(p => p.BloodGroup.ABO == bloodType && p.BloodGroup.Rh == rhFactor);
-                var weeklyUsage = issuedProducts.Count(p => p.BloodGroup.ABO == bloodType && p.BloodGroup.Rh == rhFactor && p.UpdatedAt >= DateTime.UtcNow.AddDays(-7));
+                var key = (bloodType, rhFactor);
+                var currentStock = inStockLookup.TryGetValue(key, out var stockCount) ? stockCount : 0;
+                var weeklyUsage = issuedLookup.TryGetValue(key, out var usageCount) ? usageCount : 0;
                 var safetyStock = GetSafetyStockLevel(BloodProductType.RedBloodCells, bloodType, rhFactor, inventorySettings);
                 var daysOfSupply = weeklyUsage > 0 ? currentStock * 7 / weeklyUsage : currentStock * 7;
                 var status = currentStock < safetyStock ? "Low" : currentStock < safetyStock * 2 ? "Normal" : "Adequate";
@@ -155,6 +167,8 @@ public class InventoryService : IInventoryService
                 ));
             }
         }
+
+        _logger.LogInformation("GetBloodTypeBalanceAnalysisAsync: Built inventory for {Count} blood type combinations", inventoryByType.Count);
 
         var lowestStockType = inventoryByType
             .OrderBy(i => i.DaysOfSupply)
@@ -172,6 +186,8 @@ public class InventoryService : IInventoryService
         var recommendedPriority = lowestStockType != null
             ? $"{lowestStockType.BloodType}{(lowestStockType.RhFactor == RhFactor.Positive ? "+" : "-")}"
             : "O+";
+
+        _logger.LogInformation("GetBloodTypeBalanceAnalysisAsync: Completed. BalanceScore={Score}, Priority={Priority}", overallBalanceScore, recommendedPriority);
 
         return new BloodTypeBalanceDto(
             inventoryByType,
@@ -294,23 +310,9 @@ public class InventoryService : IInventoryService
 
     public async Task ProcessExpiredProductsAsync(CancellationToken cancellationToken = default)
     {
-        var now = DateTime.UtcNow;
-        var expiredProducts = await _unitOfWork.BloodProducts.FindAsync(
-            bp => !bp.IsDeleted
-                && (bp.Status == InventoryStatus.InStock || bp.Status == InventoryStatus.Reserved)
-                && bp.ExpiryDate <= now,
-            cancellationToken);
-
-        foreach (var product in expiredProducts)
-        {
-            product.Status = InventoryStatus.ScrapPending;
-            product.UpdatedAt = now;
-            _unitOfWork.BloodProducts.Update(product);
-        }
-
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        _logger.LogInformation("Processed {Count} expired products", expiredProducts.Count());
+        _logger.LogInformation("ProcessExpiredProductsAsync: Delegating to ScrapTraceService.ProcessAutoScrapForExpiredProductsAsync");
+        var count = await _scrapTraceService.ProcessAutoScrapForExpiredProductsAsync(cancellationToken);
+        _logger.LogInformation("ProcessExpiredProductsAsync: Completed - {Count} products scrapped (via ScrapTraceService)", count);
     }
 
     public async Task<IEnumerable<InventoryHistoryDto>> GetInventoryHistoryAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)

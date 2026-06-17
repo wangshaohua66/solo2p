@@ -133,6 +133,9 @@ public class DonorService : IDonorService
             VaccinationDate: medicalHistory.VaccinationDate,
             HasHighBloodPressure: medicalHistory.HasHighBloodPressure,
             HasFever: medicalHistory.HasFever,
+            HasHeartDisease: medicalHistory.HasHeartDisease,
+            HasDiabetes: medicalHistory.HasDiabetes,
+            HasCancer: medicalHistory.HasCancer,
             HadDrugs: medicalHistory.HadDrugs);
 
         var deferralResult = await _deferralStrategy.EvaluateMedicalHistoryAsync(

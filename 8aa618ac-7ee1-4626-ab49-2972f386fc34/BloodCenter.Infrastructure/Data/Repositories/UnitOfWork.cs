@@ -1,5 +1,7 @@
 using BloodCenter.Core.Entities;
+using BloodCenter.Core.Entities.Enums;
 using BloodCenter.Core.Interfaces.Data;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace BloodCenter.Infrastructure.Data.Repositories;
@@ -76,6 +78,32 @@ public class UnitOfWork : IUnitOfWork
             await _transaction.DisposeAsync();
             _transaction = null;
         }
+    }
+
+    public async Task<List<(BloodType BloodType, RhFactor RhFactor, int Count)>> GroupInStockProductsByBloodTypeAsync(CancellationToken cancellationToken = default)
+    {
+        var results = await _context.BloodProducts
+            .Where(bp => !bp.IsDeleted && bp.Status == InventoryStatus.InStock)
+            .GroupBy(bp => new { bp.BloodGroup.ABO, bp.BloodGroup.Rh })
+            .Select(g => new { g.Key.ABO, g.Key.Rh, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        return results
+            .Select(x => (x.ABO, x.Rh, x.Count))
+            .ToList();
+    }
+
+    public async Task<List<(BloodType BloodType, RhFactor RhFactor, int Count)>> GroupIssuedProductsByBloodTypeAsync(DateTime sinceDate, CancellationToken cancellationToken = default)
+    {
+        var results = await _context.BloodProducts
+            .Where(bp => !bp.IsDeleted && bp.Status == InventoryStatus.Issued && bp.UpdatedAt >= sinceDate)
+            .GroupBy(bp => new { bp.BloodGroup.ABO, bp.BloodGroup.Rh })
+            .Select(g => new { g.Key.ABO, g.Key.Rh, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        return results
+            .Select(x => (x.ABO, x.Rh, x.Count))
+            .ToList();
     }
 
     public void Dispose()

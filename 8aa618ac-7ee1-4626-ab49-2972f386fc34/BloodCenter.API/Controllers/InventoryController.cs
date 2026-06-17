@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace BloodCenter.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/Inventories")]
 [Authorize]
 public class InventoryController : ControllerBase
 {

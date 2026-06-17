@@ -3,6 +3,7 @@ using BloodCenter.Core.Entities.Enums;
 using BloodCenter.Core.Interfaces;
 using BloodCenter.Core.Interfaces.Data;
 using BloodCenter.Core.Services;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using System.Linq.Expressions;
@@ -15,6 +16,7 @@ public class DeferralStrategyServiceTests
     private readonly Mock<IOptions<DeferralOptions>> _optionsMock;
     private readonly Mock<IUnitOfWork> _unitOfWorkMock;
     private readonly Mock<IRepository<DeferralSettings>> _deferralSettingsRepoMock;
+    private readonly Mock<ILogger<DeferralStrategyService>> _loggerMock;
     private readonly DeferralStrategyService _deferralService;
 
     public DeferralStrategyServiceTests()
@@ -64,7 +66,9 @@ public class DeferralStrategyServiceTests
             .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
 
-        _deferralService = new DeferralStrategyService(_unitOfWorkMock.Object, _optionsMock.Object);
+        _loggerMock = new Mock<ILogger<DeferralStrategyService>>();
+
+        _deferralService = new DeferralStrategyService(_unitOfWorkMock.Object, _optionsMock.Object, _loggerMock.Object);
     }
 
     [Fact]
@@ -186,6 +190,9 @@ public class DeferralStrategyServiceTests
             VaccinationDate: null,
             HasHighBloodPressure: false,
             HasFever: false,
+            HasHeartDisease: false,
+            HasDiabetes: false,
+            HasCancer: false,
             HadDrugs: false);
 
         var dateOfBirth = DateTime.UtcNow.AddYears(-30);
@@ -223,6 +230,9 @@ public class DeferralStrategyServiceTests
             VaccinationDate: null,
             HasHighBloodPressure: false,
             HasFever: false,
+            HasHeartDisease: false,
+            HasDiabetes: false,
+            HasCancer: false,
             HadDrugs: false);
 
         var dateOfBirth = DateTime.UtcNow.AddYears(-30);
@@ -325,6 +335,9 @@ public class DeferralStrategyServiceTests
             VaccinationDate: null,
             HasHighBloodPressure: false,
             HasFever: false,
+            HasHeartDisease: false,
+            HasDiabetes: false,
+            HasCancer: false,
             HadDrugs: false);
 
         var dateOfBirth = DateTime.UtcNow.AddYears(-30);
@@ -360,6 +373,9 @@ public class DeferralStrategyServiceTests
             VaccinationDate: null,
             HasHighBloodPressure: false,
             HasFever: false,
+            HasHeartDisease: false,
+            HasDiabetes: false,
+            HasCancer: false,
             HadDrugs: false);
 
         var dateOfBirth = DateTime.UtcNow.AddYears(-30);
@@ -396,6 +412,9 @@ public class DeferralStrategyServiceTests
             VaccinationDate: null,
             HasHighBloodPressure: false,
             HasFever: false,
+            HasHeartDisease: false,
+            HasDiabetes: false,
+            HasCancer: false,
             HadDrugs: false);
 
         var dateOfBirth = DateTime.UtcNow.AddYears(-30);
