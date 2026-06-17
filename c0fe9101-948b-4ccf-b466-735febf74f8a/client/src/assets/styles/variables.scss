@@ -1,0 +1,79 @@
+:root {
+  --primary-color: #409EFF;
+  --primary-light: #79bbff;
+  --primary-dark: #337ecc;
+  --success-color: #67C23A;
+  --warning-color: #E6A23C;
+  --danger-color: #F56C6C;
+  --info-color: #909399;
+  --text-primary: #303133;
+  --text-regular: #606266;
+  --text-secondary: #909399;
+  --text-placeholder: #a8abb2;
+  --border-color: #dcdfe6;
+  --border-light: #e4e7ed;
+  --bg-color: #f5f7fa;
+  --bg-white: #ffffff;
+  --sidebar-width: 220px;
+  --sidebar-width-collapsed: 64px;
+  --header-height: 60px;
+  --footer-height: 40px;
+  --transition-base: 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+  --box-shadow-base: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  --box-shadow-light: 0 2px 4px rgba(0, 0, 0, 0.06);
+  --radius-base: 6px;
+  --radius-small: 4px;
+  --radius-round: 20px;
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-xxl: 24px;
+}
+
+@mixin respond-to($breakpoint) {
+  @if $breakpoint == mobile {
+    @media (max-width: 768px) { @content; }
+  } @else if $breakpoint == tablet {
+    @media (max-width: 992px) { @content; }
+  } @else if $breakpoint == desktop {
+    @media (max-width: 1200px) { @content; }
+  }
+}
+
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@mixin ellipsis($lines: 1) {
+  @if $lines == 1 {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  } @else {
+    display: -webkit-box;
+    -webkit-line-clamp: $lines;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+@mixin card-style {
+  background: var(--bg-white);
+  border-radius: var(--radius-base);
+  box-shadow: var(--box-shadow-light);
+  transition: all var(--transition-base);
+  &:hover {
+    box-shadow: var(--box-shadow-base);
+  }
+}

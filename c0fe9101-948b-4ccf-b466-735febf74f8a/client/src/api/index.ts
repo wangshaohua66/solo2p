@@ -1,0 +1,7 @@
+export * from './auth'
+export * from './medical'
+export * from './hospitalization'
+export * from './lab'
+export * from './pharmacy'
+export * from './schedule'
+export * from './report'
