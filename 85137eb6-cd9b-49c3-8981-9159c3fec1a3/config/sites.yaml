@@ -1,0 +1,254 @@
+global:
+  concurrency: 50
+  timeout: 30
+  max_retries: 3
+  retry_interval: [1, 3, 5]
+  user_agent_rotation: true
+  request_rate_limit: 2.0
+  proxy_list: []
+
+alert:
+  enabled: true
+  mode: continuous
+  price_change_threshold: 0.05
+  mail:
+    smtp_host: smtp.example.com
+    smtp_port: 587
+    smtp_user: alert@example.com
+    smtp_password: your_password
+    from: alert@example.com
+    to:
+      - admin@example.com
+  webhook:
+    enabled: false
+    url: ""
+
+database:
+  path: ./data/price_monitor.db
+
+log:
+  level: info
+  dir: ./logs
+  retention_days: 30
+
+sites:
+  - id: tmall
+    name: 天猫
+    base_url: https://detail.tmall.com
+    search_url: https://list.tmall.com/search_product.htm?q={keyword}
+    currency: CNY
+    enabled: true
+    rate_limit: 1.5
+    selectors:
+      price_original: ".tm-price-orig"
+      price_promo: ".tm-price"
+      price_member: ".tm-price-vip"
+      title: ".tb-detail-hd h1"
+      sku_id: "#J_SKU .tb-metatit"
+      stock: ".tb-stock em"
+
+  - id: jd
+    name: 京东
+    base_url: https://item.jd.com
+    search_url: https://search.jd.com/Search?keyword={keyword}
+    currency: CNY
+    enabled: true
+    rate_limit: 1.2
+    selectors:
+      price_original: ".p-price .price-text"
+      price_promo: ".p-price .price"
+      price_member: ".price-plus .p-price"
+      title: ".sku-name"
+      sku_id: ".summary-sku"
+      stock: ".stock"
+
+  - id: suning
+    name: 苏宁
+    base_url: https://product.suning.com
+    search_url: https://search.suning.com/{keyword}/
+    currency: CNY
+    enabled: true
+    rate_limit: 1.5
+    selectors:
+      price_original: ".mainprice-wrap .nprice"
+      price_promo: ".mainprice-wrap .price"
+      price_member: ".viprice"
+      title: ".proinfo-title"
+      sku_id: ".proinfo-partno"
+      stock: ".stock-num"
+
+  - id: kaola
+    name: 考拉
+    base_url: https://goods.kaola.com
+    search_url: https://search.kaola.com/search.html?key={keyword}
+    currency: CNY
+    enabled: true
+    rate_limit: 1.8
+    selectors:
+      price_original: ".originalPrice"
+      price_promo: ".currentPrice"
+      price_member: ".memberPrice"
+      title: ".goods-title"
+      sku_id: ".goods-sku"
+      stock: ".stock-info"
+
+  - id: miya
+    name: 蜜芽
+    base_url: https://www.miyou.com
+    search_url: https://www.miyou.com/search?keyword={keyword}
+    currency: CNY
+    enabled: true
+    rate_limit: 2.0
+    selectors:
+      price_original: ".price-origin"
+      price_promo: ".price-now"
+      price_member: ".price-vip"
+      title: ".goods-name"
+      sku_id: ".goods-sn"
+      stock: ".stock-tip"
+
+  - id: babytree
+    name: 宝宝树
+    base_url: https://mall.babytree.com
+    search_url: https://mall.babytree.com/search?q={keyword}
+    currency: CNY
+    enabled: true
+    rate_limit: 1.8
+    selectors:
+      price_original: ".origin-price"
+      price_promo: ".sale-price"
+      price_member: ".vip-price"
+      title: ".goods-title"
+      sku_id: ".goods-no"
+      stock: ".goods-stock"
+
+  - id: beibei
+    name: 贝贝网
+    base_url: https://www.beibei.com
+    search_url: https://www.beibei.com/search?q={keyword}
+    currency: CNY
+    enabled: true
+    rate_limit: 1.8
+    selectors:
+      price_original: ".old-price"
+      price_promo: ".new-price"
+      price_member: ".member-price"
+      title: ".product-name"
+      sku_id: ".product-sku"
+      stock: ".product-stock"
+
+  - id: haiziwang
+    name: 孩子王
+    base_url: https://www.haiziwang.com
+    search_url: https://www.haiziwang.com/search?keyword={keyword}
+    currency: CNY
+    enabled: true
+    rate_limit: 1.5
+    selectors:
+      price_original: ".market-price"
+      price_promo: ".sale-price"
+      price_member: ".vip-sale-price"
+      title: ".goods-name"
+      sku_id: ".goods-code"
+      stock: ".stock-status"
+
+  - id: leyou
+    name: 乐友
+    base_url: https://www.leyou.com
+    search_url: https://www.leyou.com/search?q={keyword}
+    currency: CNY
+    enabled: true
+    rate_limit: 1.8
+    selectors:
+      price_original: ".price-market"
+      price_promo: ".price-sale"
+      price_member: ".price-member"
+      title: ".product-title"
+      sku_id: ".product-no"
+      stock: ".product-stock"
+
+  - id: aiyingshi
+    name: 爱婴室
+    base_url: https://www.aiyingshi.com
+    search_url: https://www.aiyingshi.com/search?keyword={keyword}
+    currency: CNY
+    enabled: true
+    rate_limit: 2.0
+    selectors:
+      price_original: ".original-price"
+      price_promo: ".promotion-price"
+      price_member: ".member-only-price"
+      title: ".item-title"
+      sku_id: ".item-sku"
+      stock: ".item-stock"
+
+  - id: muyingzhijia
+    name: 母婴之家
+    base_url: https://www.muyingzhijia.com
+    search_url: https://www.muyingzhijia.com/search?q={keyword}
+    currency: CNY
+    enabled: true
+    rate_limit: 1.8
+    selectors:
+      price_original: ".origin-price"
+      price_promo: ".present-price"
+      price_member: ".member-price"
+      title: ".product-name"
+      sku_id: ".product-sn"
+      stock: ".stock-count"
+
+  - id: honghaizi
+    name: 红孩子
+    base_url: https://www.honghaizi.com
+    search_url: https://www.honghaizi.com/search?keyword={keyword}
+    currency: CNY
+    enabled: true
+    rate_limit: 1.8
+    selectors:
+      price_original: ".old_price"
+      price_promo: ".now_price"
+      price_member: ".vip_price"
+      title: ".product_title"
+      sku_id: ".product_sku"
+      stock: ".stock_num"
+
+skus:
+  - sku_id: SKU001
+    name: 花王妙而舒纸尿裤L码54片
+    brand: 花王
+    category: 纸尿裤
+    keywords:
+      - 花王纸尿裤L
+    reference_price: 128.00
+
+  - sku_id: SKU002
+    name: 帮宝适一级帮纸尿裤M码62片
+    brand: 帮宝适
+    category: 纸尿裤
+    keywords:
+      - 帮宝适一级帮M
+    reference_price: 118.00
+
+  - sku_id: SKU003
+    name: 美素佳儿金装婴幼儿配方奶粉3段900g
+    brand: 美素佳儿
+    category: 奶粉
+    keywords:
+      - 美素佳儿3段
+    reference_price: 198.00
+
+  - sku_id: SKU004
+    name: 爱他美卓萃婴幼儿配方奶粉3段900g
+    brand: 爱他美
+    category: 奶粉
+    keywords:
+      - 爱他美卓萃3段
+    reference_price: 365.00
+
+  - sku_id: SKU005
+    name: 惠氏启赋婴幼儿配方奶粉3段900g
+    brand: 惠氏
+    category: 奶粉
+    keywords:
+      - 惠氏启赋3段
+    reference_price: 388.00
