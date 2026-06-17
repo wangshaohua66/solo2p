@@ -11,7 +11,9 @@
     "test": "jest"
   },
   "bin": {
-    "trademark-monitor": "src/index.js"
+    "trademark-monitor": "src/index.js",
+    "crm": "src/index.js",
+    "tm-monitor": "src/index.js"
   },
   "engines": {
     "node": ">=18.0.0"

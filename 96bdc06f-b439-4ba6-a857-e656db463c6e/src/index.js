@@ -13,6 +13,7 @@ const {
   getOppositionDeadlines,
   getQuery,
   allQuery,
+  runQuery,
   closeDatabase
 } = require('./store/database');
 const { createScheduler } = require('./scraper/scheduler');
@@ -50,8 +51,8 @@ function printSystemStatus() {
 }
 
 program
-  .name('trademark-monitor')
-  .description('商标公告智能监控系统 - 自动抓取、解析、匹配和预警商标公告')
+  .name('crm')
+  .description('商标公告智能监控系统(CRM) - 自动抓取、解析、匹配和预警商标公告')
   .version(getConfig('system.version', '1.0.0'));
 
 program
@@ -515,6 +516,277 @@ queryCommand
         if (ann.error_message) {
           console.log(`    错误: ${chalk.red(ann.error_message)}`);
         }
+      });
+      
+      console.log();
+      
+    } catch (error) {
+      console.error(chalk.red('✗ 查询失败:'), error.message);
+    } finally {
+      closeDatabase();
+    }
+  });
+
+const addCommand = program.command('add')
+  .description('添加客户或商标');
+
+addCommand
+  .command('client <id> <name>')
+  .description('添加客户')
+  .option('--email <email>', '联系邮箱')
+  .option('--contact <name>', '联系人')
+  .action(async (id, name, options) => {
+    printBanner();
+    
+    try {
+      initDatabase();
+      
+      const existing = await getQuery(
+        'SELECT id FROM client_trademarks WHERE client_id = ? LIMIT 1',
+        [id]
+      );
+      
+      if (existing) {
+        console.log(chalk.yellow(`⚠  客户 ${id} 已存在`));
+        return;
+      }
+      
+      await runQuery(
+        `INSERT INTO client_trademarks 
+         (client_id, client_name, trademark_name, class_number, 
+          contact_email, contact_name, risk_threshold, instant_alert, weekly_summary)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, name, '', '', options.email || '', options.contact || '', 'medium', 1, 1]
+      );
+      
+      console.log(chalk.green(`✓ 客户添加成功`));
+      console.log(`  ID: ${chalk.cyan(id)}`);
+      console.log(`  名称: ${chalk.white(name)}`);
+      if (options.email) console.log(`  邮箱: ${options.email}`);
+      if (options.contact) console.log(`  联系人: ${options.contact}`);
+      console.log();
+      
+    } catch (error) {
+      console.error(chalk.red('✗ 添加失败:'), error.message);
+    } finally {
+      closeDatabase();
+    }
+  });
+
+addCommand
+  .command('trademark <clientId> <trademarkName> <classNumber>')
+  .description('为客户添加商标')
+  .option('--app-no <number>', '申请号')
+  .action(async (clientId, trademarkName, classNumber, options) => {
+    printBanner();
+    
+    try {
+      initDatabase();
+      
+      const client = getClientById(clientId);
+      const clientName = client?.name || clientId;
+      
+      const existing = await getQuery(
+        `SELECT id FROM client_trademarks 
+         WHERE client_id = ? AND trademark_name = ? AND class_number = ?`,
+        [clientId, trademarkName, classNumber]
+      );
+      
+      if (existing) {
+        console.log(chalk.yellow(`⚠  商标已存在: ${trademarkName} (第${classNumber}类)`));
+        return;
+      }
+      
+      await runQuery(
+        `INSERT INTO client_trademarks
+         (client_id, client_name, trademark_name, class_number, 
+          application_number, risk_threshold, instant_alert, weekly_summary)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [clientId, clientName, trademarkName, classNumber, 
+         options.appNo || '', 'medium', 1, 1]
+      );
+      
+      console.log(chalk.green(`✓ 商标添加成功`));
+      console.log(`  客户: ${chalk.cyan(clientId)} (${clientName})`);
+      console.log(`  商标: ${chalk.white(trademarkName)}`);
+      console.log(`  类别: 第 ${classNumber} 类`);
+      if (options.appNo) console.log(`  申请号: ${options.appNo}`);
+      console.log();
+      
+    } catch (error) {
+      console.error(chalk.red('✗ 添加失败:'), error.message);
+    } finally {
+      closeDatabase();
+    }
+  });
+
+const listCommand = program.command('list')
+  .description('列出客户或商标');
+
+listCommand
+  .command('clients')
+  .description('列出所有客户')
+  .action(async () => {
+    printBanner();
+    
+    try {
+      initDatabase();
+      
+      const clients = await allQuery(
+        `SELECT client_id, client_name, 
+                COUNT(*) as trademark_count,
+                MAX(contact_email) as contact_email,
+                MAX(contact_name) as contact_name
+         FROM client_trademarks 
+         WHERE trademark_name != ''
+         GROUP BY client_id, client_name
+         ORDER BY client_id`
+      );
+      
+      if (clients.length === 0) {
+        console.log(chalk.yellow('  暂无客户数据'));
+        return;
+      }
+      
+      console.log(chalk.cyan(`\n共 ${clients.length} 个客户`));
+      console.log();
+      console.log(chalk.yellow('👥 客户列表'));
+      console.log(chalk.gray('  ─────────────────────────────────────────────────────────────'));
+      
+      clients.forEach((client, index) => {
+        console.log(`\n  ${chalk.cyan(`[${index + 1}]`)} ${chalk.bold(client.client_name)}`);
+        console.log(`    ID: ${client.client_id} | 商标数: ${client.trademark_count}`);
+        if (client.contact_name) console.log(`    联系人: ${client.contact_name}`);
+        if (client.contact_email) console.log(`    邮箱: ${client.contact_email}`);
+      });
+      
+      console.log();
+      
+    } catch (error) {
+      console.error(chalk.red('✗ 查询失败:'), error.message);
+    } finally {
+      closeDatabase();
+    }
+  });
+
+listCommand
+  .command('trademarks [clientId]')
+  .description('列出商标，可指定客户ID')
+  .option('--limit <number>', '显示数量', '50')
+  .action(async (clientId, options) => {
+    printBanner();
+    
+    try {
+      initDatabase();
+      
+      let sql = `SELECT * FROM client_trademarks WHERE trademark_name != ?`;
+      const params = [''];
+      
+      if (clientId) {
+        sql += ` AND client_id = ?`;
+        params.push(clientId);
+      }
+      
+      sql += ` ORDER BY client_id, class_number LIMIT ?`;
+      params.push(parseInt(options.limit));
+      
+      const trademarks = await allQuery(sql, params);
+      
+      if (trademarks.length === 0) {
+        console.log(chalk.yellow('  暂无商标数据'));
+        return;
+      }
+      
+      console.log(chalk.cyan(`\n共 ${trademarks.length} 个商标`));
+      console.log();
+      console.log(chalk.yellow('🏷️  商标列表'));
+      console.log(chalk.gray('  ─────────────────────────────────────────────────────────────'));
+      
+      trademarks.forEach((tm, index) => {
+        console.log(`\n  ${chalk.cyan(`[${index + 1}]`)} ${chalk.bold(tm.trademark_name)}`);
+        console.log(`    客户: ${tm.client_name} (${tm.client_id})`);
+        console.log(`    类别: 第 ${tm.class_number} 类`);
+        if (tm.application_number) console.log(`    申请号: ${tm.application_number}`);
+      });
+      
+      console.log();
+      
+    } catch (error) {
+      console.error(chalk.red('✗ 查询失败:'), error.message);
+    } finally {
+      closeDatabase();
+    }
+  });
+
+program
+  .command('objection')
+  .description('查看异议期限预警')
+  .option('--days <number>', '未来多少天内', '30')
+  .option('--client <clientId>', '按客户筛选')
+  .option('--risk <level>', '按风险等级筛选: high/medium/low')
+  .action(async (options) => {
+    printBanner();
+    
+    const days = parseInt(options.days);
+    console.log(chalk.cyan(`\n未来 ${days} 天内的异议期限预警`));
+    console.log();
+    
+    try {
+      initDatabase();
+      
+      let deadlines = await getOppositionDeadlines(days);
+      
+      if (options.client) {
+        deadlines = deadlines.filter(d => d.client_id === options.client);
+      }
+      
+      if (options.risk) {
+        deadlines = deadlines.filter(d => d.risk_level === options.risk);
+      }
+      
+      if (deadlines.length === 0) {
+        console.log(chalk.green('✓ 暂无即将到期的异议期限'));
+        return;
+      }
+      
+      const criticalCount = deadlines.filter(d => Math.ceil(d.days_remaining) <= 3).length;
+      const highCount = deadlines.filter(d => {
+        const daysRem = Math.ceil(d.days_remaining);
+        return daysRem > 3 && daysRem <= 7;
+      }).length;
+      const mediumCount = deadlines.filter(d => {
+        const daysRem = Math.ceil(d.days_remaining);
+        return daysRem > 7 && daysRem <= 15;
+      }).length;
+      
+      console.log(chalk.yellow(`⚠️  共 ${deadlines.length} 条即将到期`));
+      console.log(`  ${chalk.red('紧急: ' + criticalCount)} | ${chalk.red('高风险: ' + highCount)} | ${chalk.yellow('中风险: ' + mediumCount)}`);
+      console.log(chalk.gray('  ─────────────────────────────────────────────────────────────'));
+      
+      deadlines.forEach((d, index) => {
+        const daysRemaining = Math.ceil(d.days_remaining);
+        let urgencyColor, urgencyLabel;
+        
+        if (daysRemaining <= 3) {
+          urgencyColor = chalk.red;
+          urgencyLabel = '紧急';
+        } else if (daysRemaining <= 7) {
+          urgencyColor = chalk.red;
+          urgencyLabel = '高';
+        } else if (daysRemaining <= 15) {
+          urgencyColor = chalk.yellow;
+          urgencyLabel = '中';
+        } else {
+          urgencyColor = chalk.green;
+          urgencyLabel = '低';
+        }
+        
+        console.log(`\n  ${chalk.cyan(`[${index + 1}]`)} ${urgencyColor(`[${urgencyLabel}] 剩余 ${daysRemaining} 天`)}`);
+        console.log(`    客户: ${d.client_name}`);
+        console.log(`    客户商标: ${d.trademark_name}`);
+        console.log(`    公告商标: ${chalk.bold(d.trademark_name)}`);
+        console.log(`    异议截止: ${d.opposition_deadline}`);
+        console.log(`    公告类型: ${d.announcement_type || '初审公告'}`);
       });
       
       console.log();

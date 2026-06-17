@@ -14,10 +14,24 @@ const MATCH_TYPES = {
   SIMILAR: 'similar'
 };
 
+const MATCH_TYPE_LABELS = {
+  exact: '精确匹配',
+  pinyin: '拼音匹配',
+  acronym: '首字母匹配',
+  similar: '近似匹配'
+};
+
 const RISK_LEVELS = {
   HIGH: 'high',
   MEDIUM: 'medium',
   LOW: 'low'
+};
+
+const RISK_LEVEL_LABELS = {
+  high: '高风险',
+  medium: '中风险',
+  low: '低风险',
+  critical: '紧急'
 };
 
 function normalizeName(name) {
@@ -403,5 +417,7 @@ module.exports = {
   calculateOppositionDeadline,
   calculateRiskLevel,
   MATCH_TYPES,
-  RISK_LEVELS
+  MATCH_TYPE_LABELS,
+  RISK_LEVELS,
+  RISK_LEVEL_LABELS
 };

@@ -97,21 +97,44 @@ class TaskScheduler {
     for (const deadline of deadlines) {
       const daysRemaining = Math.ceil(deadline.days_remaining);
       
-      if (daysRemaining === 30 || daysRemaining === 15 || daysRemaining === 7 || daysRemaining <= 3) {
+      if (daysRemaining <= 30 && daysRemaining >= 0) {
+        let urgency, alertLevel;
+        
+        if (daysRemaining <= 3) {
+          urgency = 'critical';
+          alertLevel = 4;
+        } else if (daysRemaining <= 7) {
+          urgency = 'high';
+          alertLevel = 3;
+        } else if (daysRemaining <= 15) {
+          urgency = 'medium';
+          alertLevel = 2;
+        } else {
+          urgency = 'low';
+          alertLevel = 1;
+        }
+        
+        const isMilestoneDay = daysRemaining === 30 || daysRemaining === 15 || 
+                               daysRemaining === 7 || daysRemaining === 3 || 
+                               daysRemaining === 1;
+        
         urgentDeadlines.push({
           ...deadline,
           daysRemaining,
-          urgency: daysRemaining <= 3 ? 'critical' : 
-                   daysRemaining <= 7 ? 'high' : 
-                   daysRemaining <= 15 ? 'medium' : 'low'
+          urgency,
+          alertLevel,
+          isMilestoneDay,
+          needsNotification: isMilestoneDay || daysRemaining <= 7
         });
       }
     }
     
-    logger.info(`Found ${urgentDeadlines.length} urgent opposition deadlines`, {
+    logger.info(`Found ${urgentDeadlines.length} opposition deadlines within 30 days`, {
       critical: urgentDeadlines.filter(d => d.urgency === 'critical').length,
       high: urgentDeadlines.filter(d => d.urgency === 'high').length,
-      medium: urgentDeadlines.filter(d => d.urgency === 'medium').length
+      medium: urgentDeadlines.filter(d => d.urgency === 'medium').length,
+      low: urgentDeadlines.filter(d => d.urgency === 'low').length,
+      needsNotification: urgentDeadlines.filter(d => d.needsNotification).length
     });
     
     return urgentDeadlines;
