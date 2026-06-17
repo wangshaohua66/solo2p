@@ -154,7 +154,7 @@ var App = (function() {
       var r = inv[store][hid];
       totalInv += r.quantity;
       if (r.quantity < r.safeStock) lowInv++;
-      if ((new Date(r.expireDate) - Date.now()) / 86400000 < 90) expInv++;
+      if ((new Date(r.expiryDate) - Date.now()) / 86400000 < 90) expInv++;
     });
     var todayRx = rxList.filter(function(r) { return formatDate(r.createdAt || Date.now()) === today; }).length;
     var monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
@@ -481,6 +481,8 @@ var App = (function() {
     PrescriptionView.renderPrescriptionTable();
     PrescriptionView.renderValidationPanel();
     PrescriptionView.bindPatientEvents();
+    PrescriptionView.bindMobileEvents();
+    PrescriptionView.updateMobileValidationBadge();
     bindTemplateQuick();
     $(document).off('click', '#saveDraftBtn').on('click', '#saveDraftBtn', function() { PrescriptionEngine.saveAsDraft(); });
     $(document).off('click', '#finalizeRxBtn').on('click', '#finalizeRxBtn', function() { PrescriptionEngine.finalizePrescription(); });
@@ -528,7 +530,7 @@ var App = (function() {
         + '<td class="font-mono fw-bold text-herb-red">' + it.dosage + ' g</td>'
         + '<td class="font-mono small text-muted">' + c.qian + '钱 / ' + c.liang + '两</td>'
         + '<td>' + (it.decoction || '<span class="text-muted">常规</span>') + '</td>'
-        + '<td class="small">' + (h ? h.nature + ' ' + h.flavor + ' · ' + h.meridians.join('、') : '-') + '</td>'
+        + '<td class="small">' + (h ? h.nature + ' ' + h.flavors.join('、') + ' · ' + h.meridians.join('、') : '-') + '</td>'
         + '<td>' + (h ? '<span class="badge badge-toxicity-' + h.toxicity + '" style="font-size:.6rem">' + h.toxicity + '</span> <span class="badge preg-badge-' + h.pregnancy + '" style="font-size:.6rem">妊' + h.pregnancy + '</span>' : '-') + '</td>'
         + '<td class="small">' + (it.notes || '-') + '</td></tr>';
     });
@@ -727,7 +729,7 @@ var App = (function() {
       } else {
         var list = AppStore.getState(AppStore.KEYS.PRESCRIPTIONS) || [];
         list = list.filter(function(r) { return r.id !== id; });
-        AppStore.saveKey(AppStore.KEYS.PRESCRIPTIONS, list);
+        AppStore.setState(AppStore.KEYS.PRESCRIPTIONS, list);
       }
       Toast.success('已删除');
       pageHistory(ctx, $app);

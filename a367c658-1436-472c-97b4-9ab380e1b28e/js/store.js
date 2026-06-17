@@ -61,13 +61,13 @@ var AppStore = (function() {
         herbId: h.id,
         herbName: h.name,
         storeId: STORES[Math.floor(Math.random() * STORES.length)],
-        quantity: qty,
+        change: qty,
         operator: ['张药师','李药师','王店长'][Math.floor(Math.random()*3)],
-        timestamp: Date.now() - Math.floor(Math.random() * 30 * 86400 * 1000),
+        createdAt: Date.now() - Math.floor(Math.random() * 30 * 86400 * 1000),
         note: opType + ' ' + h.name + ' ' + qty + 'g'
       });
     }
-    return logs.sort(function(a, b) { return b.timestamp - a.timestamp; });
+    return logs.sort(function(a, b) { return b.createdAt - a.createdAt; });
   }
 
   function initTemplates() {
@@ -184,7 +184,7 @@ var AppStore = (function() {
         herbs: [],
         message: '',
         prescriptionId: '',
-        timestamp: Date.now() - Math.floor(Math.random() * 30 * 86400 * 1000)
+        createdAt: Date.now() - Math.floor(Math.random() * 30 * 86400 * 1000)
       });
     }
     return logs;
@@ -232,8 +232,11 @@ var AppStore = (function() {
     }
   }
 
-  function saveKey(key) {
+  function saveKey(key, value) {
     try {
+      if (value !== undefined) {
+        state[key] = value;
+      }
       var data = state[key];
       store.set(key, data);
     } catch (e) {
@@ -327,7 +330,7 @@ var AppStore = (function() {
   function addStockLog(log) {
     var logs = state[STORAGE_KEYS.STOCK_LOGS].slice();
     log.id = log.id || uid('log');
-    log.timestamp = log.timestamp || Date.now();
+    log.createdAt = log.createdAt || Date.now();
     logs.unshift(log);
     setState(STORAGE_KEYS.STOCK_LOGS, logs.slice(0, 1000));
     return log;
@@ -358,7 +361,7 @@ var AppStore = (function() {
       herbId: herbId,
       herbName: (HerbData.getById(herbId) || {}).name || '',
       storeId: storeId,
-      quantity: Math.abs(delta),
+      change: Math.abs(delta),
       relatedPrescriptionId: meta && meta.prescriptionId,
       operator: meta && meta.operator || '系统',
       note: meta && meta.note || ''
@@ -404,7 +407,7 @@ var AppStore = (function() {
   function addWarnLog(item) {
     var list = state[STORAGE_KEYS.WARN_LOG].slice();
     item.id = uid('wl');
-    item.timestamp = item.timestamp || Date.now();
+    item.createdAt = item.createdAt || Date.now();
     list.unshift(item);
     setState(STORAGE_KEYS.WARN_LOG, list.slice(0, 500));
     return item;
@@ -475,6 +478,7 @@ var AppStore = (function() {
     addWarnLog: addWarnLog,
     bumpHerbUsage: bumpHerbUsage,
     getStorageUsage: getStorageUsage,
+    saveKey: saveKey,
     forceFlush: forceFlush,
     resetAll: resetAll
   };

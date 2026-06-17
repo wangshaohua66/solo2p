@@ -684,12 +684,185 @@ var PrescriptionView = (function() {
     });
   }
 
+  function renderMobileControls() {
+    if ($('.mobile-herb-picker-btn').length > 0) return;
+    var html = ''
+      + '<button class="mobile-herb-picker-btn mobile-only" id="mobileHerbPickerBtn" title="选择药材">'
+      + '<i class="bi bi-plus-lg"></i></button>'
+      + '<button class="mobile-validation-btn mobile-only" id="mobileValidationBtn" title="配伍校验">'
+      + '<i class="bi bi-shield-exclamation"></i>'
+      + '<span class="badge" id="mobileValidationBadge">0</span></button>'
+      + '<div class="drawer-backdrop" id="drawerBackdrop"></div>'
+      + '<div class="bottom-drawer" id="herbPickerDrawer">'
+      + '  <div class="drawer-header">'
+      + '    <div class="flex-grow-1"><b>选择药材</b></div>'
+      + '    <button class="btn btn-sm btn-link p-0" id="closeHerbDrawer"><i class="bi bi-x-lg"></i></button>'
+      + '  </div>'
+      + '  <div class="drawer-body">'
+      + '    <div class="mb-3"><input type="text" class="form-control" id="mobileHerbSearch" placeholder="搜索药材..."></div>'
+      + '    <div class="cascade-picker" id="cascadePicker">'
+      + '      <div class="picker-col" id="pickerCatCol"></div>'
+      + '      <div class="picker-col" id="pickerHerbCol"></div>'
+      + '    </div>'
+      + '  </div>'
+      + '</div>'
+      + '<div class="bottom-drawer" id="validationDrawer">'
+      + '  <div class="drawer-header">'
+      + '    <div class="flex-grow-1"><b>配伍校验结果</b></div>'
+      + '    <button class="btn btn-sm btn-link p-0" id="closeValidationDrawer"><i class="bi bi-x-lg"></i></button>'
+      + '  </div>'
+      + '  <div class="drawer-body" id="validationDrawerBody"></div>'
+      + '</div>';
+    $('body').append(html);
+  }
+
+  function renderCascadeCategories() {
+    var html = '';
+    HerbData.CATEGORIES.forEach(function(cat) {
+      html += '<div class="picker-item" data-cat="' + cat.id + '">'
+        + '<span>' + cat.name + '</span>'
+        + ' <span class="small text-muted">(' + HerbData.getByCategory(cat.id).length + ')</span>'
+        + '</div>';
+    });
+    $('#pickerCatCol').html(html);
+  }
+
+  function renderCascadeHerbs(catId) {
+    var list = HerbData.getByCategory(catId);
+    var html = '';
+    list.slice(0, 50).forEach(function(h) {
+      html += '<div class="picker-item" data-herb-id="' + h.id + '">'
+        + '<span>' + h.name + '</span>'
+        + (h.aliases[0] ? ' <span class="small text-muted">' + h.aliases[0] + '</span>' : '')
+        + '</div>';
+    });
+    if (list.length > 50) {
+      html += '<div class="picker-item text-muted small text-center">仅显示前50味，请搜索</div>';
+    }
+    $('#pickerHerbCol').html(html);
+  }
+
+  function openDrawer(drawerId) {
+    $('#' + drawerId).addClass('show');
+    $('#drawerBackdrop').addClass('show');
+  }
+
+  function closeDrawer(drawerId) {
+    $('#' + drawerId).removeClass('show');
+    if (!$('.bottom-drawer.show').length) {
+      $('#drawerBackdrop').removeClass('show');
+    }
+  }
+
+  function bindMobileEvents() {
+    renderMobileControls();
+    renderCascadeCategories();
+    var defaultCat = HerbData.CATEGORIES[0] ? HerbData.CATEGORIES[0].id : '';
+    renderCascadeHerbs(defaultCat);
+    $('#pickerCatCol .picker-item:first').addClass('active');
+
+    $(document).off('click', '#mobileHerbPickerBtn').on('click', '#mobileHerbPickerBtn', function() {
+      openDrawer('herbPickerDrawer');
+    });
+
+    $(document).off('click', '#mobileValidationBtn').on('click', '#mobileValidationBtn', function() {
+      renderValidationDrawer();
+      openDrawer('validationDrawer');
+    });
+
+    $(document).off('click', '#closeHerbDrawer, #drawerBackdrop').on('click', '#closeHerbDrawer, #drawerBackdrop', function() {
+      closeDrawer('herbPickerDrawer');
+      closeDrawer('validationDrawer');
+    });
+
+    $(document).off('click', '#closeValidationDrawer').on('click', '#closeValidationDrawer', function() {
+      closeDrawer('validationDrawer');
+    });
+
+    $(document).off('click', '#pickerCatCol .picker-item').on('click', '#pickerCatCol .picker-item', function() {
+      var catId = $(this).data('cat');
+      $('#pickerCatCol .picker-item').removeClass('active');
+      $(this).addClass('active');
+      renderCascadeHerbs(catId);
+    });
+
+    $(document).off('click', '#pickerHerbCol .picker-item').on('click', '#pickerHerbCol .picker-item', function() {
+      var hid = $(this).data('herbId');
+      var h = HerbData.getById(hid);
+      if (!h) return;
+      var res = PrescriptionEngine.addHerbByObject(h);
+      if (res.error) { Toast.danger(res.error); return; }
+      if (res.duplicate) { Toast.info(res.warning); }
+      else { Toast.success('已添加：' + h.name); }
+      renderPrescriptionTable();
+      renderValidationPanel();
+      updateMobileValidationBadge();
+      closeDrawer('herbPickerDrawer');
+    });
+
+    $(document).off('input', '#mobileHerbSearch').on('input', '#mobileHerbSearch', function() {
+      var val = $(this).val().trim();
+      if (!val) {
+        var activeCat = $('#pickerCatCol .picker-item.active').data('cat');
+        renderCascadeHerbs(activeCat);
+        return;
+      }
+      var results = HerbData.searchHerbs(val);
+      var html = '';
+      results.slice(0, 50).forEach(function(h) {
+        html += '<div class="picker-item" data-herb-id="' + h.id + '">'
+          + '<span>' + h.name + '</span>'
+          + (h.aliases[0] ? ' <span class="small text-muted">' + h.aliases[0] + '</span>' : '')
+          + '</div>';
+      });
+      if (html === '') html = '<div class="picker-item text-muted small text-center">未找到相关药材</div>';
+      $('#pickerHerbCol').html(html);
+    });
+  }
+
+  function renderValidationDrawer() {
+    var p = PrescriptionEngine.current();
+    var result = PrescriptionEngine.validatePrescription(p);
+    var warnings = result.warnings || [];
+    var html = '';
+    if (warnings.length === 0) {
+      html = '<div class="text-center py-4">'
+        + '<i class="bi bi-check-circle-fill text-success" style="font-size:3rem"></i>'
+        + '<p class="mt-3 text-muted">处方校验通过，无配伍禁忌</p></div>';
+    } else {
+      warnings.forEach(function(w, i) {
+        var severityClass = w.severity === 'danger' ? 'danger' : (w.severity === 'warning' ? 'warning' : 'info');
+        var icon = w.severity === 'danger' ? 'bi-exclamation-triangle-fill' : 'bi-info-circle-fill';
+        html += '<div class="alert alert-' + severityClass + ' mb-2 small" role="alert">'
+          + '<i class="bi ' + icon + ' me-1"></i>'
+          + '<b>' + (w.title || '提示') + '</b>'
+          + (w.detail ? '<div class="mt-1 opacity-80">' + w.detail + '</div>' : '')
+          + '</div>';
+      });
+    }
+    $('#validationDrawerBody').html(html);
+  }
+
+  function updateMobileValidationBadge() {
+    var p = PrescriptionEngine.current();
+    var result = PrescriptionEngine.validatePrescription(p);
+    var count = (result.warnings || []).length;
+    var $badge = $('#mobileValidationBadge');
+    if (count > 0) {
+      $badge.text(count).show();
+    } else {
+      $badge.hide();
+    }
+  }
+
   return {
     renderCategoryTree: renderCategoryTree,
     bindCategoryEvents: bindCategoryEvents,
     renderPrescriptionTable: renderPrescriptionTable,
     renderValidationPanel: renderValidationPanel,
     renderPatientHeader: renderPatientHeader,
-    bindPatientEvents: bindPatientEvents
+    bindPatientEvents: bindPatientEvents,
+    bindMobileEvents: bindMobileEvents,
+    updateMobileValidationBadge: updateMobileValidationBadge
   };
 })();
