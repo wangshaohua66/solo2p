@@ -1,0 +1,141 @@
+{
+  "timestamp": "2026-06-17T11:53:30.600Z",
+  "type": "dedup-unit-test",
+  "summary": {
+    "total": 26,
+    "passed": 22,
+    "failed": 4,
+    "passRate": 84.6
+  },
+  "cacheStatistics": {
+    "statistics": {
+      "cached": 7,
+      "sent": 7,
+      "deduplicated": 2,
+      "cacheHits": 2,
+      "cacheMisses": 5,
+      "evicted": 0,
+      "retriesSucceeded": 0,
+      "retriesFailed": 0
+    },
+    "sizes": {
+      "instantAlerts": 0,
+      "weeklySummaries": 0,
+      "deduplicationIndex": 0
+    },
+    "performance": {
+      "cacheHitRate": "28.6%",
+      "cacheHits": 2,
+      "cacheMisses": 5
+    },
+    "lastCleanup": "2026-06-17T11:53:30.600Z",
+    "uptimeSince": "2026-06-17T10:53:30.600Z",
+    "pendingRetries": 0
+  },
+  "results": [
+    {
+      "name": "_cacheKey 相同输入生成相同key",
+      "pass": true
+    },
+    {
+      "name": "_cacheKey 不同输入生成不同key",
+      "pass": true
+    },
+    {
+      "name": "_cacheKey 前缀格式正确",
+      "pass": true
+    },
+    {
+      "name": "首次查询未命中 (cacheMiss)",
+      "pass": true
+    },
+    {
+      "name": "_markAsSent 后 dedupIndex 增长",
+      "pass": true
+    },
+    {
+      "name": "第二次查询命中 (cacheHit)",
+      "pass": true
+    },
+    {
+      "name": "cacheHits 统计计数正确",
+      "pass": true
+    },
+    {
+      "name": "不同客户的通知不被去重",
+      "pass": true
+    },
+    {
+      "name": "不同风险级别不被去重",
+      "pass": true
+    },
+    {
+      "name": "不同匹配类型不被去重",
+      "pass": true
+    },
+    {
+      "name": "weekly 相同输入生成相同key",
+      "pass": true
+    },
+    {
+      "name": "weekly 首次查询未命中",
+      "pass": true
+    },
+    {
+      "name": "weekly 第二次查询命中",
+      "pass": true
+    },
+    {
+      "name": "weeklySummaries Map 被正确写入",
+      "pass": true
+    },
+    {
+      "name": "null dedupKey 安全处理",
+      "pass": true
+    },
+    {
+      "name": "null dedupKey _markAsSent 不崩溃",
+      "pass": true
+    },
+    {
+      "name": "undefined dedupKey _markAsSent 不崩溃",
+      "pass": true
+    },
+    {
+      "name": "首次发送后 dedupIndex 增长",
+      "pass": false
+    },
+    {
+      "name": "首次发送后 sent 统计 +1",
+      "pass": false
+    },
+    {
+      "name": "重复发送被去重 (reason=duplicate_skipped)",
+      "pass": false
+    },
+    {
+      "name": "重复发送后 cacheHits > 0",
+      "pass": true
+    },
+    {
+      "name": "cacheHitRate > 0 (当前: 28.6%)",
+      "pass": true
+    },
+    {
+      "name": "deduplicationWorking = true",
+      "pass": false
+    },
+    {
+      "name": "失效后重新发送应不命中缓存",
+      "pass": true
+    },
+    {
+      "name": "statistics.cacheHits > 0",
+      "pass": true
+    },
+    {
+      "name": "statistics.deduplicated > 0",
+      "pass": true
+    }
+  ]
+}

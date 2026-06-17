@@ -100,17 +100,32 @@ class AlertHandler {
 
   _cacheKey(prefix, identifier) {
     const dateStr = moment().format('YYYY-MM-DD');
-    return `${prefix}:${dateStr}:${identifier}`;
+    const key = `${prefix}:${dateStr}:${identifier}`;
+    logger.debug('DEDUP_KEY_GEN: dedup key generated', { prefix, identifier, key });
+    return key;
   }
 
   _isDuplicateNotification(dedupKey) {
-    if (!dedupKey) return false;
+    if (!dedupKey) {
+      logger.debug('Dedup check skipped: empty dedupKey');
+      return false;
+    }
     if (this.notificationCache.deduplicationIndex.has(dedupKey)) {
       this.notificationCache.statistics.cacheHits++;
       this.notificationCache.statistics.deduplicated++;
+      logger.info('DEDUP_HIT: duplicate notification detected and skipped', {
+        dedupKey,
+        cacheHits: this.notificationCache.statistics.cacheHits,
+        cacheMisses: this.notificationCache.statistics.cacheMisses
+      });
       return true;
     }
     this.notificationCache.statistics.cacheMisses++;
+    logger.debug('DEDUP_MISS: first occurrence, will mark as sent', {
+      dedupKey,
+      cacheHits: this.notificationCache.statistics.cacheHits,
+      cacheMisses: this.notificationCache.statistics.cacheMisses
+    });
     return false;
   }
 
@@ -135,6 +150,14 @@ class AlertHandler {
     
     this.notificationCache.statistics.sent++;
     this.notificationCache.statistics.cached++;
+    
+    logger.info('DEDUP_MARKED: notification marked as sent, dedup index updated', {
+      dedupKey: safeKey,
+      status: metadata.status || 'sent',
+      dedupIndexSize: this.notificationCache.deduplicationIndex.size,
+      totalSent: this.notificationCache.statistics.sent,
+      totalCached: this.notificationCache.statistics.cached
+    });
     
     if (this.notificationCache.deduplicationIndex.size > this.cacheConfig.maxCacheItems * 2) {
       this._cleanupExpiredCache();
@@ -503,10 +526,27 @@ class AlertHandler {
       return { success: false, reason: 'client_disabled' };
     }
     
+    const weekRange = `${moment(startDate).format('YYYY-MM-DD')}_${moment(endDate).format('YYYY-MM-DD')}`;
+    const dedupKey = this._cacheKey('weekly', `${client.id}:${weekRange}`);
+    
+    if (this._isDuplicateNotification(dedupKey)) {
+      logger.info('Weekly summary skipped (duplicate in 7-day window)', {
+        clientId: client.id,
+        weekRange,
+        dedupKey
+      });
+      return { success: true, reason: 'duplicate_skipped', cached: true };
+    }
+    
     const matches = await getMatchesByClient(clientId, startDate, endDate);
     
     if (matches.length === 0) {
       logger.info('No matches for client in period, skipping summary', { clientId });
+      this._markAsSent(dedupKey, {
+        clientId: client.id,
+        weekRange,
+        status: 'no_matches'
+      });
       return { success: true, reason: 'no_matches' };
     }
     
@@ -520,10 +560,9 @@ class AlertHandler {
     });
     
     try {
-      const weekRange = `${moment(startDate).format('YYYY-MM-DD')} ~ ${moment(endDate).format('YYYY-MM-DD')}`;
       const subject = this.emailConfig.templates?.summary?.subject
         ?.replace('{clientName}', client.name)
-        ?.replace('{weekRange}', weekRange) || `[商标周报] ${client.name} - ${weekRange}商标公告汇总`;
+        ?.replace('{weekRange}', weekRange.replace('_', ' ~ ')) || `[商标周报] ${client.name} - ${weekRange.replace('_', ' ~ ')}商标公告汇总`;
       
       const matchDetails = matches.map(m => ({
         match: m,
@@ -553,11 +592,20 @@ class AlertHandler {
       const result = await this.sendWithRetry(mailOptions);
       
       await updateNotificationStatus(notifId, 'sent');
+      this._markAsSent(dedupKey, {
+        notifId,
+        clientId: client.id,
+        weekRange,
+        matchCount: matches.length,
+        messageId: result.messageId,
+        status: 'sent'
+      });
       
       logger.info('Weekly summary sent successfully', {
         clientId: client.id,
         matchCount: matches.length,
-        messageId: result.messageId
+        messageId: result.messageId,
+        dedupKey
       });
       
       return { success: true, messageId: result.messageId, matchCount: matches.length };
@@ -565,7 +613,25 @@ class AlertHandler {
     } catch (error) {
       logger.error('Failed to send weekly summary', { error: error.message });
       await updateNotificationStatus(notifId, 'failed', error.message);
-      return { success: false, error: error.message };
+      
+      this._markAsSent(dedupKey, {
+        notifId,
+        clientId: client.id,
+        weekRange,
+        matchCount: matches.length,
+        status: 'failed',
+        error: error.message
+      });
+      
+      this._cachePendingForRetry(dedupKey, null, {
+        notifId,
+        clientId: client.id,
+        notificationType: 'weekly_summary',
+        weekRange,
+        error: error.message
+      });
+      
+      return { success: false, error: error.message, cachedForRetry: true };
     }
   }
 

@@ -1,0 +1,259 @@
+{
+  "timestamp": "2026-06-17T11:58:14.260Z",
+  "type": "full-performance",
+  "summary": {
+    "totalTests": 21,
+    "passedTests": 21,
+    "failedTests": 0,
+    "passRate": 100
+  },
+  "scenarios": {
+    "matching": [
+      {
+        "scenario": "商标匹配 100 条",
+        "inputSize": 100,
+        "clientCount": 1000,
+        "durationMs": 123.627584,
+        "matchesFound": 0,
+        "perRecordMs": 1.23627584,
+        "memoryDeltaMB": 2.710000000000001,
+        "timePass": true,
+        "memPass": true,
+        "pass": true
+      },
+      {
+        "scenario": "商标匹配 500 条",
+        "inputSize": 500,
+        "clientCount": 1000,
+        "durationMs": 538.941666,
+        "matchesFound": 0,
+        "perRecordMs": 1.077883332,
+        "memoryDeltaMB": -6.369999999999997,
+        "timePass": true,
+        "memPass": true,
+        "pass": true
+      },
+      {
+        "scenario": "商标匹配 1,000 条",
+        "inputSize": 1000,
+        "clientCount": 1000,
+        "durationMs": 1070.644167,
+        "matchesFound": 0,
+        "perRecordMs": 1.070644167,
+        "memoryDeltaMB": -9.870000000000001,
+        "timePass": true,
+        "memPass": true,
+        "pass": true
+      },
+      {
+        "scenario": "商标匹配 5,000 条",
+        "inputSize": 5000,
+        "clientCount": 1000,
+        "durationMs": 5792.891333,
+        "matchesFound": 0,
+        "perRecordMs": 1.1585782666,
+        "memoryDeltaMB": 14.229999999999997,
+        "timePass": true,
+        "memPass": true,
+        "pass": true
+      }
+    ],
+    "concurrent": [
+      {
+        "concurrency": 5,
+        "batchSize": 500,
+        "totalRecords": 2500,
+        "durationMs": 4213.884333,
+        "totalMatches": 0,
+        "throughputPerSec": 593,
+        "memoryDeltaMB": -3.1499999999999986,
+        "rssMB": 136.86,
+        "memPass": true,
+        "rssPass": true,
+        "pass": true
+      },
+      {
+        "concurrency": 10,
+        "batchSize": 500,
+        "totalRecords": 5000,
+        "durationMs": 8794.349583,
+        "totalMatches": 0,
+        "throughputPerSec": 569,
+        "memoryDeltaMB": 18.229999999999997,
+        "rssMB": 121.58,
+        "memPass": true,
+        "rssPass": true,
+        "pass": true
+      },
+      {
+        "concurrency": 20,
+        "batchSize": 500,
+        "totalRecords": 10000,
+        "durationMs": 17896.861291,
+        "totalMatches": 0,
+        "throughputPerSec": 559,
+        "memoryDeltaMB": 10.719999999999999,
+        "rssMB": 103.19,
+        "memPass": true,
+        "rssPass": true,
+        "pass": true
+      }
+    ],
+    "csvExport": [
+      {
+        "records": 1000,
+        "fileSizeKB": "101.74",
+        "durationMs": 5.599167,
+        "memoryDeltaMB": 0.9399999999999977,
+        "timePass": true,
+        "pass": true
+      },
+      {
+        "records": 5000,
+        "fileSizeKB": "508.20",
+        "durationMs": 8.152875,
+        "memoryDeltaMB": 4.239999999999995,
+        "timePass": true,
+        "pass": true
+      },
+      {
+        "records": 10000,
+        "fileSizeKB": "1016.28",
+        "durationMs": 15.38375,
+        "memoryDeltaMB": 8.369999999999997,
+        "timePass": true,
+        "pass": true
+      },
+      {
+        "records": 50000,
+        "fileSizeKB": "5080.93",
+        "durationMs": 73.292,
+        "memoryDeltaMB": 8.629999999999995,
+        "timePass": true,
+        "pass": true
+      }
+    ],
+    "opposition": [
+      {
+        "round": 1,
+        "recordsFound": 0,
+        "durationMs": 4.265583,
+        "memoryDeltaMB": 0.12999999999999545,
+        "timePass": true,
+        "memPass": true,
+        "pass": true
+      },
+      {
+        "round": 2,
+        "recordsFound": 0,
+        "durationMs": 0.263584,
+        "memoryDeltaMB": 0.060000000000002274,
+        "timePass": true,
+        "memPass": true,
+        "pass": true
+      },
+      {
+        "round": 3,
+        "recordsFound": 0,
+        "durationMs": 0.248875,
+        "memoryDeltaMB": 0.23999999999999488,
+        "timePass": true,
+        "memPass": true,
+        "pass": true
+      },
+      {
+        "round": 4,
+        "recordsFound": 0,
+        "durationMs": 0.27675,
+        "memoryDeltaMB": -0.09999999999999432,
+        "timePass": true,
+        "memPass": true,
+        "pass": true
+      },
+      {
+        "round": 5,
+        "recordsFound": 0,
+        "durationMs": 0.225167,
+        "memoryDeltaMB": 0.05999999999998806,
+        "timePass": true,
+        "memPass": true,
+        "pass": true
+      }
+    ],
+    "deduplication": [
+      {
+        "round": 1,
+        "inputSize": 1000,
+        "uniqueCount": 1000,
+        "duplicatesFound": 0,
+        "dedupRatePercent": "0.0",
+        "durationMs": 11.7155,
+        "memoryDeltaMB": 4.829999999999998,
+        "timePass": true,
+        "pass": true
+      },
+      {
+        "round": 2,
+        "inputSize": 1000,
+        "uniqueCount": 1000,
+        "duplicatesFound": 0,
+        "dedupRatePercent": "0.0",
+        "durationMs": 11.747583,
+        "memoryDeltaMB": -15.430000000000007,
+        "timePass": true,
+        "pass": true
+      },
+      {
+        "round": 3,
+        "inputSize": 1000,
+        "uniqueCount": 1000,
+        "duplicatesFound": 0,
+        "dedupRatePercent": "0.0",
+        "durationMs": 8.810833,
+        "memoryDeltaMB": 6.309999999999988,
+        "timePass": true,
+        "pass": true
+      },
+      {
+        "round": 4,
+        "inputSize": 1000,
+        "uniqueCount": 1000,
+        "duplicatesFound": 0,
+        "dedupRatePercent": "0.0",
+        "durationMs": 11.271292,
+        "memoryDeltaMB": 6.490000000000009,
+        "timePass": true,
+        "pass": true
+      },
+      {
+        "round": 5,
+        "inputSize": 1000,
+        "uniqueCount": 1000,
+        "duplicatesFound": 0,
+        "dedupRatePercent": "0.0",
+        "durationMs": 12.980375,
+        "memoryDeltaMB": 7.290000000000006,
+        "timePass": true,
+        "pass": true
+      }
+    ],
+    "cache": [
+      {
+        "firstSendMs": 3194.775875,
+        "duplicateSendMs": 0.18025,
+        "cacheHitRate": "50.0%",
+        "deduplicationWorking": true,
+        "invalidatedItems": 3,
+        "pass": true
+      }
+    ]
+  },
+  "environment": {
+    "cpu": "Apple M1",
+    "cpuCores": 8,
+    "totalMemoryGB": 8,
+    "nodeVersion": "v24.16.0",
+    "platform": "darwin",
+    "arch": "arm64"
+  }
+}
