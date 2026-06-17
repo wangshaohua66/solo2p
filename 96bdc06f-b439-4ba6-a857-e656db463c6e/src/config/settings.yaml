@@ -1,0 +1,159 @@
+system:
+  name: "商标公告智能监控系统"
+  version: "1.0.0"
+  timezone: "Asia/Shanghai"
+  maxMemoryMB: 512
+  retry:
+    maxAttempts: 3
+    baseDelay: 1000
+    maxDelay: 30000
+
+scheduler:
+  cronExpression: "0 0 2 * * 1"
+  runOnStartup: false
+  concurrency: 5
+  batchSize: 100
+
+scraper:
+  baseUrl: "https://sbj.cnipa.gov.cn"
+  announcementListUrl: "/sbcx/sbgg"
+  detailUrl: "/sbcx/sbgg/detail"
+  timeout: 30000
+  headless: true
+  userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+  downloadPath: "./data/pdfs"
+  captcha:
+    enabled: false
+    service: "third_party"
+    apiKey: ""
+    apiEndpoint: ""
+
+parser:
+  pdfExtractTimeout: 60000
+  tableParsing:
+    enabled: true
+    mergeMultiPage: true
+    maxPagesPerPDF: 100
+  fieldMapping:
+    trademarkName: "商标名称"
+    applicant: "申请人"
+    applicationNumber: "申请号"
+    classNumber: "类别"
+    announcementType: "公告类型"
+    announcementDate: "公告日期"
+    registrationNumber: "注册号"
+
+matcher:
+  modes:
+    exact: true
+    pinyin: true
+    acronym: true
+  similarity:
+    algorithm: "levenshtein"
+    threshold:
+      high: 0.9
+      medium: 0.75
+      low: 0.6
+    riskLevels:
+      high: 0.85
+      medium: 0.7
+      low: 0.55
+  batchSize: 50
+
+notifier:
+  email:
+    enabled: true
+    smtp:
+      host: "smtp.example.com"
+      port: 465
+      secure: true
+      auth:
+        user: "notify@example.com"
+        pass: "password"
+    templates:
+      alert:
+        subject: "[商标预警] {clientName} - {alertCount}条商标公告预警"
+        template: "./src/notifier/templates/alert.html"
+      summary:
+        subject: "[商标周报] {clientName} - {weekRange}商标公告汇总"
+        template: "./src/notifier/templates/summary.html"
+    scheduling:
+      instantAlert: true
+      weeklySummary: true
+      summaryCron: "0 0 18 * * 5"
+  channels:
+    - email
+    - cache
+
+database:
+  path: "./data/trademark_monitor.db"
+  backup:
+    enabled: true
+    cron: "0 0 3 * * *"
+    keepDays: 30
+    path: "./data/backups"
+
+clients:
+  - id: "CLIENT001"
+    name: "科技有限公司"
+    contact:
+      name: "张经理"
+      email: "zhang@tech.com"
+      phone: "13800138000"
+    trademarks:
+      - name: "科技创新"
+        classNumber: "42"
+        applicationNumber: "12345678"
+      - name: "智慧未来"
+        classNumber: "9,42"
+        applicationNumber: "87654321"
+    notificationPreferences:
+      instantAlert: true
+      weeklySummary: true
+      riskLevelThreshold: "medium"
+
+  - id: "CLIENT002"
+    name: "食品集团"
+    contact:
+      name: "李总"
+      email: "li@food.com"
+    trademarks:
+      - name: "美味鲜"
+        classNumber: "29,30"
+        applicationNumber: "23456789"
+      - name: "香飘飘"
+        classNumber: "30,32"
+        applicationNumber: "98765432"
+    notificationPreferences:
+      instantAlert: true
+      weeklySummary: true
+      riskLevelThreshold: "high"
+
+logging:
+  level: "info"
+  file:
+    enabled: true
+    path: "./logs"
+    filename: "trademark-monitor-%DATE%.log"
+    maxSize: "20m"
+    maxFiles: "30d"
+  console:
+    enabled: true
+    colorize: true
+  errorFile:
+    enabled: true
+    path: "./logs"
+    filename: "error-%DATE%.log"
+
+reporting:
+  exportPath: "./data/exports"
+  formats:
+    - csv
+    - excel
+  monthlyReport:
+    enabled: true
+    cron: "0 0 8 1 * *"
+  statistics:
+    byClient: true
+    byClass: true
+    byAnnouncementType: true

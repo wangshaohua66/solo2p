@@ -1,0 +1,44 @@
+{
+  "name": "trademark-monitor",
+  "version": "1.0.0",
+  "description": "商标公告智能监控系统 - 自动抓取、解析、匹配和预警商标公告",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js daemon",
+    "manual": "node src/index.js manual",
+    "query": "node src/index.js query",
+    "lint": "eslint src/**/*.js",
+    "test": "jest"
+  },
+  "bin": {
+    "trademark-monitor": "src/index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "puppeteer": "^21.0.0",
+    "cheerio": "^1.0.0-rc.12",
+    "sqlite3": "^5.1.6",
+    "pdf-parse": "^1.1.1",
+    "winston": "^3.10.0",
+    "node-cron": "^3.0.2",
+    "nodemailer": "^6.9.4",
+    "js-yaml": "^4.1.0",
+    "commander": "^11.0.0",
+    "chalk": "^4.1.2",
+    "cli-progress": "^3.12.0",
+    "pinyin-pro": "^3.18.2",
+    "string-similarity": "^4.0.4",
+    "exceljs": "^4.3.0",
+    "axios": "^1.5.0",
+    "lodash": "^4.17.21",
+    "moment": "^2.29.4"
+  },
+  "devDependencies": {
+    "jest": "^29.6.2",
+    "eslint": "^8.47.0"
+  },
+  "author": "IP Agency",
+  "license": "MIT"
+}
