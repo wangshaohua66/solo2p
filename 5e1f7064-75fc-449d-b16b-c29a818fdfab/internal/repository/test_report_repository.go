@@ -228,3 +228,65 @@ func (r *ReportReadLogRepository) Exists(reportID, readerID uint) (bool, error) 
 		Count(&count).Error
 	return count > 0, err
 }
+
+type CriticalAlertRepository struct {
+	*BaseRepository
+}
+
+func NewCriticalAlertRepository(db *gorm.DB) *CriticalAlertRepository {
+	return &CriticalAlertRepository{BaseRepository: NewBaseRepository(db)}
+}
+
+func (r *CriticalAlertRepository) CreateBatchWithTx(tx *gorm.DB, alerts []model.CriticalAlert) error {
+	if len(alerts) == 0 {
+		return nil
+	}
+	return tx.Create(&alerts).Error
+}
+
+func (r *CriticalAlertRepository) Create(alert *model.CriticalAlert) error {
+	return r.db.Create(alert).Error
+}
+
+func (r *CriticalAlertRepository) FindByID(id uint) (*model.CriticalAlert, bool, error) {
+	var alert model.CriticalAlert
+	err := r.db.First(&alert, id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, false, nil
+	}
+	return &alert, true, err
+}
+
+func (r *CriticalAlertRepository) FindBySampleID(sampleID uint) ([]model.CriticalAlert, error) {
+	var alerts []model.CriticalAlert
+	err := r.db.Where("sample_id = ?", sampleID).Order("created_at DESC").Find(&alerts).Error
+	return alerts, err
+}
+
+func (r *CriticalAlertRepository) ListPending(limit int) ([]model.CriticalAlert, error) {
+	var alerts []model.CriticalAlert
+	err := r.db.Where("status = ?", model.AlertStatusPending).
+		Order("alert_time ASC").Limit(limit).Find(&alerts).Error
+	return alerts, err
+}
+
+func (r *CriticalAlertRepository) MarkSent(id uint, sentAt time.Time) error {
+	return r.db.Model(&model.CriticalAlert{}).Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"status":  model.AlertStatusSent,
+			"sent_at": sentAt,
+		}).Error
+}
+
+func (r *CriticalAlertRepository) MarkFailed(id uint, errorMsg string) error {
+	return r.db.Model(&model.CriticalAlert{}).Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"status":        model.AlertStatusFailed,
+			"error_message": errorMsg,
+		}).Error
+}
+
+func (r *CriticalAlertRepository) IncrementRetry(id uint) error {
+	return r.db.Model(&model.CriticalAlert{}).Where("id = ?", id).
+		UpdateColumn("retry_count", gorm.Expr("retry_count + ?", 1)).Error
+}

@@ -54,6 +54,7 @@ func main() {
 	criticalRepo := repository.NewCriticalValueRecordRepository(db)
 	reportRepo := repository.NewReportRepository(db)
 	reportReadRepo := repository.NewReportReadLogRepository(db)
+	alertRepo := repository.NewCriticalAlertRepository(db)
 	settlementRepo := repository.NewSettlementRepository(db)
 	detailRepo := repository.NewSettlementDetailRepository(db)
 	auditRepo := repository.NewAuditLogRepository(db)
@@ -67,7 +68,7 @@ func main() {
 		instRepo, itemRepo, instPriceRepo, pkgRepo, userRepo,
 	)
 	resultService := service.NewTestResultService(
-		db, resultRepo, sampleRepo, sampleItemRepo, itemRepo, criticalRepo, userRepo,
+		db, resultRepo, sampleRepo, sampleItemRepo, itemRepo, criticalRepo, alertRepo, userRepo, instRepo,
 	)
 	criticalService := service.NewCriticalValueService(db, criticalRepo, sampleRepo, userRepo)
 	reportService := service.NewReportService(
@@ -185,6 +186,7 @@ func autoMigrate(db *gorm.DB) error {
 		&model.SampleStatusLog{},
 		&model.TestResult{},
 		&model.CriticalValueRecord{},
+		&model.CriticalAlert{},
 		&model.Report{},
 		&model.ReportReadLog{},
 		&model.Settlement{},

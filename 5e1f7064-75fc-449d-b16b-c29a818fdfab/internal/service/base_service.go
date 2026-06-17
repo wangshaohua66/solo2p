@@ -8,6 +8,7 @@ import (
 	"lab-management/internal/model"
 	appErr "lab-management/internal/pkg/errors"
 	"lab-management/internal/pkg/config"
+	"lab-management/internal/pkg/utils"
 	"lab-management/internal/repository"
 	"lab-management/internal/middleware"
 	"lab-management/internal/dto"
@@ -83,6 +84,9 @@ func NewInstitutionService(repo *repository.InstitutionRepository) *InstitutionS
 }
 
 func (s *InstitutionService) Create(req *dto.CreateInstitutionRequest) (uint, *appErr.ErrorCode) {
+	if !utils.IsValidInstitutionCode(req.Code) {
+		return 0, appErr.ErrInvalidParams.WithMessage("机构代码必须为6位大写字母或数字")
+	}
 	_, exists, err := s.repo.FindByCode(req.Code)
 	if err != nil {
 		return 0, appErr.ErrDatabaseError

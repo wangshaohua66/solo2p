@@ -192,5 +192,5 @@ type StatisticsQuery struct {
 	StartTime     time.Time `form:"start_time" binding:"required" time_format:"2006-01-02"`
 	EndTime       time.Time `form:"end_time" binding:"required" time_format:"2006-01-02"`
 	InstitutionID *uint     `form:"institution_id" binding:"omitempty,min=1"`
-	Dimension     string    `form:"dimension" binding:"required,oneof=institution category status item urgency"`
+	Dimension     string    `form:"dimension" binding:"required,oneof=institution category status item urgency tat tat_institution"`
 }

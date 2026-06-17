@@ -295,7 +295,6 @@ func (c *SettlementController) GetSettlementDetails(ctx *gin.Context) {
 type StatisticsController struct {
 	*BaseController
 	statsService *service.StatisticsService
-	_            *repository.StatisticsRepository
 }
 
 func NewStatisticsController(

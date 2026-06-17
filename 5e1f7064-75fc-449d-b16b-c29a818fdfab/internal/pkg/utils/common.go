@@ -1,16 +1,21 @@
 package utils
 
 import (
-	"crypto/md5"
-	"encoding/hex"
 	"fmt"
 	"math/rand"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+var validInstitutionCodeRegex = regexp.MustCompile(`^[A-Z0-9]{6}$`)
+
+func IsValidInstitutionCode(code string) bool {
+	return validInstitutionCodeRegex.MatchString(code)
+}
 
 func GenerateTraceID() string {
 	return strings.ReplaceAll(uuid.New().String(), "-", "")
@@ -48,6 +53,10 @@ func ParseBarcode(barcode string) (time.Time, string, int, error) {
 	instCode := barcode[8:14]
 	seqStr := barcode[14:]
 
+	if !IsValidInstitutionCode(instCode) {
+		return time.Time{}, "", 0, fmt.Errorf("机构码格式不合法(需6位大写字母或数字)")
+	}
+
 	t, err := time.Parse("20060102", dateStr)
 	if err != nil {
 		return time.Time{}, "", 0, fmt.Errorf("日期解析失败: %v", err)
@@ -57,12 +66,6 @@ func ParseBarcode(barcode string) (time.Time, string, int, error) {
 		return time.Time{}, "", 0, fmt.Errorf("流水号解析失败: %v", err)
 	}
 	return t, instCode, seq, nil
-}
-
-func MD5Sign(content string) string {
-	h := md5.New()
-	h.Write([]byte(content))
-	return hex.EncodeToString(h.Sum(nil))
 }
 
 func GetBeforeDays(days int) time.Time {

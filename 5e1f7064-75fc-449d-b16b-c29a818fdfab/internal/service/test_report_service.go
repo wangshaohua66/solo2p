@@ -19,7 +19,9 @@ type TestResultService struct {
 	sampleItemRepo    *repository.SampleItemRepository
 	itemRepo          *repository.TestItemRepository
 	criticalRepo      *repository.CriticalValueRecordRepository
+	alertRepo         *repository.CriticalAlertRepository
 	userRepo          *repository.UserRepository
+	instRepo          *repository.InstitutionRepository
 }
 
 func NewTestResultService(
@@ -29,7 +31,9 @@ func NewTestResultService(
 	sampleItemRepo *repository.SampleItemRepository,
 	itemRepo *repository.TestItemRepository,
 	criticalRepo *repository.CriticalValueRecordRepository,
+	alertRepo *repository.CriticalAlertRepository,
 	userRepo *repository.UserRepository,
+	instRepo *repository.InstitutionRepository,
 ) *TestResultService {
 	return &TestResultService{
 		db:             db,
@@ -38,7 +42,9 @@ func NewTestResultService(
 		sampleItemRepo: sampleItemRepo,
 		itemRepo:       itemRepo,
 		criticalRepo:   criticalRepo,
+		alertRepo:      alertRepo,
 		userRepo:       userRepo,
+		instRepo:       instRepo,
 	}
 }
 
@@ -95,7 +101,7 @@ func (s *TestResultService) SubmitResults(req *dto.SubmitTestResultsRequest, tes
 
 	itemMap := make(map[uint]model.SampleItem)
 	for _, si := range sampleItems {
-		itemMap[si.SampleItemID] = si
+		itemMap[si.TestItemID] = si
 	}
 
 	results := make([]model.TestResult, 0, len(req.Results))
@@ -151,6 +157,7 @@ func (s *TestResultService) SubmitResults(req *dto.SubmitTestResultsRequest, tes
 		if err := s.resultRepo.CreateBatchWithTx(tx, results); err != nil {
 			return err
 		}
+		alerts := make([]model.CriticalAlert, 0, len(criticalRecords))
 		for i := range criticalRecords {
 			for j := range results {
 				if results[j].TestItemID == criticalRecords[i].TestItemID {
@@ -159,6 +166,38 @@ func (s *TestResultService) SubmitResults(req *dto.SubmitTestResultsRequest, tes
 				}
 			}
 			if err := s.criticalRepo.CreateWithTx(tx, &criticalRecords[i]); err != nil {
+				return err
+			}
+			item, _, _ := s.itemRepo.FindByID(criticalRecords[i].TestItemID)
+			inst, _, _ := s.instRepo.FindByID(sample.InstitutionID)
+			instName := ""
+			if inst != nil {
+				instName = inst.Name
+			}
+			itemName := ""
+			if item != nil {
+				itemName = item.Name
+			}
+			alertContent := fmt.Sprintf(
+				"【危急值报警】样本条码:%s 机构:%s 患者:%s 项目:%s 结果:%s 参考范围:%s 请立即复核处理！",
+				sample.Barcode, instName, sample.PatientName, itemName,
+				criticalRecords[i].ResultValue, criticalRecords[i].RefRange,
+			)
+			alerts = append(alerts, model.CriticalAlert{
+				CriticalValueID: criticalRecords[i].ID,
+				SampleID:        req.SampleID,
+				TestItemID:      criticalRecords[i].TestItemID,
+				AlertType:       model.AlertTypeSystem,
+				TargetType:      "INSTITUTION",
+				TargetID:        &sample.InstitutionID,
+				Content:         alertContent,
+				Status:          model.AlertStatusSent,
+				AlertTime:       now,
+				SentAt:          &now,
+			})
+		}
+		if len(alerts) > 0 {
+			if err := s.alertRepo.CreateBatchWithTx(tx, alerts); err != nil {
 				return err
 			}
 		}
@@ -202,13 +241,18 @@ func NewCriticalValueService(
 	}
 }
 
-func (s *CriticalValueService) Review(req *dto.ReviewCriticalValueRequest, reviewerID uint) *appErr.ErrorCode {
+func (s *CriticalValueService) Review(req *dto.ReviewCriticalValueRequest, reviewerID uint, reviewerRole string) *appErr.ErrorCode {
 	record, exists, err := s.criticalRepo.FindByID(req.RecordID)
 	if err != nil {
 		return appErr.ErrDatabaseError
 	}
 	if !exists {
 		return appErr.ErrSampleNotFound.WithMessage("危急值记录不存在")
+	}
+
+	reviewer, _, err := s.userRepo.FindByID(reviewerID)
+	if err != nil {
+		return appErr.ErrDatabaseError
 	}
 
 	now := time.Now()
@@ -222,12 +266,29 @@ func (s *CriticalValueService) Review(req *dto.ReviewCriticalValueRequest, revie
 		if *record.FirstReviewedBy == reviewerID {
 			return appErr.ErrCriticalValueUnreviewed.WithMessage("双人复核需不同人员")
 		}
+		if reviewer != nil && record.FirstReviewedBy != nil {
+			firstReviewer, _, _ := s.userRepo.FindByID(*record.FirstReviewedBy)
+			if firstReviewer != nil && firstReviewer.Role == reviewer.Role && reviewer.Role != model.UserRoleAdmin {
+				return appErr.ErrCriticalValueUnreviewed.WithMessage("双人复核需不同角色权限人员")
+			}
+		}
 		if err := s.criticalRepo.SecondReview(req.RecordID, reviewerID, req.Comment, now); err != nil {
 			return appErr.ErrDatabaseError
 		}
 	} else {
 		if record.FirstReviewedBy != nil {
 			return appErr.ErrCriticalValueReviewed.WithMessage("已完成第一复核")
+		}
+		allowedRoles := []string{model.UserRoleReviewer, model.UserRoleDoctor, model.UserRoleAdmin}
+		roleAllowed := false
+		for _, r := range allowedRoles {
+			if r == reviewerRole {
+				roleAllowed = true
+				break
+			}
+		}
+		if !roleAllowed {
+			return appErr.ErrForbidden.WithMessage("当前角色无复核权限")
 		}
 		if err := s.criticalRepo.FirstReview(req.RecordID, reviewerID, req.Comment, now); err != nil {
 			return appErr.ErrDatabaseError
@@ -365,8 +426,10 @@ func (s *ReportService) Generate(sampleID uint, operatorID uint) (string, *appEr
 
 	now := time.Now()
 	reportNo := utils.GenerateReportNo()
-	signContent := fmt.Sprintf("%s|%d|%s", reportNo, sampleID, now.Format("20060102150405"))
-	signature := utils.MD5Sign(signContent)
+	signContent, signature, signErr := utils.GenerateReportSignature(reportNo, sampleID, now)
+	if signErr != nil {
+		return "", appErr.ErrGenerateReport.WithMessage("RSA签名失败: " + signErr.Error())
+	}
 
 	reportData := &utils.ReportData{
 		ReportNo:    reportNo,
@@ -382,6 +445,7 @@ func (s *ReportService) Generate(sampleID uint, operatorID uint) (string, *appEr
 		Items:       reportItems,
 		Signature:   signature,
 		Barcode:     sample.Barcode,
+		SignContent: signContent,
 	}
 
 	pdfData, err := utils.GenerateReportPDF(reportData)
@@ -447,9 +511,12 @@ func (s *ReportService) Publish(sampleID uint, operatorID uint) *appErr.ErrorCod
 	}
 
 	now := time.Now()
-	return s.reportRepo.UpdateStatus(report.ID, model.ReportStatusPublished,
+	if err := s.reportRepo.UpdateStatus(report.ID, model.ReportStatusPublished,
 		report.DoctorID, report.ReviewerID, report.DoctorName, report.ReviewerName,
-		report.Signature, report.GeneratedAt, &now)
+		report.Signature, report.GeneratedAt, &now); err != nil {
+		return appErr.ErrDatabaseError
+	}
+	return nil
 }
 
 func (s *ReportService) GetByID(id uint) (*model.Report, *appErr.ErrorCode) {

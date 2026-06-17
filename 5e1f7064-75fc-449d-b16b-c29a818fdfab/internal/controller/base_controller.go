@@ -9,7 +9,6 @@ import (
 	appErr "lab-management/internal/pkg/errors"
 	"lab-management/internal/pkg/response"
 	"lab-management/internal/service"
-	"lab-management/internal/model"
 )
 
 var validate = validator.New()

@@ -309,3 +309,33 @@ type DailyCounter struct {
 	Counter       int64     `gorm:"default:0" json:"counter"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }
+
+const (
+	AlertTypeSystem  = "SYSTEM"
+	AlertTypeSMS     = "SMS"
+	AlertTypeEmail   = "EMAIL"
+	AlertTypeWebhook = "WEBHOOK"
+
+	AlertStatusPending = "PENDING"
+	AlertStatusSent    = "SENT"
+	AlertStatusFailed  = "FAILED"
+)
+
+type CriticalAlert struct {
+	ID                uint      `gorm:"primaryKey" json:"id"`
+	CriticalValueID   uint      `gorm:"index;not null" json:"critical_value_id"`
+	SampleID          uint      `gorm:"index;not null" json:"sample_id"`
+	TestItemID        uint      `gorm:"index;not null" json:"test_item_id"`
+	AlertType         string    `gorm:"size:20;not null;default:SYSTEM" json:"alert_type"`
+	TargetType        string    `gorm:"size:20;not null" json:"target_type"`
+	TargetID          *uint     `json:"target_id"`
+	TargetContact     string    `gorm:"size:100" json:"target_contact"`
+	Content           string    `gorm:"type:text;not null" json:"content"`
+	Status            string    `gorm:"size:20;index;not null;default:PENDING" json:"status"`
+	AlertTime         time.Time `gorm:"index;not null" json:"alert_time"`
+	SentAt            *time.Time `json:"sent_at"`
+	ErrorMessage      string    `gorm:"size:500" json:"error_message"`
+	RetryCount        int       `gorm:"default:0" json:"retry_count"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}

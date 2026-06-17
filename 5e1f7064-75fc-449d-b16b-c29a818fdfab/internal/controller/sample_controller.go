@@ -177,7 +177,12 @@ func (c *SampleController) ReviewCriticalValue(ctx *gin.Context) {
 		return
 	}
 	userID := getCurrentUserID(ctx)
-	if ec := c.criticalValueService.Review(&req, userID); ec != nil {
+	role, _ := ctx.Get("role")
+	roleStr := ""
+	if role != nil {
+		roleStr = role.(string)
+	}
+	if ec := c.criticalValueService.Review(&req, userID, roleStr); ec != nil {
 		response.Fail(ctx, ec)
 		return
 	}

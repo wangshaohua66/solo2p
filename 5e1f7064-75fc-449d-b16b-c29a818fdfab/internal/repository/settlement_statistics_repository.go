@@ -270,3 +270,97 @@ func (r *StatisticsRepository) UrgencyStats(start, end time.Time, instID *uint) 
 	err := query.Scan(&result).Error
 	return &result, err
 }
+
+type TATStats struct {
+	TotalCompleted    int64   `json:"total_completed"`
+	AvgTotalMin       float64 `json:"avg_total_min"`
+	MedianTotalMin    float64 `json:"median_total_min"`
+	P90TotalMin       float64 `json:"p90_total_min"`
+	AvgReceiveToTest  float64 `json:"avg_receive_to_test_min"`
+	AvgTestToReview   float64 `json:"avg_test_to_review_min"`
+	AvgReviewToDone   float64 `json:"avg_review_to_done_min"`
+	Within24HoursRate float64 `json:"within_24h_rate"`
+	Within4HoursRate  float64 `json:"within_4h_rate"`
+}
+
+func (r *StatisticsRepository) TATStats(start, end time.Time, instID *uint) (*TATStats, error) {
+	var result TATStats
+
+	type rawRow struct {
+		Total       int64   `gorm:"column:total"`
+		AvgTotal    float64 `gorm:"column:avg_total"`
+		AvgR2T      float64 `gorm:"column:avg_r2t"`
+		AvgT2R      float64 `gorm:"column:avg_t2r"`
+		AvgR2D      float64 `gorm:"column:avg_r2d"`
+		Within24H   int64   `gorm:"column:within_24h"`
+		Within4H    int64   `gorm:"column:within_4h"`
+	}
+
+	var row rawRow
+	sql := `
+		SELECT
+			COUNT(*) as total,
+			COALESCE(AVG(EXTRACT(EPOCH FROM (s.updated_at - s.created_at))/60), 0) as avg_total,
+			0 as avg_r2t,
+			0 as avg_t2r,
+			0 as avg_r2d,
+			COUNT(CASE WHEN EXTRACT(EPOCH FROM (s.updated_at - s.created_at))/60 <= 1440 THEN 1 END) as within_24h,
+			COUNT(CASE WHEN EXTRACT(EPOCH FROM (s.updated_at - s.created_at))/60 <= 240 THEN 1 END) as within_4h
+		FROM samples s
+		WHERE s.created_at BETWEEN ? AND ?
+		AND s.status = ?`
+	args := []interface{}{start, end, model.SampleStatusCompleted}
+	if instID != nil {
+		sql += " AND s.institution_id = ?"
+		args = append(args, *instID)
+	}
+
+	err := r.db.Raw(sql, args...).Scan(&row).Error
+	if err != nil {
+		return nil, err
+	}
+
+	result.TotalCompleted = row.Total
+	result.AvgTotalMin = row.AvgTotal
+	result.AvgReceiveToTest = row.AvgR2T
+	result.AvgTestToReview = row.AvgT2R
+	result.AvgReviewToDone = row.AvgR2D
+	if row.Total > 0 {
+		result.Within24HoursRate = float64(row.Within24H) * 100.0 / float64(row.Total)
+		result.Within4HoursRate = float64(row.Within4H) * 100.0 / float64(row.Total)
+	}
+	return &result, nil
+}
+
+type InstitutionTATStats struct {
+	InstitutionID uint    `json:"institution_id"`
+	Institution   string  `json:"institution"`
+	TotalCount    int64   `json:"total_count"`
+	AvgTATMin     float64 `json:"avg_tat_min"`
+	Within24HRate float64 `json:"within_24h_rate"`
+}
+
+func (r *StatisticsRepository) TATByInstitution(start, end time.Time, instID *uint) ([]InstitutionTATStats, error) {
+	var result []InstitutionTATStats
+	sql := `
+		SELECT
+			s.institution_id,
+			i.name as institution,
+			COUNT(*) as total_count,
+			COALESCE(AVG(EXTRACT(EPOCH FROM (s.updated_at - s.created_at))/60), 0) as avg_tat_min,
+			CASE WHEN COUNT(*) > 0 THEN
+				ROUND(COUNT(CASE WHEN EXTRACT(EPOCH FROM (s.updated_at - s.created_at))/60 <= 1440 THEN 1 END)*100.0/COUNT(*), 2)
+				ELSE 0 END as within_24h_rate
+		FROM samples s
+		LEFT JOIN institutions i ON s.institution_id = i.id
+		WHERE s.created_at BETWEEN ? AND ?
+		AND s.status = ?`
+	args := []interface{}{start, end, model.SampleStatusCompleted}
+	if instID != nil {
+		sql += " AND s.institution_id = ?"
+		args = append(args, *instID)
+	}
+	sql += " GROUP BY s.institution_id, i.name ORDER BY avg_tat_min ASC"
+	err := r.db.Raw(sql, args...).Scan(&result).Error
+	return result, err
+}

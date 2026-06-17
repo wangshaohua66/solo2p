@@ -179,7 +179,10 @@ func (s *SettlementService) Confirm(id uint, req *dto.ConfirmSettlementRequest, 
 	}
 
 	now := time.Now()
-	return s.settlementRepo.Confirm(id, confirmerID, now, req.Remarks)
+	if err := s.settlementRepo.Confirm(id, confirmerID, now, req.Remarks); err != nil {
+		return appErr.ErrDatabaseError
+	}
+	return nil
 }
 
 func (s *SettlementService) GetByID(id uint) (*model.Settlement, *appErr.ErrorCode) {
@@ -263,6 +266,10 @@ func (s *StatisticsService) Query(q *dto.StatisticsQuery, currentInstID uint) (*
 		result.Data, err = s.repo.ItemStats(start, end, instID, 50)
 	case "urgency":
 		result.Data, err = s.repo.UrgencyStats(start, end, instID)
+	case "tat":
+		result.Data, err = s.repo.TATStats(start, end, instID)
+	case "tat_institution":
+		result.Data, err = s.repo.TATByInstitution(start, end, instID)
 	default:
 		return nil, appErr.ErrInvalidParams.WithMessage(fmt.Sprintf("不支持的维度: %s", q.Dimension))
 	}
