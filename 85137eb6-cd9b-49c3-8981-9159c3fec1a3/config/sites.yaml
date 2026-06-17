@@ -31,6 +31,14 @@ log:
   dir: ./logs
   retention_days: 30
 
+captcha_solver:
+  enabled: false
+  provider: ocrspace
+  api_key: ""
+  api_url: "https://api.ocr.space/parse/image"
+  language: eng
+  timeout: 30
+
 sites:
   - id: tmall
     name: 天猫

@@ -57,13 +57,25 @@ type Engine struct {
 	errMu          sync.Mutex
 }
 
-func NewEngine(cfg *config.AppConfig) *Engine {
+func NewEngine(cfg *config.AppConfig) (*Engine, error) {
+	captchaMgr, err := NewCaptchaManagerFromConfig(CaptchaSolverCfg{
+		Enabled:  cfg.CaptchaSolver.Enabled,
+		Provider: cfg.CaptchaSolver.Provider,
+		APIKey:   cfg.CaptchaSolver.APIKey,
+		APIURL:   cfg.CaptchaSolver.APIURL,
+		Language: cfg.CaptchaSolver.Language,
+		Timeout:  cfg.CaptchaSolver.Timeout,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("init captcha manager: %w", err)
+	}
+
 	e := &Engine{
 		cfg:            cfg,
 		semaphore:      make(chan struct{}, cfg.Global.Concurrency),
 		results:        make(chan *CrawlResult, cfg.Global.Concurrency*2),
 		cookieJar:      make(map[string]map[string]string),
-		captchaMgr:     NewCaptchaManager(),
+		captchaMgr:     captchaMgr,
 		errorCollector: make([]string, 0),
 	}
 
@@ -100,7 +112,7 @@ func NewEngine(cfg *config.AppConfig) *Engine {
 	})
 
 	e.collector = c
-	return e
+	return e, nil
 }
 
 func (e *Engine) setRequestHeaders(r *colly.Request) {

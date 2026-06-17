@@ -18,3 +18,11 @@
 [2026-06-17 20:23:45.476] [WARN ] [captcha.go:139] Captcha detected but no solver configured (site=test type=image)
 [2026-06-17 20:25:15.102] [WARN ] [captcha.go:139] Captcha detected but no solver configured (site=test type=image)
 [2026-06-17 20:25:15.102] [WARN ] [captcha.go:139] Captcha detected but no solver configured (site=test type=image)
+[2026-06-17 20:35:22.136] [INFO ] [captcha.go:208] Captcha solver registered: provider=ocrspace
+[2026-06-17 20:35:22.569] [ERROR] [captcha.go:382] Captcha solving error: captcha detected (site=test type=image) but no solver configured: set captcha_solver.enabled=true, captcha_solver.provider=ocrspace and captcha_solver.api_key in config or CAPTCHA_SOLVER_API_KEY env var
+[2026-06-17 20:36:03.567] [INFO ] [captcha.go:209] Captcha solver registered: provider=ocrspace
+[2026-06-17 20:36:03.970] [ERROR] [captcha.go:383] Captcha solving error: captcha detected (site=test type=image) but no solver configured: set captcha_solver.enabled=true, captcha_solver.provider=ocrspace and captcha_solver.api_key in config or CAPTCHA_SOLVER_API_KEY env var
+[2026-06-17 20:36:08.069] [INFO ] [captcha.go:209] Captcha solver registered: provider=ocrspace
+[2026-06-17 20:36:08.501] [ERROR] [captcha.go:383] Captcha solving error: captcha detected (site=test type=image) but no solver configured: set captcha_solver.enabled=true, captcha_solver.provider=ocrspace and captcha_solver.api_key in config or CAPTCHA_SOLVER_API_KEY env var
+[2026-06-17 20:37:37.590] [INFO ] [captcha.go:209] Captcha solver registered: provider=ocrspace
+[2026-06-17 20:37:41.695] [ERROR] [captcha.go:383] Captcha solving error: captcha detected (site=test type=image) but no solver configured: set captcha_solver.enabled=true, captcha_solver.provider=ocrspace and captcha_solver.api_key in config or CAPTCHA_SOLVER_API_KEY env var

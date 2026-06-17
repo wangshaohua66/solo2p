@@ -196,3 +196,94 @@ func TestGetSKUsByBrand(t *testing.T) {
 		t.Errorf("Expected all SKUs when brand is empty, got %d", len(all))
 	}
 }
+
+func TestCaptchaSolverConfigDefaults(t *testing.T) {
+	cfg, err := Load("../config/sites.yaml")
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
+	}
+	if cfg.CaptchaSolver.Enabled {
+		t.Error("Captcha solver should be disabled by default")
+	}
+	if cfg.CaptchaSolver.Provider != "ocrspace" {
+		t.Errorf("Expected default provider ocrspace, got %s", cfg.CaptchaSolver.Provider)
+	}
+	if cfg.CaptchaSolver.Language != "eng" {
+		t.Errorf("Expected default language eng, got %s", cfg.CaptchaSolver.Language)
+	}
+	if cfg.CaptchaSolver.Timeout != 30 {
+		t.Errorf("Expected default timeout 30, got %d", cfg.CaptchaSolver.Timeout)
+	}
+}
+
+func TestCaptchaSolverValidateEnabledNoProvider(t *testing.T) {
+	t.Setenv("CAPTCHA_SOLVER_API_KEY", "")
+	t.Setenv("CAPTCHA_SOLVER_PROVIDER", "")
+	cfg := &AppConfig{
+		Sites: []SiteConfig{{ID: "test", Enabled: true}},
+	}
+	cfg.CaptchaSolver.Enabled = true
+	cfg.CaptchaSolver.APIKey = "some-key"
+	cfg.CaptchaSolver.Provider = ""
+
+	err := cfg.validate()
+	if err == nil {
+		t.Fatal("Should error when enabled but provider empty")
+	}
+	if !strings.Contains(err.Error(), "captcha_solver.provider is empty") {
+		t.Errorf("Error should mention provider, got: %v", err)
+	}
+}
+
+func TestCaptchaSolverValidateEnabledNoAPIKey(t *testing.T) {
+	t.Setenv("CAPTCHA_SOLVER_API_KEY", "")
+	t.Setenv("CAPTCHA_SOLVER_PROVIDER", "")
+	cfg := &AppConfig{
+		Sites: []SiteConfig{{ID: "test", Enabled: true}},
+	}
+	cfg.CaptchaSolver.Enabled = true
+	cfg.CaptchaSolver.Provider = "ocrspace"
+	cfg.CaptchaSolver.APIKey = ""
+
+	err := cfg.validate()
+	if err == nil {
+		t.Fatal("Should error when enabled but api_key empty")
+	}
+	if !strings.Contains(err.Error(), "captcha_solver.api_key is empty") {
+		t.Errorf("Error should mention api_key, got: %v", err)
+	}
+}
+
+func TestCaptchaSolverValidateEnvVarOverride(t *testing.T) {
+	t.Setenv("CAPTCHA_SOLVER_API_KEY", "env-key")
+	t.Setenv("CAPTCHA_SOLVER_PROVIDER", "ocrspace")
+
+	cfg := &AppConfig{
+		Sites: []SiteConfig{{ID: "test", Enabled: true}},
+	}
+	cfg.CaptchaSolver.Enabled = true
+	cfg.CaptchaSolver.Provider = "ocrspace"
+	cfg.CaptchaSolver.APIKey = ""
+
+	err := cfg.validate()
+	if err != nil {
+		t.Fatalf("Should not error when env var provides api_key: %v", err)
+	}
+	if cfg.CaptchaSolver.APIKey != "env-key" {
+		t.Errorf("APIKey should be overridden by env var, got %s", cfg.CaptchaSolver.APIKey)
+	}
+}
+
+func TestCaptchaSolverValidateDisabledNoError(t *testing.T) {
+	cfg := &AppConfig{
+		Sites: []SiteConfig{{ID: "test", Enabled: true}},
+	}
+	cfg.CaptchaSolver.Enabled = false
+	cfg.CaptchaSolver.APIKey = ""
+	cfg.CaptchaSolver.Provider = ""
+
+	err := cfg.validate()
+	if err != nil {
+		t.Fatalf("Should not error when disabled: %v", err)
+	}
+}

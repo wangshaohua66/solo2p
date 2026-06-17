@@ -134,7 +134,10 @@ func cmdCrawl(cfg *config.AppConfig, db *storage.Database, args []string) {
 	fmt.Printf("  并发数: %d | 超时: %ds | 重试: %d次\n\n",
 		cfg.Global.Concurrency, cfg.Global.Timeout, cfg.Global.MaxRetries)
 
-	engine := crawler.NewEngine(cfg)
+	engine, err := crawler.NewEngine(cfg)
+	if err != nil {
+		logger.Fatal("初始化爬虫引擎失败: %v", err)
+	}
 	defer engine.Close()
 
 	bar := progressbar.NewOptions(len(tasks),
@@ -470,7 +473,10 @@ func cmdSchedule(cfg *config.AppConfig, db *storage.Database, engine *crawler.En
 func cmdTest(cfg *config.AppConfig, args []string) {
 	fmt.Printf("%s %s\n\n", boldGreen("🔍"), bold("测试电商平台连接..."))
 
-	engine := crawler.NewEngine(cfg)
+	engine, err := crawler.NewEngine(cfg)
+	if err != nil {
+		logger.Fatal("初始化爬虫引擎失败: %v", err)
+	}
 	defer engine.Close()
 
 	sites := cfg.GetEnabledSites()
@@ -712,7 +718,10 @@ func main() {
 	}
 	defer db.Close()
 
-	engine := crawler.NewEngine(cfg)
+	engine, err := crawler.NewEngine(cfg)
+	if err != nil {
+		logger.Fatal("初始化爬虫引擎失败: %v", err)
+	}
 	defer engine.Close()
 
 	printBanner()

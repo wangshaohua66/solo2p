@@ -9,13 +9,13 @@ import (
 )
 
 type GlobalConfig struct {
-	Concurrency       int       `yaml:"concurrency"`
-	Timeout           int       `yaml:"timeout"`
-	MaxRetries        int       `yaml:"max_retries"`
-	RetryInterval     []int     `yaml:"retry_interval"`
-	UserAgentRotation bool      `yaml:"user_agent_rotation"`
-	RequestRateLimit  float64   `yaml:"request_rate_limit"`
-	ProxyList         []string  `yaml:"proxy_list"`
+	Concurrency       int      `yaml:"concurrency"`
+	Timeout           int      `yaml:"timeout"`
+	MaxRetries        int      `yaml:"max_retries"`
+	RetryInterval     []int    `yaml:"retry_interval"`
+	UserAgentRotation bool     `yaml:"user_agent_rotation"`
+	RequestRateLimit  float64  `yaml:"request_rate_limit"`
+	ProxyList         []string `yaml:"proxy_list"`
 }
 
 type AlertMailConfig struct {
@@ -33,10 +33,10 @@ type AlertWebhookConfig struct {
 }
 
 type AlertConfig struct {
-	Enabled              bool              `yaml:"enabled"`
-	Mode                 string            `yaml:"mode"`
-	PriceChangeThreshold float64           `yaml:"price_change_threshold"`
-	Mail                 AlertMailConfig   `yaml:"mail"`
+	Enabled              bool               `yaml:"enabled"`
+	Mode                 string             `yaml:"mode"`
+	PriceChangeThreshold float64            `yaml:"price_change_threshold"`
+	Mail                 AlertMailConfig    `yaml:"mail"`
 	Webhook              AlertWebhookConfig `yaml:"webhook"`
 }
 
@@ -50,6 +50,15 @@ type LogConfig struct {
 	RetentionDays int    `yaml:"retention_days"`
 }
 
+type CaptchaSolverConfig struct {
+	Enabled  bool   `yaml:"enabled"`
+	Provider string `yaml:"provider"`
+	APIKey   string `yaml:"api_key"`
+	APIURL   string `yaml:"api_url"`
+	Language string `yaml:"language"`
+	Timeout  int    `yaml:"timeout"`
+}
+
 type Selectors struct {
 	PriceOriginal string `yaml:"price_original"`
 	PricePromo    string `yaml:"price_promo"`
@@ -60,32 +69,33 @@ type Selectors struct {
 }
 
 type SiteConfig struct {
-	ID         string    `yaml:"id"`
-	Name       string    `yaml:"name"`
-	BaseURL    string    `yaml:"base_url"`
-	SearchURL  string    `yaml:"search_url"`
-	Currency   string    `yaml:"currency"`
-	Enabled    bool      `yaml:"enabled"`
-	RateLimit  float64   `yaml:"rate_limit"`
-	Selectors  Selectors `yaml:"selectors"`
+	ID        string    `yaml:"id"`
+	Name      string    `yaml:"name"`
+	BaseURL   string    `yaml:"base_url"`
+	SearchURL string    `yaml:"search_url"`
+	Currency  string    `yaml:"currency"`
+	Enabled   bool      `yaml:"enabled"`
+	RateLimit float64   `yaml:"rate_limit"`
+	Selectors Selectors `yaml:"selectors"`
 }
 
 type SKUConfig struct {
-	SKUId         string   `yaml:"sku_id"`
-	Name          string   `yaml:"name"`
-	Brand         string   `yaml:"brand"`
-	Category      string   `yaml:"category"`
-	Keywords      []string `yaml:"keywords"`
+	SKUId          string   `yaml:"sku_id"`
+	Name           string   `yaml:"name"`
+	Brand          string   `yaml:"brand"`
+	Category       string   `yaml:"category"`
+	Keywords       []string `yaml:"keywords"`
 	ReferencePrice float64  `yaml:"reference_price"`
 }
 
 type AppConfig struct {
-	Global   GlobalConfig   `yaml:"global"`
-	Alert    AlertConfig    `yaml:"alert"`
-	Database DatabaseConfig `yaml:"database"`
-	Log      LogConfig      `yaml:"log"`
-	Sites    []SiteConfig   `yaml:"sites"`
-	SKUs     []SKUConfig    `yaml:"skus"`
+	Global        GlobalConfig        `yaml:"global"`
+	Alert         AlertConfig         `yaml:"alert"`
+	Database      DatabaseConfig      `yaml:"database"`
+	Log           LogConfig           `yaml:"log"`
+	CaptchaSolver CaptchaSolverConfig `yaml:"captcha_solver"`
+	Sites         []SiteConfig        `yaml:"sites"`
+	SKUs          []SKUConfig         `yaml:"skus"`
 }
 
 var UserAgentPool = []string{
@@ -154,6 +164,26 @@ func (c *AppConfig) validate() error {
 	}
 	if c.Alert.PriceChangeThreshold <= 0 {
 		c.Alert.PriceChangeThreshold = 0.05
+	}
+	if c.CaptchaSolver.Language == "" {
+		c.CaptchaSolver.Language = "eng"
+	}
+	if c.CaptchaSolver.Timeout <= 0 {
+		c.CaptchaSolver.Timeout = 30
+	}
+	if envKey := os.Getenv("CAPTCHA_SOLVER_API_KEY"); envKey != "" {
+		c.CaptchaSolver.APIKey = envKey
+	}
+	if envProvider := os.Getenv("CAPTCHA_SOLVER_PROVIDER"); envProvider != "" {
+		c.CaptchaSolver.Provider = envProvider
+	}
+	if c.CaptchaSolver.Enabled {
+		if c.CaptchaSolver.Provider == "" {
+			return fmt.Errorf("captcha_solver.enabled is true but captcha_solver.provider is empty (supported: ocrspace)")
+		}
+		if c.CaptchaSolver.APIKey == "" {
+			return fmt.Errorf("captcha_solver.enabled is true but captcha_solver.api_key is empty (set in config or CAPTCHA_SOLVER_API_KEY env var)")
+		}
 	}
 	if len(c.Sites) == 0 {
 		return fmt.Errorf("no sites configured")

@@ -53,29 +53,55 @@ type CaptchaSolver interface {
 }
 
 type OCRSpaceSolver struct {
-	APIKey string
-	APIURL string
+	APIKey   string
+	APIURL   string
+	Language string
+	Timeout  time.Duration
 }
 
 func NewOCRSpaceSolver(apiKey string) *OCRSpaceSolver {
 	return &OCRSpaceSolver{
-		APIKey: apiKey,
-		APIURL: "https://api.ocr.space/parse/image",
+		APIKey:   apiKey,
+		APIURL:   "https://api.ocr.space/parse/image",
+		Language: "eng",
+		Timeout:  30 * time.Second,
+	}
+}
+
+func NewOCRSpaceSolverWithConfig(apiKey, apiURL, language string, timeoutSec int) *OCRSpaceSolver {
+	if apiURL == "" {
+		apiURL = "https://api.ocr.space/parse/image"
+	}
+	if language == "" {
+		language = "eng"
+	}
+	if timeoutSec <= 0 {
+		timeoutSec = 30
+	}
+	return &OCRSpaceSolver{
+		APIKey:   apiKey,
+		APIURL:   apiURL,
+		Language: language,
+		Timeout:  time.Duration(timeoutSec) * time.Second,
 	}
 }
 
 func (s *OCRSpaceSolver) Name() string { return "ocrspace" }
 
 func (s *OCRSpaceSolver) Solve(req *CaptchaRequest) (*CaptchaResponse, error) {
+	if s.APIKey == "" {
+		return nil, fmt.Errorf("ocrspace solver: api_key is empty")
+	}
 	if req.ImageData == "" && req.ImageURL == "" {
-		return &CaptchaResponse{Success: false, Message: "no image data"}, nil
+		return &CaptchaResponse{Success: false, Message: "no image data", Provider: s.Name()}, nil
 	}
 
 	formData := url.Values{}
 	formData.Set("apikey", s.APIKey)
-	formData.Set("language", "eng")
+	formData.Set("language", s.Language)
 	formData.Set("isOverlayRequired", "false")
 	formData.Set("OCREngine", "2")
+	formData.Set("scale", "true")
 
 	if req.ImageData != "" {
 		formData.Set("base64Image", "data:image/png;base64,"+req.ImageData)
@@ -89,7 +115,7 @@ func (s *OCRSpaceSolver) Solve(req *CaptchaRequest) (*CaptchaResponse, error) {
 	}
 	httpReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := &http.Client{Timeout: s.Timeout}
 	resp, err := client.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("ocr request: %w", err)
@@ -98,8 +124,12 @@ func (s *OCRSpaceSolver) Solve(req *CaptchaRequest) (*CaptchaResponse, error) {
 
 	body, _ := io.ReadAll(resp.Body)
 
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("ocrspace api returned status %d: %s", resp.StatusCode, truncateBody(body, 200))
+	}
+
 	var result struct {
-		IsErroredOnProcessing bool   `json:"IsErroredOnProcessing"`
+		IsErroredOnProcessing bool     `json:"IsErroredOnProcessing"`
 		ErrorMessage          []string `json:"ErrorMessage"`
 		ParsedResults         []struct {
 			ParsedText string `json:"ParsedText"`
@@ -107,13 +137,14 @@ func (s *OCRSpaceSolver) Solve(req *CaptchaRequest) (*CaptchaResponse, error) {
 	}
 
 	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("parse ocr response: %w", err)
+		return nil, fmt.Errorf("parse ocr response: %w (body: %s)", err, truncateBody(body, 200))
 	}
 
 	if result.IsErroredOnProcessing {
 		return &CaptchaResponse{
-			Success: false,
-			Message: strings.Join(result.ErrorMessage, "; "),
+			Success:  false,
+			Message:  strings.Join(result.ErrorMessage, "; "),
+			Provider: s.Name(),
 		}, nil
 	}
 
@@ -127,7 +158,14 @@ func (s *OCRSpaceSolver) Solve(req *CaptchaRequest) (*CaptchaResponse, error) {
 		}, nil
 	}
 
-	return &CaptchaResponse{Success: false, Message: "no parsed text"}, nil
+	return &CaptchaResponse{Success: false, Message: "no parsed text", Provider: s.Name()}, nil
+}
+
+func truncateBody(b []byte, max int) string {
+	if len(b) <= max {
+		return string(b)
+	}
+	return string(b[:max]) + "..."
 }
 
 type DummySolver struct{}
@@ -136,30 +174,60 @@ func NewDummySolver() *DummySolver { return &DummySolver{} }
 func (s *DummySolver) Name() string { return "dummy" }
 
 func (s *DummySolver) Solve(req *CaptchaRequest) (*CaptchaResponse, error) {
-	logger.Warn("Captcha detected but no solver configured (site=%s type=%s)", req.SiteID, req.Type)
-	return &CaptchaResponse{
-		Success: false,
-		Message: "captcha solver not configured",
-		Provider: s.Name(),
-	}, nil
+	return nil, fmt.Errorf("captcha detected (site=%s type=%s) but no real solver configured: "+
+		"set captcha_solver.enabled=true, captcha_solver.provider=ocrspace and captcha_solver.api_key in config "+
+		"or CAPTCHA_SOLVER_API_KEY env var", req.SiteID, req.Type)
 }
 
 type CaptchaManager struct {
 	solvers map[string]CaptchaSolver
+	order   []string
 	cache   map[string]*CaptchaResponse
 }
 
 func NewCaptchaManager() *CaptchaManager {
-	cm := &CaptchaManager{
+	return &CaptchaManager{
 		solvers: make(map[string]CaptchaSolver),
+		order:   make([]string, 0),
 		cache:   make(map[string]*CaptchaResponse),
 	}
-	cm.RegisterSolver(NewDummySolver())
-	return cm
+}
+
+func NewCaptchaManagerFromConfig(cfg CaptchaSolverCfg) (*CaptchaManager, error) {
+	cm := NewCaptchaManager()
+	if !cfg.Enabled {
+		return cm, nil
+	}
+	if cfg.APIKey == "" {
+		return nil, fmt.Errorf("captcha_solver.enabled is true but api_key is empty")
+	}
+
+	switch strings.ToLower(cfg.Provider) {
+	case "ocrspace", "":
+		solver := NewOCRSpaceSolverWithConfig(cfg.APIKey, cfg.APIURL, cfg.Language, cfg.Timeout)
+		cm.RegisterSolver(solver)
+		logger.Info("Captcha solver registered: provider=%s", solver.Name())
+	default:
+		return nil, fmt.Errorf("unsupported captcha_solver.provider: %s (supported: ocrspace)", cfg.Provider)
+	}
+	return cm, nil
+}
+
+type CaptchaSolverCfg struct {
+	Enabled  bool
+	Provider string
+	APIKey   string
+	APIURL   string
+	Language string
+	Timeout  int
 }
 
 func (cm *CaptchaManager) RegisterSolver(solver CaptchaSolver) {
-	cm.solvers[solver.Name()] = solver
+	name := solver.Name()
+	if _, exists := cm.solvers[name]; !exists {
+		cm.order = append(cm.order, name)
+	}
+	cm.solvers[name] = solver
 }
 
 func (cm *CaptchaManager) DetectCaptcha(doc *goquery.Document, pageHTML string) (CaptchaType, *CaptchaRequest, bool) {
@@ -265,19 +333,34 @@ func (cm *CaptchaManager) Solve(req *CaptchaRequest) (*CaptchaResponse, error) {
 		return cached, nil
 	}
 
-	for _, solver := range cm.solvers {
+	if len(cm.solvers) == 0 {
+		return nil, fmt.Errorf("captcha detected (site=%s type=%s) but no solver configured: "+
+			"set captcha_solver.enabled=true, captcha_solver.provider=ocrspace and captcha_solver.api_key in config "+
+			"or CAPTCHA_SOLVER_API_KEY env var", req.SiteID, req.Type)
+	}
+
+	var lastErr error
+	for _, name := range cm.order {
+		solver := cm.solvers[name]
 		resp, err := solver.Solve(req)
 		if err != nil {
 			logger.Warn("Captcha solver %s error: %v", solver.Name(), err)
+			lastErr = err
 			continue
 		}
-		if resp.Success && resp.Code != "" {
+		if resp != nil && resp.Success && resp.Code != "" {
 			cm.cache[cacheKey] = resp
 			return resp, nil
 		}
+		if resp != nil {
+			logger.Warn("Captcha solver %s returned no result: %s", solver.Name(), resp.Message)
+		}
 	}
 
-	return &CaptchaResponse{Success: false, Message: "all solvers failed"}, nil
+	if lastErr != nil {
+		return nil, fmt.Errorf("all captcha solvers failed, last error: %w", lastErr)
+	}
+	return &CaptchaResponse{Success: false, Message: "all solvers returned no result"}, nil
 }
 
 func (cm *CaptchaManager) HandleCaptcha(doc *goquery.Document, pageHTML, pageURL, siteID string) (*CaptchaResponse, bool) {
@@ -298,7 +381,10 @@ func (cm *CaptchaManager) HandleCaptcha(doc *goquery.Document, pageHTML, pageURL
 	resp, err := cm.Solve(req)
 	if err != nil {
 		logger.Error("Captcha solving error: %v", err)
-		return nil, true
+		return &CaptchaResponse{
+			Success: false,
+			Message: err.Error(),
+		}, true
 	}
 
 	if resp.Success {
