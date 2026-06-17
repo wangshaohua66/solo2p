@@ -1374,7 +1374,8 @@ var HerbData = (function() {
   function gramsToQianLiang(val) {
     var qian = val / 3.0;
     var liang = val / 30.0;
-    return { qian: qian.toFixed(2), liang: liang.toFixed(2), ke: val };
+    var remainQian = qian % 10;
+    return { qian: qian.toFixed(2), liang: liang.toFixed(2), ke: val, remainQian: remainQian.toFixed(2) };
   }
 
   return {

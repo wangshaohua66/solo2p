@@ -851,8 +851,8 @@ var PrescriptionView = (function() {
         var icon = w.severity === 'danger' ? 'bi-exclamation-triangle-fill' : 'bi-info-circle-fill';
         html += '<div class="alert alert-' + severityClass + ' mb-2 small" role="alert">'
           + '<i class="bi ' + icon + ' me-1"></i>'
-          + '<b>' + (w.title || '提示') + '</b>'
-          + (w.detail ? '<div class="mt-1 opacity-80">' + w.detail + '</div>' : '')
+          + '<b>' + (w.type || '提示') + '</b>'
+          + (w.message ? '<div class="mt-1 opacity-80">' + w.message + '</div>' : '')
           + '</div>';
       });
     }
