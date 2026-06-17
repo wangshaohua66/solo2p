@@ -53,9 +53,9 @@ export default function Profile() {
   const { user } = useAppSelector((state) => state.auth)
   const [statsLoading, setStatsLoading] = useState(false)
   const [stats, setStats] = useState({
-    orderCount: 12,
-    attendedCount: 8,
-    favoriteCount: 3
+    orderCount: 0,
+    attendedCount: 0,
+    favoriteCount: 0
   })
 
   const loadStats = async () => {

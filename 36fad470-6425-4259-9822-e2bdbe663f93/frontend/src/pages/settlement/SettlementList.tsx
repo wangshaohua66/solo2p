@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Card,
   Table,
@@ -15,7 +15,8 @@ import {
   Row,
   Col,
   Statistic,
-  Popconfirm
+  Popconfirm,
+  Spin
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import type { Dayjs } from 'dayjs'
@@ -23,6 +24,7 @@ import dayjs from 'dayjs'
 import { FileExcelOutlined, CheckOutlined, EyeOutlined } from '@ant-design/icons'
 import { SalesChannel } from '@/types'
 import type { Settlement } from '@/types'
+import { api } from '@/api'
 
 const { MonthPicker } = DatePicker
 
@@ -45,116 +47,39 @@ const salesChannelLabels: Record<SalesChannel, string> = {
   [SalesChannel.WECHAT_MINIAPP]: '微信小程序'
 }
 
-const mockSettlements: Settlement[] = [
-  {
-    id: 'set_1',
-    month: '2026-05',
-    performanceId: 'p1',
-    performanceName: '《雷雨》经典话剧',
-    organizerId: 'org_1',
-    organizerName: '某话剧艺术中心',
-    totalRevenue: 285680,
-    websiteRevenue: 156420,
-    wechatRevenue: 129260,
-    totalRefunds: 8560,
-    serviceFee: 14284,
-    netAmount: 262836,
-    status: 'completed',
-    orders: [
-      {
-        orderId: 'o1',
-        orderNo: 'TT202605150001',
-        salesChannel: SalesChannel.WEBSITE,
-        amount: 560,
-        isMatched: true
-      },
-      {
-        orderId: 'o2',
-        orderNo: 'TT202605150002',
-        salesChannel: SalesChannel.WECHAT_MINIAPP,
-        amount: 840,
-        isMatched: true
-      }
-    ],
-    createdAt: '2026-06-01T10:00:00Z',
-    confirmedVenueAt: '2026-06-02T14:00:00Z',
-    confirmedOrganizerAt: '2026-06-03T09:30:00Z'
-  },
-  {
-    id: 'set_2',
-    month: '2026-05',
-    performanceId: 'p2',
-    performanceName: '新年交响音乐会',
-    organizerId: 'org_2',
-    organizerName: '某市交响乐团',
-    totalRevenue: 682400,
-    websiteRevenue: 412300,
-    wechatRevenue: 270100,
-    totalRefunds: 12800,
-    serviceFee: 34120,
-    netAmount: 635480,
-    status: 'confirmed_venue',
-    orders: [],
-    createdAt: '2026-06-01T10:00:00Z',
-    confirmedVenueAt: '2026-06-02T11:00:00Z'
-  },
-  {
-    id: 'set_3',
-    month: '2026-05',
-    performanceId: 'p3',
-    performanceName: '儿童剧《白雪公主》',
-    organizerId: 'org_3',
-    organizerName: '某儿童艺术剧团',
-    totalRevenue: 158760,
-    websiteRevenue: 68420,
-    wechatRevenue: 90340,
-    totalRefunds: 3200,
-    serviceFee: 7938,
-    netAmount: 147622,
-    status: 'pending',
-    orders: [
-      {
-        orderId: 'o3',
-        orderNo: 'TT202605200015',
-        salesChannel: SalesChannel.WEBSITE,
-        amount: 280,
-        isMatched: false
-      }
-    ],
-    createdAt: '2026-06-01T10:00:00Z'
-  },
-  {
-    id: 'set_4',
-    month: '2026-04',
-    performanceId: 'p4',
-    performanceName: '天鹅湖芭蕾舞',
-    organizerId: 'org_4',
-    organizerName: '某芭蕾舞团',
-    totalRevenue: 425800,
-    websiteRevenue: 245600,
-    wechatRevenue: 180200,
-    totalRefunds: 6400,
-    serviceFee: 21290,
-    netAmount: 398110,
-    status: 'completed',
-    orders: [],
-    createdAt: '2026-05-01T10:00:00Z',
-    confirmedVenueAt: '2026-05-02T10:00:00Z',
-    confirmedOrganizerAt: '2026-05-03T16:00:00Z'
-  }
-]
-
 export default function SettlementList() {
   const [monthFilter, setMonthFilter] = useState<Dayjs | null>(null)
   const [statusFilter, setStatusFilter] = useState<string | undefined>()
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [currentSettlement, setCurrentSettlement] = useState<Settlement | null>(null)
+  const [settlements, setSettlements] = useState<Settlement[]>([])
+  const [loading, setLoading] = useState(false)
 
-  const filteredSettlements = mockSettlements.filter((s) => {
+  const loadSettlements = async () => {
+    setLoading(true)
+    try {
+      const params: Record<string, any> = { pageSize: 100 }
+      if (monthFilter) params.month = monthFilter.format('YYYY-MM')
+      if (statusFilter) params.status = statusFilter
+      const res = await api.get('/settlements', { params })
+      setSettlements(res.data?.settlements || res.data?.data || [])
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || '加载结算单失败')
+      setSettlements([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadSettlements()
+  }, [monthFilter, statusFilter])
+
+  const filteredSettlements = useMemo(() => settlements.filter((s) => {
     if (monthFilter && s.month !== monthFilter.format('YYYY-MM')) return false
     if (statusFilter && s.status !== statusFilter) return false
     return true
-  })
+  }), [settlements, monthFilter, statusFilter])
 
   const totalAmount = filteredSettlements.reduce((sum, s) => sum + s.totalRevenue, 0)
   const totalNet = filteredSettlements.reduce((sum, s) => sum + s.netAmount, 0)
@@ -176,8 +101,27 @@ export default function SettlementList() {
     setDetailModalOpen(false)
   }
 
-  const handleExport = () => {
-    message.success('结算单导出中，请稍候...')
+  const handleExport = async (record?: Settlement) => {
+    const target = record || currentSettlement
+    if (!target) {
+      message.warning('请选择要导出的结算单')
+      return
+    }
+    try {
+      message.loading({ content: '正在导出...', key: 'export' })
+      const res = await api.get(`/settlements/${target.id}/export`, {
+        responseType: 'blob'
+      })
+      const url = window.URL.createObjectURL(new Blob([res.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `settlement-${target.month}-${target.performanceId}.xlsx`
+      link.click()
+      window.URL.revokeObjectURL(url)
+      message.success({ content: '导出成功', key: 'export' })
+    } catch {
+      message.error({ content: '导出失败', key: 'export' })
+    }
   }
 
   const mismatchedCount = (currentSettlement?.orders || []).filter(
@@ -264,7 +208,7 @@ export default function SettlementList() {
             type="link"
             size="small"
             icon={<FileExcelOutlined />}
-            onClick={handleExport}
+            onClick={() => handleExport(record)}
           >
             导出
           </Button>
@@ -333,13 +277,15 @@ export default function SettlementList() {
       </Row>
 
       <Card>
-        <Table
-          columns={columns}
-          dataSource={filteredSettlements}
-          rowKey="id"
-          scroll={{ x: 1200 }}
-          pagination={{ pageSize: 10 }}
-        />
+        <Spin spinning={loading}>
+          <Table
+            columns={columns}
+            dataSource={filteredSettlements}
+            rowKey="id"
+            scroll={{ x: 1200 }}
+            pagination={{ pageSize: 10 }}
+          />
+        </Spin>
       </Card>
 
       <Modal
@@ -350,7 +296,7 @@ export default function SettlementList() {
         footer={
           currentSettlement ? (
             <Space>
-              <Button icon={<FileExcelOutlined />} onClick={handleExport}>
+              <Button icon={<FileExcelOutlined />} onClick={() => handleExport()}>
                 导出Excel
               </Button>
               {(currentSettlement.status === 'pending' ||

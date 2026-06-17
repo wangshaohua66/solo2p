@@ -40,14 +40,6 @@ const menuItems = (role: UserRole): MenuProps['items'] => {
           { key: '/settlement/stats', icon: <BarChartOutlined />, label: '销售统计' },
           { key: '/settlement/list', icon: <FileTextOutlined />, label: '结算单' }
         ]
-      },
-      {
-        key: 'sales',
-        icon: <ShoppingCartOutlined />,
-        label: '销售管理',
-        children: [
-          { key: '/sales/price-log', icon: <AuditOutlined />, label: '票价变更日志' }
-        ]
       }
     ]
   }

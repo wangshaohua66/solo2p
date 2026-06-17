@@ -7,6 +7,7 @@ use App\Document\Performance;
 use App\Document\Settlement;
 use App\Document\SettlementOrder;
 use App\Document\User;
+use App\Document\Venue;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -305,16 +306,48 @@ class SettlementController extends AbstractController
 
         $orders = $qb->getQuery()->toArray();
 
+        $perfIds = array_values(array_unique(array_map(fn($o) => $o->getPerformanceId(), $orders)));
+        $venueCapacities = [];
+        if (!empty($perfIds)) {
+            $perfs = $this->dm->getRepository(Performance::class)->createQueryBuilder()
+                ->field('id')->in($perfIds)
+                ->getQuery()->toArray();
+            $venueIds = [];
+            foreach ($perfs as $p) {
+                $venueIds[] = $p->getVenue()?->getId();
+                $venueCapacities[$p->getId()]['venueId'] = $p->getVenue()?->getId();
+                $venueCapacities[$p->getId()]['type'] = $p->getType();
+                $venueCapacities[$p->getId()]['venueName'] = $p->getVenueName();
+            }
+            $venueIds = array_values(array_unique(array_filter($venueIds)));
+            if (!empty($venueIds)) {
+                $venues = $this->dm->getRepository(Venue::class)->createQueryBuilder()
+                    ->field('id')->in($venueIds)
+                    ->getQuery()->toArray();
+                $venueMap = [];
+                foreach ($venues as $v) {
+                    $venueMap[$v->getId()] = $v->getTotalSeats();
+                }
+                foreach ($perfIds as $pid) {
+                    $vid = $venueCapacities[$pid]['venueId'] ?? null;
+                    $venueCapacities[$pid]['totalTickets'] = $vid ? ($venueMap[$vid] ?? 0) : 0;
+                }
+            }
+        }
+
         $stats = [];
         $grouped = [];
 
         foreach ($orders as $order) {
             $perfId = $order->getPerformanceId();
             if (!isset($grouped[$perfId])) {
+                $capInfo = $venueCapacities[$perfId] ?? [];
                 $grouped[$perfId] = [
                     'performanceId' => $perfId,
                     'performanceName' => $order->getPerformanceName(),
-                    'totalTickets' => 0,
+                    'venueName' => $capInfo['venueName'] ?? '',
+                    'type' => $capInfo['type'] ?? Performance::TYPE_DRAMA,
+                    'totalTickets' => (int) ($capInfo['totalTickets'] ?? 0),
                     'soldTickets' => 0,
                     'totalRevenue' => 0,
                     'byChannel' => [
@@ -337,11 +370,19 @@ class SettlementController extends AbstractController
             $grouped[$perfId]['byTicketType'][$order->getTicketType()] += $order->getPayAmount();
         }
 
+        foreach ($grouped as $perfId => &$g) {
+            if ($g['totalTickets'] <= 0 && $g['soldTickets'] > 0) {
+                $g['totalTickets'] = max($g['soldTickets'], (int) ceil($g['soldTickets'] / 0.7));
+            }
+        }
+        unset($g);
+
         return new JsonResponse([
             'stats' => array_values($grouped),
             'summary' => [
                 'totalRevenue' => array_reduce($grouped, fn($sum, $g) => $sum + $g['totalRevenue'], 0),
-                'totalTickets' => array_reduce($grouped, fn($sum, $g) => $sum + $g['soldTickets'], 0),
+                'totalTickets' => array_reduce($grouped, fn($sum, $g) => $sum + $g['totalTickets'], 0),
+                'soldTickets' => array_reduce($grouped, fn($sum, $g) => $sum + $g['soldTickets'], 0),
                 'orderCount' => count($orders)
             ]
         ]);

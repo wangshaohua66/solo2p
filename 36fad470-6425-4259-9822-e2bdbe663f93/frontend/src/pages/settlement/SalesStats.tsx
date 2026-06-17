@@ -82,12 +82,23 @@ export default function SalesStats() {
 
       setStatsData(filtered)
 
-      const trend = Array.from({ length: 7 }, (_, i) => ({
-        date: dayjs().subtract(6 - i, 'day').format('MM-DD'),
-        revenue: Math.round(40000 + Math.random() * 60000),
-        tickets: Math.round(100 + Math.random() * 200)
-      }))
-      setDailyTrend(trend)
+      const trendRes = await api.get('/settlements/daily-trend', { params })
+      const trendData = trendRes.data?.trend || trendRes.data?.data || []
+      if (trendData.length > 0) {
+        setDailyTrend(trendData)
+      } else {
+        const trendMap = new Map<string, { date: string; revenue: number; tickets: number }>()
+        filtered.forEach((s: any) => {
+          const d = s.date || s.performanceDate || dayjs().format('YYYY-MM-DD')
+          const key = dayjs(d).format('MM-DD')
+          const existing = trendMap.get(key) || { date: key, revenue: 0, tickets: 0 }
+          existing.revenue += s.totalRevenue || 0
+          existing.tickets += s.soldTickets || 0
+          trendMap.set(key, existing)
+        })
+        const mergedTrend = Array.from(trendMap.values()).sort((a, b) => a.date.localeCompare(b.date))
+        setDailyTrend(mergedTrend)
+      }
     } catch (err: any) {
       message.error(err?.response?.data?.message || '加载统计数据失败')
       setStatsData([])
@@ -345,7 +356,7 @@ export default function SalesStats() {
             }))}
           />
           <RangePicker value={dateRange} onChange={(v) => setDateRange(v as [Dayjs, Dayjs])} />
-          <Button type="primary">导出报表</Button>
+          <Button type="primary" icon={<DownloadOutlined />} onClick={handleExport}>导出报表</Button>
         </Space>
       </div>
 

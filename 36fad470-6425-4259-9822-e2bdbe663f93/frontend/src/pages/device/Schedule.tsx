@@ -55,6 +55,28 @@ export default function DeviceSchedule() {
   const [scheduleData, setScheduleData] = useState<ScheduleItem[]>([])
   const [loading, setLoading] = useState(false)
 
+  const flattenSchedule = (devices: any[]): ScheduleItem[] => {
+    const result: ScheduleItem[] = []
+    devices.forEach((device) => {
+      const usages = device.usages || device.usage || device.schedules || []
+      usages.forEach((usage: any, idx: number) => {
+        result.push({
+          id: `${device.id || device._id}-${idx}`,
+          deviceId: device.id || device._id,
+          deviceName: device.name || device.deviceName,
+          category: device.category as DeviceCategory,
+          performanceId: usage.performanceId || usage.performance?.id || '',
+          performanceName: usage.performanceName || usage.performance?.name || '未命名演出',
+          startTime: usage.startTime || usage.start,
+          endTime: usage.endTime || usage.end,
+          quantity: usage.quantity || 1,
+          conflict: usage.conflict || false
+        })
+      })
+    })
+    return result
+  }
+
   const loadData = async () => {
     setLoading(true)
     try {
@@ -64,8 +86,11 @@ export default function DeviceSchedule() {
       if (categoryFilter) params.category = categoryFilter
 
       const res = await api.get('/devices/schedule', { params })
-      const data = res.data?.schedule || res.data?.data || []
-      setScheduleData(data)
+      const raw = res.data?.devices || res.data?.schedule || res.data?.data || []
+      const flat = Array.isArray(raw) && raw.length > 0 && (raw[0].usages || raw[0].usage || raw[0].schedules)
+        ? flattenSchedule(raw)
+        : raw as ScheduleItem[]
+      setScheduleData(flat)
     } catch (err: any) {
       message.error(err?.response?.data?.message || '加载设备调度失败')
     } finally {
