@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -40,9 +41,9 @@ type DiffReport struct {
 }
 
 type FieldMapping struct {
-	SourceField string
-	TargetField string
-	Transform   func(interface{}) interface{}
+	SourcePath string
+	TargetPath string
+	Transform  string
 }
 
 type Manager struct {
@@ -402,17 +403,70 @@ func applyMappings(data map[string]interface{}, mappings []FieldMapping) map[str
 	}
 
 	for _, mapping := range mappings {
-		if val, exists := result[mapping.SourceField]; exists {
-			delete(result, mapping.SourceField)
-			if mapping.Transform != nil {
-				result[mapping.TargetField] = mapping.Transform(val)
+		if val, exists := result[mapping.SourcePath]; exists {
+			delete(result, mapping.SourcePath)
+			if mapping.Transform != "" {
+				result[mapping.TargetPath] = applyTransform(val, mapping.Transform)
 			} else {
-				result[mapping.TargetField] = val
+				result[mapping.TargetPath] = val
 			}
 		}
 	}
 
 	return result
+}
+
+func applyTransform(v interface{}, transform string) interface{} {
+	switch strings.ToLower(strings.TrimSpace(transform)) {
+	case "toupper":
+		if s, ok := v.(string); ok {
+			return strings.ToUpper(s)
+		}
+	case "tolower":
+		if s, ok := v.(string); ok {
+			return strings.ToLower(s)
+		}
+	case "trim":
+		if s, ok := v.(string); ok {
+			return strings.TrimSpace(s)
+		}
+	case "toint":
+		switch n := v.(type) {
+		case string:
+			if i, err := strconv.Atoi(n); err == nil {
+				return i
+			}
+		case float64:
+			return int(n)
+		}
+	case "tofloat":
+		switch n := v.(type) {
+		case string:
+			if f, err := strconv.ParseFloat(n, 64); err == nil {
+				return f
+			}
+		case int:
+			return float64(n)
+		}
+	case "tostring":
+		return fmt.Sprintf("%v", v)
+	case "tobool":
+		switch b := v.(type) {
+		case string:
+			lower := strings.ToLower(b)
+			return lower == "true" || lower == "1" || lower == "yes"
+		case int:
+			return b != 0
+		}
+	case "envprefix":
+		if s, ok := v.(string); ok {
+			env := os.Getenv(s)
+			if env != "" {
+				return env
+			}
+		}
+	}
+	return v
 }
 
 func valuesEqual(a, b interface{}) bool {
