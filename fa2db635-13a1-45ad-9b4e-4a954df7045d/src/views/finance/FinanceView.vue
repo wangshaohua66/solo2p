@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { reportApi, weddingApi, financeApi } from '@/api'
+import { computed, ref } from 'vue'
+import { reportApi, weddingApi, financeApi, exportApi } from '@/api'
 import { useAsync } from '@/composables/useAsync'
 import { yuan, wan, formatDate, monthLabel } from '@/utils/format'
 import StatCard from '@/components/ui/StatCard.vue'
@@ -11,8 +11,18 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import BaseChart from '@/components/charts/BaseChart.vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import type { EChartsOption } from 'echarts'
-import { Wallet, TrendingUp, TrendingDown, AlertTriangle, ArrowRight } from 'lucide-vue-next'
+import { Wallet, TrendingUp, TrendingDown, AlertTriangle, ArrowRight, Download } from 'lucide-vue-next'
 import type { Wedding, FinanceDetail, OverdueItem } from '@/types'
+
+const exporting = ref(false)
+async function exportExcel() {
+  exporting.value = true
+  try {
+    await exportApi.financeExcel()
+  } finally {
+    exporting.value = false
+  }
+}
 
 const summary = useAsync(() => reportApi.summary(), { revenue: 0, cost: 0, profit: 0, weddings: 0, signed: 0, conflictAlerts: 0, overdueReceivable: 0 })
 const weddings = useAsync(() => weddingApi.list({}), [] as Wedding[])
@@ -93,7 +103,13 @@ function profitColor(n: number): string {
 
 <template>
   <div class="stagger">
-    <PageHeader title="财务核算" subtitle="每场婚礼收入成本明细与应收应付" />
+    <PageHeader title="财务核算" subtitle="每场婚礼收入成本明细与应收应付">
+      <template #actions>
+        <button class="btn-ghost h-9 px-4 text-sm" :disabled="exporting" @click="exportExcel">
+          <Download :size="15" /> {{ exporting ? '导出中…' : '导出Excel' }}
+        </button>
+      </template>
+    </PageHeader>
 
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
       <template v-if="summary.loading.value">

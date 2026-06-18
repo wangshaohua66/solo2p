@@ -26,7 +26,6 @@ import {
   Check, Minus, Plus as PlusIcon,
 } from 'lucide-vue-next'
 import { ROLE_LABELS } from '@/constants'
-import { loadDB, asResourceList } from '@/mock/db'
 
 const router = useRouter()
 

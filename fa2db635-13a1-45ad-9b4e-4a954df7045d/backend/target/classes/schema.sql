@@ -1,0 +1,240 @@
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
+
+DROP TABLE IF EXISTS notifications;
+DROP TABLE IF EXISTS finance_supplier;
+DROP TABLE IF EXISTS finance;
+DROP TABLE IF EXISTS receivable_payable;
+DROP TABLE IF EXISTS timeline_event;
+DROP TABLE IF EXISTS follow_task;
+DROP TABLE IF EXISTS contract_clause;
+DROP TABLE IF EXISTS contract;
+DROP TABLE IF EXISTS schedule_task;
+DROP TABLE IF EXISTS supplier_order;
+DROP TABLE IF EXISTS wedding;
+DROP TABLE IF EXISTS addon;
+DROP TABLE IF EXISTS package_item;
+DROP TABLE IF EXISTS package;
+DROP TABLE IF EXISTS prop;
+DROP TABLE IF EXISTS venue;
+DROP TABLE IF EXISTS staff;
+DROP TABLE IF EXISTS store;
+DROP TABLE IF EXISTS users;
+
+CREATE TABLE store (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(64) NOT NULL,
+  discount_coefficient DECIMAL(4,2) NOT NULL DEFAULT 1.00,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE staff (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  store_id BIGINT NOT NULL,
+  name VARCHAR(32) NOT NULL,
+  role VARCHAR(16) NOT NULL,
+  phone VARCHAR(20) NOT NULL,
+  avatar VARCHAR(255) DEFAULT NULL,
+  INDEX idx_staff_store (store_id),
+  INDEX idx_staff_role (role)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE venue (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  store_id BIGINT NOT NULL,
+  name VARCHAR(64) NOT NULL,
+  capacity INT NOT NULL DEFAULT 0,
+  INDEX idx_venue_store (store_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE prop (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  store_id BIGINT NOT NULL,
+  name VARCHAR(64) NOT NULL,
+  stock INT NOT NULL DEFAULT 0,
+  INDEX idx_prop_store (store_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE package (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(64) NOT NULL,
+  base_price DECIMAL(12,2) NOT NULL DEFAULT 0,
+  description VARCHAR(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE package_item (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  package_id BIGINT NOT NULL,
+  name VARCHAR(64) NOT NULL,
+  type VARCHAR(16) NOT NULL DEFAULT 'SERVICE',
+  cost DECIMAL(12,2) NOT NULL DEFAULT 0,
+  price DECIMAL(12,2) NOT NULL DEFAULT 0,
+  included TINYINT(1) NOT NULL DEFAULT 1,
+  INDEX idx_pkg_item_pkg (package_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE addon (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(64) NOT NULL,
+  cost DECIMAL(12,2) NOT NULL DEFAULT 0,
+  price DECIMAL(12,2) NOT NULL DEFAULT 0,
+  unit VARCHAR(16) NOT NULL DEFAULT '项'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE wedding (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  couple_name VARCHAR(64) NOT NULL,
+  groom_name VARCHAR(32) DEFAULT NULL,
+  bride_name VARCHAR(32) DEFAULT NULL,
+  phone VARCHAR(20) NOT NULL,
+  wedding_date DATE NOT NULL,
+  guests INT NOT NULL DEFAULT 10,
+  stage VARCHAR(16) NOT NULL DEFAULT 'CONSULT',
+  store_id BIGINT NOT NULL,
+  planner_id BIGINT DEFAULT NULL,
+  package_id BIGINT NOT NULL,
+  quote_total DECIMAL(12,2) DEFAULT NULL,
+  progress INT NOT NULL DEFAULT 10,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_wedding_stage (stage),
+  INDEX idx_wedding_store (store_id),
+  INDEX idx_wedding_date (wedding_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE schedule_task (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  resource_type VARCHAR(8) NOT NULL,
+  resource_id BIGINT NOT NULL,
+  resource_name VARCHAR(64) NOT NULL,
+  wedding_id BIGINT DEFAULT NULL,
+  couple_name VARCHAR(64) DEFAULT NULL,
+  start_time DATETIME NOT NULL,
+  end_time DATETIME NOT NULL,
+  status VARCHAR(16) NOT NULL DEFAULT 'BOOKED',
+  INDEX idx_schedule_resource (resource_type, resource_id),
+  INDEX idx_schedule_time (start_time, end_time),
+  INDEX idx_schedule_wedding (wedding_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE contract (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  wedding_id BIGINT NOT NULL,
+  couple_name VARCHAR(64) NOT NULL,
+  package_name VARCHAR(64) NOT NULL,
+  amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+  status VARCHAR(16) NOT NULL DEFAULT 'DRAFT',
+  signature VARCHAR(512) DEFAULT NULL,
+  sign_url VARCHAR(512) DEFAULT NULL,
+  signed_at DATETIME DEFAULT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_contract_status (status),
+  INDEX idx_contract_wedding (wedding_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE contract_clause (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  contract_id BIGINT NOT NULL,
+  clause_key VARCHAR(16) NOT NULL,
+  title VARCHAR(64) NOT NULL,
+  body TEXT NOT NULL,
+  is_addon TINYINT(1) NOT NULL DEFAULT 0,
+  sort_order INT NOT NULL DEFAULT 0,
+  INDEX idx_clause_contract (contract_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE follow_task (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  wedding_id BIGINT NOT NULL,
+  title VARCHAR(64) NOT NULL,
+  days_before INT NOT NULL DEFAULT 0,
+  status VARCHAR(16) NOT NULL DEFAULT 'TODO',
+  owner VARCHAR(32) DEFAULT NULL,
+  due_date DATE DEFAULT NULL,
+  INDEX idx_follow_wedding (wedding_id),
+  INDEX idx_follow_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE timeline_event (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  wedding_id BIGINT NOT NULL,
+  time DATETIME NOT NULL,
+  title VARCHAR(64) NOT NULL,
+  desc_text VARCHAR(255) DEFAULT NULL,
+  actor VARCHAR(32) DEFAULT NULL,
+  INDEX idx_timeline_wedding (wedding_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE finance (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  wedding_id BIGINT NOT NULL,
+  couple_name VARCHAR(64) NOT NULL,
+  income DECIMAL(12,2) NOT NULL DEFAULT 0,
+  received DECIMAL(12,2) NOT NULL DEFAULT 0,
+  cost DECIMAL(12,2) NOT NULL DEFAULT 0,
+  paid DECIMAL(12,2) NOT NULL DEFAULT 0,
+  profit DECIMAL(12,2) NOT NULL DEFAULT 0,
+  INDEX idx_finance_wedding (wedding_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE finance_supplier (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  finance_id BIGINT NOT NULL,
+  name VARCHAR(64) NOT NULL,
+  amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+  settled TINYINT(1) NOT NULL DEFAULT 0,
+  INDEX idx_fs_finance (finance_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE receivable_payable (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  wedding_id BIGINT DEFAULT NULL,
+  type VARCHAR(12) NOT NULL,
+  party VARCHAR(64) NOT NULL,
+  amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+  due_date DATE DEFAULT NULL,
+  days_overdue INT NOT NULL DEFAULT 0,
+  settled TINYINT(1) NOT NULL DEFAULT 0,
+  INDEX idx_rp_type (type),
+  INDEX idx_rp_settled (settled)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE supplier_order (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  staff_id BIGINT DEFAULT NULL,
+  couple_name VARCHAR(64) NOT NULL,
+  wedding_date DATE NOT NULL,
+  role VARCHAR(16) NOT NULL,
+  service VARCHAR(64) NOT NULL,
+  amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+  status VARCHAR(16) NOT NULL DEFAULT 'PENDING',
+  voucher_url VARCHAR(512) DEFAULT NULL,
+  INDEX idx_so_staff (staff_id),
+  INDEX idx_so_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE users (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(32) NOT NULL,
+  role VARCHAR(16) NOT NULL,
+  store_id BIGINT DEFAULT NULL,
+  phone VARCHAR(20) DEFAULT NULL,
+  password VARCHAR(255) NOT NULL,
+  avatar VARCHAR(255) DEFAULT NULL,
+  INDEX idx_users_role (role)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE notifications (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT DEFAULT NULL,
+  title VARCHAR(128) NOT NULL,
+  content VARCHAR(512) DEFAULT NULL,
+  type VARCHAR(16) NOT NULL DEFAULT 'INFO',
+  biz_type VARCHAR(32) DEFAULT NULL,
+  biz_id BIGINT DEFAULT NULL,
+  read_flag TINYINT(1) NOT NULL DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_noti_user (user_id),
+  INDEX idx_noti_read (read_flag)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+SET FOREIGN_KEY_CHECKS = 1;

@@ -142,6 +142,8 @@ export interface Contract {
   status: ContractStatus
   clauses: ContractClause[]
   signature?: string
+  signUrl?: string
+  flowId?: string
   signedAt?: string
   createdAt: string
 }
@@ -231,10 +233,23 @@ export interface ConflictResult {
   conflict: boolean
   conflicts: ScheduleTask[]
   alternatives: Resource[]
+  costMs?: number
 }
 
 export interface ApiResponse<T> {
   code: number
   message: string
   data: T
+}
+
+export interface Notification {
+  id: number
+  userId: number
+  title: string
+  content: string
+  type: 'INFO' | 'WARN' | 'ERROR' | 'SUCCESS'
+  bizType?: string
+  bizId?: number
+  readFlag: boolean
+  createdAt: string
 }

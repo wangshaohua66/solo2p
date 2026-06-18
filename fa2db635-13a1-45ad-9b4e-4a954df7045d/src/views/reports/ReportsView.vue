@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { reportApi, weddingApi } from '@/api'
+import { reportApi, weddingApi, exportApi } from '@/api'
 import { useAsync } from '@/composables/useAsync'
 import { yuan, wan, pct, formatDate } from '@/utils/format'
 import StatCard from '@/components/ui/StatCard.vue'
@@ -12,6 +12,16 @@ import PageHeader from '@/components/ui/PageHeader.vue'
 import type { EChartsOption } from 'echarts'
 import { TrendingUp, Target, Star, FileSpreadsheet, FileText } from 'lucide-vue-next'
 import type { Wedding, RevenuePoint, FunnelData, ScoreData } from '@/types'
+
+const exporting = ref(false)
+async function exportExcel() {
+  exporting.value = true
+  try {
+    await exportApi.reportExcel()
+  } finally {
+    exporting.value = false
+  }
+}
 
 const TABS = [
   { key: '7d', label: '近7天' },
@@ -157,8 +167,7 @@ const storeOpt = computed<EChartsOption>(() => {
   <div class="stagger">
     <PageHeader title="报表统计" subtitle="运营数据全景分析与趋势洞察">
       <template #actions>
-        <button class="btn-ghost h-10 px-3 text-sm"><FileSpreadsheet :size="15" /> 导出Excel</button>
-        <button class="btn-ghost h-10 px-3 text-sm"><FileText :size="15" /> 导出PDF</button>
+        <button class="btn-ghost h-10 px-3 text-sm" :disabled="exporting" @click="exportExcel"><FileSpreadsheet :size="15" /> {{ exporting ? '导出中…' : '导出Excel' }}</button>
       </template>
     </PageHeader>
 

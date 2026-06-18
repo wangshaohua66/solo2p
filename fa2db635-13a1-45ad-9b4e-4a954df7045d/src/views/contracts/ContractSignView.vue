@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { contractApi } from '@/api'
+import { contractApi, exportApi } from '@/api'
 import { useAsync } from '@/composables/useAsync'
 import { yuan, formatDate, formatDateTime } from '@/utils/format'
 import { CONTRACT_LABELS } from '@/constants'
@@ -11,7 +11,7 @@ import BaseCard from '@/components/ui/BaseCard.vue'
 import Skeleton from '@/components/ui/Skeleton.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
-import { FileSignature, Plus, X, Trash2, AlertTriangle } from 'lucide-vue-next'
+import { FileSignature, Plus, X, Trash2, AlertTriangle, Download, ExternalLink, RefreshCw } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
@@ -31,6 +31,9 @@ const signature = ref('')
 const signing = ref(false)
 const voiding = ref(false)
 const saving = ref(false)
+const checking = ref(false)
+const exporting = ref(false)
+const signUrl = ref('')
 const addonForm = ref<{ title: string; body: string }>({ title: '', body: '' })
 
 const canEdit = computed(() => contract.data.value.status === 'DRAFT' || contract.data.value.status === 'PENDING')
@@ -72,8 +75,32 @@ async function signContract() {
   try {
     const updated = await contractApi.sign(id, { signature: signature.value.trim() })
     contract.data.value = updated
+    signUrl.value = updated.signUrl || ''
   } finally {
     signing.value = false
+  }
+}
+
+async function checkSignStatus() {
+  checking.value = true
+  try {
+    const res = await contractApi.querySignStatus(id, contract.data.value.flowId || '')
+    if (res.status === 'SIGNED') {
+      const updated = await contractApi.detail(id)
+      contract.data.value = updated
+    }
+    if (res.signUrl) signUrl.value = res.signUrl
+  } finally {
+    checking.value = false
+  }
+}
+
+async function exportPdf() {
+  exporting.value = true
+  try {
+    await exportApi.contractPdf(id)
+  } finally {
+    exporting.value = false
   }
 }
 
@@ -93,6 +120,14 @@ async function voidContract() {
   <div class="stagger">
     <PageHeader title="合同签署" :subtitle="contract.loading.value ? '' : `合同编号：HT-${String(id).padStart(6, '0')}`">
       <template #actions>
+        <button
+          class="btn-ghost h-10 px-4 text-sm"
+          :disabled="exporting || contract.loading.value"
+          @click="exportPdf"
+        >
+          <Download :size="15" />
+          {{ exporting ? '导出中…' : '导出PDF' }}
+        </button>
         <button
           class="btn-ghost h-10 px-4 text-sm"
           :disabled="voiding || contract.data.value.status === 'VOID'"
@@ -210,20 +245,22 @@ async function voidContract() {
             </div>
           </BaseCard>
 
-          <BaseCard title="电子签名" subtitle="输入签名后确认签署">
+          <BaseCard title="电子签名" subtitle="通过第三方电子签约平台完成签署">
             <div v-if="contract.data.value.status === 'SIGNED'" class="py-3 text-center">
               <p class="text-sm text-emerald-600 font-medium">{{ contract.data.value.signature }}</p>
               <p class="text-xs text-wine-300 mt-1">{{ formatDate(contract.data.value.signedAt || '') }} 已签署</p>
+              <button class="btn-soft w-full mt-3 text-sm" @click="exportPdf">
+                <Download :size="15" /> 下载签署文件
+              </button>
             </div>
             <div v-else-if="contract.data.value.status === 'VOID'" class="py-3 text-center text-wine-300 text-sm">
               合同已作废，无法签署
             </div>
             <template v-else>
-              <textarea
+              <input
                 v-model="signature"
-                rows="3"
                 class="field-input font-serif text-lg text-center"
-                placeholder="请输入签名姓名"
+                placeholder="请输入签署人姓名"
               />
               <button
                 class="btn-primary w-full mt-3"
@@ -231,8 +268,24 @@ async function voidContract() {
                 @click="signContract"
               >
                 <FileSignature :size="16" />
-                {{ signing ? '签署中…' : '确认签署' }}
+                {{ signing ? '发起中…' : '发起电子签署' }}
               </button>
+              <template v-if="signUrl">
+                <div class="mt-3 p-3 rounded-lg bg-gold-50 border border-gold-200">
+                  <p class="text-xs text-gold-700 mb-2">签署链接已生成，请在新页面完成签署：</p>
+                  <a :href="signUrl" target="_blank" rel="noopener" class="btn-soft w-full text-sm">
+                    <ExternalLink :size="15" /> 前往签署
+                  </a>
+                </div>
+                <button
+                  class="btn-ghost w-full mt-2 text-sm"
+                  :disabled="checking"
+                  @click="checkSignStatus"
+                >
+                  <RefreshCw :size="15" />
+                  {{ checking ? '查询中…' : '查询签署状态' }}
+                </button>
+              </template>
             </template>
           </BaseCard>
         </div>

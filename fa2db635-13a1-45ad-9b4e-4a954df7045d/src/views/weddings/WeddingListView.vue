@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { weddingApi, settingsApi } from '@/api'
+import { weddingApi, settingsApi, exportApi } from '@/api'
 import { useAsync } from '@/composables/useAsync'
 import { yuan, formatDate, countdown } from '@/utils/format'
 import { STAGE_LABELS, STAGE_ORDER } from '@/constants'
@@ -12,9 +12,18 @@ import Skeleton from '@/components/ui/Skeleton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import ProgressBar from '@/components/ui/ProgressBar.vue'
-import { Plus, Search, Table2, LayoutGrid, ArrowRight } from 'lucide-vue-next'
+import { Plus, Search, Table2, LayoutGrid, ArrowRight, Download } from 'lucide-vue-next'
 
 const router = useRouter()
+const exporting = ref(false)
+async function exportExcel() {
+  exporting.value = true
+  try {
+    await exportApi.weddingsExcel(storeId.value, stage.value || undefined)
+  } finally {
+    exporting.value = false
+  }
+}
 
 const STAGE_BADGE: Record<WeddingStage, string> = {
   CONSULT: 'wine',
@@ -61,6 +70,9 @@ function daysLeft(d: string): number {
   <div class="stagger">
     <PageHeader title="婚礼项目" subtitle="全部门店婚礼项目进度总览">
       <template #actions>
+        <button class="btn-ghost h-10 px-4 text-sm" :disabled="exporting" @click="exportExcel">
+          <Download :size="16" /> {{ exporting ? '导出中…' : '导出Excel' }}
+        </button>
         <button class="btn-primary h-10 px-4 text-sm" @click="router.push('/weddings/create')">
           <Plus :size="16" /> 创建婚礼
         </button>

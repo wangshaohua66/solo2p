@@ -2,11 +2,15 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { Bell, Search, ChevronDown, LogOut, Plus } from 'lucide-vue-next'
+import { useNotifications } from '@/composables/useNotifications'
+import { Bell, Search, ChevronDown, LogOut, Plus, CheckCheck, FileText } from 'lucide-vue-next'
+import type { Notification } from '@/types'
 
 const auth = useAuthStore()
 const router = useRouter()
 const showMenu = ref(false)
+const showNotif = ref(false)
+const { notifications, unreadCount, markRead, markAllRead } = useNotifications()
 
 function logout() {
   auth.logout()
@@ -15,6 +19,33 @@ function logout() {
 
 function createWedding() {
   router.push('/weddings/create')
+}
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const min = Math.floor(diff / 60000)
+  if (min < 1) return '刚刚'
+  if (min < 60) return min + '分钟前'
+  const hr = Math.floor(min / 60)
+  if (hr < 24) return hr + '小时前'
+  return Math.floor(hr / 24) + '天前'
+}
+
+function typeColor(n: Notification): string {
+  switch (n.type) {
+    case 'WARN': return 'text-amber-500'
+    case 'ERROR': return 'text-rose-500'
+    case 'SUCCESS': return 'text-emerald-500'
+    default: return 'text-wine-400'
+  }
+}
+
+function handleClick(n: Notification) {
+  if (!n.readFlag) markRead(n.id)
+  if (n.bizType === 'contract' && n.bizId) {
+    router.push(`/contracts/${n.bizId}/sign`)
+    showNotif.value = false
+  }
 }
 </script>
 
@@ -31,10 +62,44 @@ function createWedding() {
       <Plus :size="16" /> <span class="hidden sm:inline">创建婚礼</span>
     </button>
 
-    <button class="relative w-9 h-9 rounded-lg hover:bg-white/60 flex items-center justify-center text-wine-600 transition">
-      <Bell :size="18" />
-      <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-cream"></span>
-    </button>
+    <div class="relative">
+      <button class="relative w-9 h-9 rounded-lg hover:bg-white/60 flex items-center justify-center text-wine-600 transition" @click="showNotif = !showNotif">
+        <Bell :size="18" />
+        <span v-if="unreadCount > 0" class="absolute top-0.5 right-0.5 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] flex items-center justify-center font-medium ring-2 ring-cream">
+          {{ unreadCount > 99 ? '99+' : unreadCount }}
+        </span>
+      </button>
+      <transition name="fade">
+        <div v-if="showNotif" class="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto card shadow-lift z-50" @click.stop>
+          <div class="flex items-center justify-between px-4 py-3 border-b border-wine-100 sticky top-0 bg-white rounded-t-2xl">
+            <p class="text-sm font-medium text-wine-800">通知</p>
+            <button v-if="unreadCount > 0" class="text-xs text-wine-400 hover:text-wine-700 flex items-center gap-1" @click="markAllRead()">
+              <CheckCheck :size="13" /> 全部已读
+            </button>
+          </div>
+          <div v-if="notifications.length === 0" class="px-4 py-8 text-center text-sm text-wine-300">
+            暂无通知
+          </div>
+          <div v-else>
+            <button
+              v-for="n in notifications.slice(0, 20)"
+              :key="n.id"
+              class="w-full flex gap-3 px-4 py-3 border-b border-wine-50 text-left hover:bg-wine-50/40 transition"
+              :class="!n.readFlag ? 'bg-gold-50/30' : ''"
+              @click="handleClick(n)"
+            >
+              <FileText :size="16" :class="typeColor(n)" class="mt-0.5 shrink-0" />
+              <div class="min-w-0 flex-1">
+                <p class="text-sm text-wine-800 font-medium truncate">{{ n.title }}</p>
+                <p class="text-xs text-wine-400 mt-0.5 line-clamp-2">{{ n.content }}</p>
+                <p class="text-[10px] text-wine-300 mt-1">{{ timeAgo(n.createdAt) }}</p>
+              </div>
+              <span v-if="!n.readFlag" class="w-2 h-2 rounded-full bg-rose-500 mt-1 shrink-0"></span>
+            </button>
+          </div>
+        </div>
+      </transition>
+    </div>
 
     <div class="relative">
       <button class="flex items-center gap-2 pl-1 pr-2 h-9 rounded-lg hover:bg-white/60 transition" @click="showMenu = !showMenu">

@@ -1,4 +1,4 @@
-import { handlers } from '@/mock/handlers'
+import http, { downloadBlob } from '@/utils/http'
 import type {
   Wedding,
   ScheduleTask,
@@ -14,94 +14,119 @@ import type {
   WeddingStage,
   TaskStatus,
   ContractClause,
+  Notification,
 } from '@/types'
-
-function unwrap<T>(p: Promise<{ code: number; message: string; data: T }>): Promise<T> {
-  return p.then((r) => r.data)
-}
 
 export const authApi = {
   login: (body: { username: string; password: string; role: string }) =>
-    unwrap<{ token: string; user: User }>(handlers.auth.login(body)),
+    http.post<unknown, { token: string; user: User }>('/auth/login', body),
   supplierLogin: (body: { phone: string; code: string }) =>
-    unwrap<{ token: string; supplier: any }>(handlers.auth.supplierLogin(body)),
+    http.post<unknown, { token: string; supplier: any }>('/auth/supplier/login', body),
 }
 
 export const scheduleApi = {
   list: (params: { resourceType?: string; storeId?: number; from?: string; to?: string }) =>
-    unwrap<ScheduleTask[]>(handlers.schedule.list(params)),
+    http.get<unknown, ScheduleTask[]>('/schedule', { params }),
   check: (body: { resourceType: 'STAFF' | 'VENUE' | 'PROP'; resourceId: number; storeId: number; start: string; end: string }) =>
-    unwrap<ConflictResult>(handlers.schedule.check(body)),
+    http.post<unknown, ConflictResult>('/schedule/check', body),
   move: (taskId: number, body: { start: string; end: string }) =>
-    unwrap<ScheduleTask>(handlers.schedule.move(taskId, body)),
-  remove: (taskId: number) => unwrap<{ id: number }>(handlers.schedule.remove(taskId)),
+    http.put<unknown, ScheduleTask>(`/schedule/${taskId}`, body),
+  remove: (taskId: number) => http.delete<unknown, { id: number }>(`/schedule/${taskId}`),
 }
 
 export const weddingApi = {
   list: (params: { stage?: string; storeId?: number; date?: string; keyword?: string }) =>
-    unwrap<Wedding[]>(handlers.weddings.list(params)),
-  detail: (id: number) => unwrap<Wedding>(handlers.weddings.detail(id)),
+    http.get<unknown, Wedding[]>('/weddings', { params }),
+  detail: (id: number) => http.get<unknown, Wedding>(`/weddings/${id}`),
   create: (body: Partial<Wedding> & { resources?: { type: string; id: number }[] }) =>
-    unwrap<Wedding>(handlers.weddings.create(body)),
-  updateStage: (id: number, stage: WeddingStage) => unwrap<Wedding>(handlers.weddings.updateStage(id, stage)),
+    http.post<unknown, Wedding>('/weddings', body),
+  updateStage: (id: number, stage: WeddingStage) =>
+    http.put<unknown, Wedding>(`/weddings/${id}/stage`, null, { params: { stage } }),
 }
 
 export const packageApi = {
-  list: () => unwrap<Package[]>(handlers.packages.list()),
-  save: (pkg: any) => unwrap<any>(handlers.packages.save(pkg)),
+  list: () => http.get<unknown, Package[]>('/packages'),
+  save: (pkg: any) => http.post<unknown, any>('/packages', pkg),
 }
 
 export const addonApi = {
-  list: () => unwrap<Addon[]>(handlers.addons.list()),
+  list: () => http.get<unknown, Addon[]>('/addons'),
 }
 
 export const pricingApi = {
   calc: (body: { packageId: number; guests: number; serviceIds: number[]; addons: { addonId: number; qty: number }[]; storeId: number }) =>
-    unwrap<Quote>(handlers.pricing.calc(body)),
+    http.post<unknown, Quote>('/pricing/calc', body),
 }
 
 export const contractApi = {
-  list: (params: { status?: string }) => unwrap<Contract[]>(handlers.contracts.list(params)),
-  detail: (id: number) => unwrap<Contract>(handlers.contracts.detail(id)),
-  draft: (body: { weddingId: number; packageId: number }) => unwrap<Contract>(handlers.contracts.draft(body)),
+  list: (params: { status?: string }) => http.get<unknown, Contract[]>('/contracts', { params }),
+  detail: (id: number) => http.get<unknown, Contract>(`/contracts/${id}`),
+  draft: (body: { weddingId: number; packageId: number }) => http.post<unknown, Contract>('/contracts/draft', body),
   update: (id: number, body: { clauses: ContractClause[]; amount?: number }) =>
-    unwrap<Contract>(handlers.contracts.update(id, body)),
-  sign: (id: number, body: { signature: string }) => unwrap<Contract>(handlers.contracts.sign(id, body)),
-  void: (id: number) => unwrap<Contract>(handlers.contracts.void(id)),
+    http.put<unknown, Contract>(`/contracts/${id}`, body),
+  sign: (id: number, body: { signature: string }) => http.post<unknown, Contract>(`/contracts/${id}/sign`, body),
+  void: (id: number) => http.post<unknown, Contract>(`/contracts/${id}/void`),
+  querySignStatus: (id: number, flowId: string) =>
+    http.get<unknown, { flowId: string; signUrl: string; status: string; message: string }>(`/contracts/${id}/sign-status`, { params: { flowId } }),
+  downloadSignedFile: (id: number, flowId: string) =>
+    http.get<unknown, string>(`/contracts/${id}/signed-file`, { params: { flowId } }),
 }
 
 export const followupApi = {
   detail: (weddingId: number) =>
-    unwrap<{ wedding: Wedding | undefined; countdown: number; tasks: FollowTask[] }>(handlers.followup.detail(weddingId)),
-  list: () => unwrap<FollowTask[]>(handlers.followup.list()),
-  updateTask: (taskId: number, status: TaskStatus) => unwrap<FollowTask>(handlers.followup.updateTask(taskId, status)),
+    http.get<unknown, { wedding: Wedding | undefined; countdown: number; tasks: FollowTask[] }>(`/followup/${weddingId}`),
+  list: () => http.get<unknown, FollowTask[]>('/followup/tasks'),
+  updateTask: (taskId: number, status: TaskStatus) =>
+    http.put<unknown, FollowTask>(`/followup/tasks/${taskId}`, { status }),
 }
 
 export const financeApi = {
-  wedding: (weddingId: number) => unwrap<FinanceDetail>(handlers.finance.wedding(weddingId)),
-  monthly: (storeId?: number) => unwrap<any[]>(handlers.finance.monthly(storeId)),
-  overdue: () => unwrap<any[]>(handlers.finance.overdue()),
+  wedding: (weddingId: number) => http.get<unknown, FinanceDetail>(`/finance/wedding/${weddingId}`),
+  monthly: (storeId?: number) => http.get<unknown, any[]>('/finance/monthly', { params: { storeId } }),
+  overdue: () => http.get<unknown, any[]>('/finance/overdue'),
 }
 
 export const reportApi = {
-  revenue: (params: { storeId?: number }) => unwrap<{ date: string; amount: number }[]>(handlers.reports.revenue(params)),
-  funnel: () => unwrap<{ stage: string; count: number }[]>(handlers.reports.funnel()),
-  satisfaction: () => unwrap<{ dimension: string; score: number }[]>(handlers.reports.satisfaction()),
+  revenue: (params: { storeId?: number }) => http.get<unknown, { date: string; amount: number }[]>('/reports/revenue', { params }),
+  funnel: () => http.get<unknown, { stage: string; count: number }[]>('/reports/funnel'),
+  satisfaction: () => http.get<unknown, { dimension: string; score: number }[]>('/reports/satisfaction'),
   summary: () =>
-    unwrap<{ revenue: number; cost: number; profit: number; weddings: number; signed: number; conflictAlerts: number; overdueReceivable: number }>(
-      handlers.reports.summary(),
-    ),
+    http.get<unknown, { revenue: number; cost: number; profit: number; weddings: number; signed: number; conflictAlerts: number; overdueReceivable: number }>('/reports/summary'),
 }
 
 export const portalApi = {
-  schedule: (supplierId: number) => unwrap<ScheduleTask[]>(handlers.portal.schedule(supplierId)),
-  orders: (supplierId: number) => unwrap<SupplierOrder[]>(handlers.portal.orders(supplierId)),
-  confirmOrder: (id: number) => unwrap<SupplierOrder>(handlers.portal.confirmOrder(id)),
+  schedule: (supplierId: number) => http.get<unknown, ScheduleTask[]>(`/portal/schedule/${supplierId}`),
+  orders: (supplierId: number) => http.get<unknown, SupplierOrder[]>(`/portal/orders/${supplierId}`),
+  confirmOrder: (id: number) => http.post<unknown, SupplierOrder>(`/portal/orders/${id}/confirm`),
   submitVoucher: (id: number, body: { fileUrl: string }) =>
-    unwrap<SupplierOrder>(handlers.portal.submitVoucher(id, body)),
+    http.post<unknown, SupplierOrder>(`/portal/orders/${id}/voucher`, body),
 }
 
 export const settingsApi = {
-  list: () => unwrap<any>(handlers.settings.list()),
-  saveStore: (store: any) => unwrap<any>(handlers.settings.saveStore(store)),
+  list: () => http.get<unknown, any>('/settings'),
+  saveStore: (store: any) => http.post<unknown, any>('/settings/store', store),
+}
+
+export const exportApi = {
+  financeExcel: (storeId?: number) => downloadBlob(`/export/finance?${storeId ? 'storeId=' + storeId : ''}`, '财务汇总.xlsx'),
+  weddingsExcel: (storeId?: number, stage?: string) => {
+    const params = new URLSearchParams()
+    if (storeId) params.set('storeId', String(storeId))
+    if (stage) params.set('stage', stage)
+    const qs = params.toString()
+    return downloadBlob(`/export/weddings${qs ? '?' + qs : ''}`, '婚礼列表.xlsx')
+  },
+  reportExcel: (storeId?: number) => downloadBlob(`/export/report?${storeId ? 'storeId=' + storeId : ''}`, '经营报表.xlsx'),
+  contractPdf: (id: number) => downloadBlob(`/export/contract/${id}`, `合同-${id}.pdf`),
+}
+
+export const notificationApi = {
+  list: () => http.get<unknown, Notification[]>('/notifications'),
+  unreadCount: () => http.get<unknown, { count: number }>('/notifications/unread-count'),
+  markRead: (id: number) => http.put<unknown, void>(`/notifications/${id}/read`),
+  markAllRead: () => http.put<unknown, void>('/notifications/read-all'),
+  sseUrl: () => {
+    const token = localStorage.getItem('ws_token')
+    return `/api/notifications/sse${token ? '?token=' + encodeURIComponent(token) : ''}`
+  },
 }
