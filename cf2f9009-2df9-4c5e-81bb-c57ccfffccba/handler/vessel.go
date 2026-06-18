@@ -14,14 +14,16 @@ import (
 )
 
 type VesselHandler struct {
-	trackerService *service.TrackerService
-	vesselCol      *mongo.Collection
+	trackerService   *service.TrackerService
+	forbiddenService *service.ForbiddenService
+	vesselCol        *mongo.Collection
 }
 
 func NewVesselHandler() *VesselHandler {
 	return &VesselHandler{
-		trackerService: service.NewTrackerService(),
-		vesselCol:      config.DB.Collection(config.ColVessels),
+		trackerService:   service.NewTrackerService(),
+		forbiddenService: service.NewForbiddenService(),
+		vesselCol:        config.DB.Collection(config.ColVessels),
 	}
 }
 
@@ -172,8 +174,9 @@ func (h *VesselHandler) ReportPosition(c echo.Context) error {
 	if req.VesselID == "" {
 		return badRequestResponse(c, "vessel_id is required")
 	}
-	if req.Longitude == 0 || req.Latitude == 0 {
-		return badRequestResponse(c, "longitude and latitude are required")
+
+	if err := model.ValidateCoordinates(req.Longitude, req.Latitude); err != nil {
+		return badRequestResponse(c, err.Error())
 	}
 
 	timestamp := time.Now()
@@ -199,7 +202,35 @@ func (h *VesselHandler) ReportPosition(c echo.Context) error {
 		return systemErrorResponse(c, err.Error())
 	}
 
-	return successResponse(c, point)
+	var vessel model.Vessel
+	var yawAlert *model.YawAlert
+	var forbiddenViolation *model.ForbiddenViolation
+
+	err := h.vesselCol.FindOne(ctx, bson.M{"_id": req.VesselID}).Decode(&vessel)
+	if err == nil {
+		basePoint := vessel.OperationBasePoint
+		if basePoint.Coordinates == nil {
+			basePoint = model.NewPoint(req.Longitude, req.Latitude)
+		}
+		maxDistance := vessel.MaxYawDistance
+		if maxDistance <= 0 {
+			maxDistance = 5.0
+		}
+
+		yawAlert, _ = h.trackerService.CheckYaw(ctx, point, basePoint, maxDistance)
+
+		forbiddenViolation, _ = h.forbiddenService.CheckForbiddenZone(
+			ctx, req.VesselID, req.VesselNo, point.Location, timestamp,
+		)
+	}
+
+	result := map[string]interface{}{
+		"track_point":         point,
+		"yaw_alert":           yawAlert,
+		"forbidden_violation": forbiddenViolation,
+	}
+
+	return successResponse(c, result)
 }
 
 func (h *VesselHandler) GetTrackHistory(c echo.Context) error {

@@ -60,14 +60,37 @@ func (s *TradeService) GetTrade(ctx context.Context, tradeID string) (*model.Sea
 
 func (s *TradeService) ConfirmTrade(ctx context.Context, tradeID string, vesselID string, role string) error {
 	filter := bson.M{"_id": tradeID}
+
 	var trade model.SeaTrade
 	err := s.tradeCol.FindOne(ctx, filter).Decode(&trade)
 	if err != nil {
 		return err
 	}
 
-	if trade.Status != model.TradeStatusPending {
-		return errors.New("trade not in pending status")
+	if role == "seller" {
+		if trade.SellerVesselID != vesselID {
+			return errors.New("vessel is not the seller")
+		}
+		if trade.SellerConfirmed {
+			return nil
+		}
+	} else if role == "buyer" {
+		if trade.BuyerVesselID != vesselID {
+			return errors.New("vessel is not the buyer")
+		}
+		if trade.BuyerConfirmed {
+			return nil
+		}
+	} else {
+		return errors.New("invalid role")
+	}
+
+	if trade.Status == model.TradeStatusConfirmed || trade.Status == model.TradeStatusSettled {
+		return nil
+	}
+
+	if trade.Status == model.TradeStatusRejected {
+		return errors.New("trade has been rejected")
 	}
 
 	update := bson.M{
@@ -76,41 +99,58 @@ func (s *TradeService) ConfirmTrade(ctx context.Context, tradeID string, vesselI
 		},
 	}
 
+	confirmFilter := bson.M{
+		"_id":    tradeID,
+		"status": model.TradeStatusPending,
+	}
+
 	if role == "seller" {
-		if trade.SellerVesselID != vesselID {
-			return errors.New("vessel is not the seller")
-		}
+		confirmFilter["seller_confirmed"] = false
 		update["$set"].(bson.M)["seller_confirmed"] = true
-	} else if role == "buyer" {
-		if trade.BuyerVesselID != vesselID {
-			return errors.New("vessel is not the buyer")
-		}
-		update["$set"].(bson.M)["buyer_confirmed"] = true
 	} else {
-		return errors.New("invalid role")
+		confirmFilter["buyer_confirmed"] = false
+		update["$set"].(bson.M)["buyer_confirmed"] = true
 	}
 
-	result := s.tradeCol.FindOneAndUpdate(ctx, filter, update)
-	if result.Err() != nil {
-		return result.Err()
-	}
-
-	var updatedTrade model.SeaTrade
-	err = s.tradeCol.FindOne(ctx, filter).Decode(&updatedTrade)
+	result, err := s.tradeCol.UpdateOne(ctx, confirmFilter, update)
 	if err != nil {
 		return err
 	}
 
-	if updatedTrade.SellerConfirmed && updatedTrade.BuyerConfirmed {
-		finalUpdate := bson.M{
-			"$set": bson.M{
-				"status":      model.TradeStatusConfirmed,
-				"confirmed_at": time.Now(),
-				"updated_at":  time.Now(),
-			},
+	if result.MatchedCount == 0 {
+		var checkTrade model.SeaTrade
+		if err := s.tradeCol.FindOne(ctx, filter).Decode(&checkTrade); err == nil {
+			if role == "seller" && checkTrade.SellerConfirmed {
+				return nil
+			}
+			if role == "buyer" && checkTrade.BuyerConfirmed {
+				return nil
+			}
+			if checkTrade.Status != model.TradeStatusPending {
+				return errors.New("trade status has changed")
+			}
 		}
-		_, err = s.tradeCol.UpdateByID(ctx, tradeID, finalUpdate)
-		return err
+		return errors.New("failed to confirm trade")
+	}
+
+	var updatedTrade model.SeaTrade
+	if err := s.tradeCol.FindOne(ctx, filter).Decode(&updatedTrade); err == nil {
+		if updatedTrade.SellerConfirmed && updatedTrade.BuyerConfirmed {
+			finalFilter := bson.M{
+				"_id":               tradeID,
+				"seller_confirmed":  true,
+				"buyer_confirmed":   true,
+				"status":            model.TradeStatusPending,
+			}
+			finalUpdate := bson.M{
+				"$set": bson.M{
+					"status":       model.TradeStatusConfirmed,
+					"confirmed_at": time.Now(),
+					"updated_at":   time.Now(),
+				},
+			}
+			_, _ = s.tradeCol.UpdateOne(ctx, finalFilter, finalUpdate)
+		}
 	}
 
 	return nil
@@ -207,36 +247,48 @@ func (s *TradeService) GenerateMonthlySettlement(ctx context.Context, vesselID s
 		return nil, errors.New("no unsettled trades found")
 	}
 
-	var totalWeight float64
-	var totalAmount float64
-	var tradeIDs []string
-	var role string
+	var totalSalesWeight float64
+	var totalSalesAmount float64
+	var totalPurchaseWeight float64
+	var totalPurchaseAmount float64
+	var salesTradeIDs []string
+	var purchaseTradeIDs []string
+	var allTradeIDs []string
+	var vesselNo string
 
 	for _, trade := range trades {
-		tradeIDs = append(tradeIDs, trade.ID)
+		allTradeIDs = append(allTradeIDs, trade.ID)
 		if trade.SellerVesselID == vesselID {
-			role = "seller"
-			totalWeight += trade.Weight
-			totalAmount += trade.TotalAmount
-		} else {
-			role = "buyer"
-			totalWeight += trade.Weight
-			totalAmount += trade.TotalAmount
+			vesselNo = trade.SellerVesselNo
+			salesTradeIDs = append(salesTradeIDs, trade.ID)
+			totalSalesWeight += trade.Weight
+			totalSalesAmount += trade.TotalAmount
+		}
+		if trade.BuyerVesselID == vesselID {
+			vesselNo = trade.BuyerVesselNo
+			purchaseTradeIDs = append(purchaseTradeIDs, trade.ID)
+			totalPurchaseWeight += trade.Weight
+			totalPurchaseAmount += trade.TotalAmount
 		}
 	}
 
 	settlement := &model.MonthlySettlement{
-		ID:              bson.NewObjectID().Hex(),
-		SettlementMonth: month,
-		VesselID:        vesselID,
-		Role:            role,
-		TotalWeight:     totalWeight,
-		TotalAmount:     totalAmount,
-		TradeCount:      len(trades),
-		TradeIDs:        tradeIDs,
-		Status:          "generated",
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		ID:                  bson.NewObjectID().Hex(),
+		SettlementMonth:     month,
+		VesselID:            vesselID,
+		VesselNo:            vesselNo,
+		TotalSalesWeight:    totalSalesWeight,
+		TotalSalesAmount:    totalSalesAmount,
+		SalesCount:          len(salesTradeIDs),
+		SalesTradeIDs:       salesTradeIDs,
+		TotalPurchaseWeight: totalPurchaseWeight,
+		TotalPurchaseAmount: totalPurchaseAmount,
+		PurchaseCount:       len(purchaseTradeIDs),
+		PurchaseTradeIDs:    purchaseTradeIDs,
+		NetAmount:           totalSalesAmount - totalPurchaseAmount,
+		Status:              "generated",
+		CreatedAt:           time.Now(),
+		UpdatedAt:           time.Now(),
 	}
 
 	_, err = s.settlementCol.InsertOne(ctx, settlement)
@@ -245,7 +297,7 @@ func (s *TradeService) GenerateMonthlySettlement(ctx context.Context, vesselID s
 	}
 
 	updateFilter := bson.M{
-		"_id": bson.M{"$in": tradeIDs},
+		"_id": bson.M{"$in": allTradeIDs},
 	}
 	update := bson.M{
 		"$set": bson.M{

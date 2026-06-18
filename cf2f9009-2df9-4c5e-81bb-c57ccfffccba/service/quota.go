@@ -108,15 +108,15 @@ func (s *QuotaService) ListVesselQuotas(ctx context.Context, vesselID string, ye
 func (s *QuotaService) DeductQuota(ctx context.Context, vesselID string, speciesCode string, amount float64, fishingGround string) (bool, error) {
 	year := time.Now().Year()
 
-	filter := bson.M{
-		"vessel_id":      vesselID,
-		"year":           year,
-		"species_code":   speciesCode,
-		"locked":         false,
-		"remaining_quota": bson.M{"$gte": amount},
+	vesselFilter := bson.M{
+		"vessel_id":        vesselID,
+		"year":             year,
+		"species_code":     speciesCode,
+		"locked":           false,
+		"remaining_quota":  bson.M{"$gte": amount},
 	}
 
-	update := bson.M{
+	vesselUpdate := bson.M{
 		"$inc": bson.M{
 			"used_quota":      amount,
 			"remaining_quota": -amount,
@@ -126,10 +126,10 @@ func (s *QuotaService) DeductQuota(ctx context.Context, vesselID string, species
 		},
 	}
 
-	opts := options.FindOneAndUpdate().SetReturnDocument(options.Before)
+	vesselOpts := options.FindOneAndUpdate().SetReturnDocument(options.Before)
 
 	var oldQuota model.VesselQuota
-	err := s.vesselQuotaCol.FindOneAndUpdate(ctx, filter, update, opts).Decode(&oldQuota)
+	err := s.vesselQuotaCol.FindOneAndUpdate(ctx, vesselFilter, vesselUpdate, vesselOpts).Decode(&oldQuota)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			var checkQuota model.VesselQuota
@@ -153,6 +153,40 @@ func (s *QuotaService) DeductQuota(ctx context.Context, vesselID string, species
 		return false, err
 	}
 
+	annualFilter := bson.M{
+		"year":           year,
+		"species_code":   speciesCode,
+		"fishing_ground": fishingGround,
+		"remaining_quota": bson.M{"$gte": amount},
+	}
+	annualUpdate := bson.M{
+		"$inc": bson.M{
+			"used_quota":      amount,
+			"remaining_quota": -amount,
+		},
+		"$set": bson.M{
+			"updated_at": time.Now(),
+		},
+	}
+
+	annualResult, err := s.quotaCol.UpdateOne(ctx, annualFilter, annualUpdate)
+	if err != nil || annualResult.MatchedCount == 0 {
+		rollbackUpdate := bson.M{
+			"$inc": bson.M{
+				"used_quota":      -amount,
+				"remaining_quota": amount,
+			},
+			"$set": bson.M{
+				"updated_at": time.Now(),
+			},
+		}
+		_, _ = s.vesselQuotaCol.UpdateByID(ctx, oldQuota.ID, rollbackUpdate)
+		if err != nil {
+			return false, err
+		}
+		return false, errors.New("annual quota insufficient")
+	}
+
 	remainingAfter := oldQuota.RemainingQuota - amount
 	warning := remainingAfter <= oldQuota.WarningThreshold && oldQuota.RemainingQuota > oldQuota.WarningThreshold
 
@@ -170,22 +204,6 @@ func (s *QuotaService) DeductQuota(ctx context.Context, vesselID string, species
 		}
 		_, _ = s.vesselQuotaCol.UpdateOne(ctx, lockFilter, lockUpdate)
 	}
-
-	annualFilter := bson.M{
-		"year":           year,
-		"species_code":   speciesCode,
-		"fishing_ground": fishingGround,
-	}
-	annualUpdate := bson.M{
-		"$inc": bson.M{
-			"used_quota":      amount,
-			"remaining_quota": -amount,
-		},
-		"$set": bson.M{
-			"updated_at": time.Now(),
-		},
-	}
-	_, _ = s.quotaCol.UpdateOne(ctx, annualFilter, annualUpdate)
 
 	return warning, nil
 }
@@ -231,17 +249,18 @@ func (s *QuotaService) ApproveTransfer(ctx context.Context, transferID string, a
 	if approved {
 		year := transfer.Year
 		speciesCode := transfer.SpeciesCode
+		amount := transfer.Amount
 
 		fromFilter := bson.M{
-			"vessel_id":    transfer.FromVesselID,
-			"year":         year,
-			"species_code": speciesCode,
-			"remaining_quota": bson.M{"$gte": transfer.Amount},
+			"vessel_id":       transfer.FromVesselID,
+			"year":            year,
+			"species_code":    speciesCode,
+			"remaining_quota": bson.M{"$gte": amount},
 		}
 		fromUpdate := bson.M{
 			"$inc": bson.M{
-				"total_quota":     -transfer.Amount,
-				"remaining_quota": -transfer.Amount,
+				"total_quota":     -amount,
+				"remaining_quota": -amount,
 			},
 			"$set": bson.M{"updated_at": time.Now()},
 		}
@@ -250,6 +269,14 @@ func (s *QuotaService) ApproveTransfer(ctx context.Context, transferID string, a
 			return err
 		}
 		if fromResult.MatchedCount == 0 {
+			rejectUpdate := bson.M{
+				"$set": bson.M{
+					"status":          model.QuotaTransferStatusRejected,
+					"approval_remark": "Source vessel has insufficient quota",
+					"updated_at":      time.Now(),
+				},
+			}
+			_, _ = s.transferCol.UpdateByID(ctx, transferID, rejectUpdate)
 			return errors.New("insufficient quota in source vessel")
 		}
 
@@ -260,17 +287,35 @@ func (s *QuotaService) ApproveTransfer(ctx context.Context, transferID string, a
 		}
 		toUpdate := bson.M{
 			"$inc": bson.M{
-				"total_quota":     transfer.Amount,
-				"remaining_quota": transfer.Amount,
+				"total_quota":     amount,
+				"remaining_quota": amount,
 			},
 			"$set": bson.M{"updated_at": time.Now()},
 		}
 		toResult, err := s.vesselQuotaCol.UpdateOne(ctx, toFilter, toUpdate)
-		if err != nil {
-			return err
-		}
-		if toResult.MatchedCount == 0 {
-			return errors.New("target vessel quota not found")
+		if err != nil || toResult.MatchedCount == 0 {
+			rollbackFromUpdate := bson.M{
+				"$inc": bson.M{
+					"total_quota":     amount,
+					"remaining_quota": amount,
+				},
+				"$set": bson.M{"updated_at": time.Now()},
+			}
+			_, _ = s.vesselQuotaCol.UpdateOne(ctx, fromFilter, rollbackFromUpdate)
+
+			rejectUpdate := bson.M{
+				"$set": bson.M{
+					"status":          model.QuotaTransferStatusRejected,
+					"approval_remark": "Target vessel quota not found, transfer rolled back",
+					"updated_at":      time.Now(),
+				},
+			}
+			_, _ = s.transferCol.UpdateByID(ctx, transferID, rejectUpdate)
+
+			if err != nil {
+				return err
+			}
+			return errors.New("target vessel quota not found, transfer rolled back")
 		}
 	}
 

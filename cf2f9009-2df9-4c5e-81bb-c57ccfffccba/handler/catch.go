@@ -53,6 +53,10 @@ func (h *CatchHandler) ReportCatch(c echo.Context) error {
 		return badRequestResponse(c, "vessel_id, species_code and weight are required")
 	}
 
+	if err := model.ValidateCoordinates(req.Longitude, req.Latitude); err != nil {
+		return badRequestResponse(c, err.Error())
+	}
+
 	catchTime := time.Now()
 	if req.CatchTime != "" {
 		parsed, err := time.Parse(time.RFC3339, req.CatchTime)

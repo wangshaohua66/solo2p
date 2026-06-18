@@ -38,22 +38,24 @@ type SupplyPoint struct {
 }
 
 type FuelSupplyPlan struct {
-	ID              string    `json:"id" bson:"_id"`
-	PlanNo          string    `json:"plan_no" bson:"plan_no"`
-	VesselID        string    `json:"vessel_id" bson:"vessel_id"`
-	VesselNo        string    `json:"vessel_no" bson:"vessel_no"`
-	CurrentFuel     float64   `json:"current_fuel" bson:"current_fuel"`
-	DailyConsumption float64  `json:"daily_consumption" bson:"daily_consumption"`
-	EnduranceDays   float64   `json:"endurance_days" bson:"endurance_days"`
-	SupplyPointID   string    `json:"supply_point_id" bson:"supply_point_id"`
-	SupplyPointName string    `json:"supply_point_name" bson:"supply_point_name"`
-	Distance        float64   `json:"distance" bson:"distance"`
-	SuggestedAmount float64   `json:"suggested_amount" bson:"suggested_amount"`
-	EstimatedArrival time.Time `json:"estimated_arrival" bson:"estimated_arrival"`
-	Status          string    `json:"status" bson:"status"`
-	PlannedBy       string    `json:"planned_by" bson:"planned_by"`
-	CreatedAt       time.Time `json:"created_at" bson:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at" bson:"updated_at"`
+	ID                string    `json:"id" bson:"_id"`
+	PlanNo            string    `json:"plan_no" bson:"plan_no"`
+	VesselID          string    `json:"vessel_id" bson:"vessel_id"`
+	VesselNo          string    `json:"vessel_no" bson:"vessel_no"`
+	CurrentFuel       float64   `json:"current_fuel" bson:"current_fuel"`
+	DailyConsumption  float64   `json:"daily_consumption" bson:"daily_consumption"`
+	FuelConsumptionPerKm float64 `json:"fuel_consumption_per_km" bson:"fuel_consumption_per_km"`
+	EnduranceDays     float64   `json:"endurance_days" bson:"endurance_days"`
+	EnduranceMileage  float64   `json:"endurance_mileage" bson:"endurance_mileage"`
+	SupplyPointID     string    `json:"supply_point_id" bson:"supply_point_id"`
+	SupplyPointName   string    `json:"supply_point_name" bson:"supply_point_name"`
+	Distance          float64   `json:"distance" bson:"distance"`
+	SuggestedAmount   float64   `json:"suggested_amount" bson:"suggested_amount"`
+	EstimatedArrival  time.Time `json:"estimated_arrival" bson:"estimated_arrival"`
+	Status            string    `json:"status" bson:"status"`
+	PlannedBy         string    `json:"planned_by" bson:"planned_by"`
+	CreatedAt         time.Time `json:"created_at" bson:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at" bson:"updated_at"`
 }
 
 const (
@@ -64,12 +66,15 @@ const (
 )
 
 type VesselFuelStatus struct {
-	VesselID          string  `json:"vessel_id" bson:"vessel_id"`
-	VesselNo          string  `json:"vessel_no" bson:"vessel_no"`
-	CurrentFuel       float64 `json:"current_fuel" bson:"current_fuel"`
-	DailyConsumption  float64 `json:"daily_consumption" bson:"daily_consumption"`
-	EnduranceDays     float64 `json:"endurance_days" bson:"endurance_days"`
-	LastRefuelTime    time.Time `json:"last_refuel_time" bson:"last_refuel_time"`
-	SafeThresholdDays float64 `json:"safe_threshold_days" bson:"safe_threshold_days"`
-	LowFuelAlert      bool    `json:"low_fuel_alert" bson:"low_fuel_alert"`
+	VesselID              string  `json:"vessel_id" bson:"vessel_id"`
+	VesselNo              string  `json:"vessel_no" bson:"vessel_no"`
+	CurrentFuel           float64 `json:"current_fuel" bson:"current_fuel"`
+	DailyConsumption      float64 `json:"daily_consumption" bson:"daily_consumption"`
+	FuelConsumptionPerKm  float64 `json:"fuel_consumption_per_km" bson:"fuel_consumption_per_km"`
+	AverageSpeed          float64 `json:"average_speed" bson:"average_speed"`
+	EnduranceDays         float64 `json:"endurance_days" bson:"endurance_days"`
+	EnduranceMileage      float64 `json:"endurance_mileage" bson:"endurance_mileage"`
+	LastRefuelTime        time.Time `json:"last_refuel_time" bson:"last_refuel_time"`
+	SafeThresholdMileage  float64 `json:"safe_threshold_mileage" bson:"safe_threshold_mileage"`
+	LowFuelAlert          bool    `json:"low_fuel_alert" bson:"low_fuel_alert"`
 }

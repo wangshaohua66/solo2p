@@ -36,18 +36,22 @@ type SeaTrade struct {
 }
 
 type MonthlySettlement struct {
-	ID             string     `json:"id" bson:"_id"`
-	SettlementMonth string   `json:"settlement_month" bson:"settlement_month"`
-	VesselID       string     `json:"vessel_id" bson:"vessel_id"`
-	VesselNo       string     `json:"vessel_no" bson:"vessel_no"`
-	Role           string     `json:"role" bson:"role"`
-	TotalWeight    float64    `json:"total_weight" bson:"total_weight"`
-	TotalAmount    float64    `json:"total_amount" bson:"total_amount"`
-	TradeCount     int        `json:"trade_count" bson:"trade_count"`
-	TradeIDs       []string   `json:"trade_ids" bson:"trade_ids"`
-	Status         string     `json:"status" bson:"status"`
-	CreatedAt      time.Time  `json:"created_at" bson:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at" bson:"updated_at"`
+	ID                string     `json:"id" bson:"_id"`
+	SettlementMonth   string     `json:"settlement_month" bson:"settlement_month"`
+	VesselID          string     `json:"vessel_id" bson:"vessel_id"`
+	VesselNo          string     `json:"vessel_no" bson:"vessel_no"`
+	TotalSalesWeight  float64    `json:"total_sales_weight" bson:"total_sales_weight"`
+	TotalSalesAmount  float64    `json:"total_sales_amount" bson:"total_sales_amount"`
+	SalesCount        int        `json:"sales_count" bson:"sales_count"`
+	SalesTradeIDs     []string   `json:"sales_trade_ids" bson:"sales_trade_ids"`
+	TotalPurchaseWeight float64  `json:"total_purchase_weight" bson:"total_purchase_weight"`
+	TotalPurchaseAmount float64  `json:"total_purchase_amount" bson:"total_purchase_amount"`
+	PurchaseCount     int        `json:"purchase_count" bson:"purchase_count"`
+	PurchaseTradeIDs  []string   `json:"purchase_trade_ids" bson:"purchase_trade_ids"`
+	NetAmount         float64    `json:"net_amount" bson:"net_amount"`
+	Status            string     `json:"status" bson:"status"`
+	CreatedAt         time.Time  `json:"created_at" bson:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at" bson:"updated_at"`
 }
 
 type TradeDispute struct {

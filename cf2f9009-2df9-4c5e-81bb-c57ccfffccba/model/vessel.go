@@ -28,6 +28,9 @@ type Vessel struct {
 	BeidouID      string    `json:"beidou_id" bson:"beidou_id"`
 	FuelTankCapacity float64 `json:"fuel_tank_capacity" bson:"fuel_tank_capacity"`
 	DailyFuelConsumption float64 `json:"daily_fuel_consumption" bson:"daily_fuel_consumption"`
+	AverageSpeed  float64   `json:"average_speed" bson:"average_speed"`
+	OperationBasePoint Point `json:"operation_base_point" bson:"operation_base_point"`
+	MaxYawDistance float64  `json:"max_yaw_distance" bson:"max_yaw_distance"`
 	CreatedAt     time.Time `json:"created_at" bson:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at" bson:"updated_at"`
 }

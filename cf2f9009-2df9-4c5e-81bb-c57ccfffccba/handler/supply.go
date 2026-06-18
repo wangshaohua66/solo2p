@@ -48,15 +48,15 @@ func (h *SupplyHandler) GetVesselFuelStatus(c echo.Context) error {
 	ctx := c.Request().Context()
 	vesselID := c.Param("vessel_id")
 
-	thresholdStr := c.QueryParam("safe_threshold_days")
-	safeThresholdDays := 3.0
+	thresholdStr := c.QueryParam("safe_threshold_mileage")
+	safeThresholdMileage := 300.0
 	if thresholdStr != "" {
 		if t, err := strconv.ParseFloat(thresholdStr, 64); err == nil && t > 0 {
-			safeThresholdDays = t
+			safeThresholdMileage = t
 		}
 	}
 
-	status, err := h.supplyService.GetVesselFuelStatus(ctx, vesselID, safeThresholdDays)
+	status, err := h.supplyService.GetVesselFuelStatus(ctx, vesselID, safeThresholdMileage)
 	if err != nil {
 		return systemErrorResponse(c, err.Error())
 	}

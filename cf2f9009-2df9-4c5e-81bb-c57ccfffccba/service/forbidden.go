@@ -57,6 +57,13 @@ func (s *ForbiddenService) ListZones(ctx context.Context, zoneType string, statu
 	return zones, nil
 }
 
+func isDateInRange(currentMD, startMD, endMD string) bool {
+	if startMD <= endMD {
+		return currentMD >= startMD && currentMD <= endMD
+	}
+	return currentMD >= startMD || currentMD <= endMD
+}
+
 func (s *ForbiddenService) GetActiveZones(ctx context.Context) ([]model.ForbiddenZone, error) {
 	today := time.Now()
 	monthDay := today.Format("01-02")
@@ -65,10 +72,7 @@ func (s *ForbiddenService) GetActiveZones(ctx context.Context) ([]model.Forbidde
 		"status": model.ZoneStatusActive,
 		"$or": []bson.M{
 			{"year_round": true},
-			{
-				"start_date": bson.M{"$lte": monthDay},
-				"end_date":   bson.M{"$gte": monthDay},
-			},
+			{"year_round": false},
 		},
 	}
 
@@ -82,7 +86,19 @@ func (s *ForbiddenService) GetActiveZones(ctx context.Context) ([]model.Forbidde
 	if err := cursor.All(ctx, &zones); err != nil {
 		return nil, err
 	}
-	return zones, nil
+
+	var activeZones []model.ForbiddenZone
+	for _, zone := range zones {
+		if zone.YearRound {
+			activeZones = append(activeZones, zone)
+			continue
+		}
+		if isDateInRange(monthDay, zone.StartDate, zone.EndDate) {
+			activeZones = append(activeZones, zone)
+		}
+	}
+
+	return activeZones, nil
 }
 
 func (s *ForbiddenService) CheckForbiddenZone(ctx context.Context, vesselID, vesselNo string, location model.Point, checkTime time.Time) (*model.ForbiddenViolation, error) {

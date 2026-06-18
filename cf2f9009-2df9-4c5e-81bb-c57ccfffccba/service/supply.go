@@ -42,7 +42,7 @@ func (s *SupplyService) AddFuelRecord(ctx context.Context, record *model.FuelRec
 	return err
 }
 
-func (s *SupplyService) GetVesselFuelStatus(ctx context.Context, vesselID string, safeThresholdDays float64) (*model.VesselFuelStatus, error) {
+func (s *SupplyService) GetVesselFuelStatus(ctx context.Context, vesselID string, safeThresholdMileage float64) (*model.VesselFuelStatus, error) {
 	filter := bson.M{"vessel_id": vesselID}
 	opts := options.FindOne().SetSort(bson.D{{Key: "recorded_at", Value: -1}})
 
@@ -63,18 +63,32 @@ func (s *SupplyService) GetVesselFuelStatus(ctx context.Context, vesselID string
 		dailyConsumption = latestRecord.FuelAmount / 7
 	}
 
+	averageSpeed := vessel.AverageSpeed
+	if averageSpeed <= 0 {
+		averageSpeed = 10.0
+	}
+
+	dailySailingHours := 24.0
+	fuelConsumptionPerHour := dailyConsumption / dailySailingHours
+	fuelConsumptionPerKm := fuelConsumptionPerHour / averageSpeed
+
 	enduranceDays := latestRecord.CurrentFuel / dailyConsumption
-	lowFuelAlert := enduranceDays < safeThresholdDays
+	enduranceMileage := latestRecord.CurrentFuel / fuelConsumptionPerKm
+
+	lowFuelAlert := enduranceMileage < safeThresholdMileage
 
 	status := &model.VesselFuelStatus{
-		VesselID:          vesselID,
-		VesselNo:          vessel.VesselNo,
-		CurrentFuel:       latestRecord.CurrentFuel,
-		DailyConsumption:  dailyConsumption,
-		EnduranceDays:     enduranceDays,
-		LastRefuelTime:    latestRecord.RecordedAt,
-		SafeThresholdDays: safeThresholdDays,
-		LowFuelAlert:      lowFuelAlert,
+		VesselID:             vesselID,
+		VesselNo:             vessel.VesselNo,
+		CurrentFuel:          latestRecord.CurrentFuel,
+		DailyConsumption:     dailyConsumption,
+		FuelConsumptionPerKm: fuelConsumptionPerKm,
+		AverageSpeed:         averageSpeed,
+		EnduranceDays:        enduranceDays,
+		EnduranceMileage:     enduranceMileage,
+		LastRefuelTime:       latestRecord.RecordedAt,
+		SafeThresholdMileage: safeThresholdMileage,
+		LowFuelAlert:         lowFuelAlert,
 	}
 
 	return status, nil
@@ -177,7 +191,8 @@ func (s *SupplyService) FindNearestSupplyPoint(ctx context.Context, lng, lat flo
 }
 
 func (s *SupplyService) GenerateSupplyPlan(ctx context.Context, vesselID string, currentLocation model.Point, plannedBy string) (*model.FuelSupplyPlan, error) {
-	fuelStatus, err := s.GetVesselFuelStatus(ctx, vesselID, 3)
+	safeThresholdMileage := 300.0
+	fuelStatus, err := s.GetVesselFuelStatus(ctx, vesselID, safeThresholdMileage)
 	if err != nil {
 		return nil, err
 	}
@@ -203,27 +218,32 @@ func (s *SupplyService) GenerateSupplyPlan(ctx context.Context, vesselID string,
 		suggestedAmount = 0
 	}
 
-	averageSpeed := 12.0
+	averageSpeed := fuelStatus.AverageSpeed
+	if averageSpeed <= 0 {
+		averageSpeed = 12.0
+	}
 	travelHours := distance / averageSpeed
 	estimatedArrival := time.Now().Add(time.Duration(travelHours) * time.Hour)
 
 	plan := &model.FuelSupplyPlan{
-		ID:                bson.NewObjectID().Hex(),
-		PlanNo:            generatePlanNo(),
-		VesselID:          vesselID,
-		VesselNo:          vessel.VesselNo,
-		CurrentFuel:       fuelStatus.CurrentFuel,
-		DailyConsumption:  fuelStatus.DailyConsumption,
-		EnduranceDays:     fuelStatus.EnduranceDays,
-		SupplyPointID:     supplyPoint.ID,
-		SupplyPointName:   supplyPoint.Name,
-		Distance:          distance,
-		SuggestedAmount:   suggestedAmount,
-		EstimatedArrival:  estimatedArrival,
-		Status:            model.SupplyPlanStatusPending,
-		PlannedBy:         plannedBy,
-		CreatedAt:         time.Now(),
-		UpdatedAt:         time.Now(),
+		ID:                    bson.NewObjectID().Hex(),
+		PlanNo:                generatePlanNo(),
+		VesselID:              vesselID,
+		VesselNo:              vessel.VesselNo,
+		CurrentFuel:           fuelStatus.CurrentFuel,
+		DailyConsumption:      fuelStatus.DailyConsumption,
+		FuelConsumptionPerKm:  fuelStatus.FuelConsumptionPerKm,
+		EnduranceDays:         fuelStatus.EnduranceDays,
+		EnduranceMileage:      fuelStatus.EnduranceMileage,
+		SupplyPointID:         supplyPoint.ID,
+		SupplyPointName:       supplyPoint.Name,
+		Distance:              distance,
+		SuggestedAmount:       suggestedAmount,
+		EstimatedArrival:      estimatedArrival,
+		Status:                model.SupplyPlanStatusPending,
+		PlannedBy:             plannedBy,
+		CreatedAt:             time.Now(),
+		UpdatedAt:             time.Now(),
 	}
 
 	_, err = s.supplyPlanCol.InsertOne(ctx, plan)

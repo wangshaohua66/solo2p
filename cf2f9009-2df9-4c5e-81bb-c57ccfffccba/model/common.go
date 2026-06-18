@@ -1,6 +1,21 @@
 package model
 
-import "time"
+import (
+	"errors"
+	"time"
+)
+
+func ValidateCoordinates(lng, lat float64) error {
+	if lng != 0 || lat != 0 {
+		if lng < -180 || lng > 180 {
+			return errors.New("longitude must be between -180 and 180")
+		}
+		if lat < -90 || lat > 90 {
+			return errors.New("latitude must be between -90 and 90")
+		}
+	}
+	return nil
+}
 
 type Response struct {
 	Code    int         `json:"code"`
