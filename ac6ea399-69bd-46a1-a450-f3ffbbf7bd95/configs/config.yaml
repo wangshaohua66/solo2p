@@ -1,0 +1,86 @@
+checksum:
+    algorithm: md5
+    verifyaftersync: true
+conflict:
+    strategy: overwrite
+    conflictdir: ./conflicts
+    keepbackup: true
+env: development
+logger:
+    level: info
+    logdir: ./logs
+    maxsizemb: 100
+    maxbackups: 30
+    maxagedays: 90
+    compress: true
+progress:
+    dbpath: ./progress.db
+    maxdbsizemb: 500
+report:
+    outputdir: ./reports
+    formats:
+        - json
+        - csv
+        - html
+    detailed: true
+    email:
+        enabled: false
+        smtphost: smtp.example.com
+        smtpport: 587
+        username: notify@example.com
+        password: xxxxxxxx
+        fromaddress: CloudSync <notify@example.com>
+        toaddresses:
+            - admin@example.com
+        usetls: true
+source:
+    type: s3
+    prefix: products/
+    s3:
+        accesskeyid: AKIAXXXXXXXXXXXXXXXX
+        secretaccesskey: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+        region: us-east-1
+        bucket: my-source-bucket
+        endpoint: ""
+        forcepathstyle: false
+    oss:
+        accesskeyid: ""
+        accesskeysecret: ""
+        endpoint: ""
+        bucket: ""
+    gcs:
+        projectid: ""
+        credentialsfile: ""
+        bucket: ""
+sync:
+    concurrency: 100
+    retrycount: 3
+    retryinterval: 2s
+    timeout: 30m0s
+    chunksize: 8388608
+    includepatterns:
+        - '*'
+    excludepatterns: []
+    deletemissing: false
+    syncmode: incremental
+    timefilterstart: null
+    timefilterend: null
+target:
+    type: oss
+    prefix: products/
+    s3:
+        accesskeyid: ""
+        secretaccesskey: ""
+        region: ""
+        bucket: ""
+        endpoint: ""
+        forcepathstyle: false
+    oss:
+        accesskeyid: LTAIXXXXXXXXXXXXXXXX
+        accesskeysecret: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+        endpoint: oss-cn-hangzhou.aliyuncs.com
+        bucket: my-target-bucket
+    gcs:
+        projectid: ""
+        credentialsfile: ""
+        bucket: ""

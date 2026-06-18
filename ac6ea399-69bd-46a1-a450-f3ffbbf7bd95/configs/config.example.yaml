@@ -1,0 +1,75 @@
+env: production
+
+source:
+  type: s3
+  prefix: products/
+  s3:
+    access_key_id: AKIAXXXXXXXXXXXXXXXX
+    secret_access_key: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    region: us-east-1
+    bucket: my-source-bucket
+    endpoint: ""
+    force_path_style: false
+
+target:
+  type: oss
+  prefix: products/
+  oss:
+    access_key_id: LTAIXXXXXXXXXXXXXXXX
+    access_key_secret: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    endpoint: oss-cn-hangzhou.aliyuncs.com
+    bucket: my-target-bucket
+
+sync:
+  concurrency: 100
+  retry_count: 3
+  retry_interval: 2s
+  timeout: 30m
+  chunk_size: 8388608
+  include_patterns:
+    - "*"
+  exclude_patterns:
+    - "*.tmp"
+    - "*.DS_Store"
+  delete_missing: false
+  sync_mode: incremental
+
+checksum:
+  algorithm: md5
+  verify_after_sync: true
+
+conflict:
+  strategy: overwrite
+  conflict_dir: ./conflicts
+  keep_backup: true
+
+progress:
+  db_path: ./progress.db
+  max_db_size_mb: 500
+
+logger:
+  level: info
+  log_dir: ./logs
+  max_size_mb: 100
+  max_backups: 30
+  max_age_days: 90
+  compress: true
+
+report:
+  output_dir: ./reports
+  formats:
+    - json
+    - csv
+    - html
+  detailed: true
+  email:
+    enabled: false
+    smtp_host: smtp.example.com
+    smtp_port: 587
+    username: notify@example.com
+    password: xxxxxxxxx
+    from_address: "CloudSync <notify@example.com>"
+    to_addresses:
+      - admin@example.com
+      - ops@example.com
+    use_tls: true
