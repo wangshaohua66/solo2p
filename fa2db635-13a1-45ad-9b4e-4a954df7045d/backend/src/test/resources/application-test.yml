@@ -1,0 +1,36 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:wedding_test;DB_CLOSE_DELAY=-1;MODE=MySQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+  sql:
+    init:
+      mode: never
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 100ms
+
+wedding:
+  sign:
+    provider: ${TEST_SIGN_PROVIDER:none}
+    esign:
+      app-id: ${TEST_ESIGN_APP_ID:}
+      app-secret: ${TEST_ESIGN_APP_SECRET:}
+      base-url: ${TEST_ESIGN_BASE_URL:https://smlopenapi.esign.cn}
+  sms:
+    provider: none
+
+logging:
+  level:
+    root: WARN
+    com.wedding.suite: DEBUG

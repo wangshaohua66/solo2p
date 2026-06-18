@@ -1,0 +1,15 @@
+-------------------------------------------------------------------------------
+Test set: com.wedding.suite.service.SignServiceImplTest$PlaceholderModeTests
+-------------------------------------------------------------------------------
+Tests run: 5, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.031 s <<< FAILURE! -- in com.wedding.suite.service.SignServiceImplTest$PlaceholderModeTests
+com.wedding.suite.service.SignServiceImplTest$PlaceholderModeTests.createSignFlow_disabled_returnsPlaceholder -- Time elapsed: 0.008 s <<< ERROR!
+java.lang.Error: 
+Unresolved compilation problem: 
+	The method exchange(String, HttpMethod, HttpEntity<?>, Class<Object>, Object[]) is ambiguous for the type RestTemplate
+
+	at com.wedding.suite.service.SignServiceImplTest$PlaceholderModeTests.createSignFlow_disabled_returnsPlaceholder(SignServiceImplTest.java:90)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
