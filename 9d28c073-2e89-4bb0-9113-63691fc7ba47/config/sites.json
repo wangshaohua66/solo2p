@@ -907,7 +907,7 @@
     },
     "crawlStrategy": {
       "requestIntervalMin": 5,
-      "requestIntervalMax": 10,
+      "requestIntervalMax": 8,
       "maxRetries": 3,
       "timeout": 15000,
       "needLogin": false,
@@ -1001,7 +1001,7 @@
     "province": "四川省",
     "category": "labor",
     "baseUrl": "http://rst.sc.gov.cn",
-    "listUrl": "http://rst.sc.gov.cn//zcjd/index.html",
+    "listUrl": "http://rst.sc.gov.cn/zcjd/index.html",
     "selectors": {
       "listItem": ".news-list li",
       "title": "a",

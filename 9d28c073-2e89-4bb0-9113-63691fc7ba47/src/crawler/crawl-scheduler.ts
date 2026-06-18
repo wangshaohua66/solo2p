@@ -1,7 +1,7 @@
 import cron from 'node-cron';
 import { EventEmitter } from 'events';
 import logger from '../utils/logger';
-import { nowIso, withTimeout, chunkArray, sleep, md5 } from '../utils/helpers';
+import { nowIso, withTimeout, sleep, md5, exponentialBackoff } from '../utils/helpers';
 import siteRegistry from '../crawler/site-registry';
 import { PageFetcher } from '../crawler/page-fetcher';
 import { BrowserPool, BrowserWorker } from '../crawler/browser-pool';
@@ -12,9 +12,7 @@ import repository from '../storage/repository';
 import {
   SiteConfig,
   SiteRuntimeInfo,
-  SiteStatus,
   CrawlResult,
-  ChangeRecord,
   PolicyListItem,
   ListSnapshot,
   CaptchaManualIntervention
@@ -184,37 +182,49 @@ export class CrawlScheduler extends EventEmitter {
   private async runCrawlWithPool(grouped: SiteConfig[][], totalGroups: number): Promise<void> {
     const pool = this.browserPool!;
 
-    for (let i = 0; i < grouped.length; i++) {
-      const group = grouped[i];
-      logger.debug(`Processing group ${i + 1}/${totalGroups} with ${group.length} sites`);
-
-      const promises = group.map(site =>
-        pool.runExclusive(async (worker: BrowserWorker) => {
+    const promises = grouped.map((provinceGroup, i) =>
+      pool.runExclusive(async (worker: BrowserWorker) => {
+        const province = provinceGroup[0]?.province || 'unknown';
+        logger.debug(
+          `Worker acquired for province group ${i + 1}/${totalGroups} ` +
+          `(${province}, ${provinceGroup.length} sites) - processing sequentially`
+        );
+        for (const site of provinceGroup) {
           await this.crawlSiteWithWorker(site, worker);
-        })
-      );
-      await Promise.all(promises);
+        }
+        logger.debug(`Worker released after completing province group ${i + 1}/${totalGroups} (${province})`);
+      })
+    );
+    await Promise.all(promises);
 
-      this.emit('progress', this.currentSession);
-    }
+    this.emit('progress', this.currentSession);
   }
 
   private async runCrawlStandalone(grouped: SiteConfig[][], totalGroups: number): Promise<void> {
     for (let i = 0; i < grouped.length; i++) {
       const group = grouped[i];
-      logger.debug(`Processing group ${i + 1}/${totalGroups} with ${group.length} sites`);
+      const province = group[0]?.province || 'unknown';
+      logger.debug(`Processing province group ${i + 1}/${totalGroups} (${province}, ${group.length} sites) sequentially`);
 
-      const promises = group.map(site => this.crawlSite(site));
-      await Promise.all(promises);
+      for (const site of group) {
+        await this.crawlSite(site);
+      }
 
       this.emit('progress', this.currentSession);
     }
   }
 
   private groupSitesForParallelism(sites: SiteConfig[]): SiteConfig[][] {
-    const byProvince = siteRegistry.groupByProvince();
-    const provinceGroups: SiteConfig[][] = [];
+    const byProvince = new Map<string, SiteConfig[]>();
 
+    for (const site of sites) {
+      if (!byProvince.has(site.province)) {
+        byProvince.set(site.province, []);
+      }
+      byProvince.get(site.province)!.push(site);
+    }
+
+    const provinceGroups: SiteConfig[][] = [];
     for (const [, provinceSites] of byProvince) {
       const sorted = [...provinceSites].sort((a, b) => a.priority - b.priority);
       provinceGroups.push(sorted);
@@ -226,7 +236,7 @@ export class CrawlScheduler extends EventEmitter {
       return minA - minB;
     });
 
-    return chunkArray(provinceGroups.flat(), this.poolSize).map(chunk => chunk);
+    return provinceGroups;
   }
 
   private async crawlSiteWithWorker(site: SiteConfig, worker: BrowserWorker): Promise<void> {
@@ -666,17 +676,64 @@ export class CrawlScheduler extends EventEmitter {
       return 0;
     }
 
-    const failedSites = Array.from(this.currentSession.siteStatuses.values())
+    const MAX_RETRY_ROUNDS = 3;
+    const BASE_BACKOFF_MS = 2000;
+    let totalRetried = 0;
+
+    for (let round = 1; round <= MAX_RETRY_ROUNDS; round++) {
+      const failedSites = this.collectFailedSites();
+
+      if (failedSites.length === 0) {
+        if (round === 1) {
+          logger.info('No failed sites to retry');
+        } else {
+          logger.info(`All failed sites recovered after ${round - 1} retry round(s), no more retries needed`);
+        }
+        break;
+      }
+
+      if (round > 1) {
+        const backoffMs = exponentialBackoff(round - 1, BASE_BACKOFF_MS);
+        logger.info(
+          `Retry round ${round}/${MAX_RETRY_ROUNDS}: exponential backoff waiting ${backoffMs}ms ` +
+          `before retrying ${failedSites.length} still-failed site(s)`
+        );
+        await sleep(backoffMs);
+      } else {
+        logger.info(`Retry round ${round}/${MAX_RETRY_ROUNDS}: retrying ${failedSites.length} failed site(s)`);
+      }
+
+      const retriedCount = await this.executeRetryRound(failedSites);
+      totalRetried += retriedCount;
+
+      const stillFailed = this.collectFailedSites();
+      if (stillFailed.length === 0) {
+        logger.info(`All failed sites recovered after retry round ${round}/${MAX_RETRY_ROUNDS}`);
+        break;
+      } else if (round < MAX_RETRY_ROUNDS) {
+        logger.info(`Retry round ${round} completed, ${stillFailed.length} site(s) still failing, will retry`);
+      } else {
+        logger.warn(
+          `Retry round ${round}/${MAX_RETRY_ROUNDS} completed, ${stillFailed.length} site(s) still failing ` +
+          `- max retries exhausted, giving up`
+        );
+      }
+    }
+
+    return totalRetried;
+  }
+
+  private collectFailedSites(): SiteConfig[] {
+    if (!this.currentSession) return [];
+
+    return Array.from(this.currentSession.siteStatuses.values())
       .filter(s => s.status === 'failed' || s.status === 'captcha')
       .map(s => siteRegistry.getSite(s.siteId))
       .filter((s): s is SiteConfig => s !== undefined && s.enabled);
+  }
 
-    if (failedSites.length === 0) {
-      logger.info('No failed sites to retry');
-      return 0;
-    }
-
-    logger.info(`Retrying ${failedSites.length} failed sites`);
+  private async executeRetryRound(failedSites: SiteConfig[]): Promise<number> {
+    if (!this.currentSession) return 0;
 
     for (const site of failedSites) {
       const status = this.currentSession.siteStatuses.get(site.id);
@@ -691,19 +748,24 @@ export class CrawlScheduler extends EventEmitter {
       }
     }
 
+    const grouped = this.groupSitesForParallelism(failedSites);
+
     if (this.browserPool) {
-      const grouped = this.groupSitesForParallelism(failedSites);
-      for (const group of grouped) {
-        const promises = group.map(site =>
-          this.browserPool!.runExclusive(async (worker: BrowserWorker) => {
+      const pool = this.browserPool;
+      const promises = grouped.map((provinceGroup) =>
+        pool.runExclusive(async (worker: BrowserWorker) => {
+          for (const site of provinceGroup) {
             await this.crawlSiteWithWorker(site, worker);
-          })
-        );
-        await Promise.all(promises);
-      }
-    } else {
-      const promises = failedSites.map(site => this.crawlSite(site));
+          }
+        })
+      );
       await Promise.all(promises);
+    } else {
+      for (const group of grouped) {
+        for (const site of group) {
+          await this.crawlSite(site);
+        }
+      }
     }
 
     return failedSites.length;

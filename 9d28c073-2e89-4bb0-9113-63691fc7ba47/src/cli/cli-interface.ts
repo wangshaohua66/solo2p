@@ -4,8 +4,8 @@ import { SingleBar, Presets } from 'cli-progress';
 import { EventEmitter } from 'events';
 import logger from '../utils/logger';
 import siteRegistry from '../crawler/site-registry';
-import { CrawlScheduler, CrawlSession } from '../crawler/crawl-scheduler';
-import { SiteStatus } from '../types';
+import { CrawlScheduler } from '../crawler/crawl-scheduler';
+import { SiteStatus, CaptchaManualIntervention } from '../types';
 import { formatDate, truncate } from '../utils/helpers';
 import repository from '../storage/repository';
 
@@ -35,6 +35,8 @@ export class CliInterface extends EventEmitter {
   private lastRenderTime: number = 0;
   private renderThrottle: number = 200;
   private isActive: boolean = false;
+  private isAwaitingCaptchaInput: boolean = false;
+  private pendingCaptchaInterventions: Map<string, CaptchaManualIntervention> = new Map();
 
   constructor(scheduler: CrawlScheduler) {
     super();
@@ -56,6 +58,7 @@ export class CliInterface extends EventEmitter {
 
     process.stdin.on('data', (key: string) => {
       if (!this.isActive) return;
+      if (this.isAwaitingCaptchaInput) return;
 
       const byte = key.toString();
 
@@ -63,6 +66,8 @@ export class CliInterface extends EventEmitter {
         this.togglePause();
       } else if (byte === 'r' || byte === 'R') {
         this.retryFailed();
+      } else if (byte === 'c' || byte === 'C') {
+        this.promptCaptchaResolution();
       } else if (byte === 'q' || byte === 'Q' || byte === '\x03') {
         this.quit();
       }
@@ -114,6 +119,17 @@ export class CliInterface extends EventEmitter {
     this.scheduler.on('resumed', () => {
       this.throttledRender();
     });
+
+    this.scheduler.on('captchaManualIntervention', (intervention: CaptchaManualIntervention) => {
+      this.pendingCaptchaInterventions.set(intervention.siteId, intervention);
+      this.handleCaptchaPrompt(intervention);
+    });
+
+    this.scheduler.on('captchaResolved', (siteId: string) => {
+      this.pendingCaptchaInterventions.delete(siteId);
+      console.log(chalk.green(`\n  ✅ 站点 ${siteId} 验证码已解决，爬取流程已恢复`));
+      this.throttledRender();
+    });
   }
 
   start(): void {
@@ -129,7 +145,7 @@ export class CliInterface extends EventEmitter {
     console.log(chalk.bold.cyan('╚══════════════════════════════════════════════════╝\n'));
     console.log(chalk.gray(`监控站点: ${siteRegistry.getSiteCount()} 个 | 覆盖省份: ${siteRegistry.getProvinces().length} 个`));
     console.log(chalk.gray('定时任务: 工作日 08:00 / 12:00 / 17:00\n'));
-    console.log(chalk.yellow('快捷键: 空格=暂停/恢复  r=重试失败站点  q=退出\n'));
+    console.log(chalk.yellow('快捷键: 空格=暂停/恢复  r=重试失败站点  c=处理验证码  q=退出\n'));
   }
 
   private throttledRender(): void {
@@ -226,7 +242,13 @@ export class CliInterface extends EventEmitter {
                   chalk.red(`  失败: ${session.failedCount}`) +
                   chalk.white(`  新变更: ${session.newChanges}`));
     } else if (session?.status === 'paused') {
-      console.log(chalk.yellow.bold('\n  ⏸️  已暂停 - 按空格键继续'));
+      const pendingCaptcha = this.scheduler.getPendingCaptchaSites();
+      if (pendingCaptcha.length > 0) {
+        console.log(chalk.yellow.bold(`\n  ⏸️  已暂停 - 等待验证码处理 (${pendingCaptcha.length} 个站点)`));
+        console.log(chalk.yellow('  按 c 键输入验证码并恢复爬取'));
+      } else {
+        console.log(chalk.yellow.bold('\n  ⏸️  已暂停 - 按空格键继续'));
+      }
     } else if (session?.status === 'completed') {
       console.log(chalk.green.bold('\n  ✅ 本次巡检完成'));
       const elapsed = session.endTime
@@ -284,10 +306,122 @@ export class CliInterface extends EventEmitter {
     this.render();
   }
 
+  private handleCaptchaPrompt(intervention: CaptchaManualIntervention): void {
+    if (this.isAwaitingCaptchaInput) {
+      logger.info(`Captcha prompt already active, queuing site ${intervention.siteId}`);
+      return;
+    }
+
+    this.promptCaptchaInput(intervention);
+  }
+
+  private promptCaptchaResolution(): void {
+    const pending = this.scheduler.getPendingCaptchaSites();
+
+    if (pending.length === 0) {
+      console.log(chalk.gray('\n  当前无待处理验证码'));
+      this.render();
+      return;
+    }
+
+    if (this.isAwaitingCaptchaInput) {
+      console.log(chalk.gray('\n  正在等待验证码输入，请先完成当前输入'));
+      return;
+    }
+
+    console.log(chalk.yellow('\n  📋 待处理验证码站点:'));
+    pending.forEach((siteId, i) => {
+      const intervention = this.pendingCaptchaInterventions.get(siteId);
+      const siteName = intervention ? siteId : siteId;
+      console.log(chalk.yellow(`    ${i + 1}. ${siteName}`));
+    });
+
+    this.rl.question(chalk.cyan('\n  请输入要处理的站点编号（或按回车处理第一个）: '), (answer: string) => {
+      const trimmed = answer.trim();
+      let targetSiteId: string | undefined;
+
+      if (!trimmed) {
+        targetSiteId = pending[0];
+      } else {
+        const idx = parseInt(trimmed, 10) - 1;
+        if (idx >= 0 && idx < pending.length) {
+          targetSiteId = pending[idx];
+        }
+      }
+
+      if (!targetSiteId) {
+        console.log(chalk.red('  无效的选择'));
+        this.render();
+        return;
+      }
+
+      const intervention = this.pendingCaptchaInterventions.get(targetSiteId);
+      if (intervention) {
+        this.promptCaptchaInput(intervention);
+      } else {
+        this.promptCaptchaInput({
+          siteId: targetSiteId,
+          url: '',
+          captchaType: 'graphic',
+          screenshotPath: '',
+          detectedAt: new Date().toISOString(),
+          resolved: false
+        });
+      }
+    });
+  }
+
+  private promptCaptchaInput(intervention: CaptchaManualIntervention): void {
+    this.isAwaitingCaptchaInput = true;
+
+    if (process.stdin.isTTY) {
+      process.stdin.setRawMode(false);
+    }
+
+    console.log(chalk.yellow.bold('\n\n  ⚠️  检测到图形验证码，爬取流程已暂停！'));
+    console.log(chalk.yellow(`  站点 ID: ${intervention.siteId}`));
+    console.log(chalk.yellow(`  URL: ${intervention.url}`));
+    console.log(chalk.gray(`  类型: ${intervention.captchaType}`));
+    if (intervention.screenshotPath) {
+      console.log(chalk.gray(`  截图路径: ${intervention.screenshotPath}`));
+    }
+    console.log(chalk.cyan('  请人工查看验证码并输入结果，或直接按回车确认已手动解决'));
+
+    this.rl.question(chalk.cyan('\n  请输入验证码（或直接回车确认已解决）: '), (answer: string) => {
+      const captchaValue = answer.trim();
+
+      if (captchaValue) {
+        console.log(chalk.green(`  ✅ 已记录验证码: ${captchaValue}`));
+        logger.info(`Captcha input received for site ${intervention.siteId}: ${captchaValue}`);
+      } else {
+        console.log(chalk.green('  ✅ 已确认验证码手动解决'));
+        logger.info(`Captcha manually resolved for site ${intervention.siteId}`);
+      }
+
+      this.scheduler.resolveCaptcha(intervention.siteId);
+
+      this.isAwaitingCaptchaInput = false;
+      if (process.stdin.isTTY) {
+        process.stdin.setRawMode(true);
+      }
+
+      const remaining = this.scheduler.getPendingCaptchaSites();
+      if (remaining.length > 0) {
+        console.log(chalk.yellow(`\n  还有 ${remaining.length} 个站点等待验证码处理，按 c 键继续`));
+      }
+
+      this.render();
+    });
+  }
+
   async quit(): Promise<void> {
     console.log(chalk.yellow('\n  正在退出...'));
     this.isActive = false;
+    this.isAwaitingCaptchaInput = false;
     this.stopProgressBar();
+    if (process.stdin.isTTY) {
+      process.stdin.setRawMode(false);
+    }
     this.scheduler.destroy();
     this.rl.close();
     repository.close();
