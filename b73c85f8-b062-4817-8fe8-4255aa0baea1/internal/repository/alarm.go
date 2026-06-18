@@ -87,6 +87,16 @@ func (r *AlarmRepository) GetNewAlarms() ([]model.Alarm, error) {
 	return alarms, err
 }
 
+func (r *AlarmRepository) GetOverdueAlarms(timeoutSeconds int) ([]model.Alarm, error) {
+	var alarms []model.Alarm
+	cutoff := time.Now().Add(-time.Duration(timeoutSeconds) * time.Second)
+	err := r.db.Where("status = ? AND created_at <= ?", model.AlarmStatusNew, cutoff).
+		Preload("Pipeline").
+		Order("level DESC, created_at ASC").
+		Find(&alarms).Error
+	return alarms, err
+}
+
 type RepairRepository struct {
 	BaseRepository
 }

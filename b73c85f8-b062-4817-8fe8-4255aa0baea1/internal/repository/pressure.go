@@ -83,6 +83,32 @@ func (r *PressureRepository) GetHourlyStats(stationID uint, date time.Time) ([]H
 	return stats, err
 }
 
+type FiveMinStats struct {
+	Window      string  `json:"window"`
+	MaxPressure float64 `json:"max_pressure"`
+	MinPressure float64 `json:"min_pressure"`
+	AvgPressure float64 `json:"avg_pressure"`
+	DataCount   int     `json:"data_count"`
+}
+
+func (r *PressureRepository) Get5MinStats(stationID uint, startTime, endTime time.Time) ([]FiveMinStats, error) {
+	var stats []FiveMinStats
+
+	err := r.db.Model(&model.PressureData{}).
+		Select("strftime('%Y-%m-%d %H:', timestamp) || printf('%02d', (strftime('%M', timestamp) / 5) * 5) as window, " +
+			"MAX(pressure_value) as max_pressure, " +
+			"MIN(pressure_value) as min_pressure, " +
+			"AVG(pressure_value) as avg_pressure, " +
+			"COUNT(*) as data_count").
+		Where("station_id = ? AND timestamp BETWEEN ? AND ? AND is_archived = ?",
+			stationID, startTime, endTime, false).
+		Group("window").
+		Order("window ASC").
+		Scan(&stats).Error
+
+	return stats, err
+}
+
 type HourlyStats struct {
 	Hour        string  `json:"hour"`
 	MaxPressure float64 `json:"max_pressure"`
@@ -127,6 +153,36 @@ func (r *PressureRepository) GetDailyStats(stationID uint, startDate, endDate ti
 
 func (r *PressureRepository) CreateDailyStats(stats *model.PressureDailyStats) error {
 	return r.db.Create(stats).Error
+}
+
+func (r *PressureRepository) BatchCreateDailyStats(statsList []model.PressureDailyStats) error {
+	if len(statsList) == 0 {
+		return nil
+	}
+	return r.db.CreateInBatches(statsList, 100).Error
+}
+
+func (r *PressureRepository) GetDailyAggregationData(beforeDate time.Time) ([]DailyAggregationRow, error) {
+	var rows []DailyAggregationRow
+	err := r.db.Model(&model.PressureData{}).
+		Select("station_id, DATE(timestamp) as stats_date, " +
+			"MAX(pressure_value) as max_pressure, " +
+			"MIN(pressure_value) as min_pressure, " +
+			"AVG(pressure_value) as avg_pressure, " +
+			"COUNT(*) as data_count").
+		Where("timestamp < ? AND is_archived = ?", beforeDate, false).
+		Group("station_id, DATE(timestamp)").
+		Scan(&rows).Error
+	return rows, err
+}
+
+type DailyAggregationRow struct {
+	StationID   uint    `json:"station_id"`
+	StatsDate   string  `json:"stats_date"`
+	MaxPressure float64 `json:"max_pressure"`
+	MinPressure float64 `json:"min_pressure"`
+	AvgPressure float64 `json:"avg_pressure"`
+	DataCount   int     `json:"data_count"`
 }
 
 func (r *PressureRepository) ArchiveOldData(beforeDate time.Time, batchSize int) (int64, error) {

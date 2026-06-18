@@ -172,9 +172,7 @@ func (s *HazardService) AcceptHazard(req AcceptHazardRequest) error {
 	hazard.AcceptedAt = &acceptedAt
 
 	if req.IsPassed {
-		hazard.Status = model.HazardStatusClosed
-		closedAt := time.Now()
-		hazard.ClosedAt = &closedAt
+		hazard.Status = model.HazardStatusAccepting
 	} else {
 		hazard.Status = model.HazardStatusAssigned
 	}
@@ -183,7 +181,34 @@ func (s *HazardService) AcceptHazard(req AcceptHazardRequest) error {
 		return err
 	}
 
-	s.logOperation(req.HazardID, "HAZARD", fmt.Sprintf("验收%s", map[bool]string{true: "通过", false: "不通过"}[req.IsPassed]))
+	s.logOperation(req.HazardID, "HAZARD", fmt.Sprintf("验收%s", map[bool]string{true: "通过待确认", false: "不通过"}[req.IsPassed]))
+
+	return nil
+}
+
+type CloseHazardRequest struct {
+	HazardID uint `json:"hazard_id" binding:"required"`
+}
+
+func (s *HazardService) CloseHazard(req CloseHazardRequest) error {
+	hazard, err := s.Repo.Hazard.GetByID(req.HazardID)
+	if err != nil {
+		return err
+	}
+
+	if hazard.Status != model.HazardStatusAccepting {
+		return fmt.Errorf("隐患状态不允许销号，需先验收通过")
+	}
+
+	hazard.Status = model.HazardStatusClosed
+	closedAt := time.Now()
+	hazard.ClosedAt = &closedAt
+
+	if err := s.Repo.Hazard.Update(hazard); err != nil {
+		return err
+	}
+
+	s.logOperation(req.HazardID, "HAZARD", "隐患销号")
 
 	return nil
 }
@@ -256,6 +281,34 @@ func (s *PressureAnalysisService) GetHourlyStats(stationID uint, date time.Time)
 			MaxPressure: s.MaxPressure,
 			MinPressure: s.MinPressure,
 			AvgPressure: s.AvgPressure,
+		})
+	}
+
+	return response, nil
+}
+
+type FiveMinStatsResponse struct {
+	Window      string  `json:"window"`
+	MaxPressure float64 `json:"max_pressure"`
+	MinPressure float64 `json:"min_pressure"`
+	AvgPressure float64 `json:"avg_pressure"`
+	DataCount   int     `json:"data_count"`
+}
+
+func (s *PressureAnalysisService) Get5MinStats(stationID uint, startTime, endTime time.Time) ([]FiveMinStatsResponse, error) {
+	stats, err := s.Repo.Pressure.Get5MinStats(stationID, startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+
+	var response []FiveMinStatsResponse
+	for _, st := range stats {
+		response = append(response, FiveMinStatsResponse{
+			Window:      st.Window,
+			MaxPressure: st.MaxPressure,
+			MinPressure: st.MinPressure,
+			AvgPressure: st.AvgPressure,
+			DataCount:   st.DataCount,
 		})
 	}
 

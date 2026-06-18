@@ -63,24 +63,62 @@ func (s *SchedulerService) GenerateDailyPlans() (PlanGenerationResult, error) {
 	}
 
 	var tasks []model.InspectionTask
+	var skippedDup int
 
+	lvl1IDs := extractPipelineIDs(level1Pipelines)
+	existingLvl1, err := s.Repo.Inspector.GetExistingTaskPipelineIDs(lvl1IDs, today, 1)
+	if err != nil {
+		s.logger.Warn("查询重复任务失败", zap.Error(err))
+	}
+	existingLvl1Set := toUintSet(existingLvl1)
 	for _, pipeline := range level1Pipelines {
+		if existingLvl1Set[pipeline.ID] {
+			skippedDup++
+			continue
+		}
 		task := s.createTask(pipeline, today, 1)
 		tasks = append(tasks, task)
 	}
 
 	if tomorrow.Weekday() == time.Monday {
+		lvl2IDs := extractPipelineIDs(level2Pipelines)
+		existingLvl2, err := s.Repo.Inspector.GetExistingTaskPipelineIDs(lvl2IDs, tomorrow, 2)
+		if err != nil {
+			s.logger.Warn("查询重复任务失败", zap.Error(err))
+		}
+		existingLvl2Set := toUintSet(existingLvl2)
 		for _, pipeline := range level2Pipelines {
+			if existingLvl2Set[pipeline.ID] {
+				skippedDup++
+				continue
+			}
 			task := s.createTask(pipeline, tomorrow, 7)
 			tasks = append(tasks, task)
 		}
 	}
 
 	if tomorrow.Day() == 1 {
+		lvl3IDs := extractPipelineIDs(level3Pipelines)
+		existingLvl3, err := s.Repo.Inspector.GetExistingTaskPipelineIDs(lvl3IDs, tomorrow, 3)
+		if err != nil {
+			s.logger.Warn("查询重复任务失败", zap.Error(err))
+		}
+		existingLvl3Set := toUintSet(existingLvl3)
 		for _, pipeline := range level3Pipelines {
+			if existingLvl3Set[pipeline.ID] {
+				skippedDup++
+				continue
+			}
 			task := s.createTask(pipeline, tomorrow, 30)
 			tasks = append(tasks, task)
 		}
+	}
+
+	if len(tasks) == 0 {
+		return PlanGenerationResult{
+			GeneratedTasks: 0,
+			Message:        fmt.Sprintf("无新任务需要生成（跳过%d条重复任务）", skippedDup),
+		}, nil
 	}
 
 	inspectors, err := s.Repo.Inspector.GetAvailableInspectors()
@@ -103,16 +141,33 @@ func (s *SchedulerService) GenerateDailyPlans() (PlanGenerationResult, error) {
 
 	s.logger.Info("巡检计划生成完成",
 		zap.Int("total_tasks", len(tasks)),
+		zap.Int("skipped_duplicates", skippedDup),
 		zap.Int("level1_count", len(level1Pipelines)),
 		zap.Time("date", today),
 	)
 
-	s.logOperation(0, "INSPECT", fmt.Sprintf("生成巡检计划%d条", len(tasks)))
+	s.logOperation(0, "INSPECT", fmt.Sprintf("生成巡检计划%d条，跳过重复%d条", len(tasks), skippedDup))
 
 	return PlanGenerationResult{
 		GeneratedTasks: len(tasks),
-		Message:        fmt.Sprintf("成功生成%d条巡检任务", len(tasks)),
+		Message:        fmt.Sprintf("成功生成%d条巡检任务，跳过%d条重复任务", len(tasks), skippedDup),
 	}, nil
+}
+
+func extractPipelineIDs(pipelines []model.Pipeline) []uint {
+	ids := make([]uint, len(pipelines))
+	for i, p := range pipelines {
+		ids[i] = p.ID
+	}
+	return ids
+}
+
+func toUintSet(ids []uint) map[uint]bool {
+	set := make(map[uint]bool, len(ids))
+	for _, id := range ids {
+		set[id] = true
+	}
+	return set
 }
 
 func (s *SchedulerService) createTask(pipeline model.Pipeline, date time.Time, intervalDays int) model.InspectionTask {
@@ -588,6 +643,29 @@ func (s *DispatchService) UpdateRepairOrderStatus(orderID uint, status model.Rep
 	s.logOperation(orderID, "REPAIR", fmt.Sprintf("状态更新为%s", status))
 
 	return nil
+}
+
+func (s *DispatchService) CheckOverdueAlarms() ([]model.Alarm, error) {
+	timeoutSeconds := s.config.Alarm.DispatchTimeout
+	alarms, err := s.Repo.Alarm.GetOverdueAlarms(timeoutSeconds)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, alarm := range alarms {
+		elapsed := time.Since(alarm.CreatedAt)
+		s.logger.Warn("告警超时未调度，已升级通知主管",
+			zap.Uint("alarm_id", alarm.ID),
+			zap.String("alarm_no", alarm.AlarmNo),
+			zap.String("level", string(alarm.Level)),
+			zap.Float64("elapsed_seconds", elapsed.Seconds()),
+			zap.Int("timeout_seconds", timeoutSeconds),
+		)
+		s.logOperation(alarm.ID, "ALARM",
+			fmt.Sprintf("告警超时%.0f秒未调度，已升级通知主管", elapsed.Seconds()))
+	}
+
+	return alarms, nil
 }
 
 func (s *DispatchService) logOperation(resourceID uint, module string, operation string) {

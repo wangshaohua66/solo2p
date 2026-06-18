@@ -6,17 +6,18 @@ import (
 )
 
 type Repository struct {
-	db      *gorm.DB
-	logger  *zap.Logger
-	Inspector *InspectorRepository
-	Alarm    *AlarmRepository
-	Valve    *ValveRepository
-	Hazard   *HazardRepository
-	Pressure *PressureRepository
-	Repair   *RepairRepository
-	Pipeline *PipelineRepository
-	Track    *TrackRepository
-	Log      *LogRepository
+	db         *gorm.DB
+	logger     *zap.Logger
+	Inspector  *InspectorRepository
+	Alarm      *AlarmRepository
+	Valve      *ValveRepository
+	Hazard     *HazardRepository
+	Pressure   *PressureRepository
+	Repair     *RepairRepository
+	Pipeline   *PipelineRepository
+	Track      *TrackRepository
+	Log        *LogRepository
+	Assessment *AssessmentRepository
 }
 
 func NewRepository(db *gorm.DB, logger *zap.Logger) *Repository {
@@ -33,6 +34,7 @@ func NewRepository(db *gorm.DB, logger *zap.Logger) *Repository {
 	r.Pipeline = NewPipelineRepository(db, logger)
 	r.Track = NewTrackRepository(db, logger)
 	r.Log = NewLogRepository(db, logger)
+	r.Assessment = NewAssessmentRepository(db, logger)
 	return r
 }
 

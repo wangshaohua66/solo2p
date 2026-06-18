@@ -5,12 +5,13 @@ import (
 )
 
 type Config struct {
-	Server   ServerConfig   `yaml:"server"`
-	Database DatabaseConfig `yaml:"database"`
-	Log      LogConfig      `yaml:"log"`
-	Alarm    AlarmConfig    `yaml:"alarm"`
-	Pressure PressureConfig `yaml:"pressure"`
-	Inspect  InspectConfig  `yaml:"inspect"`
+	Server     ServerConfig     `yaml:"server"`
+	Database   DatabaseConfig   `yaml:"database"`
+	Log        LogConfig        `yaml:"log"`
+	Alarm      AlarmConfig      `yaml:"alarm"`
+	Pressure   PressureConfig   `yaml:"pressure"`
+	Inspect    InspectConfig    `yaml:"inspect"`
+	Assessment AssessmentConfig `yaml:"assessment"`
 }
 
 type ServerConfig struct {
@@ -52,6 +53,13 @@ type InspectConfig struct {
 	HazardMajorDeadlineHours int `yaml:"hazard_major_deadline_hours"`
 }
 
+type AssessmentConfig struct {
+	TaskCompletionWeight  float64 `yaml:"task_completion_weight"`
+	TrackDeviationWeight  float64 `yaml:"track_deviation_weight"`
+	HazardReportWeight    float64 `yaml:"hazard_report_weight"`
+	PassScore             float64 `yaml:"pass_score"`
+}
+
 func DefaultConfig() *Config {
 	return &Config{
 		Server: ServerConfig{
@@ -64,7 +72,7 @@ func DefaultConfig() *Config {
 			Path:        "./data/gas_system.db",
 			Mode:        "rwc",
 			JournalMode: "WAL",
-			BusyTimeout: 5000,
+			BusyTimeout: 10000,
 		},
 		Log: LogConfig{
 			Level:    "info",
@@ -86,6 +94,12 @@ func DefaultConfig() *Config {
 			AcceptTimeoutHours:   2,
 			MaxDeviationMeters:   200,
 			HazardMajorDeadlineHours: 48,
+		},
+		Assessment: AssessmentConfig{
+			TaskCompletionWeight: 0.5,
+			TrackDeviationWeight: 0.3,
+			HazardReportWeight:   0.2,
+			PassScore:            60.0,
 		},
 	}
 }

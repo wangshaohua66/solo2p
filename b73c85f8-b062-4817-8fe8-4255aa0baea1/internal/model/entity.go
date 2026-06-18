@@ -331,3 +331,28 @@ type User struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
+
+type MonthlyAssessment struct {
+	ID                uint      `gorm:"primaryKey" json:"id"`
+	AssessmentNo      string    `gorm:"size:50;uniqueIndex;not null" json:"assessment_no"`
+	InspectorID       uint      `json:"inspector_id"`
+	Inspector         Inspector `gorm:"foreignKey:InspectorID" json:"inspector"`
+	Year              int       `gorm:"not null" json:"year"`
+	Month             int       `gorm:"not null" json:"month"`
+	TotalTasks        int       `json:"total_tasks"`
+	CompletedTasks   int       `json:"completed_tasks"`
+	CompletionRate    float64   `json:"completion_rate"`
+	TrackDeviations   int       `json:"track_deviations"`
+	HazardsReported   int       `json:"hazards_reported"`
+	HazardsClosed     int       `json:"hazards_closed"`
+	TaskScore         float64   `json:"task_score"`
+	TrackScore        float64   `json:"track_score"`
+	HazardScore       float64   `json:"hazard_score"`
+	TotalScore        float64   `json:"total_score"`
+	Grade             string    `gorm:"size:20" json:"grade"`
+	IsPassed          bool      `json:"is_passed"`
+	Report            string    `gorm:"type:text" json:"report"`
+	GeneratedAt       time.Time `json:"generated_at"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}

@@ -89,7 +89,7 @@ func (h *ValveHandler) CreateOperation(c *gin.Context) {
 
 // ListValveOperations godoc
 // @Summary 查询阀门操作历史
-// @Description 分页查询阀门操作历史，支持按时间范围和管段筛选
+// @Description 分页查询阀门操作历史，支持按时间范围、管段、阀井筛选
 // @Tags 阀门管理
 // @Accept json
 // @Produce json
@@ -97,6 +97,7 @@ func (h *ValveHandler) CreateOperation(c *gin.Context) {
 // @Param page_size query int false "每页条数" default(20)
 // @Param valve_well_id query int false "阀井ID"
 // @Param valve_no query string false "阀门编号"
+// @Param pipeline_id query int false "管段ID"
 // @Param start_time query string false "开始时间(2006-01-02 15:04:05)"
 // @Param end_time query string false "结束时间(2006-01-02 15:04:05)"
 // @Success 200 {object} response.Response{data=response.PageResult{list=[]model.ValveOperation}}
@@ -110,6 +111,13 @@ func (h *ValveHandler) ListOperations(c *gin.Context) {
 		id, _ := strconv.ParseUint(idStr, 10, 32)
 		uid := uint(id)
 		valveWellID = &uid
+	}
+
+	var pipelineID *uint
+	if idStr := c.Query("pipeline_id"); idStr != "" {
+		id, _ := strconv.ParseUint(idStr, 10, 32)
+		uid := uint(id)
+		pipelineID = &uid
 	}
 
 	valveNo := c.Query("valve_no")
@@ -128,7 +136,7 @@ func (h *ValveHandler) ListOperations(c *gin.Context) {
 		}
 	}
 
-	total, ops, err := h.repo.Valve.ListOperations(page, pageSize, valveWellID, &valveNo, startTime, endTime)
+	total, ops, err := h.repo.Valve.ListOperations(page, pageSize, valveWellID, &valveNo, pipelineID, startTime, endTime)
 	if err != nil {
 		h.logger.Error("查询阀门操作失败", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, response.Error(500, "查询失败: "+err.Error()))
@@ -165,15 +173,40 @@ func (h *ValveHandler) GetOperation(c *gin.Context) {
 
 // ListValveWells godoc
 // @Summary 查询阀井列表
-// @Description 查询所有阀井
+// @Description 分页查询阀井列表，支持按管段和关键词筛选
 // @Tags 阀门管理
 // @Accept json
 // @Produce json
-// @Success 200 {object} response.Response{data=[]model.ValveWell}
+// @Param page query int false "页码" default(1)
+// @Param page_size query int false "每页条数" default(20)
+// @Param pipeline_id query int false "管段ID"
+// @Param keyword query string false "关键词(阀井名称或编号)"
+// @Success 200 {object} response.Response{data=response.PageResult{list=[]model.ValveWell}}
 // @Router /api/v1/valve/wells [get]
 func (h *ValveHandler) ListValveWells(c *gin.Context) {
-	// TODO: 实现ListValveWells
-	c.JSON(http.StatusOK, response.Success([]model.ValveWell{}))
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+
+	var pipelineID *uint
+	if idStr := c.Query("pipeline_id"); idStr != "" {
+		id, _ := strconv.ParseUint(idStr, 10, 32)
+		uid := uint(id)
+		pipelineID = &uid
+	}
+
+	var keyword *string
+	if kw := c.Query("keyword"); kw != "" {
+		keyword = &kw
+	}
+
+	total, wells, err := h.repo.Valve.ListValveWells(page, pageSize, pipelineID, keyword)
+	if err != nil {
+		h.logger.Error("查询阀井列表失败", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, response.Error(500, "查询失败: "+err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, response.SuccessPage(total, wells))
 }
 
 // CreateValveWell godoc

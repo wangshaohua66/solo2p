@@ -100,6 +100,53 @@ func (h *PressureHandler) GetDailyStats(c *gin.Context) {
 	c.JSON(http.StatusOK, response.Success(stats))
 }
 
+// Get5MinStats godoc
+// @Summary 获取5分钟粒度压力统计
+// @Description 按时间窗口聚合压力数据，返回5分钟粒度的最大/最小/平均压力统计
+// @Tags 压力分析
+// @Accept json
+// @Produce json
+// @Param station_id query int true "调压站ID"
+// @Param start_time query string true "开始时间(2006-01-02 15:04:05)"
+// @Param end_time query string true "结束时间(2006-01-02 15:04:05)"
+// @Success 200 {object} response.Response{data=[]service.FiveMinStatsResponse}
+// @Router /api/v1/pressure/stats/5min [get]
+func (h *PressureHandler) Get5MinStats(c *gin.Context) {
+	stationID, err := strconv.ParseUint(c.Query("station_id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, response.Error(400, "无效的调压站ID"))
+		return
+	}
+
+	startTimeStr := c.Query("start_time")
+	startTime, err := time.ParseInLocation("2006-01-02 15:04:05", startTimeStr, time.Local)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, response.Error(400, "无效的开始时间格式，应为2006-01-02 15:04:05"))
+		return
+	}
+
+	endTimeStr := c.Query("end_time")
+	endTime, err := time.ParseInLocation("2006-01-02 15:04:05", endTimeStr, time.Local)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, response.Error(400, "无效的结束时间格式，应为2006-01-02 15:04:05"))
+		return
+	}
+
+	if endTime.Before(startTime) {
+		c.JSON(http.StatusBadRequest, response.Error(400, "结束时间不能早于开始时间"))
+		return
+	}
+
+	stats, err := h.service.Get5MinStats(uint(stationID), startTime, endTime)
+	if err != nil {
+		h.logger.Error("获取5分钟统计失败", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, response.Error(500, "查询失败: "+err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, response.Success(stats))
+}
+
 // GetMonthlyStats godoc
 // @Summary 获取月压力统计
 // @Description 获取指定调压站指定年份的月压力统计

@@ -19,7 +19,7 @@ func InitDB(cfg *DatabaseConfig, log *zap.Logger) (*gorm.DB, error) {
 		return nil, fmt.Errorf("创建数据库目录失败: %w", err)
 	}
 
-	dsn := fmt.Sprintf("%s?_journal=%s&_busy_timeout=%d&_mode=%s",
+	dsn := fmt.Sprintf("%s?_journal=%s&_busy_timeout=%d&_mode=%s&_wal_autocheckpoint=1000&_sync=NORMAL",
 		cfg.Path, cfg.JournalMode, cfg.BusyTimeout, cfg.Mode)
 
 	newLogger := logger.New(
@@ -44,9 +44,10 @@ func InitDB(cfg *DatabaseConfig, log *zap.Logger) (*gorm.DB, error) {
 		return nil, fmt.Errorf("获取数据库连接失败: %w", err)
 	}
 
-	sqlDB.SetMaxOpenConns(1)
-	sqlDB.SetMaxIdleConns(1)
-	sqlDB.SetConnMaxLifetime(1 * time.Hour)
+	sqlDB.SetMaxOpenConns(50)
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetConnMaxLifetime(30 * time.Minute)
+	sqlDB.SetConnMaxIdleTime(10 * time.Minute)
 
 	if err := autoMigrate(db); err != nil {
 		return nil, fmt.Errorf("数据库迁移失败: %w", err)
@@ -75,6 +76,7 @@ func autoMigrate(db *gorm.DB) error {
 		&model.InspectionTrack{},
 		&model.OperationLog{},
 		&model.User{},
+		&model.MonthlyAssessment{},
 	)
 }
 

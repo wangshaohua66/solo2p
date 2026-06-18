@@ -409,6 +409,46 @@ func (e *AlarmEngine) CalculateHourlyVolatility(stationID uint, hour time.Time) 
 
 func (e *AlarmEngine) ArchiveOldData() (int64, error) {
 	cutoffDate := time.Now().AddDate(0, 0, -e.config.Pressure.DataRetentionDays)
+
+	aggRows, err := e.repo.Pressure.GetDailyAggregationData(cutoffDate)
+	if err != nil {
+		e.logger.Error("获取归档前日聚合数据失败", zap.Error(err))
+	} else if len(aggRows) > 0 {
+		var statsList []model.PressureDailyStats
+		for _, row := range aggRows {
+			statsDate, parseErr := time.ParseInLocation("2006-01-02", row.StatsDate, time.Local)
+			if parseErr != nil {
+				e.logger.Warn("解析统计日期失败",
+					zap.String("date", row.StatsDate),
+					zap.Error(parseErr))
+				continue
+			}
+			volatility := 0.0
+			if row.AvgPressure > 0 {
+				volatility = (row.MaxPressure - row.MinPressure) / row.AvgPressure
+			}
+			statsList = append(statsList, model.PressureDailyStats{
+				StationID:   row.StationID,
+				StatsDate:   statsDate,
+				MaxPressure: row.MaxPressure,
+				MinPressure: row.MinPressure,
+				AvgPressure: row.AvgPressure,
+				Volatility:  volatility,
+				SampleCount: row.DataCount,
+				CreatedAt:   time.Now(),
+			})
+		}
+		if len(statsList) > 0 {
+			if saveErr := e.repo.Pressure.BatchCreateDailyStats(statsList); saveErr != nil {
+				e.logger.Error("批量保存日统计失败", zap.Error(saveErr))
+			} else {
+				e.logger.Info("归档前日统计已保存",
+					zap.Int("stats_count", len(statsList)),
+					zap.Time("cutoff_date", cutoffDate))
+			}
+		}
+	}
+
 	totalArchived := int64(0)
 
 	for {
@@ -424,6 +464,7 @@ func (e *AlarmEngine) ArchiveOldData() (int64, error) {
 
 	e.logger.Info("压力数据归档完成",
 		zap.Int64("archived_count", totalArchived),
+		zap.Int("daily_stats_saved", len(aggRows)),
 		zap.Time("cutoff_date", cutoffDate),
 	)
 

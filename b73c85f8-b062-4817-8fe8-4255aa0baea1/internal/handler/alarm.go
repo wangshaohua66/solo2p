@@ -387,3 +387,22 @@ func (h *AlarmHandler) CalculateDailyStats(c *gin.Context) {
 
 	c.JSON(http.StatusOK, response.Success(nil))
 }
+
+// CheckOverdueAlarms godoc
+// @Summary 检查超时未调度告警
+// @Description 检查超过DispatchTimeout秒未调度的告警，自动升级通知主管
+// @Tags 报警与抢修
+// @Accept json
+// @Produce json
+// @Success 200 {object} response.Response{data=[]model.Alarm}
+// @Router /api/v1/alarm/alarms/check-overdue [post]
+func (h *AlarmHandler) CheckOverdueAlarms(c *gin.Context) {
+	alarms, err := h.dispatch.CheckOverdueAlarms()
+	if err != nil {
+		h.logger.Error("检查超时告警失败", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, response.Error(500, err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, response.Success(alarms))
+}

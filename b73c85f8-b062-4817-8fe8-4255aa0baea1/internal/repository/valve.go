@@ -31,7 +31,7 @@ func (r *ValveRepository) GetOperationByID(id uint) (*model.ValveOperation, erro
 	return &op, nil
 }
 
-func (r *ValveRepository) ListOperations(page, pageSize int, valveWellID *uint, valveNo *string, startTime, endTime *time.Time) (int64, []model.ValveOperation, error) {
+func (r *ValveRepository) ListOperations(page, pageSize int, valveWellID *uint, valveNo *string, pipelineID *uint, startTime, endTime *time.Time) (int64, []model.ValveOperation, error) {
 	var total int64
 	var ops []model.ValveOperation
 
@@ -41,6 +41,10 @@ func (r *ValveRepository) ListOperations(page, pageSize int, valveWellID *uint, 
 	}
 	if valveNo != nil && *valveNo != "" {
 		query = query.Where("valve_no = ?", *valveNo)
+	}
+	if pipelineID != nil {
+		query = query.Joins("JOIN valve_wells ON valve_wells.id = valve_operations.valve_well_id").
+			Where("valve_wells.pipeline_id = ?", *pipelineID)
 	}
 	if startTime != nil {
 		query = query.Where("operation_time >= ?", *startTime)
@@ -57,6 +61,29 @@ func (r *ValveRepository) ListOperations(page, pageSize int, valveWellID *uint, 
 	offset := (page - 1) * pageSize
 	err = query.Order("operation_time DESC").Offset(offset).Limit(pageSize).Find(&ops).Error
 	return total, ops, err
+}
+
+func (r *ValveRepository) ListValveWells(page, pageSize int, pipelineID *uint, keyword *string) (int64, []model.ValveWell, error) {
+	var total int64
+	var wells []model.ValveWell
+
+	query := r.db.Model(&model.ValveWell{})
+	if pipelineID != nil {
+		query = query.Where("pipeline_id = ?", *pipelineID)
+	}
+	if keyword != nil && *keyword != "" {
+		like := "%" + *keyword + "%"
+		query = query.Where("name LIKE ? OR code LIKE ?", like, like)
+	}
+
+	err := query.Count(&total).Error
+	if err != nil {
+		return 0, nil, err
+	}
+
+	offset := (page - 1) * pageSize
+	err = query.Order("id ASC").Offset(offset).Limit(pageSize).Find(&wells).Error
+	return total, wells, err
 }
 
 func (r *ValveRepository) GetValveWellByID(id uint) (*model.ValveWell, error) {

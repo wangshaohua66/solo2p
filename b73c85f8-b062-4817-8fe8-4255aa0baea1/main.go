@@ -56,12 +56,22 @@ func main() {
 	trackService := service.NewTrackService(repo, logger, cfg)
 	hazardService := service.NewHazardService(repo, logger, cfg)
 	pressureService := service.NewPressureAnalysisService(repo, logger, cfg)
+	assessmentService := service.NewAssessmentService(repo, logger, cfg)
 
 	inspectHandler := handler.NewInspectHandler(schedulerService, trackService, logger)
 	alarmHandler := handler.NewAlarmHandler(alarmEngine, dispatchService, logger)
 	valveHandler := handler.NewValveHandler(repo, logger)
 	hazardHandler := handler.NewHazardHandler(hazardService, logger)
 	pressureHandler := handler.NewPressureHandler(pressureService, logger)
+	assessmentHandler := handler.NewAssessmentHandler(assessmentService, logger)
+
+	cronScheduler := service.NewCronScheduler(
+		schedulerService, dispatchService, hazardService, assessmentService, alarmEngine, logger,
+	)
+	if err := cronScheduler.Start(); err != nil {
+		logger.Fatal("启动定时任务调度器失败", zap.Error(err))
+	}
+	defer cronScheduler.Stop()
 
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("datetime", validateDatetime)
@@ -109,6 +119,7 @@ func main() {
 			alarmGroup.GET("/alarms", alarmHandler.ListAlarms)
 			alarmGroup.GET("/alarms/:id", alarmHandler.GetAlarm)
 			alarmGroup.POST("/alarms/:id/dispatch", alarmHandler.DispatchAlarm)
+			alarmGroup.POST("/alarms/check-overdue", alarmHandler.CheckOverdueAlarms)
 
 			alarmGroup.GET("/repair-orders", alarmHandler.ListRepairOrders)
 			alarmGroup.GET("/repair-orders/:id", alarmHandler.GetRepairOrder)
@@ -136,11 +147,13 @@ func main() {
 			hazard.POST("/hazards/assign", hazardHandler.AssignHazard)
 			hazard.POST("/hazards/rectify", hazardHandler.RectifyHazard)
 			hazard.POST("/hazards/accept", hazardHandler.AcceptHazard)
+			hazard.POST("/hazards/close", hazardHandler.CloseHazard)
 			hazard.POST("/hazards/check-overdue", hazardHandler.CheckOverdueHazards)
 		}
 
 		pressure := apiV1.Group("/pressure")
 		{
+			pressure.GET("/stats/5min", pressureHandler.Get5MinStats)
 			pressure.GET("/stats/hourly", pressureHandler.GetHourlyStats)
 			pressure.GET("/stats/daily", pressureHandler.GetDailyStats)
 			pressure.GET("/stats/monthly", pressureHandler.GetMonthlyStats)
@@ -149,6 +162,13 @@ func main() {
 			pressure.GET("/data/latest", pressureHandler.GetLatestPressure)
 
 			pressure.GET("/stations", pressureHandler.ListStations)
+		}
+
+		assessment := apiV1.Group("/assessment")
+		{
+			assessment.POST("/generate", assessmentHandler.GenerateAssessment)
+			assessment.GET("", assessmentHandler.ListAssessments)
+			assessment.GET("/:id", assessmentHandler.GetAssessment)
 		}
 
 		basic := apiV1.Group("/basic")

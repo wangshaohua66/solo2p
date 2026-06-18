@@ -161,3 +161,22 @@ func (r *InspectorRepository) GetTasksForReassign(leaveInspectorID uint, startDa
 		Find(&tasks).Error
 	return tasks, err
 }
+
+func (r *InspectorRepository) GetExistingTaskPipelineIDs(pipelineIDs []uint, date time.Time, level int) ([]uint, error) {
+	var existingIDs []uint
+	if len(pipelineIDs) == 0 {
+		return existingIDs, nil
+	}
+	startOfDay := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+	endOfDay := startOfDay.Add(24 * time.Hour)
+	err := r.db.Model(&model.InspectionTask{}).
+		Where("pipeline_id IN ? AND inspect_level = ? AND plan_date BETWEEN ? AND ?",
+			pipelineIDs, level, startOfDay, endOfDay).
+		Where("status IN ?", []model.InspectionTaskStatus{
+			model.TaskStatusPending,
+			model.TaskStatusAccepted,
+			model.TaskStatusInProgress,
+		}).
+		Pluck("pipeline_id", &existingIDs).Error
+	return existingIDs, err
+}

@@ -162,7 +162,7 @@ func (h *HazardHandler) RectifyHazard(c *gin.Context) {
 
 // AcceptHazard godoc
 // @Summary 验收隐患
-// @Description 对整改完成的隐患进行验收
+// @Description 对整改完成的隐患进行验收。验收通过后状态变为ACCEPTING（待确认销号），验收不通过则退回ASSIGNED重新整改
 // @Tags 隐患管理
 // @Accept json
 // @Produce json
@@ -178,6 +178,31 @@ func (h *HazardHandler) AcceptHazard(c *gin.Context) {
 
 	if err := h.service.AcceptHazard(req); err != nil {
 		h.logger.Error("验收隐患失败", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, response.Error(500, err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, response.Success(nil))
+}
+
+// CloseHazard godoc
+// @Summary 隐患销号
+// @Description 对验收通过的隐患进行确认销号，状态从ACCEPTING变为CLOSED
+// @Tags 隐患管理
+// @Accept json
+// @Produce json
+// @Param request body service.CloseHazardRequest true "销号信息"
+// @Success 200 {object} response.Response
+// @Router /api/v1/hazard/hazards/close [post]
+func (h *HazardHandler) CloseHazard(c *gin.Context) {
+	var req service.CloseHazardRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, response.Error(400, "参数错误: "+err.Error()))
+		return
+	}
+
+	if err := h.service.CloseHazard(req); err != nil {
+		h.logger.Error("隐患销号失败", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, response.Error(500, err.Error()))
 		return
 	}

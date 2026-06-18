@@ -1,0 +1,2464 @@
+basePath: /
+definitions:
+  alarm.MatchResult:
+    properties:
+      alarm:
+        $ref: '#/definitions/model.Alarm'
+      matched:
+        type: boolean
+      rule:
+        $ref: '#/definitions/alarm.PressureRule'
+      volatility:
+        format: float64
+        type: number
+    type: object
+  alarm.PressureDataInput:
+    properties:
+      pressure_value:
+        minimum: 0
+        type: number
+      station_id:
+        type: integer
+      timestamp:
+        type: string
+    required:
+    - pressure_value
+    - station_id
+    type: object
+  alarm.PressureRule:
+    properties:
+      description:
+        type: string
+      id:
+        type: string
+      level:
+        $ref: '#/definitions/model.AlarmLevel'
+      name:
+        type: string
+      type:
+        $ref: '#/definitions/model.AlarmType'
+    type: object
+  handler.AcceptTaskRequest:
+    properties:
+      inspector_id:
+        type: integer
+    required:
+    - inspector_id
+    type: object
+  handler.CompleteTaskRequest:
+    properties:
+      remark:
+        type: string
+    type: object
+  handler.CreateValveOperationRequest:
+    properties:
+      operation_time:
+        type: string
+      operation_type:
+        allOf:
+        - $ref: '#/definitions/model.ValveOperationType'
+        enum:
+        - OPEN
+        - CLOSE
+        - ADJUST
+      operator_id:
+        type: integer
+      operator_name:
+        type: string
+      pressure_after:
+        minimum: 0
+        type: number
+      pressure_before:
+        minimum: 0
+        type: number
+      reason:
+        type: string
+      remark:
+        type: string
+      valve_no:
+        type: string
+      valve_well_id:
+        type: integer
+    required:
+    - operation_type
+    - operator_id
+    - operator_name
+    - pressure_after
+    - pressure_before
+    - reason
+    - valve_no
+    - valve_well_id
+    type: object
+  handler.DispatchAlarmRequest:
+    properties:
+      location:
+        type: string
+    required:
+    - location
+    type: object
+  handler.GeneratePlanRequest:
+    properties:
+      date:
+        type: string
+    type: object
+  handler.SubmitTrackRequest:
+    properties:
+      inspector_id:
+        type: integer
+      task_id:
+        type: integer
+      track_points:
+        items:
+          $ref: '#/definitions/service.TrackPoint'
+        minItems: 1
+        type: array
+    required:
+    - inspector_id
+    - task_id
+    - track_points
+    type: object
+  handler.UpdateOrderStatusRequest:
+    properties:
+      remark:
+        type: string
+      status:
+        enum:
+        - DISPATCHED
+        - ARRIVED
+        - PROCESSING
+        - COMPLETED
+        type: string
+    required:
+    - status
+    type: object
+  model.Alarm:
+    properties:
+      alarm_no:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      dispatched_at:
+        type: string
+      id:
+        type: integer
+      level:
+        $ref: '#/definitions/model.AlarmLevel'
+      location:
+        type: string
+      pipeline:
+        $ref: '#/definitions/model.Pipeline'
+      pipeline_id:
+        type: integer
+      pressure_data_id:
+        type: integer
+      pressure_value:
+        type: number
+      resolved_at:
+        type: string
+      rule_matched:
+        type: string
+      status:
+        $ref: '#/definitions/model.AlarmStatus'
+      type:
+        $ref: '#/definitions/model.AlarmType'
+      updated_at:
+        type: string
+    type: object
+  model.AlarmLevel:
+    enum:
+    - CRITICAL
+    - MAJOR
+    - MINOR
+    - WARNING
+    type: string
+    x-enum-varnames:
+    - AlarmLevelCritical
+    - AlarmLevelMajor
+    - AlarmLevelMinor
+    - AlarmLevelWarning
+  model.AlarmStatus:
+    enum:
+    - NEW
+    - DISPATCHED
+    - PROCESSING
+    - RESOLVED
+    - CLOSED
+    type: string
+    x-enum-varnames:
+    - AlarmStatusNew
+    - AlarmStatusDispatched
+    - AlarmStatusProcessing
+    - AlarmStatusResolved
+    - AlarmStatusClosed
+  model.AlarmType:
+    enum:
+    - PRESSURE_HIGH
+    - PRESSURE_LOW
+    - LEAKAGE
+    - VOLATILITY
+    type: string
+    x-enum-varnames:
+    - AlarmTypePressureHigh
+    - AlarmTypePressureLow
+    - AlarmTypeLeakage
+    - AlarmTypeVolatility
+  model.Hazard:
+    properties:
+      accept_result:
+        type: string
+      accepted_at:
+        type: string
+      assigned_at:
+        type: string
+      assignee_id:
+        type: integer
+      assignee_name:
+        type: string
+      closed_at:
+        type: string
+      created_at:
+        type: string
+      deadline:
+        type: string
+      description:
+        type: string
+      hazard_no:
+        type: string
+      id:
+        type: integer
+      inspector:
+        $ref: '#/definitions/model.Inspector'
+      inspector_id:
+        type: integer
+      level:
+        $ref: '#/definitions/model.HazardLevel'
+      location:
+        type: string
+      photos:
+        type: string
+      pipeline:
+        $ref: '#/definitions/model.Pipeline'
+      pipeline_id:
+        type: integer
+      rectified_at:
+        type: string
+      rectify_desc:
+        type: string
+      registered_at:
+        type: string
+      status:
+        $ref: '#/definitions/model.HazardStatus'
+      updated_at:
+        type: string
+    type: object
+  model.HazardLevel:
+    enum:
+    - MAJOR
+    - NORMAL
+    - MINOR
+    type: string
+    x-enum-varnames:
+    - HazardLevelMajor
+    - HazardLevelNormal
+    - HazardLevelMinor
+  model.HazardStatus:
+    enum:
+    - REGISTERED
+    - ASSIGNED
+    - RECTIFYING
+    - ACCEPTING
+    - CLOSED
+    type: string
+    x-enum-varnames:
+    - HazardStatusRegistered
+    - HazardStatusAssigned
+    - HazardStatusRectifying
+    - HazardStatusAccepting
+    - HazardStatusClosed
+  model.InspectionTask:
+    properties:
+      accepted_at:
+        type: string
+      actual_end:
+        type: string
+      actual_start:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      inspector:
+        $ref: '#/definitions/model.Inspector'
+      inspector_id:
+        type: integer
+      pipeline:
+        $ref: '#/definitions/model.Pipeline'
+      pipeline_id:
+        type: integer
+      plan_date:
+        type: string
+      plan_end:
+        type: string
+      plan_start:
+        type: string
+      remark:
+        type: string
+      status:
+        $ref: '#/definitions/model.InspectionTaskStatus'
+      task_no:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  model.InspectionTaskStatus:
+    enum:
+    - PENDING
+    - ACCEPTED
+    - IN_PROGRESS
+    - COMPLETED
+    - EXPIRED
+    type: string
+    x-enum-varnames:
+    - TaskStatusPending
+    - TaskStatusAccepted
+    - TaskStatusInProgress
+    - TaskStatusCompleted
+    - TaskStatusExpired
+  model.InspectionTrack:
+    properties:
+      created_at:
+        type: string
+      deviation:
+        type: number
+      deviation_points:
+        type: string
+      id:
+        type: integer
+      inspector_id:
+        type: integer
+      is_deviated:
+        type: boolean
+      submit_time:
+        type: string
+      task:
+        $ref: '#/definitions/model.InspectionTask'
+      task_id:
+        type: integer
+      track_points:
+        type: string
+    type: object
+  model.Inspector:
+    properties:
+      area:
+        type: string
+      created_at:
+        type: string
+      employee_no:
+        type: string
+      id:
+        type: integer
+      location:
+        type: string
+      name:
+        type: string
+      phone:
+        type: string
+      status:
+        $ref: '#/definitions/model.InspectorStatus'
+      updated_at:
+        type: string
+    type: object
+  model.InspectorStatus:
+    enum:
+    - ON_DUTY
+    - ON_LEAVE
+    - OFF_DUTY
+    type: string
+    x-enum-varnames:
+    - InspectorStatusOnDuty
+    - InspectorStatusLeave
+    - InspectorStatusOff
+  model.MonthlyAssessment:
+    properties:
+      assessment_no:
+        type: string
+      completed_tasks:
+        type: integer
+      completion_rate:
+        type: number
+      created_at:
+        type: string
+      generated_at:
+        type: string
+      grade:
+        type: string
+      hazard_score:
+        type: number
+      hazards_closed:
+        type: integer
+      hazards_reported:
+        type: integer
+      id:
+        type: integer
+      inspector:
+        $ref: '#/definitions/model.Inspector'
+      inspector_id:
+        type: integer
+      is_passed:
+        type: boolean
+      month:
+        type: integer
+      report:
+        type: string
+      task_score:
+        type: number
+      total_score:
+        type: number
+      total_tasks:
+        type: integer
+      track_deviations:
+        type: integer
+      track_score:
+        type: number
+      updated_at:
+        type: string
+      year:
+        type: integer
+    type: object
+  model.Pipeline:
+    properties:
+      code:
+        type: string
+      created_at:
+        type: string
+      end_point:
+        type: string
+      gate_station_id:
+        type: integer
+      id:
+        type: integer
+      length:
+        type: number
+      level:
+        $ref: '#/definitions/model.PipelineLevel'
+      name:
+        type: string
+      route_coords:
+        type: string
+      start_point:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  model.PipelineLevel:
+    enum:
+    - LEVEL1
+    - LEVEL2
+    - LEVEL3
+    type: string
+    x-enum-varnames:
+    - PipelineLevel1
+    - PipelineLevel2
+    - PipelineLevel3
+  model.PressureData:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_archived:
+        type: boolean
+      pressure_value:
+        type: number
+      station:
+        $ref: '#/definitions/model.PressureRegulatingStation'
+      station_id:
+        type: integer
+      timestamp:
+        type: string
+    type: object
+  model.PressureRegulatingStation:
+    properties:
+      address:
+        type: string
+      code:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      location:
+        type: string
+      max_pressure:
+        type: number
+      min_pressure:
+        type: number
+      name:
+        type: string
+      normal_pressure:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  model.RepairOrder:
+    properties:
+      alarm:
+        $ref: '#/definitions/model.Alarm'
+      alarm_id:
+        type: integer
+      arrived_at:
+        type: string
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      dispatch_reason:
+        type: string
+      distance:
+        type: number
+      id:
+        type: integer
+      order_no:
+        type: string
+      remark:
+        type: string
+      repair_team:
+        $ref: '#/definitions/model.RepairTeam'
+      repair_team_id:
+        type: integer
+      status:
+        $ref: '#/definitions/model.RepairOrderStatus'
+      updated_at:
+        type: string
+      workload_score:
+        type: number
+    type: object
+  model.RepairOrderStatus:
+    enum:
+    - PENDING
+    - DISPATCHED
+    - ARRIVED
+    - PROCESSING
+    - COMPLETED
+    type: string
+    x-enum-varnames:
+    - RepairStatusPending
+    - RepairStatusDispatched
+    - RepairStatusArrived
+    - RepairStatusProcessing
+    - RepairStatusCompleted
+  model.RepairTeam:
+    properties:
+      created_at:
+        type: string
+      current_tasks:
+        type: integer
+      id:
+        type: integer
+      leader_name:
+        type: string
+      location:
+        type: string
+      name:
+        type: string
+      phone:
+        type: string
+      status:
+        $ref: '#/definitions/model.RepairTeamStatus'
+      team_no:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  model.RepairTeamStatus:
+    enum:
+    - IDLE
+    - BUSY
+    - ON_SITE
+    type: string
+    x-enum-varnames:
+    - TeamStatusIdle
+    - TeamStatusBusy
+    - TeamStatusOnSite
+  model.ValveOperation:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      operation_no:
+        type: string
+      operation_time:
+        type: string
+      operation_type:
+        $ref: '#/definitions/model.ValveOperationType'
+      operator_id:
+        type: integer
+      operator_name:
+        type: string
+      pressure_after:
+        type: number
+      pressure_before:
+        type: number
+      reason:
+        type: string
+      remark:
+        type: string
+      valve_no:
+        type: string
+      valve_well:
+        $ref: '#/definitions/model.ValveWell'
+      valve_well_id:
+        type: integer
+    type: object
+  model.ValveOperationType:
+    enum:
+    - OPEN
+    - CLOSE
+    - ADJUST
+    type: string
+    x-enum-varnames:
+    - ValveOpOpen
+    - ValveOpClose
+    - ValveOpAdjust
+  model.ValveWell:
+    properties:
+      code:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      location:
+        type: string
+      name:
+        type: string
+      pipeline_id:
+        type: integer
+      updated_at:
+        type: string
+      valve_count:
+        type: integer
+    type: object
+  response.PageResult:
+    properties:
+      list: {}
+      total:
+        type: integer
+    type: object
+  response.Response:
+    properties:
+      code:
+        type: integer
+      data: {}
+      message:
+        type: string
+    type: object
+  service.AcceptHazardRequest:
+    properties:
+      hazard_id:
+        type: integer
+      is_passed:
+        type: boolean
+      result:
+        type: string
+    required:
+    - hazard_id
+    - result
+    type: object
+  service.AssessmentResult:
+    properties:
+      generated:
+        type: integer
+      message:
+        type: string
+      skipped:
+        type: integer
+    type: object
+  service.AssignHazardRequest:
+    properties:
+      assignee_id:
+        type: integer
+      assignee_name:
+        type: string
+      deadline_days:
+        type: integer
+      hazard_id:
+        type: integer
+    required:
+    - assignee_id
+    - assignee_name
+    - hazard_id
+    type: object
+  service.CloseHazardRequest:
+    properties:
+      hazard_id:
+        type: integer
+    required:
+    - hazard_id
+    type: object
+  service.DailyStatsResponse:
+    properties:
+      avg_pressure:
+        type: number
+      date:
+        type: string
+      max_pressure:
+        type: number
+      min_pressure:
+        type: number
+      volatility:
+        type: number
+    type: object
+  service.DispatchResult:
+    properties:
+      dispatch_reason:
+        type: string
+      distance:
+        type: number
+      leader_name:
+        type: string
+      order_no:
+        type: string
+      phone:
+        type: string
+      team_id:
+        type: integer
+      team_name:
+        type: string
+      workload_score:
+        type: number
+    type: object
+  service.FiveMinStatsResponse:
+    properties:
+      avg_pressure:
+        type: number
+      data_count:
+        type: integer
+      max_pressure:
+        type: number
+      min_pressure:
+        type: number
+      window:
+        type: string
+    type: object
+  service.GenerateAssessmentRequest:
+    properties:
+      inspector_id:
+        type: integer
+      month:
+        maximum: 12
+        minimum: 1
+        type: integer
+      year:
+        type: integer
+    required:
+    - month
+    - year
+    type: object
+  service.HourlyStatsResponse:
+    properties:
+      avg_pressure:
+        type: number
+      hour:
+        type: string
+      max_pressure:
+        type: number
+      min_pressure:
+        type: number
+    type: object
+  service.MonthlyStatsResponse:
+    properties:
+      avg_pressure:
+        type: number
+      max_pressure:
+        type: number
+      min_pressure:
+        type: number
+      month:
+        type: string
+      volatility:
+        type: number
+    type: object
+  service.PlanGenerationResult:
+    properties:
+      generated_tasks:
+        type: integer
+      message:
+        type: string
+    type: object
+  service.ReassignRequest:
+    properties:
+      end_date:
+        type: string
+      leave_inspector_id:
+        type: integer
+      start_date:
+        type: string
+    required:
+    - end_date
+    - leave_inspector_id
+    - start_date
+    type: object
+  service.ReassignResult:
+    properties:
+      assignments:
+        items:
+          $ref: '#/definitions/service.TaskAssignment'
+        type: array
+      reassigned_tasks:
+        type: integer
+    type: object
+  service.RectifyHazardRequest:
+    properties:
+      description:
+        type: string
+      hazard_id:
+        type: integer
+    required:
+    - description
+    - hazard_id
+    type: object
+  service.RegisterHazardRequest:
+    properties:
+      description:
+        minLength: 10
+        type: string
+      inspector_id:
+        type: integer
+      level:
+        allOf:
+        - $ref: '#/definitions/model.HazardLevel'
+        enum:
+        - MAJOR
+        - NORMAL
+        - MINOR
+      location:
+        type: string
+      photos:
+        items:
+          type: string
+        type: array
+      pipeline_id:
+        type: integer
+    required:
+    - description
+    - inspector_id
+    - level
+    - pipeline_id
+    type: object
+  service.TaskAssignment:
+    properties:
+      new_inspector:
+        type: integer
+      new_name:
+        type: string
+      old_inspector:
+        type: integer
+      task_id:
+        type: integer
+    type: object
+  service.TrackCheckResult:
+    properties:
+      avg_deviation:
+        type: number
+      deviation_points:
+        items:
+          $ref: '#/definitions/service.TrackPoint'
+        type: array
+      is_deviated:
+        type: boolean
+      max_deviation:
+        type: number
+    type: object
+  service.TrackPoint:
+    properties:
+      lat:
+        type: number
+      lng:
+        type: number
+      timestamp:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@example.com
+    name: API Support
+    url: http://www.example.com/support
+  description: 城市燃气管网巡检计划、泄漏报警抢修调度、阀门操作台账、隐患闭环管理、压力趋势分析、巡检轨迹核查的综合管理系统
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  title: 燃气管网巡检与抢修调度系统
+  version: "1.0"
+paths:
+  /api/v1/alarm/alarms:
+    get:
+      consumes:
+      - application/json
+      description: 分页查询告警列表
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页条数
+        in: query
+        name: page_size
+        type: integer
+      - description: 告警状态
+        in: query
+        name: status
+        type: string
+      - description: 告警级别
+        in: query
+        name: level
+        type: string
+      - description: 告警类型
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/response.PageResult'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/model.Alarm'
+                        type: array
+                    type: object
+              type: object
+      summary: 查询告警列表
+      tags:
+      - 报警与抢修
+  /api/v1/alarm/alarms/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取告警详情
+      parameters:
+      - description: 告警ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Alarm'
+              type: object
+      summary: 获取告警详情
+      tags:
+      - 报警与抢修
+  /api/v1/alarm/alarms/{id}/dispatch:
+    post:
+      consumes:
+      - application/json
+      description: 对告警进行抢修调度，自动计算最优抢修队
+      parameters:
+      - description: 告警ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 位置信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.DispatchAlarmRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.DispatchResult'
+              type: object
+      summary: 调度抢修
+      tags:
+      - 报警与抢修
+  /api/v1/alarm/alarms/check-overdue:
+    post:
+      consumes:
+      - application/json
+      description: 检查超过DispatchTimeout秒未调度的告警，自动升级通知主管
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.Alarm'
+                  type: array
+              type: object
+      summary: 检查超时未调度告警
+      tags:
+      - 报警与抢修
+  /api/v1/alarm/pressure-data:
+    post:
+      consumes:
+      - application/json
+      description: SCADA系统推送压力数据，引擎自动匹配规则生成告警
+      parameters:
+      - description: 压力数据
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/alarm.PressureDataInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/alarm.MatchResult'
+                  type: array
+              type: object
+      summary: 推送压力数据
+      tags:
+      - 报警与抢修
+  /api/v1/alarm/pressure-data/archive:
+    post:
+      consumes:
+      - application/json
+      description: 归档超过180天的压力数据为日均值
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  format: int64
+                  type: integer
+              type: object
+      summary: 归档压力数据
+      tags:
+      - 报警与抢修
+  /api/v1/alarm/pressure-data/batch:
+    post:
+      consumes:
+      - application/json
+      description: 批量推送压力数据
+      parameters:
+      - description: 压力数据列表
+        in: body
+        name: data
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/alarm.PressureDataInput'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/alarm.MatchResult'
+                  type: array
+              type: object
+      summary: 批量推送压力数据
+      tags:
+      - 报警与抢修
+  /api/v1/alarm/pressure-data/daily-stats:
+    post:
+      consumes:
+      - application/json
+      description: 计算指定调压站指定日期的压力统计数据
+      parameters:
+      - description: 调压站ID
+        in: query
+        name: station_id
+        required: true
+        type: integer
+      - description: 日期(2006-01-02)
+        in: query
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: 计算日统计数据
+      tags:
+      - 报警与抢修
+  /api/v1/alarm/repair-orders:
+    get:
+      consumes:
+      - application/json
+      description: 分页查询抢修工单列表
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页条数
+        in: query
+        name: page_size
+        type: integer
+      - description: 抢修队ID
+        in: query
+        name: team_id
+        type: integer
+      - description: 工单状态
+        in: query
+        name: status
+        type: string
+      - description: 告警ID
+        in: query
+        name: alarm_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/response.PageResult'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/model.RepairOrder'
+                        type: array
+                    type: object
+              type: object
+      summary: 查询抢修工单列表
+      tags:
+      - 报警与抢修
+  /api/v1/alarm/repair-orders/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取抢修工单详情
+      parameters:
+      - description: 工单ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.RepairOrder'
+              type: object
+      summary: 获取抢修工单详情
+      tags:
+      - 报警与抢修
+  /api/v1/alarm/repair-orders/{id}/status:
+    put:
+      consumes:
+      - application/json
+      description: 更新抢修工单状态
+      parameters:
+      - description: 工单ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 状态信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateOrderStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: 更新抢修工单状态
+      tags:
+      - 报警与抢修
+  /api/v1/alarm/repair-teams:
+    get:
+      consumes:
+      - application/json
+      description: 查询所有抢修队
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.RepairTeam'
+                  type: array
+              type: object
+      summary: 查询抢修队列表
+      tags:
+      - 报警与抢修
+    post:
+      consumes:
+      - application/json
+      description: 创建新的抢修队
+      parameters:
+      - description: 抢修队信息
+        in: body
+        name: team
+        required: true
+        schema:
+          $ref: '#/definitions/model.RepairTeam'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.RepairTeam'
+              type: object
+      summary: 创建抢修队
+      tags:
+      - 报警与抢修
+  /api/v1/alarm/rules:
+    get:
+      consumes:
+      - application/json
+      description: 获取所有告警规则
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/alarm.PressureRule'
+                  type: array
+              type: object
+      summary: 获取告警规则
+      tags:
+      - 报警与抢修
+  /api/v1/assessment:
+    get:
+      consumes:
+      - application/json
+      description: 分页查询月度考核记录，支持按巡检员、年月、是否通过筛选
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页条数
+        in: query
+        name: page_size
+        type: integer
+      - description: 巡检员ID
+        in: query
+        name: inspector_id
+        type: integer
+      - description: 年份
+        in: query
+        name: year
+        type: integer
+      - description: 月份(1-12)
+        in: query
+        name: month
+        type: integer
+      - description: 是否通过
+        in: query
+        name: is_passed
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/response.PageResult'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/model.MonthlyAssessment'
+                        type: array
+                    type: object
+              type: object
+      summary: 查询月度考核列表
+      tags:
+      - 月度考核
+  /api/v1/assessment/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取月度考核详情，包含完整报告
+      parameters:
+      - description: 考核记录ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.MonthlyAssessment'
+              type: object
+      summary: 获取考核详情
+      tags:
+      - 月度考核
+  /api/v1/assessment/generate:
+    post:
+      consumes:
+      - application/json
+      description: 根据年份和月份生成巡检员月度考核，包含统计、评分和报告生成。如不指定巡检员ID则为所有巡检员生成
+      parameters:
+      - description: 考核生成请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.GenerateAssessmentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.AssessmentResult'
+              type: object
+      summary: 生成月度考核
+      tags:
+      - 月度考核
+  /api/v1/basic/pipelines:
+    get:
+      consumes:
+      - application/json
+      description: 查询所有管段
+      parameters:
+      - description: 管段等级
+        in: query
+        name: level
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.Pipeline'
+                  type: array
+              type: object
+      summary: 查询管段列表
+      tags:
+      - 基础数据
+    post:
+      consumes:
+      - application/json
+      description: 创建新的管段
+      parameters:
+      - description: 管段信息
+        in: body
+        name: pipeline
+        required: true
+        schema:
+          $ref: '#/definitions/model.Pipeline'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Pipeline'
+              type: object
+      summary: 创建管段
+      tags:
+      - 基础数据
+  /api/v1/hazard/hazards:
+    get:
+      consumes:
+      - application/json
+      description: 分页查询隐患列表
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页条数
+        in: query
+        name: page_size
+        type: integer
+      - description: 隐患等级
+        in: query
+        name: level
+        type: string
+      - description: 隐患状态
+        in: query
+        name: status
+        type: string
+      - description: 管段ID
+        in: query
+        name: pipeline_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/response.PageResult'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/model.Hazard'
+                        type: array
+                    type: object
+              type: object
+      summary: 查询隐患列表
+      tags:
+      - 隐患管理
+    post:
+      consumes:
+      - application/json
+      description: 巡检发现隐患进行登记
+      parameters:
+      - description: 隐患信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.RegisterHazardRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Hazard'
+              type: object
+      summary: 登记隐患
+      tags:
+      - 隐患管理
+  /api/v1/hazard/hazards/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取隐患详情
+      parameters:
+      - description: 隐患ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Hazard'
+              type: object
+      summary: 获取隐患详情
+      tags:
+      - 隐患管理
+  /api/v1/hazard/hazards/accept:
+    post:
+      consumes:
+      - application/json
+      description: 对整改完成的隐患进行验收。验收通过后状态变为ACCEPTING（待确认销号），验收不通过则退回ASSIGNED重新整改
+      parameters:
+      - description: 验收信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.AcceptHazardRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: 验收隐患
+      tags:
+      - 隐患管理
+  /api/v1/hazard/hazards/assign:
+    post:
+      consumes:
+      - application/json
+      description: 为隐患指派整改责任人
+      parameters:
+      - description: 指派信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.AssignHazardRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: 指派整改人
+      tags:
+      - 隐患管理
+  /api/v1/hazard/hazards/check-overdue:
+    post:
+      consumes:
+      - application/json
+      description: 检查重大隐患超48小时未整改，自动升级通知主管
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.Hazard'
+                  type: array
+              type: object
+      summary: 检查超期隐患
+      tags:
+      - 隐患管理
+  /api/v1/hazard/hazards/close:
+    post:
+      consumes:
+      - application/json
+      description: 对验收通过的隐患进行确认销号，状态从ACCEPTING变为CLOSED
+      parameters:
+      - description: 销号信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.CloseHazardRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: 隐患销号
+      tags:
+      - 隐患管理
+  /api/v1/hazard/hazards/rectify:
+    post:
+      consumes:
+      - application/json
+      description: 整改完成后提交整改信息
+      parameters:
+      - description: 整改信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.RectifyHazardRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: 提交整改
+      tags:
+      - 隐患管理
+  /api/v1/inspect/inspectors:
+    get:
+      consumes:
+      - application/json
+      description: 分页查询巡检员列表
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页条数
+        in: query
+        name: page_size
+        type: integer
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/response.PageResult'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/model.Inspector'
+                        type: array
+                    type: object
+              type: object
+      summary: 查询巡检员列表
+      tags:
+      - 巡检管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新的巡检员
+      parameters:
+      - description: 巡检员信息
+        in: body
+        name: inspector
+        required: true
+        schema:
+          $ref: '#/definitions/model.Inspector'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Inspector'
+              type: object
+      summary: 创建巡检员
+      tags:
+      - 巡检管理
+  /api/v1/inspect/plans/generate:
+    post:
+      consumes:
+      - application/json
+      description: 按管段等级自动生成巡检任务，一级每日、二级每周、三级每月
+      parameters:
+      - description: 生成日期
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/handler.GeneratePlanRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.PlanGenerationResult'
+              type: object
+      summary: 生成巡检计划
+      tags:
+      - 巡检管理
+  /api/v1/inspect/plans/reassign:
+    post:
+      consumes:
+      - application/json
+      description: 巡检员请假时基于负荷均衡重分配任务
+      parameters:
+      - description: 重分配请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.ReassignRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.ReassignResult'
+              type: object
+      summary: 任务重分配
+      tags:
+      - 巡检管理
+  /api/v1/inspect/tasks:
+    get:
+      consumes:
+      - application/json
+      description: 分页查询巡检任务，支持按巡检员、状态、日期范围筛选
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页条数
+        in: query
+        name: page_size
+        type: integer
+      - description: 巡检员ID
+        in: query
+        name: inspector_id
+        type: integer
+      - description: 任务状态
+        in: query
+        name: status
+        type: string
+      - description: 开始日期(2006-01-02)
+        in: query
+        name: date_from
+        type: string
+      - description: 结束日期(2006-01-02)
+        in: query
+        name: date_to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/response.PageResult'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/model.InspectionTask'
+                        type: array
+                    type: object
+              type: object
+      summary: 查询巡检任务列表
+      tags:
+      - 巡检管理
+  /api/v1/inspect/tasks/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取巡检任务详情
+      parameters:
+      - description: 任务ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.InspectionTask'
+              type: object
+      summary: 获取巡检任务详情
+      tags:
+      - 巡检管理
+  /api/v1/inspect/tasks/{id}/accept:
+    post:
+      consumes:
+      - application/json
+      description: 巡检员接单
+      parameters:
+      - description: 任务ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 接单信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.AcceptTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: 接单
+      tags:
+      - 巡检管理
+  /api/v1/inspect/tasks/{id}/complete:
+    post:
+      consumes:
+      - application/json
+      description: 巡检员完成任务
+      parameters:
+      - description: 任务ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 完成信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CompleteTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: 完成任务
+      tags:
+      - 巡检管理
+  /api/v1/inspect/tasks/check-expired:
+    post:
+      consumes:
+      - application/json
+      description: 检查任务逾期2小时未接单，触发升级提醒
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.InspectionTask'
+                  type: array
+              type: object
+      summary: 检查超时任务
+      tags:
+      - 巡检管理
+  /api/v1/inspect/tracks:
+    get:
+      consumes:
+      - application/json
+      description: 分页查询巡检轨迹核查记录
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页条数
+        in: query
+        name: page_size
+        type: integer
+      - description: 巡检员ID
+        in: query
+        name: inspector_id
+        type: integer
+      - description: 是否偏航
+        in: query
+        name: is_deviated
+        type: boolean
+      - description: 开始日期(2006-01-02)
+        in: query
+        name: start_date
+        type: string
+      - description: 结束日期(2006-01-02)
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/response.PageResult'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/model.InspectionTrack'
+                        type: array
+                    type: object
+              type: object
+      summary: 查询轨迹核查记录
+      tags:
+      - 巡检管理
+    post:
+      consumes:
+      - application/json
+      description: 巡检员提交GPS轨迹点序列，系统自动核查轨迹偏差
+      parameters:
+      - description: 轨迹数据
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.SubmitTrackRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.TrackCheckResult'
+              type: object
+      summary: 提交巡检轨迹
+      tags:
+      - 巡检管理
+  /api/v1/pressure/data:
+    get:
+      consumes:
+      - application/json
+      description: 分页查询压力原始数据
+      parameters:
+      - description: 调压站ID
+        in: query
+        name: station_id
+        required: true
+        type: integer
+      - description: 开始时间(2006-01-02 15:04:05)
+        in: query
+        name: start_time
+        required: true
+        type: string
+      - description: 结束时间(2006-01-02 15:04:05)
+        in: query
+        name: end_time
+        required: true
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 288
+        description: 每页条数
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/response.PageResult'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/model.PressureData'
+                        type: array
+                    type: object
+              type: object
+      summary: 查询压力原始数据
+      tags:
+      - 压力分析
+  /api/v1/pressure/data/latest:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定调压站最新的压力数据
+      parameters:
+      - description: 调压站ID
+        in: query
+        name: station_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.PressureData'
+              type: object
+      summary: 获取最新压力数据
+      tags:
+      - 压力分析
+  /api/v1/pressure/stations:
+    get:
+      consumes:
+      - application/json
+      description: 查询所有调压站
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.PressureRegulatingStation'
+                  type: array
+              type: object
+      summary: 查询调压站列表
+      tags:
+      - 压力分析
+  /api/v1/pressure/stats/5min:
+    get:
+      consumes:
+      - application/json
+      description: 按时间窗口聚合压力数据，返回5分钟粒度的最大/最小/平均压力统计
+      parameters:
+      - description: 调压站ID
+        in: query
+        name: station_id
+        required: true
+        type: integer
+      - description: 开始时间(2006-01-02 15:04:05)
+        in: query
+        name: start_time
+        required: true
+        type: string
+      - description: 结束时间(2006-01-02 15:04:05)
+        in: query
+        name: end_time
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/service.FiveMinStatsResponse'
+                  type: array
+              type: object
+      summary: 获取5分钟粒度压力统计
+      tags:
+      - 压力分析
+  /api/v1/pressure/stats/daily:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定调压站指定日期范围的日压力统计
+      parameters:
+      - description: 调压站ID
+        in: query
+        name: station_id
+        required: true
+        type: integer
+      - description: 开始日期(2006-01-02)
+        in: query
+        name: start_date
+        required: true
+        type: string
+      - description: 结束日期(2006-01-02)
+        in: query
+        name: end_date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/service.DailyStatsResponse'
+                  type: array
+              type: object
+      summary: 获取日压力统计
+      tags:
+      - 压力分析
+  /api/v1/pressure/stats/hourly:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定调压站指定日期的小时压力统计
+      parameters:
+      - description: 调压站ID
+        in: query
+        name: station_id
+        required: true
+        type: integer
+      - description: 日期(2006-01-02)
+        in: query
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/service.HourlyStatsResponse'
+                  type: array
+              type: object
+      summary: 获取小时压力统计
+      tags:
+      - 压力分析
+  /api/v1/pressure/stats/monthly:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定调压站指定年份的月压力统计
+      parameters:
+      - description: 调压站ID
+        in: query
+        name: station_id
+        required: true
+        type: integer
+      - description: 年份
+        in: query
+        name: year
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/service.MonthlyStatsResponse'
+                  type: array
+              type: object
+      summary: 获取月压力统计
+      tags:
+      - 压力分析
+  /api/v1/valve/operations:
+    get:
+      consumes:
+      - application/json
+      description: 分页查询阀门操作历史，支持按时间范围、管段、阀井筛选
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页条数
+        in: query
+        name: page_size
+        type: integer
+      - description: 阀井ID
+        in: query
+        name: valve_well_id
+        type: integer
+      - description: 阀门编号
+        in: query
+        name: valve_no
+        type: string
+      - description: 管段ID
+        in: query
+        name: pipeline_id
+        type: integer
+      - description: 开始时间(2006-01-02 15:04:05)
+        in: query
+        name: start_time
+        type: string
+      - description: 结束时间(2006-01-02 15:04:05)
+        in: query
+        name: end_time
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/response.PageResult'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/model.ValveOperation'
+                        type: array
+                    type: object
+              type: object
+      summary: 查询阀门操作历史
+      tags:
+      - 阀门管理
+    post:
+      consumes:
+      - application/json
+      description: 记录每次阀门开闭操作，形成电子台账
+      parameters:
+      - description: 阀门操作信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreateValveOperationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.ValveOperation'
+              type: object
+      summary: 记录阀门操作
+      tags:
+      - 阀门管理
+  /api/v1/valve/operations/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取阀门操作详情
+      parameters:
+      - description: 操作记录ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.ValveOperation'
+              type: object
+      summary: 获取阀门操作详情
+      tags:
+      - 阀门管理
+  /api/v1/valve/wells:
+    get:
+      consumes:
+      - application/json
+      description: 分页查询阀井列表，支持按管段和关键词筛选
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页条数
+        in: query
+        name: page_size
+        type: integer
+      - description: 管段ID
+        in: query
+        name: pipeline_id
+        type: integer
+      - description: 关键词(阀井名称或编号)
+        in: query
+        name: keyword
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/response.PageResult'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/model.ValveWell'
+                        type: array
+                    type: object
+              type: object
+      summary: 查询阀井列表
+      tags:
+      - 阀门管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新的阀井
+      parameters:
+      - description: 阀井信息
+        in: body
+        name: valve_well
+        required: true
+        schema:
+          $ref: '#/definitions/model.ValveWell'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.ValveWell'
+              type: object
+      summary: 创建阀井
+      tags:
+      - 阀门管理
+schemes:
+- http
+swagger: "2.0"
