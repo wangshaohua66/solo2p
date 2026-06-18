@@ -176,15 +176,26 @@ func (s *SchedulerService) createTask(pipeline model.Pipeline, date time.Time, i
 	planStart := time.Date(date.Year(), date.Month(), date.Day(), 9, 0, 0, 0, date.Location())
 	planEnd := planStart.Add(2 * time.Hour)
 
+	level := 1
+	switch intervalDays {
+	case 1:
+		level = 1
+	case 7:
+		level = 2
+	case 30:
+		level = 3
+	}
+
 	return model.InspectionTask{
-		TaskNo:     taskNo,
-		PipelineID: pipeline.ID,
-		Status:     model.TaskStatusPending,
-		PlanDate:   date,
-		PlanStart:  planStart,
-		PlanEnd:    planEnd,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		TaskNo:       taskNo,
+		PipelineID:   pipeline.ID,
+		InspectLevel: level,
+		Status:       model.TaskStatusPending,
+		PlanDate:     date,
+		PlanStart:    planStart,
+		PlanEnd:      planEnd,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
 	}
 }
 

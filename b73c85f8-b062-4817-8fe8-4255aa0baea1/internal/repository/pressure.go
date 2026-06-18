@@ -193,6 +193,45 @@ func (r *PressureRepository) ArchiveOldData(beforeDate time.Time, batchSize int)
 	return result.RowsAffected, result.Error
 }
 
+func (r *PressureRepository) DeleteArchivedData(beforeDate time.Time, batchSize int) (int64, error) {
+	result := r.db.Where("timestamp < ? AND is_archived = ?", beforeDate, true).
+		Limit(batchSize).
+		Delete(&model.PressureData{})
+	return result.RowsAffected, result.Error
+}
+
+func (r *PressureRepository) SaveVolatilityPoint(stationID uint, pressureValue float64, timestamp time.Time) error {
+	point := model.PressureVolatilityPoint{
+		StationID:     stationID,
+		PressureValue: pressureValue,
+		Timestamp:     timestamp,
+		CreatedAt:     time.Now(),
+	}
+	return r.db.Create(&point).Error
+}
+
+func (r *PressureRepository) GetVolatilityPoints(stationID uint, since time.Time, limit int) ([]model.PressureVolatilityPoint, error) {
+	var points []model.PressureVolatilityPoint
+	err := r.db.Where("station_id = ? AND timestamp >= ?", stationID, since).
+		Order("timestamp ASC").
+		Limit(limit).
+		Find(&points).Error
+	return points, err
+}
+
+func (r *PressureRepository) CleanVolatilityPoints(before time.Time) (int64, error) {
+	result := r.db.Where("timestamp < ?", before).Delete(&model.PressureVolatilityPoint{})
+	return result.RowsAffected, result.Error
+}
+
+func (r *PressureRepository) GetAllStationsWithVolatility() ([]uint, error) {
+	var stationIDs []uint
+	err := r.db.Model(&model.PressureVolatilityPoint{}).
+		Distinct("station_id").
+		Pluck("station_id", &stationIDs).Error
+	return stationIDs, err
+}
+
 func (r *PressureRepository) GetStationByID(id uint) (*model.PressureRegulatingStation, error) {
 	var station model.PressureRegulatingStation
 	err := r.db.First(&station, id).Error

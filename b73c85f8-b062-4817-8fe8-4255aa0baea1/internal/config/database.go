@@ -77,6 +77,7 @@ func autoMigrate(db *gorm.DB) error {
 		&model.OperationLog{},
 		&model.User{},
 		&model.MonthlyAssessment{},
+		&model.PressureVolatilityPoint{},
 	)
 }
 

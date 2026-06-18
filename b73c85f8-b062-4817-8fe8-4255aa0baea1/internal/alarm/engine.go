@@ -51,6 +51,29 @@ func (w *VolatilityWindow) Add(value float64, timestamp time.Time) {
 	}
 }
 
+func (w *VolatilityWindow) BatchRestore(values []float64, timestamps []time.Time) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	n := len(values)
+	if n > w.MaxSize {
+		values = values[n-w.MaxSize:]
+		timestamps = timestamps[n-w.MaxSize:]
+	}
+	w.Values = append([]float64{}, values...)
+	w.Timestamps = append([]time.Time{}, timestamps...)
+}
+
+func (w *VolatilityWindow) Snapshot() ([]float64, []time.Time) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	vs := make([]float64, len(w.Values))
+	copy(vs, w.Values)
+	ts := make([]time.Time, len(w.Timestamps))
+	copy(ts, w.Timestamps)
+	return vs, ts
+}
+
 func (w *VolatilityWindow) CalculateVolatility() float64 {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -118,6 +141,7 @@ func NewAlarmEngine(repo *repository.Repository, logger *zap.Logger, cfg *config
 		volatility: make(map[uint]*VolatilityWindow),
 	}
 	engine.initRules()
+	engine.LoadVolatilityFromDB()
 	return engine
 }
 
@@ -206,6 +230,55 @@ func (e *AlarmEngine) initRules() {
 	}
 }
 
+func (e *AlarmEngine) LoadVolatilityFromDB() {
+	since := time.Now().Add(-2 * time.Hour)
+	stationIDs, err := e.repo.Pressure.GetAllStationsWithVolatility()
+	if err != nil {
+		e.logger.Warn("加载波动率窗口失败：获取站列表出错", zap.Error(err))
+		return
+	}
+
+	totalLoaded := 0
+	for _, sid := range stationIDs {
+		points, err := e.repo.Pressure.GetVolatilityPoints(sid, since, 12)
+		if err != nil {
+			e.logger.Warn("加载波动率窗口失败",
+				zap.Uint("station_id", sid),
+				zap.Error(err))
+			continue
+		}
+		if len(points) == 0 {
+			continue
+		}
+		values := make([]float64, len(points))
+		timestamps := make([]time.Time, len(points))
+		for i, p := range points {
+			values[i] = p.PressureValue
+			timestamps[i] = p.Timestamp
+		}
+		window := NewVolatilityWindow(12)
+		window.BatchRestore(values, timestamps)
+		e.mu.Lock()
+		e.volatility[sid] = window
+		e.mu.Unlock()
+		totalLoaded += len(points)
+	}
+
+	if totalLoaded > 0 {
+		e.logger.Info("波动率窗口已从数据库恢复",
+			zap.Int("stations_count", len(stationIDs)),
+			zap.Int("points_loaded", totalLoaded),
+			zap.Duration("window_size", 2*time.Hour))
+	}
+
+	deleted, err := e.repo.Pressure.CleanVolatilityPoints(since.Add(-1 * time.Hour))
+	if err != nil {
+		e.logger.Warn("清理过期波动率点失败", zap.Error(err))
+	} else if deleted > 0 {
+		e.logger.Info("已清理过期波动率点", zap.Int64("deleted", deleted))
+	}
+}
+
 func (e *AlarmEngine) getVolatilityWindow(stationID uint) *VolatilityWindow {
 	e.mu.RLock()
 	window, exists := e.volatility[stationID]
@@ -252,6 +325,14 @@ func (e *AlarmEngine) ProcessPressureData(input PressureDataInput) ([]MatchResul
 	window.ClearOld(time.Now().Add(-1 * time.Hour))
 	window.Add(input.PressureValue, input.Timestamp)
 	volatility := window.CalculateVolatility()
+
+	if err := e.repo.Pressure.SaveVolatilityPoint(
+		input.StationID, input.PressureValue, input.Timestamp,
+	); err != nil {
+		e.logger.Warn("持久化波动率点失败",
+			zap.Uint("station_id", input.StationID),
+			zap.Error(err))
+	}
 
 	pressureData := &model.PressureData{
 		StationID:     input.StationID,
@@ -462,8 +543,22 @@ func (e *AlarmEngine) ArchiveOldData() (int64, error) {
 		}
 	}
 
+	totalDeleted := int64(0)
+	for {
+		count, err := e.repo.Pressure.DeleteArchivedData(cutoffDate, e.config.Pressure.ArchiveBatchSize)
+		if err != nil {
+			e.logger.Error("删除已归档数据失败", zap.Error(err))
+			break
+		}
+		totalDeleted += count
+		if count == 0 {
+			break
+		}
+	}
+
 	e.logger.Info("压力数据归档完成",
 		zap.Int64("archived_count", totalArchived),
+		zap.Int64("deleted_count", totalDeleted),
 		zap.Int("daily_stats_saved", len(aggRows)),
 		zap.Time("cutoff_date", cutoffDate),
 	)

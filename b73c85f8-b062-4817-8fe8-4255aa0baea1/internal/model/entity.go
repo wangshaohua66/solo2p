@@ -91,22 +91,23 @@ const (
 )
 
 type InspectionTask struct {
-	ID          uint                 `gorm:"primaryKey" json:"id"`
-	TaskNo      string               `gorm:"size:50;uniqueIndex;not null" json:"task_no"`
-	PipelineID  uint                 `json:"pipeline_id"`
-	Pipeline    Pipeline             `gorm:"foreignKey:PipelineID" json:"pipeline"`
-	InspectorID *uint                `json:"inspector_id"`
-	Inspector   *Inspector           `gorm:"foreignKey:InspectorID" json:"inspector"`
-	Status      InspectionTaskStatus `gorm:"size:20;default:'PENDING'" json:"status"`
-	PlanDate    time.Time            `json:"plan_date"`
-	PlanStart   time.Time            `json:"plan_start"`
-	PlanEnd     time.Time            `json:"plan_end"`
-	ActualStart *time.Time           `json:"actual_start"`
-	ActualEnd   *time.Time           `json:"actual_end"`
-	AcceptedAt  *time.Time           `json:"accepted_at"`
-	Remark      string               `gorm:"type:text" json:"remark"`
-	CreatedAt   time.Time            `json:"created_at"`
-	UpdatedAt   time.Time            `json:"updated_at"`
+	ID           uint                 `gorm:"primaryKey" json:"id"`
+	TaskNo       string               `gorm:"size:50;uniqueIndex;not null" json:"task_no"`
+	PipelineID   uint                 `json:"pipeline_id"`
+	Pipeline     Pipeline             `gorm:"foreignKey:PipelineID" json:"pipeline"`
+	InspectorID  *uint                `json:"inspector_id"`
+	Inspector    *Inspector           `gorm:"foreignKey:InspectorID" json:"inspector"`
+	InspectLevel int                  `gorm:"default:1;index" json:"inspect_level"`
+	Status       InspectionTaskStatus `gorm:"size:20;default:'PENDING'" json:"status"`
+	PlanDate     time.Time            `json:"plan_date"`
+	PlanStart    time.Time            `json:"plan_start"`
+	PlanEnd      time.Time            `json:"plan_end"`
+	ActualStart  *time.Time           `json:"actual_start"`
+	ActualEnd    *time.Time           `json:"actual_end"`
+	AcceptedAt   *time.Time           `json:"accepted_at"`
+	Remark       string               `gorm:"type:text" json:"remark"`
+	CreatedAt    time.Time            `json:"created_at"`
+	UpdatedAt    time.Time            `json:"updated_at"`
 }
 
 type RepairTeamStatus string
@@ -355,4 +356,12 @@ type MonthlyAssessment struct {
 	GeneratedAt       time.Time `json:"generated_at"`
 	CreatedAt         time.Time `json:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+type PressureVolatilityPoint struct {
+	ID            uint      `gorm:"primaryKey" json:"id"`
+	StationID     uint      `gorm:"index;not null" json:"station_id"`
+	PressureValue float64   `json:"pressure_value"`
+	Timestamp     time.Time `gorm:"index;not null" json:"timestamp"`
+	CreatedAt     time.Time `json:"created_at"`
 }
