@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"strings"
 	"sync"
 	"time"
 
@@ -307,6 +308,44 @@ func (e *Engine) compareFile(key string, src, tgt *storage.FileObject) FileChang
 		}
 	}
 
+	if src.Checksum != "" && tgt.Checksum != "" {
+		if src.Checksum != tgt.Checksum {
+			return FileChange{
+				Key:        key,
+				ChangeType: ChangeUpdate,
+				SourceObj:  src,
+				TargetObj:  tgt,
+				Reason:     "md5 checksum mismatch",
+			}
+		}
+		return FileChange{
+			Key:        key,
+			ChangeType: ChangeSkip,
+			SourceObj:  src,
+			TargetObj:  tgt,
+			Reason:     "identical (checksum verified)",
+		}
+	}
+
+	if src.ETag != "" && tgt.ETag != "" && src.ETag == tgt.ETag {
+		if !isMultipartETag(src.ETag) {
+			return FileChange{
+				Key:        key,
+				ChangeType: ChangeSkip,
+				SourceObj:  src,
+				TargetObj:  tgt,
+				Reason:     "identical (etag verified)",
+			}
+		}
+		return FileChange{
+			Key:        key,
+			ChangeType: ChangeUpdate,
+			SourceObj:  src,
+			TargetObj:  tgt,
+			Reason:     "multipart etag requires checksum verification",
+		}
+	}
+
 	return FileChange{
 		Key:        key,
 		ChangeType: ChangeSkip,
@@ -314,6 +353,10 @@ func (e *Engine) compareFile(key string, src, tgt *storage.FileObject) FileChang
 		TargetObj:  tgt,
 		Reason:     "identical",
 	}
+}
+
+func isMultipartETag(etag string) bool {
+	return strings.Contains(etag, "-")
 }
 
 func (e *Engine) matchesPatterns(key string) bool {
@@ -684,19 +727,51 @@ func (e *Engine) doTransfer(ctx context.Context, change *FileChange) error {
 
 	if e.cfg.Checksum.VerifyAfterSync {
 		verifyKey := uploadKey
-		targetReader2, tgtMeta, vErr := e.target.Get(ctx, verifyKey)
-		if vErr != nil {
-			return fmt.Errorf("read target for verify: %w", vErr)
-		}
-		defer targetReader2.Close()
+		maxVerifyRetries := 3
+		verifyOK := false
+		for attempt := 1; attempt <= maxVerifyRetries; attempt++ {
+			targetReader2, _, vErr := e.target.Get(ctx, verifyKey)
+			if vErr != nil {
+				if attempt < maxVerifyRetries {
+					logger.Warn("Verify read failed (attempt %d/%d) for %s: %v, retrying",
+						attempt, maxVerifyRetries, change.Key, vErr)
+					time.Sleep(e.cfg.Sync.RetryInterval)
+					continue
+				}
+				return fmt.Errorf("read target for verify: %w", vErr)
+			}
 
-		matched := e.verifier.VerifyReader(targetReader2, checksumStr)
-		if !matched {
-			return fmt.Errorf("checksum verification failed for %s", change.Key)
+			matched, _, computeErr := e.hasher.VerifyReader(targetReader2, checksumStr)
+			targetReader2.Close()
+
+			if computeErr != nil {
+				if attempt < maxVerifyRetries {
+					logger.Warn("Verify compute failed (attempt %d/%d) for %s: %v, retrying",
+						attempt, maxVerifyRetries, change.Key, computeErr)
+					time.Sleep(e.cfg.Sync.RetryInterval)
+					continue
+				}
+				return fmt.Errorf("verify checksum compute: %w", computeErr)
+			}
+
+			if matched {
+				verifyOK = true
+				break
+			}
+
+			logger.Warn("Checksum verification failed (attempt %d/%d) for %s: expected=%s",
+				attempt, maxVerifyRetries, change.Key, checksumStr)
+			if attempt < maxVerifyRetries {
+				time.Sleep(e.cfg.Sync.RetryInterval)
+			}
 		}
-		if tgtMeta != nil {
-			tgtMeta.Checksum = checksumStr
+
+		if !verifyOK {
+			e.verifier.AddMismatch(change.Key, checksumStr, "", "verification failed after 3 retries")
+			return fmt.Errorf("checksum verification failed after %d retries for %s", maxVerifyRetries, change.Key)
 		}
+
+		logger.Debug("Checksum verified for %s (algorithm=%s)", change.Key, e.cfg.Checksum.Algorithm)
 	}
 
 	return nil
@@ -723,4 +798,167 @@ func (e *Engine) Close() {
 	if e.db != nil {
 		e.db.Close()
 	}
+}
+
+type VerifyResult struct {
+	TaskID         string
+	VerifiedCount  int64
+	ChecksumDiffs   []checksum.MismatchReport
+}
+
+func (e *Engine) Verify(ctx context.Context, taskID string) (*VerifyResult, error) {
+	if taskID == "" {
+		taskID = fmt.Sprintf("verify-%d", time.Now().UnixNano())
+	}
+
+	logger.Info("Listing source files from %s://%s/%s...",
+		e.cfg.Source.Type, e.getSourceBucket(), e.cfg.Source.Prefix)
+	srcFiles, err := e.source.ListAll(ctx, e.cfg.Source.Prefix)
+	if err != nil {
+		return nil, fmt.Errorf("list source: %w", err)
+	}
+
+	logger.Info("Listing target files from %s://%s/%s...",
+		e.cfg.Target.Type, e.getTargetBucket(), e.cfg.Target.Prefix)
+	tgtFiles, err := e.target.ListAll(ctx, e.cfg.Target.Prefix)
+	if err != nil {
+		return nil, fmt.Errorf("list target: %w", err)
+	}
+
+	tgtMap := make(map[string]storage.FileObject, len(tgtFiles))
+	for _, f := range tgtFiles {
+		tgtMap[f.Key] = f
+	}
+
+	srcMap := make(map[string]storage.FileObject, len(srcFiles))
+	for _, f := range srcFiles {
+		key := f.Key
+		if e.cfg.Source.Prefix != "" {
+			key = strings.TrimPrefix(f.Key, e.cfg.Source.Prefix)
+			key = strings.TrimPrefix(key, "/")
+		}
+		srcMap[key] = f
+	}
+
+	result := &VerifyResult{
+		TaskID:       taskID,
+		ChecksumDiffs: []checksum.MismatchReport{},
+	}
+
+	sem := make(chan struct{}, e.cfg.Sync.Concurrency)
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
+	for key, srcFile := range srcMap {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case sem <- struct{}{}:
+		}
+
+		wg.Add(1)
+		go func(key string, srcFile storage.FileObject) {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			tgtFile, exists := tgtMap[key]
+			if !exists {
+				mu.Lock()
+				result.ChecksumDiffs = append(result.ChecksumDiffs, checksum.MismatchReport{
+					Path:      key,
+					Expected:  srcFile.Checksum,
+					Actual:    "",
+					Algorithm: e.cfg.Checksum.Algorithm,
+					Reason:    "file missing in target",
+				})
+				mu.Unlock()
+				return
+			}
+
+			srcChecksum := srcFile.Checksum
+			if srcChecksum == "" {
+				srcChecksum, err = e.computeFileChecksum(ctx, e.source, srcFile.Key)
+				if err != nil {
+					logger.Warn("Failed to compute source checksum for %s: %v", key, err)
+					return
+				}
+			}
+
+			tgtKey := key
+			if e.cfg.Target.Prefix != "" {
+				tgtKey = path.Join(e.cfg.Target.Prefix, key)
+			}
+			tgtChecksum := tgtFile.Checksum
+			if tgtChecksum == "" {
+				tgtChecksum, err = e.computeFileChecksum(ctx, e.target, tgtKey)
+				if err != nil {
+					logger.Warn("Failed to compute target checksum for %s: %v", key, err)
+					return
+				}
+			}
+
+			if srcChecksum != tgtChecksum {
+				mu.Lock()
+				result.ChecksumDiffs = append(result.ChecksumDiffs, checksum.MismatchReport{
+					Path:      key,
+					Expected:  srcChecksum,
+					Actual:    tgtChecksum,
+					Algorithm: e.cfg.Checksum.Algorithm,
+					Reason:    "checksum mismatch",
+				})
+				mu.Unlock()
+			} else {
+				mu.Lock()
+				result.VerifiedCount++
+				mu.Unlock()
+			}
+		}(key, srcFile)
+	}
+
+	wg.Wait()
+
+	logger.Info("Verification complete: %d checked, %d matched, %d mismatched",
+		result.VerifiedCount+int64(len(result.ChecksumDiffs)),
+		result.VerifiedCount,
+		len(result.ChecksumDiffs))
+
+	return result, nil
+}
+
+func (e *Engine) computeFileChecksum(ctx context.Context, provider storage.StorageProvider, key string) (string, error) {
+	reader, _, err := provider.Get(ctx, key)
+	if err != nil {
+		return "", fmt.Errorf("get file %s: %w", key, err)
+	}
+	defer reader.Close()
+
+	checksumStr, _, err := e.hasher.ComputeFromReader(reader)
+	if err != nil {
+		return "", fmt.Errorf("compute checksum for %s: %w", key, err)
+	}
+	return checksumStr, nil
+}
+
+func (e *Engine) getSourceBucket() string {
+	switch e.cfg.Source.Type {
+	case config.StorageTypeS3:
+		return e.cfg.Source.S3.Bucket
+	case config.StorageTypeOSS:
+		return e.cfg.Source.OSS.Bucket
+	case config.StorageTypeGCS:
+		return e.cfg.Source.GCS.Bucket
+	}
+	return ""
+}
+
+func (e *Engine) getTargetBucket() string {
+	switch e.cfg.Target.Type {
+	case config.StorageTypeS3:
+		return e.cfg.Target.S3.Bucket
+	case config.StorageTypeOSS:
+		return e.cfg.Target.OSS.Bucket
+	case config.StorageTypeGCS:
+		return e.cfg.Target.GCS.Bucket
+	}
+	return ""
 }

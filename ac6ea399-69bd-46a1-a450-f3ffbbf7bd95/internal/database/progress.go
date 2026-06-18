@@ -1,7 +1,7 @@
 package database
 
 import (
-	"encoding/json"
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +10,8 @@ import (
 
 	"cloudsync/internal/config"
 	"cloudsync/internal/logger"
+
+	_ "modernc.org/sqlite"
 )
 
 type FileStatus string
@@ -35,22 +37,22 @@ const (
 )
 
 type SyncTask struct {
-	ID           string     `json:"id"`
-	Name         string     `json:"name"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
-	StartedAt    *time.Time `json:"started_at,omitempty"`
-	CompletedAt  *time.Time `json:"completed_at,omitempty"`
-	Status       TaskStatus `json:"status"`
-	SourceType   string     `json:"source_type"`
-	SourceBucket string     `json:"source_bucket"`
-	SourcePrefix string     `json:"source_prefix"`
-	TargetType   string     `json:"target_type"`
-	TargetBucket string     `json:"target_bucket"`
-	TargetPrefix string     `json:"target_prefix"`
+	ID            string     `json:"id"`
+	Name          string     `json:"name"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+	StartedAt     *time.Time `json:"started_at,omitempty"`
+	CompletedAt   *time.Time `json:"completed_at,omitempty"`
+	Status        TaskStatus `json:"status"`
+	SourceType    string     `json:"source_type"`
+	SourceBucket  string     `json:"source_bucket"`
+	SourcePrefix  string     `json:"source_prefix"`
+	TargetType    string     `json:"target_type"`
+	TargetBucket  string     `json:"target_bucket"`
+	TargetPrefix  string     `json:"target_prefix"`
 
-	TotalFiles    int64 `json:"total_files"`
-	TotalSize     int64 `json:"total_size"`
+	TotalFiles     int64 `json:"total_files"`
+	TotalSize      int64 `json:"total_size"`
 	CompletedFiles int64 `json:"completed_files"`
 	CompletedSize  int64 `json:"completed_size"`
 	FailedFiles    int64 `json:"failed_files"`
@@ -60,31 +62,76 @@ type SyncTask struct {
 }
 
 type FileRecord struct {
-	TaskID       string     `json:"task_id"`
-	Key          string     `json:"key"`
-	Size         int64      `json:"size"`
-	SourceChecksum string   `json:"source_checksum"`
-	TargetChecksum string   `json:"target_checksum"`
-	SourceETag   string     `json:"source_etag"`
-	TargetETag   string     `json:"target_etag"`
-	LastModified time.Time  `json:"last_modified"`
-	Status       FileStatus `json:"status"`
-	Version      int64      `json:"version"`
-	Attempts     int        `json:"attempts"`
-	ErrorMessage string     `json:"error_message,omitempty"`
-	StartTime    *time.Time `json:"start_time,omitempty"`
-	EndTime      *time.Time `json:"end_time,omitempty"`
-	DurationMs   int64      `json:"duration_ms"`
+	TaskID         string     `json:"task_id"`
+	Key            string     `json:"key"`
+	Size           int64      `json:"size"`
+	SourceChecksum string     `json:"source_checksum"`
+	TargetChecksum string     `json:"target_checksum"`
+	SourceETag     string     `json:"source_etag"`
+	TargetETag     string     `json:"target_etag"`
+	LastModified   time.Time  `json:"last_modified"`
+	Status         FileStatus `json:"status"`
+	Version        int64      `json:"version"`
+	Attempts       int        `json:"attempts"`
+	ErrorMessage   string     `json:"error_message,omitempty"`
+	StartTime      *time.Time `json:"start_time,omitempty"`
+	EndTime        *time.Time `json:"end_time,omitempty"`
+	DurationMs     int64      `json:"duration_ms"`
 }
 
 type ProgressDB struct {
-	mu       sync.RWMutex
-	path     string
-	tasks    map[string]*SyncTask
-	files    map[string]map[string]*FileRecord
-	dirty    bool
-	maxSize  int64
+	mu      sync.Mutex
+	db      *sql.DB
+	path    string
+	maxSize int64
 }
+
+const (
+	createTasksTableSQL = `CREATE TABLE IF NOT EXISTS tasks (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL DEFAULT '',
+		created_at TEXT NOT NULL,
+		updated_at TEXT NOT NULL,
+		started_at TEXT,
+		completed_at TEXT,
+		status TEXT NOT NULL DEFAULT 'running',
+		source_type TEXT NOT NULL DEFAULT '',
+		source_bucket TEXT NOT NULL DEFAULT '',
+		source_prefix TEXT NOT NULL DEFAULT '',
+		target_type TEXT NOT NULL DEFAULT '',
+		target_bucket TEXT NOT NULL DEFAULT '',
+		target_prefix TEXT NOT NULL DEFAULT '',
+		total_files INTEGER NOT NULL DEFAULT 0,
+		total_size INTEGER NOT NULL DEFAULT 0,
+		completed_files INTEGER NOT NULL DEFAULT 0,
+		completed_size INTEGER NOT NULL DEFAULT 0,
+		failed_files INTEGER NOT NULL DEFAULT 0,
+		skipped_files INTEGER NOT NULL DEFAULT 0,
+		conflict_files INTEGER NOT NULL DEFAULT 0,
+		deleted_files INTEGER NOT NULL DEFAULT 0
+	)`
+
+	createFileRecordsTableSQL = `CREATE TABLE IF NOT EXISTS file_records (
+		task_id TEXT NOT NULL,
+		key TEXT NOT NULL,
+		size INTEGER NOT NULL DEFAULT 0,
+		source_checksum TEXT NOT NULL DEFAULT '',
+		target_checksum TEXT NOT NULL DEFAULT '',
+		source_etag TEXT NOT NULL DEFAULT '',
+		target_etag TEXT NOT NULL DEFAULT '',
+		last_modified TEXT NOT NULL DEFAULT '',
+		status TEXT NOT NULL DEFAULT 'pending',
+		version INTEGER NOT NULL DEFAULT 0,
+		attempts INTEGER NOT NULL DEFAULT 0,
+		error_message TEXT NOT NULL DEFAULT '',
+		start_time TEXT,
+		end_time TEXT,
+		duration_ms INTEGER NOT NULL DEFAULT 0,
+		PRIMARY KEY (task_id, key)
+	)`
+
+	createIndexSQL = `CREATE INDEX IF NOT EXISTS idx_file_records_status ON file_records(task_id, status)`
+)
 
 func NewProgressDB(cfg *config.ProgressConfig) (*ProgressDB, error) {
 	absPath, err := filepath.Abs(cfg.DBPath)
@@ -92,122 +139,85 @@ func NewProgressDB(cfg *config.ProgressConfig) (*ProgressDB, error) {
 		return nil, fmt.Errorf("resolve db path: %w", err)
 	}
 
-	db := &ProgressDB{
+	dir := filepath.Dir(absPath)
+	if dir != "" && dir != "." {
+		if err := mkdirAll(dir); err != nil {
+			return nil, fmt.Errorf("create db dir: %w", err)
+		}
+	}
+
+	dsn := fmt.Sprintf("file:%s?_journal_mode=WAL&_busy_timeout=5000&_synchronous=NORMAL", absPath)
+	db, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("open sqlite: %w", err)
+	}
+
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+
+	pdb := &ProgressDB{
+		db:      db,
 		path:    absPath,
-		tasks:   make(map[string]*SyncTask),
-		files:   make(map[string]map[string]*FileRecord),
 		maxSize: cfg.MaxDBSizeMB * 1024 * 1024,
 	}
 
-	if err := db.load(); err != nil {
+	if err := pdb.init(); err != nil {
+		db.Close()
 		return nil, err
 	}
 
-	return db, nil
+	return pdb, nil
 }
 
-func (db *ProgressDB) load() error {
-	data, err := os.ReadFile(db.path)
+func mkdirAll(dir string) error {
+	return os.MkdirAll(dir, 0755)
+}
+
+func (db *ProgressDB) init() error {
+	_, err := db.db.Exec(createTasksTableSQL)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return fmt.Errorf("read progress db: %w", err)
+		return fmt.Errorf("create tasks table: %w", err)
+	}
+	_, err = db.db.Exec(createFileRecordsTableSQL)
+	if err != nil {
+		return fmt.Errorf("create file_records table: %w", err)
+	}
+	_, err = db.db.Exec(createIndexSQL)
+	if err != nil {
+		return fmt.Errorf("create index: %w", err)
 	}
 
-	if int64(len(data)) > db.maxSize {
-		logger.Warn("Progress DB size %d exceeds limit %d, resetting", len(data), db.maxSize)
-		return nil
+	_, err = db.db.Exec("PRAGMA auto_vacuum = INCREMENTAL")
+	if err != nil {
+		logger.Warn("Failed to set auto_vacuum: %v", err)
 	}
-
-	var raw struct {
-		Tasks []SyncTask                `json:"tasks"`
-		Files map[string][]*FileRecord `json:"files"`
-	}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		logger.Warn("Failed to parse progress db: %v, starting fresh", err)
-		return nil
-	}
-
-	for i := range raw.Tasks {
-		t := raw.Tasks[i]
-		db.tasks[t.ID] = &t
-		db.files[t.ID] = make(map[string]*FileRecord)
-	}
-	for taskID, records := range raw.Files {
-		if _, ok := db.files[taskID]; !ok {
-			db.files[taskID] = make(map[string]*FileRecord)
-		}
-		for _, r := range records {
-			db.files[taskID][r.Key] = r
-		}
-	}
-
 	return nil
 }
 
-func (db *ProgressDB) Save() error {
-	db.mu.Lock()
-	defer db.mu.Unlock()
-	return db.saveLocked()
-}
-
-func (db *ProgressDB) saveLocked() error {
-	raw := struct {
-		Tasks []SyncTask                `json:"tasks"`
-		Files map[string][]*FileRecord `json:"files"`
-	}{
-		Tasks: make([]SyncTask, 0, len(db.tasks)),
-		Files: make(map[string][]*FileRecord),
+func (db *ProgressDB) checkSizeLimit() {
+	if db.maxSize <= 0 {
+		return
 	}
-	for _, t := range db.tasks {
-		raw.Tasks = append(raw.Tasks, *t)
-		records := make([]*FileRecord, 0, len(db.files[t.ID]))
-		for _, r := range db.files[t.ID] {
-			records = append(records, r)
-		}
-		raw.Files[t.ID] = records
-	}
-
-	data, err := json.MarshalIndent(raw, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal progress: %w", err)
-	}
-
-	if int64(len(data)) > db.maxSize {
-		logger.Warn("Progress DB size %d exceeds limit %d, cleaning old records", len(data), db.maxSize)
+	var size int64
+	row := db.db.QueryRow("SELECT page_count * page_size FROM pragma_page_count()")
+	_ = row.Scan(&size)
+	if size > db.maxSize {
+		logger.Warn("Progress DB size %d exceeds limit %d, cleaning old tasks", size, db.maxSize)
 		db.cleanOldTasks()
-		data, err = json.MarshalIndent(raw, "", "  ")
-		if err != nil {
-			return fmt.Errorf("marshal progress after clean: %w", err)
-		}
 	}
-
-	dir := filepath.Dir(db.path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("create db dir: %w", err)
-	}
-
-	tmpPath := db.path + ".tmp"
-	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
-		return fmt.Errorf("write progress db: %w", err)
-	}
-	if err := os.Rename(tmpPath, db.path); err != nil {
-		return fmt.Errorf("rename progress db: %w", err)
-	}
-
-	db.dirty = false
-	return nil
 }
 
 func (db *ProgressDB) cleanOldTasks() {
 	cutoff := time.Now().AddDate(0, 0, -7)
-	for id, t := range db.tasks {
-		if t.CompletedAt != nil && t.CompletedAt.Before(cutoff) {
-			delete(db.tasks, id)
-			delete(db.files, id)
-		}
+	_, err := db.db.Exec("DELETE FROM file_records WHERE task_id IN (SELECT id FROM tasks WHERE completed_at IS NOT NULL AND completed_at < ?)", cutoff.Format(time.RFC3339Nano))
+	if err != nil {
+		logger.Warn("Failed to clean old file records: %v", err)
 	}
+	_, err = db.db.Exec("DELETE FROM tasks WHERE completed_at IS NOT NULL AND completed_at < ?", cutoff.Format(time.RFC3339Nano))
+	if err != nil {
+		logger.Warn("Failed to clean old tasks: %v", err)
+	}
+	_, _ = db.db.Exec("PRAGMA incremental_vacuum")
 }
 
 func (db *ProgressDB) CreateTask(task *SyncTask) error {
@@ -222,34 +232,62 @@ func (db *ProgressDB) CreateTask(task *SyncTask) error {
 	task.UpdatedAt = now
 	task.Status = TaskStatusRunning
 
-	db.tasks[task.ID] = task
-	db.files[task.ID] = make(map[string]*FileRecord)
-	db.dirty = true
+	_, err := db.db.Exec(`INSERT INTO tasks
+		(id, name, created_at, updated_at, status, source_type, source_bucket, source_prefix, target_type, target_bucket, target_prefix,
+		 total_files, total_size, completed_files, completed_size, failed_files, skipped_files, conflict_files, deleted_files)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 0, 0, 0)`,
+		task.ID, task.Name, task.CreatedAt.Format(time.RFC3339Nano), task.UpdatedAt.Format(time.RFC3339Nano),
+		string(task.Status), task.SourceType, task.SourceBucket, task.SourcePrefix,
+		task.TargetType, task.TargetBucket, task.TargetPrefix,
+	)
+	if err != nil {
+		return fmt.Errorf("insert task: %w", err)
+	}
 
-	return db.saveLocked()
+	logger.Debug("Created task: %s", task.ID)
+	return nil
 }
 
 func (db *ProgressDB) GetTask(taskID string) (*SyncTask, error) {
-	db.mu.RLock()
-	defer db.mu.RUnlock()
-	t, ok := db.tasks[taskID]
-	if !ok {
-		return nil, fmt.Errorf("task %s not found", taskID)
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	row := db.db.QueryRow(`SELECT id, name, created_at, updated_at, started_at, completed_at, status,
+		source_type, source_bucket, source_prefix, target_type, target_bucket, target_prefix,
+		total_files, total_size, completed_files, completed_size, failed_files, skipped_files, conflict_files, deleted_files
+		FROM tasks WHERE id = ?`, taskID)
+
+	task, err := scanTask(row)
+	if err != nil {
+		return nil, fmt.Errorf("task %s not found: %w", taskID, err)
 	}
-	cp := *t
-	return &cp, nil
+	return task, nil
 }
 
 func (db *ProgressDB) ListTasks(limit int) ([]*SyncTask, error) {
-	db.mu.RLock()
-	defer db.mu.RUnlock()
-	tasks := make([]*SyncTask, 0, len(db.tasks))
-	for _, t := range db.tasks {
-		cp := *t
-		tasks = append(tasks, &cp)
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	if limit <= 0 {
+		limit = 100
 	}
-	if limit > 0 && len(tasks) > limit {
-		tasks = tasks[:limit]
+
+	rows, err := db.db.Query(`SELECT id, name, created_at, updated_at, started_at, completed_at, status,
+		source_type, source_bucket, source_prefix, target_type, target_bucket, target_prefix,
+		total_files, total_size, completed_files, completed_size, failed_files, skipped_files, conflict_files, deleted_files
+		FROM tasks ORDER BY created_at DESC LIMIT ?`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list tasks: %w", err)
+	}
+	defer rows.Close()
+
+	var tasks []*SyncTask
+	for rows.Next() {
+		task, err := scanTask(rows)
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
 	}
 	return tasks, nil
 }
@@ -258,155 +296,311 @@ func (db *ProgressDB) UpdateTaskStats(taskID string, completedSize int64, status
 	db.mu.Lock()
 	defer db.mu.Unlock()
 
-	t, ok := db.tasks[taskID]
-	if !ok {
-		return fmt.Errorf("task %s not found", taskID)
-	}
+	now := time.Now().Format(time.RFC3339Nano)
 
-	t.UpdatedAt = time.Now()
-	if s, ok := statuses[FileStatusCompleted]; ok {
-		t.CompletedFiles = s
-	}
-	if s, ok := statuses[FileStatusFailed]; ok {
-		t.FailedFiles = s
-	}
-	if s, ok := statuses[FileStatusSkipped]; ok {
-		t.SkippedFiles = s
-	}
-	if s, ok := statuses[FileStatusConflict]; ok {
-		t.ConflictFiles = s
-	}
-	if s, ok := statuses[FileStatusDeleted]; ok {
-		t.DeletedFiles = s
-	}
-	t.CompletedSize = completedSize
+	completed := statuses[FileStatusCompleted]
+	failed := statuses[FileStatusFailed]
+	skipped := statuses[FileStatusSkipped]
+	conflict := statuses[FileStatusConflict]
+	deleted := statuses[FileStatusDeleted]
 
-	db.dirty = true
+	_, err := db.db.Exec(`UPDATE tasks SET updated_at = ?, completed_size = ?,
+		completed_files = ?, failed_files = ?, skipped_files = ?, conflict_files = ?, deleted_files = ?
+		WHERE id = ?`,
+		now, completedSize, completed, failed, skipped, conflict, deleted, taskID)
+	if err != nil {
+		return fmt.Errorf("update task stats: %w", err)
+	}
 	return nil
+}
+
+func (db *ProgressDB) UpdateTaskTotals(taskID string, totalFiles, totalSize int64) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	_, err := db.db.Exec(`UPDATE tasks SET total_files = ?, total_size = ?, updated_at = ? WHERE id = ?`,
+		totalFiles, totalSize, time.Now().Format(time.RFC3339Nano), taskID)
+	return err
 }
 
 func (db *ProgressDB) CompleteTask(taskID string, status TaskStatus) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 
-	t, ok := db.tasks[taskID]
-	if !ok {
-		return fmt.Errorf("task %s not found", taskID)
+	now := time.Now().Format(time.RFC3339Nano)
+	_, err := db.db.Exec(`UPDATE tasks SET status = ?, completed_at = ?, updated_at = ? WHERE id = ?`,
+		string(status), now, now, taskID)
+	if err != nil {
+		return fmt.Errorf("complete task: %w", err)
 	}
 
-	now := time.Now()
-	t.UpdatedAt = now
-	t.CompletedAt = &now
-	t.Status = status
-
-	db.dirty = true
-	return db.saveLocked()
+	db.checkSizeLimit()
+	return nil
 }
 
 func (db *ProgressDB) PauseTask(taskID string) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 
-	t, ok := db.tasks[taskID]
-	if !ok {
-		return fmt.Errorf("task %s not found", taskID)
-	}
-
-	t.UpdatedAt = time.Now()
-	t.Status = TaskStatusPaused
-	db.dirty = true
-	return db.saveLocked()
+	_, err := db.db.Exec(`UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?`,
+		string(TaskStatusPaused), time.Now().Format(time.RFC3339Nano), taskID)
+	return err
 }
 
 func (db *ProgressDB) DeleteTask(taskID string) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 
-	delete(db.tasks, taskID)
-	delete(db.files, taskID)
-	db.dirty = true
-	return db.saveLocked()
+	_, err := db.db.Exec("DELETE FROM file_records WHERE task_id = ?", taskID)
+	if err != nil {
+		return fmt.Errorf("delete file records: %w", err)
+	}
+	_, err = db.db.Exec("DELETE FROM tasks WHERE id = ?", taskID)
+	if err != nil {
+		return fmt.Errorf("delete task: %w", err)
+	}
+	return nil
 }
 
 func (db *ProgressDB) UpsertFileRecord(record *FileRecord) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 
-	if _, ok := db.files[record.TaskID]; !ok {
-		db.files[record.TaskID] = make(map[string]*FileRecord)
+	var existingVersion int64
+	row := db.db.QueryRow("SELECT version FROM file_records WHERE task_id = ? AND key = ?", record.TaskID, record.Key)
+	err := row.Scan(&existingVersion)
+	if err == sql.ErrNoRows {
+		record.Version = 1
+	} else if err != nil {
+		return fmt.Errorf("query existing record: %w", err)
+	} else {
+		if record.Version == 0 {
+			record.Version = existingVersion + 1
+		}
 	}
-	db.files[record.TaskID][record.Key] = record
-	db.dirty = true
+
+	var startTime, endTime *string
+	if record.StartTime != nil {
+		s := record.StartTime.Format(time.RFC3339Nano)
+		startTime = &s
+	}
+	if record.EndTime != nil {
+		s := record.EndTime.Format(time.RFC3339Nano)
+		endTime = &s
+	}
+
+	_, err = db.db.Exec(`INSERT INTO file_records
+		(task_id, key, size, source_checksum, target_checksum, source_etag, target_etag, last_modified,
+		 status, version, attempts, error_message, start_time, end_time, duration_ms)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(task_id, key) DO UPDATE SET
+			size = excluded.size,
+			source_checksum = excluded.source_checksum,
+			target_checksum = excluded.target_checksum,
+			source_etag = excluded.source_etag,
+			target_etag = excluded.target_etag,
+			last_modified = excluded.last_modified,
+			status = excluded.status,
+			version = excluded.version,
+			attempts = excluded.attempts,
+			error_message = excluded.error_message,
+			start_time = excluded.start_time,
+			end_time = excluded.end_time,
+			duration_ms = excluded.duration_ms`,
+		record.TaskID, record.Key, record.Size,
+		record.SourceChecksum, record.TargetChecksum, record.SourceETag, record.TargetETag,
+		record.LastModified.Format(time.RFC3339Nano),
+		string(record.Status), record.Version, record.Attempts, record.ErrorMessage,
+		startTime, endTime, record.DurationMs,
+	)
+	if err != nil {
+		return fmt.Errorf("upsert file record: %w", err)
+	}
 	return nil
 }
 
 func (db *ProgressDB) GetFileRecord(taskID, key string) (*FileRecord, error) {
-	db.mu.RLock()
-	defer db.mu.RUnlock()
+	db.mu.Lock()
+	defer db.mu.Unlock()
 
-	files, ok := db.files[taskID]
-	if !ok {
-		return nil, fmt.Errorf("task %s not found", taskID)
-	}
-	r, ok := files[key]
-	if !ok {
-		return nil, fmt.Errorf("file %s not found in task %s", key, taskID)
-	}
-	cp := *r
-	return &cp, nil
+	row := db.db.QueryRow(`SELECT task_id, key, size, source_checksum, target_checksum, source_etag, target_etag,
+		last_modified, status, version, attempts, error_message, start_time, end_time, duration_ms
+		FROM file_records WHERE task_id = ? AND key = ?`, taskID, key)
+
+	return scanFileRecord(row)
 }
 
 func (db *ProgressDB) GetPendingFiles(taskID string) ([]*FileRecord, error) {
-	db.mu.RLock()
-	defer db.mu.RUnlock()
+	db.mu.Lock()
+	defer db.mu.Unlock()
 
-	files, ok := db.files[taskID]
-	if !ok {
-		return nil, nil
+	rows, err := db.db.Query(`SELECT task_id, key, size, source_checksum, target_checksum, source_etag, target_etag,
+		last_modified, status, version, attempts, error_message, start_time, end_time, duration_ms
+		FROM file_records WHERE task_id = ? AND status IN ('pending', 'failed', 'syncing')
+		ORDER BY key`, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("query pending files: %w", err)
 	}
+	defer rows.Close()
+
 	var result []*FileRecord
-	for _, r := range files {
-		if r.Status == FileStatusPending || r.Status == FileStatusFailed || r.Status == FileStatusSyncing {
-			cp := *r
-			result = append(result, &cp)
+	for rows.Next() {
+		rec, err := scanFileRecord(rows)
+		if err != nil {
+			return nil, err
 		}
+		result = append(result, rec)
 	}
 	return result, nil
 }
 
 func (db *ProgressDB) GetCompletedFiles(taskID string) ([]*FileRecord, error) {
-	db.mu.RLock()
-	defer db.mu.RUnlock()
+	db.mu.Lock()
+	defer db.mu.Unlock()
 
-	files, ok := db.files[taskID]
-	if !ok {
-		return nil, nil
+	rows, err := db.db.Query(`SELECT task_id, key, size, source_checksum, target_checksum, source_etag, target_etag,
+		last_modified, status, version, attempts, error_message, start_time, end_time, duration_ms
+		FROM file_records WHERE task_id = ? AND status = 'completed'
+		ORDER BY key`, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("query completed files: %w", err)
 	}
+	defer rows.Close()
+
 	var result []*FileRecord
-	for _, r := range files {
-		if r.Status == FileStatusCompleted {
-			cp := *r
-			result = append(result, &cp)
+	for rows.Next() {
+		rec, err := scanFileRecord(rows)
+		if err != nil {
+			return nil, err
 		}
+		result = append(result, rec)
+	}
+	return result, nil
+}
+
+func (db *ProgressDB) GetAllFileRecords(taskID string) ([]*FileRecord, error) {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	rows, err := db.db.Query(`SELECT task_id, key, size, source_checksum, target_checksum, source_etag, target_etag,
+		last_modified, status, version, attempts, error_message, start_time, end_time, duration_ms
+		FROM file_records WHERE task_id = ?
+		ORDER BY key`, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("query all file records: %w", err)
+	}
+	defer rows.Close()
+
+	var result []*FileRecord
+	for rows.Next() {
+		rec, err := scanFileRecord(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, rec)
 	}
 	return result, nil
 }
 
 func (db *ProgressDB) GetFileCounts(taskID string) (map[FileStatus]int64, error) {
-	db.mu.RLock()
-	defer db.mu.RUnlock()
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	rows, err := db.db.Query("SELECT status, COUNT(*) FROM file_records WHERE task_id = ? GROUP BY status", taskID)
+	if err != nil {
+		return nil, fmt.Errorf("query file counts: %w", err)
+	}
+	defer rows.Close()
 
 	counts := make(map[FileStatus]int64)
-	files, ok := db.files[taskID]
-	if !ok {
-		return counts, nil
-	}
-	for _, r := range files {
-		counts[r.Status]++
+	for rows.Next() {
+		var status string
+		var count int64
+		if err := rows.Scan(&status, &count); err != nil {
+			return nil, err
+		}
+		counts[FileStatus(status)] = count
 	}
 	return counts, nil
 }
 
+func (db *ProgressDB) Save() error {
+	return nil
+}
+
 func (db *ProgressDB) Close() error {
-	return db.Save()
+	if db.db != nil {
+		return db.db.Close()
+	}
+	return nil
+}
+
+type scanner interface {
+	Scan(dest ...interface{}) error
+}
+
+func scanTask(s scanner) (*SyncTask, error) {
+	var task SyncTask
+	var createdAt, updatedAt, status string
+	var startedAt, completedAt sql.NullString
+	var startedAtT, completedAtT *time.Time
+
+	err := s.Scan(
+		&task.ID, &task.Name, &createdAt, &updatedAt, &startedAt, &completedAt, &status,
+		&task.SourceType, &task.SourceBucket, &task.SourcePrefix,
+		&task.TargetType, &task.TargetBucket, &task.TargetPrefix,
+		&task.TotalFiles, &task.TotalSize, &task.CompletedFiles, &task.CompletedSize,
+		&task.FailedFiles, &task.SkippedFiles, &task.ConflictFiles, &task.DeletedFiles,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	task.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAt)
+	task.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updatedAt)
+	task.Status = TaskStatus(status)
+	if startedAt.Valid {
+		t, _ := time.Parse(time.RFC3339Nano, startedAt.String)
+		startedAtT = &t
+	}
+	task.StartedAt = startedAtT
+	if completedAt.Valid {
+		t, _ := time.Parse(time.RFC3339Nano, completedAt.String)
+		completedAtT = &t
+	}
+	task.CompletedAt = completedAtT
+
+	return &task, nil
+}
+
+func scanFileRecord(s scanner) (*FileRecord, error) {
+	var rec FileRecord
+	var lastModified, status string
+	var startTime, endTime sql.NullString
+	var startTimeT, endTimeT *time.Time
+
+	err := s.Scan(
+		&rec.TaskID, &rec.Key, &rec.Size,
+		&rec.SourceChecksum, &rec.TargetChecksum, &rec.SourceETag, &rec.TargetETag,
+		&lastModified, &status, &rec.Version, &rec.Attempts, &rec.ErrorMessage,
+		&startTime, &endTime, &rec.DurationMs,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	rec.LastModified, _ = time.Parse(time.RFC3339Nano, lastModified)
+	rec.Status = FileStatus(status)
+	if startTime.Valid {
+		t, _ := time.Parse(time.RFC3339Nano, startTime.String)
+		startTimeT = &t
+	}
+	rec.StartTime = startTimeT
+	if endTime.Valid {
+		t, _ := time.Parse(time.RFC3339Nano, endTime.String)
+		endTimeT = &t
+	}
+	rec.EndTime = endTimeT
+
+	return &rec, nil
 }

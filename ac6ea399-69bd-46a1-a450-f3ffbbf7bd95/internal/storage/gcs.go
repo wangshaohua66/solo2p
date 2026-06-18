@@ -4,30 +4,47 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
-	"sync"
+	"strings"
 	"time"
 
 	"cloudsync/internal/config"
 	"cloudsync/internal/logger"
+
+	"cloud.google.com/go/storage"
+	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
 )
 
 type gcsProvider struct {
 	baseProvider
-	client interface{}
-	mu     sync.RWMutex
+	client *storage.Client
 }
 
 func newGCSProvider(cfg config.StorageConfig) (*gcsProvider, error) {
 	if cfg.GCS.Bucket == "" {
 		return nil, fmt.Errorf("gcs bucket is required")
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	var opts []option.ClientOption
+	if cfg.GCS.CredentialsFile != "" {
+		opts = append(opts, option.WithCredentialsFile(cfg.GCS.CredentialsFile))
+	}
+
+	client, err := storage.NewClient(ctx, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("create gcs client: %w", err)
+	}
+
 	return &gcsProvider{
 		baseProvider: baseProvider{
 			cfg:    cfg,
 			bucket: cfg.GCS.Bucket,
 			prefix: cfg.Prefix,
 		},
+		client: client,
 	}, nil
 }
 
@@ -36,95 +53,216 @@ func (g *gcsProvider) Name() string {
 }
 
 func (g *gcsProvider) List(ctx context.Context, opts ListOptions) (*ListResult, error) {
-	logger.Debug("GCS List: prefix=%s, bucket=%s", opts.Prefix, g.bucket)
-	result := &ListResult{
-		Objects:     []FileObject{},
-		IsTruncated: false,
+	prefix := opts.Prefix
+	if prefix == "" {
+		prefix = g.prefix
 	}
+
+	query := &storage.Query{Prefix: prefix}
+	if opts.Delimiter != "" {
+		query.Delimiter = opts.Delimiter
+	}
+
+	bkt := g.client.Bucket(g.bucket)
+	it := bkt.Objects(ctx, query)
+
+	result := &ListResult{
+		Objects:        make([]FileObject, 0),
+		CommonPrefixes: make([]string, 0),
+	}
+
+	count := 0
+	for {
+		if opts.MaxKeys > 0 && count >= opts.MaxKeys {
+			result.IsTruncated = true
+			break
+		}
+
+		attrs, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, TranslateError(err)
+		}
+
+		if attrs.Prefix != "" {
+			result.CommonPrefixes = append(result.CommonPrefixes, attrs.Prefix)
+			continue
+		}
+
+		key := g.stripPrefix(attrs.Name)
+		result.Objects = append(result.Objects, FileObject{
+			Key:          key,
+			Size:         attrs.Size,
+			LastModified: attrs.Updated,
+			ETag:         attrs.Etag,
+			ContentType:  attrs.ContentType,
+			StorageClass: attrs.StorageClass,
+		})
+		count++
+
+		if attrs.Name != "" {
+			result.NextMarker = attrs.Name
+		}
+	}
+
+	logger.Debug("GCS List: prefix=%s, count=%d, truncated=%v", prefix, len(result.Objects), result.IsTruncated)
 	return result, nil
 }
 
 func (g *gcsProvider) ListAll(ctx context.Context, prefix string) ([]FileObject, error) {
+	if prefix == "" {
+		prefix = g.prefix
+	}
+
+	bkt := g.client.Bucket(g.bucket)
+	query := &storage.Query{Prefix: prefix}
+	it := bkt.Objects(ctx, query)
+
 	var allObjects []FileObject
-	marker := ""
 	for {
-		res, err := g.List(ctx, ListOptions{
-			Prefix:     prefix,
-			MaxKeys:    1000,
-			StartAfter: marker,
-		})
+		attrs, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
 		if err != nil {
 			return nil, TranslateError(err)
 		}
-		allObjects = append(allObjects, res.Objects...)
-		if !res.IsTruncated {
-			break
+
+		if attrs.Prefix != "" {
+			continue
 		}
-		marker = res.NextMarker
+
+		key := g.stripPrefix(attrs.Name)
+		allObjects = append(allObjects, FileObject{
+			Key:          key,
+			Size:         attrs.Size,
+			LastModified: attrs.Updated,
+			ETag:         attrs.Etag,
+			ContentType:  attrs.ContentType,
+			StorageClass: attrs.StorageClass,
+		})
 	}
+
 	return allObjects, nil
 }
 
 func (g *gcsProvider) Head(ctx context.Context, key string) (*FileObject, error) {
 	fullKey := g.fullKey(key)
-	logger.Debug("GCS Head: key=%s", fullKey)
-	return nil, TranslateError(ErrFileNotFound)
+	attrs, err := g.client.Bucket(g.bucket).Object(fullKey).Attrs(ctx)
+	if err != nil {
+		return nil, TranslateError(err)
+	}
+
+	return &FileObject{
+		Key:          key,
+		Size:         attrs.Size,
+		LastModified: attrs.Updated,
+		ETag:         attrs.Etag,
+		ContentType:  attrs.ContentType,
+		StorageClass: attrs.StorageClass,
+	}, nil
 }
 
 func (g *gcsProvider) Get(ctx context.Context, key string) (io.ReadCloser, *FileObject, error) {
 	fullKey := g.fullKey(key)
-	logger.Debug("GCS Get: key=%s", fullKey)
-	return nil, nil, TranslateError(ErrFileNotFound)
+	reader, err := g.client.Bucket(g.bucket).Object(fullKey).NewReader(ctx)
+	if err != nil {
+		return nil, nil, TranslateError(err)
+	}
+
+	fo := &FileObject{
+		Key:          key,
+		Size:         reader.Attrs.Size,
+		ContentType:  reader.Attrs.ContentType,
+		LastModified: reader.Attrs.LastModified,
+	}
+
+	return reader, fo, nil
 }
 
 func (g *gcsProvider) GetRange(ctx context.Context, key string, offset, length int64) (io.ReadCloser, error) {
 	fullKey := g.fullKey(key)
-	logger.Debug("GCS GetRange: key=%s, offset=%d, length=%d", fullKey, offset, length)
-	return nil, TranslateError(ErrFileNotFound)
+	reader, err := g.client.Bucket(g.bucket).Object(fullKey).NewRangeReader(ctx, offset, length)
+	if err != nil {
+		return nil, TranslateError(err)
+	}
+	return reader, nil
 }
 
 func (g *gcsProvider) Put(ctx context.Context, key string, body io.Reader, size int64, opts *UploadOptions) (*FileObject, error) {
 	fullKey := g.fullKey(key)
 	logger.Debug("GCS Put: key=%s, size=%d", fullKey, size)
 
-	data, err := io.ReadAll(body)
+	contentType := getContentType(opts, key)
+	metadata := getMetadata(opts)
+
+	chunkSize := defaultPartSize
+	if opts != nil {
+		if opts.PartSize > 0 {
+			chunkSize = opts.PartSize
+		}
+	}
+
+	if size > 0 {
+		chunkSize = calculatePartSize(size, chunkSize)
+	}
+
+	obj := g.client.Bucket(g.bucket).Object(fullKey)
+
+	w := obj.NewWriter(ctx)
+	w.ContentType = contentType
+	w.ChunkSize = int(chunkSize)
+	if len(metadata) > 0 {
+		w.Metadata = metadata
+	}
+	if opts != nil && opts.StorageClass != "" {
+		w.StorageClass = opts.StorageClass
+	}
+
+	pr := newProgressReader(body, size, func(read, total int64) {
+		logger.Debug("GCS upload progress: %s = %d/%d bytes", fullKey, read, total)
+	})
+
+	buf := make([]byte, 256*1024)
+	_, err := io.CopyBuffer(w, pr, buf)
 	if err != nil {
-		return nil, fmt.Errorf("read body: %w", err)
+		w.Close()
+		return nil, TranslateError(err)
 	}
 
-	if size > 0 && int64(len(data)) != size {
-		return nil, fmt.Errorf("size mismatch: expected %d, got %d", size, len(data))
+	if err := w.Close(); err != nil {
+		return nil, TranslateError(err)
 	}
 
-	now := time.Now()
-	return &FileObject{
+	attrs, err := obj.Attrs(ctx)
+	fo := &FileObject{
 		Key:          key,
-		Size:         int64(len(data)),
-		LastModified: now,
-		ETag:         fmt.Sprintf(`"%x"`, len(data)),
-		ContentType:  getContentType(opts, key),
-		Metadata:     getMetadata(opts),
-	}, nil
+		Size:         size,
+		LastModified: time.Now(),
+		ContentType:  contentType,
+		Metadata:     metadata,
+	}
+	if err == nil && attrs != nil {
+		fo.Size = attrs.Size
+		fo.ETag = attrs.Etag
+		fo.LastModified = attrs.Updated
+	}
+
+	return fo, nil
 }
 
 func (g *gcsProvider) PutFile(ctx context.Context, key, localPath string, opts *UploadOptions) (*FileObject, error) {
-	f, err := os.Open(localPath)
-	if err != nil {
-		return nil, fmt.Errorf("open file: %w", err)
-	}
-	defer f.Close()
-
-	info, err := f.Stat()
-	if err != nil {
-		return nil, fmt.Errorf("stat file: %w", err)
-	}
-
-	return g.Put(ctx, key, f, info.Size(), opts)
+	return putFileViaReader(g, ctx, key, localPath, opts)
 }
 
 func (g *gcsProvider) Delete(ctx context.Context, key string) error {
 	fullKey := g.fullKey(key)
-	logger.Debug("GCS Delete: key=%s", fullKey)
+	err := g.client.Bucket(g.bucket).Object(fullKey).Delete(ctx)
+	if err != nil {
+		return TranslateError(err)
+	}
 	return nil
 }
 
@@ -133,9 +271,14 @@ func (g *gcsProvider) DeleteMany(ctx context.Context, keys []string) error {
 		return nil
 	}
 	logger.Debug("GCS DeleteMany: count=%d", len(keys))
+
 	for _, k := range keys {
-		if err := g.Delete(ctx, k); err != nil {
-			return err
+		fullKey := g.fullKey(k)
+		if err := g.client.Bucket(g.bucket).Object(fullKey).Delete(ctx); err != nil {
+			errStr := strings.ToLower(err.Error())
+			if !strings.Contains(errStr, "not found") && !strings.Contains(errStr, "404") {
+				return TranslateError(err)
+			}
 		}
 	}
 	return nil
@@ -144,13 +287,20 @@ func (g *gcsProvider) DeleteMany(ctx context.Context, keys []string) error {
 func (g *gcsProvider) Copy(ctx context.Context, srcKey, dstKey string) error {
 	srcFull := g.fullKey(srcKey)
 	dstFull := g.fullKey(dstKey)
-	logger.Debug("GCS Copy: %s -> %s", srcFull, dstFull)
+
+	src := g.client.Bucket(g.bucket).Object(srcFull)
+	dst := g.client.Bucket(g.bucket).Object(dstFull)
+
+	_, err := dst.CopierFrom(src).Run(ctx)
+	if err != nil {
+		return TranslateError(err)
+	}
 	return nil
 }
 
 func (g *gcsProvider) Close() error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	g.client = nil
+	if g.client != nil {
+		return g.client.Close()
+	}
 	return nil
 }

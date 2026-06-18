@@ -204,6 +204,10 @@ func (v *Verifier) addMismatch(path, expected, actual, reason string) {
 	})
 }
 
+func (v *Verifier) AddMismatch(path, expected, actual, reason string) {
+	v.addMismatch(path, expected, actual, reason)
+}
+
 func (v *Verifier) Mismatches() []MismatchReport {
 	v.mismatchesMu.Lock()
 	defer v.mismatchesMu.Unlock()

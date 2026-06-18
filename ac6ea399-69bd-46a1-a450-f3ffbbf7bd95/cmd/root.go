@@ -22,13 +22,13 @@ import (
 )
 
 var (
-	cfgFile     string
-	envName     string
-	verboseFlag bool
-	quietFlag   bool
-	jsonOutput  bool
-	cfg         *config.Config
-	rootCmd     = &cobra.Command{
+	cfgFile      string
+	envName      string
+	verboseFlag  bool
+	quietFlag    bool
+	formatOutput string
+	cfg          *config.Config
+	rootCmd      = &cobra.Command{
 		Use:   "cloudsync",
 		Short: "Multi-cloud storage data synchronization tool",
 		Long: `CloudSync - 多云存储数据同步命令行工具
@@ -85,12 +85,13 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&envName, "env", "e", "", "environment name (development/staging/production)")
 	rootCmd.PersistentFlags().BoolVarP(&verboseFlag, "verbose", "v", false, "verbose output, show debug logs")
 	rootCmd.PersistentFlags().BoolVarP(&quietFlag, "quiet", "q", false, "quiet mode, only show errors")
-	rootCmd.PersistentFlags().BoolVar(&jsonOutput, "format-json", false, "output JSON format result")
+	rootCmd.PersistentFlags().StringVar(&formatOutput, "format", "", "output format: json (default: text)")
 
 	rootCmd.AddCommand(syncCmd)
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(resumeCmd)
 	rootCmd.AddCommand(reportCmd)
+	rootCmd.AddCommand(verifyCmd)
 	rootCmd.AddCommand(emailCmd)
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(initCmd)
@@ -106,7 +107,7 @@ var versionCmd = &cobra.Command{
 			"build":     time.Now().Format("2006-01-02"),
 			"go_version": "1.21+",
 		}
-		if jsonOutput {
+		if formatOutput == "json" {
 			data, _ := json.MarshalIndent(info, "", "  ")
 			fmt.Println(string(data))
 			return
@@ -201,7 +202,7 @@ var syncCmd = &cobra.Command{
 		}
 		defer engine.Close()
 
-		tracker := progress.NewTracker(quietFlag, verboseFlag, jsonOutput)
+		tracker := progress.NewTracker(quietFlag, verboseFlag, formatOutput == "json")
 		engine.SetTracker(tracker)
 
 		logger.Info("Starting sync task...")
@@ -210,7 +211,7 @@ var syncCmd = &cobra.Command{
 			logger.Error("Sync failed: %v", err)
 		}
 
-		if !quietFlag && !jsonOutput {
+		if !quietFlag && formatOutput != "json" {
 			tracker.PrintSummary()
 		}
 
@@ -233,7 +234,7 @@ var syncCmd = &cobra.Command{
 				}
 			}
 
-			if jsonOutput {
+			if formatOutput == "json" {
 				data, _ := syncReport.ToJSON()
 				fmt.Println(data)
 			}
@@ -267,7 +268,7 @@ var statusCmd = &cobra.Command{
 			}
 			counts, _ := db.GetFileCounts(taskID)
 
-			if jsonOutput {
+			if formatOutput == "json" {
 				output := map[string]interface{}{
 					"task":        task,
 					"file_counts": counts,
@@ -286,7 +287,7 @@ var statusCmd = &cobra.Command{
 			return err
 		}
 
-		if jsonOutput {
+		if formatOutput == "json" {
 			data, _ := json.MarshalIndent(tasks, "", "  ")
 			fmt.Println(string(data))
 			return nil
@@ -318,7 +319,7 @@ var resumeCmd = &cobra.Command{
 
 		engine.ResumeTask(taskID)
 
-		tracker := progress.NewTracker(quietFlag, verboseFlag, jsonOutput)
+		tracker := progress.NewTracker(quietFlag, verboseFlag, formatOutput == "json")
 		engine.SetTracker(tracker)
 
 		logger.Info("Resuming task: %s", taskID)
@@ -327,11 +328,11 @@ var resumeCmd = &cobra.Command{
 			logger.Error("Resume failed: %v", err)
 		}
 
-		if !quietFlag && !jsonOutput {
+		if !quietFlag && formatOutput != "json" {
 			tracker.PrintSummary()
 		}
 
-		if jsonOutput {
+		if formatOutput == "json" {
 			reportGen := report.NewGenerator(&cfg.Report)
 			syncReport, _ := reportGen.Generate(result,
 				report.BuildEndpointInfo(cfg.Source),
@@ -407,7 +408,7 @@ var reportCmd = &cobra.Command{
 			return fmt.Errorf("write report: %w", err)
 		}
 
-		if jsonOutput {
+		if containsFormat(formats, "json") {
 			data, _ := syncReport.ToJSON()
 			fmt.Println(data)
 			return nil
@@ -415,6 +416,72 @@ var reportCmd = &cobra.Command{
 
 		for _, p := range paths {
 			fmt.Printf("\033[32m✓\033[0m Report: %s\n", p)
+		}
+		return nil
+	},
+}
+
+var verifyCmd = &cobra.Command{
+	Use:   "verify",
+	Short: "Generate an independent checksum diff report",
+	Long:  `Generate an independent checksum verification report by comparing source and target file checksums without transferring any data.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+		defer cancel()
+
+		taskID, _ := cmd.Flags().GetString("task-id")
+		algorithm, _ := cmd.Flags().GetString("algorithm")
+		if algorithm != "" {
+			cfg.Checksum.Algorithm = config.ChecksumAlgorithm(algorithm)
+		}
+
+		engine, err := syncpkg.NewEngine(cfg)
+		if err != nil {
+			return fmt.Errorf("create engine: %w", err)
+		}
+		defer engine.Close()
+
+		sourceInfo := report.BuildEndpointInfo(cfg.Source)
+		targetInfo := report.BuildEndpointInfo(cfg.Target)
+
+		logger.Info("Starting checksum verification...")
+		verifyResult, err := engine.Verify(ctx, taskID)
+		if err != nil {
+			return fmt.Errorf("verification failed: %w", err)
+		}
+
+		diffGen := report.NewChecksumDiffGenerator(&cfg.Report)
+		diffReport := diffGen.Generate(
+			verifyResult.TaskID,
+			sourceInfo,
+			targetInfo,
+			verifyResult.ChecksumDiffs,
+			verifyResult.VerifiedCount,
+			string(cfg.Checksum.Algorithm),
+		)
+
+		paths, err := diffGen.Write(diffReport)
+		if err != nil {
+			logger.Warn("Write checksum diff report failed: %v", err)
+		} else {
+			for _, p := range paths {
+				fmt.Printf("\033[32m✓\033[0m Checksum Diff Report: %s\n", p)
+			}
+		}
+
+		if formatOutput == "json" {
+			data, _ := diffReport.ToJSON()
+			fmt.Println(data)
+		}
+
+		fmt.Printf("\nVerification Summary:\n")
+		fmt.Printf("  Total Checked:  %d\n", diffReport.TotalChecked)
+		fmt.Printf("  Matched:        %d\n", diffReport.TotalMatched)
+		fmt.Printf("  Mismatched:     %d\n", diffReport.TotalMismatch)
+		fmt.Printf("  Match Rate:     %.2f%%\n", diffReport.MatchRate)
+
+		if diffReport.TotalMismatch > 0 {
+			return fmt.Errorf("%d checksum mismatches detected", diffReport.TotalMismatch)
 		}
 		return nil
 	},
@@ -500,6 +567,9 @@ func init() {
 
 	reportCmd.Flags().String("task-id", "", "task ID to generate report for")
 	reportCmd.Flags().StringSliceP("format", "f", nil, "report formats: json,csv,html")
+
+	verifyCmd.Flags().String("task-id", "", "task ID to verify (optional, defaults to a new verification task)")
+	verifyCmd.Flags().String("algorithm", "", "checksum algorithm: md5, sha256")
 
 	emailCmd.Flags().String("task-id", "", "task ID to send report for")
 	emailCmd.Flags().StringSlice("to", nil, "email recipients")
@@ -588,4 +658,13 @@ func formatStatusShort(s database.TaskStatus) string {
 	default:
 		return string(s)
 	}
+}
+
+func containsFormat(formats []string, target string) bool {
+	for _, f := range formats {
+		if f == target {
+			return true
+		}
+	}
+	return false
 }
