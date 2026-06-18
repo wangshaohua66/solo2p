@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.insurance.claim.mapper.ClaimReviewMapper">
+
+    <resultMap id="BaseResultMap" type="com.insurance.claim.entity.ClaimReview">
+        <id column="id" property="id"/>
+        <result column="claim_id" property="claimId"/>
+        <result column="claim_no" property="claimNo"/>
+        <result column="reviewer_id" property="reviewerId"/>
+        <result column="reviewer_name" property="reviewerName"/>
+        <result column="review_level" property="reviewLevel"/>
+        <result column="review_type" property="reviewType"/>
+        <result column="claim_amount" property="claimAmount"/>
+        <result column="reviewed_amount" property="reviewedAmount"/>
+        <result column="review_result" property="reviewResult"/>
+        <result column="review_comments" property="reviewComments"/>
+        <result column="reject_reason" property="rejectReason"/>
+        <result column="supplement_requirements" property="supplementRequirements"/>
+        <result column="review_start_time" property="reviewStartTime"/>
+        <result column="review_end_time" property="reviewEndTime"/>
+        <result column="review_duration" property="reviewDuration"/>
+        <result column="deleted" property="deleted"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, claim_id, claim_no, reviewer_id, reviewer_name, review_level,
+        review_type, claim_amount, reviewed_amount, review_result, review_comments,
+        reject_reason, supplement_requirements, review_start_time, review_end_time,
+        review_duration, deleted, created_at, updated_at
+    </sql>
+
+    <insert id="insert" parameterType="com.insurance.claim.entity.ClaimReview" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO claim_review (
+            claim_id, claim_no, reviewer_id, reviewer_name, review_level,
+            review_type, claim_amount, reviewed_amount, review_result, review_comments,
+            reject_reason, supplement_requirements, review_start_time, review_end_time,
+            review_duration, deleted, created_at, updated_at
+        ) VALUES (
+            #{claimId}, #{claimNo}, #{reviewerId}, #{reviewerName}, #{reviewLevel},
+            #{reviewType}, #{claimAmount}, #{reviewedAmount}, #{reviewResult}, #{reviewComments},
+            #{rejectReason}, #{supplementRequirements}, #{reviewStartTime}, #{reviewEndTime},
+            #{reviewDuration}, 0, NOW(), NOW()
+        )
+    </insert>
+
+    <update id="updateById" parameterType="com.insurance.claim.entity.ClaimReview">
+        UPDATE claim_review
+        <set>
+            <if test="reviewerId != null">reviewer_id = #{reviewerId},</if>
+            <if test="reviewerName != null">reviewer_name = #{reviewerName},</if>
+            <if test="reviewLevel != null">review_level = #{reviewLevel},</if>
+            <if test="reviewType != null">review_type = #{reviewType},</if>
+            <if test="claimAmount != null">claim_amount = #{claimAmount},</if>
+            <if test="reviewedAmount != null">reviewed_amount = #{reviewedAmount},</if>
+            <if test="reviewResult != null">review_result = #{reviewResult},</if>
+            <if test="reviewComments != null">review_comments = #{reviewComments},</if>
+            <if test="rejectReason != null">reject_reason = #{rejectReason},</if>
+            <if test="supplementRequirements != null">supplement_requirements = #{supplementRequirements},</if>
+            <if test="reviewStartTime != null">review_start_time = #{reviewStartTime},</if>
+            <if test="reviewEndTime != null">review_end_time = #{reviewEndTime},</if>
+            <if test="reviewDuration != null">review_duration = #{reviewDuration},</if>
+            updated_at = NOW()
+        </set>
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM claim_review
+        WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="selectByClaimId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM claim_review
+        WHERE claim_id = #{claimId} AND deleted = 0
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="selectByReviewerId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM claim_review
+        WHERE reviewer_id = #{reviewerId} AND deleted = 0
+        <if test="status != null">
+            AND review_result = #{status}
+        </if>
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="selectLatestByClaimId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM claim_review
+        WHERE claim_id = #{claimId} AND deleted = 0
+        ORDER BY created_at DESC
+        LIMIT 1
+    </select>
+
+</mapper>

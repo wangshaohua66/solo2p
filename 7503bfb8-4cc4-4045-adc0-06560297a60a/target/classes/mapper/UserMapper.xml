@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.insurance.claim.mapper.UserMapper">
+
+    <resultMap id="BaseResultMap" type="com.insurance.claim.entity.User">
+        <id column="id" property="id"/>
+        <result column="username" property="username"/>
+        <result column="password" property="password"/>
+        <result column="real_name" property="realName"/>
+        <result column="id_card" property="idCard"/>
+        <result column="phone" property="phone"/>
+        <result column="email" property="email"/>
+        <result column="avatar" property="avatar"/>
+        <result column="role" property="role" typeHandler="com.insurance.claim.enums.handler.RoleTypeHandler"/>
+        <result column="department" property="department"/>
+        <result column="branch_code" property="branchCode"/>
+        <result column="branch_name" property="branchName"/>
+        <result column="work_area" property="workArea"/>
+        <result column="work_longitude" property="workLongitude"/>
+        <result column="work_latitude" property="workLatitude"/>
+        <result column="work_radius" property="workRadius"/>
+        <result column="employee_no" property="employeeNo"/>
+        <result column="qualification_no" property="qualificationNo"/>
+        <result column="status" property="status"/>
+        <result column="deleted" property="deleted"/>
+        <result column="last_login_time" property="lastLoginTime"/>
+        <result column="last_login_ip" property="lastLoginIp"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, username, password, real_name, id_card, phone, email, avatar,
+        role, department, branch_code, branch_name, work_area, work_longitude,
+        work_latitude, work_radius, employee_no, qualification_no, status,
+        deleted, last_login_time, last_login_ip, created_at, updated_at
+    </sql>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM sys_user
+        WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="selectByUsername" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM sys_user
+        WHERE username = #{username} AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="selectByPhone" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM sys_user
+        WHERE phone = #{phone} AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="selectByRole" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM sys_user
+        WHERE role = #{role, typeHandler=com.insurance.claim.enums.handler.RoleTypeHandler}
+          AND deleted = 0 AND status = 1
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="selectAvailableSurveyors" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>,
+               (6371 * acos(cos(radians(#{latitude})) * cos(radians(work_latitude))
+                * cos(radians(work_longitude) - radians(#{longitude}))
+                + sin(radians(#{latitude})) * sin(radians(work_latitude)))) AS distance
+        FROM sys_user
+        WHERE role = 3
+          AND deleted = 0
+          AND status = 1
+        HAVING distance &lt;= work_radius OR distance &lt;= #{radius}
+        ORDER BY distance ASC
+    </select>
+
+    <update id="updateLastLogin">
+        UPDATE sys_user
+        SET last_login_time = #{lastLoginTime},
+            last_login_ip = #{lastLoginIp},
+            updated_at = NOW()
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <insert id="insert" parameterType="com.insurance.claim.entity.User" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_user (
+            username, password, real_name, id_card, phone, email, avatar,
+            role, department, branch_code, branch_name, work_area, work_longitude,
+            work_latitude, work_radius, employee_no, qualification_no, status,
+            deleted, created_at, updated_at
+        ) VALUES (
+            #{username}, #{password}, #{realName}, #{idCard}, #{phone}, #{email}, #{avatar},
+            #{role, typeHandler=com.insurance.claim.enums.handler.RoleTypeHandler},
+            #{department}, #{branchCode}, #{branchName}, #{workArea}, #{workLongitude},
+            #{workLatitude}, #{workRadius}, #{employeeNo}, #{qualificationNo}, #{status},
+            0, NOW(), NOW()
+        )
+    </insert>
+
+    <update id="updateById" parameterType="com.insurance.claim.entity.User">
+        UPDATE sys_user
+        <set>
+            <if test="username != null">username = #{username},</if>
+            <if test="password != null">password = #{password},</if>
+            <if test="realName != null">real_name = #{realName},</if>
+            <if test="idCard != null">id_card = #{idCard},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="email != null">email = #{email},</if>
+            <if test="avatar != null">avatar = #{avatar},</if>
+            <if test="role != null">role = #{role, typeHandler=com.insurance.claim.enums.handler.RoleTypeHandler},</if>
+            <if test="department != null">department = #{department},</if>
+            <if test="branchCode != null">branch_code = #{branchCode},</if>
+            <if test="branchName != null">branch_name = #{branchName},</if>
+            <if test="workArea != null">work_area = #{workArea},</if>
+            <if test="workLongitude != null">work_longitude = #{workLongitude},</if>
+            <if test="workLatitude != null">work_latitude = #{workLatitude},</if>
+            <if test="workRadius != null">work_radius = #{workRadius},</if>
+            <if test="employeeNo != null">employee_no = #{employeeNo},</if>
+            <if test="qualificationNo != null">qualification_no = #{qualificationNo},</if>
+            <if test="status != null">status = #{status},</if>
+            updated_at = NOW()
+        </set>
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="updateStatus">
+        UPDATE sys_user
+        SET status = #{status}, updated_at = NOW()
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+</mapper>

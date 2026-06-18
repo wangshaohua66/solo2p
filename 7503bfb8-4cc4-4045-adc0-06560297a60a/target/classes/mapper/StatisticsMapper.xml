@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.insurance.claim.mapper.StatisticsMapper">
+
+    <resultMap id="InsuranceStatisticsMap" type="com.insurance.claim.dto.response.StatisticsResponse$InsuranceStatistics">
+        <result column="insurance_type" property="insuranceType"/>
+        <result column="insurance_type_name" property="insuranceTypeName"/>
+        <result column="claim_count" property="claimCount"/>
+        <result column="payment_amount" property="paymentAmount"/>
+        <result column="loss_ratio" property="lossRatio"/>
+        <result column="average_payment" property="averagePayment"/>
+    </resultMap>
+
+    <resultMap id="BranchStatisticsMap" type="com.insurance.claim.dto.response.StatisticsResponse$BranchStatistics">
+        <result column="branch_code" property="branchCode"/>
+        <result column="branch_name" property="branchName"/>
+        <result column="claim_count" property="claimCount"/>
+        <result column="payment_amount" property="paymentAmount"/>
+        <result column="loss_ratio" property="lossRatio"/>
+        <result column="closure_rate" property="closureRate"/>
+    </resultMap>
+
+    <resultMap id="MonthlyTrendMap" type="com.insurance.claim.dto.response.StatisticsResponse$MonthlyTrend">
+        <result column="month" property="month"/>
+        <result column="claim_count" property="claimCount"/>
+        <result column="payment_amount" property="paymentAmount"/>
+        <result column="loss_ratio" property="lossRatio"/>
+        <result column="closure_rate" property="closureRate"/>
+    </resultMap>
+
+    <select id="countTotalClaims" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM claim
+        WHERE deleted = 0
+        <if test="startDate != null">
+            AND DATE(reported_at) &gt;= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND DATE(reported_at) &lt;= #{endDate}
+        </if>
+    </select>
+
+    <select id="countClosedClaims" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM claim
+        WHERE deleted = 0
+          AND status = 15
+        <if test="startDate != null">
+            AND DATE(closed_at) &gt;= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND DATE(closed_at) &lt;= #{endDate}
+        </if>
+    </select>
+
+    <select id="sumTotalPayments" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(paid_amount), 0)
+        FROM claim
+        WHERE deleted = 0
+          AND status = 14
+        <if test="startDate != null">
+            AND DATE(payment_completed_at) &gt;= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND DATE(payment_completed_at) &lt;= #{endDate}
+        </if>
+    </select>
+
+    <select id="calculateAverageSettlementDays" resultType="java.math.BigDecimal">
+        SELECT COALESCE(AVG(DATEDIFF(closed_at, reported_at)), 0)
+        FROM claim
+        WHERE deleted = 0
+          AND status = 15
+          AND closed_at IS NOT NULL
+          AND reported_at IS NOT NULL
+        <if test="startDate != null">
+            AND DATE(reported_at) &gt;= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND DATE(reported_at) &lt;= #{endDate}
+        </if>
+    </select>
+
+    <select id="countPendingClaims" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM claim
+        WHERE deleted = 0
+          AND status NOT IN (15, 16)
+    </select>
+
+    <select id="countCancelledClaims" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM claim
+        WHERE deleted = 0
+          AND status = 16
+        <if test="startDate != null">
+            AND DATE(updated_at) &gt;= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND DATE(updated_at) &lt;= #{endDate}
+        </if>
+    </select>
+
+    <select id="countFraudSuspiciousClaims" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM claim
+        WHERE deleted = 0
+          AND fraud_suspicious = 1
+        <if test="startDate != null">
+            AND DATE(reported_at) &gt;= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND DATE(reported_at) &lt;= #{endDate}
+        </if>
+    </select>
+
+    <select id="getInsuranceStatistics" resultMap="InsuranceStatisticsMap">
+        SELECT
+            c.insurance_type,
+            CASE c.insurance_type
+                WHEN 1 THEN '车险'
+                WHEN 2 THEN '家财险'
+                WHEN 3 THEN '企财险'
+                ELSE '未知'
+            END AS insurance_type_name,
+            COUNT(*) AS claim_count,
+            COALESCE(SUM(c.paid_amount), 0) AS payment_amount,
+            COALESCE(SUM(c.paid_amount) / NULLIF(SUM(p.total_premium), 0) * 100, 0) AS loss_ratio,
+            COALESCE(SUM(c.paid_amount) / NULLIF(COUNT(*), 0), 0) AS average_payment
+        FROM claim c
+        LEFT JOIN policy p ON c.policy_no = p.policy_no AND p.deleted = 0
+        WHERE c.deleted = 0
+        <if test="startDate != null">
+            AND DATE(c.reported_at) &gt;= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND DATE(c.reported_at) &lt;= #{endDate}
+        </if>
+        GROUP BY c.insurance_type
+        ORDER BY claim_count DESC
+    </select>
+
+    <select id="getBranchStatistics" resultMap="BranchStatisticsMap">
+        SELECT
+            p.branch_code,
+            p.branch_name,
+            COUNT(*) AS claim_count,
+            COALESCE(SUM(c.paid_amount), 0) AS payment_amount,
+            COALESCE(SUM(c.paid_amount) / NULLIF(SUM(p.total_premium), 0) * 100, 0) AS loss_ratio,
+            COALESCE(SUM(CASE WHEN c.status = 15 THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0) * 100, 0) AS closure_rate
+        FROM claim c
+        LEFT JOIN policy p ON c.policy_no = p.policy_no AND p.deleted = 0
+        WHERE c.deleted = 0
+        <if test="startDate != null">
+            AND DATE(c.reported_at) &gt;= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND DATE(c.reported_at) &lt;= #{endDate}
+        </if>
+        GROUP BY p.branch_code, p.branch_name
+        ORDER BY claim_count DESC
+    </select>
+
+    <select id="getMonthlyTrends" resultMap="MonthlyTrendMap">
+        SELECT
+            DATE_FORMAT(c.reported_at, '%Y-%m') AS month,
+            COUNT(*) AS claim_count,
+            COALESCE(SUM(c.paid_amount), 0) AS payment_amount,
+            COALESCE(SUM(c.paid_amount) / NULLIF(SUM(p.total_premium), 0) * 100, 0) AS loss_ratio,
+            COALESCE(SUM(CASE WHEN c.status = 15 THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0) * 100, 0) AS closure_rate
+        FROM claim c
+        LEFT JOIN policy p ON c.policy_no = p.policy_no AND p.deleted = 0
+        WHERE c.deleted = 0
+        <if test="startDate != null">
+            AND DATE(c.reported_at) &gt;= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND DATE(c.reported_at) &lt;= #{endDate}
+        </if>
+        GROUP BY DATE_FORMAT(c.reported_at, '%Y-%m')
+        ORDER BY month ASC
+    </select>
+
+</mapper>

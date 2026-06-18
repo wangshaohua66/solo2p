@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.insurance.claim.mapper.ClaimDocumentMapper">
+
+    <resultMap id="BaseResultMap" type="com.insurance.claim.entity.ClaimDocument">
+        <id column="id" property="id"/>
+        <result column="claim_id" property="claimId"/>
+        <result column="claim_no" property="claimNo"/>
+        <result column="business_id" property="businessId"/>
+        <result column="business_type" property="businessType"/>
+        <result column="document_type" property="documentType"/>
+        <result column="document_name" property="documentName"/>
+        <result column="document_url" property="documentUrl"/>
+        <result column="file_type" property="fileType"/>
+        <result column="file_size" property="fileSize"/>
+        <result column="storage_path" property="storagePath"/>
+        <result column="storage_bucket" property="storageBucket"/>
+        <result column="md5" property="md5"/>
+        <result column="upload_status" property="uploadStatus"/>
+        <result column="uploader_id" property="uploaderId"/>
+        <result column="uploader_name" property="uploaderName"/>
+        <result column="remark" property="remark"/>
+        <result column="deleted" property="deleted"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, claim_id, claim_no, business_id, business_type, document_type,
+        document_name, document_url, file_type, file_size, storage_path,
+        storage_bucket, md5, upload_status, uploader_id, uploader_name,
+        remark, deleted, created_at, updated_at
+    </sql>
+
+    <insert id="insert" parameterType="com.insurance.claim.entity.ClaimDocument" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO claim_document (
+            claim_id, claim_no, business_id, business_type, document_type,
+            document_name, document_url, file_type, file_size, storage_path,
+            storage_bucket, md5, upload_status, uploader_id, uploader_name,
+            remark, deleted, created_at, updated_at
+        ) VALUES (
+            #{claimId}, #{claimNo}, #{businessId}, #{businessType}, #{documentType},
+            #{documentName}, #{documentUrl}, #{fileType}, #{fileSize}, #{storagePath},
+            #{storageBucket}, #{md5}, #{uploadStatus}, #{uploaderId}, #{uploaderName},
+            #{remark}, 0, NOW(), NOW()
+        )
+    </insert>
+
+    <insert id="batchInsert" parameterType="java.util.List">
+        INSERT INTO claim_document (
+            claim_id, claim_no, business_id, business_type, document_type,
+            document_name, document_url, file_type, file_size, storage_path,
+            storage_bucket, md5, upload_status, uploader_id, uploader_name,
+            remark, deleted, created_at, updated_at
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.claimId}, #{item.claimNo}, #{item.businessId}, #{item.businessType},
+                #{item.documentType}, #{item.documentName}, #{item.documentUrl}, #{item.fileType},
+                #{item.fileSize}, #{item.storagePath}, #{item.storageBucket}, #{item.md5},
+                #{item.uploadStatus}, #{item.uploaderId}, #{item.uploaderName}, #{item.remark},
+                0, NOW(), NOW()
+            )
+        </foreach>
+    </insert>
+
+    <update id="updateById" parameterType="com.insurance.claim.entity.ClaimDocument">
+        UPDATE claim_document
+        <set>
+            <if test="documentType != null">document_type = #{documentType},</if>
+            <if test="documentName != null">document_name = #{documentName},</if>
+            <if test="documentUrl != null">document_url = #{documentUrl},</if>
+            <if test="fileType != null">file_type = #{fileType},</if>
+            <if test="fileSize != null">file_size = #{fileSize},</if>
+            <if test="storagePath != null">storage_path = #{storagePath},</if>
+            <if test="storageBucket != null">storage_bucket = #{storageBucket},</if>
+            <if test="md5 != null">md5 = #{md5},</if>
+            <if test="uploadStatus != null">upload_status = #{uploadStatus},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            updated_at = NOW()
+        </set>
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM claim_document
+        WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="selectByClaimId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM claim_document
+        WHERE claim_id = #{claimId} AND deleted = 0
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="selectByClaimIdAndType" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM claim_document
+        WHERE claim_id = #{claimId} AND document_type = #{documentType} AND deleted = 0
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="selectByBusiness" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM claim_document
+        WHERE business_id = #{businessId} AND business_type = #{businessType} AND deleted = 0
+        ORDER BY created_at DESC
+    </select>
+
+    <update id="deleteByClaimId">
+        UPDATE claim_document
+        SET deleted = 1, updated_at = NOW()
+        WHERE claim_id = #{claimId}
+    </update>
+
+</mapper>

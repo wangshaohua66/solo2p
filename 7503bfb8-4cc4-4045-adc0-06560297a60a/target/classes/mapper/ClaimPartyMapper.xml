@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.insurance.claim.mapper.ClaimPartyMapper">
+
+    <resultMap id="BaseResultMap" type="com.insurance.claim.entity.ClaimParty">
+        <id column="id" property="id"/>
+        <result column="claim_id" property="claimId"/>
+        <result column="claim_no" property="claimNo"/>
+        <result column="party_type" property="partyType"/>
+        <result column="party_name" property="partyName"/>
+        <result column="party_id_card" property="partyIdCard"/>
+        <result column="party_phone" property="partyPhone"/>
+        <result column="party_address" property="partyAddress"/>
+        <result column="driver_license_no" property="driverLicenseNo"/>
+        <result column="driver_license_type" property="driverLicenseType"/>
+        <result column="vehicle_plate_no" property="vehiclePlateNo"/>
+        <result column="vehicle_type" property="vehicleType"/>
+        <result column="vehicle_usage" property="vehicleUsage"/>
+        <result column="insurance_company" property="insuranceCompany"/>
+        <result column="policy_no" property="policyNo"/>
+        <result column="insurance_amount" property="insuranceAmount"/>
+        <result column="liability_ratio" property="liabilityRatio"/>
+        <result column="injury_description" property="injuryDescription"/>
+        <result column="property_damage_description" property="propertyDamageDescription"/>
+        <result column="remark" property="remark"/>
+        <result column="deleted" property="deleted"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, claim_id, claim_no, party_type, party_name, party_id_card, party_phone,
+        party_address, driver_license_no, driver_license_type, vehicle_plate_no,
+        vehicle_type, vehicle_usage, insurance_company, policy_no, insurance_amount,
+        liability_ratio, injury_description, property_damage_description, remark,
+        deleted, created_at, updated_at
+    </sql>
+
+    <insert id="insert" parameterType="com.insurance.claim.entity.ClaimParty" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO claim_party (
+            claim_id, claim_no, party_type, party_name, party_id_card, party_phone,
+            party_address, driver_license_no, driver_license_type, vehicle_plate_no,
+            vehicle_type, vehicle_usage, insurance_company, policy_no, insurance_amount,
+            liability_ratio, injury_description, property_damage_description, remark,
+            deleted, created_at, updated_at
+        ) VALUES (
+            #{claimId}, #{claimNo}, #{partyType}, #{partyName}, #{partyIdCard}, #{partyPhone},
+            #{partyAddress}, #{driverLicenseNo}, #{driverLicenseType}, #{vehiclePlateNo},
+            #{vehicleType}, #{vehicleUsage}, #{insuranceCompany}, #{policyNo}, #{insuranceAmount},
+            #{liabilityRatio}, #{injuryDescription}, #{propertyDamageDescription}, #{remark},
+            0, NOW(), NOW()
+        )
+    </insert>
+
+    <insert id="batchInsert" parameterType="java.util.List">
+        INSERT INTO claim_party (
+            claim_id, claim_no, party_type, party_name, party_id_card, party_phone,
+            party_address, driver_license_no, driver_license_type, vehicle_plate_no,
+            vehicle_type, vehicle_usage, insurance_company, policy_no, insurance_amount,
+            liability_ratio, injury_description, property_damage_description, remark,
+            deleted, created_at, updated_at
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.claimId}, #{item.claimNo}, #{item.partyType}, #{item.partyName},
+                #{item.partyIdCard}, #{item.partyPhone}, #{item.partyAddress},
+                #{item.driverLicenseNo}, #{item.driverLicenseType}, #{item.vehiclePlateNo},
+                #{item.vehicleType}, #{item.vehicleUsage}, #{item.insuranceCompany},
+                #{item.policyNo}, #{item.insuranceAmount}, #{item.liabilityRatio},
+                #{item.injuryDescription}, #{item.propertyDamageDescription}, #{item.remark},
+                0, NOW(), NOW()
+            )
+        </foreach>
+    </insert>
+
+    <update id="updateById" parameterType="com.insurance.claim.entity.ClaimParty">
+        UPDATE claim_party
+        <set>
+            <if test="partyType != null">party_type = #{partyType},</if>
+            <if test="partyName != null">party_name = #{partyName},</if>
+            <if test="partyIdCard != null">party_id_card = #{partyIdCard},</if>
+            <if test="partyPhone != null">party_phone = #{partyPhone},</if>
+            <if test="partyAddress != null">party_address = #{partyAddress},</if>
+            <if test="driverLicenseNo != null">driver_license_no = #{driverLicenseNo},</if>
+            <if test="driverLicenseType != null">driver_license_type = #{driverLicenseType},</if>
+            <if test="vehiclePlateNo != null">vehicle_plate_no = #{vehiclePlateNo},</if>
+            <if test="vehicleType != null">vehicle_type = #{vehicleType},</if>
+            <if test="vehicleUsage != null">vehicle_usage = #{vehicleUsage},</if>
+            <if test="insuranceCompany != null">insurance_company = #{insuranceCompany},</if>
+            <if test="policyNo != null">policy_no = #{policyNo},</if>
+            <if test="insuranceAmount != null">insurance_amount = #{insuranceAmount},</if>
+            <if test="liabilityRatio != null">liability_ratio = #{liabilityRatio},</if>
+            <if test="injuryDescription != null">injury_description = #{injuryDescription},</if>
+            <if test="propertyDamageDescription != null">property_damage_description = #{propertyDamageDescription},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            updated_at = NOW()
+        </set>
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM claim_party
+        WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="selectByClaimId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM claim_party
+        WHERE claim_id = #{claimId} AND deleted = 0
+        ORDER BY created_at ASC
+    </select>
+
+    <update id="deleteByClaimId">
+        UPDATE claim_party
+        SET deleted = 1, updated_at = NOW()
+        WHERE claim_id = #{claimId}
+    </update>
+
+</mapper>

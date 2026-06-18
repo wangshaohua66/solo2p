@@ -1,0 +1,99 @@
+spring:
+  application:
+    name: claim-management-system
+  profiles:
+    active: dev
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/claim_management?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: root123
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 10
+      idle-timeout: 30000
+      connection-timeout: 30000
+      max-lifetime: 1800000
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 100MB
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 3000
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+  tomcat:
+    max-connections: 1000
+    accept-count: 500
+    threads:
+      max: 500
+      min-spare: 50
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.insurance.claim.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: true
+    lazy-loading-enabled: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  packages-to-scan: com.insurance.claim.controller
+  paths-to-match: /**
+
+jwt:
+  secret: claim-management-system-secret-key-2024-insurance-platform
+  expiration: 86400000
+  header: Authorization
+  prefix: "Bearer "
+
+claim:
+  fraud:
+    high-frequency-days: 30
+    high-frequency-count: 3
+    excess-claim-ratio: 1.5
+    suspicious-score-threshold: 70
+  payment:
+    retry-count: 3
+    retry-interval: 5000
+  calculation:
+    min-deductible: 200
+    max-floating-coefficient: 1.5
+
+logging:
+  level:
+    com.insurance.claim: debug
+    org.springframework.security: info
+    org.mybatis: info
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/claim-management.log
+    max-size: 100MB
+    max-history: 30

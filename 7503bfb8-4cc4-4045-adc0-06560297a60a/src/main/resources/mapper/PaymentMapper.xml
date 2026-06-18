@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.insurance.claim.mapper.PaymentMapper">
+
+    <resultMap id="BaseResultMap" type="com.insurance.claim.entity.Payment">
+        <id column="id" property="id"/>
+        <result column="claim_id" property="claimId"/>
+        <result column="claim_no" property="claimNo"/>
+        <result column="payment_no" property="paymentNo"/>
+        <result column="payment_type" property="paymentType"/>
+        <result column="payment_amount" property="paymentAmount"/>
+        <result column="total_payable_amount" property="totalPayableAmount"/>
+        <result column="already_paid_amount" property="alreadyPaidAmount"/>
+        <result column="installment_no" property="installmentNo"/>
+        <result column="total_installments" property="totalInstallments"/>
+        <result column="payee_name" property="payeeName"/>
+        <result column="payee_id_card" property="payeeIdCard"/>
+        <result column="payee_bank_name" property="payeeBankName"/>
+        <result column="payee_bank_account" property="payeeBankAccount"/>
+        <result column="payee_bank_branch" property="payeeBankBranch"/>
+        <result column="payee_phone" property="payeePhone"/>
+        <result column="third_party_payee" property="thirdPartyPayee"/>
+        <result column="third_party_authorization" property="thirdPartyAuthorization"/>
+        <result column="payment_channel" property="paymentChannel"/>
+        <result column="payment_method" property="paymentMethod"/>
+        <result column="bank_transaction_no" property="bankTransactionNo"/>
+        <result column="payment_status" property="paymentStatus"/>
+        <result column="payment_submit_time" property="paymentSubmitTime"/>
+        <result column="payment_success_time" property="paymentSuccessTime"/>
+        <result column="payment_fail_time" property="paymentFailTime"/>
+        <result column="fail_reason" property="failReason"/>
+        <result column="retry_count" property="retryCount"/>
+        <result column="electronic_voucher_url" property="electronicVoucherUrl"/>
+        <result column="operator_id" property="operatorId"/>
+        <result column="operator_name" property="operatorName"/>
+        <result column="remark" property="remark"/>
+        <result column="deleted" property="deleted"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.insurance.claim.entity.Payment" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO payment (
+            claim_id, claim_no, payment_no, payment_type, payment_amount, total_payable_amount,
+            already_paid_amount, installment_no, total_installments, payee_name, payee_id_card,
+            payee_bank_name, payee_bank_account, payee_bank_branch, payee_phone,
+            third_party_payee, third_party_authorization, payment_channel, payment_method,
+            payment_status, payment_submit_time, operator_id, operator_name, remark,
+            retry_count, deleted, created_at, updated_at
+        ) VALUES (
+            #{claimId}, #{claimNo}, #{paymentNo}, #{paymentType}, #{paymentAmount}, #{totalPayableAmount},
+            #{alreadyPaidAmount}, #{installmentNo}, #{totalInstallments}, #{payeeName}, #{payeeIdCard},
+            #{payeeBankName}, #{payeeBankAccount}, #{payeeBankBranch}, #{payeePhone},
+            #{thirdPartyPayee}, #{thirdPartyAuthorization}, #{paymentChannel}, #{paymentMethod},
+            0, #{paymentSubmitTime}, #{operatorId}, #{operatorName}, #{remark},
+            0, 0, NOW(), NOW()
+        )
+    </insert>
+
+    <update id="updateById" parameterType="com.insurance.claim.entity.Payment">
+        UPDATE payment
+        <set>
+            <if test="paymentStatus != null">payment_status = #{paymentStatus},</if>
+            <if test="bankTransactionNo != null">bank_transaction_no = #{bankTransactionNo},</if>
+            <if test="paymentSuccessTime != null">payment_success_time = #{paymentSuccessTime},</if>
+            <if test="paymentFailTime != null">payment_fail_time = #{paymentFailTime},</if>
+            <if test="failReason != null">fail_reason = #{failReason},</if>
+            <if test="retryCount != null">retry_count = #{retryCount},</if>
+            <if test="electronicVoucherUrl != null">electronic_voucher_url = #{electronicVoucherUrl},</if>
+            updated_at = NOW()
+        </set>
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM payment WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="selectByPaymentNo" resultMap="BaseResultMap">
+        SELECT * FROM payment WHERE payment_no = #{paymentNo} AND deleted = 0
+    </select>
+
+    <select id="selectByClaimId" resultMap="BaseResultMap">
+        SELECT * FROM payment WHERE claim_id = #{claimId} AND deleted = 0 ORDER BY created_at DESC
+    </select>
+
+    <select id="selectByStatus" resultMap="BaseResultMap">
+        SELECT * FROM payment WHERE payment_status = #{status} AND deleted = 0 ORDER BY created_at ASC
+    </select>
+
+    <select id="sumPaidAmountByClaimId" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(payment_amount), 0)
+        FROM payment
+        WHERE claim_id = #{claimId} AND payment_status = 2 AND deleted = 0
+    </select>
+
+    <update id="updatePaymentStatus">
+        UPDATE payment
+        SET payment_status = #{status},
+            bank_transaction_no = #{bankTransactionNo},
+            payment_success_time = #{paymentSuccessTime},
+            payment_fail_time = #{paymentFailTime},
+            fail_reason = #{failReason},
+            retry_count = #{retryCount},
+            electronic_voucher_url = #{electronicVoucherUrl},
+            updated_at = NOW()
+        WHERE id = #{id} AND deleted = 0
+    </update>
+</mapper>

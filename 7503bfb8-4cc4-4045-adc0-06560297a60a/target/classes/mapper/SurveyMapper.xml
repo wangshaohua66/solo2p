@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.insurance.claim.mapper.SurveyMapper">
+
+    <resultMap id="BaseResultMap" type="com.insurance.claim.entity.Survey">
+        <id column="id" property="id"/>
+        <result column="claim_id" property="claimId"/>
+        <result column="claim_no" property="claimNo"/>
+        <result column="surveyor_id" property="surveyorId"/>
+        <result column="surveyor_name" property="surveyorName"/>
+        <result column="surveyor_phone" property="surveyorPhone"/>
+        <result column="assigned_at" property="assignedAt"/>
+        <result column="departed_at" property="departedAt"/>
+        <result column="arrived_at" property="arrivedAt"/>
+        <result column="depart_longitude" property="departLongitude"/>
+        <result column="depart_latitude" property="departLatitude"/>
+        <result column="arrive_longitude" property="arriveLongitude"/>
+        <result column="arrive_latitude" property="arriveLatitude"/>
+        <result column="gps_distance" property="gpsDistance"/>
+        <result column="gps_verified" property="gpsVerified"/>
+        <result column="weather_condition" property="weatherCondition"/>
+        <result column="road_condition" property="roadCondition"/>
+        <result column="site_description" property="siteDescription"/>
+        <result column="damage_description" property="damageDescription"/>
+        <result column="scene_diagram" property="sceneDiagram"/>
+        <result column="liability_ratio" property="liabilityRatio"/>
+        <result column="liability_determination" property="liabilityDetermination"/>
+        <result column="police_report_no" property="policeReportNo"/>
+        <result column="police_opinion" property="policeOpinion"/>
+        <result column="estimated_loss_amount" property="estimatedLossAmount"/>
+        <result column="survey_comments" property="surveyComments"/>
+        <result column="completed_at" property="completedAt"/>
+        <result column="remark" property="remark"/>
+        <result column="deleted" property="deleted"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, claim_id, claim_no, surveyor_id, surveyor_name, surveyor_phone,
+        assigned_at, departed_at, arrived_at, depart_longitude, depart_latitude,
+        arrive_longitude, arrive_latitude, gps_distance, gps_verified,
+        weather_condition, road_condition, site_description, damage_description,
+        scene_diagram, liability_ratio, liability_determination, police_report_no,
+        police_opinion, estimated_loss_amount, survey_comments, completed_at,
+        remark, deleted, created_at, updated_at
+    </sql>
+
+    <insert id="insert" parameterType="com.insurance.claim.entity.Survey" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO survey (
+            claim_id, claim_no, surveyor_id, surveyor_name, surveyor_phone,
+            assigned_at, departed_at, arrived_at, depart_longitude, depart_latitude,
+            arrive_longitude, arrive_latitude, gps_distance, gps_verified,
+            weather_condition, road_condition, site_description, damage_description,
+            scene_diagram, liability_ratio, liability_determination, police_report_no,
+            police_opinion, estimated_loss_amount, survey_comments, completed_at,
+            remark, deleted, created_at, updated_at
+        ) VALUES (
+            #{claimId}, #{claimNo}, #{surveyorId}, #{surveyorName}, #{surveyorPhone},
+            #{assignedAt}, #{departedAt}, #{arrivedAt}, #{departLongitude}, #{departLatitude},
+            #{arriveLongitude}, #{arriveLatitude}, #{gpsDistance}, #{gpsVerified},
+            #{weatherCondition}, #{roadCondition}, #{siteDescription}, #{damageDescription},
+            #{sceneDiagram}, #{liabilityRatio}, #{liabilityDetermination}, #{policeReportNo},
+            #{policeOpinion}, #{estimatedLossAmount}, #{surveyComments}, #{completedAt},
+            #{remark}, 0, NOW(), NOW()
+        )
+    </insert>
+
+    <update id="updateById" parameterType="com.insurance.claim.entity.Survey">
+        UPDATE survey
+        <set>
+            <if test="surveyorId != null">surveyor_id = #{surveyorId},</if>
+            <if test="surveyorName != null">surveyor_name = #{surveyorName},</if>
+            <if test="surveyorPhone != null">surveyor_phone = #{surveyorPhone},</if>
+            <if test="assignedAt != null">assigned_at = #{assignedAt},</if>
+            <if test="departedAt != null">departed_at = #{departedAt},</if>
+            <if test="arrivedAt != null">arrived_at = #{arrivedAt},</if>
+            <if test="departLongitude != null">depart_longitude = #{departLongitude},</if>
+            <if test="departLatitude != null">depart_latitude = #{departLatitude},</if>
+            <if test="arriveLongitude != null">arrive_longitude = #{arriveLongitude},</if>
+            <if test="arriveLatitude != null">arrive_latitude = #{arriveLatitude},</if>
+            <if test="gpsDistance != null">gps_distance = #{gpsDistance},</if>
+            <if test="gpsVerified != null">gps_verified = #{gpsVerified},</if>
+            <if test="weatherCondition != null">weather_condition = #{weatherCondition},</if>
+            <if test="roadCondition != null">road_condition = #{roadCondition},</if>
+            <if test="siteDescription != null">site_description = #{siteDescription},</if>
+            <if test="damageDescription != null">damage_description = #{damageDescription},</if>
+            <if test="sceneDiagram != null">scene_diagram = #{sceneDiagram},</if>
+            <if test="liabilityRatio != null">liability_ratio = #{liabilityRatio},</if>
+            <if test="liabilityDetermination != null">liability_determination = #{liabilityDetermination},</if>
+            <if test="policeReportNo != null">police_report_no = #{policeReportNo},</if>
+            <if test="policeOpinion != null">police_opinion = #{policeOpinion},</if>
+            <if test="estimatedLossAmount != null">estimated_loss_amount = #{estimatedLossAmount},</if>
+            <if test="surveyComments != null">survey_comments = #{surveyComments},</if>
+            <if test="completedAt != null">completed_at = #{completedAt},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            updated_at = NOW()
+        </set>
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM survey
+        WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="selectByClaimId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM survey
+        WHERE claim_id = #{claimId} AND deleted = 0
+        ORDER BY created_at DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectBySurveyorId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM survey
+        WHERE surveyor_id = #{surveyorId} AND deleted = 0
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="selectPendingSurveys" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM survey
+        WHERE deleted = 0 AND completed_at IS NULL
+        ORDER BY assigned_at ASC
+    </select>
+
+    <update id="assignSurveyor">
+        UPDATE survey
+        SET surveyor_id = #{surveyorId},
+            surveyor_name = #{surveyorName},
+            assigned_at = #{assignedAt},
+            updated_at = NOW()
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+</mapper>

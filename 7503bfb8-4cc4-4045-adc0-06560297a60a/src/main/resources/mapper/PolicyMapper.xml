@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.insurance.claim.mapper.PolicyMapper">
+
+    <resultMap id="BaseResultMap" type="com.insurance.claim.entity.Policy">
+        <id column="id" property="id"/>
+        <result column="policy_no" property="policyNo"/>
+        <result column="insurance_type" property="insuranceType" typeHandler="com.insurance.claim.enums.handler.InsuranceTypeHandler"/>
+        <result column="product_code" property="productCode"/>
+        <result column="product_name" property="productName"/>
+        <result column="policyholder_name" property="policyholderName"/>
+        <result column="policyholder_id_card" property="policyholderIdCard"/>
+        <result column="policyholder_phone" property="policyholderPhone"/>
+        <result column="insured_name" property="insuredName"/>
+        <result column="insured_id_card" property="insuredIdCard"/>
+        <result column="insured_phone" property="insuredPhone"/>
+        <result column="total_premium" property="totalPremium"/>
+        <result column="total_coverage" property="totalCoverage"/>
+        <result column="deductible" property="deductible"/>
+        <result column="deductible_ratio" property="deductibleRatio"/>
+        <result column="effective_date" property="effectiveDate"/>
+        <result column="expiry_date" property="expiryDate"/>
+        <result column="vehicle_plate_no" property="vehiclePlateNo"/>
+        <result column="vehicle_frame_no" property="vehicleFrameNo"/>
+        <result column="vehicle_engine_no" property="vehicleEngineNo"/>
+        <result column="vehicle_brand" property="vehicleBrand"/>
+        <result column="vehicle_model" property="vehicleModel"/>
+        <result column="vehicle_register_year" property="vehicleRegisterYear"/>
+        <result column="property_address" property="propertyAddress"/>
+        <result column="property_value" property="propertyValue"/>
+        <result column="enterprise_name" property="enterpriseName"/>
+        <result column="enterprise_address" property="enterpriseAddress"/>
+        <result column="policy_status" property="policyStatus"/>
+        <result column="branch_code" property="branchCode"/>
+        <result column="branch_name" property="branchName"/>
+        <result column="agent_code" property="agentCode"/>
+        <result column="agent_name" property="agentName"/>
+        <result column="claim_count" property="claimCount"/>
+        <result column="total_claim_amount" property="totalClaimAmount"/>
+        <result column="deleted" property="deleted"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, policy_no, insurance_type, product_code, product_name, policyholder_name,
+        policyholder_id_card, policyholder_phone, insured_name, insured_id_card, insured_phone,
+        total_premium, total_coverage, deductible, deductible_ratio, effective_date, expiry_date,
+        vehicle_plate_no, vehicle_frame_no, vehicle_engine_no, vehicle_brand, vehicle_model,
+        vehicle_register_year, property_address, property_value, enterprise_name, enterprise_address,
+        policy_status, branch_code, branch_name, agent_code, agent_name, claim_count,
+        total_claim_amount, deleted, created_at, updated_at
+    </sql>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM policy
+        WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="selectByPolicyNo" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM policy
+        WHERE policy_no = #{policyNo} AND deleted = 0
+    </select>
+
+    <select id="selectByInsuredIdCard" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM policy
+        WHERE insured_id_card = #{insuredIdCard} AND deleted = 0
+        ORDER BY effective_date DESC
+    </select>
+
+    <select id="selectByVehiclePlateNo" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM policy
+        WHERE vehicle_plate_no = #{vehiclePlateNo} AND deleted = 0
+        ORDER BY effective_date DESC
+    </select>
+
+    <update id="updateClaimCount">
+        UPDATE policy
+        SET claim_count = #{claimCount},
+            total_claim_amount = #{totalClaimAmount},
+            updated_at = NOW()
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <insert id="insert" parameterType="com.insurance.claim.entity.Policy" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO policy (
+            policy_no, insurance_type, product_code, product_name, policyholder_name,
+            policyholder_id_card, policyholder_phone, insured_name, insured_id_card, insured_phone,
+            total_premium, total_coverage, deductible, deductible_ratio, effective_date, expiry_date,
+            vehicle_plate_no, vehicle_frame_no, vehicle_engine_no, vehicle_brand, vehicle_model,
+            vehicle_register_year, property_address, property_value, enterprise_name, enterprise_address,
+            policy_status, branch_code, branch_name, agent_code, agent_name, claim_count,
+            total_claim_amount, deleted, created_at, updated_at
+        ) VALUES (
+            #{policyNo}, #{insuranceType, typeHandler=com.insurance.claim.enums.handler.InsuranceTypeHandler},
+            #{productCode}, #{productName}, #{policyholderName}, #{policyholderIdCard}, #{policyholderPhone},
+            #{insuredName}, #{insuredIdCard}, #{insuredPhone}, #{totalPremium}, #{totalCoverage},
+            #{deductible}, #{deductibleRatio}, #{effectiveDate}, #{expiryDate}, #{vehiclePlateNo},
+            #{vehicleFrameNo}, #{vehicleEngineNo}, #{vehicleBrand}, #{vehicleModel}, #{vehicleRegisterYear},
+            #{propertyAddress}, #{propertyValue}, #{enterpriseName}, #{enterpriseAddress},
+            #{policyStatus}, #{branchCode}, #{branchName}, #{agentCode}, #{agentName},
+            0, 0, 0, NOW(), NOW()
+        )
+    </insert>
+
+    <update id="updateById" parameterType="com.insurance.claim.entity.Policy">
+        UPDATE policy
+        <set>
+            <if test="policyStatus != null">policy_status = #{policyStatus},</if>
+            <if test="claimCount != null">claim_count = #{claimCount},</if>
+            <if test="totalClaimAmount != null">total_claim_amount = #{totalClaimAmount},</if>
+            updated_at = NOW()
+        </set>
+        WHERE id = #{id} AND deleted = 0
+    </update>
+</mapper>

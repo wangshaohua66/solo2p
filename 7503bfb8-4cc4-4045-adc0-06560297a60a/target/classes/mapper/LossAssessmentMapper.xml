@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.insurance.claim.mapper.LossAssessmentMapper">
+
+    <resultMap id="AssessmentResultMap" type="com.insurance.claim.entity.LossAssessment">
+        <id column="id" property="id"/>
+        <result column="claim_id" property="claimId"/>
+        <result column="claim_no" property="claimNo"/>
+        <result column="assessor_id" property="assessorId"/>
+        <result column="assessor_name" property="assessorName"/>
+        <result column="started_at" property="startedAt"/>
+        <result column="completed_at" property="completedAt"/>
+        <result column="liability_ratio" property="liabilityRatio"/>
+        <result column="total_parts_cost" property="totalPartsCost"/>
+        <result column="total_labor_cost" property="totalLaborCost"/>
+        <result column="total_material_cost" property="totalMaterialCost"/>
+        <result column="total_other_cost" property="totalOtherCost"/>
+        <result column="total_loss_amount" property="totalLossAmount"/>
+        <result column="salvage_value" property="salvageValue"/>
+        <result column="net_loss_amount" property="netLossAmount"/>
+        <result column="exceed_standard" property="exceedStandard"/>
+        <result column="approval_required" property="approvalRequired"/>
+        <result column="approval_status" property="approvalStatus"/>
+        <result column="approver_id" property="approverId"/>
+        <result column="approver_comments" property="approverComments"/>
+        <result column="assessment_comments" property="assessmentComments"/>
+        <result column="version" property="version"/>
+        <result column="deleted" property="deleted"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <resultMap id="LossItemResultMap" type="com.insurance.claim.entity.LossItem">
+        <id column="id" property="id"/>
+        <result column="assessment_id" property="assessmentId"/>
+        <result column="claim_id" property="claimId"/>
+        <result column="item_type" property="itemType"/>
+        <result column="item_category" property="itemCategory"/>
+        <result column="item_code" property="itemCode"/>
+        <result column="item_name" property="itemName"/>
+        <result column="item_description" property="itemDescription"/>
+        <result column="quantity" property="quantity"/>
+        <result column="unit" property="unit"/>
+        <result column="guide_price" property="guidePrice"/>
+        <result column="unit_price" property="unitPrice"/>
+        <result column="total_amount" property="totalAmount"/>
+        <result column="price_region" property="priceRegion"/>
+        <result column="exceed_guide_price" property="exceedGuidePrice"/>
+        <result column="exceed_ratio" property="exceedRatio"/>
+        <result column="remark" property="remark"/>
+        <result column="deleted" property="deleted"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <insert id="insertAssessment" parameterType="com.insurance.claim.entity.LossAssessment" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO loss_assessment (
+            claim_id, claim_no, assessor_id, assessor_name, started_at, liability_ratio,
+            total_parts_cost, total_labor_cost, total_material_cost, total_other_cost,
+            total_loss_amount, salvage_value, net_loss_amount, exceed_standard,
+            approval_required, approval_status, assessment_comments, version, deleted, created_at, updated_at
+        ) VALUES (
+            #{claimId}, #{claimNo}, #{assessorId}, #{assessorName}, #{startedAt}, #{liabilityRatio},
+            #{totalPartsCost}, #{totalLaborCost}, #{totalMaterialCost}, #{totalOtherCost},
+            #{totalLossAmount}, #{salvageValue}, #{netLossAmount}, #{exceedStandard},
+            #{approvalRequired}, #{approvalStatus}, #{assessmentComments}, 0, 0, NOW(), NOW()
+        )
+    </insert>
+
+    <update id="updateAssessment" parameterType="com.insurance.claim.entity.LossAssessment">
+        UPDATE loss_assessment
+        <set>
+            <if test="liabilityRatio != null">liability_ratio = #{liabilityRatio},</if>
+            <if test="totalPartsCost != null">total_parts_cost = #{totalPartsCost},</if>
+            <if test="totalLaborCost != null">total_labor_cost = #{totalLaborCost},</if>
+            <if test="totalMaterialCost != null">total_material_cost = #{totalMaterialCost},</if>
+            <if test="totalOtherCost != null">total_other_cost = #{totalOtherCost},</if>
+            <if test="totalLossAmount != null">total_loss_amount = #{totalLossAmount},</if>
+            <if test="salvageValue != null">salvage_value = #{salvageValue},</if>
+            <if test="netLossAmount != null">net_loss_amount = #{netLossAmount},</if>
+            <if test="exceedStandard != null">exceed_standard = #{exceedStandard},</if>
+            <if test="approvalRequired != null">approval_required = #{approvalRequired},</if>
+            <if test="approvalStatus != null">approval_status = #{approvalStatus},</if>
+            <if test="approverId != null">approver_id = #{approverId},</if>
+            <if test="approverComments != null">approver_comments = #{approverComments},</if>
+            <if test="assessmentComments != null">assessment_comments = #{assessmentComments},</if>
+            <if test="completedAt != null">completed_at = #{completedAt},</if>
+            version = version + 1,
+            updated_at = NOW()
+        </set>
+        WHERE id = #{id} AND version = #{version} AND deleted = 0
+    </update>
+
+    <select id="selectById" resultMap="AssessmentResultMap">
+        SELECT * FROM loss_assessment WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="selectByClaimId" resultMap="AssessmentResultMap">
+        SELECT * FROM loss_assessment WHERE claim_id = #{claimId} AND deleted = 0 ORDER BY created_at DESC LIMIT 1
+    </select>
+
+    <select id="selectByAssessorId" resultMap="AssessmentResultMap">
+        SELECT * FROM loss_assessment WHERE assessor_id = #{assessorId} AND deleted = 0 ORDER BY created_at DESC
+    </select>
+
+    <insert id="insertLossItem" parameterType="com.insurance.claim.entity.LossItem" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO loss_item (
+            assessment_id, claim_id, item_type, item_category, item_code, item_name, item_description,
+            quantity, unit, guide_price, unit_price, total_amount, price_region,
+            exceed_guide_price, exceed_ratio, remark, deleted, created_at, updated_at
+        ) VALUES (
+            #{assessmentId}, #{claimId}, #{itemType}, #{itemCategory}, #{itemCode}, #{itemName}, #{itemDescription},
+            #{quantity}, #{unit}, #{guidePrice}, #{unitPrice}, #{totalAmount}, #{priceRegion},
+            #{exceedGuidePrice}, #{exceedRatio}, #{remark}, 0, NOW(), NOW()
+        )
+    </insert>
+
+    <insert id="batchInsertLossItems" parameterType="java.util.List">
+        INSERT INTO loss_item (
+            assessment_id, claim_id, item_type, item_category, item_code, item_name, item_description,
+            quantity, unit, guide_price, unit_price, total_amount, price_region,
+            exceed_guide_price, exceed_ratio, remark, deleted, created_at, updated_at
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.assessmentId}, #{item.claimId}, #{item.itemType}, #{item.itemCategory},
+                #{item.itemCode}, #{item.itemName}, #{item.itemDescription}, #{item.quantity},
+                #{item.unit}, #{item.guidePrice}, #{item.unitPrice}, #{item.totalAmount},
+                #{item.priceRegion}, #{item.exceedGuidePrice}, #{item.exceedRatio},
+                #{item.remark}, 0, NOW(), NOW()
+            )
+        </foreach>
+    </insert>
+
+    <select id="selectLossItemsByAssessmentId" resultMap="LossItemResultMap">
+        SELECT * FROM loss_item WHERE assessment_id = #{assessmentId} AND deleted = 0 ORDER BY item_type, id
+    </select>
+
+    <update id="updateLossItem" parameterType="com.insurance.claim.entity.LossItem">
+        UPDATE loss_item
+        <set>
+            <if test="itemName != null">item_name = #{itemName},</if>
+            <if test="quantity != null">quantity = #{quantity},</if>
+            <if test="unitPrice != null">unit_price = #{unitPrice},</if>
+            <if test="totalAmount != null">total_amount = #{totalAmount},</if>
+            <if test="exceedGuidePrice != null">exceed_guide_price = #{exceedGuidePrice},</if>
+            <if test="exceedRatio != null">exceed_ratio = #{exceedRatio},</if>
+            updated_at = NOW()
+        </set>
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="deleteLossItemsByAssessmentId">
+        UPDATE loss_item SET deleted = 1, updated_at = NOW() WHERE assessment_id = #{assessmentId}
+    </update>
+</mapper>
