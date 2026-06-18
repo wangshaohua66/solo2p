@@ -417,6 +417,7 @@ public class ChemicalBatchService : IChemicalBatchService
         var batch = await _batchRepo.GetQueryable()
             .Include(b => b.Chemical)
             .Include(b => b.ProcessRecords)
+            .Include(b => b.TransportRecord)
             .FirstOrDefaultAsync(b => b.Id == batchId) ??
             throw new KeyNotFoundException($"批次不存在: {batchId}");
 
@@ -424,20 +425,8 @@ public class ChemicalBatchService : IChemicalBatchService
             p => p.ChemicalBatchId == batchId,
             q => q.OrderBy(p => p.Stage));
 
-        var currentStage = processRecords.Any()
-            ? (int)processRecords.Max(p => p.Stage)
-            : (int)ProcessStage.BatchCreated;
-
-        var currentStageName = processRecords
-            .Where(p => (int)p.Stage == currentStage)
-            .OrderByDescending(p => p.CreatedAt)
-            .Select(p => p.StageName)
-            .FirstOrDefault();
-
-        if (string.IsNullOrWhiteSpace(currentStageName))
-        {
-            currentStageName = ProcessStageNames.GetStageName((ProcessStage)currentStage);
-        }
+        var currentStage = DetermineCurrentStage(batch);
+        var currentStageName = ProcessStageNames.GetStageName(currentStage);
 
         return new BatchLifeCycleDto
         {
@@ -446,10 +435,40 @@ public class ChemicalBatchService : IChemicalBatchService
             ChemicalName = batch.Chemical.Name,
             Quantity = batch.Quantity,
             ProcessRecords = _mapper.Map<List<ProcessRecordDto>>(processRecords),
-            CurrentStage = currentStage,
+            CurrentStage = (int)currentStage,
             CurrentStageName = currentStageName,
             IsCompleted = batch.Status == BatchStatus.Delivered || batch.Status == BatchStatus.Cancelled
         };
+    }
+
+    private static ProcessStage DetermineCurrentStage(ChemicalBatch batch)
+    {
+        if (batch.Status == BatchStatus.Cancelled)
+        {
+            var maxRecordStage = batch.ProcessRecords?.Any() == true
+                ? batch.ProcessRecords.Max(p => p.Stage)
+                : ProcessStage.BatchCreated;
+            return maxRecordStage;
+        }
+
+        if (batch.Status == BatchStatus.OutForDelivery && batch.TransportRecord != null)
+        {
+            var transportStatus = batch.TransportRecord.Status;
+            if (transportStatus == TransportStatus.InTransit ||
+                transportStatus == TransportStatus.Deviating ||
+                transportStatus == TransportStatus.Delivered ||
+                transportStatus == TransportStatus.Completed)
+            {
+                return ProcessStage.InTransit;
+            }
+        }
+
+        if (batch.Status == BatchStatus.Delivered)
+        {
+            return ProcessStage.Delivered;
+        }
+
+        return ProcessStageNames.GetStageFromBatchStatus(batch.Status);
     }
 
     public async Task<List<ProcessRecordDto>> GetBatchProcessRecordsAsync(int batchId)

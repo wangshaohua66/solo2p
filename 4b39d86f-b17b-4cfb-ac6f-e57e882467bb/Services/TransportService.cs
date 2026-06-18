@@ -187,7 +187,7 @@ public class TransportService : ITransportService
             DriverName = transport.DriverName,
             ChemicalName = transport.ChemicalBatch.Chemical.Name,
             Status = (int)transport.Status,
-            StatusName = transport.Status.ToString(),
+            StatusName = TransportStatusNames.GetStatusName(transport.Status),
             CurrentLongitude = latestTrajectory?.Longitude ?? transport.StartLongitude,
             CurrentLatitude = latestTrajectory?.Latitude ?? transport.StartLatitude,
             CurrentSpeed = latestTrajectory?.Speed ?? 0,

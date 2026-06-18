@@ -25,6 +25,18 @@ public static class ProcessStageNames
         { ProcessStatus.Cancelled, "已取消" }
     };
 
+    private static readonly Dictionary<BatchStatus, ProcessStage> BatchStatusToStageMap = new()
+    {
+        { BatchStatus.RawMaterial, ProcessStage.BatchCreated },
+        { BatchStatus.InProduction, ProcessStage.RawMaterialInbound },
+        { BatchStatus.Inspecting, ProcessStage.ProductionProcessing },
+        { BatchStatus.Qualified, ProcessStage.FinishedInspection },
+        { BatchStatus.Unqualified, ProcessStage.FinishedInspection },
+        { BatchStatus.InStorage, ProcessStage.InStorage },
+        { BatchStatus.OutForDelivery, ProcessStage.OutboundReview },
+        { BatchStatus.Delivered, ProcessStage.Delivered }
+    };
+
     public static string GetStageName(ProcessStage stage)
         => StageNameMap.TryGetValue(stage, out var name) ? name : stage.ToString();
 
@@ -33,4 +45,27 @@ public static class ProcessStageNames
 
     public static string GetStageName(int stage)
         => GetStageName((ProcessStage)stage);
+
+    public static ProcessStage GetStageFromBatchStatus(BatchStatus batchStatus)
+        => BatchStatusToStageMap.TryGetValue(batchStatus, out var stage) ? stage : ProcessStage.BatchCreated;
+}
+
+public static class TransportStatusNames
+{
+    private static readonly Dictionary<TransportStatus, string> StatusNameMap = new()
+    {
+        { TransportStatus.Pending, "待发运" },
+        { TransportStatus.Loading, "装车中" },
+        { TransportStatus.InTransit, "运输在途" },
+        { TransportStatus.Deviating, "路线偏离" },
+        { TransportStatus.Delivered, "已送达" },
+        { TransportStatus.Completed, "已完成" },
+        { TransportStatus.Cancelled, "已取消" }
+    };
+
+    public static string GetStatusName(TransportStatus status)
+        => StatusNameMap.TryGetValue(status, out var name) ? name : status.ToString();
+
+    public static string GetStatusName(int status)
+        => GetStatusName((TransportStatus)status);
 }
