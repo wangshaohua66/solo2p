@@ -158,22 +158,31 @@ App.registerPage('overview', {
 
 function adaptStations(raw) {
   if (!raw || !Array.isArray(raw)) return [];
-  return raw.map(s => ({
-    id: s.id || s.Id || s._id,
-    name: s.name || s.Name || s.stationName,
-    type: (s.type || s.Type || '').toLowerCase() || (s.stationType || '').toLowerCase(),
-    level: s.currentWaterLevel ?? s.CurrentWaterLevel ?? s.level ?? 0,
-    warningLevel: s.warningLevel ?? s.WarningLevel ?? s.warningLevel ?? 0,
-    dangerLevel: s.dangerLevel ?? s.DangerLevel ?? s.dangerLevel ?? 0,
-    inflow: s.inflow ?? s.Inflow ?? s.inflowRate ?? 0,
-    rainfall: s.rainfall ?? s.Rainfall ?? s.cumulativeRainfall ?? 0,
-    status: s.status || s.Status || 'normal',
-    location: {
-      x: s.location?.x ?? s.longitude ?? s.Longitude ?? 50,
-      y: s.location?.y ?? s.latitude ?? s.Latitude ?? 50
-    },
-    updateTime: s.lastUpdate || s.LastUpdate || s.timestamp || Date.now()
-  }));
+  return raw.map(s => {
+    const lon = s.location?.x ?? s.longitude ?? s.Longitude ?? 119.5;
+    const lat = s.location?.y ?? s.latitude ?? s.Latitude ?? 30.4;
+    const xy = lonLatToSvg(lon, lat);
+    return {
+      id: s.id || s.Id || s._id,
+      name: s.name || s.Name || s.stationName,
+      type: (s.type || s.Type || '').toLowerCase() || (s.stationType || '').toLowerCase(),
+      level: s.currentWaterLevel ?? s.CurrentWaterLevel ?? s.level ?? 0,
+      warningLevel: s.warningLevel ?? s.WarningLevel ?? s.warningLevel ?? 0,
+      dangerLevel: s.dangerLevel ?? s.DangerLevel ?? s.dangerLevel ?? 0,
+      inflow: s.inflow ?? s.Inflow ?? s.inflowRate ?? 0,
+      rainfall: s.rainfall ?? s.Rainfall ?? s.cumulativeRainfall ?? 0,
+      status: s.status || s.Status || 'normal',
+      location: { x: xy.x, y: xy.y, lon, lat },
+      updateTime: s.lastUpdate || s.LastUpdate || s.timestamp || Date.now()
+    };
+  });
+}
+
+const SVG_BOUNDS = { minLon: 118.7, maxLon: 120.4, minLat: 29.7, maxLat: 31.1, width: 100, height: 56 };
+function lonLatToSvg(lon, lat) {
+  const x = ((lon - SVG_BOUNDS.minLon) / (SVG_BOUNDS.maxLon - SVG_BOUNDS.minLon)) * SVG_BOUNDS.width;
+  const y = SVG_BOUNDS.height - ((lat - SVG_BOUNDS.minLat) / (SVG_BOUNDS.maxLat - SVG_BOUNDS.minLat)) * SVG_BOUNDS.height;
+  return { x: Math.max(3, Math.min(SVG_BOUNDS.width - 3, x)), y: Math.max(3, Math.min(SVG_BOUNDS.height - 3, y)) };
 }
 
 function computeOverview(res, warningsRaw) {

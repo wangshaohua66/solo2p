@@ -15,7 +15,32 @@ public class EmergencyPlanDto
     public DateTime? ApprovedAt { get; set; }
     public string? Description { get; set; }
     public List<ResponseLevelConfigDto> Levels { get; set; } = new();
+    public List<string> GeneralMeasures { get; set; } = new();
+    public List<EmergencyContactDto> EmergencyContacts { get; set; } = new();
     public DateTime UpdatedAt { get; set; }
+}
+
+public class EmergencyPlanCreateDto
+{
+    public string ReservoirId { get; set; } = string.Empty;
+    public string PlanName { get; set; } = string.Empty;
+    public string Version { get; set; } = string.Empty;
+    public List<ResponseLevelConfigDto> Levels { get; set; } = new();
+    public List<string> GeneralMeasures { get; set; } = new();
+    public List<EmergencyContactDto> EmergencyContacts { get; set; } = new();
+    public string? Description { get; set; }
+    public string CreatedBy { get; set; } = string.Empty;
+}
+
+public class EmergencyPlanUpdateDto
+{
+    public string PlanName { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public List<ResponseLevelConfigDto> Levels { get; set; } = new();
+    public List<string> GeneralMeasures { get; set; } = new();
+    public List<EmergencyContactDto> EmergencyContacts { get; set; } = new();
+    public string? Description { get; set; }
+    public string? ApprovedBy { get; set; }
 }
 
 public class ResponseLevelConfigDto
@@ -38,6 +63,14 @@ public class ResponseMeasureDto
     public string Content { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
     public int Order { get; set; }
+}
+
+public class EmergencyContactDto
+{
+    public string Name { get; set; } = string.Empty;
+    public string Role { get; set; } = string.Empty;
+    public string Phone { get; set; } = string.Empty;
+    public string? Department { get; set; }
 }
 
 public class PlanVersionInfo

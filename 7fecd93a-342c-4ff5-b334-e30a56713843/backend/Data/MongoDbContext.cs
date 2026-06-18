@@ -14,6 +14,7 @@ public interface IMongoDbContext
     IMongoCollection<EmergencyPlan> EmergencyPlans { get; }
     IMongoCollection<Contact> Contacts { get; }
     IMongoCollection<NotificationLog> NotificationLogs { get; }
+    IMongoCollection<Levee> Levees { get; }
     Task CreateIndexesAsync(CancellationToken cancellationToken = default);
 }
 
@@ -45,6 +46,7 @@ public class MongoDbContext : IMongoDbContext
     public IMongoCollection<EmergencyPlan> EmergencyPlans => _database.GetCollection<EmergencyPlan>("emergencyPlans");
     public IMongoCollection<Contact> Contacts => _database.GetCollection<Contact>("contacts");
     public IMongoCollection<NotificationLog> NotificationLogs => _database.GetCollection<NotificationLog>("notificationLogs");
+    public IMongoCollection<Levee> Levees => _database.GetCollection<Levee>("levees");
 
     public async Task CreateIndexesAsync(CancellationToken cancellationToken = default)
     {
@@ -89,5 +91,14 @@ public class MongoDbContext : IMongoDbContext
                 new CreateIndexOptions { Name = "IX_Notification_Status", Background = true })
         };
         await NotificationLogs.Indexes.CreateManyAsync(notificationIndexModels, cancellationToken);
+
+        var leveeIndexModels = new List<CreateIndexModel<Levee>>
+        {
+            new(Builders<Levee>.IndexKeys.Ascending(l => l.Code),
+                new CreateIndexOptions { Name = "IX_Levee_Code_Unique", Unique = true, Background = true }),
+            new(Builders<Levee>.IndexKeys.Ascending(l => l.Status),
+                new CreateIndexOptions { Name = "IX_Levee_Status", Background = true })
+        };
+        await Levees.Indexes.CreateManyAsync(leveeIndexModels, cancellationToken);
     }
 }

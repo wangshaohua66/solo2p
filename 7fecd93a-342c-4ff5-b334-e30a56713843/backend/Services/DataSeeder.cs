@@ -32,6 +32,7 @@ public class DataSeeder : IDataSeeder
         var emergencyPlans = SeedEmergencyPlans(reservoirs);
         var inspectionTasks = SeedInspectionTasks(contacts);
         var dispatchOrders = await SeedDispatchOrdersAsync(gates, contacts, reservoirs);
+        SeedLevees();
         await SeedInitialReadingsAsync(reservoirs, rainfallStations);
     }
 
@@ -525,5 +526,167 @@ public class DataSeeder : IDataSeeder
 
         if (readings.Count > 0)
             await _db.WaterLevelReadings.InsertManyAsync(readings);
+    }
+
+    private List<Levee> SeedLevees()
+    {
+        var levees = new List<Levee>
+        {
+            new()
+            {
+                Code = "LV001",
+                Name = "长江北岸大堤",
+                RiverName = "长江",
+                StartPoint = "三江口",
+                EndPoint = "鹅鼻嘴",
+                LengthKm = 22.5,
+                DesignLevel = "1级",
+                DesignWaterLevel = 8.5,
+                GuaranteeWaterLevel = 7.8,
+                WarningWaterLevel = 6.5,
+                Material = "土堤",
+                Status = "正常",
+                ResponsibleUnit = "长江河道管理局",
+                ResponsiblePerson = "王建国",
+                ContactPhone = "13800138001",
+                Description = "长江干流重要防洪堤段，保护沿江工业区和居民区"
+            },
+            new()
+            {
+                Code = "LV002",
+                Name = "淮河南岸堤防",
+                RiverName = "淮河",
+                StartPoint = "蚌埠闸",
+                EndPoint = "五河县城",
+                LengthKm = 18.3,
+                DesignLevel = "2级",
+                DesignWaterLevel = 22.0,
+                GuaranteeWaterLevel = 20.5,
+                WarningWaterLevel = 18.5,
+                Material = "混凝土",
+                Status = "正常",
+                ResponsibleUnit = "淮河河道管理处",
+                ResponsiblePerson = "李明辉",
+                ContactPhone = "13800138002",
+                Description = "淮河中游重点堤防，保护蚌埠市及周边农田"
+            },
+            new()
+            {
+                Code = "LV003",
+                Name = "黄河左岸防洪堤",
+                RiverName = "黄河",
+                StartPoint = "花园口",
+                EndPoint = "东坝头",
+                LengthKm = 24.8,
+                DesignLevel = "1级",
+                DesignWaterLevel = 96.0,
+                GuaranteeWaterLevel = 94.5,
+                WarningWaterLevel = 92.0,
+                Material = "砌石",
+                Status = "维护中",
+                ResponsibleUnit = "黄河水利委员会",
+                ResponsiblePerson = "张抗洪",
+                ContactPhone = "13800138003",
+                Description = "黄河下游标志性堤段，正在进行除险加固工程"
+            },
+            new()
+            {
+                Code = "LV004",
+                Name = "松花江右岸大堤",
+                RiverName = "松花江",
+                StartPoint = "哈尔滨市区",
+                EndPoint = "呼兰河口",
+                LengthKm = 16.7,
+                DesignLevel = "2级",
+                DesignWaterLevel = 120.5,
+                GuaranteeWaterLevel = 119.0,
+                WarningWaterLevel = 117.5,
+                Material = "复合材料",
+                Status = "正常",
+                ResponsibleUnit = "松辽水利委员会",
+                ResponsiblePerson = "赵北防",
+                ContactPhone = "13800138004",
+                Description = "哈尔滨市城区防洪屏障，采用新型复合防渗材料"
+            },
+            new()
+            {
+                Code = "LV005",
+                Name = "珠江三角洲海堤",
+                RiverName = "珠江",
+                StartPoint = "虎门炮台",
+                EndPoint = "南沙港",
+                LengthKm = 20.1,
+                DesignLevel = "3级",
+                DesignWaterLevel = 4.2,
+                GuaranteeWaterLevel = 3.5,
+                WarningWaterLevel = 2.8,
+                Material = "混凝土",
+                Status = "正常",
+                ResponsibleUnit = "珠江水利委员会",
+                ResponsiblePerson = "陈海防",
+                ContactPhone = "13800138005",
+                Description = "珠江口沿海防潮堤，同时抵御风暴潮和洪水"
+            },
+            new()
+            {
+                Code = "LV006",
+                Name = "闽江左岸防洪堤",
+                RiverName = "闽江",
+                StartPoint = "福州市区",
+                EndPoint = "马尾港",
+                LengthKm = 15.6,
+                DesignLevel = "3级",
+                DesignWaterLevel = 10.8,
+                GuaranteeWaterLevel = 9.5,
+                WarningWaterLevel = 8.0,
+                Material = "土堤",
+                Status = "隐患",
+                ResponsibleUnit = "闽江河道管理局",
+                ResponsiblePerson = "林闽江",
+                ContactPhone = "13800138006",
+                Description = "福州市城市防洪堤，局部段存在渗漏隐患，已列入整治计划"
+            },
+            new()
+            {
+                Code = "LV007",
+                Name = "赣江右岸大堤",
+                RiverName = "赣江",
+                StartPoint = "南昌大桥",
+                EndPoint = "吴城镇",
+                LengthKm = 23.4,
+                DesignLevel = "2级",
+                DesignWaterLevel = 24.5,
+                GuaranteeWaterLevel = 23.0,
+                WarningWaterLevel = 21.5,
+                Material = "砌石",
+                Status = "正常",
+                ResponsibleUnit = "赣江河道管理处",
+                ResponsiblePerson = "刘赣水",
+                ContactPhone = "13800138007",
+                Description = "南昌市防洪重点堤段，保护南昌主城区及赣抚平原"
+            },
+            new()
+            {
+                Code = "LV008",
+                Name = "汉江东岸堤防",
+                RiverName = "汉江",
+                StartPoint = "丹江口坝下",
+                EndPoint = "襄樊市区",
+                LengthKm = 19.2,
+                DesignLevel = "4级",
+                DesignWaterLevel = 72.0,
+                GuaranteeWaterLevel = 70.0,
+                WarningWaterLevel = 68.0,
+                Material = "复合材料",
+                Status = "损毁",
+                ResponsibleUnit = "汉江河道管理局",
+                ResponsiblePerson = "周汉堤",
+                ContactPhone = "13800138008",
+                Description = "2023年汛期局部冲毁，正在组织抢险修复"
+            }
+        };
+
+        _db.Levees.InsertMany(levees);
+        return levees;
     }
 }

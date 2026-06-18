@@ -27,15 +27,28 @@ public class DataAggregationService : IDataAggregationService
         var reservoirs = await _db.Reservoirs.Find(_ => true).ToListAsync();
         var stations = await _db.RainfallStations.Find(_ => true).ToListAsync();
 
+        var reservoirIds = reservoirs.Select(r => r.Id).ToList();
+        var latestReadingsDict = new Dictionary<string, WaterLevelReading>();
+
+        if (reservoirIds.Count > 0)
+        {
+            var readingsFilter = Builders<WaterLevelReading>.Filter.In(r => r.StationId, reservoirIds);
+            var allReadings = await _db.WaterLevelReadings
+                .Find(readingsFilter)
+                .SortByDescending(r => r.Timestamp)
+                .ToListAsync();
+
+            latestReadingsDict = allReadings
+                .GroupBy(r => r.StationId)
+                .ToDictionary(g => g.Key, g => g.First());
+        }
+
         var warnings = new List<StationWarningDto>();
         int warningCount = 0, dangerCount = 0, normalCount = 0;
 
         foreach (var res in reservoirs)
         {
-            var latest = await _db.WaterLevelReadings
-                .Find(r => r.StationId == res.Id)
-                .SortByDescending(r => r.Timestamp)
-                .FirstOrDefaultAsync();
+            latestReadingsDict.TryGetValue(res.Id, out var latest);
 
             if (latest?.WaterLevel.HasValue == true)
             {
@@ -89,14 +102,32 @@ public class DataAggregationService : IDataAggregationService
     public async Task<List<StationOverviewDto>> GetOverviewAsync()
     {
         var reservoirs = await _db.Reservoirs.Find(_ => true).ToListAsync();
+        var rainfallStations = await _db.RainfallStations.Find(_ => true).ToListAsync();
+
+        var allStationIds = reservoirs.Select(r => r.Id)
+            .Concat(rainfallStations.Select(s => s.Id))
+            .ToList();
+
+        var latestReadingsDict = new Dictionary<string, WaterLevelReading>();
+
+        if (allStationIds.Count > 0)
+        {
+            var readingsFilter = Builders<WaterLevelReading>.Filter.In(r => r.StationId, allStationIds);
+            var allReadings = await _db.WaterLevelReadings
+                .Find(readingsFilter)
+                .SortByDescending(r => r.Timestamp)
+                .ToListAsync();
+
+            latestReadingsDict = allReadings
+                .GroupBy(r => r.StationId)
+                .ToDictionary(g => g.Key, g => g.First());
+        }
+
         var result = new List<StationOverviewDto>();
 
         foreach (var res in reservoirs)
         {
-            var latest = await _db.WaterLevelReadings
-                .Find(r => r.StationId == res.Id && r.StationType == "reservoir")
-                .SortByDescending(r => r.Timestamp)
-                .FirstOrDefaultAsync();
+            latestReadingsDict.TryGetValue(res.Id, out var latest);
 
             var dto = new StationOverviewDto
             {
@@ -129,13 +160,9 @@ public class DataAggregationService : IDataAggregationService
             result.Add(dto);
         }
 
-        var rainfallStations = await _db.RainfallStations.Find(_ => true).ToListAsync();
         foreach (var stn in rainfallStations)
         {
-            var latest = await _db.WaterLevelReadings
-                .Find(r => r.StationId == stn.Id && r.StationType == "rainfall")
-                .SortByDescending(r => r.Timestamp)
-                .FirstOrDefaultAsync();
+            latestReadingsDict.TryGetValue(stn.Id, out var latest);
 
             var dto = new StationOverviewDto
             {

@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "wY/LXFhZfl24qFSdluEOQrx6KwvCTOxGHsXYkAeDGQA=",
+  "Hash": "uVBVknH+UrmIjKrX+FN4N71p2GuV3WuqliSv8XUOtHQ=",
   "Source": "WaterManagement.API",
   "BasePath": "_content/WaterManagement.API",
   "Mode": "Default",
@@ -74,25 +74,6 @@
       "OriginalItemSpec": "wwwroot/js/app.js"
     },
     {
-      "Identity": "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/wwwroot/js/db.js",
-      "SourceId": "WaterManagement.API",
-      "SourceType": "Discovered",
-      "ContentRoot": "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/wwwroot/",
-      "BasePath": "_content/WaterManagement.API",
-      "RelativePath": "js/db.js",
-      "AssetKind": "All",
-      "AssetMode": "All",
-      "AssetRole": "Primary",
-      "AssetMergeBehavior": "PreferTarget",
-      "AssetMergeSource": "",
-      "RelatedAsset": "",
-      "AssetTraitName": "",
-      "AssetTraitValue": "",
-      "CopyToOutputDirectory": "Never",
-      "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot/js/db.js"
-    },
-    {
       "Identity": "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/wwwroot/js/pages/dispatch.js",
       "SourceId": "WaterManagement.API",
       "SourceType": "Discovered",
@@ -148,6 +129,25 @@
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
       "OriginalItemSpec": "wwwroot/js/pages/inspection.js"
+    },
+    {
+      "Identity": "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/wwwroot/js/pages/levee.js",
+      "SourceId": "WaterManagement.API",
+      "SourceType": "Discovered",
+      "ContentRoot": "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/wwwroot/",
+      "BasePath": "_content/WaterManagement.API",
+      "RelativePath": "js/pages/levee.js",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "PreferTarget",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot/js/pages/levee.js"
     },
     {
       "Identity": "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/wwwroot/js/pages/overview.js",

@@ -13,10 +13,6 @@
       "PackagePath": "staticwebassets/js/app.js"
     },
     {
-      "Id": "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/wwwroot/js/db.js",
-      "PackagePath": "staticwebassets/js/db.js"
-    },
-    {
       "Id": "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/wwwroot/js/pages/dispatch.js",
       "PackagePath": "staticwebassets/js/pages/dispatch.js"
     },
@@ -27,6 +23,10 @@
     {
       "Id": "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/wwwroot/js/pages/inspection.js",
       "PackagePath": "staticwebassets/js/pages/inspection.js"
+    },
+    {
+      "Id": "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/wwwroot/js/pages/levee.js",
+      "PackagePath": "staticwebassets/js/pages/levee.js"
     },
     {
       "Id": "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/wwwroot/js/pages/overview.js",

@@ -160,6 +160,25 @@ const api = {
     }
   },
 
+  /* ====== LeveeController ====== */
+  levee: {
+    async list(params) {
+      return api._request('GET', '/levee', null, params);
+    },
+    async get(id) {
+      return api._request('GET', '/levee/' + id);
+    },
+    async create(d) {
+      return api._request('POST', '/levee', d);
+    },
+    async update(id, d) {
+      return api._request('PUT', '/levee/' + id, d);
+    },
+    async remove(id) {
+      return api._request('DELETE', '/levee/' + id);
+    }
+  },
+
   /* ====== ReportController ====== */
   report: {
     async levelCurve(reservoirId, range) {

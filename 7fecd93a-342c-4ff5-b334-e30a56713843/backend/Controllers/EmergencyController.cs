@@ -390,6 +390,257 @@ public class EmergencyController : ControllerBase
         return diffs;
     }
 
+    [HttpPost("plans")]
+    [SwaggerOperation(Summary = "新建预案", Description = "创建新的防汛应急预案")]
+    [ProducesResponseType(typeof(ApiResponse<EmergencyPlanDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse<EmergencyPlanDto>>> CreatePlan(
+        [FromBody] EmergencyPlanCreateDto request)
+    {
+        if (string.IsNullOrEmpty(request.ReservoirId))
+            return BadRequest(ApiResponse.Fail("VALIDATION_ERROR", "水库ID不能为空",
+                new Dictionary<string, string> { ["reservoirId"] = "水库ID不能为空" }));
+
+        if (string.IsNullOrEmpty(request.PlanName))
+            return BadRequest(ApiResponse.Fail("VALIDATION_ERROR", "预案名称不能为空",
+                new Dictionary<string, string> { ["planName"] = "预案名称不能为空" }));
+
+        var reservoir = await _db.Reservoirs.Find(r => r.Id == request.ReservoirId).FirstOrDefaultAsync();
+        if (reservoir == null)
+            return NotFound(ApiResponse.Fail("NOT_FOUND", "水库不存在"));
+
+        var existingPlans = await _db.EmergencyPlans
+            .Find(p => p.ReservoirId == request.ReservoirId)
+            .SortByDescending(p => p.VersionNumber)
+            .ToListAsync();
+
+        var maxVersionNumber = existingPlans.Count > 0 ? existingPlans.Max(p => p.VersionNumber) : 0;
+        var newVersionNumber = maxVersionNumber + 1;
+
+        var plan = new EmergencyPlan
+        {
+            ReservoirId = request.ReservoirId,
+            ReservoirName = reservoir.Name,
+            PlanName = request.PlanName,
+            Version = string.IsNullOrEmpty(request.Version) ? $"1.{newVersionNumber}" : request.Version,
+            VersionNumber = newVersionNumber,
+            IsCurrent = true,
+            Status = "draft",
+            Description = request.Description,
+            Levels = request.Levels?.Select(l => new ResponseLevelConfig
+            {
+                Level = l.Level,
+                LevelName = l.LevelName,
+                TriggerWaterLevel = l.TriggerWaterLevel,
+                TriggerFlow = l.TriggerFlow,
+                TriggerRainfall = l.TriggerRainfall,
+                Color = l.Color,
+                Description = l.Description,
+                Measures = l.Measures?.Select(m => new ResponseMeasure
+                {
+                    MeasureId = string.IsNullOrEmpty(m.MeasureId) ? Guid.NewGuid().ToString("N") : m.MeasureId,
+                    Title = m.Title,
+                    Content = m.Content,
+                    Category = m.Category,
+                    Order = m.Order
+                }).ToList() ?? new List<ResponseMeasure>(),
+                ResponsibleRoles = l.ResponsibleRoles ?? new List<string>()
+            }).ToList() ?? new List<ResponseLevelConfig>(),
+            GeneralMeasures = request.GeneralMeasures ?? new List<string>(),
+            EmergencyContacts = request.EmergencyContacts?.Select(c => new EmergencyContact
+            {
+                Name = c.Name,
+                Role = c.Role,
+                Phone = c.Phone,
+                Department = c.Department
+            }).ToList() ?? new List<EmergencyContact>(),
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        var updateFilter = Builders<EmergencyPlan>.Filter.Eq(p => p.ReservoirId, request.ReservoirId);
+        var update = Builders<EmergencyPlan>.Update.Set(p => p.IsCurrent, false);
+        await _db.EmergencyPlans.UpdateManyAsync(updateFilter, update);
+
+        await _db.EmergencyPlans.InsertOneAsync(plan);
+
+        return Ok(ApiResponse<EmergencyPlanDto>.Ok(MapPlanToDto(plan)));
+    }
+
+    [HttpPut("plans/{id}")]
+    [SwaggerOperation(Summary = "编辑预案", Description = "更新防汛应急预案，变更版本号时创建新版本")]
+    [ProducesResponseType(typeof(ApiResponse<EmergencyPlanDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ApiResponse<EmergencyPlanDto>>> UpdatePlan(
+        string id, [FromBody] EmergencyPlanUpdateDto request)
+    {
+        var existingPlan = await _db.EmergencyPlans.Find(p => p.Id == id).FirstOrDefaultAsync();
+        if (existingPlan == null)
+            return NotFound(ApiResponse.Fail("NOT_FOUND", "预案不存在"));
+
+        bool createNewVersion = false;
+        var reservoir = await _db.Reservoirs.Find(r => r.Id == existingPlan.ReservoirId).FirstOrDefaultAsync();
+        if (reservoir == null)
+            return NotFound(ApiResponse.Fail("NOT_FOUND", "关联水库不存在"));
+
+        if (!string.IsNullOrEmpty(request.Status) && request.Status != existingPlan.Status)
+        {
+            if (request.Status == "approved")
+                createNewVersion = true;
+        }
+
+        if (createNewVersion ||
+            (request.Levels != null && !AreLevelsEqual(existingPlan.Levels, request.Levels)) ||
+            (request.GeneralMeasures != null && !existingPlan.GeneralMeasures.SequenceEqual(request.GeneralMeasures)) ||
+            (request.EmergencyContacts != null && !AreContactsEqual(existingPlan.EmergencyContacts, request.EmergencyContacts)) ||
+            request.Description != existingPlan.Description ||
+            (!string.IsNullOrEmpty(request.PlanName) && request.PlanName != existingPlan.PlanName))
+        {
+            createNewVersion = true;
+        }
+
+        if (createNewVersion)
+        {
+            var siblingPlans = await _db.EmergencyPlans
+                .Find(p => p.ReservoirId == existingPlan.ReservoirId)
+                .SortByDescending(p => p.VersionNumber)
+                .ToListAsync();
+
+            var maxVersionNumber = siblingPlans.Count > 0 ? siblingPlans.Max(p => p.VersionNumber) : existingPlan.VersionNumber;
+            var newVersionNumber = maxVersionNumber + 1;
+
+            var newPlan = new EmergencyPlan
+            {
+                ReservoirId = existingPlan.ReservoirId,
+                ReservoirName = reservoir.Name,
+                PlanName = string.IsNullOrEmpty(request.PlanName) ? existingPlan.PlanName : request.PlanName,
+                Version = $"{newVersionNumber}.0",
+                VersionNumber = newVersionNumber,
+                IsCurrent = true,
+                Status = string.IsNullOrEmpty(request.Status) ? existingPlan.Status : request.Status,
+                ApprovedBy = request.ApprovedBy,
+                ApprovedAt = request.Status == "approved" ? DateTime.UtcNow : existingPlan.ApprovedAt,
+                Description = request.Description ?? existingPlan.Description,
+                Levels = request.Levels?.Select(l => new ResponseLevelConfig
+                {
+                    Level = l.Level,
+                    LevelName = l.LevelName,
+                    TriggerWaterLevel = l.TriggerWaterLevel,
+                    TriggerFlow = l.TriggerFlow,
+                    TriggerRainfall = l.TriggerRainfall,
+                    Color = l.Color,
+                    Description = l.Description,
+                    Measures = l.Measures?.Select(m => new ResponseMeasure
+                    {
+                        MeasureId = string.IsNullOrEmpty(m.MeasureId) ? Guid.NewGuid().ToString("N") : m.MeasureId,
+                        Title = m.Title,
+                        Content = m.Content,
+                        Category = m.Category,
+                        Order = m.Order
+                    }).ToList() ?? new List<ResponseMeasure>(),
+                    ResponsibleRoles = l.ResponsibleRoles ?? new List<string>()
+                }).ToList() ?? existingPlan.Levels,
+                GeneralMeasures = request.GeneralMeasures ?? existingPlan.GeneralMeasures,
+                EmergencyContacts = request.EmergencyContacts?.Select(c => new EmergencyContact
+                {
+                    Name = c.Name,
+                    Role = c.Role,
+                    Phone = c.Phone,
+                    Department = c.Department
+                }).ToList() ?? existingPlan.EmergencyContacts,
+                CreatedAt = existingPlan.CreatedAt,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            var updateFilter = Builders<EmergencyPlan>.Filter.Eq(p => p.ReservoirId, existingPlan.ReservoirId);
+            var update = Builders<EmergencyPlan>.Update.Set(p => p.IsCurrent, false);
+            await _db.EmergencyPlans.UpdateManyAsync(updateFilter, update);
+
+            await _db.EmergencyPlans.InsertOneAsync(newPlan);
+            return Ok(ApiResponse<EmergencyPlanDto>.Ok(MapPlanToDto(newPlan)));
+        }
+        else
+        {
+            var updateDefinition = Builders<EmergencyPlan>.Update
+                .Set(p => p.UpdatedAt, DateTime.UtcNow);
+
+            if (!string.IsNullOrEmpty(request.PlanName))
+                updateDefinition = updateDefinition.Set(p => p.PlanName, request.PlanName);
+            if (!string.IsNullOrEmpty(request.Status))
+                updateDefinition = updateDefinition.Set(p => p.Status, request.Status);
+            if (!string.IsNullOrEmpty(request.ApprovedBy))
+                updateDefinition = updateDefinition.Set(p => p.ApprovedBy, request.ApprovedBy);
+            if (request.Status == "approved")
+                updateDefinition = updateDefinition.Set(p => p.ApprovedAt, DateTime.UtcNow);
+
+            await _db.EmergencyPlans.UpdateOneAsync(p => p.Id == id, updateDefinition);
+
+            var updatedPlan = await _db.EmergencyPlans.Find(p => p.Id == id).FirstOrDefaultAsync();
+            return Ok(ApiResponse<EmergencyPlanDto>.Ok(MapPlanToDto(updatedPlan!)));
+        }
+    }
+
+    [HttpDelete("plans/{id}")]
+    [SwaggerOperation(Summary = "删除预案", Description = "删除指定的防汛应急预案")]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ApiResponse>> DeletePlan(string id)
+    {
+        var plan = await _db.EmergencyPlans.Find(p => p.Id == id).FirstOrDefaultAsync();
+        if (plan == null)
+            return NotFound(ApiResponse.Fail("NOT_FOUND", "预案不存在"));
+
+        await _db.EmergencyPlans.DeleteOneAsync(p => p.Id == id);
+
+        if (plan.IsCurrent)
+        {
+            var siblingPlans = await _db.EmergencyPlans
+                .Find(p => p.ReservoirId == plan.ReservoirId)
+                .SortByDescending(p => p.VersionNumber)
+                .ToListAsync();
+
+            if (siblingPlans.Count > 0)
+            {
+                var latestPlan = siblingPlans.First();
+                await _db.EmergencyPlans.UpdateOneAsync(
+                    p => p.Id == latestPlan.Id,
+                    Builders<EmergencyPlan>.Update.Set(p => p.IsCurrent, true));
+            }
+        }
+
+        return Ok(ApiResponse.Ok());
+    }
+
+    private static bool AreLevelsEqual(List<ResponseLevelConfig> existing, List<ResponseLevelConfigDto> updated)
+    {
+        if (existing.Count != updated.Count) return false;
+        for (int i = 0; i < existing.Count; i++)
+        {
+            var e = existing[i];
+            var u = updated[i];
+            if (e.Level != u.Level || e.LevelName != u.LevelName ||
+                Math.Abs(e.TriggerWaterLevel - u.TriggerWaterLevel) > 0.001 ||
+                e.TriggerFlow != u.TriggerFlow || e.TriggerRainfall != u.TriggerRainfall ||
+                e.Color != u.Color || e.Description != u.Description ||
+                !e.ResponsibleRoles.SequenceEqual(u.ResponsibleRoles))
+                return false;
+        }
+        return true;
+    }
+
+    private static bool AreContactsEqual(List<EmergencyContact> existing, List<EmergencyContactDto> updated)
+    {
+        if (existing.Count != updated.Count) return false;
+        for (int i = 0; i < existing.Count; i++)
+        {
+            var e = existing[i];
+            var u = updated[i];
+            if (e.Name != u.Name || e.Role != u.Role || e.Phone != u.Phone || e.Department != u.Department)
+                return false;
+        }
+        return true;
+    }
+
     private static EmergencyPlanDto MapPlanToDto(EmergencyPlan p)
     {
         return new EmergencyPlanDto
@@ -423,6 +674,14 @@ public class EmergencyController : ControllerBase
                     Order = m.Order
                 }).OrderBy(m => m.Order).ToList(),
                 ResponsibleRoles = l.ResponsibleRoles
+            }).ToList(),
+            GeneralMeasures = p.GeneralMeasures,
+            EmergencyContacts = p.EmergencyContacts.Select(c => new EmergencyContactDto
+            {
+                Name = c.Name,
+                Role = c.Role,
+                Phone = c.Phone,
+                Department = c.Department
             }).ToList()
         };
     }
