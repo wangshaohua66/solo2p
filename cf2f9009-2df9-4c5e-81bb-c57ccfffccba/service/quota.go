@@ -268,21 +268,6 @@ func (s *QuotaService) ApproveTransfer(ctx context.Context, transferID string, a
 	speciesCode := transfer.SpeciesCode
 	amount := transfer.Amount
 
-	var fromQuota model.VesselQuota
-	fromQueryFilter := bson.M{
-		"vessel_id":    transfer.FromVesselID,
-		"year":         year,
-		"species_code": speciesCode,
-	}
-	if err := s.vesselQuotaCol.FindOne(ctx, fromQueryFilter).Decode(&fromQuota); err != nil {
-		s.rejectTransfer(ctx, transferID, "Source vessel quota not found")
-		return errors.New("source vessel quota not found")
-	}
-	if fromQuota.RemainingQuota < amount {
-		s.rejectTransfer(ctx, transferID, "Source vessel has insufficient quota")
-		return errors.New("insufficient quota in source vessel")
-	}
-
 	session, err := config.DB.Client.StartSession()
 	if err != nil {
 		return err
@@ -290,6 +275,16 @@ func (s *QuotaService) ApproveTransfer(ctx context.Context, transferID string, a
 	defer session.EndSession(ctx)
 
 	_, err = session.WithTransaction(ctx, func(sessCtx context.Context) (interface{}, error) {
+		var fromQuota model.VesselQuota
+		fromQueryFilter := bson.M{
+			"vessel_id":    transfer.FromVesselID,
+			"year":         year,
+			"species_code": speciesCode,
+		}
+		if err := s.vesselQuotaCol.FindOne(sessCtx, fromQueryFilter).Decode(&fromQuota); err != nil {
+			return nil, errors.New("source vessel quota not found")
+		}
+
 		if err := s.approveTransferCore(sessCtx, transferID, transfer.FromVesselID, transfer.ToVesselID, fromQuota.ID, year, speciesCode, amount, approvedBy, remark); err != nil {
 			return nil, err
 		}
@@ -305,7 +300,8 @@ func (s *QuotaService) ApproveTransfer(ctx context.Context, transferID string, a
 
 func (s *QuotaService) approveTransferCore(ctx context.Context, transferID, fromVesselID, toVesselID, fromQuotaID string, year int, speciesCode string, amount float64, approvedBy, remark string) error {
 	fromDeductFilter := bson.M{
-		"_id": fromQuotaID,
+		"_id":             fromQuotaID,
+		"remaining_quota": bson.M{"$gte": amount},
 	}
 	fromUpdate := bson.M{
 		"$inc": bson.M{
@@ -319,7 +315,7 @@ func (s *QuotaService) approveTransferCore(ctx context.Context, transferID, from
 		return err
 	}
 	if fromResult.MatchedCount == 0 {
-		return errors.New("source vessel quota document not found")
+		return errors.New("insufficient quota in source vessel")
 	}
 
 	toFilter := bson.M{
