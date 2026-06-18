@@ -161,18 +161,33 @@ public class AlertService : IAlertService
         var nearExpiryDays = _config.GetValue<int>("Alert:NearExpiryDays", 30);
         var overstockThreshold = _config.GetValue<decimal>("Alert:InventoryOverstockThreshold", 0.9M);
         var lowStockThreshold = _config.GetValue<decimal>("Alert:InventoryLowStockThreshold", 0.1M);
+        var now = DateTime.UtcNow;
+        var expiryThreshold = now.AddDays(nearExpiryDays);
 
-        var inventories = await _inventoryRepo.GetQueryable()
+        var alertInventories = await _inventoryRepo.GetQueryable()
             .Include(i => i.Enterprise)
             .Include(i => i.Chemical)
             .Include(i => i.Warehouse)
+            .Where(i =>
+                (i.MaxCapacity > 0 && i.Quantity / i.MaxCapacity >= overstockThreshold && !i.HasOverstockAlert) ||
+                (i.Quantity <= i.MinSafeQuantity && !i.HasLowStockAlert) ||
+                (i.EarliestExpiryDate.HasValue && i.EarliestExpiryDate.Value <= expiryThreshold && !i.HasExpiryAlert) ||
+                (i.MaxCapacity > 0 && i.Quantity / i.MaxCapacity < overstockThreshold && i.HasOverstockAlert) ||
+                (i.Quantity > i.MinSafeQuantity && i.HasLowStockAlert) ||
+                (i.EarliestExpiryDate.HasValue && i.EarliestExpiryDate.Value > expiryThreshold && i.HasExpiryAlert))
+            .Take(5000)
             .ToListAsync();
 
-        var alertDtos = new List<AlertCreateDto>();
+        if (!alertInventories.Any())
+            return;
 
-        foreach (var inventory in inventories)
+        var alertDtos = new List<AlertCreateDto>();
+        var inventoriesToUpdate = new List<Inventory>();
+
+        foreach (var inventory in alertInventories)
         {
             var usageRate = inventory.MaxCapacity > 0 ? inventory.Quantity / inventory.MaxCapacity : 0;
+            var changed = false;
 
             if (usageRate >= overstockThreshold && !inventory.HasOverstockAlert)
             {
@@ -191,10 +206,12 @@ public class AlertService : IAlertService
 
                 inventory.HasOverstockAlert = true;
                 inventory.Status = InventoryStatus.Overstock;
+                changed = true;
             }
             else if (usageRate < overstockThreshold && inventory.HasOverstockAlert)
             {
                 inventory.HasOverstockAlert = false;
+                changed = true;
             }
 
             if (inventory.Quantity <= inventory.MinSafeQuantity && !inventory.HasLowStockAlert)
@@ -214,17 +231,19 @@ public class AlertService : IAlertService
 
                 inventory.HasLowStockAlert = true;
                 inventory.Status = InventoryStatus.LowStock;
+                changed = true;
             }
             else if (inventory.Quantity > inventory.MinSafeQuantity && inventory.HasLowStockAlert)
             {
                 inventory.HasLowStockAlert = false;
+                changed = true;
             }
 
             if (inventory.EarliestExpiryDate.HasValue &&
-                inventory.EarliestExpiryDate.Value <= DateTime.UtcNow.AddDays(nearExpiryDays) &&
+                inventory.EarliestExpiryDate.Value <= expiryThreshold &&
                 !inventory.HasExpiryAlert)
             {
-                var daysToExpiry = (inventory.EarliestExpiryDate.Value - DateTime.UtcNow).Days;
+                var daysToExpiry = (inventory.EarliestExpiryDate.Value - now).Days;
                 var isExpired = daysToExpiry <= 0;
 
                 alertDtos.Add(new AlertCreateDto
@@ -243,15 +262,21 @@ public class AlertService : IAlertService
 
                 inventory.HasExpiryAlert = true;
                 inventory.Status = isExpired ? InventoryStatus.Expired : InventoryStatus.NearExpiry;
+                changed = true;
             }
             else if (inventory.EarliestExpiryDate.HasValue &&
-                     inventory.EarliestExpiryDate.Value > DateTime.UtcNow.AddDays(nearExpiryDays) &&
+                     inventory.EarliestExpiryDate.Value > expiryThreshold &&
                      inventory.HasExpiryAlert)
             {
                 inventory.HasExpiryAlert = false;
+                changed = true;
             }
 
-            inventory.UpdatedAt = DateTime.UtcNow;
+            if (changed)
+            {
+                inventory.UpdatedAt = now;
+                inventoriesToUpdate.Add(inventory);
+            }
         }
 
         if (alertDtos.Any())
@@ -259,7 +284,10 @@ public class AlertService : IAlertService
             await CreateBatchAlertsAsync(alertDtos);
         }
 
-        await _inventoryRepo.UpdateRangeAsync(inventories);
+        if (inventoriesToUpdate.Any())
+        {
+            await _inventoryRepo.UpdateRangeAsync(inventoriesToUpdate);
+        }
     }
 
     public async Task CheckAndGenerateTransportAlertsAsync()

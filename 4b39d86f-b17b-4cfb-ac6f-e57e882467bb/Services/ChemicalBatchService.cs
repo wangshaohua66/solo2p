@@ -469,24 +469,3 @@ public class ChemicalBatchService : IChemicalBatchService
                allowedTargets.Contains(targetStatus);
     }
 }
-
-public enum ProcessStage
-{
-    BatchCreated = 0,
-    RawMaterialInbound = 1,
-    ProductionProcessing = 2,
-    FinishedInspection = 3,
-    InStorage = 4,
-    OutboundReview = 5,
-    InTransit = 6,
-    Delivered = 7
-}
-
-public enum ProcessStatus
-{
-    Pending = 1,
-    InProgress = 2,
-    Completed = 3,
-    Failed = 4,
-    Cancelled = 5
-}

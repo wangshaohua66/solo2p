@@ -3,6 +3,7 @@ using HazChemSupervision.DTOs;
 using HazChemSupervision.Models;
 using HazChemSupervision.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace HazChemSupervision.Services;
 
@@ -15,6 +16,7 @@ public class InventoryService : IInventoryService
     private readonly IBaseRepository<Enterprise> _enterpriseRepo;
     private readonly IBaseRepository<Chemical> _chemicalRepo;
     private readonly IAlertService _alertService;
+    private readonly IConfiguration _configuration;
     private readonly IMapper _mapper;
 
     public InventoryService(
@@ -25,6 +27,7 @@ public class InventoryService : IInventoryService
         IBaseRepository<Enterprise> enterpriseRepo,
         IBaseRepository<Chemical> chemicalRepo,
         IAlertService alertService,
+        IConfiguration configuration,
         IMapper mapper)
     {
         _inventoryRepo = inventoryRepo;
@@ -34,6 +37,7 @@ public class InventoryService : IInventoryService
         _enterpriseRepo = enterpriseRepo;
         _chemicalRepo = chemicalRepo;
         _alertService = alertService;
+        _configuration = configuration;
         _mapper = mapper;
     }
 
@@ -131,7 +135,15 @@ public class InventoryService : IInventoryService
         inventory.ReorderLevel = dto.ReorderLevel;
         inventory.UpdatedAt = DateTime.UtcNow;
 
-        await _inventoryRepo.UpdateAsync(inventory);
+        try
+        {
+            await _inventoryRepo.UpdateAsync(inventory);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            throw new InvalidOperationException("库存记录已被其他用户修改，请刷新后重试", ex);
+        }
+
         await UpdateInventoryStatusAsync(inventory.Id);
 
         return _mapper.Map<InventoryDto>(inventory);
@@ -142,8 +154,15 @@ public class InventoryService : IInventoryService
         var inventory = await _inventoryRepo.GetByIdAsync(id);
         if (inventory == null) return false;
 
-        await _inventoryRepo.DeleteAsync(inventory);
-        return true;
+        try
+        {
+            await _inventoryRepo.DeleteAsync(inventory);
+            return true;
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            throw new InvalidOperationException("库存记录已被其他用户修改，请刷新后重试", ex);
+        }
     }
 
     public async Task<List<InventoryStatisticsDto>> GetStatisticsAsync(
@@ -191,8 +210,30 @@ public class InventoryService : IInventoryService
 
     public async Task<InventoryTransactionDto> CreateTransactionAsync(InventoryTransactionCreateDto dto)
     {
-        var inventory = await _inventoryRepo.GetByIdAsync(dto.InventoryId) ??
-            throw new KeyNotFoundException($"库存记录不存在: {dto.InventoryId}");
+        if (dto.Quantity <= 0)
+            throw new ArgumentException("交易数量必须大于0", nameof(dto.Quantity));
+
+        Inventory? inventory = null;
+
+        if (dto.InventoryId > 0)
+        {
+            inventory = await _inventoryRepo.GetByIdAsync(dto.InventoryId) ??
+                throw new KeyNotFoundException($"库存记录不存在: {dto.InventoryId}");
+        }
+        else
+        {
+            if (dto.EnterpriseId <= 0 || dto.WarehouseId <= 0 || dto.ChemicalId <= 0)
+                throw new ArgumentException("当InventoryId为0时，必须提供有效的EnterpriseId、WarehouseId和ChemicalId");
+
+            inventory = await _inventoryRepo.GetQueryable()
+                .FirstOrDefaultAsync(i =>
+                    i.EnterpriseId == dto.EnterpriseId &&
+                    i.WarehouseId == dto.WarehouseId &&
+                    i.ChemicalId == dto.ChemicalId);
+
+            if (inventory == null)
+                throw new KeyNotFoundException($"未找到对应库存记录，请先创建库存（企业:{dto.EnterpriseId},仓库:{dto.WarehouseId},危化品:{dto.ChemicalId}）");
+        }
 
         var batch = dto.ChemicalBatchId.HasValue
             ? await _batchRepo.GetByIdAsync(dto.ChemicalBatchId.Value)
@@ -209,50 +250,74 @@ public class InventoryService : IInventoryService
             InventoryTransactionType.SalesOutbound or
             InventoryTransactionType.Scrap or
             InventoryTransactionType.TransferOut => -dto.Quantity,
-            _ => 0
+            _ => throw new ArgumentException($"不支持的交易类型: {dto.TransactionType}")
         };
 
         var balanceBefore = inventory.Quantity;
         var balanceAfter = balanceBefore + quantityChange;
 
         if (balanceAfter < 0)
-            throw new InvalidOperationException("库存不足，无法执行此操作");
+            throw new InvalidOperationException($"库存不足，无法执行此操作（当前库存:{balanceBefore},出库数量:{dto.Quantity}）");
 
-        var transaction = new InventoryTransaction
+        using var retry = new RetryHelper(3, TimeSpan.FromMilliseconds(100));
+        await retry.ExecuteAsync(async () =>
         {
-            InventoryId = dto.InventoryId,
-            ChemicalBatchId = dto.ChemicalBatchId,
-            EnterpriseId = inventory.EnterpriseId,
-            WarehouseId = inventory.WarehouseId,
-            ChemicalId = inventory.ChemicalId,
-            TransactionType = transactionType,
-            Quantity = dto.Quantity,
-            BalanceBefore = balanceBefore,
-            BalanceAfter = balanceAfter,
-            Unit = dto.Unit,
-            Remark = dto.Remark,
-            OperatorId = dto.OperatorId,
-            OperatorName = dto.OperatorName,
-            TransactionTime = DateTime.UtcNow,
-            CreatedAt = DateTime.UtcNow
-        };
+            var transaction = new InventoryTransaction
+            {
+                InventoryId = inventory.Id,
+                ChemicalBatchId = dto.ChemicalBatchId,
+                EnterpriseId = inventory.EnterpriseId,
+                WarehouseId = inventory.WarehouseId,
+                ChemicalId = inventory.ChemicalId,
+                TransactionType = transactionType,
+                Quantity = dto.Quantity,
+                BalanceBefore = balanceBefore,
+                BalanceAfter = balanceAfter,
+                Unit = dto.Unit ?? inventory.Unit,
+                Remark = dto.Remark,
+                OperatorId = dto.OperatorId,
+                OperatorName = dto.OperatorName,
+                TransactionTime = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow
+            };
 
-        inventory.Quantity = balanceAfter;
-        inventory.UpdatedAt = DateTime.UtcNow;
+            inventory.Quantity = balanceAfter;
+            inventory.UpdatedAt = DateTime.UtcNow;
 
-        var warehouse = await _warehouseRepo.GetByIdAsync(inventory.WarehouseId);
-        if (warehouse != null)
-        {
-            warehouse.CurrentUsedCapacity += quantityChange;
-            warehouse.UpdatedAt = DateTime.UtcNow;
-            await _warehouseRepo.UpdateAsync(warehouse);
-        }
+            var warehouse = await _warehouseRepo.GetByIdAsync(inventory.WarehouseId);
+            if (warehouse != null)
+            {
+                warehouse.CurrentUsedCapacity += quantityChange;
+                warehouse.UpdatedAt = DateTime.UtcNow;
+                await _warehouseRepo.UpdateAsync(warehouse);
+            }
 
-        var result = await _transactionRepo.AddAsync(transaction);
-        await _inventoryRepo.UpdateAsync(inventory);
+            await _transactionRepo.AddAsync(transaction);
+
+            try
+            {
+                await _inventoryRepo.UpdateAsync(inventory);
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                inventory = await _inventoryRepo.GetByIdAsync(inventory.Id) ??
+                    throw new InvalidOperationException("库存记录在操作期间被删除", ex);
+                throw;
+            }
+        });
+
         await UpdateInventoryStatusAsync(inventory.Id);
 
-        return _mapper.Map<InventoryTransactionDto>(result);
+        var savedTransaction = await _transactionRepo.GetQueryable()
+            .Include(t => t.Inventory)
+            .Include(t => t.ChemicalBatch)
+            .Include(t => t.Enterprise)
+            .Include(t => t.Warehouse)
+            .Include(t => t.Chemical)
+            .OrderByDescending(t => t.Id)
+            .FirstOrDefaultAsync(t => t.InventoryId == inventory.Id);
+
+        return _mapper.Map<InventoryTransactionDto>(savedTransaction);
     }
 
     public async Task<PagedResult<InventoryTransactionDto>> GetTransactionsAsync(InventoryTransactionQueryDto dto)
@@ -315,18 +380,57 @@ public class InventoryService : IInventoryService
         var inventory = await _inventoryRepo.GetByIdAsync(inventoryId);
         if (inventory == null) return;
 
-        var batches = await _batchRepo.GetListAsync(b =>
-            b.WarehouseId == inventory.WarehouseId &&
-            b.ChemicalId == inventory.ChemicalId &&
-            b.Status == BatchStatus.InStorage);
+        var nearExpiryDays = _configuration.GetValue<int>("Alert:NearExpiryDays", 30);
+        var expiryThreshold = DateTime.UtcNow.AddDays(nearExpiryDays);
 
-        if (batches.Any())
+        var batchesQuery = _batchRepo.GetQueryable()
+            .Where(b =>
+                b.WarehouseId == inventory.WarehouseId &&
+                b.ChemicalId == inventory.ChemicalId &&
+                b.Status == BatchStatus.InStorage);
+
+        var minExpiry = await batchesQuery.MinAsync(b => (DateTime?)b.ExpiryDate);
+        inventory.EarliestExpiryDate = minExpiry;
+
+        inventory.UpdatedAt = DateTime.UtcNow;
+
+        try
         {
-            inventory.EarliestExpiryDate = batches.Min(b => b.ExpiryDate);
+            await _inventoryRepo.UpdateAsync(inventory);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
         }
 
-        await _inventoryRepo.UpdateAsync(inventory);
         await _alertService.CheckAndGenerateInventoryAlertsAsync();
+    }
+
+    public async Task<List<InventoryDto>> GetAlertInventoriesAsync(int? enterpriseId = null)
+    {
+        var nearExpiryDays = _configuration.GetValue<int>("Alert:NearExpiryDays", 30);
+        var overstockThreshold = _configuration.GetValue<decimal>("Alert:InventoryOverstockThreshold", 0.9m);
+        var lowStockThreshold = _configuration.GetValue<decimal>("Alert:InventoryLowStockThreshold", 0.1m);
+        var now = DateTime.UtcNow;
+        var expiryDate = now.AddDays(nearExpiryDays);
+
+        var query = _inventoryRepo.GetQueryable()
+            .Include(i => i.Enterprise)
+            .Include(i => i.Warehouse)
+            .Include(i => i.Chemical)
+            .Where(i =>
+                (i.MaxCapacity > 0 && i.Quantity / i.MaxCapacity >= overstockThreshold) ||
+                i.Quantity <= i.MinSafeQuantity ||
+                (i.EarliestExpiryDate.HasValue && i.EarliestExpiryDate.Value <= expiryDate));
+
+        if (enterpriseId.HasValue)
+            query = query.Where(i => i.EnterpriseId == enterpriseId.Value);
+
+        var inventories = await query
+            .OrderByDescending(i => i.UpdatedAt)
+            .Take(1000)
+            .ToListAsync();
+
+        return _mapper.Map<List<InventoryDto>>(inventories);
     }
 
     public async Task<WarehouseDto?> GetWarehouseByIdAsync(int id)
@@ -397,4 +501,39 @@ public class InventoryService : IInventoryService
         await _warehouseRepo.UpdateAsync(warehouse);
         return _mapper.Map<WarehouseDto>(warehouse);
     }
+}
+
+public class RetryHelper : IDisposable
+{
+    private readonly int _maxRetries;
+    private readonly TimeSpan _delay;
+    private int _retries;
+
+    public RetryHelper(int maxRetries, TimeSpan delay)
+    {
+        _maxRetries = maxRetries;
+        _delay = delay;
+        _retries = 0;
+    }
+
+    public async Task ExecuteAsync(Func<Task> operation)
+    {
+        while (true)
+        {
+            try
+            {
+                await operation();
+                return;
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                _retries++;
+                if (_retries >= _maxRetries)
+                    throw new InvalidOperationException($"库存操作并发冲突，已重试{_maxRetries}次仍失败");
+                await Task.Delay(_delay * _retries);
+            }
+        }
+    }
+
+    public void Dispose() { }
 }

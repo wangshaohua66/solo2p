@@ -1,4 +1,5 @@
 using AutoMapper;
+using ClosedXML.Excel;
 using HazChemSupervision.DTOs;
 using HazChemSupervision.Models;
 using HazChemSupervision.Repositories;
@@ -50,69 +51,129 @@ public class ReportService : IReportService
     {
         var report = await _complianceService.GenerateMonthlyReportAsync(dto.Year, dto.Month, dto.EnterpriseId);
 
-        var sb = new StringBuilder();
-        sb.AppendLine("危化品监管合规报告");
-        sb.AppendLine("=".PadRight(50, '='));
-        sb.AppendLine($"报告编号: {report.ReportNo}");
-        sb.AppendLine($"统计周期: {report.Year}年{report.Month}月");
-        sb.AppendLine($"企业名称: {report.EnterpriseName ?? "全部企业"}");
-        sb.AppendLine($"生成时间: {report.GeneratedAt:yyyy-MM-dd HH:mm:ss}");
-        sb.AppendLine();
-        sb.AppendLine("一、批次管理情况");
-        sb.AppendLine($"- 总批次数量: {report.TotalBatches}");
-        sb.AppendLine($"- 合格批次: {report.QualifiedBatches}");
-        sb.AppendLine($"- 不合格批次: {report.UnqualifiedBatches}");
-        sb.AppendLine();
-        sb.AppendLine("二、运输管理情况");
-        sb.AppendLine($"- 在途运输: {report.InTransitTransports}");
-        sb.AppendLine($"- 已完成运输: {report.CompletedTransports}");
-        sb.AppendLine($"- 异常运输: {report.AnomalyTransports}");
-        sb.AppendLine();
-        sb.AppendLine("三、库存管理情况");
-        sb.AppendLine($"- 总库存量: {report.TotalInventory}");
-        sb.AppendLine($"- 超储告警: {report.OverstockInventory}");
-        sb.AppendLine($"- 低储告警: {report.LowStockInventory}");
-        sb.AppendLine($"- 临期库存: {report.NearExpiryInventory}");
-        sb.AppendLine();
-        sb.AppendLine("四、隐患管理情况");
-        sb.AppendLine($"- 隐患总数: {report.TotalHazards}");
-        sb.AppendLine($"- 已闭环: {report.ClosedHazards}");
-        sb.AppendLine($"- 逾期未改: {report.OverdueHazards}");
-        sb.AppendLine();
-        sb.AppendLine("五、演练管理情况");
-        sb.AppendLine($"- 计划演练: {report.PlannedDrills}");
-        sb.AppendLine($"- 已完成: {report.CompletedDrills}");
-        sb.AppendLine($"- 逾期未执行: {report.OverdueDrills}");
-        sb.AppendLine();
-        sb.AppendLine("六、资质证书情况");
-        sb.AppendLine($"- 有效证书: {report.ValidCertificates}");
-        sb.AppendLine($"- 即将到期: {report.ExpiringCertificates}");
-        sb.AppendLine($"- 已过期: {report.ExpiredCertificates}");
-        sb.AppendLine();
-        sb.AppendLine($"七、合规评分: {report.ComplianceScore:F2}分");
-        sb.AppendLine($"合规等级: {report.ComplianceLevel}");
-        sb.AppendLine();
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.AddWorksheet("合规报告");
+
+        worksheet.Cell("A1").Value = "危化品监管合规报告（国标格式）";
+        worksheet.Range("A1:E1").Merge();
+        worksheet.Cell("A1").Style.Font.Bold = true;
+        worksheet.Cell("A1").Style.Font.FontSize = 16;
+        worksheet.Cell("A1").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+        worksheet.Cell("A3").Value = "报告编号：";
+        worksheet.Cell("B3").Value = report.ReportNo;
+        worksheet.Cell("D3").Value = "统计周期：";
+        worksheet.Cell("E3").Value = $"{report.Year}年{report.Month}月";
+
+        worksheet.Cell("A4").Value = "企业名称：";
+        worksheet.Cell("B4").Value = report.EnterpriseName ?? "全部企业";
+        worksheet.Cell("D4").Value = "生成时间：";
+        worksheet.Cell("E4").Value = report.GeneratedAt.ToString("yyyy-MM-dd HH:mm:ss");
+
+        worksheet.Cell("A6").Value = "序号";
+        worksheet.Cell("B6").Value = "统计项目";
+        worksheet.Cell("C6").Value = "数量";
+        worksheet.Cell("D6").Value = "单位";
+        worksheet.Cell("E6").Value = "备注";
+        worksheet.Range("A6:E6").Style.Fill.BackgroundColor = XLColor.LightGray;
+        worksheet.Range("A6:E6").Style.Font.Bold = true;
+
+        var data = new (string Item, int Count, string Unit, string Remark)[]
+        {
+            ("一、批次管理", 0, "", ""),
+            ("总批次数量", report.TotalBatches, "批", ""),
+            ("合格批次", report.QualifiedBatches, "批", ""),
+            ("不合格批次", report.UnqualifiedBatches, "批", ""),
+            ("二、运输管理", 0, "", ""),
+            ("在途运输", report.InTransitTransports, "次", ""),
+            ("已完成运输", report.CompletedTransports, "次", ""),
+            ("异常运输", report.AnomalyTransports, "次", ""),
+            ("三、库存管理", 0, "", ""),
+            ("总库存量", report.TotalInventory, "吨/立方米", ""),
+            ("超储告警", report.OverstockInventory, "项", ""),
+            ("低储告警", report.LowStockInventory, "项", ""),
+            ("临期库存", report.NearExpiryInventory, "项", ""),
+            ("四、隐患管理", 0, "", ""),
+            ("隐患总数", report.TotalHazards, "项", ""),
+            ("已闭环", report.ClosedHazards, "项", ""),
+            ("逾期未改", report.OverdueHazards, "项", ""),
+            ("五、演练管理", 0, "", ""),
+            ("计划演练", report.PlannedDrills, "次", ""),
+            ("已完成", report.CompletedDrills, "次", ""),
+            ("逾期未执行", report.OverdueDrills, "次", ""),
+            ("六、资质证书", 0, "", ""),
+            ("有效证书", report.ValidCertificates, "本", ""),
+            ("即将到期", report.ExpiringCertificates, "本", ""),
+            ("已过期", report.ExpiredCertificates, "本", ""),
+        };
+
+        int row = 7;
+        int seq = 1;
+        foreach (var item in data)
+        {
+            if (item.Item.StartsWith("一、") || item.Item.StartsWith("二、") ||
+                item.Item.StartsWith("三、") || item.Item.StartsWith("四、") ||
+                item.Item.StartsWith("五、") || item.Item.StartsWith("六、"))
+            {
+                worksheet.Cell($"A{row}").Value = item.Item;
+                worksheet.Range($"A{row}:E{row}").Merge();
+                worksheet.Range($"A{row}:E{row}").Style.Fill.BackgroundColor = XLColor.LightBlue;
+                worksheet.Range($"A{row}:E{row}").Style.Font.Bold = true;
+                seq = 1;
+            }
+            else
+            {
+                worksheet.Cell($"A{row}").Value = seq++;
+                worksheet.Cell($"B{row}").Value = item.Item;
+                worksheet.Cell($"C{row}").Value = item.Count;
+                worksheet.Cell($"D{row}").Value = item.Unit;
+                worksheet.Cell($"E{row}").Value = item.Remark;
+            }
+            row++;
+        }
+
+        worksheet.Cell($"A{row}").Value = $"七、合规评分：{report.ComplianceScore:F2}分";
+        worksheet.Cell($"A{row}").Style.Font.Bold = true;
+        worksheet.Range($"A{row}:E{row}").Merge();
+        row++;
+        worksheet.Cell($"A{row}").Value = $"合规等级：{report.ComplianceLevel}";
+        worksheet.Range($"A{row}:E{row}").Merge();
+        row += 2;
 
         if (report.Issues?.Count > 0)
         {
-            sb.AppendLine("八、存在问题");
+            worksheet.Cell($"A{row}").Value = "八、存在问题";
+            worksheet.Cell($"A{row}").Style.Font.Bold = true;
+            worksheet.Range($"A{row}:E{row}").Merge();
+            row++;
             foreach (var issue in report.Issues)
             {
-                sb.AppendLine($"- {issue}");
+                worksheet.Cell($"A{row}").Value = $"• {issue}";
+                worksheet.Range($"A{row}:E{row}").Merge();
+                row++;
             }
-            sb.AppendLine();
+            row++;
         }
 
         if (report.Recommendations?.Count > 0)
         {
-            sb.AppendLine("九、整改建议");
-            foreach (var recommendation in report.Recommendations)
+            worksheet.Cell($"A{row}").Value = "九、整改建议";
+            worksheet.Cell($"A{row}").Style.Font.Bold = true;
+            worksheet.Range($"A{row}:E{row}").Merge();
+            row++;
+            foreach (var rec in report.Recommendations)
             {
-                sb.AppendLine($"- {recommendation}");
+                worksheet.Cell($"A{row}").Value = $"• {rec}";
+                worksheet.Range($"A{row}:E{row}").Merge();
+                row++;
             }
         }
 
-        return Encoding.UTF8.GetBytes(sb.ToString());
+        worksheet.Columns().AdjustToContents();
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
     }
 
     public async Task<byte[]> ExportInventoryReportAsync(int? enterpriseId = null, int? warehouseId = null, int? category = null)
@@ -131,14 +192,28 @@ public class ReportService : IReportService
 
         var inventories = await query.OrderBy(i => i.Enterprise.Name).ThenBy(i => i.Warehouse.Name).ToListAsync();
 
-        var sb = new StringBuilder();
-        sb.AppendLine("库存统计报表");
-        sb.AppendLine("=".PadRight(80, '='));
-        sb.AppendLine($"生成时间: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}");
-        sb.AppendLine();
-        sb.AppendLine($"企业\t仓库\t危化品\t类别\t当前库存\t单位\t状态\t告警状态");
-        sb.AppendLine("-".PadRight(80, '-'));
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.AddWorksheet("库存统计报表");
 
+        worksheet.Cell("A1").Value = "危化品库存统计报表（国标GB 18265-2019）";
+        worksheet.Range("A1:J1").Merge();
+        worksheet.Cell("A1").Style.Font.Bold = true;
+        worksheet.Cell("A1").Style.Font.FontSize = 14;
+        worksheet.Cell("A1").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+        worksheet.Cell("A3").Value = "生成时间：";
+        worksheet.Cell("B3").Value = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+
+        string[] headers = { "序号", "企业名称", "仓库名称", "危化品名称", "危化品类别", "CAS号", "当前库存", "单位", "库存状态", "告警状态" };
+        for (int i = 0; i < headers.Length; i++)
+        {
+            worksheet.Cell(5, i + 1).Value = headers[i];
+            worksheet.Cell(5, i + 1).Style.Fill.BackgroundColor = XLColor.LightGray;
+            worksheet.Cell(5, i + 1).Style.Font.Bold = true;
+        }
+
+        int row = 6;
+        int seq = 1;
         foreach (var inv in inventories)
         {
             var alertStatus = new List<string>();
@@ -147,10 +222,24 @@ public class ReportService : IReportService
             if (inv.Status == InventoryStatus.NearExpiry) alertStatus.Add("临期");
             if (inv.Status == InventoryStatus.Expired) alertStatus.Add("过期");
 
-            sb.AppendLine($"{inv.Enterprise.Name}\t{inv.Warehouse.Name}\t{inv.Chemical.Name}\t{inv.Chemical.Category}\t{inv.Quantity:F2}\t{inv.Unit}\t{inv.Status}\t{string.Join(",", alertStatus)}");
+            worksheet.Cell(row, 1).Value = seq++;
+            worksheet.Cell(row, 2).Value = inv.Enterprise.Name;
+            worksheet.Cell(row, 3).Value = inv.Warehouse.Name;
+            worksheet.Cell(row, 4).Value = inv.Chemical.Name;
+            worksheet.Cell(row, 5).Value = inv.Chemical.Category.ToString();
+            worksheet.Cell(row, 6).Value = inv.Chemical.CasNo;
+            worksheet.Cell(row, 7).Value = (double)inv.Quantity;
+            worksheet.Cell(row, 8).Value = inv.Unit;
+            worksheet.Cell(row, 9).Value = inv.Status.ToString();
+            worksheet.Cell(row, 10).Value = string.Join(",", alertStatus);
+            row++;
         }
 
-        return Encoding.UTF8.GetBytes(sb.ToString());
+        worksheet.Columns().AdjustToContents();
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
     }
 
     public async Task<byte[]> ExportTransportReportAsync(DateRangeFilter dateRange, int? enterpriseId = null)
@@ -173,14 +262,28 @@ public class ReportService : IReportService
             .OrderByDescending(t => t.CreatedAt)
             .ToListAsync();
 
-        var sb = new StringBuilder();
-        sb.AppendLine("运输记录报表");
-        sb.AppendLine("=".PadRight(100, '='));
-        sb.AppendLine($"生成时间: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}");
-        sb.AppendLine();
-        sb.AppendLine($"运输单号\t企业\t危化品\t车牌\t司机\t状态\t起运时间\t到达时间\t异常状态");
-        sb.AppendLine("-".PadRight(100, '-'));
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.AddWorksheet("运输记录报表");
 
+        worksheet.Cell("A1").Value = "危险化学品运输记录报表（国标JT/T 617-2018）";
+        worksheet.Range("A1:K1").Merge();
+        worksheet.Cell("A1").Style.Font.Bold = true;
+        worksheet.Cell("A1").Style.Font.FontSize = 14;
+        worksheet.Cell("A1").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+        worksheet.Cell("A3").Value = "生成时间：";
+        worksheet.Cell("B3").Value = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+
+        string[] headers = { "序号", "运输单号", "企业名称", "危化品名称", "车牌号", "驾驶员", "押运员", "运输状态", "起运时间", "到达时间", "异常状态" };
+        for (int i = 0; i < headers.Length; i++)
+        {
+            worksheet.Cell(5, i + 1).Value = headers[i];
+            worksheet.Cell(5, i + 1).Style.Fill.BackgroundColor = XLColor.LightGray;
+            worksheet.Cell(5, i + 1).Style.Font.Bold = true;
+        }
+
+        int row = 6;
+        int seq = 1;
         foreach (var t in transports)
         {
             var anomalies = new List<string>();
@@ -188,10 +291,25 @@ public class ReportService : IReportService
             if (t.IsOverspeeding) anomalies.Add("超速");
             if (t.IsTemperatureAbnormal) anomalies.Add("温度异常");
 
-            sb.AppendLine($"{t.TransportNo}\t{t.Enterprise.Name}\t{t.ChemicalBatch.Chemical.Name}\t{t.VehiclePlateNo}\t{t.DriverName}\t{t.Status}\t{t.ActualDepartureTime:yyyy-MM-dd}\t{t.ActualArrivalTime:yyyy-MM-dd}\t{string.Join(",", anomalies)}");
+            worksheet.Cell(row, 1).Value = seq++;
+            worksheet.Cell(row, 2).Value = t.TransportNo;
+            worksheet.Cell(row, 3).Value = t.Enterprise.Name;
+            worksheet.Cell(row, 4).Value = t.ChemicalBatch.Chemical.Name;
+            worksheet.Cell(row, 5).Value = t.VehiclePlateNo;
+            worksheet.Cell(row, 6).Value = t.DriverName;
+            worksheet.Cell(row, 7).Value = t.EscortName ?? "";
+            worksheet.Cell(row, 8).Value = t.Status.ToString();
+            worksheet.Cell(row, 9).Value = t.ActualDepartureTime?.ToString("yyyy-MM-dd HH:mm") ?? "";
+            worksheet.Cell(row, 10).Value = t.ActualArrivalTime?.ToString("yyyy-MM-dd HH:mm") ?? "";
+            worksheet.Cell(row, 11).Value = string.Join(",", anomalies);
+            row++;
         }
 
-        return Encoding.UTF8.GetBytes(sb.ToString());
+        worksheet.Columns().AdjustToContents();
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
     }
 
     public async Task<byte[]> ExportHazardReportAsync(int? enterpriseId = null, int? status = null)
@@ -210,24 +328,53 @@ public class ReportService : IReportService
             .OrderByDescending(h => h.CreatedAt)
             .ToListAsync();
 
-        var sb = new StringBuilder();
-        sb.AppendLine("隐患整改报表");
-        sb.AppendLine("=".PadRight(100, '='));
-        sb.AppendLine($"生成时间: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}");
-        sb.AppendLine();
-        sb.AppendLine($"工单号\t企业\t隐患描述\t等级\t状态\t责任人\t发现时间\t整改期限\t逾期天数");
-        sb.AppendLine("-".PadRight(100, '-'));
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.AddWorksheet("隐患整改报表");
 
+        worksheet.Cell("A1").Value = "安全生产隐患排查治理报表（国标AQ/T 9005-2018）";
+        worksheet.Range("A1:K1").Merge();
+        worksheet.Cell("A1").Style.Font.Bold = true;
+        worksheet.Cell("A1").Style.Font.FontSize = 14;
+        worksheet.Cell("A1").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+        worksheet.Cell("A3").Value = "生成时间：";
+        worksheet.Cell("B3").Value = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+
+        string[] headers = { "序号", "工单号", "企业名称", "隐患描述", "隐患等级", "整改状态", "责任人", "发现时间", "整改期限", "逾期天数", "是否升级" };
+        for (int i = 0; i < headers.Length; i++)
+        {
+            worksheet.Cell(5, i + 1).Value = headers[i];
+            worksheet.Cell(5, i + 1).Style.Fill.BackgroundColor = XLColor.LightGray;
+            worksheet.Cell(5, i + 1).Style.Font.Bold = true;
+        }
+
+        int row = 6;
+        int seq = 1;
         var now = DateTime.UtcNow;
         foreach (var h in hazards)
         {
             var overdueDays = h.Deadline < now && h.Status != HazardRectificationStatus.Accepted && h.Status != HazardRectificationStatus.Closed
                 ? (int)(now - h.Deadline).TotalDays : 0;
 
-            sb.AppendLine($"{h.WorkOrderNo}\t{h.Enterprise.Name}\t{h.HazardDescription}\t{h.Level}\t{h.Status}\t{h.ResponsiblePerson}\t{h.DiscoveryTime:yyyy-MM-dd}\t{h.Deadline:yyyy-MM-dd}\t{overdueDays}");
+            worksheet.Cell(row, 1).Value = seq++;
+            worksheet.Cell(row, 2).Value = h.WorkOrderNo;
+            worksheet.Cell(row, 3).Value = h.Enterprise.Name;
+            worksheet.Cell(row, 4).Value = h.HazardDescription;
+            worksheet.Cell(row, 5).Value = h.Level.ToString();
+            worksheet.Cell(row, 6).Value = h.Status.ToString();
+            worksheet.Cell(row, 7).Value = h.ResponsiblePerson;
+            worksheet.Cell(row, 8).Value = h.DiscoveryTime.ToString("yyyy-MM-dd");
+            worksheet.Cell(row, 9).Value = h.Deadline.ToString("yyyy-MM-dd");
+            worksheet.Cell(row, 10).Value = overdueDays;
+            worksheet.Cell(row, 11).Value = h.IsEscalated ? "是" : "否";
+            row++;
         }
 
-        return Encoding.UTF8.GetBytes(sb.ToString());
+        worksheet.Columns().AdjustToContents();
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
     }
 
     public async Task<byte[]> ExportDrillReportAsync(int year, int? quarter = null, int? enterpriseId = null)
@@ -247,20 +394,49 @@ public class ReportService : IReportService
             .OrderBy(d => d.PlannedStartTime)
             .ToListAsync();
 
-        var sb = new StringBuilder();
-        sb.AppendLine("应急演练报表");
-        sb.AppendLine("=".PadRight(100, '='));
-        sb.AppendLine($"统计年度: {year}年");
-        sb.AppendLine($"生成时间: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}");
-        sb.AppendLine();
-        sb.AppendLine($"计划编号\t演练名称\t企业\t类型\t状态\t计划时间\t实际时间\t评估结果");
-        sb.AppendLine("-".PadRight(100, '-'));
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.AddWorksheet("应急演练报表");
 
-        foreach (var d in drills)
+        worksheet.Cell("A1").Value = "生产安全事故应急演练报表（国标GB/T 29639-2020）";
+        worksheet.Range("A1:J1").Merge();
+        worksheet.Cell("A1").Style.Font.Bold = true;
+        worksheet.Cell("A1").Style.Font.FontSize = 14;
+        worksheet.Cell("A1").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+        worksheet.Cell("A3").Value = "统计年度：";
+        worksheet.Cell("B3").Value = $"{year}年";
+        worksheet.Cell("D3").Value = "生成时间：";
+        worksheet.Cell("E3").Value = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+
+        string[] headers = { "序号", "计划编号", "演练名称", "企业名称", "演练类型", "演练状态", "计划时间", "实际时间", "参演人数", "评估结果" };
+        for (int i = 0; i < headers.Length; i++)
         {
-            sb.AppendLine($"{d.PlanNo}\t{d.Name}\t{d.Enterprise.Name}\t{d.Type}\t{d.Status}\t{d.PlannedStartTime:yyyy-MM-dd}\t{d.ActualStartTime:yyyy-MM-dd}\t{d.EvaluationResult}");
+            worksheet.Cell(5, i + 1).Value = headers[i];
+            worksheet.Cell(5, i + 1).Style.Fill.BackgroundColor = XLColor.LightGray;
+            worksheet.Cell(5, i + 1).Style.Font.Bold = true;
         }
 
-        return Encoding.UTF8.GetBytes(sb.ToString());
+        int row = 6;
+        int seq = 1;
+        foreach (var d in drills)
+        {
+            worksheet.Cell(row, 1).Value = seq++;
+            worksheet.Cell(row, 2).Value = d.PlanNo;
+            worksheet.Cell(row, 3).Value = d.Name;
+            worksheet.Cell(row, 4).Value = d.Enterprise.Name;
+            worksheet.Cell(row, 5).Value = d.Type.ToString();
+            worksheet.Cell(row, 6).Value = d.Status.ToString();
+            worksheet.Cell(row, 7).Value = d.PlannedStartTime.ToString("yyyy-MM-dd");
+            worksheet.Cell(row, 8).Value = d.ActualStartTime?.ToString("yyyy-MM-dd") ?? "";
+            worksheet.Cell(row, 9).Value = d.ParticipantCount;
+            worksheet.Cell(row, 10).Value = d.EvaluationResult?.ToString() ?? "";
+            row++;
+        }
+
+        worksheet.Columns().AdjustToContents();
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
     }
 }

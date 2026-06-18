@@ -55,6 +55,9 @@ public class Inventory
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
+
     public virtual ICollection<InventoryTransaction> Transactions { get; set; } = new List<InventoryTransaction>();
 }
 

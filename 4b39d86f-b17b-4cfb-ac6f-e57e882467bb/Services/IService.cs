@@ -39,6 +39,7 @@ public interface IInventoryService
     Task<InventoryTransactionDto> CreateTransactionAsync(InventoryTransactionCreateDto dto);
     Task<PagedResult<InventoryTransactionDto>> GetTransactionsAsync(InventoryTransactionQueryDto dto);
     Task UpdateInventoryStatusAsync(int inventoryId);
+    Task<List<InventoryDto>> GetAlertInventoriesAsync(int? enterpriseId = null);
     Task<WarehouseDto?> GetWarehouseByIdAsync(int id);
     Task<PagedResult<WarehouseDto>> GetWarehousesAsync(int? enterpriseId = null, int pageIndex = 1, int pageSize = 20);
     Task<WarehouseDto> CreateWarehouseAsync(WarehouseCreateDto dto);

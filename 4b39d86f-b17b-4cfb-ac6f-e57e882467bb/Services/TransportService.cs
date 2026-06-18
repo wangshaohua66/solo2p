@@ -291,23 +291,124 @@ public class TransportService : ITransportService
         if (transport == null) return false;
 
         var distanceThreshold = decimal.Parse(_configuration["Alert:RouteDeviationMeters"] ?? "500");
+        var routePoints = ParsePlannedRoute(transport);
 
-        var totalDistance = CalculateDistance(
-            transport.StartLatitude, transport.StartLongitude,
-            transport.EndLatitude, transport.EndLongitude);
+        if (routePoints.Count < 2)
+        {
+            routePoints = GenerateInterpolatedRoutePoints(
+                transport.StartLatitude, transport.StartLongitude,
+                transport.EndLatitude, transport.EndLongitude);
+        }
 
-        if (totalDistance == 0) return false;
+        var minDistanceToPath = CalculateMinDistanceToPath(routePoints, latitude, longitude);
 
-        var distToStart = CalculateDistance(transport.StartLatitude, transport.StartLongitude, latitude, longitude);
-        var distToEnd = CalculateDistance(transport.EndLatitude, transport.EndLongitude, latitude, longitude);
+        return minDistanceToPath > distanceThreshold;
+    }
 
-        var progress = distToStart / totalDistance;
-        var expectedLat = transport.StartLatitude + (transport.EndLatitude - transport.StartLatitude) * progress;
-        var expectedLon = transport.StartLongitude + (transport.EndLongitude - transport.StartLongitude) * progress;
+    private static List<(decimal Lat, decimal Lon)> ParsePlannedRoute(TransportRecord transport)
+    {
+        var points = new List<(decimal Lat, decimal Lon)>();
 
-        var deviation = CalculateDistance(expectedLat, expectedLon, latitude, longitude);
+        if (string.IsNullOrWhiteSpace(transport.PlannedRoute))
+            return points;
 
-        return deviation > distanceThreshold;
+        try
+        {
+            var segments = transport.PlannedRoute.Split(new[] { ';', '|' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var segment in segments)
+            {
+                var parts = segment.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 2 &&
+                    decimal.TryParse(parts[0], out var lon) &&
+                    decimal.TryParse(parts[1], out var lat))
+                {
+                    points.Add((lat, lon));
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        if (points.Count == 0)
+        {
+            points.Add((transport.StartLatitude, transport.StartLongitude));
+            points.Add((transport.EndLatitude, transport.EndLongitude));
+        }
+
+        return points;
+    }
+
+    private static List<(decimal Lat, decimal Lon)> GenerateInterpolatedRoutePoints(
+        decimal startLat, decimal startLon,
+        decimal endLat, decimal endLon,
+        int segmentCount = 20)
+    {
+        var points = new List<(decimal Lat, decimal Lon)>();
+        for (int i = 0; i <= segmentCount; i++)
+        {
+            var ratio = (decimal)i / segmentCount;
+            var lat = startLat + (endLat - startLat) * ratio;
+            var lon = startLon + (endLon - startLon) * ratio;
+            points.Add((lat, lon));
+        }
+        return points;
+    }
+
+    private static decimal CalculateMinDistanceToPath(
+        List<(decimal Lat, decimal Lon)> pathPoints,
+        decimal pointLon, decimal pointLat)
+    {
+        if (pathPoints.Count == 0) return decimal.MaxValue;
+        if (pathPoints.Count == 1)
+            return CalculateDistance(pathPoints[0].Lat, pathPoints[0].Lon, pointLat, pointLon);
+
+        var minDistance = decimal.MaxValue;
+
+        for (int i = 0; i < pathPoints.Count - 1; i++)
+        {
+            var segStart = pathPoints[i];
+            var segEnd = pathPoints[i + 1];
+
+            var distance = CalculatePointToSegmentDistance(
+                segStart.Lat, segStart.Lon,
+                segEnd.Lat, segEnd.Lon,
+                pointLat, pointLon);
+
+            if (distance < minDistance)
+                minDistance = distance;
+        }
+
+        return minDistance;
+    }
+
+    private static decimal CalculatePointToSegmentDistance(
+        decimal segStartLat, decimal segStartLon,
+        decimal segEndLat, decimal segEndLon,
+        decimal pointLat, decimal pointLon)
+    {
+        var segLength = CalculateDistance(segStartLat, segStartLon, segEndLat, segEndLon);
+        if (segLength == 0)
+            return CalculateDistance(segStartLat, segStartLon, pointLat, pointLon);
+
+        var dStart = CalculateDistance(segStartLat, segStartLon, pointLat, pointLon);
+        var dEnd = CalculateDistance(segEndLat, segEndLon, pointLat, pointLon);
+
+        var a = (double)dStart;
+        var b = (double)dEnd;
+        var c = (double)segLength;
+
+        if (a * a >= b * b + c * c)
+            return dEnd;
+
+        if (b * b >= a * a + c * c)
+            return dStart;
+
+        var s = (a + b + c) / 2.0;
+        var area = Math.Sqrt(Math.Max(0, s * (s - a) * (s - b) * (s - c)));
+        var height = 2.0 * area / c;
+
+        return (decimal)height;
     }
 
     public async Task<bool> CheckOverspeedingAsync(int transportRecordId, decimal speed)

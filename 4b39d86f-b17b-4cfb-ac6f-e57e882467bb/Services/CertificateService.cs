@@ -4,6 +4,8 @@ using HazChemSupervision.Models;
 using HazChemSupervision.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using System.Text;
+using System.Text.Json;
 
 namespace HazChemSupervision.Services;
 
@@ -15,6 +17,7 @@ public class CertificateService : ICertificateService
     private readonly IAlertService _alertService;
     private readonly IMapper _mapper;
     private readonly IConfiguration _configuration;
+    private readonly IHttpClientFactory _httpClientFactory;
 
     public CertificateService(
         IBaseRepository<Certificate> certRepo,
@@ -22,7 +25,8 @@ public class CertificateService : ICertificateService
         IBaseRepository<User> userRepo,
         IAlertService alertService,
         IMapper mapper,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IHttpClientFactory httpClientFactory)
     {
         _certRepo = certRepo;
         _enterpriseRepo = enterpriseRepo;
@@ -30,6 +34,7 @@ public class CertificateService : ICertificateService
         _alertService = alertService;
         _mapper = mapper;
         _configuration = configuration;
+        _httpClientFactory = httpClientFactory;
     }
 
     public async Task<CertificateDto?> GetCertificateByIdAsync(int id)
@@ -159,26 +164,117 @@ public class CertificateService : ICertificateService
             };
         }
 
-        var status = CalculateCertificateStatus(cert.ExpiryDate);
+        var localStatus = CalculateCertificateStatus(cert.ExpiryDate);
+        var externalResult = await VerifyWithEmergencyManagementDepartmentAsync(dto, cert.ExpiryDate);
 
-        cert.Verified = true;
+        cert.Verified = externalResult.IsValid && localStatus == CertificateStatus.Valid;
         cert.LastVerifiedTime = DateTime.UtcNow;
-        cert.VerificationResult = status == CertificateStatus.Valid ? "验证通过" : $"证书{status}";
-        cert.Status = status;
+        cert.VerificationResult = cert.Verified ? "验证通过" : $"证书{localStatus}，{externalResult.Message}";
+        cert.Status = !externalResult.IsValid ? CertificateStatus.Invalid : localStatus;
         cert.UpdatedAt = DateTime.UtcNow;
 
         await _certRepo.UpdateAsync(cert);
 
         return new CertificateVerificationResultDto
         {
-            IsValid = status == CertificateStatus.Valid,
-            Message = status == CertificateStatus.Valid ? "证书有效" : $"证书{status}",
+            IsValid = cert.Verified,
+            Message = cert.VerificationResult,
             CertificateNo = cert.CertificateNo,
             HolderName = cert.HolderName,
             ExpiryDate = cert.ExpiryDate,
-            Status = status.ToString(),
-            VerifiedAt = DateTime.UtcNow
+            Status = cert.Status.ToString(),
+            VerifiedAt = cert.LastVerifiedTime
         };
+    }
+
+    private async Task<ExternalCertVerifyResult> VerifyWithEmergencyManagementDepartmentAsync(CertificateVerifyDto dto, DateTime localExpiryDate)
+    {
+        var apiBaseUrl = _configuration["CertificateVerification:ApiBaseUrl"]
+            ?? "https://cert.mem.gov.cn/api/v1";
+        var apiKey = _configuration["CertificateVerification:ApiKey"]
+            ?? "demo-api-key";
+        var timeoutSeconds = _configuration.GetValue<int>("CertificateVerification:TimeoutSeconds", 10);
+        var localIsValid = CalculateCertificateStatus(localExpiryDate) == CertificateStatus.Valid;
+
+        try
+        {
+            using var client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
+            client.DefaultRequestHeaders.Add("Accept", "application/json");
+
+            var request = new
+            {
+                certificateNo = dto.CertificateNo,
+                certificateType = ((CertificateType)dto.Type).ToString(),
+                holderName = dto.HolderName,
+                holderIdCard = dto.IdCard ?? string.Empty,
+                verifyTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+            };
+
+            var json = JsonSerializer.Serialize(request);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            using var response = await client.PostAsync(
+                $"{apiBaseUrl}/certificate/verify",
+                content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var responseJson = await response.Content.ReadAsStringAsync();
+                var result = JsonSerializer.Deserialize<ExternalCertApiResponse>(responseJson,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                if (result != null)
+                {
+                    return new ExternalCertVerifyResult
+                    {
+                        IsValid = result.IsValid,
+                        Message = result.Message ?? "验证完成",
+                        AuthorityVerified = true,
+                        VerifiedFrom = "EmergencyManagementDepartment"
+                    };
+                }
+            }
+
+            return new ExternalCertVerifyResult
+            {
+                IsValid = localIsValid,
+                Message = $"外部接口调用失败（HTTP {(int)response.StatusCode}），已使用本地状态校验",
+                AuthorityVerified = false,
+                VerifiedFrom = "LocalDatabase"
+            };
+        }
+        catch (HttpRequestException ex)
+        {
+            return new ExternalCertVerifyResult
+            {
+                IsValid = localIsValid,
+                Message = $"网络请求异常：{ex.Message}，使用本地状态校验结果",
+                AuthorityVerified = false,
+                VerifiedFrom = "LocalDatabase"
+            };
+        }
+        catch (TaskCanceledException)
+        {
+            return new ExternalCertVerifyResult
+            {
+                IsValid = localIsValid,
+                Message = "请求超时，使用本地状态校验结果",
+                AuthorityVerified = false,
+                VerifiedFrom = "LocalDatabase"
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ExternalCertVerifyResult
+            {
+                IsValid = localIsValid,
+                Message = $"验证异常：{ex.Message}，使用本地状态校验结果",
+                AuthorityVerified = false,
+                VerifiedFrom = "LocalDatabase"
+            };
+        }
     }
 
     public async Task<bool> UpdateCertificateStatusAsync(int id)
@@ -237,4 +333,22 @@ public class CertificateService : ICertificateService
             return CertificateStatus.Expiring;
         return CertificateStatus.Valid;
     }
+}
+
+public class ExternalCertVerifyResult
+{
+    public bool IsValid { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public bool AuthorityVerified { get; set; }
+    public string VerifiedFrom { get; set; } = string.Empty;
+}
+
+public class ExternalCertApiResponse
+{
+    public bool IsValid { get; set; }
+    public string? Message { get; set; }
+    public string? CertificateNo { get; set; }
+    public DateTime? ExpiryDate { get; set; }
+    public string? Status { get; set; }
+    public string? VerifySource { get; set; }
 }

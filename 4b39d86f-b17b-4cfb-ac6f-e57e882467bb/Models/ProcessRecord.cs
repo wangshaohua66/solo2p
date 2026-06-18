@@ -40,11 +40,11 @@ public class ProcessRecord
 
     public ProcessStatus Status { get; set; } = ProcessStatus.Pending;
 
-    [NotMapped]
-    public string StageName => Stage.ToString();
+    [MaxLength(50)]
+    public string StageName { get; set; } = string.Empty;
 
-    [NotMapped]
-    public string StatusName => Status.ToString();
+    [MaxLength(50)]
+    public string StatusName { get; set; } = string.Empty;
 
     public DateTime? StartTime { get; set; }
 

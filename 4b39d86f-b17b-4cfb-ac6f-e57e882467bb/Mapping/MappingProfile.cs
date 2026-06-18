@@ -32,10 +32,10 @@ public class MappingProfile : Profile
             .ForMember(d => d.EnterpriseName, opt => opt.MapFrom(s => s.Enterprise.Name))
             .ForMember(d => d.WarehouseName, opt => opt.MapFrom(s => s.Warehouse != null ? s.Warehouse.Name : null))
             .ForMember(d => d.StatusName, opt => opt.MapFrom(s => s.Status.ToString()))
-            .ForMember(d => d.RawMaterialOperatorName, opt => opt.MapFrom(s => s.RawMaterialOperatorId.HasValue ? GetOperatorName(s.RawMaterialOperatorId.Value) : null))
-            .ForMember(d => d.ProductionOperatorName, opt => opt.MapFrom(s => s.ProductionOperatorId.HasValue ? GetOperatorName(s.ProductionOperatorId.Value) : null))
-            .ForMember(d => d.InspectorName, opt => opt.MapFrom(s => s.InspectorId.HasValue ? GetOperatorName(s.InspectorId.Value) : null))
-            .ForMember(d => d.OutboundReviewerName, opt => opt.MapFrom(s => s.OutboundReviewerId.HasValue ? GetOperatorName(s.OutboundReviewerId.Value) : null));
+            .ForMember(d => d.RawMaterialOperatorName, opt => opt.MapFrom<OperatorIdNameResolver<ChemicalBatch>, int?>(s => s.RawMaterialOperatorId))
+            .ForMember(d => d.ProductionOperatorName, opt => opt.MapFrom<OperatorIdNameResolver<ChemicalBatch>, int?>(s => s.ProductionOperatorId))
+            .ForMember(d => d.InspectorName, opt => opt.MapFrom<OperatorIdNameResolver<ChemicalBatch>, int?>(s => s.InspectorId))
+            .ForMember(d => d.OutboundReviewerName, opt => opt.MapFrom<OperatorIdNameResolver<ChemicalBatch>, int?>(s => s.OutboundReviewerId));
         CreateMap<ChemicalBatchCreateDto, ChemicalBatch>();
 
         CreateMap<ProcessRecord, ProcessRecordDto>()
@@ -108,10 +108,5 @@ public class MappingProfile : Profile
         CreateMap<User, UserInfoDto>()
             .ForMember(d => d.RoleName, opt => opt.MapFrom(s => s.Role.ToString()))
             .ForMember(d => d.EnterpriseName, opt => opt.MapFrom(s => s.Enterprise != null ? s.Enterprise.Name : null));
-    }
-
-    private static string GetOperatorName(int id)
-    {
-        return $"操作员_{id}";
     }
 }

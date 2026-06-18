@@ -1,13 +1,17 @@
 using System.Text;
+using HazChemSupervision.BackgroundServices;
 using HazChemSupervision.Data;
+using HazChemSupervision.DTOs;
+using HazChemSupervision.Mapping;
 using HazChemSupervision.Repositories;
 using HazChemSupervision.Services;
-using HazChemSupervision.Mapping;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Models;
+using Swashbuckle.AspNetCore.SwaggerGen;
 using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -70,6 +74,81 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 
+    c.MapType<LoginRequest>(() => new OpenApiSchema
+    {
+        Type = "object",
+        Properties = new Dictionary<string, OpenApiSchema>
+        {
+            ["username"] = new OpenApiSchema { Type = "string", Example = new OpenApiString("admin") },
+            ["password"] = new OpenApiSchema { Type = "string", Example = new OpenApiString("Admin@123") }
+        }
+    });
+
+    c.MapType<InventoryTransactionCreateDto>(() => new OpenApiSchema
+    {
+        Type = "object",
+        Properties = new Dictionary<string, OpenApiSchema>
+        {
+            ["inventoryId"] = new OpenApiSchema { Type = "integer", Example = new OpenApiInteger(1) },
+            ["enterpriseId"] = new OpenApiSchema { Type = "integer", Example = new OpenApiInteger(1) },
+            ["warehouseId"] = new OpenApiSchema { Type = "integer", Example = new OpenApiInteger(1) },
+            ["chemicalId"] = new OpenApiSchema { Type = "integer", Example = new OpenApiInteger(1) },
+            ["chemicalBatchId"] = new OpenApiSchema { Type = "integer", Nullable = true, Example = new OpenApiInteger(1) },
+            ["transactionType"] = new OpenApiSchema { Type = "integer", Example = new OpenApiInteger(1), Description = "1=原料入库,2=生产投入,3=成品入库,4=销售出库,5=退货入库,6=报废,7=调拨入,8=调拨出" },
+            ["quantity"] = new OpenApiSchema { Type = "number", Format = "decimal", Example = new OpenApiDouble(500.5) },
+            ["unit"] = new OpenApiSchema { Type = "string", Example = new OpenApiString("kg") },
+            ["remark"] = new OpenApiSchema { Type = "string", Example = new OpenApiString("生产领料出库") },
+            ["operatorId"] = new OpenApiSchema { Type = "integer", Example = new OpenApiInteger(1) },
+            ["operatorName"] = new OpenApiSchema { Type = "string", Example = new OpenApiString("张三") }
+        }
+    });
+
+    c.MapType<CertificateVerifyDto>(() => new OpenApiSchema
+    {
+        Type = "object",
+        Properties = new Dictionary<string, OpenApiSchema>
+        {
+            ["certificateNo"] = new OpenApiSchema { Type = "string", Example = new OpenApiString("WH-HZ-2024-001234") },
+            ["type"] = new OpenApiSchema { Type = "integer", Example = new OpenApiInteger(1), Description = "1=安全生产许可证,2=经营许可证,3=运输许可证,4=操作人员资格证,5=培训合格证" },
+            ["holderName"] = new OpenApiSchema { Type = "string", Example = new OpenApiString("张三") },
+            ["idCard"] = new OpenApiSchema { Type = "string", Nullable = true, Example = new OpenApiString("110101199001011234") }
+        }
+    });
+
+    c.MapType<ChemicalBatchCreateDto>(() => new OpenApiSchema
+    {
+        Type = "object",
+        Properties = new Dictionary<string, OpenApiSchema>
+        {
+            ["batchNo"] = new OpenApiSchema { Type = "string", Example = new OpenApiString("BATCH-20240115-001") },
+            ["enterpriseId"] = new OpenApiSchema { Type = "integer", Example = new OpenApiInteger(1) },
+            ["chemicalId"] = new OpenApiSchema { Type = "integer", Example = new OpenApiInteger(1) },
+            ["warehouseId"] = new OpenApiSchema { Type = "integer", Example = new OpenApiInteger(1) },
+            ["plannedQuantity"] = new OpenApiSchema { Type = "number", Format = "decimal", Example = new OpenApiDouble(1000.0) },
+            ["unit"] = new OpenApiSchema { Type = "string", Example = new OpenApiString("kg") },
+            ["productionDate"] = new OpenApiSchema { Type = "string", Format = "date-time", Example = new OpenApiString("2024-01-15T08:00:00Z") },
+            ["expiryDate"] = new OpenApiSchema { Type = "string", Format = "date-time", Example = new OpenApiString("2025-01-15T08:00:00Z") },
+            ["remark"] = new OpenApiSchema { Type = "string", Example = new OpenApiString("01月批次生产") }
+        }
+    });
+
+    c.MapType<AlertQueryDto>(() => new OpenApiSchema
+    {
+        Type = "object",
+        Properties = new Dictionary<string, OpenApiSchema>
+        {
+            ["type"] = new OpenApiSchema { Type = "integer", Nullable = true, Example = new OpenApiInteger(1), Description = "预警类型" },
+            ["level"] = new OpenApiSchema { Type = "integer", Nullable = true, Example = new OpenApiInteger(2), Description = "预警级别:1=信息,2=警告,3=危险,4=严重" },
+            ["status"] = new OpenApiSchema { Type = "integer", Nullable = true, Example = new OpenApiInteger(1), Description = "状态:1=新建,2=已读,3=已处理,4=已关闭" },
+            ["enterpriseId"] = new OpenApiSchema { Type = "integer", Nullable = true, Example = new OpenApiInteger(1) },
+            ["isRead"] = new OpenApiSchema { Type = "boolean", Nullable = true, Example = new OpenApiBoolean(false) },
+            ["isHandled"] = new OpenApiSchema { Type = "boolean", Nullable = true, Example = new OpenApiBoolean(false) },
+            ["pageIndex"] = new OpenApiSchema { Type = "integer", Example = new OpenApiInteger(1) },
+            ["pageSize"] = new OpenApiSchema { Type = "integer", Example = new OpenApiInteger(20) }
+        }
+    });
+
+    c.SchemaFilter<SwaggerExampleFilter>();
     c.EnableAnnotations();
 });
 
@@ -116,6 +195,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 });
 
 builder.Services.AddAutoMapper(typeof(MappingProfile));
+builder.Services.AddScoped(typeof(OperatorIdNameResolver<>));
 
 builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
 builder.Services.AddScoped<IComplianceService, ComplianceService>();
@@ -128,6 +208,9 @@ builder.Services.AddScoped<IEmergencyDrillService, EmergencyDrillService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<ICertificateService, CertificateService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+
+builder.Services.AddHttpClient();
+builder.Services.AddHostedService<AlertCheckBackgroundService>();
 
 builder.Services.AddMemoryCache();
 builder.Services.AddResponseCaching();
