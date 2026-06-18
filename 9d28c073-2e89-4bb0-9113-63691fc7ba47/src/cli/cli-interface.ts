@@ -398,7 +398,7 @@ export class CliInterface extends EventEmitter {
         logger.info(`Captcha manually resolved for site ${intervention.siteId}`);
       }
 
-      this.scheduler.resolveCaptcha(intervention.siteId);
+      this.scheduler.resolveCaptcha(intervention.siteId, captchaValue);
 
       this.isAwaitingCaptchaInput = false;
       if (process.stdin.isTTY) {

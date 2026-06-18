@@ -43,6 +43,8 @@ export class CrawlScheduler extends EventEmitter {
   private pauseResolve: (() => void) | null = null;
   private browserPool: BrowserPool | null = null;
   private pendingCaptchaSites: Set<string> = new Set();
+  private activeFetchers: Map<string, PageFetcher> = new Map();
+  private captchaResolvers: Map<string, (value: { captchaValue: string; resolved: boolean }) => void> = new Map();
 
   constructor(alertService: AlertService, browserPool?: BrowserPool) {
     super();
@@ -157,6 +159,28 @@ export class CrawlScheduler extends EventEmitter {
 
     this.emit('sessionEnd', this.currentSession);
 
+    const initialFailed = this.currentSession.failedCount + this.currentSession.captchaCount;
+    if (initialFailed > 0) {
+      logger.info(
+        `Main crawl phase completed with ${initialFailed} failed/captcha site(s), ` +
+        `auto-starting exponential backoff retry (max 3 rounds)`
+      );
+      const retried = await this.retryFailedSites();
+      logger.info(`Auto-retry phase completed, total sites retried: ${retried}`);
+    } else {
+      logger.info('All sites succeeded in main phase, no auto-retry needed');
+    }
+
+    repository.updateCrawlRun(runId, {
+      endedAt: nowIso(),
+      totalSites: this.currentSession.totalSites,
+      successCount: this.currentSession.successCount,
+      failedCount: this.currentSession.failedCount,
+      captchaCount: this.currentSession.captchaCount,
+      newChanges: this.currentSession.newChanges,
+      status: this.currentSession.status
+    });
+
     if (this.currentSession.newChanges > 0) {
       await this.sendAlertsForNewChanges();
     }
@@ -256,10 +280,11 @@ export class CrawlScheduler extends EventEmitter {
 
     try {
       fetcher = new PageFetcher(site, worker.browser, worker.userAgent);
+      this.activeFetchers.set(site.id, fetcher);
       const detector = new ChangeDetector(site);
       const parser = new PolicyParser(site);
 
-      const listResult = await fetcher.fetch(site.listUrl);
+      let listResult = await fetcher.fetch(site.listUrl);
 
       if (!listResult.success) {
         if (listResult.captchaDetected) {
@@ -278,7 +303,38 @@ export class CrawlScheduler extends EventEmitter {
             }
           }
 
-          await this.handleCaptchaIntervention(site, listResult.screenshotPath, captchaType, siteStatus, startTime);
+          const interventionUrl = site.listUrl;
+          const resolved = await this.handleCaptchaIntervention(
+            site,
+            fetcher,
+            listResult.screenshotPath,
+            captchaType,
+            interventionUrl,
+            siteStatus
+          );
+
+          if (resolved) {
+            logger.getLogger(site.id).info('Captcha resolved during list fetch, retrying list fetch with same fetcher');
+            const retryResult = await fetcher.fetch(site.listUrl);
+            if (retryResult.success) {
+              await this.processListPage(site, fetcher, detector, parser, retryResult.html!, startTime);
+              return;
+            }
+          }
+
+          siteStatus.status = 'captcha';
+          siteStatus.consecutiveFailures++;
+          session.captchaCount++;
+          const result: CrawlResult = {
+            siteId: site.id,
+            success: false,
+            status: 'captcha',
+            message: 'Captcha encountered - included in retry queue',
+            screenshotPath: listResult.screenshotPath,
+            duration: Date.now() - startTime
+          };
+          this.emit('siteComplete', site.id, result);
+          session.completedSites++;
           return;
         }
 
@@ -320,6 +376,7 @@ export class CrawlScheduler extends EventEmitter {
       if (fetcher) {
         await fetcher.close().catch(() => {});
       }
+      this.activeFetchers.delete(site.id);
       siteStatus.lastCrawlTime = nowIso();
     }
   }
@@ -400,7 +457,41 @@ export class CrawlScheduler extends EventEmitter {
             }
           }
 
-          await this.handleCaptchaIntervention(site, detailResult.screenshotPath, captchaType, session.siteStatuses.get(site.id)!, startTime);
+          const siteStatus = session.siteStatuses.get(site.id)!;
+          const resolved = await this.handleCaptchaIntervention(
+            site,
+            fetcher,
+            detailResult.screenshotPath,
+            captchaType,
+            item.url,
+            siteStatus
+          );
+
+          if (resolved) {
+            logger.getLogger(site.id).info(`Captcha resolved during detail fetch, retrying ${item.url}`);
+            const retryResult = await fetcher.fetch(item.url);
+            if (retryResult.success && retryResult.html) {
+              const change = await detector.detectDetailChange(
+                item.url,
+                retryResult.html,
+                item.title
+              );
+              if (change) {
+                session.newChanges++;
+                parser.parseAndSave(retryResult.html, item.url);
+                this.emit('changeDetected', change);
+              }
+            }
+            continue;
+          }
+
+          const capStatus = session.siteStatuses.get(site.id)!;
+          capStatus.status = 'captcha';
+          capStatus.consecutiveFailures++;
+          session.captchaCount++;
+          logger.getLogger(site.id).warn(
+            `Captcha unresolved for detail ${item.url}, stopping detail crawl for this site. Will be retried in retry queue`
+          );
           break;
         }
       } catch (err) {
@@ -430,18 +521,17 @@ export class CrawlScheduler extends EventEmitter {
 
   private async handleCaptchaIntervention(
     site: SiteConfig,
+    fetcher: PageFetcher,
     screenshotPath: string | undefined,
     captchaType: 'graphic' | 'slider' | 'unknown',
-    siteStatus: SiteRuntimeInfo,
-    startTime: number
-  ): Promise<void> {
+    interventionUrl: string,
+    siteStatus: SiteRuntimeInfo
+  ): Promise<boolean> {
     const session = this.currentSession!;
-    siteStatus.status = 'captcha';
-    session.captchaCount++;
 
     const intervention: CaptchaManualIntervention = {
       siteId: site.id,
-      url: site.listUrl,
+      url: interventionUrl,
       captchaType: captchaType === 'slider' ? 'slider' : 'graphic',
       screenshotPath: screenshotPath || '',
       detectedAt: nowIso(),
@@ -451,58 +541,96 @@ export class CrawlScheduler extends EventEmitter {
     this.pendingCaptchaSites.add(site.id);
 
     logger.getLogger(site.id).warn(
-      `Graphic/unknown captcha detected - PAUSING crawl flow for manual intervention. ` +
+      `Captcha detected - awaiting manual resolution. ` +
       `Site: ${site.name}, Type: ${captchaType}, Screenshot: ${screenshotPath || 'none'}`
     );
 
     this.emit('captchaManualIntervention', intervention);
     this.emit('siteCaptcha', site.id, intervention);
 
-    if (captchaType !== 'slider') {
+    const needsPause = captchaType !== 'slider';
+
+    if (needsPause) {
       logger.info(`Crawl flow paused due to graphic captcha at site ${site.id}. Waiting for manual resolution...`);
       this.pause();
-      await this.waitForCaptchaResolution(site.id);
     }
 
-    const result: CrawlResult = {
-      siteId: site.id,
-      success: false,
-      status: 'captcha',
-      message: 'Captcha detected - manual intervention required',
-      screenshotPath,
-      duration: Date.now() - startTime
-    };
-    this.emit('siteComplete', site.id, result);
-    session.completedSites++;
-  }
+    try {
+      const resolution = await this.waitForCaptchaResolution(site.id);
 
-  private async waitForCaptchaResolution(siteId: string): Promise<void> {
-    const maxWaitMs = 30 * 60 * 1000;
-    const checkIntervalMs = 5000;
-    const startWait = Date.now();
-
-    while (this.pendingCaptchaSites.has(siteId)) {
-      if (Date.now() - startWait > maxWaitMs) {
-        logger.warn(`Captcha resolution timeout for site ${siteId} after ${maxWaitMs / 60000} minutes, continuing`);
-        this.pendingCaptchaSites.delete(siteId);
-        break;
+      if (!resolution.resolved) {
+        logger.getLogger(site.id).warn(`Captcha not resolved for ${site.id}`);
+        return false;
       }
-      await sleep(checkIntervalMs);
-    }
 
-    if (this.isPaused) {
-      this.resume();
+      if (resolution.captchaValue && resolution.captchaValue.trim() !== '') {
+        logger.getLogger(site.id).info(
+          `Filling captcha value "${resolution.captchaValue}" into browser page`
+        );
+        const submitted = await fetcher.submitCaptcha(resolution.captchaValue);
+        if (submitted) {
+          logger.getLogger(site.id).info('Captcha submitted successfully to page');
+          return true;
+        } else {
+          logger.getLogger(site.id).warn('Captcha submission to page failed');
+          return false;
+        }
+      } else {
+        logger.getLogger(site.id).info('Captcha marked resolved without value (user confirmed manual solve)');
+        return true;
+      }
+    } finally {
+      if (this.isPaused && this.pendingCaptchaSites.size === 0) {
+        this.resume();
+      }
     }
-
-    logger.info(`Captcha resolved for site ${siteId}, crawl flow continues`);
   }
 
-  resolveCaptcha(siteId: string): void {
-    if (this.pendingCaptchaSites.has(siteId)) {
-      this.pendingCaptchaSites.delete(siteId);
-      logger.info(`Captcha manually resolved for site ${siteId}`);
-      this.emit('captchaResolved', siteId);
+  private waitForCaptchaResolution(siteId: string): Promise<{ captchaValue: string; resolved: boolean }> {
+    const maxWaitMs = 30 * 60 * 1000;
+
+    return new Promise<{ captchaValue: string; resolved: boolean }>((resolve) => {
+      let settled = false;
+
+      const resolver = (value: { captchaValue: string; resolved: boolean }) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        this.captchaResolvers.delete(siteId);
+        resolve(value);
+      };
+
+      const timeout = setTimeout(() => {
+        if (!settled) {
+          logger.warn(`Captcha resolution timeout for site ${siteId} after ${maxWaitMs / 60000} minutes`);
+          this.pendingCaptchaSites.delete(siteId);
+          resolver({ captchaValue: '', resolved: false });
+        }
+      }, maxWaitMs);
+
+      this.captchaResolvers.set(siteId, resolver);
+    });
+  }
+
+  resolveCaptcha(siteId: string, captchaValue?: string): void {
+    const value = captchaValue ?? '';
+
+    if (!this.pendingCaptchaSites.has(siteId)) {
+      logger.info(`resolveCaptcha called but site ${siteId} not in pending set, ignoring`);
+      return;
     }
+
+    logger.info(`Captcha resolved for site ${siteId}` + (value ? ` with value: "${value}"` : ' (no value, manual confirm)'));
+    this.pendingCaptchaSites.delete(siteId);
+
+    const resolver = this.captchaResolvers.get(siteId);
+    if (resolver) {
+      resolver({ captchaValue: value, resolved: true });
+    } else {
+      logger.warn(`No pending resolver for site ${siteId}, captcha marked resolved but flow may not continue`);
+    }
+
+    this.emit('captchaResolved', siteId);
   }
 
   getPendingCaptchaSites(): string[] {
@@ -528,10 +656,11 @@ export class CrawlScheduler extends EventEmitter {
 
     try {
       fetcher = new PageFetcher(site);
+      this.activeFetchers.set(site.id, fetcher);
       const detector = new ChangeDetector(site);
       const parser = new PolicyParser(site);
 
-      const listResult = await fetcher.fetch(site.listUrl);
+      let listResult = await fetcher.fetch(site.listUrl);
 
       if (!listResult.success) {
         if (listResult.captchaDetected) {
@@ -544,23 +673,56 @@ export class CrawlScheduler extends EventEmitter {
               const retryResult = await fetcher.fetch(site.listUrl);
               if (retryResult.success) {
                 await this.processListPage(site, fetcher, detector, parser, retryResult.html!, startTime);
-                const result: CrawlResult = {
+                return {
                   siteId: site.id,
                   success: true,
                   status: 'ok',
                   duration: Date.now() - startTime
                 };
-                return result;
               }
             }
           }
 
-          await this.handleCaptchaIntervention(site, listResult.screenshotPath, captchaType, siteStatus, startTime);
+          const resolved = await this.handleCaptchaIntervention(
+            site,
+            fetcher,
+            listResult.screenshotPath,
+            captchaType,
+            site.listUrl,
+            siteStatus
+          );
+
+          if (resolved) {
+            logger.getLogger(site.id).info('Captcha resolved during list fetch (standalone), retrying list fetch');
+            const retryResult = await fetcher.fetch(site.listUrl);
+            if (retryResult.success) {
+              await this.processListPage(site, fetcher, detector, parser, retryResult.html!, startTime);
+              return {
+                siteId: site.id,
+                success: true,
+                status: 'ok',
+                duration: Date.now() - startTime
+              };
+            }
+          }
+
+          siteStatus.status = 'captcha';
+          siteStatus.consecutiveFailures++;
+          session.captchaCount++;
+          this.emit('siteComplete', site.id, {
+            siteId: site.id,
+            success: false,
+            status: 'captcha',
+            message: 'Captcha encountered - included in retry queue',
+            screenshotPath: listResult.screenshotPath,
+            duration: Date.now() - startTime
+          });
+          session.completedSites++;
           return {
             siteId: site.id,
             success: false,
             status: 'captcha',
-            message: 'Captcha detected - manual intervention required',
+            message: 'Captcha encountered - included in retry queue',
             screenshotPath: listResult.screenshotPath,
             duration: Date.now() - startTime
           };
@@ -584,13 +746,12 @@ export class CrawlScheduler extends EventEmitter {
 
       await this.processListPage(site, fetcher, detector, parser, listResult.html!, startTime);
 
-      const result: CrawlResult = {
+      return {
         siteId: site.id,
         success: true,
         status: 'ok',
         duration: Date.now() - startTime
       };
-      return result;
     } catch (err) {
       siteStatus.status = 'failed';
       siteStatus.consecutiveFailures++;
@@ -613,6 +774,7 @@ export class CrawlScheduler extends EventEmitter {
       if (fetcher) {
         await fetcher.close().catch(() => {});
       }
+      this.activeFetchers.delete(site.id);
       siteStatus.lastCrawlTime = nowIso();
     }
   }

@@ -220,6 +220,125 @@ export class PageFetcher {
     return false;
   }
 
+  async submitCaptcha(captchaValue: string): Promise<boolean> {
+    if (!this.page) return false;
+    if (!captchaValue || captchaValue.trim() === '') {
+      logger.getLogger(this.siteConfig.id).warn('Empty captcha value provided to submitCaptcha');
+      return false;
+    }
+
+    const siteLogger = logger.getLogger(this.siteConfig.id);
+    siteLogger.info(`Submitting graphic captcha value: "${captchaValue}"`);
+
+    const inputSelectors = [
+      'input[name*="captcha"]',
+      'input[id*="captcha"]',
+      'input[placeholder*="验证码"]',
+      'input[placeholder*="captcha"]',
+      'input[name*="verify"]',
+      'input[id*="verify"]',
+      'input[name*="code"]',
+      'input[id*="code"]',
+      '.captcha-input input',
+      '.verify-input input',
+      'input[type="text"]'
+    ];
+
+    let filled = false;
+    for (const selector of inputSelectors) {
+      try {
+        const input = await this.page.$(selector);
+        if (input) {
+          const isVisible = await input.isVisible();
+          if (!isVisible) continue;
+
+          await input.click({ clickCount: 3 });
+          await input.fill(captchaValue);
+
+          const actualValue = await this.page.$eval(selector, (el: HTMLInputElement) => el.value).catch(() => '');
+          if (actualValue) {
+            siteLogger.info(`Captcha input filled via selector: ${selector}`);
+            filled = true;
+            break;
+          }
+        }
+      } catch (err) {
+        siteLogger.debug(`Captcha input selector ${selector} failed: ${(err as Error).message}`);
+      }
+    }
+
+    if (!filled) {
+      siteLogger.warn('Could not fill captcha input via selectors, fallback to page.focus + type');
+      try {
+        const inputs = await this.page.$$('input[type="text"]');
+        for (const input of inputs) {
+          try {
+            const isVisible = await input.isVisible();
+            if (!isVisible) continue;
+            await input.click({ clickCount: 3 });
+            await this.page.keyboard.type(captchaValue, { delay: 50 });
+            filled = true;
+            break;
+          } catch {}
+        }
+      } catch (err) {
+        siteLogger.error(`Fallback captcha fill failed: ${(err as Error).message}`);
+      }
+    }
+
+    if (!filled) {
+      siteLogger.error('Failed to fill captcha input - could not locate input element');
+      return false;
+    }
+
+    const submitSelectors = [
+      'button[type="submit"]',
+      'input[type="submit"]',
+      'button:has-text("提交")',
+      'button:has-text("验证")',
+      'button:has-text("确认")',
+      'button:has-text("登录")',
+      '.submit-btn',
+      '.captcha-submit',
+      '.verify-submit'
+    ];
+
+    let submitted = false;
+    for (const selector of submitSelectors) {
+      try {
+        const btn = await this.page.$(selector);
+        if (btn) {
+          const isVisible = await btn.isVisible();
+          if (!isVisible) continue;
+          await btn.click();
+          siteLogger.info(`Captcha submitted via selector: ${selector}`);
+          submitted = true;
+          break;
+        }
+      } catch (err) {
+        siteLogger.debug(`Submit selector ${selector} failed: ${(err as Error).message}`);
+      }
+    }
+
+    if (!submitted) {
+      siteLogger.info('No submit button found, pressing Enter key instead');
+      await this.page.keyboard.press('Enter');
+      submitted = true;
+    }
+
+    await sleep(2000);
+
+    const afterCheck = await this.detectCaptcha();
+    if (afterCheck.detected) {
+      siteLogger.warn('Captcha still detected after submission - may be incorrect or page still loading');
+      return false;
+    }
+
+    siteLogger.info('Graphic captcha submitted successfully');
+    this.captchaBlocked = false;
+    return true;
+  }
+
   private async doFetch(url: string): Promise<FetchResult> {
     const startTime = Date.now();
     const siteLogger = logger.getLogger(this.siteConfig.id);
