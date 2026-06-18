@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace HazChemSupervision.DTOs;
 
 public class InventoryDto
@@ -78,6 +80,13 @@ public class InventoryStatisticsDto
     public int ExpiredCount { get; set; }
 }
 
+public class InventoryStatisticsQueryDto : PagedRequest
+{
+    public int? EnterpriseId { get; set; }
+    public int? WarehouseId { get; set; }
+    public int? Category { get; set; }
+}
+
 public class InventoryTransactionDto
 {
     public long Id { get; set; }
@@ -115,6 +124,8 @@ public class InventoryTransactionCreateDto
     public string? Remark { get; set; }
     public int OperatorId { get; set; }
     public string OperatorName { get; set; } = string.Empty;
+    [MaxLength(64)]
+    public string? IdempotencyKey { get; set; }
 }
 
 public class InventoryTransactionQueryDto : PagedRequest

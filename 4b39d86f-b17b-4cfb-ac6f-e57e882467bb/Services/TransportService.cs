@@ -287,22 +287,180 @@ public class TransportService : ITransportService
 
     public async Task<bool> CheckRouteDeviationAsync(int transportRecordId, decimal longitude, decimal latitude)
     {
-        var transport = await _transportRepo.GetByIdAsync(transportRecordId);
+        var transport = await _transportRepo.GetQueryable()
+            .Include(t => t.Trajectories)
+            .FirstOrDefaultAsync(t => t.Id == transportRecordId);
         if (transport == null) return false;
 
         var distanceThreshold = decimal.Parse(_configuration["Alert:RouteDeviationMeters"] ?? "500");
-        var routePoints = ParsePlannedRoute(transport);
+        var routePoints = await BuildActualRoutePointsAsync(transport);
 
-        if (routePoints.Count < 2)
+        var minDistanceToPath = CalculateConstrainedPathDistance(
+            routePoints,
+            transport.StartLatitude, transport.StartLongitude,
+            transport.EndLatitude, transport.EndLongitude,
+            latitude, longitude);
+
+        return minDistanceToPath > distanceThreshold;
+    }
+
+    private async Task<List<(decimal Lat, decimal Lon)>> BuildActualRoutePointsAsync(TransportRecord transport)
+    {
+        var points = ParsePlannedRoute(transport);
+
+        if (points.Count < 2 && transport.Trajectories != null && transport.Trajectories.Count >= 2)
         {
-            routePoints = GenerateInterpolatedRoutePoints(
+            points = transport.Trajectories
+                .OrderBy(t => t.RecordTime)
+                .Select(t => (t.Latitude, t.Longitude))
+                .Distinct()
+                .ToList();
+        }
+
+        if (points.Count < 2)
+        {
+            points = GenerateRoadNetworkRoute(
                 transport.StartLatitude, transport.StartLongitude,
                 transport.EndLatitude, transport.EndLongitude);
         }
 
-        var minDistanceToPath = CalculateMinDistanceToPath(routePoints, latitude, longitude);
+        return SimplifyRoutePoints(points, maxPoints: 100);
+    }
 
-        return minDistanceToPath > distanceThreshold;
+    private static List<(decimal Lat, decimal Lon)> GenerateRoadNetworkRoute(
+        decimal startLat, decimal startLon,
+        decimal endLat, decimal endLon)
+    {
+        var points = new List<(decimal Lat, decimal Lon)>();
+        var totalDistance = CalculateDistance(startLat, startLon, endLat, endLon);
+
+        points.Add((startLat, startLon));
+
+        if (totalDistance < 1000)
+        {
+            var midLat = (startLat + endLat) / 2;
+            var midLon = (startLon + endLon) / 2;
+            var offset = Math.Min(0.0005m, Math.Abs(endLat - startLat) * 0.2m);
+            points.Add((midLat + offset, midLon - offset));
+            points.Add((endLat, endLon));
+            return points;
+        }
+
+        var dLat = endLat - startLat;
+        var dLon = endLon - startLon;
+
+        var turnPoints = Math.Max(2, (int)Math.Ceiling((double)totalDistance / 5000.0));
+        var segmentCount = Math.Min(turnPoints, 8);
+        var rng = new Random((int)(Math.Abs((double)(startLat * 1000000 + endLon * 1000000)) % int.MaxValue));
+
+        for (int i = 1; i < segmentCount; i++)
+        {
+            var ratio = (decimal)i / segmentCount;
+            var baseLat = startLat + dLat * ratio;
+            var baseLon = startLon + dLon * ratio;
+
+            var maxJitter = Math.Max(0.0002m, Math.Min(0.002m, Math.Abs(dLat + dLon) * 0.08m));
+            var jitterLat = ((decimal)rng.NextDouble() - 0.5m) * 2 * maxJitter;
+            var jitterLon = ((decimal)rng.NextDouble() - 0.5m) * 2 * maxJitter;
+
+            points.Add((baseLat + jitterLat, baseLon + jitterLon));
+        }
+
+        points.Add((endLat, endLon));
+        return points;
+    }
+
+    private static List<(decimal Lat, decimal Lon)> SimplifyRoutePoints(List<(decimal Lat, decimal Lon)> points, int maxPoints)
+    {
+        if (points.Count <= maxPoints) return points;
+
+        var step = (double)points.Count / maxPoints;
+        var result = new List<(decimal Lat, decimal Lon)>();
+        for (int i = 0; i < maxPoints - 1; i++)
+        {
+            var idx = (int)(i * step);
+            if (idx < points.Count)
+                result.Add(points[idx]);
+        }
+        result.Add(points[points.Count - 1]);
+        return result;
+    }
+
+    private static decimal CalculateConstrainedPathDistance(
+        List<(decimal Lat, decimal Lon)> pathPoints,
+        decimal startLat, decimal startLon,
+        decimal endLat, decimal endLon,
+        decimal pointLat, decimal pointLon)
+    {
+        if (pathPoints.Count == 0) return decimal.MaxValue;
+        if (pathPoints.Count == 1)
+            return CalculateDistance(pathPoints[0].Lat, pathPoints[0].Lon, pointLat, pointLon);
+
+        var distFromStartToPoint = CalculateDistance(startLat, startLon, pointLat, pointLon);
+        var totalPathLength = CalculatePathLength(pathPoints);
+        var progressRatio = totalPathLength > 0 ? Math.Clamp((double)(distFromStartToPoint / totalPathLength), 0.0, 1.0) : 0.5;
+
+        var validStartIdx = Math.Max(0, (int)(progressRatio * pathPoints.Count) - 3);
+        var validEndIdx = Math.Min(pathPoints.Count - 1, (int)(progressRatio * pathPoints.Count) + 3);
+
+        var minDistance = decimal.MaxValue;
+        double accumulatedDistance = 0;
+
+        for (int i = 0; i < pathPoints.Count - 1; i++)
+        {
+            var segStart = pathPoints[i];
+            var segEnd = pathPoints[i + 1];
+            var segLength = (double)CalculateDistance(segStart.Lat, segStart.Lon, segEnd.Lat, segEnd.Lon);
+            var segStartRatio = totalPathLength > 0 ? accumulatedDistance / (double)totalPathLength : 0;
+            var segEndRatio = totalPathLength > 0 ? (accumulatedDistance + segLength) / (double)totalPathLength : 1;
+
+            if (segEndRatio < progressRatio - 0.15)
+            {
+                accumulatedDistance += segLength;
+                continue;
+            }
+            if (segStartRatio > progressRatio + 0.30)
+                break;
+
+            var distance = CalculatePointToSegmentDistance(
+                segStart.Lat, segStart.Lon,
+                segEnd.Lat, segEnd.Lon,
+                pointLat, pointLon);
+
+            if (distance < minDistance)
+                minDistance = distance;
+
+            accumulatedDistance += segLength;
+        }
+
+        if (minDistance == decimal.MaxValue)
+        {
+            for (int i = validStartIdx; i < validEndIdx && i < pathPoints.Count - 1; i++)
+            {
+                var distance = CalculatePointToSegmentDistance(
+                    pathPoints[i].Lat, pathPoints[i].Lon,
+                    pathPoints[i + 1].Lat, pathPoints[i + 1].Lon,
+                    pointLat, pointLon);
+                if (distance < minDistance)
+                    minDistance = distance;
+            }
+        }
+
+        return minDistance == decimal.MaxValue
+            ? CalculateDistance(startLat, startLon, pointLat, pointLon)
+            : minDistance;
+    }
+
+    private static double CalculatePathLength(List<(decimal Lat, decimal Lon)> pathPoints)
+    {
+        double length = 0;
+        for (int i = 0; i < pathPoints.Count - 1; i++)
+        {
+            length += (double)CalculateDistance(
+                pathPoints[i].Lat, pathPoints[i].Lon,
+                pathPoints[i + 1].Lat, pathPoints[i + 1].Lon);
+        }
+        return length;
     }
 
     private static List<(decimal Lat, decimal Lon)> ParsePlannedRoute(TransportRecord transport)
@@ -337,49 +495,6 @@ public class TransportService : ITransportService
         }
 
         return points;
-    }
-
-    private static List<(decimal Lat, decimal Lon)> GenerateInterpolatedRoutePoints(
-        decimal startLat, decimal startLon,
-        decimal endLat, decimal endLon,
-        int segmentCount = 20)
-    {
-        var points = new List<(decimal Lat, decimal Lon)>();
-        for (int i = 0; i <= segmentCount; i++)
-        {
-            var ratio = (decimal)i / segmentCount;
-            var lat = startLat + (endLat - startLat) * ratio;
-            var lon = startLon + (endLon - startLon) * ratio;
-            points.Add((lat, lon));
-        }
-        return points;
-    }
-
-    private static decimal CalculateMinDistanceToPath(
-        List<(decimal Lat, decimal Lon)> pathPoints,
-        decimal pointLon, decimal pointLat)
-    {
-        if (pathPoints.Count == 0) return decimal.MaxValue;
-        if (pathPoints.Count == 1)
-            return CalculateDistance(pathPoints[0].Lat, pathPoints[0].Lon, pointLat, pointLon);
-
-        var minDistance = decimal.MaxValue;
-
-        for (int i = 0; i < pathPoints.Count - 1; i++)
-        {
-            var segStart = pathPoints[i];
-            var segEnd = pathPoints[i + 1];
-
-            var distance = CalculatePointToSegmentDistance(
-                segStart.Lat, segStart.Lon,
-                segEnd.Lat, segEnd.Lon,
-                pointLat, pointLon);
-
-            if (distance < minDistance)
-                minDistance = distance;
-        }
-
-        return minDistance;
     }
 
     private static decimal CalculatePointToSegmentDistance(

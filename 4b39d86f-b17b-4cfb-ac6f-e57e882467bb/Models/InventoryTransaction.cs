@@ -8,6 +8,9 @@ public class InventoryTransaction
     [Key]
     public long Id { get; set; }
 
+    [MaxLength(64)]
+    public string? IdempotencyKey { get; set; }
+
     public int InventoryId { get; set; }
 
     [ForeignKey(nameof(InventoryId))]

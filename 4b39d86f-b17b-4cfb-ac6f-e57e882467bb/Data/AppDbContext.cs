@@ -101,6 +101,7 @@ public class AppDbContext : DbContext
             entity.HasIndex(t => t.EnterpriseId);
             entity.HasIndex(t => t.TransactionType);
             entity.HasIndex(t => t.TransactionTime);
+            entity.HasIndex(t => t.IdempotencyKey).IsUnique().HasFilter("[IdempotencyKey] IS NOT NULL");
             entity.HasIndex(t => new { t.EnterpriseId, t.TransactionTime });
         });
 

@@ -38,9 +38,7 @@ public class MappingProfile : Profile
             .ForMember(d => d.OutboundReviewerName, opt => opt.MapFrom<OperatorIdNameResolver<ChemicalBatch>, int?>(s => s.OutboundReviewerId));
         CreateMap<ChemicalBatchCreateDto, ChemicalBatch>();
 
-        CreateMap<ProcessRecord, ProcessRecordDto>()
-            .ForMember(d => d.StageName, opt => opt.MapFrom(s => s.Stage.ToString()))
-            .ForMember(d => d.StatusName, opt => opt.MapFrom(s => s.Status.ToString()));
+        CreateMap<ProcessRecord, ProcessRecordDto>();
 
         CreateMap<Inventory, InventoryDto>()
             .ForMember(d => d.ChemicalName, opt => opt.MapFrom(s => s.Chemical.Name))

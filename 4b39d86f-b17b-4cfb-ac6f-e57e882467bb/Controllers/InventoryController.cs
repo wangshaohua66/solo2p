@@ -85,15 +85,13 @@ public class InventoryController : ControllerBase
     }
 
     [HttpGet("statistics")]
-    [SwaggerOperation(Summary = "库存统计", Description = "按企业、仓库、危化品类别三级维度统计实时库存量")]
-    [SwaggerResponse(200, "获取成功", typeof(ApiResponse<List<InventoryStatisticsDto>>))]
-    public async Task<ActionResult<ApiResponse<List<InventoryStatisticsDto>>>> GetStatistics(
-        [FromQuery] int? enterpriseId = null,
-        [FromQuery] int? warehouseId = null,
-        [FromQuery] int? category = null)
+    [SwaggerOperation(Summary = "库存统计", Description = "按企业、仓库、危化品类别三级维度统计实时库存量（分页）")]
+    [SwaggerResponse(200, "获取成功", typeof(ApiResponse<PagedResult<InventoryStatisticsDto>>))]
+    public async Task<ActionResult<ApiResponse<PagedResult<InventoryStatisticsDto>>>> GetStatistics(
+        [FromQuery] InventoryStatisticsQueryDto dto)
     {
-        var result = await _inventoryService.GetStatisticsAsync(enterpriseId, warehouseId, category);
-        return Ok(new ApiResponse<List<InventoryStatisticsDto>> { Data = result });
+        var result = await _inventoryService.GetStatisticsAsync(dto);
+        return Ok(new ApiResponse<PagedResult<InventoryStatisticsDto>> { Data = result });
     }
 
     [HttpGet("transactions")]

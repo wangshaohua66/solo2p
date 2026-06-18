@@ -37,7 +37,7 @@ public class ReportController : ControllerBase
     }
 
     [HttpGet("compliance/export")]
-    [SwaggerOperation(Summary = "导出合规报告", Description = "导出符合国标格式的月度监管报表（文本格式）")]
+    [SwaggerOperation(Summary = "导出合规报告", Description = "导出符合国标格式的月度监管报表（Excel格式）")]
     [SwaggerResponse(200, "导出成功", typeof(FileResult))]
     public async Task<IActionResult> ExportComplianceReport(
         [FromQuery] int year,
@@ -50,12 +50,12 @@ public class ReportController : ControllerBase
             Month = month,
             EnterpriseId = enterpriseId
         });
-        var fileName = $"合规报告_{year}年{month}月_{DateTime.UtcNow:yyyyMMddHHmmss}.txt";
-        return File(result, "text/plain; charset=utf-8", fileName);
+        var fileName = $"合规报告_{year}年{month}月_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx";
+        return File(result, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
 
     [HttpGet("inventory/export")]
-    [SwaggerOperation(Summary = "导出库存报表", Description = "导出库存统计报表")]
+    [SwaggerOperation(Summary = "导出库存报表", Description = "导出库存统计报表（Excel格式）")]
     [SwaggerResponse(200, "导出成功", typeof(FileResult))]
     public async Task<IActionResult> ExportInventoryReport(
         [FromQuery] int? enterpriseId = null,
@@ -63,12 +63,12 @@ public class ReportController : ControllerBase
         [FromQuery] int? category = null)
     {
         var result = await _reportService.ExportInventoryReportAsync(enterpriseId, warehouseId, category);
-        var fileName = $"库存报表_{DateTime.UtcNow:yyyyMMddHHmmss}.txt";
-        return File(result, "text/plain; charset=utf-8", fileName);
+        var fileName = $"库存报表_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx";
+        return File(result, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
 
     [HttpGet("transport/export")]
-    [SwaggerOperation(Summary = "导出运输报表", Description = "导出运输记录报表")]
+    [SwaggerOperation(Summary = "导出运输报表", Description = "导出运输记录报表（Excel格式）")]
     [SwaggerResponse(200, "导出成功", typeof(FileResult))]
     public async Task<IActionResult> ExportTransportReport(
         [FromQuery] DateTime? startDate = null,
@@ -78,24 +78,24 @@ public class ReportController : ControllerBase
         var result = await _reportService.ExportTransportReportAsync(
             new DateRangeFilter { StartDate = startDate, EndDate = endDate },
             enterpriseId);
-        var fileName = $"运输报表_{DateTime.UtcNow:yyyyMMddHHmmss}.txt";
-        return File(result, "text/plain; charset=utf-8", fileName);
+        var fileName = $"运输报表_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx";
+        return File(result, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
 
     [HttpGet("hazard/export")]
-    [SwaggerOperation(Summary = "导出隐患报表", Description = "导出隐患整改报表")]
+    [SwaggerOperation(Summary = "导出隐患报表", Description = "导出隐患整改报表（Excel格式）")]
     [SwaggerResponse(200, "导出成功", typeof(FileResult))]
     public async Task<IActionResult> ExportHazardReport(
         [FromQuery] int? enterpriseId = null,
         [FromQuery] int? status = null)
     {
         var result = await _reportService.ExportHazardReportAsync(enterpriseId, status);
-        var fileName = $"隐患报表_{DateTime.UtcNow:yyyyMMddHHmmss}.txt";
-        return File(result, "text/plain; charset=utf-8", fileName);
+        var fileName = $"隐患报表_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx";
+        return File(result, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
 
     [HttpGet("drill/export")]
-    [SwaggerOperation(Summary = "导出演练报表", Description = "导出应急演练报表")]
+    [SwaggerOperation(Summary = "导出演练报表", Description = "导出应急演练报表（Excel格式）")]
     [SwaggerResponse(200, "导出成功", typeof(FileResult))]
     public async Task<IActionResult> ExportDrillReport(
         [FromQuery] int year,
@@ -103,7 +103,7 @@ public class ReportController : ControllerBase
         [FromQuery] int? enterpriseId = null)
     {
         var result = await _reportService.ExportDrillReportAsync(year, quarter, enterpriseId);
-        var fileName = $"演练报表_{year}年_{DateTime.UtcNow:yyyyMMddHHmmss}.txt";
-        return File(result, "text/plain; charset=utf-8", fileName);
+        var fileName = $"演练报表_{year}年_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx";
+        return File(result, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
 }

@@ -35,7 +35,7 @@ public interface IInventoryService
     Task<InventoryDto> CreateInventoryAsync(InventoryCreateDto dto);
     Task<InventoryDto> UpdateInventoryAsync(int id, InventoryUpdateDto dto);
     Task<bool> DeleteInventoryAsync(int id);
-    Task<List<InventoryStatisticsDto>> GetStatisticsAsync(int? enterpriseId = null, int? warehouseId = null, int? category = null);
+    Task<PagedResult<InventoryStatisticsDto>> GetStatisticsAsync(InventoryStatisticsQueryDto dto);
     Task<InventoryTransactionDto> CreateTransactionAsync(InventoryTransactionCreateDto dto);
     Task<PagedResult<InventoryTransactionDto>> GetTransactionsAsync(InventoryTransactionQueryDto dto);
     Task UpdateInventoryStatusAsync(int inventoryId);

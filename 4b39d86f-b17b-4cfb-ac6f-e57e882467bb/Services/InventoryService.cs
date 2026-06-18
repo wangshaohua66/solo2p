@@ -165,47 +165,74 @@ public class InventoryService : IInventoryService
         }
     }
 
-    public async Task<List<InventoryStatisticsDto>> GetStatisticsAsync(
-        int? enterpriseId = null,
-        int? warehouseId = null,
-        int? category = null)
+    public async Task<PagedResult<InventoryStatisticsDto>> GetStatisticsAsync(InventoryStatisticsQueryDto dto)
     {
         var query = _inventoryRepo.GetQueryable()
             .Include(i => i.Enterprise)
             .Include(i => i.Warehouse)
-            .Include(i => i.Chemical);
+            .Include(i => i.Chemical)
+            .AsNoTracking();
 
-        if (enterpriseId.HasValue)
-            query = query.Where(i => i.EnterpriseId == enterpriseId.Value);
+        if (dto.EnterpriseId.HasValue)
+            query = query.Where(i => i.EnterpriseId == dto.EnterpriseId.Value);
 
-        if (warehouseId.HasValue)
-            query = query.Where(i => i.WarehouseId == warehouseId.Value);
+        if (dto.WarehouseId.HasValue)
+            query = query.Where(i => i.WarehouseId == dto.WarehouseId.Value);
 
-        if (category.HasValue)
-            query = query.Where(i => i.Chemical.Category == (ChemicalCategory)category.Value);
+        if (dto.Category.HasValue)
+            query = query.Where(i => i.Chemical.Category == (ChemicalCategory)dto.Category.Value);
 
-        var inventories = await query.ToListAsync();
+        var totalCount = await query
+            .Select(i => new { i.EnterpriseId, i.WarehouseId, i.Chemical.Category })
+            .Distinct()
+            .CountAsync();
 
-        var statistics = inventories
+        var groupedData = await query
             .GroupBy(i => new { i.EnterpriseId, i.WarehouseId, i.Chemical.Category })
-            .Select(g => new InventoryStatisticsDto
+            .Select(g => new
             {
-                EnterpriseId = g.Key.EnterpriseId,
-                EnterpriseName = g.First().Enterprise.Name,
-                WarehouseId = g.Key.WarehouseId,
-                WarehouseName = g.First().Warehouse.Name,
-                ChemicalCategory = (int)g.Key.Category,
-                ChemicalCategoryName = g.Key.Category.ToString(),
+                g.Key.EnterpriseId,
+                g.Key.WarehouseId,
+                g.Key.Category,
                 TotalQuantity = g.Sum(i => i.Quantity),
                 BatchCount = g.Count(),
                 OverstockCount = g.Count(i => i.HasOverstockAlert),
                 LowStockCount = g.Count(i => i.HasLowStockAlert),
                 NearExpiryCount = g.Count(i => i.Status == InventoryStatus.NearExpiry),
-                ExpiredCount = g.Count(i => i.Status == InventoryStatus.Expired)
+                ExpiredCount = g.Count(i => i.Status == InventoryStatus.Expired),
+                EnterpriseName = g.FirstOrDefault() != null ? g.FirstOrDefault()!.Enterprise.Name : "",
+                WarehouseName = g.FirstOrDefault() != null ? g.FirstOrDefault()!.Warehouse.Name : ""
             })
-            .ToList();
+            .OrderBy(x => x.EnterpriseId)
+            .ThenBy(x => x.WarehouseId)
+            .ThenBy(x => x.Category)
+            .Skip((dto.PageIndex - 1) * dto.PageSize)
+            .Take(dto.PageSize)
+            .ToListAsync();
 
-        return statistics;
+        var result = groupedData.Select(g => new InventoryStatisticsDto
+        {
+            EnterpriseId = g.EnterpriseId,
+            EnterpriseName = g.EnterpriseName,
+            WarehouseId = g.WarehouseId,
+            WarehouseName = g.WarehouseName,
+            ChemicalCategory = (int)g.Category,
+            ChemicalCategoryName = g.Category.ToString(),
+            TotalQuantity = g.TotalQuantity,
+            BatchCount = g.BatchCount,
+            OverstockCount = g.OverstockCount,
+            LowStockCount = g.LowStockCount,
+            NearExpiryCount = g.NearExpiryCount,
+            ExpiredCount = g.ExpiredCount
+        }).ToList();
+
+        return new PagedResult<InventoryStatisticsDto>
+        {
+            Items = result,
+            TotalCount = totalCount,
+            PageIndex = dto.PageIndex,
+            PageSize = dto.PageSize
+        };
     }
 
     public async Task<InventoryTransactionDto> CreateTransactionAsync(InventoryTransactionCreateDto dto)
@@ -235,6 +262,23 @@ public class InventoryService : IInventoryService
                 throw new KeyNotFoundException($"未找到对应库存记录，请先创建库存（企业:{dto.EnterpriseId},仓库:{dto.WarehouseId},危化品:{dto.ChemicalId}）");
         }
 
+        var idempotencyKey = string.IsNullOrWhiteSpace(dto.IdempotencyKey)
+            ? GenerateIdempotencyKey(dto, inventory.Id)
+            : dto.IdempotencyKey;
+
+        var existingTx = await _transactionRepo.GetQueryable()
+            .Include(t => t.Inventory)
+            .Include(t => t.ChemicalBatch)
+            .Include(t => t.Enterprise)
+            .Include(t => t.Warehouse)
+            .Include(t => t.Chemical)
+            .FirstOrDefaultAsync(t => t.IdempotencyKey == idempotencyKey);
+
+        if (existingTx != null)
+        {
+            return _mapper.Map<InventoryTransactionDto>(existingTx);
+        }
+
         var batch = dto.ChemicalBatchId.HasValue
             ? await _batchRepo.GetByIdAsync(dto.ChemicalBatchId.Value)
             : null;
@@ -253,15 +297,30 @@ public class InventoryService : IInventoryService
             _ => throw new ArgumentException($"不支持的交易类型: {dto.TransactionType}")
         };
 
-        var balanceBefore = inventory.Quantity;
-        var balanceAfter = balanceBefore + quantityChange;
-
-        if (balanceAfter < 0)
-            throw new InvalidOperationException($"库存不足，无法执行此操作（当前库存:{balanceBefore},出库数量:{dto.Quantity}）");
-
         using var retry = new RetryHelper(3, TimeSpan.FromMilliseconds(100));
+        InventoryTransaction? finalTransaction = null;
+
         await retry.ExecuteAsync(async () =>
         {
+            var duplicateCheck = await _transactionRepo.ExistsAsync(t => t.IdempotencyKey == idempotencyKey);
+            if (duplicateCheck)
+            {
+                finalTransaction = await _transactionRepo.GetQueryable()
+                    .Include(t => t.Inventory)
+                    .Include(t => t.ChemicalBatch)
+                    .Include(t => t.Enterprise)
+                    .Include(t => t.Warehouse)
+                    .Include(t => t.Chemical)
+                    .FirstAsync(t => t.IdempotencyKey == idempotencyKey);
+                return;
+            }
+
+            var balanceBefore = inventory.Quantity;
+            var balanceAfter = balanceBefore + quantityChange;
+
+            if (balanceAfter < 0)
+                throw new InvalidOperationException($"库存不足，无法执行此操作（当前库存:{balanceBefore},出库数量:{dto.Quantity}）");
+
             var transaction = new InventoryTransaction
             {
                 InventoryId = inventory.Id,
@@ -278,7 +337,8 @@ public class InventoryService : IInventoryService
                 OperatorId = dto.OperatorId,
                 OperatorName = dto.OperatorName,
                 TransactionTime = DateTime.UtcNow,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                IdempotencyKey = idempotencyKey
             };
 
             inventory.Quantity = balanceAfter;
@@ -292,11 +352,11 @@ public class InventoryService : IInventoryService
                 await _warehouseRepo.UpdateAsync(warehouse);
             }
 
-            await _transactionRepo.AddAsync(transaction);
-
             try
             {
+                await _transactionRepo.AddAsync(transaction);
                 await _inventoryRepo.UpdateAsync(inventory);
+                finalTransaction = transaction;
             }
             catch (DbUpdateConcurrencyException ex)
             {
@@ -306,7 +366,23 @@ public class InventoryService : IInventoryService
             }
         });
 
-        await UpdateInventoryStatusAsync(inventory.Id);
+        if (finalTransaction == null)
+        {
+            finalTransaction = await _transactionRepo.GetQueryable()
+                .Include(t => t.Inventory)
+                .Include(t => t.ChemicalBatch)
+                .Include(t => t.Enterprise)
+                .Include(t => t.Warehouse)
+                .Include(t => t.Chemical)
+                .OrderByDescending(t => t.Id)
+                .FirstOrDefaultAsync(t => t.IdempotencyKey == idempotencyKey);
+        }
+
+        if (finalTransaction != null)
+        {
+            await UpdateInventoryStatusAsync(inventory.Id);
+            return _mapper.Map<InventoryTransactionDto>(finalTransaction);
+        }
 
         var savedTransaction = await _transactionRepo.GetQueryable()
             .Include(t => t.Inventory)
@@ -315,9 +391,20 @@ public class InventoryService : IInventoryService
             .Include(t => t.Warehouse)
             .Include(t => t.Chemical)
             .OrderByDescending(t => t.Id)
-            .FirstOrDefaultAsync(t => t.InventoryId == inventory.Id);
+            .FirstOrDefaultAsync(t => t.InventoryId == inventory.Id) ??
+            throw new InvalidOperationException("事务创建失败，请稍后重试");
 
+        await UpdateInventoryStatusAsync(inventory.Id);
         return _mapper.Map<InventoryTransactionDto>(savedTransaction);
+    }
+
+    private static string GenerateIdempotencyKey(InventoryTransactionCreateDto dto, int inventoryId)
+    {
+        var keySource = $"{inventoryId}|{dto.ChemicalBatchId}|{dto.TransactionType}|{dto.Quantity:0.0000}|" +
+                        $"{dto.OperatorId}|{DateTime.UtcNow:yyyyMMddHHmm}|{dto.Remark ?? string.Empty}|{dto.Unit}";
+        using var sha256 = System.Security.Cryptography.SHA256.Create();
+        var bytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(keySource));
+        return Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
     }
 
     public async Task<PagedResult<InventoryTransactionDto>> GetTransactionsAsync(InventoryTransactionQueryDto dto)
