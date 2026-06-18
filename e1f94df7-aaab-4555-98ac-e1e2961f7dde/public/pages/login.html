@@ -1,0 +1,60 @@
+<div class="login-card">
+  <div class="text-center mb-3">
+    <i class="bi bi-hammer" style="font-size:2.5rem;color:var(--gold)"></i>
+  </div>
+  <h4 class="login-title">拍卖行管理系统</h4>
+
+  <form id="login-form">
+    <div class="mb-3">
+      <label class="form-label">邮箱地址</label>
+      <div class="input-group">
+        <span class="input-group-text" style="background:var(--ink-deep);border-color:var(--border-color);color:var(--gold)"><i class="bi bi-envelope"></i></span>
+        <input type="email" class="form-control" id="login-email" placeholder="请输入邮箱" required>
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">密码</label>
+      <div class="input-group">
+        <span class="input-group-text" style="background:var(--ink-deep);border-color:var(--border-color);color:var(--gold)"><i class="bi bi-lock"></i></span>
+        <input type="password" class="form-control" id="login-password" placeholder="请输入密码" required>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-gold w-100 mt-2">登录</button>
+    <div class="text-center mt-3">
+      <span class="text-muted" style="font-size:0.85rem">还没有账号？</span>
+      <a href="#" id="btn-show-register" class="text-gold" style="font-size:0.85rem">立即注册</a>
+    </div>
+  </form>
+
+  <form id="register-form" style="display:none">
+    <div class="mb-3">
+      <label class="form-label">姓名 *</label>
+      <input type="text" class="form-control" id="reg-name" placeholder="请输入姓名" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">邮箱 *</label>
+      <input type="email" class="form-control" id="reg-email" placeholder="请输入邮箱" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">手机号</label>
+      <input type="tel" class="form-control" id="reg-phone" placeholder="请输入手机号">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">密码 *</label>
+      <input type="password" class="form-control" id="reg-password" placeholder="请设置密码" required minlength="6">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">角色 *</label>
+      <select class="form-select" id="reg-role" required>
+        <option value="">请选择角色</option>
+        <option value="consignor">委托方</option>
+        <option value="bidder">竞买人</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-gold w-100 mt-2">注册</button>
+    <div class="text-center mt-3">
+      <span class="text-muted" style="font-size:0.85rem">已有账号？</span>
+      <a href="#" id="btn-show-login" class="text-gold" style="font-size:0.85rem">返回登录</a>
+    </div>
+  </form>
+</div>

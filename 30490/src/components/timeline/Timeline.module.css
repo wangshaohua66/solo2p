@@ -1,0 +1,167 @@
+.container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg-secondary);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  user-select: none;
+}
+
+.container.dragActive {
+  border-color: var(--color-accent-primary);
+}
+
+.rulerContainer {
+  flex-shrink: 0;
+  background-color: var(--color-bg-tertiary);
+  border-bottom: var(--border-width-thin) solid var(--color-border);
+  overflow: hidden;
+}
+
+.ruler {
+  position: relative;
+  height: 40px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  cursor: pointer;
+}
+
+.ruler::-webkit-scrollbar {
+  display: none;
+}
+
+.rulerContent {
+  display: flex;
+  position: relative;
+  min-height: 40px;
+}
+
+.rulerTracks {
+  position: relative;
+  height: 40px;
+}
+
+.rulerMark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: var(--color-border);
+  pointer-events: none;
+}
+
+.rulerMarkMajor {
+  background-color: var(--color-border-light);
+  height: 60%;
+}
+
+.rulerLabel {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  font-size: 10px;
+  font-family: var(--font-family-display);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.scrollContainer {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: calc(100vh - 400px);
+  min-height: 400px;
+}
+
+.scrollContainer::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+
+.scrollContainer::-webkit-scrollbar-track {
+  background: var(--color-bg-primary);
+}
+
+.scrollContainer::-webkit-scrollbar-thumb {
+  background: var(--color-bg-hover);
+  border-radius: 5px;
+}
+
+.scrollContainer::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-light);
+}
+
+.content {
+  display: flex;
+  position: relative;
+}
+
+.tracksArea {
+  position: relative;
+}
+
+.playhead {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  background-color: var(--color-warning);
+  z-index: 100;
+  pointer-events: none;
+  box-shadow: 0 0 4px rgba(245, 158, 11, 0.5);
+}
+
+.playheadTop {
+  position: absolute;
+  top: -6px;
+  left: -5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: var(--color-warning);
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.8);
+}
+
+.dropIndicator {
+  position: absolute;
+  width: 3px;
+  background-color: var(--color-accent-primary);
+  z-index: 90;
+  pointer-events: none;
+  box-shadow: 0 0 8px var(--color-accent-glow);
+}
+
+.hidden {
+  display: none;
+}
+
+.emptyState,
+.emptyClips {
+  position: absolute;
+  inset: 40px 0 0 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-8);
+}
+
+.emptyText {
+  margin: 0;
+  font-size: var(--font-size-base);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+@media (max-width: 767px) {
+  .emptyState,
+  .emptyClips {
+    inset: 40px 0 0 0;
+  }
+
+  .scrollContainer {
+    max-height: calc(100vh - 500px);
+    min-height: 300px;
+  }
+}

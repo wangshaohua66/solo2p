@@ -1,0 +1,152 @@
+global:
+  log_dir: "./logs"
+  log_retention_days: 90
+  image_cache_dir: "./image_cache"
+  image_cache_max: 1000
+  db_path: "./data/patrol.db"
+  excel_export_dir: "./exports"
+  max_memory_mb: 512
+
+schedule:
+  default_interval_sec: 900
+  round_timeout_sec: 120
+  per_point_timeout_sec: 2
+
+screens:
+  - id: "dcs1_r101_temp"
+    name: "1号DCS-101反应釜温度"
+    system: "DCS-1"
+    window_title: "DCS-1 主控画面"
+    monitor_index: 0
+    template_image: "./templates/dcs1_window.png"
+    capture_region:
+      x: 100
+      y: 200
+      width: 300
+      height: 80
+    type: "digital_gauge"
+    unit: "°C"
+    interval_sec: 900
+    threshold:
+      high: 180.0
+      low: 60.0
+      high_high: 200.0
+      low_low: 40.0
+
+  - id: "dcs1_p201_pressure"
+    name: "1号DCS-201管道压力"
+    system: "DCS-1"
+    window_title: "DCS-1 主控画面"
+    monitor_index: 0
+    template_image: "./templates/dcs1_window.png"
+    capture_region:
+      x: 500
+      y: 200
+      width: 300
+      height: 80
+    type: "digital_gauge"
+    unit: "MPa"
+    interval_sec: 900
+    threshold:
+      high: 2.5
+      low: 0.5
+      high_high: 3.0
+      low_low: 0.2
+
+  - id: "dcs2_l301_level"
+    name: "2号DCS-301液位"
+    system: "DCS-2"
+    window_title: "DCS-2 储罐监控"
+    monitor_index: 1
+    template_image: "./templates/dcs2_window.png"
+    capture_region:
+      x: 100
+      y: 300
+      width: 250
+      height: 150
+    type: "pointer_gauge"
+    unit: "m"
+    interval_sec: 900
+    pointer_gauge_config:
+      min_value: 0.0
+      max_value: 10.0
+      start_angle: 225
+      end_angle: -45
+      center_x_ratio: 0.5
+      center_y_ratio: 0.6
+      radius_ratio: 0.35
+
+  - id: "plc1_alarm_panel"
+    name: "1号PLC-报警灯面板"
+    system: "PLC-1"
+    window_title: "PLC-1 人机界面"
+    monitor_index: 1
+    template_image: "./templates/plc1_window.png"
+    capture_region:
+      x: 50
+      y: 400
+      width: 600
+      height: 100
+    type: "alarm_lights"
+    interval_sec: 600
+    alarm_lights_config:
+      num_lights: 6
+      light_width: 80
+      light_height: 80
+      gap: 20
+      labels:
+        - "超温报警"
+        - "超压报警"
+        - "液位高"
+        - "液位低"
+        - "流量异常"
+        - "通信故障"
+      red_hsv_range:
+        lower: [0, 100, 100]
+        upper: [10, 255, 255]
+      yellow_hsv_range:
+        lower: [20, 100, 100]
+        upper: [35, 255, 255]
+      green_hsv_range:
+        lower: [35, 50, 50]
+        upper: [85, 255, 255]
+
+  - id: "dcs3_f401_flow"
+    name: "3号DCS-401流量"
+    system: "DCS-3"
+    window_title: "DCS-3 管道流量"
+    monitor_index: 0
+    template_image: "./templates/dcs3_window.png"
+    capture_region:
+      x: 200
+      y: 150
+      width: 280
+      height: 80
+    type: "digital_gauge"
+    unit: "m³/h"
+    interval_sec: 900
+    threshold:
+      high: 120.0
+      low: 20.0
+      high_high: 150.0
+      low_low: 10.0
+
+alert:
+  dedup_window_sec: 300
+  sound_enabled: true
+  sound_file: "./assets/alert.wav"
+  popup_duration_sec: 10
+  notification_title: "化工厂巡检告警"
+
+roles:
+  operator:
+    name: "当班操作员"
+    permissions:
+      - "configure_points"
+      - "view_reports"
+      - "acknowledge_alerts"
+  director:
+    name: "车间主任"
+    permissions:
+      - "review_history"
+      - "export_reports"

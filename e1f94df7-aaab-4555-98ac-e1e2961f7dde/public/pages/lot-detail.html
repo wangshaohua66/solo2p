@@ -1,0 +1,90 @@
+<div class="py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div id="detail-breadcrumb" style="font-size:0.9rem"></div>
+    <div id="detail-status"></div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <div class="card-dark p-3">
+        <img id="detail-main-image" class="main-image" src="" alt="拍品图片">
+        <div class="image-gallery" id="detail-thumbnails"></div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card-dark p-4">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <div style="font-family:var(--font-num);color:var(--text-muted);font-size:0.85rem" id="detail-lot-number"></div>
+            <h4 class="mt-1 mb-2" id="detail-name"></h4>
+          </div>
+          <div>
+            <label class="form-label" style="font-size:0.75rem">变更状态</label>
+            <select class="form-select form-select-sm" id="lot-status-change" style="width:auto">
+              <option value="">选择状态...</option>
+              <option value="submitted">已提交</option>
+              <option value="appraising">鉴定中</option>
+              <option value="photographed">已拍摄</option>
+              <option value="cataloging">图录中</option>
+              <option value="previewing">预展中</option>
+              <option value="bidding">竞拍中</option>
+              <option value="sold">已成交</option>
+              <option value="passed">流拍</option>
+              <option value="settled">已结算</option>
+              <option value="delivered">已交付</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row mb-3">
+          <div class="col-6">
+            <div class="text-muted" style="font-size:0.8rem">分类</div>
+            <div id="detail-category" style="font-weight:500"></div>
+          </div>
+          <div class="col-6">
+            <div class="text-muted" style="font-size:0.8rem">参考价</div>
+            <div id="detail-reference-price" style="font-family:var(--font-num);font-weight:600;color:var(--gold)"></div>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <div class="text-muted" style="font-size:0.8rem">估价范围</div>
+          <div id="detail-estimate" style="font-family:var(--font-num);font-weight:600;color:var(--gold-light)"></div>
+        </div>
+
+        <div class="mb-3">
+          <div class="text-muted" style="font-size:0.8rem">描述</div>
+          <p id="detail-description" style="font-size:0.9rem;line-height:1.6"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4 mt-2">
+    <div class="col-lg-6">
+      <div class="card-dark p-4">
+        <h6 class="mb-3"><i class="bi bi-clipboard-check me-1"></i>鉴定记录</h6>
+        <div id="appraisal-list"></div>
+        <hr style="border-color:var(--border-color)">
+        <h6 class="mb-3"><i class="bi bi-plus-circle me-1"></i>添加鉴定</h6>
+        <form id="appraisal-form">
+          <div class="mb-2">
+            <label class="form-label" style="font-size:0.8rem">鉴定意见</label>
+            <textarea class="form-control" id="appraisal-opinion" rows="2" placeholder="请输入鉴定意见" required></textarea>
+          </div>
+          <div class="mb-2">
+            <label class="form-label" style="font-size:0.8rem">估价 (¥)</label>
+            <input type="number" class="form-control" id="appraisal-price" step="0.01" placeholder="请输入估价金额" required>
+          </div>
+          <button type="submit" class="btn btn-gold btn-sm">提交鉴定</button>
+        </form>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card-dark p-4">
+        <h6 class="mb-3"><i class="bi bi-clock-history me-1"></i>状态流转</h6>
+        <div class="timeline" id="detail-timeline"></div>
+      </div>
+    </div>
+  </div>
+</div>

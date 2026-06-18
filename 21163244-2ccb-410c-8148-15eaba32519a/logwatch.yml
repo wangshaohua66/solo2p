@@ -1,0 +1,70 @@
+sources:
+  - name: nginx-access
+    path: ./logs/nginx/access.log
+    parser: nginx
+    encoding: utf-8
+  - name: app-logs
+    path: ./logs/app/*.log
+    parser: json
+    encoding: utf-8
+  - name: error-logs
+    path: ./logs/errors/*.log
+    parser: auto
+    encoding: utf-8
+
+patterns:
+  - name: http-5xx
+    regex: \s5\d{2}\s
+    severity: error
+  - name: http-4xx
+    regex: \s4\d{2}\s
+    severity: warn
+  - name: slow-request
+    regex: request_time[=:][\d.]+
+    severity: warn
+  - name: connection-refused
+    regex: '[Cc]onnection [Rr]efused'
+    severity: error
+  - name: oom-killer
+    regex: Out of memory|OOM|oom-killer
+    severity: critical
+  - name: timeout
+    regex: '[Tt]imeout|timed out'
+    severity: error
+  - name: critical-or-oom
+    composite:
+      operator: OR
+      patterns:
+        - oom-killer
+        - connection-refused
+    severity: critical
+
+alerts:
+  - name: high-error-rate
+    metric: error_rate
+    threshold: 5
+    comparator: '>'
+    window_minutes: 5
+    silence_minutes: 30
+  - name: slow-response
+    metric: response_time
+    threshold: 2000
+    comparator: '>'
+    window_minutes: 1
+    silence_minutes: 15
+
+archive:
+  path: ./archive
+  retention_days: 30
+  compress: true
+
+monitoring:
+  concurrency: 8
+  max_memory_mb: 500
+  watch_delay_ms: 500
+
+correlation:
+  time_window_seconds: 60
+  keys:
+    - ip
+    - request_id

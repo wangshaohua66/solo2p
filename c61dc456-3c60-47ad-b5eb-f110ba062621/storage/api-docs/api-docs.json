@@ -1,0 +1,3101 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "文体场馆在线预约系统 API",
+        "description": "某市公共文化服务中心在线预约系统RESTful API文档，支持实名预约、分时段计费、信用积分管理、黑名单自动拉黑",
+        "contact": {
+            "name": "API Support",
+            "email": "admin@booking.example.com"
+        },
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8000",
+            "description": "开发环境"
+        }
+    ],
+    "paths": {
+        "/api/auth/register": {
+            "post": {
+                "tags": [
+                    "认证"
+                ],
+                "summary": "用户注册",
+                "description": "使用手机号和密码注册新用户，注册成功后返回用户信息和访问令牌",
+                "operationId": "d764dd091cc4494ae0baf360b03319f3",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "phone",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "phone": {
+                                        "description": "手机号",
+                                        "type": "string",
+                                        "example": "13800138000"
+                                    },
+                                    "password": {
+                                        "description": "密码(6-20位)",
+                                        "type": "string",
+                                        "example": "123456"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "注册成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "user": {
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        },
+                                                        "phone": {
+                                                            "type": "string",
+                                                            "example": "13800138000"
+                                                        },
+                                                        "is_verified": {
+                                                            "type": "boolean",
+                                                            "example": false
+                                                        },
+                                                        "credit_score": {
+                                                            "type": "integer",
+                                                            "example": 100
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "access_token": {
+                                                    "type": "string",
+                                                    "example": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+                                                },
+                                                "token_type": {
+                                                    "type": "string",
+                                                    "example": "Bearer"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "验证失败",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "手机号已被注册"
+                                        },
+                                        "data": {
+                                            "type": "null",
+                                            "example": null
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/login": {
+            "post": {
+                "tags": [
+                    "认证"
+                ],
+                "summary": "用户登录",
+                "description": "使用手机号和密码登录，成功后返回OAuth2访问令牌",
+                "operationId": "8dcb70df1020986038d098cc08d05dae",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "phone",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "phone": {
+                                        "description": "手机号",
+                                        "type": "string",
+                                        "example": "13800138000"
+                                    },
+                                    "password": {
+                                        "description": "密码",
+                                        "type": "string",
+                                        "example": "123456"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "登录成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "user": {
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        },
+                                                        "phone": {
+                                                            "type": "string",
+                                                            "example": "13800138000"
+                                                        },
+                                                        "real_name": {
+                                                            "type": "string",
+                                                            "example": null
+                                                        },
+                                                        "is_verified": {
+                                                            "type": "boolean",
+                                                            "example": false
+                                                        },
+                                                        "credit_score": {
+                                                            "type": "integer",
+                                                            "example": 100
+                                                        },
+                                                        "is_blacklisted": {
+                                                            "type": "boolean",
+                                                            "example": false
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "access_token": {
+                                                    "type": "string",
+                                                    "example": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+                                                },
+                                                "token_type": {
+                                                    "type": "string",
+                                                    "example": "Bearer"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "认证失败",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "手机号或密码错误"
+                                        },
+                                        "data": {
+                                            "type": "null",
+                                            "example": null
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/logout": {
+            "post": {
+                "tags": [
+                    "认证"
+                ],
+                "summary": "用户退出登录",
+                "description": "撤销当前访问令牌，退出登录",
+                "operationId": "69281b12abb272c76871f19cb17ca563",
+                "responses": {
+                    "200": {
+                        "description": "退出成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "example": []
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "未认证",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        },
+                                        "data": {
+                                            "type": "null",
+                                            "example": null
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/auth/refresh": {
+            "post": {
+                "tags": [
+                    "认证"
+                ],
+                "summary": "刷新令牌",
+                "description": "撤销当前令牌并生成新的访问令牌",
+                "operationId": "b2eae7a8032954d25b46c7ec6f489c68",
+                "responses": {
+                    "200": {
+                        "description": "刷新成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "access_token": {
+                                                    "type": "string",
+                                                    "example": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+                                                },
+                                                "token_type": {
+                                                    "type": "string",
+                                                    "example": "Bearer"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "未认证",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        },
+                                        "data": {
+                                            "type": "null",
+                                            "example": null
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/auth/me": {
+            "get": {
+                "tags": [
+                    "认证"
+                ],
+                "summary": "获取当前用户信息",
+                "description": "获取当前已认证用户的详细信息，包括信用分、违规次数、黑名单状态等",
+                "operationId": "b9abb1a7a74670a19c215c2c133f14d8",
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "phone": {
+                                                    "type": "string",
+                                                    "example": "13800138000"
+                                                },
+                                                "real_name": {
+                                                    "type": "string",
+                                                    "example": "张三"
+                                                },
+                                                "is_verified": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                },
+                                                "credit_score": {
+                                                    "type": "integer",
+                                                    "example": 100
+                                                },
+                                                "violation_count": {
+                                                    "type": "integer",
+                                                    "example": 0
+                                                },
+                                                "is_blacklisted": {
+                                                    "type": "boolean",
+                                                    "example": false
+                                                },
+                                                "blacklist_until": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": null
+                                                },
+                                                "discount_rate": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 1
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2025-01-01T00:00:00.000000Z"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "未认证",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        },
+                                        "data": {
+                                            "type": "null",
+                                            "example": null
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/auth/verify": {
+            "post": {
+                "tags": [
+                    "认证"
+                ],
+                "summary": "实名认证",
+                "description": "使用真实姓名和身份证号进行实名认证，认证后不可修改",
+                "operationId": "86a3349a0306cb26904691a7211faf38",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "real_name",
+                                    "id_card"
+                                ],
+                                "properties": {
+                                    "real_name": {
+                                        "description": "真实姓名",
+                                        "type": "string",
+                                        "example": "张三"
+                                    },
+                                    "id_card": {
+                                        "description": "身份证号(18位)",
+                                        "type": "string",
+                                        "example": "110101199001011234"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "实名认证成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "is_verified": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                },
+                                                "real_name": {
+                                                    "type": "string",
+                                                    "example": "张三"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "认证失败",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "实名认证失败：身份证号格式不正确"
+                                        },
+                                        "data": {
+                                            "type": "null",
+                                            "example": null
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "未认证",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        },
+                                        "data": {
+                                            "type": "null",
+                                            "example": null
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "验证失败",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "验证失败"
+                                        },
+                                        "data": {
+                                            "type": "null",
+                                            "example": null
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/bookings": {
+            "get": {
+                "tags": [
+                    "预约管理"
+                ],
+                "summary": "获取用户预约列表",
+                "operationId": "eb7c332e8ba161904a1c0071040f61a5",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "预约状态",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "venue_id",
+                        "in": "query",
+                        "description": "场地ID",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "date_from",
+                        "in": "query",
+                        "description": "开始日期",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "date_to",
+                        "in": "query",
+                        "description": "结束日期",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "页码",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "每页条数",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 20
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "未授权"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "预约管理"
+                ],
+                "summary": "创建预约",
+                "operationId": "e33fa5a6507581f9b1e0d710a9a130d1",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "venue_id",
+                                    "time_slot_id"
+                                ],
+                                "properties": {
+                                    "venue_id": {
+                                        "description": "场地ID",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "time_slot_id": {
+                                        "description": "时段ID",
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误"
+                    },
+                    "401": {
+                        "description": "未授权"
+                    },
+                    "500": {
+                        "description": "服务器错误"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/bookings/{id}": {
+            "get": {
+                "tags": [
+                    "预约管理"
+                ],
+                "summary": "获取预约详情",
+                "operationId": "ccb98678c3ca3c9e74460dbddc427ab0",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "预约ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "未授权"
+                    },
+                    "404": {
+                        "description": "未找到"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/bookings/{id}/cancel": {
+            "post": {
+                "tags": [
+                    "预约管理"
+                ],
+                "summary": "取消预约",
+                "operationId": "728bc370f2a068fc76c90a4cb6a6b9d3",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "预约ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "操作失败"
+                    },
+                    "401": {
+                        "description": "未授权"
+                    },
+                    "500": {
+                        "description": "服务器错误"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/bookings/{id}/check-in": {
+            "post": {
+                "tags": [
+                    "预约管理"
+                ],
+                "summary": "预约签到",
+                "operationId": "23f9fb75bd534708b1d9a3428169f9a7",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "预约ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "操作失败"
+                    },
+                    "401": {
+                        "description": "未授权"
+                    },
+                    "500": {
+                        "description": "服务器错误"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/bookings/no/{bookingNo}": {
+            "get": {
+                "tags": [
+                    "预约管理"
+                ],
+                "summary": "根据预约编号获取预约详情",
+                "operationId": "5ed12aa240a4ecce63d90773af61b6c7",
+                "parameters": [
+                    {
+                        "name": "bookingNo",
+                        "in": "path",
+                        "description": "预约编号",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "未授权"
+                    },
+                    "404": {
+                        "description": "未找到"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/credit/info": {
+            "get": {
+                "tags": [
+                    "信用管理"
+                ],
+                "summary": "获取用户信用积分信息",
+                "operationId": "7e3ffc965638b05fac891b9e36cffb77",
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "未授权"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/credit/records": {
+            "get": {
+                "tags": [
+                    "信用管理"
+                ],
+                "summary": "获取信用记录（分页）",
+                "operationId": "5e9741f38f4d5ec482ca310751f61a7b",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "description": "记录类型",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "is_violation",
+                        "in": "query",
+                        "description": "是否违规",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "date_from",
+                        "in": "query",
+                        "description": "起始日期",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "date_to",
+                        "in": "query",
+                        "description": "截止日期",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "页码",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "每页条数",
+                        "schema": {
+                            "type": "integer",
+                            "default": 20
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "未授权"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/blacklist": {
+            "get": {
+                "tags": [
+                    "信用管理"
+                ],
+                "summary": "获取黑名单用户列表",
+                "operationId": "c635071ee19c1c06f80b47894376f4fd",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "页码",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "每页条数",
+                        "schema": {
+                            "type": "integer",
+                            "default": 20
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "未授权"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "信用管理"
+                ],
+                "summary": "手动添加用户至黑名单",
+                "operationId": "2cb41af59ce663b18560204313eb395d",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "user_id",
+                                    "days",
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "user_id": {
+                                        "description": "用户ID",
+                                        "type": "integer"
+                                    },
+                                    "days": {
+                                        "description": "拉黑天数(1-365)",
+                                        "type": "integer"
+                                    },
+                                    "reason": {
+                                        "description": "拉黑原因",
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "操作失败"
+                    },
+                    "401": {
+                        "description": "未授权"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/blacklist/{userId}": {
+            "delete": {
+                "tags": [
+                    "信用管理"
+                ],
+                "summary": "将用户从黑名单移除",
+                "operationId": "239e0423868a4dba5a791bb1e802503e",
+                "parameters": [
+                    {
+                        "name": "userId",
+                        "in": "path",
+                        "description": "用户ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "reason",
+                        "in": "query",
+                        "description": "解除原因",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "操作失败"
+                    },
+                    "401": {
+                        "description": "未授权"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/reports/overall": {
+            "get": {
+                "tags": [
+                    "信用管理"
+                ],
+                "summary": "获取系统总体报告",
+                "operationId": "37f7a48efa333ee09f9e9cdb5d94cd2a",
+                "parameters": [
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "description": "起始日期",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "description": "截止日期",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "未授权"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/reports/export": {
+            "get": {
+                "tags": [
+                    "信用管理"
+                ],
+                "summary": "导出报告为CSV",
+                "operationId": "dd9e50e0aa9e670e209efc53085791ce",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "description": "报告类型",
+                        "schema": {
+                            "type": "string",
+                            "default": "venue_daily"
+                        }
+                    },
+                    {
+                        "name": "venue_id",
+                        "in": "query",
+                        "description": "场馆ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "description": "起始日期",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "description": "截止日期",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "导出成功"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "filename": {
+                                                    "type": "string",
+                                                    "example": "report.csv"
+                                                },
+                                                "download_url": {
+                                                    "type": "string",
+                                                    "example": "/storage/report.csv"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "未授权"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/payments": {
+            "post": {
+                "tags": [
+                    "支付管理"
+                ],
+                "summary": "创建支付订单",
+                "operationId": "a6408a9b37441f15d1c4c5e79029ac39",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "booking_id",
+                                    "payment_method"
+                                ],
+                                "properties": {
+                                    "booking_id": {
+                                        "description": "预约ID",
+                                        "type": "integer"
+                                    },
+                                    "payment_method": {
+                                        "description": "支付方式",
+                                        "type": "string",
+                                        "enum": [
+                                            "wechat",
+                                            "alipay"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误或业务失败",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 400
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "未认证"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/payments/{paymentNo}/callback": {
+            "post": {
+                "tags": [
+                    "支付管理"
+                ],
+                "summary": "支付回调",
+                "operationId": "8ee34cca045e5420f68ba00e5b371f4c",
+                "parameters": [
+                    {
+                        "name": "paymentNo",
+                        "in": "path",
+                        "description": "支付编号",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "回调处理失败",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 400
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/payments/{paymentNo}/mock-pay": {
+            "get": {
+                "tags": [
+                    "支付管理"
+                ],
+                "summary": "模拟支付（仅测试）",
+                "operationId": "ee18ccc43fdec9be3de18745bb5ea9bd",
+                "parameters": [
+                    {
+                        "name": "paymentNo",
+                        "in": "path",
+                        "description": "支付编号",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "模拟支付失败",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 400
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/payments/{paymentId}/refund": {
+            "post": {
+                "tags": [
+                    "支付管理"
+                ],
+                "summary": "申请退款",
+                "operationId": "e36e95261d297bc42baf066e35316ba5",
+                "parameters": [
+                    {
+                        "name": "paymentId",
+                        "in": "path",
+                        "description": "支付ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "amount",
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "amount": {
+                                        "description": "退款金额",
+                                        "type": "number",
+                                        "format": "float",
+                                        "minimum": 0.01
+                                    },
+                                    "reason": {
+                                        "description": "退款原因",
+                                        "type": "string",
+                                        "maxLength": 255
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "退款失败",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 400
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "未认证"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/payments/{paymentId}/status": {
+            "get": {
+                "tags": [
+                    "支付管理"
+                ],
+                "summary": "查询支付状态",
+                "operationId": "67923b3123a197fa68af89709e3a69af",
+                "parameters": [
+                    {
+                        "name": "paymentId",
+                        "in": "path",
+                        "description": "支付ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "payment_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "payment_no": {
+                                                    "type": "string",
+                                                    "example": "PAY20240101000001"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "paid"
+                                                },
+                                                "amount": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 100
+                                                },
+                                                "paid_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "nullable": true
+                                                },
+                                                "refund_amount": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 0,
+                                                    "nullable": true
+                                                },
+                                                "refunded_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "未认证"
+                    },
+                    "404": {
+                        "description": "支付记录不存在"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/venues": {
+            "get": {
+                "tags": [
+                    "场馆管理"
+                ],
+                "summary": "获取场馆列表",
+                "description": "分页获取活跃场馆列表，支持按类型和关键词筛选",
+                "operationId": "a881d18c3a7e18c81ce59a084693b722",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "description": "场馆类型",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "keyword",
+                        "in": "query",
+                        "description": "搜索关键词(按名称模糊匹配)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "每页条数",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 20
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "total": {
+                                                    "type": "integer",
+                                                    "example": 50
+                                                },
+                                                "page": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "example": 20
+                                                },
+                                                "list": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "name": {
+                                                                "type": "string",
+                                                                "example": "阳光体育馆"
+                                                            },
+                                                            "type": {
+                                                                "type": "string",
+                                                                "example": "羽毛球"
+                                                            },
+                                                            "address": {
+                                                                "type": "string",
+                                                                "example": "北京市朝阳区xxx"
+                                                            },
+                                                            "is_active": {
+                                                                "type": "boolean",
+                                                                "example": true
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "场馆管理"
+                ],
+                "summary": "创建场馆",
+                "description": "管理员创建新场馆",
+                "operationId": "ae68cb3e25e8ba6f89cfc1348dd0dc0d",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "type",
+                                    "open_time",
+                                    "close_time",
+                                    "slot_duration",
+                                    "base_price",
+                                    "peak_price"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "description": "场馆名称(最长100)",
+                                        "type": "string",
+                                        "example": "阳光体育馆"
+                                    },
+                                    "type": {
+                                        "description": "场馆类型(最长30)",
+                                        "type": "string",
+                                        "example": "羽毛球"
+                                    },
+                                    "description": {
+                                        "description": "场馆描述",
+                                        "type": "string",
+                                        "example": "专业羽毛球馆"
+                                    },
+                                    "address": {
+                                        "description": "场馆地址(最长255)",
+                                        "type": "string",
+                                        "example": "北京市朝阳区xxx"
+                                    },
+                                    "contact_phone": {
+                                        "description": "联系电话(最长20)",
+                                        "type": "string",
+                                        "example": "010-12345678"
+                                    },
+                                    "open_time": {
+                                        "description": "营业开始时间(H:i)",
+                                        "type": "string",
+                                        "example": "08:00"
+                                    },
+                                    "close_time": {
+                                        "description": "营业结束时间(H:i，须晚于open_time)",
+                                        "type": "string",
+                                        "example": "22:00"
+                                    },
+                                    "slot_duration": {
+                                        "description": "时段时长(分钟，30-180)",
+                                        "type": "integer",
+                                        "example": 60
+                                    },
+                                    "base_price": {
+                                        "description": "基础价格",
+                                        "type": "number",
+                                        "example": 50
+                                    },
+                                    "peak_price": {
+                                        "description": "高峰价格",
+                                        "type": "number",
+                                        "example": 80
+                                    },
+                                    "peak_hours": {
+                                        "description": "高峰时段",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "example": [
+                                            "18:00-20:00"
+                                        ]
+                                    },
+                                    "advance_booking_days": {
+                                        "description": "提前预约天数(1-30)",
+                                        "type": "integer",
+                                        "example": 7
+                                    },
+                                    "daily_booking_limit": {
+                                        "description": "每日预约上限(1-10)",
+                                        "type": "integer",
+                                        "example": 3
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "创建成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "场馆创建成功"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "阳光体育馆"
+                                                },
+                                                "type": {
+                                                    "type": "string",
+                                                    "example": "羽毛球"
+                                                },
+                                                "is_active": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "验证失败",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "验证失败"
+                                        },
+                                        "data": {
+                                            "type": "null",
+                                            "example": null
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/venues/{id}": {
+            "get": {
+                "tags": [
+                    "场馆管理"
+                ],
+                "summary": "获取场馆详情",
+                "description": "根据ID获取场馆详细信息，包含活跃场地数量",
+                "operationId": "7dc1ae30241aac6021b3bf87e82e6d5f",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "场馆ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "阳光体育馆"
+                                                },
+                                                "type": {
+                                                    "type": "string",
+                                                    "example": "羽毛球"
+                                                },
+                                                "description": {
+                                                    "type": "string",
+                                                    "example": "专业羽毛球馆"
+                                                },
+                                                "address": {
+                                                    "type": "string",
+                                                    "example": "北京市朝阳区xxx"
+                                                },
+                                                "contact_phone": {
+                                                    "type": "string",
+                                                    "example": "010-12345678"
+                                                },
+                                                "open_time": {
+                                                    "type": "string",
+                                                    "example": "08:00"
+                                                },
+                                                "close_time": {
+                                                    "type": "string",
+                                                    "example": "22:00"
+                                                },
+                                                "slot_duration": {
+                                                    "type": "integer",
+                                                    "example": 60
+                                                },
+                                                "base_price": {
+                                                    "type": "number",
+                                                    "example": 50
+                                                },
+                                                "peak_price": {
+                                                    "type": "number",
+                                                    "example": 80
+                                                },
+                                                "courts_count": {
+                                                    "type": "integer",
+                                                    "example": 6
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "场馆不存在",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "No query results for model [App\\\\Models\\\\Venue]"
+                                        },
+                                        "data": {
+                                            "type": "null",
+                                            "example": null
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "场馆管理"
+                ],
+                "summary": "更新场馆",
+                "description": "管理员更新场馆信息，所有字段均为可选(sometimes)",
+                "operationId": "bf169cd0b682d6659c1e14015ebfe5b1",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "场馆ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "description": "场馆名称(最长100)",
+                                        "type": "string",
+                                        "example": "阳光体育馆"
+                                    },
+                                    "type": {
+                                        "description": "场馆类型(最长30)",
+                                        "type": "string",
+                                        "example": "羽毛球"
+                                    },
+                                    "description": {
+                                        "description": "场馆描述",
+                                        "type": "string",
+                                        "example": "专业羽毛球馆"
+                                    },
+                                    "address": {
+                                        "description": "场馆地址(最长255)",
+                                        "type": "string",
+                                        "example": "北京市朝阳区xxx"
+                                    },
+                                    "contact_phone": {
+                                        "description": "联系电话(最长20)",
+                                        "type": "string",
+                                        "example": "010-12345678"
+                                    },
+                                    "open_time": {
+                                        "description": "营业开始时间(H:i)",
+                                        "type": "string",
+                                        "example": "08:00"
+                                    },
+                                    "close_time": {
+                                        "description": "营业结束时间(H:i)",
+                                        "type": "string",
+                                        "example": "22:00"
+                                    },
+                                    "slot_duration": {
+                                        "description": "时段时长(分钟，30-180)",
+                                        "type": "integer",
+                                        "example": 60
+                                    },
+                                    "base_price": {
+                                        "description": "基础价格",
+                                        "type": "number",
+                                        "example": 50
+                                    },
+                                    "peak_price": {
+                                        "description": "高峰价格",
+                                        "type": "number",
+                                        "example": 80
+                                    },
+                                    "peak_hours": {
+                                        "description": "高峰时段",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "example": [
+                                            "18:00-20:00"
+                                        ]
+                                    },
+                                    "advance_booking_days": {
+                                        "description": "提前预约天数(1-30)",
+                                        "type": "integer",
+                                        "example": 7
+                                    },
+                                    "daily_booking_limit": {
+                                        "description": "每日预约上限(1-10)",
+                                        "type": "integer",
+                                        "example": 3
+                                    },
+                                    "is_active": {
+                                        "description": "是否启用",
+                                        "type": "boolean",
+                                        "example": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "更新成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "场馆更新成功"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "阳光体育馆"
+                                                },
+                                                "type": {
+                                                    "type": "string",
+                                                    "example": "羽毛球"
+                                                },
+                                                "is_active": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "场馆不存在",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "No query results for model [App\\\\Models\\\\Venue]"
+                                        },
+                                        "data": {
+                                            "type": "null",
+                                            "example": null
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "验证失败",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "验证失败"
+                                        },
+                                        "data": {
+                                            "type": "null",
+                                            "example": null
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "场馆管理"
+                ],
+                "summary": "停用场馆",
+                "description": "软删除(停用)场馆，将is_active设为false",
+                "operationId": "1064be3433c55b76c2784fc92e1af5cd",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "场馆ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "停用成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "场馆已停用"
+                                        },
+                                        "data": {
+                                            "type": "null",
+                                            "example": null
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "场馆不存在",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "No query results for model [App\\\\Models\\\\Venue]"
+                                        },
+                                        "data": {
+                                            "type": "null",
+                                            "example": null
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/venues/{id}/availability": {
+            "get": {
+                "tags": [
+                    "场馆管理"
+                ],
+                "summary": "获取场馆可用时段",
+                "description": "获取指定日期场馆的可用时段列表",
+                "operationId": "7068a6041b27cef2a927498d913a4852",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "场馆ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "date",
+                        "in": "query",
+                        "description": "查询日期(Y-m-d格式，默认今天)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2025-06-17"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "venue_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "venue_name": {
+                                                    "type": "string",
+                                                    "example": "阳光体育馆"
+                                                },
+                                                "date": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "example": "2025-06-17"
+                                                },
+                                                "slots": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "time": {
+                                                                "type": "string",
+                                                                "example": "08:00-09:00"
+                                                            },
+                                                            "available": {
+                                                                "type": "boolean",
+                                                                "example": true
+                                                            },
+                                                            "price": {
+                                                                "type": "number",
+                                                                "example": 50
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "日期格式不正确",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "日期格式不正确"
+                                        },
+                                        "data": {
+                                            "type": "null",
+                                            "example": null
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "场馆不存在",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "No query results for model [App\\\\Models\\\\Venue]"
+                                        },
+                                        "data": {
+                                            "type": "null",
+                                            "example": null
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/venues/{id}/courts": {
+            "get": {
+                "tags": [
+                    "场馆管理"
+                ],
+                "summary": "获取场馆场地列表",
+                "description": "获取指定场馆下所有活跃场地的列表",
+                "operationId": "193d80d371f7cfc1be5871eeaf783ca6",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "场馆ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "venue_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "court_number": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "1号场"
+                                                    },
+                                                    "is_active": {
+                                                        "type": "boolean",
+                                                        "example": true
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/venues/{id}/stats": {
+            "get": {
+                "tags": [
+                    "场馆管理"
+                ],
+                "summary": "获取场馆统计",
+                "description": "获取指定时间段内场馆的汇总统计和每日统计",
+                "operationId": "ac297aa47bc225eeea1260f79cd66861",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "场馆ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "description": "开始日期(Y-m-d，默认30天前)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2025-05-18"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "description": "结束日期(Y-m-d，默认今天)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2025-06-17"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "summary": {
+                                                    "properties": {
+                                                        "total_bookings": {
+                                                            "type": "integer",
+                                                            "example": 120
+                                                        },
+                                                        "total_revenue": {
+                                                            "type": "number",
+                                                            "example": 6000
+                                                        },
+                                                        "occupancy_rate": {
+                                                            "type": "number",
+                                                            "example": 0.75
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "daily": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "date": {
+                                                                "type": "string",
+                                                                "format": "date",
+                                                                "example": "2025-06-17"
+                                                            },
+                                                            "bookings": {
+                                                                "type": "integer",
+                                                                "example": 8
+                                                            },
+                                                            "revenue": {
+                                                                "type": "number",
+                                                                "example": 400
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/venues/{id}/time-slot-stats": {
+            "get": {
+                "tags": [
+                    "场馆管理"
+                ],
+                "summary": "获取时段统计",
+                "description": "获取指定日期场馆各时段的预订统计数据",
+                "operationId": "0e02d022f4c8c62dba1e0d85a6da33bb",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "场馆ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "date",
+                        "in": "query",
+                        "description": "查询日期(Y-m-d格式，默认今天)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2025-06-17"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "code": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "venue_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "date": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "example": "2025-06-17"
+                                                },
+                                                "slots": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "time": {
+                                                                "type": "string",
+                                                                "example": "08:00-09:00"
+                                                            },
+                                                            "total_slots": {
+                                                                "type": "integer",
+                                                                "example": 6
+                                                            },
+                                                            "booked_slots": {
+                                                                "type": "integer",
+                                                                "example": 4
+                                                            },
+                                                            "occupancy_rate": {
+                                                                "type": "number",
+                                                                "example": 0.67
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "description": "Bearer Token 认证",
+                "bearerFormat": "JWT",
+                "scheme": "bearer"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "认证",
+            "description": "用户注册登录与实名认证"
+        },
+        {
+            "name": "预约管理",
+            "description": "场地预约与签到"
+        },
+        {
+            "name": "信用管理",
+            "description": "信用积分与黑名单"
+        },
+        {
+            "name": "支付管理",
+            "description": "支付与退款"
+        },
+        {
+            "name": "场馆管理",
+            "description": "场馆CRUD与场地配置"
+        }
+    ]
+}

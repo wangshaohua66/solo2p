@@ -1,0 +1,5 @@
+[console_scripts]
+crm = cli.main:main
+
+[crm.plugins]
+default_stats = plugins.default_stats:DefaultStatsPlugin

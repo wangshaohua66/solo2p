@@ -1,0 +1,149 @@
+.container {
+  display: flex;
+  border-bottom: var(--border-width-thin) solid var(--color-border);
+  transition: background-color var(--transition-fast);
+}
+
+.container:hover {
+  background-color: rgba(59, 130, 246, 0.02);
+}
+
+.header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-2) var(--spacing-3);
+  background-color: var(--color-bg-tertiary);
+  border-right: var(--border-width-thin) solid var(--color-border);
+  box-sizing: border-box;
+}
+
+.headerContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  width: 100%;
+}
+
+.trackInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.trackIcon {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.trackNumber {
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-accent-primary);
+  min-width: 20px;
+}
+
+.trackName {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.trackControls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.controlButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 0;
+}
+
+.controlButton:hover {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-light);
+}
+
+.controlButton.muted {
+  background-color: var(--color-error);
+  color: white;
+  border-color: var(--color-error);
+}
+
+.controlButton.solo {
+  background-color: var(--color-warning);
+  color: var(--color-bg-primary);
+  border-color: var(--color-warning);
+}
+
+.volumeIndicator {
+  flex: 1;
+  height: 4px;
+  background-color: var(--color-bg-hover);
+  border-radius: 2px;
+  overflow: hidden;
+  min-width: 40px;
+}
+
+.volumeBar {
+  height: 100%;
+  background-color: var(--color-accent-primary);
+  border-radius: 2px;
+  transition: width var(--transition-fast);
+}
+
+.content {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 49px,
+    var(--color-border) 49px,
+    var(--color-border) 50px
+  );
+}
+
+.gridLines {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+@media (max-width: 767px) {
+  .header {
+    width: 80px !important;
+    padding: var(--spacing-1) var(--spacing-2);
+  }
+
+  .trackName {
+    display: none;
+  }
+
+  .volumeIndicator {
+    display: none;
+  }
+
+  .headerContent {
+    gap: var(--spacing-1);
+  }
+}

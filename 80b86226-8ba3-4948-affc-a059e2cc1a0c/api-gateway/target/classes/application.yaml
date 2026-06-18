@@ -1,0 +1,164 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  profiles:
+    active: dev
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NS:carbon-dev}
+      config:
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NS:carbon-dev}
+        file-extension: yaml
+        shared-configs:
+          - data-id: common-${spring.profiles.active}.yaml
+            group: DEFAULT_GROUP
+            refresh: true
+    gateway:
+      discovery:
+        locator:
+          enabled: false
+          lower-case-service-id: true
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowed-origin-patterns: "*"
+            allowed-methods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - PATCH
+              - OPTIONS
+            allowed-headers: "*"
+            exposed-headers:
+              - X-Trace-Id
+              - X-Total-Count
+              - Content-Disposition
+            allow-credentials: true
+            max-age: 3600
+      routes:
+        - id: auth_login
+          uri: no://op
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - SetPath=/fallback
+        - id: emission-source-service
+          uri: lb://emission-source-service
+          predicates:
+            - Path=/api/emission-sources/**,/api/activity-data/**
+          filters:
+            - StripPrefix=1
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 200
+                redis-rate-limiter.burstCapacity: 1000
+                redis-rate-limiter.requestedTokens: 1
+                key-resolver: "#{@tenantKeyResolver}"
+        - id: factor-library-service
+          uri: lb://factor-library-service
+          predicates:
+            - Path=/api/factors/**,/api/factor-versions/**
+          filters:
+            - StripPrefix=1
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 500
+                redis-rate-limiter.burstCapacity: 2000
+                key-resolver: "#{@tenantKeyResolver}"
+        - id: calculation-engine-service
+          uri: lb://calculation-engine-service
+          predicates:
+            - Path=/api/calculations/**,/api/calculation-tasks/**
+          filters:
+            - StripPrefix=1
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 100
+                redis-rate-limiter.burstCapacity: 500
+                key-resolver: "#{@tenantKeyResolver}"
+        - id: quota-compliance-service
+          uri: lb://quota-compliance-service
+          predicates:
+            - Path=/api/quotas/**,/api/alerts/**,/api/quota-ledgers/**
+          filters:
+            - StripPrefix=1
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 100
+                redis-rate-limiter.burstCapacity: 500
+                key-resolver: "#{@tenantKeyResolver}"
+        - id: verification-service
+          uri: lb://verification-service
+          predicates:
+            - Path=/api/verifications/**,/api/evidence/**,/api/reports/**
+          filters:
+            - StripPrefix=1
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 50
+                redis-rate-limiter.burstCapacity: 200
+                key-resolver: "#{@tenantKeyResolver}"
+        - id: ccer-service
+          uri: lb://ccer-service
+          predicates:
+            - Path=/api/ccer-projects/**,/api/ccer-issuances/**
+          filters:
+            - StripPrefix=1
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 50
+                redis-rate-limiter.burstCapacity: 200
+                key-resolver: "#{@tenantKeyResolver}"
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 0
+      lettuce:
+        pool:
+          max-active: 200
+          max-idle: 50
+          min-idle: 10
+
+security:
+  jwt:
+    secret: carbon-management-platform-super-secret-key-2024-please-change
+    expiration-ms: 86400000
+  whitelist:
+    - OPTIONS:/v3/api-docs/**
+    - OPTIONS:/swagger-ui/**
+    - OPTIONS:/webjars/**
+    - /swagger-ui.html
+    - /swagger-ui/**
+    - /v3/api-docs/**
+    - /webjars/**
+    - /actuator/health
+    - /actuator/info
+    - POST:/api/auth/login
+    - POST:/api/auth/refresh
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,gateway
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+    com.carbon.gateway: DEBUG
+    reactor.netty.http.client: INFO

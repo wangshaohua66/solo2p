@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>护理排班 - 养老服务集团运营管理系统</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+<link href="../css/style.css" rel="stylesheet">
+<style>
+.shift-cell { min-height: 64px; border-radius: 8px; padding: 6px; cursor: pointer; transition: all 0.15s; position: relative; }
+.shift-cell:hover { filter: brightness(0.95); transform: scale(0.98); }
+.shift-early { background: linear-gradient(135deg, #fff3cd, #ffeaa7); color: #856404; border: 1px solid #ffd43b; }
+.shift-middle { background: linear-gradient(135deg, #d1ecf1, #bee5eb); color: #0c5460; border: 1px solid #4dd0e1; }
+.shift-night { background: linear-gradient(135deg, #e2e3e5, #d6d8db); color: #383d41; border: 1px solid #868e96; }
+.shift-leave { background: repeating-linear-gradient(45deg, #ffecec, #ffecec 6px, #ffd6d6 6px, #ffd6d6 12px); color: #a71d2a; border: 1px solid #fa5252; }
+.shift-empty { background: #f8f9fa; border: 1px dashed #ced4da; color: #adb5bd; }
+.shift-text { font-weight: 600; font-size: 12px; }
+.shift-name { font-size: 11px; opacity: 0.85; margin-top: 2px; }
+.shift-tag { position: absolute; top: 2px; right: 4px; font-size: 9px; opacity: 0.75; }
+.calendar-header { display: grid; grid-template-columns: 140px repeat(7, 1fr); gap: 8px; margin-bottom: 8px; }
+.calendar-row { display: grid; grid-template-columns: 140px repeat(7, 1fr); gap: 8px; margin-bottom: 8px; }
+.cal-day { text-align: center; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 600; }
+.cal-day.today { background: linear-gradient(135deg, #667eea, #764ba2); color: white; box-shadow: 0 3px 10px rgba(102,126,234,0.4); }
+.cal-day.weekend { background: #fff3cd; color: #856404; }
+.cal-day.weekday { background: #e7f5ff; color: #1864ab; }
+.staff-col { padding: 16px 10px; border-radius: 8px; background: white; display: flex; align-items: center; gap: 8px; border: 1px solid #f0f2f5; }
+.staff-avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 13px; }
+.request-card { background: #fff9db; border: 1px solid #ffe066; border-radius: 10px; padding: 12px 16px; margin-bottom: 10px; }
+@media (max-width: 1200px) { .calendar-header, .calendar-row { grid-template-columns: 100px repeat(7, 1fr); } }
+</style>
+</head>
+<body>
+<div class="app-wrapper">
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-logo"><div class="logo-icon">🏠</div><div><h1>养老服务集团 <span>Elderly Care System</span></h1></div></div>
+        <ul class="sidebar-menu">
+            <li><a href="dashboard.html"><i class="bi bi-grid-fill"></i> 运营概览</a></li>
+            <li><a href="elderly.html"><i class="bi bi-people-fill"></i> 老人档案</a></li>
+            <li><a href="bedmap.html"><i class="bi bi-hospital"></i> 床位管理</a></li>
+            <li><a href="schedule.html" class="active"><i class="bi bi-calendar-week-fill"></i> 护理排班</a></li>
+            <li><a href="medication.html"><i class="bi bi-capsule-pill"></i> 用药追踪</a></li>
+            <li><a href="billing.html"><i class="bi bi-cash-coin"></i> 费用结算</a></li>
+            <li style="margin-top:24px; padding:12px 14px; font-size:11px; color:rgba(255,255,255,0.4); text-transform:uppercase;">居家养老</li>
+            <li><a href="homeservice.html"><i class="bi bi-geo-alt-fill"></i> 服务派单</a></li>
+            <li><a href="family.html"><i class="bi bi-chat-heart-fill"></i> 家属沟通</a></li>
+            <li><a href="reports.html"><i class="bi bi-bar-chart-fill"></i> 统计报表</a></li>
+        </ul>
+    </nav>
+    <div class="main-content">
+        <header class="header">
+            <div class="header-left">
+                <button class="menu-toggle" onclick="$('#sidebar').toggleClass('open')"><i class="bi bi-list"></i></button>
+                <h2 class="page-title">护理排班看板</h2>
+                <select class="form-select facility-select"><option>第一养老院</option><option>第二养老院</option></select>
+                <select class="form-select" id="f-zone" style="width:140px;padding:6px 12px;border-radius:6px;font-size:13px;"><option value="">全部护理区</option><option>失能护理区</option><option>失智照护区</option><option>康复区</option><option>临终关怀区</option></select>
+                <select class="form-select" id="f-role" style="width:120px;padding:6px 12px;border-radius:6px;font-size:13px;"><option value="">全部岗位</option><option>医生</option><option>护士</option><option>护工</option><option>康复师</option><option>营养师</option></select>
+            </div>
+            <div class="header-right">
+                <div class="d-flex gap-2 align-items-center me-3">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="changeWeek(-1)"><i class="bi bi-chevron-left"></i></button>
+                    <span id="week-label" style="font-weight:600;min-width:220px;text-align:center;"></span>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="changeWeek(1)"><i class="bi bi-chevron-right"></i></button>
+                    <button class="btn btn-sm btn-outline-primary" onclick="goNow()">今天</button>
+                </div>
+                <div class="dropdown"><div class="user-area" data-bs-toggle="dropdown"><div class="user-avatar" id="u-a">A</div><div class="user-info"><strong id="u-n">管理员</strong><small id="u-r">系统管理员</small></div><i class="bi bi-chevron-down" style="font-size:12px;color:#6c757d;"></i></div>
+                    <ul class="dropdown-menu dropdown-menu-end mt-2" style="border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.1);border:none;">
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-person-circle me-2"></i>个人中心</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-gear me-2"></i>系统设置</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="javascript:logout()"><i class="bi bi-box-arrow-right me-2"></i>退出登录</a></li>
+                    </ul></div>
+            </div>
+        </header>
+        <div class="content-area">
+            <div class="row g-4 mb-4">
+                <div class="col-lg-2 col-md-4 col-6"><div class="stat-card green"><div class="stat-label">本周排班班次</div><div class="stat-value">560</div></div></div>
+                <div class="col-lg-2 col-md-4 col-6"><div class="stat-card blue"><div class="stat-label">今日在岗</div><div class="stat-value">380</div></div></div>
+                <div class="col-lg-2 col-md-4 col-6"><div class="stat-card orange"><div class="stat-label">请假申请</div><div class="stat-value"><span style="color:#dc3545;">8</span></div></div></div>
+                <div class="col-lg-2 col-md-4 col-6"><div class="stat-card red"><div class="stat-label">排班冲突</div><div class="stat-value"><span style="color:#dc3545;">3</span></div></div></div>
+                <div class="col-lg-2 col-md-4 col-6"><div class="stat-card teal"><div class="stat-label">早班缺口</div><div class="stat-value">2</div></div></div>
+                <div class="col-lg-2 col-md-4 col-6"><div class="stat-card purple"><div class="stat-label">人均工时</div><div class="stat-value">40.2h</div></div></div>
+            </div>
+
+            <div class="row g-4 mb-4">
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-calendar-week me-2 text-primary"></i>排班表</h5>
+                            <div class="d-flex gap-2 align-items-center">
+                                <div class="d-flex gap-2 align-items-center">
+                                    <span class="shift-cell shift-early" style="min-height:auto;padding:3px 10px;cursor:default;"><span class="shift-text">早班</span></span>
+                                    <span class="shift-cell shift-middle" style="min-height:auto;padding:3px 10px;cursor:default;"><span class="shift-text">中班</span></span>
+                                    <span class="shift-cell shift-night" style="min-height:auto;padding:3px 10px;cursor:default;"><span class="shift-text">夜班</span></span>
+                                    <span class="shift-cell shift-leave" style="min-height:auto;padding:3px 10px;cursor:default;"><span class="shift-text">请假</span></span>
+                                </div>
+                                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#arrangeModal"><i class="bi bi-plus me-1"></i>批量排班</button>
+                            </div>
+                        </div>
+                        <div class="card-body" id="schedule-board" style="overflow-x:auto;"></div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="card mb-4">
+                        <div class="card-header"><h5><i class="bi bi-exclamation-triangle me-2 text-warning"></i>请假申请待审 <span class="badge bg-danger ms-1">8</span></h5></div>
+                        <div class="card-body" id="leave-list" style="max-height:360px;overflow-y:auto;"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h5><i class="bi bi-lightning me-2 text-danger"></i>排班冲突提醒</h5></div>
+                        <div class="card-body" id="conflict-list"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><h5><i class="bi bi-list-check me-2 text-primary"></i>班次模板</h5>
+                    <button class="btn btn-sm btn-outline-primary"><i class="bi bi-plus me-1"></i>新建模板</button>
+                </div>
+                <div class="card-body p-0"><div class="table-responsive"><table class="table"><thead>
+                    <tr><th>班次名称</th><th>类型</th><th>时间范围</th><th>岗位要求</th><th>人数配置</th><th>适用护理区</th><th>操作</th></tr>
+                </thead><tbody>
+                    <tr><td><i class="bi bi-sunrise me-1 text-warning"></i>标准早班</td><td><span class="badge badge-warning">早班</span></td><td>08:00 - 16:00 (8h)</td><td>护士、护工、医生</td><td>每护理区 4 护工 + 1 护士</td><td>通用</td><td><button class="btn btn-sm btn-outline-secondary">应用</button></td></tr>
+                    <tr><td><i class="bi bi-sun me-1 text-info"></i>标准中班</td><td><span class="badge badge-info">中班</span></td><td>14:00 - 22:00 (8h)</td><td>护士、护工</td><td>每护理区 3 护工 + 1 护士</td><td>通用</td><td><button class="btn btn-sm btn-outline-secondary">应用</button></td></tr>
+                    <tr><td><i class="bi bi-moon me-1 text-secondary"></i>标准夜班</td><td><span class="badge badge-secondary">夜班</span></td><td>22:00 - 08:00 (10h)</td><td>护士、护工、值班医生</td><td>每护理区 2 护工 + 1 护士</td><td>通用</td><td><button class="btn btn-sm btn-outline-secondary">应用</button></td></tr>
+                    <tr><td><i class="bi bi-heart-pulse me-1 text-danger"></i>失智区加强班</td><td><span class="badge badge-danger">加强</span></td><td>06:00 - 14:00 (8h)</td><td>护工（失智照护证）</td><td>6 护工 + 2 护士</td><td>失智照护区</td><td><button class="btn btn-sm btn-outline-secondary">应用</button></td></tr>
+                    <tr><td><i class="bi bi-activity me-1 text-success"></i>康复班</td><td><span class="badge badge-success">康复</span></td><td>09:00 - 17:00 (8h)</td><td>康复师、护士</td><td>2 康复师 + 1 护士</td><td>康复区</td><td><button class="btn btn-sm btn-outline-secondary">应用</button></td></tr>
+                </tbody></table></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="arrangeModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title"><i class="bi bi-calendar-plus me-2"></i>批量排班</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body"><div class="row g-3">
+        <div class="col-md-12"><label class="form-label">选择员工（多选）</label><select class="form-select" multiple size="5"><option>张晓红 - 护士长</option><option>李明华 - 护士</option><option>王桂芳 - 护工</option><option>赵志强 - 医生</option><option>陈美丽 - 康复师</option></select></div>
+        <div class="col-md-6"><label class="form-label">班次类型</label><select class="form-select"><option>早班</option><option>中班</option><option>夜班</option></select></div>
+        <div class="col-md-6"><label class="form-label">护理区</label><select class="form-select"><option>失能护理区</option><option>失智照护区</option><option>康复区</option></select></div>
+        <div class="col-md-6"><label class="form-label">开始日期</label><input type="date" class="form-control"></div>
+        <div class="col-md-6"><label class="form-label">结束日期</label><input type="date" class="form-control"></div>
+    </div></div>
+    <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button><button class="btn btn-primary" onclick="toast('排班已生成','success');bootstrap.Modal.getInstance(document.getElementById('arrangeModal')).hide();">确认生成</button></div>
+</div></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../js/common.js"></script>
+<script>
+const u = getUser(); if (!u) logout();
+$('#u-n').text(u.name || '管理员'); $('#u-r').text(u.role === 'Admin' ? '系统管理员' : u.role);
+$('#u-a').text((u.name || 'A').charAt(0));
+
+const staffList = [
+    { name: '张晓红', role: '护士长', zone: '失能护理区', color: '#e91e63' },
+    { name: '李明华', role: '护士', zone: '失能护理区', color: '#9c27b0' },
+    { name: '王桂芳', role: '护工', zone: '失能护理区', color: '#673ab7' },
+    { name: '赵志强', role: '医生', zone: '失能护理区', color: '#3f51b5' },
+    { name: '陈美丽', role: '康复师', zone: '康复区', color: '#2196f3' },
+    { name: '刘淑梅', role: '护工', zone: '失智照护区', color: '#00bcd4' },
+    { name: '孙建平', role: '护士', zone: '失智照护区', color: '#009688' },
+    { name: '周云霞', role: '营养师', zone: '通用', color: '#4caf50' },
+    { name: '吴建军', role: '护工', zone: '康复区', color: '#8bc34a' },
+    { name: '郑雪梅', role: '护士', zone: '临终关怀区', color: '#ff9800' },
+];
+const shifts = ['early','middle','night'];
+const shiftNames = { early: '早班', middle: '中班', night: '夜班' };
+
+let weekOffset = 0;
+const today = new Date();
+
+function getWeekDays(offset) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + offset * 7);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(d.setDate(diff));
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+        const nd = new Date(monday);
+        nd.setDate(monday.getDate() + i);
+        days.push(nd);
+    }
+    return days;
+}
+
+function renderSchedule() {
+    const days = getWeekDays(weekOffset);
+    const weekStart = days[0], weekEnd = days[6];
+    $('#week-label').text(`${fmtDate(weekStart)} 至 ${fmtDate(weekEnd)}`);
+    const wkNames = ['周一','周二','周三','周四','周五','周六','周日'];
+
+    let header = '<div class="calendar-header"><div></div>';
+    days.forEach((d, i) => {
+        const isToday = d.toDateString() === today.toDateString();
+        const isWeekend = i >= 5;
+        header += `<div class="cal-day ${isToday?'today':isWeekend?'weekend':'weekday'}">${wkNames[i]}<br><span style="font-size:14px;">${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}</span></div>`;
+    });
+    header += '</div>';
+
+    let body = '';
+    staffList.forEach((s, idx) => {
+        body += `<div class="calendar-row">
+            <div class="staff-col">
+                <div class="staff-avatar" style="background:${s.color};">${s.name.charAt(0)}</div>
+                <div><div style="font-size:13px;font-weight:600;line-height:1.2;">${s.name}</div><small style="color:#6c757d;">${s.role} · ${s.zone}</small></div>
+            </div>`;
+        for (let di = 0; di < 7; di++) {
+            const seed = idx * 17 + di + (weekOffset * 3);
+            let stype = '', cls = 'shift-empty', sname = '点击排班', tag = '';
+            if (seed % 23 === 0) { stype = 'leave'; cls = 'shift-leave'; sname = '年休假'; tag = '请假'; }
+            else if (seed % 31 === 0) { stype = ''; cls = 'shift-empty'; sname = '休息'; tag = '休'; }
+            else {
+                stype = shifts[seed % 3];
+                cls = 'shift-' + stype;
+                sname = shiftNames[stype];
+                tag = stype === 'early' ? '08-16' : stype === 'middle' ? '14-22' : '22-08';
+            }
+            body += `<div class="shift-cell ${cls}" data-staff="${s.name}" data-day="${fmtDate(days[di])}" onclick="editShift(this)">
+                <span class="shift-tag">${tag}</span>
+                <div class="shift-text">${sname}</div>
+                ${sname !== '休息' && !tag.includes('请假') ? `<div class="shift-name">${s.zone}</div>` : ''}
+            </div>`;
+        }
+        body += '</div>';
+    });
+    $('#schedule-board').html(header + body);
+}
+
+function editShift(el) {
+    const $e = $(el);
+    const options = ['早班 - 08:00-16:00','中班 - 14:00-22:00','夜班 - 22:00-08:00','休息','请假','调班'];
+    const html = options.map((o,i) => `<div class="p-2" style="cursor:pointer;border-radius:6px;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background=''" onclick="applyShift(${i})">${o}</div>`).join('');
+    const content = `<div style="min-width:200px;"><div style="font-weight:600;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #eee;">${$e.data('staff')} - ${$e.data('day')}</div>${html}</div>`;
+    const pop = new bootstrap.Popover(el, { content: content, html: true, placement: 'top', title: '调整排班' });
+    pop.show();
+    setTimeout(() => $(document).one('click', () => pop.dispose()), 100);
+    window.applyShift = function(i) {
+        const map = [{ cls:'shift-early', text:'早班', tag:'08-16' }, { cls:'shift-middle', text:'中班', tag:'14-22' }, { cls:'shift-night', text:'夜班', tag:'22-08' }, { cls:'shift-empty', text:'休息', tag:'休' }, { cls:'shift-leave', text:'请假', tag:'请假' }, { cls:'shift-middle', text:'调班', tag:'调' }];
+        const m = map[i];
+        $e.removeClass('shift-early shift-middle shift-night shift-empty shift-leave').addClass(m.cls);
+        $e.find('.shift-text').text(m.text);
+        $e.find('.shift-tag').text(m.tag);
+        toast('排班已更新','success');
+        pop.dispose();
+    };
+}
+
+function renderLeaveList() {
+    const items = [
+        { name: '王桂芳', type: '病假', from: '2026-04-20', to: '2026-04-22', reason: '急性肠胃炎，附医院证明', role: '护工' },
+        { name: '李明华', type: '年假', from: '2026-04-21', to: '2026-04-25', reason: '回老家探亲', role: '护士' },
+        { name: '刘淑梅', type: '事假', from: '2026-04-20', to: '2026-04-20', reason: '子女家长会', role: '护工' },
+        { name: '吴建军', type: '调休', from: '2026-04-23', to: '2026-04-23', reason: '上周六加班补休', role: '护工' },
+        { name: '孙建平', type: '病假', from: '2026-04-19', to: '2026-04-21', reason: '腰椎间盘突出复诊', role: '护士' },
+    ];
+    $('#leave-list').html(items.map(x => `
+        <div class="request-card">
+            <div class="d-flex justify-content-between mb-2">
+                <div class="d-flex align-items-center gap-2">
+                    <div style="width:28px;height:28px;border-radius:50%;background:#e91e63;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px;">${x.name.charAt(0)}</div>
+                    <div><div style="font-size:13px;font-weight:600;">${x.name}</div><small style="color:#6c757d;">${x.role}</small></div>
+                </div>
+                <span class="badge ${x.type==='病假'?'bg-danger':x.type==='年假'?'bg-success':'bg-warning'} text-dark">${x.type}</span>
+            </div>
+            <div style="font-size:12px;color:#6c757d;margin-bottom:8px;">
+                <i class="bi bi-calendar-range me-1"></i>${x.from} 至 ${x.to} · 共 ${(new Date(x.to)-new Date(x.from))/86400000+1} 天
+            </div>
+            <div style="font-size:12px;background:#fff;padding:6px 8px;border-radius:4px;margin-bottom:8px;">${x.reason}</div>
+            <div class="d-flex gap-2 justify-content-end">
+                <button class="btn btn-sm btn-outline-secondary">驳回</button>
+                <button class="btn btn-sm btn-primary" onclick="toast('已批准','success');this.closest('.request-card').style.display='none';">批准</button>
+            </div>
+        </div>
+    `).join(''));
+}
+
+function renderConflicts() {
+    const items = [
+        { msg: '张晓红（护士长）4月22日同时排了早班和中班', level: 'danger', icon: 'exclamation-octagon' },
+        { msg: '失能护理区4月23日夜班仅1名护工，低于最低配置2名', level: 'warning', icon: 'exclamation-triangle' },
+        { msg: '王桂芳请假批准后4月21日早班缺员，请及时补班', level: 'warning', icon: 'exclamation-triangle' },
+    ];
+    $('#conflict-list').html(items.map(x => `
+        <div class="d-flex gap-2 p-3 mb-2 rounded" style="background:${x.level==='danger'?'#fff5f5':'#fffbf0'};">
+            <i class="bi bi-${x.icon}-fill" style="color:${x.level==='danger'?'#dc3545':'#ffc107'};font-size:18px;"></i>
+            <div style="font-size:13px;">${x.msg}</div>
+        </div>
+    `).join(''));
+}
+
+function changeWeek(n) { weekOffset += n; renderSchedule(); }
+function goNow() { weekOffset = 0; renderSchedule(); }
+$('#f-zone,#f-role').on('change', renderSchedule);
+
+renderSchedule();
+renderLeaveList();
+renderConflicts();
+</script>
+</body>
+</html>

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>床位管理 - 养老服务集团运营管理系统</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+<link href="../css/style.css" rel="stylesheet">
+</head>
+<body>
+<div class="app-wrapper">
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-logo"><div class="logo-icon">🏠</div><div><h1>养老服务集团 <span>Elderly Care System</span></h1></div></div>
+        <ul class="sidebar-menu">
+            <li><a href="dashboard.html"><i class="bi bi-grid-fill"></i> 运营概览</a></li>
+            <li><a href="elderly.html"><i class="bi bi-people-fill"></i> 老人档案</a></li>
+            <li><a href="bedmap.html" class="active"><i class="bi bi-hospital"></i> 床位管理</a></li>
+            <li><a href="schedule.html"><i class="bi bi-calendar-week-fill"></i> 护理排班</a></li>
+            <li><a href="medication.html"><i class="bi bi-capsule-pill"></i> 用药追踪</a></li>
+            <li><a href="billing.html"><i class="bi bi-cash-coin"></i> 费用结算</a></li>
+            <li style="margin-top:24px; padding:12px 14px; font-size:11px; color:rgba(255,255,255,0.4); text-transform:uppercase;">居家养老</li>
+            <li><a href="homeservice.html"><i class="bi bi-geo-alt-fill"></i> 服务派单</a></li>
+            <li><a href="family.html"><i class="bi bi-chat-heart-fill"></i> 家属沟通</a></li>
+            <li><a href="reports.html"><i class="bi bi-bar-chart-fill"></i> 统计报表</a></li>
+        </ul>
+    </nav>
+    <div class="main-content">
+        <header class="header">
+            <div class="header-left">
+                <button class="menu-toggle" onclick="$('#sidebar').toggleClass('open')"><i class="bi bi-list"></i></button>
+                <h2 class="page-title">床位管理</h2>
+                <select class="form-select facility-select" id="f-build"><option>第一养老院</option><option>第二养老院</option><option>第三养老院</option></select>
+                <select class="form-select" id="f-floor" style="width:120px;padding:6px 12px;border-radius:6px;font-size:13px;"><option value="">全部楼层</option><option>1楼</option><option>2楼</option><option>3楼</option><option>4楼</option><option>5楼</option></select>
+                <select class="form-select" id="f-zone" style="width:150px;padding:6px 12px;border-radius:6px;font-size:13px;"><option value="">全部护理区</option><option>失能护理区</option><option>失智照护区</option><option>康复区</option><option>临终关怀区</option></select>
+            </div>
+            <div class="header-right">
+                <div class="dropdown"><div class="user-area" data-bs-toggle="dropdown"><div class="user-avatar" id="u-a">A</div><div class="user-info"><strong id="u-n">管理员</strong><small id="u-r">系统管理员</small></div><i class="bi bi-chevron-down" style="font-size:12px;color:#6c757d;"></i></div>
+                    <ul class="dropdown-menu dropdown-menu-end mt-2" style="border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.1);border:none;">
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-person-circle me-2"></i>个人中心</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-gear me-2"></i>系统设置</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="javascript:logout()"><i class="bi bi-box-arrow-right me-2"></i>退出登录</a></li>
+                    </ul></div>
+            </div>
+        </header>
+        <div class="content-area">
+            <div class="row g-4 mb-4">
+                <div class="col-lg-2 col-md-4 col-6"><div class="stat-card blue"><div class="stat-label">总床位数</div><div class="stat-value" id="s1">800</div></div></div>
+                <div class="col-lg-2 col-md-4 col-6"><div class="stat-card green"><div class="stat-label">已占用</div><div class="stat-value" id="s2">682</div></div></div>
+                <div class="col-lg-2 col-md-4 col-6"><div class="stat-card orange"><div class="stat-label">空置中</div><div class="stat-value" id="s3">92</div></div></div>
+                <div class="col-lg-2 col-md-4 col-6"><div class="stat-card red"><div class="stat-label">维修中</div><div class="stat-value" id="s4">18</div></div></div>
+                <div class="col-lg-2 col-md-4 col-6"><div class="stat-card teal"><div class="stat-label">已预约</div><div class="stat-value" id="s5">8</div></div></div>
+                <div class="col-lg-2 col-md-4 col-6"><div class="stat-card purple"><div class="stat-label">本月入住/转出</div><div class="stat-value" id="s6">+32/-28</div></div></div>
+            </div>
+
+            <div class="row g-4 mb-4">
+                <div class="col-lg-3">
+                    <div class="card" style="height:calc(100% - 20px);">
+                        <div class="card-header"><h5><i class="bi bi-filter me-2 text-primary"></i>图例说明</h5></div>
+                        <div class="card-body">
+                            <div class="d-flex flex-column gap-2 mb-4">
+                                <div class="d-flex align-items-center gap-2"><span style="display:inline-block;width:28px;height:28px;border-radius:6px;background:#198754;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;"><i class="bi bi-person-fill-check"></i></span><span style="font-size:13px;">已占用 - 正常入住</span></div>
+                                <div class="d-flex align-items-center gap-2"><span style="display:inline-block;width:28px;height:28px;border-radius:6px;background:#0d6efd;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;"><i class="bi bi-lock-fill"></i></span><span style="font-size:13px;">已预约 - 锁定床位</span></div>
+                                <div class="d-flex align-items-center gap-2"><span style="display:inline-block;width:28px;height:28px;border-radius:6px;background:#20c997;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;"><i class="bi bi-house-check"></i></span><span style="font-size:13px;">空置 - 可分配</span></div>
+                                <div class="d-flex align-items-center gap-2"><span style="display:inline-block;width:28px;height:28px;border-radius:6px;background:#6c757d;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;"><i class="bi bi-tools"></i></span><span style="font-size:13px;">维修中 - 不可用</span></div>
+                                <div class="d-flex align-items-center gap-2"><span style="display:inline-block;width:28px;height:28px;border-radius:6px;background:#ffc107;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;"><i class="bi bi-exclamation-triangle"></i></span><span style="font-size:13px;">保留 - 特殊用途</span></div>
+                            </div>
+                            <h6 class="mb-2" style="font-size:13px;color:#495057;">操作说明</h6>
+                            <ul style="font-size:12px;color:#6c757d;padding-left:18px;line-height:1.9;">
+                                <li>点击床位查看详情</li>
+                                <li>空置床位可分配入住</li>
+                                <li>占用床位可办理退床或换房</li>
+                                <li>右键批量操作床位</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-9">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-grid-3x3-gap me-2 text-primary"></i>床位分布图</h5>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#bookModal"><i class="bi bi-calendar-check me-1"></i>预约锁定</button>
+                                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#transferModal"><i class="bi bi-arrow-left-right me-1"></i>换房</button>
+                            </div>
+                        </div>
+                        <div class="card-body" id="bed-map"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><h5><i class="bi bi-clock-history me-2 text-primary"></i>床位变动历史</h5></div>
+                <div class="card-body p-0">
+                    <div class="table-responsive"><table class="table table-hover">
+                        <thead><tr><th>时间</th><th>床位号</th><th>老人姓名</th><th>变动类型</th><th>原/新床位</th><th>操作员</th><th>备注</th></tr></thead>
+                        <tbody id="hist-body"></tbody>
+                    </table></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="bedModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title"><i class="bi bi-hospital me-2 text-primary"></i>床位详情</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body" id="bed-detail-body"></div>
+</div></div></div>
+
+<div class="modal fade" id="bookModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title"><i class="bi bi-calendar-check me-2"></i>预约锁定床位</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body"><div class="row g-3">
+        <div class="col-md-12"><label class="form-label">目标床位</label><input class="form-control" id="b-bed" placeholder="如 3-205-2"></div>
+        <div class="col-md-6"><label class="form-label">预约老人</label><input class="form-control" placeholder="姓名或身份证"></div>
+        <div class="col-md-6"><label class="form-label">锁定截止日期</label><input type="date" class="form-control" id="b-date"></div>
+        <div class="col-md-12"><label class="form-label">备注</label><textarea class="form-control" rows="2"></textarea></div>
+    </div></div>
+    <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button><button class="btn btn-primary" onclick="toast('床位预约成功','success');bootstrap.Modal.getInstance(document.getElementById('bookModal')).hide();">确认预约</button></div>
+</div></div></div>
+
+<div class="modal fade" id="transferModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title"><i class="bi bi-arrow-left-right me-2"></i>床位调换</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body"><div class="row g-3">
+        <div class="col-md-12"><label class="form-label">老人姓名</label><input class="form-control" placeholder="搜索老人"></div>
+        <div class="col-md-6"><label class="form-label">原床位</label><input class="form-control" readonly placeholder="自动填入"></div>
+        <div class="col-md-6"><label class="form-label">新床位</label><input class="form-control" placeholder="如 2-305-1"></div>
+        <div class="col-md-12"><label class="form-label">调换原因</label><textarea class="form-control" rows="2" placeholder="如：健康状况调整、家庭需求等"></textarea></div>
+    </div></div>
+    <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button><button class="btn btn-primary" onclick="toast('换房申请已提交','success');bootstrap.Modal.getInstance(document.getElementById('transferModal')).hide();">确认换房</button></div>
+</div></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../js/common.js"></script>
+<script>
+const u = getUser(); if (!u) logout();
+$('#u-n').text(u.name || '管理员'); $('#u-r').text(u.role === 'Admin' ? '系统管理员' : u.role);
+$('#u-a').text((u.name || 'A').charAt(0));
+
+const zones = ['失能护理区','失智照护区','康复区','临终关怀区'];
+const bedNames = ['王秀兰','李建国','张桂芳','陈福生','刘德海','赵淑敏','孙德才','周玉兰','吴建华','郑春梅','马承业','黄丽华','朱明远','林淑英'];
+const floors = 5, roomsPerFloor = 12, bedsPerRoom = 4;
+
+function bedStatus(i) {
+    if (i % 47 === 0) return 'maintenance';
+    if (i % 53 === 0) return 'reserved';
+    if (i % 61 === 0) return 'booked';
+    if (i % 8 === 0) return 'empty';
+    return 'occupied';
+}
+function bedFee(z) { return z==='失能护理区'?5800:z==='失智照护区'?7200:z==='康复区'?5200:6800; }
+
+function genBedMap() {
+    let html = '';
+    for (let f = 1; f <= floors; f++) {
+        const zone = zones[(f-1) % zones.length];
+        html += `<div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 style="font-size:14px;font-weight:600;margin:0;"><i class="bi bi-building me-2 text-primary"></i>${f}楼 · ${zone}</h6>
+                <div style="font-size:12px;color:#6c757d;">共 ${roomsPerFloor * bedsPerRoom} 床</div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;">`;
+        for (let r = 1; r <= roomsPerFloor; r++) {
+            const roomNum = f * 100 + r;
+            html += `<div class="p-2 rounded" style="background:#f8f9fa;border:1px solid #e9ecef;">
+                <div style="font-size:11px;color:#6c757d;font-weight:600;margin-bottom:6px;text-align:center;">房间 ${roomNum}</div>
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;">`;
+            for (let b = 1; b <= bedsPerRoom; b++) {
+                const idx = (f-1)*roomsPerFloor*bedsPerRoom + (r-1)*bedsPerRoom + b;
+                const st = bedStatus(idx);
+                const fee = bedFee(zone);
+                const colors = { occupied:'#198754', empty:'#20c997', booked:'#0d6efd', maintenance:'#6c757d', reserved:'#ffc107' };
+                const icons = { occupied:'person-fill-check', empty:'house-check', booked:'lock-fill', maintenance:'tools', reserved:'exclamation-triangle' };
+                const stText = { occupied:'已占用', empty:'空置', booked:'已预约', maintenance:'维修中', reserved:'保留' };
+                const elderIdx = (idx * 7) % bedNames.length;
+                const name = st === 'occupied' ? bedNames[elderIdx] : '';
+                html += `<div class="bed-cell" data-f="${f}" data-r="${roomNum}" data-b="${b}" data-st="${st}" data-fee="${fee}" data-name="${name}" data-zone="${zone}" data-bednum="${f}-${roomNum}-${b}" style="background:${colors[st]};color:#fff;border-radius:6px;padding:8px 6px;cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'" onclick="showBedDetail(this)">
+                    <div class="d-flex justify-content-between align-items-center" style="margin-bottom:4px;">
+                        <span style="font-size:11px;font-weight:700;">${f}-${roomNum}-${b}</span>
+                        <i class="bi bi-${icons[st]}" style="font-size:12px;"></i>
+                    </div>
+                    <div style="font-size:10px;opacity:0.85;text-align:center;">${st==='occupied'?`<div>${name}</div><div style="font-size:9px;margin-top:2px;">${fee/1000}k/月</div>`:stText[st]}</div>
+                </div>`;
+            }
+            html += `</div></div>`;
+        }
+        html += `</div></div>`;
+    }
+    $('#bed-map').html(html);
+}
+
+function showBedDetail(el) {
+    const $el = $(el);
+    const st = $el.data('st');
+    const stMap = { occupied:'已占用', empty:'空置', booked:'已预约', maintenance:'维修中', reserved:'保留' };
+    const stColor = { occupied:'success', empty:'success', booked:'primary', maintenance:'secondary', reserved:'warning' };
+    const name = $el.data('name');
+    const bedNum = $el.data('bednum');
+    const zone = $el.data('zone');
+    const fee = $el.data('fee');
+    $('#bed-detail-body').html(`
+        <div class="mb-3"><label class="form-label text-muted small">床位号</label><div style="font-size:20px;font-weight:700;">${bedNum}</div></div>
+        <div class="row mb-3">
+            <div class="col-6"><label class="form-label text-muted small">护理区</label><div style="font-weight:600;">${zone}</div></div>
+            <div class="col-6"><label class="form-label text-muted small">月床位费</label><div style="font-weight:600;color:#dc3545;">${fmtMoney(fee)}</div></div>
+        </div>
+        <div class="mb-3"><label class="form-label text-muted small">当前状态</label><div><span class="badge badge-${stColor[st]}" style="padding:6px 14px;font-size:13px;">${stMap[st]}</span></div></div>
+        ${name ? `<div class="mb-3" style="background:#f8f9fa;padding:12px;border-radius:8px;"><label class="form-label text-muted small">入住老人</label>
+            <div class="d-flex align-items-center gap-2">
+                <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;">${name.charAt(0)}</div>
+                <div><div style="font-weight:600;">${name}</div><small style="color:#6c757d;">入住日期：2024-05-15</small></div>
+            </div></div>` : ''}
+        <div class="d-flex gap-2 justify-content-end mt-4">
+            ${st === 'empty' ? '<button class="btn btn-primary btn-sm"><i class="bi bi-person-plus me-1"></i>分配入住</button>' : ''}
+            ${st === 'occupied' ? '<button class="btn btn-outline-warning btn-sm" onclick="bootstrap.Modal.getInstance(document.getElementById(\'transferModal\')).show();"><i class="bi bi-arrow-left-right me-1"></i>换房</button><button class="btn btn-outline-danger btn-sm"><i class="bi bi-box-arrow-right me-1"></i>办理退床</button>' : ''}
+            ${st === 'empty' || st === 'reserved' ? '<button class="btn btn-outline-primary btn-sm"><i class="bi bi-calendar-check me-1"></i>预约锁定</button>' : ''}
+            ${st === 'maintenance' ? '<button class="btn btn-outline-success btn-sm"><i class="bi bi-check-circle me-1"></i>维修完成</button>' : ''}
+            <button class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">关闭</button>
+        </div>
+    `);
+    new bootstrap.Modal('#bedModal').show();
+}
+
+function loadStats() {
+    const total = floors * roomsPerFloor * bedsPerRoom;
+    const occ = Math.floor(total * 0.85);
+    $('#s1').text(total);
+    $('#s2').text(occ);
+    $('#s3').text(Math.floor(total * 0.12));
+    $('#s4').text(Math.floor(total * 0.02));
+    $('#s5').text(Math.floor(total * 0.01));
+    $('#s6').text(`+${8+Math.floor(Math.random()*8)}/-${6+Math.floor(Math.random()*6)}`);
+}
+
+function loadHistory() {
+    const types = [['入住','success','退床','empty'],['退床','danger','入住','empty'],['换房','info','换房','3-105-2 → 3-205-1'],['换房','info','换房','2-108-1 → 4-203-2'],['维修','secondary','',''],['预约','primary','预约','3天'],['取消预约','warning','','']];
+    const names = ['王秀兰','李建国','张桂芳','陈福生','刘德海','赵淑敏','孙德才','周玉兰','吴建华','郑春梅','马承业','黄丽华','朱明远','林淑英'];
+    const beds = ['3-205-1','2-108-2','4-305-2','1-102-1','3-115-3','5-102-4','2-312-1','4-105-4'];
+    const users = ['张护长','李主任','王前台','赵医生','周护士长','孙主任'];
+    const rows = [];
+    for (let i = 0; i < 12; i++) {
+        const t = types[i % types.length];
+        const d = new Date(Date.now() - i * 3600 * 1000 * (3 + Math.floor(Math.random()*12)));
+        rows.push({ time: fmtDateTime(d), bed: beds[i % beds.length], name: names[i % names.length], type: t[0], badge: t[1], extra: t[3], user: users[i % users.length], remark: i % 4 === 0 ? '家属申请' : i % 3 === 0 ? '健康评估' : '正常流程' });
+    }
+    $('#hist-body').html(rows.map(r => `<tr>
+        <td>${r.time}</td>
+        <td><i class="bi bi-hospital me-1 text-primary"></i>${r.bed}</td>
+        <td>${r.name}</td>
+        <td><span class="badge badge-${r.badge}">${r.type}</span></td>
+        <td>${r.extra || '-'}</td>
+        <td>${r.user}</td>
+        <td style="color:#6c757d;">${r.remark}</td>
+    </tr>`).join(''));
+}
+
+$('#f-build,#f-floor,#f-zone').on('change', genBedMap);
+
+loadStats(); genBedMap(); loadHistory();
+</script>
+</body>
+</html>

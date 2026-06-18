@@ -1,0 +1,32 @@
+<div class="py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0"><i class="bi bi-book me-1"></i>图录管理</h4>
+    <div class="d-flex align-items-center gap-3">
+      <select class="form-select form-select-sm" id="catalog-auction-select" style="width:auto;min-width:200px">
+        <option value="">请选择拍卖会</option>
+      </select>
+      <button class="btn btn-gold btn-sm" id="btn-generate-catalog">
+        <i class="bi bi-file-earmark-pdf me-1"></i>生成PDF图录
+      </button>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-5">
+      <div class="card-dark p-3" style="max-height:700px;overflow-y:auto">
+        <h6 class="mb-3"><i class="bi bi-grid-3x3-gap me-1"></i>拍品排序</h6>
+        <div id="catalog-left">
+          <div class="text-center text-muted py-4">请选择拍卖会</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-7">
+      <div style="max-height:700px;overflow-y:auto">
+        <h6 class="mb-3"><i class="bi bi-eye me-1"></i>图录预览</h6>
+        <div class="catalog-preview" id="catalog-preview">
+          <div class="text-center py-4" style="color:#999">请选择拍卖会以预览图录</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

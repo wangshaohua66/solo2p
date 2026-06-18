@@ -1,0 +1,301 @@
+<div class="py-4">
+  <h4 class="mb-4"><i class="bi bi-bar-chart-line me-1"></i>数据分析</h4>
+
+  <ul class="nav nav-tabs mb-4" id="analytics-tabs">
+    <li class="nav-item">
+      <a class="nav-link active" href="#" data-tab="trade-analysis">成交分析</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="#" data-tab="spread-analysis">价差分析</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="#" data-tab="commission-audit">佣金核算</a>
+    </li>
+  </ul>
+
+  <div id="tab-trade-analysis">
+    <div class="row g-4 mb-4">
+      <div class="col-lg-6">
+        <div class="chart-container">
+          <h6><i class="bi bi-graph-up me-1"></i>各类目成交率</h6>
+          <div style="height:300px">
+            <canvas id="chart-category-sold-rate"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="chart-container">
+          <h6><i class="bi bi-graph-up-arrow me-1"></i>成交额趋势</h6>
+          <div style="height:300px">
+            <canvas id="chart-revenue-trend"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-dark p-4">
+      <h6 class="mb-3"><i class="bi bi-table me-1"></i>成交明细</h6>
+      <div class="table-responsive">
+        <table class="table table-dark-custom table-hover mb-0" id="trade-detail-table">
+          <thead>
+            <tr>
+              <th>拍卖会</th>
+              <th>类目</th>
+              <th>上拍数</th>
+              <th>成交数</th>
+              <th>成交率</th>
+              <th>总成交额</th>
+              <th>平均溢价</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="7" class="text-center text-muted py-3">加载中...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-spread-analysis" style="display:none">
+    <div class="row g-4 mb-4">
+      <div class="col-lg-6">
+        <div class="chart-container">
+          <h6><i class="bi bi-arrow-left-right me-1"></i>估价 vs 成交价对比</h6>
+          <div style="height:300px">
+            <canvas id="chart-estimate-vs-hammer"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="chart-container">
+          <h6><i class="bi bi-percent me-1"></i>溢价率分布</h6>
+          <div style="height:300px">
+            <canvas id="chart-premium-distribution"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-dark p-4">
+      <h6 class="mb-3"><i class="bi bi-table me-1"></i>价差明细</h6>
+      <div class="table-responsive">
+        <table class="table table-dark-custom table-hover mb-0" id="spread-detail-table">
+          <thead>
+            <tr>
+              <th>拍品</th>
+              <th>估价中值</th>
+              <th>成交价</th>
+              <th>溢价额</th>
+              <th>溢价率</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="5" class="text-center text-muted py-3">加载中...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-commission-audit" style="display:none">
+    <div class="row g-4 mb-4">
+      <div class="col-lg-6">
+        <div class="chart-container">
+          <h6><i class="bi bi-pie-chart me-1"></i>佣金构成</h6>
+          <div style="height:300px">
+            <canvas id="chart-commission-structure"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="chart-container">
+          <h6><i class="bi bi-bar-chart me-1"></i>各拍卖会佣金对比</h6>
+          <div style="height:300px">
+            <canvas id="chart-commission-compare"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-dark p-4">
+      <h6 class="mb-3"><i class="bi bi-table me-1"></i>佣金核算明细</h6>
+      <div class="table-responsive">
+        <table class="table table-dark-custom table-hover mb-0" id="commission-audit-table">
+          <thead>
+            <tr>
+              <th>拍卖会</th>
+              <th>落槌价合计</th>
+              <th>买家佣金率</th>
+              <th>买家佣金</th>
+              <th>卖家佣金率</th>
+              <th>卖家佣金</th>
+              <th>佣金合计</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="7" class="text-center text-muted py-3">加载中...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var api = window.AuctionApp.api;
+  var utils = window.AuctionApp.utils;
+  var _charts = {};
+
+  function loadTradeAnalysis() {
+    api.get('/analytics/trade').then(function(res) {
+      var data = res.data || res || {};
+      if (data.category_rates) {
+        var labels = data.category_rates.map(function(d) { return utils.getCategoryLabel(d.category); });
+        var values = data.category_rates.map(function(d) { return d.rate; });
+        if (_charts.catSoldRate) _charts.catSoldRate.destroy();
+        var ctx = document.getElementById('chart-category-sold-rate');
+        if (ctx) {
+          _charts.catSoldRate = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: labels, datasets: [{ label: '成交率(%)', data: values, backgroundColor: 'rgba(201,169,110,0.7)', borderColor: '#c9a96e', borderWidth: 1, borderRadius: 4 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#c9a96e' } } }, scales: { x: { ticks: { color: '#8a8a9a' }, grid: { color: 'rgba(61,61,92,0.3)' } }, y: { ticks: { color: '#8a8a9a' }, grid: { color: 'rgba(61,61,92,0.3)' } } } }
+          });
+        }
+      }
+      if (data.revenue_trend) {
+        var tLabels = data.revenue_trend.map(function(d) { return d.month || d.label; });
+        var tValues = data.revenue_trend.map(function(d) { return d.revenue || 0; });
+        if (_charts.revTrend) _charts.revTrend.destroy();
+        var ctx2 = document.getElementById('chart-revenue-trend');
+        if (ctx2) {
+          _charts.revTrend = new Chart(ctx2, {
+            type: 'line',
+            data: { labels: tLabels, datasets: [{ label: '成交额', data: tValues, borderColor: '#c9a96e', backgroundColor: 'rgba(201,169,110,0.1)', fill: true, tension: 0.3, borderWidth: 2 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#c9a96e' } } }, scales: { x: { ticks: { color: '#8a8a9a' }, grid: { color: 'rgba(61,61,92,0.3)' } }, y: { ticks: { color: '#8a8a9a' }, grid: { color: 'rgba(61,61,92,0.3)' } } } }
+          });
+        }
+      }
+      var items = data.details || [];
+      var html = '';
+      items.forEach(function(row) {
+        html += '<tr><td>' + (row.auction_name||'-') + '</td><td>' + utils.getCategoryLabel(row.category) + '</td>';
+        html += '<td style="font-family:var(--font-num)">' + (row.total||0) + '</td><td style="font-family:var(--font-num)">' + (row.sold||0) + '</td>';
+        html += '<td style="font-family:var(--font-num)">' + (row.rate||0) + '%</td><td style="font-family:var(--font-num)">' + utils.formatCurrency(row.revenue) + '</td>';
+        html += '<td style="font-family:var(--font-num)">' + (row.avg_premium||0) + '%</td></tr>';
+      });
+      if (!items.length) html = '<tr><td colspan="7" class="text-center text-muted py-3">暂无数据</td></tr>';
+      $('#trade-detail-table tbody').html(html);
+    });
+  }
+
+  function loadSpreadAnalysis() {
+    api.get('/analytics/spread').then(function(res) {
+      var data = res.data || res || {};
+      if (data.estimate_vs_hammer) {
+        var labels = data.estimate_vs_hammer.map(function(d,i) { return d.name || ('拍品'+(i+1)); });
+        var estimates = data.estimate_vs_hammer.map(function(d) { return d.estimate || 0; });
+        var hammers = data.estimate_vs_hammer.map(function(d) { return d.hammer || 0; });
+        if (_charts.estVsHammer) _charts.estVsHammer.destroy();
+        var ctx = document.getElementById('chart-estimate-vs-hammer');
+        if (ctx) {
+          _charts.estVsHammer = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: labels, datasets: [
+              { label: '估价', data: estimates, backgroundColor: 'rgba(139,105,20,0.6)', borderRadius: 4 },
+              { label: '成交价', data: hammers, backgroundColor: 'rgba(201,169,110,0.8)', borderRadius: 4 }
+            ]},
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#c9a96e' } } }, scales: { x: { ticks: { color: '#8a8a9a', maxRotation: 45 }, grid: { color: 'rgba(61,61,92,0.3)' } }, y: { ticks: { color: '#8a8a9a' }, grid: { color: 'rgba(61,61,92,0.3)' } } } }
+          });
+        }
+      }
+      if (data.premium_distribution) {
+        var pLabels = data.premium_distribution.map(function(d) { return d.range || d.label; });
+        var pValues = data.premium_distribution.map(function(d) { return d.count || 0; });
+        if (_charts.premDist) _charts.premDist.destroy();
+        var ctx2 = document.getElementById('chart-premium-distribution');
+        if (ctx2) {
+          _charts.premDist = new Chart(ctx2, {
+            type: 'bar',
+            data: { labels: pLabels, datasets: [{ label: '拍品数', data: pValues, backgroundColor: 'rgba(201,169,110,0.7)', borderRadius: 4 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#c9a96e' } } }, scales: { x: { ticks: { color: '#8a8a9a' }, grid: { color: 'rgba(61,61,92,0.3)' } }, y: { ticks: { color: '#8a8a9a' }, grid: { color: 'rgba(61,61,92,0.3)' } } } }
+          });
+        }
+      }
+      var items = data.details || [];
+      var html = '';
+      items.forEach(function(row) {
+        var premium = (row.hammer||0) - (row.estimate_mid||0);
+        var premiumRate = row.estimate_mid ? ((premium / row.estimate_mid) * 100).toFixed(1) : '-';
+        html += '<tr><td>' + (row.name||'-') + '</td><td style="font-family:var(--font-num)">' + utils.formatCurrency(row.estimate_mid) + '</td>';
+        html += '<td style="font-family:var(--font-num)">' + utils.formatCurrency(row.hammer) + '</td>';
+        html += '<td style="font-family:var(--font-num);color:' + (premium>=0?'var(--gold)':'var(--status-passed)') + '">' + utils.formatCurrency(premium) + '</td>';
+        html += '<td style="font-family:var(--font-num);color:' + (premium>=0?'var(--gold)':'var(--status-passed)') + '">' + premiumRate + '%</td></tr>';
+      });
+      if (!items.length) html = '<tr><td colspan="5" class="text-center text-muted py-3">暂无数据</td></tr>';
+      $('#spread-detail-table tbody').html(html);
+    });
+  }
+
+  function loadCommissionAudit() {
+    api.get('/analytics/commission').then(function(res) {
+      var data = res.data || res || {};
+      if (data.structure) {
+        var sLabels = data.structure.map(function(d) { return d.type || d.label; });
+        var sValues = data.structure.map(function(d) { return d.amount || 0; });
+        var shades = ['#c9a96e','#8b6914','#e8d5b7','#d4af37','#b8860b'];
+        if (_charts.commStruct) _charts.commStruct.destroy();
+        var ctx = document.getElementById('chart-commission-structure');
+        if (ctx) {
+          _charts.commStruct = new Chart(ctx, {
+            type: 'doughnut',
+            data: { labels: sLabels, datasets: [{ data: sValues, backgroundColor: shades.slice(0,sLabels.length), borderColor: '#2d2d44', borderWidth: 2 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#f5f0e8' } } } }
+          });
+        }
+      }
+      if (data.compare) {
+        var cLabels = data.compare.map(function(d) { return d.auction_name || d.label; });
+        var buyerComm = data.compare.map(function(d) { return d.buyer_commission || 0; });
+        var sellerComm = data.compare.map(function(d) { return d.seller_commission || 0; });
+        if (_charts.commCompare) _charts.commCompare.destroy();
+        var ctx2 = document.getElementById('chart-commission-compare');
+        if (ctx2) {
+          _charts.commCompare = new Chart(ctx2, {
+            type: 'bar',
+            data: { labels: cLabels, datasets: [
+              { label: '买家佣金', data: buyerComm, backgroundColor: 'rgba(201,169,110,0.8)', borderRadius: 4 },
+              { label: '卖家佣金', data: sellerComm, backgroundColor: 'rgba(139,105,20,0.6)', borderRadius: 4 }
+            ]},
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#c9a96e' } } }, scales: { x: { ticks: { color: '#8a8a9a' }, grid: { color: 'rgba(61,61,92,0.3)' } }, y: { ticks: { color: '#8a8a9a' }, grid: { color: 'rgba(61,61,92,0.3)' } } } }
+          });
+        }
+      }
+      var items = data.details || [];
+      var html = '';
+      items.forEach(function(row) {
+        html += '<tr><td>' + (row.auction_name||'-') + '</td>';
+        html += '<td style="font-family:var(--font-num)">' + utils.formatCurrency(row.total_hammer) + '</td>';
+        html += '<td style="font-family:var(--font-num)">' + (row.buyer_rate||0) + '%</td>';
+        html += '<td style="font-family:var(--font-num)">' + utils.formatCurrency(row.buyer_commission) + '</td>';
+        html += '<td style="font-family:var(--font-num)">' + (row.seller_rate||0) + '%</td>';
+        html += '<td style="font-family:var(--font-num)">' + utils.formatCurrency(row.seller_commission) + '</td>';
+        html += '<td style="font-family:var(--font-num);font-weight:600;color:var(--gold)">' + utils.formatCurrency(row.total_commission) + '</td></tr>';
+      });
+      if (!items.length) html = '<tr><td colspan="7" class="text-center text-muted py-3">暂无数据</td></tr>';
+      $('#commission-audit-table tbody').html(html);
+    });
+  }
+
+  $(document).off('click.analytics-tab', '#analytics-tabs .nav-link').on('click.analytics-tab', '#analytics-tabs .nav-link', function(e) {
+    e.preventDefault();
+    var tab = $(this).data('tab');
+    $('#analytics-tabs .nav-link').removeClass('active');
+    $(this).addClass('active');
+    $('#tab-trade-analysis, #tab-spread-analysis, #tab-commission-audit').hide();
+    $('#tab-' + tab).fadeIn(300);
+    if (tab === 'trade-analysis') loadTradeAnalysis();
+    if (tab === 'spread-analysis') loadSpreadAnalysis();
+    if (tab === 'commission-audit') loadCommissionAudit();
+  });
+
+  loadTradeAnalysis();
+})();
+</script>

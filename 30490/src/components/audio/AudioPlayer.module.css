@@ -1,0 +1,410 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  padding: var(--spacing-4);
+  background-color: var(--color-bg-secondary);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+}
+
+.coverWrapper {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background-color: var(--color-bg-tertiary);
+}
+
+.coverImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.coverPlaceholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  background: linear-gradient(135deg, var(--color-bg-tertiary), var(--color-bg-secondary));
+}
+
+.infoSection {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subtitle {
+  margin: var(--spacing-1) 0 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.visualSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.timeDisplay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-sm);
+}
+
+.timeText {
+  color: var(--color-accent-primary);
+  font-weight: 600;
+}
+
+.timeSeparator {
+  color: var(--color-text-muted);
+}
+
+.timeTextSecondary {
+  color: var(--color-text-muted);
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+}
+
+.leftControls {
+  display: flex;
+  align-items: center;
+}
+
+.playButton {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary));
+  color: white;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  box-shadow: var(--shadow-md);
+}
+
+.playButton:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-glow);
+}
+
+.playButton:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.playButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.centerControls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+}
+
+.volumeControl {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.iconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.iconButton:hover {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-light);
+}
+
+.iconButton.active {
+  background-color: var(--color-accent-primary);
+  color: white;
+  border-color: var(--color-accent-primary);
+}
+
+.volumeSlider {
+  width: 100px;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--color-bg-hover);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.volumeSlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-accent-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.volumeSlider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: var(--shadow-glow);
+}
+
+.volumeSlider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-accent-primary);
+  cursor: pointer;
+  border: none;
+}
+
+.volumeLabel {
+  font-size: var(--font-size-xs);
+  font-family: var(--font-family-display);
+  color: var(--color-text-muted);
+  min-width: 36px;
+}
+
+.speedControl {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  position: relative;
+}
+
+.speedMenu {
+  position: absolute;
+  bottom: calc(100% + var(--spacing-2));
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg-tertiary);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-index-dropdown);
+}
+
+.speedOption {
+  padding: var(--spacing-2) var(--spacing-4);
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+}
+
+.speedOption:hover {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.speedOption.active {
+  background-color: var(--color-accent-primary);
+  color: white;
+}
+
+.speedLabel {
+  font-size: var(--font-size-xs);
+  font-family: var(--font-family-display);
+  color: var(--color-text-muted);
+  min-width: 32px;
+}
+
+.compareSection {
+  border-top: var(--border-width-thin) solid var(--color-border);
+  padding-top: var(--spacing-4);
+}
+
+.compareTitle {
+  margin: 0 0 var(--spacing-3) 0;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.compareTracks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.compareTrack {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  padding: var(--spacing-2) var(--spacing-3);
+  background-color: var(--color-bg-tertiary);
+  border-radius: var(--radius-md);
+}
+
+.trackInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.trackTitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.trackControls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.trackVolumeControl {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  color: var(--color-text-muted);
+}
+
+.trackVolumeSlider {
+  width: 80px;
+  height: 3px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--color-bg-hover);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.trackVolumeSlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-accent-primary);
+  cursor: pointer;
+}
+
+.trackVolumeSlider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-accent-primary);
+  cursor: pointer;
+  border: none;
+}
+
+.trackButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+.trackButton:hover {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.trackButton.active {
+  background-color: var(--color-error);
+  color: white;
+  border-color: var(--color-error);
+}
+
+.trackButton.soloActive {
+  background-color: var(--color-warning);
+  color: var(--color-bg-primary);
+  border-color: var(--color-warning);
+}
+
+@media (max-width: 767px) {
+  .container {
+    padding: var(--spacing-3);
+  }
+
+  .coverWrapper {
+    width: 64px;
+    height: 64px;
+  }
+
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .leftControls {
+    justify-content: center;
+  }
+
+  .centerControls {
+    justify-content: center;
+  }
+
+  .volumeSlider {
+    width: 80px;
+  }
+}

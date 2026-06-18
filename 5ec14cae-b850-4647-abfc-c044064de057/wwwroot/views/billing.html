@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>费用结算 - 养老服务集团运营管理系统</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+<link href="../css/style.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+.amount-total { font-size: 32px; font-weight: 700; color: #2c3e50; }
+.amount-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #f0f2f5; font-size: 13px; }
+.amount-item:last-child { border: none; }
+.amount-label { color: #6c757d; }
+.amount-value { font-weight: 600; color: #2c3e50; }
+.bill-card { padding: 16px; border-radius: 12px; border: 2px solid #f0f2f5; transition: all 0.2s; background: white; }
+.bill-card:hover { border-color: #667eea; box-shadow: 0 4px 16px rgba(102,126,234,0.12); }
+.bill-card.overdue { border-color: #dc3545; background: linear-gradient(135deg, #fff5f5, white); }
+.bill-card.paid { opacity: 0.8; }
+.progress-sm { height: 6px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="app-wrapper">
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-logo"><div class="logo-icon">🏠</div><div><h1>养老服务集团 <span>Elderly Care System</span></h1></div></div>
+        <ul class="sidebar-menu">
+            <li><a href="dashboard.html"><i class="bi bi-grid-fill"></i> 运营概览</a></li>
+            <li><a href="elderly.html"><i class="bi bi-people-fill"></i> 老人档案</a></li>
+            <li><a href="bedmap.html"><i class="bi bi-hospital"></i> 床位管理</a></li>
+            <li><a href="schedule.html"><i class="bi bi-calendar-week-fill"></i> 护理排班</a></li>
+            <li><a href="medication.html"><i class="bi bi-capsule-pill"></i> 用药追踪</a></li>
+            <li><a href="billing.html" class="active"><i class="bi bi-cash-coin"></i> 费用结算</a></li>
+            <li style="margin-top:24px; padding:12px 14px; font-size:11px; color:rgba(255,255,255,0.4); text-transform:uppercase;">居家养老</li>
+            <li><a href="homeservice.html"><i class="bi bi-geo-alt-fill"></i> 服务派单</a></li>
+            <li><a href="family.html"><i class="bi bi-chat-heart-fill"></i> 家属沟通</a></li>
+            <li><a href="reports.html"><i class="bi bi-bar-chart-fill"></i> 统计报表</a></li>
+        </ul>
+    </nav>
+    <div class="main-content">
+        <header class="header">
+            <div class="header-left">
+                <button class="menu-toggle" onclick="$('#sidebar').toggleClass('open')"><i class="bi bi-list"></i></button>
+                <h2 class="page-title">费用结算中心</h2>
+                <select class="form-select facility-select"><option>全部机构</option><option>第一养老院</option><option>第二养老院</option></select>
+                <select class="form-select" id="s-month" style="width:140px;padding:6px 12px;border-radius:6px;font-size:13px;">
+                    <option>2026年04月</option><option>2026年03月</option><option>2026年02月</option><option>2026年01月</option>
+                </select>
+            </div>
+            <div class="header-right">
+                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#genModal"><i class="bi bi-file-earmark-spreadsheet me-1"></i>生成账单</button>
+                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#exportModal"><i class="bi bi-file-earmark-zip me-1"></i>报销材料</button>
+                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#payModal"><i class="bi bi-credit-card me-1"></i>收费登记</button>
+                <div class="dropdown"><div class="user-area" data-bs-toggle="dropdown"><div class="user-avatar" id="u-a">A</div><div class="user-info"><strong id="u-n">管理员</strong><small id="u-r">系统管理员</small></div><i class="bi bi-chevron-down" style="font-size:12px;color:#6c757d;"></i></div>
+                    <ul class="dropdown-menu dropdown-menu-end mt-2" style="border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.1);border:none;">
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-person-circle me-2"></i>个人中心</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-gear me-2"></i>系统设置</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="javascript:logout()"><i class="bi bi-box-arrow-right me-2"></i>退出登录</a></li>
+                    </ul></div>
+            </div>
+        </header>
+        <div class="content-area">
+            <div class="row g-4 mb-4">
+                <div class="col-lg-3 col-md-6"><div class="stat-card green"><div class="stat-label">💰 本月应收</div><div class="stat-value" id="s1">¥680万</div><div class="stat-trend">共 3,420 笔账单</div></div></div>
+                <div class="col-lg-3 col-md-6"><div class="stat-card blue"><div class="stat-label">✅ 已收金额</div><div class="stat-value" id="s2">¥612万</div><div class="stat-trend up">收缴率 90.0% ↑2.3%</div></div></div>
+                <div class="col-lg-3 col-md-6"><div class="stat-card orange"><div class="stat-label">⏳ 待收金额</div><div class="stat-value" id="s3" style="color:#fd7e14;">¥68万</div><div class="stat-trend">共 342 笔待处理</div></div></div>
+                <div class="col-lg-3 col-md-6"><div class="stat-card red"><div class="stat-label">⚠ 逾期未付</div><div class="stat-value" id="s4" style="color:#dc3545;">¥31万</div><div class="stat-trend down">逾期 32 笔 · 最久90天</div></div></div>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-lg-8">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5><i class="bi bi-bar-chart me-2 text-primary"></i>营收构成分析</h5>
+                            <div class="d-flex gap-2">
+                                <select class="form-select form-select-sm" style="width:120px;"><option>本月</option><option>本季度</option><option>本年度</option></select>
+                            </div>
+                        </div>
+                        <div class="card-body"><div class="row g-4">
+                            <div class="col-md-6"><canvas id="revenuePie" height="200"></canvas></div>
+                            <div class="col-md-6"><canvas id="revenueBar" height="200"></canvas></div>
+                        </div></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-receipt-cutoff me-2 text-primary"></i>账单列表</h5>
+                            <div class="d-flex gap-2">
+                                <input type="text" class="search-input" placeholder="搜索账单/老人姓名" style="width:200px;">
+                                <select class="form-select form-select-sm" style="width:140px;"><option value="">全部状态</option><option>已支付</option><option>待支付</option><option>部分支付</option><option>已逾期</option></select>
+                                <select class="form-select form-select-sm" style="width:140px;"><option value="">全部类型</option><option>床位费</option><option>护理费</option><option>餐费</option><option>药品费</option><option>综合</option></select>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive"><table class="table table-hover">
+                                <thead><tr><th>账单编号</th><th>老人</th><th>周期</th><th>应收金额</th><th>已收/待收</th><th>医保/自费</th><th>状态</th><th>操作</th></tr></thead>
+                                <tbody id="bill-body"></tbody>
+                            </table></div>
+                            <div class="pagination-wrapper px-4">
+                                <div style="color:#6c757d;font-size:13px;">共 3,420 条记录，第 1/114 页</div>
+                                <nav><ul class="pagination pagination-sm mb-0">
+                                    <li class="page-item disabled"><a class="page-link">上一页</a></li>
+                                    <li class="page-item active"><a class="page-link">1</a></li>
+                                    <li class="page-item"><a class="page-link">2</a></li>
+                                    <li class="page-item"><a class="page-link">3</a></li>
+                                    <li class="page-item"><a class="page-link">...</a></li>
+                                    <li class="page-item"><a class="page-link">114</a></li>
+                                    <li class="page-item"><a class="page-link">下一页</a></li>
+                                </ul></nav>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="card mb-4">
+                        <div class="card-header"><h5><i class="bi bi-file-earmark-check me-2 text-success"></i>医保报销进度</h5></div>
+                        <div class="card-body" id="insurance-list"></div>
+                    </div>
+                    <div class="card mb-4">
+                        <div class="card-header"><h5><i class="bi bi-megaphone me-2 text-warning"></i>催缴提醒 <span class="badge bg-danger ms-1">32</span></h5></div>
+                        <div class="card-body p-0" id="remind-list" style="max-height:400px;overflow-y:auto;"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h5><i class="bi bi-wallet2 me-2 text-primary"></i>快捷操作</h5></div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-outline-primary"><i class="bi bi-file-earmark-spreadsheet me-2"></i>月度账单批量生成</button>
+                                <button class="btn btn-outline-secondary"><i class="bi bi-send me-2"></i>批量发送缴费通知</button>
+                                <button class="btn btn-outline-success"><i class="bi bi-file-earmark-excel me-2"></i>导出财务报表</button>
+                                <button class="btn btn-outline-info"><i class="bi bi-archive me-2"></i>报销材料一键打包</button>
+                                <button class="btn btn-outline-warning"><i class="bi bi-receipt me-2"></i>发票批量开具</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="billDetail" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title"><i class="bi bi-receipt me-2 text-primary"></i>账单详情 <span class="badge bg-primary ms-2" id="bd-no"></span></h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body" id="bd-body"></div>
+</div></div></div>
+
+<div class="modal fade" id="genModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title"><i class="bi bi-file-earmark-spreadsheet me-2"></i>生成月度账单</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body"><div class="row g-3">
+        <div class="col-md-6"><label class="form-label">账单月份 *</label><input type="month" class="form-control" value="2026-04"></div>
+        <div class="col-md-6"><label class="form-label">机构范围</label><select class="form-select"><option>全部机构</option><option>第一养老院</option><option>第二养老院</option></select></div>
+        <div class="col-md-12"><label class="form-label">包含项目</label><div class="d-flex gap-3 flex-wrap">
+            <div class="form-check"><input class="form-check-input" type="checkbox" checked><label class="form-check-label">床位费</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" checked><label class="form-check-label">护理费</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" checked><label class="form-check-label">餐费</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" checked><label class="form-check-label">药品费</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" checked><label class="form-check-label">康复费</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox"><label class="form-check-label">其他</label></div>
+        </div></div>
+        <div class="col-md-12"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" checked><label class="form-check-label">自动发送账单通知给家属</label></div></div>
+    </div></div>
+    <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button><button class="btn btn-primary" onclick="toast('账单生成任务已提交，请稍后查看','success');bootstrap.Modal.getInstance(document.getElementById('genModal')).hide();">生成账单</button></div>
+</div></div></div>
+
+<div class="modal fade" id="exportModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title"><i class="bi bi-file-earmark-zip me-2"></i>导出医保报销材料</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body"><div class="row g-3">
+        <div class="col-md-6"><label class="form-label">机构</label><select class="form-select"><option>全部机构</option><option>第一养老院</option></select></div>
+        <div class="col-md-6"><label class="form-label">月份</label><input type="month" class="form-control" value="2026-04"></div>
+        <div class="col-md-12"><label class="form-label">材料类型（多选）</label><div class="d-flex flex-wrap gap-2">
+            <span class="badge bg-primary p-2">费用明细清单</span>
+            <span class="badge bg-primary p-2">发票扫描件</span>
+            <span class="badge bg-primary p-2">医嘱单</span>
+            <span class="badge bg-primary p-2">病历复印件</span>
+            <span class="badge bg-secondary p-2" style="cursor:pointer;">+ 出院小结</span>
+        </div></div>
+        <div class="col-md-12"><label class="form-label">打包格式</label><select class="form-select"><option>ZIP压缩包（推荐）</option><option>PDF合订本</option><option>Excel表格</option></select></div>
+    </div></div>
+    <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button><button class="btn btn-primary" onclick="toast('材料打包中，请在通知中心下载','success');bootstrap.Modal.getInstance(document.getElementById('exportModal')).hide();">开始导出</button></div>
+</div></div></div>
+
+<div class="modal fade" id="payModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title"><i class="bi bi-credit-card me-2"></i>收费登记</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body"><div class="row g-3">
+        <div class="col-md-12"><label class="form-label">关联账单</label><input class="form-control" placeholder="输入账单编号或搜索老人姓名"></div>
+        <div class="col-md-6"><label class="form-label">收费金额 *</label><div class="input-group"><span class="input-group-text">¥</span><input type="number" class="form-control" placeholder="0.00"></div></div>
+        <div class="col-md-6"><label class="form-label">支付方式 *</label><select class="form-select"><option>微信支付</option><option>支付宝</option><option>银行卡转账</option><option>现金</option><option>医保结算</option></select></div>
+        <div class="col-md-6"><label class="form-label">支付日期</label><input type="date" class="form-control" value="2026-04-20"></div>
+        <div class="col-md-6"><label class="form-label">发票号</label><input class="form-control" placeholder="自动生成或手动输入"></div>
+        <div class="col-md-12"><label class="form-label">备注</label><textarea class="form-control" rows="2"></textarea></div>
+    </div></div>
+    <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button><button class="btn btn-success" onclick="toast('收费登记成功','success');bootstrap.Modal.getInstance(document.getElementById('payModal')).hide();">确认收款</button></div>
+</div></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../js/common.js"></script>
+<script>
+const u = getUser(); if (!u) logout();
+$('#u-n').text(u.name || '管理员'); $('#u-r').text(u.role === 'Admin' ? '系统管理员' : u.role);
+$('#u-a').text((u.name || 'A').charAt(0));
+
+function renderBills() {
+    const names = ['王秀兰','李建国','张桂芳','陈福生','刘德海','赵淑敏','孙德才','周玉兰','吴建华','郑春梅'];
+    const statuses = [['已支付','success'],['待支付','warning'],['部分支付','info'],['已逾期','danger'],['已支付','success']];
+    const rows = [];
+    for (let i = 0; i < 10; i++) {
+        const total = 4800 + Math.floor(Math.random() * 6000);
+        const paidRatio = i % 5 === 0 ? 0.5 : i % 5 === 1 ? 0 : i % 5 === 3 ? 0 : 1;
+        const paid = Math.round(total * paidRatio);
+        const unpaid = total - paid;
+        const st = statuses[i % 5];
+        const insurance = Math.round(total * (0.3 + Math.random() * 0.3));
+        const self = total - insurance;
+        rows.push(`<tr onclick="viewBill('BL202604${String(10001+i).padStart(5,'0')}','${names[i]}',${total},${paid},${unpaid},${insurance},${self})" style="cursor:pointer;">
+            <td style="font-family:monospace;font-size:12px;">BL202604${String(10001+i).padStart(5,'0')}</td>
+            <td><div class="d-flex align-items-center gap-2"><div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:11px;">${names[i].charAt(0)}</div><span style="font-weight:600;font-size:13px;">${names[i]}</span></div></td>
+            <td style="font-size:12px;color:#6c757d;">2026-04-01 ~ 04-30</td>
+            <td style="font-weight:700;">${fmtMoney(total)}</td>
+            <td><div style="font-size:12px;"><span style="color:#198754;">${fmtMoney(paid)}</span>${unpaid?` / <span style="color:#dc3545;">${fmtMoney(unpaid)}</span>`:''}</div><div class="progress progress-sm mt-1"><div class="progress-bar" style="width:${paidRatio*100}%;background:${paidRatio===1?'#198754':paidRatio?'#667eea':'#ffc107'};"></div></div></td>
+            <td><div style="font-size:12px;"><i class="bi bi-shield-check text-primary me-1"></i>${fmtMoney(insurance)}</div><div style="font-size:12px;color:#6c757d;"><i class="bi bi-person me-1"></i>${fmtMoney(self)}</div></td>
+            <td><span class="badge badge-${st[1]}">${st[0]}</span>${i%5===3?'<div style="font-size:10px;color:#dc3545;margin-top:2px;">逾期 45 天</div>':''}</td>
+            <td onclick="event.stopPropagation()"><div class="d-flex gap-1">
+                <button class="btn btn-sm btn-outline-success" ${!unpaid?'disabled':''}><i class="bi bi-cash"></i></button>
+                <button class="btn btn-sm btn-outline-info"><i class="bi bi-printer"></i></button>
+                <button class="btn btn-sm btn-outline-warning" ${!unpaid?'disabled':''}><i class="bi bi-megaphone"></i></button>
+            </div></td>
+        </tr>`);
+    }
+    $('#bill-body').html(rows.join(''));
+}
+
+function viewBill(no, name, total, paid, unpaid, ins, self) {
+    $('#bd-no').text(no);
+    const items = [
+        { n: '床位费（3-205-1）', v: 3200 },
+        { n: '护理费（特护级）', v: 2800 },
+        { n: '餐费（30天）', v: 900 },
+        { n: '药品费', v: Math.round(400 + Math.random() * 600) },
+        { n: '康复治疗费', v: Math.round(Math.random() * 1200) },
+        { n: '其他耗材', v: Math.round(Math.random() * 200) },
+    ];
+    const detail = items.slice(0, 5 + (total % 2)).map(x => `<div class="amount-item"><span class="amount-label">${x.n}</span><span class="amount-value">${fmtMoney(x.v)}</span></div>`).join('');
+    $('#bd-body').html(`
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <div class="mb-1"><span class="text-muted small">老人姓名：</span><strong>${name}</strong></div>
+                <div class="mb-1"><span class="text-muted small">账单周期：</span>2026年04月01日 ~ 2026年04月30日</div>
+                <div class="mb-1"><span class="text-muted small">生成日期：</span>2026年04月01日</div>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="text-muted small">应收合计</div>
+                <div class="amount-total" style="color:#dc3545;">${fmtMoney(total)}</div>
+            </div>
+        </div>
+        <div class="row mb-4 g-4">
+            <div class="col-md-8"><div class="p-3 rounded" style="background:#f8f9fa;"><strong style="font-size:13px;">📋 费用明细</strong><hr style="margin:10px 0;">${detail}</div></div>
+            <div class="col-md-4">
+                <div class="p-3 rounded mb-3" style="background:#e7f5ff;border:1px solid #a5d8ff;">
+                    <div style="font-size:13px;color:#1864ab;font-weight:600;" class="mb-2">🏥 医保报销部分</div>
+                    <div class="amount-item"><span class="amount-label">报销金额</span><span class="amount-value" style="color:#1864ab;">${fmtMoney(ins)}</span></div>
+                    <div class="amount-item"><span class="amount-label">报销比例</span><span class="amount-value">${Math.round(ins/total*100)}%</span></div>
+                </div>
+                <div class="p-3 rounded mb-3" style="background:#fff5f5;border:1px solid #ffa8a8;">
+                    <div style="font-size:13px;color:#c92a2a;font-weight:600;" class="mb-2">👤 个人自付部分</div>
+                    <div class="amount-item"><span class="amount-label">自付金额</span><span class="amount-value" style="color:#c92a2a;">${fmtMoney(self)}</span></div>
+                    <div class="amount-item"><span class="amount-label">已付金额</span><span class="amount-value" style="color:#198754;">${fmtMoney(paid)}</span></div>
+                    ${unpaid?`<div class="amount-item"><span class="amount-label">待付金额</span><span class="amount-value" style="color:#dc3545;font-weight:700;">${fmtMoney(unpaid)}</span></div>`:''}
+                </div>
+                <div class="p-3 rounded" style="background:#d3f9d8;border:1px solid #8ce99a;">
+                    <div style="font-size:13px;color:#2b8a3e;font-weight:600;" class="mb-2">📊 支付进度</div>
+                    <div class="progress" style="height:10px;border-radius:5px;"><div class="progress-bar bg-success" style="width:${Math.round(paid/total*100)}%;"></div></div>
+                    <div class="mt-2 text-center" style="font-weight:700;font-size:16px;color:#2b8a3e;">${Math.round(paid/total*100)}%</div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-between align-items-center pt-3" style="border-top:1px solid #f0f2f5;">
+            <small class="text-muted">打印时间：${fmtDateTime(new Date())}</small>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-printer me-1"></i>打印</button>
+                <button class="btn btn-sm btn-outline-primary"><i class="bi bi-filetype-pdf me-1"></i>PDF</button>
+                ${unpaid?`<button class="btn btn-sm btn-success" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#payModal"><i class="bi bi-credit-card me-1"></i>立即收费</button>`:`<span class="badge badge-success" style="padding:6px 14px;">✅ 已结清</span>`}
+            </div>
+        </div>
+    `);
+    new bootstrap.Modal('#billDetail').show();
+}
+
+function renderInsurance() {
+    const items = [
+        { n: '4月第一批次（156份）', t: '已提交', c: 'success', v: 85, amt: '¥86.5万' },
+        { n: '4月第二批次（208份）', t: '审核中', c: 'warning', v: 40, amt: '¥102.3万' },
+        { n: '3月第三批次（96份）', t: '已到账', c: 'info', v: 100, amt: '¥54.8万' },
+        { n: '异地就医专项（23份）', t: '补充材料', c: 'danger', v: 60, amt: '¥18.2万' },
+    ];
+    $('#insurance-list').html(items.map(x => `
+        <div class="mb-3 pb-3" style="border-bottom:1px dashed #f0f2f5;">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div style="font-weight:600;font-size:13px;">${x.n}</div>
+                <span class="badge badge-${x.c}" style="font-size:11px;">${x.t}</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-2" style="font-size:12px;color:#6c757d;">
+                <span>涉及金额：<strong style="color:#2c3e50;">${x.amt}</strong></span>
+                <span>${x.v}%</span>
+            </div>
+            <div class="progress progress-sm"><div class="progress-bar" style="width:${x.v}%;background:${x.c==='success'?'#198754':x.c==='warning'?'#ffc107':x.c==='danger'?'#dc3545':'#0d6efd'};"></div></div>
+        </div>
+    `).join(''));
+}
+
+function renderRemind() {
+    const names = ['陈福生','赵淑敏','周玉兰','郑春梅','黄丽华'];
+    const durs = [90, 62, 45, 30, 15];
+    const amts = [12600, 8900, 7500, 6200, 5800];
+    $('#remind-list').html(names.map((n,i) => `
+        <div class="p-3" style="border-bottom:1px solid #f0f2f5;cursor:pointer;" onmouseover="this.style.background='#fffbf0'" onmouseout="this.style.background=''">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <div style="width:30px;height:30px;border-radius:50%;background:${i<2?'#dc3545':'#ffc107'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px;">${n.charAt(0)}</div>
+                    <div><div style="font-weight:600;font-size:13px;">${n}</div><small style="color:#6c757d;">账单 BL20260${2-i%2}${10000+i}</small></div>
+                </div>
+                <div style="text-align:right;"><div style="color:#dc3545;font-weight:700;">${fmtMoney(amts[i])}</div><small style="color:${i<2?'#dc3545':'#fd7e14'};font-weight:600;">逾期${durs[i]}天</small></div>
+            </div>
+            <div class="d-flex gap-1 mt-2">
+                <button class="btn btn-sm btn-outline-warning flex-grow-1"><i class="bi bi-chat me-1"></i>微信</button>
+                <button class="btn btn-sm btn-outline-info flex-grow-1"><i class="bi bi-telephone me-1"></i>电话</button>
+                <button class="btn btn-sm btn-outline-primary flex-grow-1"><i class="bi bi-envelope me-1"></i>短信</button>
+            </div>
+        </div>
+    `).join(''));
+}
+
+function initCharts() {
+    new Chart($('#revenuePie')[0], {
+        type: 'doughnut',
+        data: { labels: ['床位费','护理费','餐费','药品费','康复服务','其他'],
+            datasets: [{ data: [245,210,78,82,38,27], backgroundColor: ['#667eea','#20c997','#ffc107','#fd7e14','#0d6efd','#6f42c1'], borderWidth: 3, borderColor: '#fff' }] },
+        options: { responsive: true, maintainAspectRatio: true, cutout: '60%',
+            plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10, font: { size: 11 } } },
+                tooltip: { callbacks: { label: ctx => ctx.label + ': ¥' + ctx.parsed + '万 (' + (ctx.parsed/6.8).toFixed(1) + '%)' } } } }
+    });
+    new Chart($('#revenueBar')[0], {
+        type: 'bar',
+        data: { labels: ['1月','2月','3月','4月'],
+            datasets: [
+                { label: '在院养老', data: [560,580,610,620], backgroundColor: 'rgba(102,126,234,0.85)', borderRadius: 6 },
+                { label: '居家服务', data: [42,48,55,60], backgroundColor: 'rgba(32,201,151,0.85)', borderRadius: 6 }
+            ] },
+        options: { responsive: true, maintainAspectRatio: true,
+            plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10, font: { size: 11 } } } },
+            scales: { x: { grid: { display: false } }, y: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { callback: v => v + '万', font: { size: 10 } } } } }
+    });
+}
+
+renderBills();
+renderInsurance();
+renderRemind();
+initCharts();
+</script>
+</body>
+</html>

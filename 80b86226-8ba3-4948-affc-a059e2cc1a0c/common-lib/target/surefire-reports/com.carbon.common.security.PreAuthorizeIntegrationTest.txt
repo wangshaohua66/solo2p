@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.carbon.common.security.PreAuthorizeIntegrationTest
+-------------------------------------------------------------------------------
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.220 s -- in com.carbon.common.security.PreAuthorizeIntegrationTest

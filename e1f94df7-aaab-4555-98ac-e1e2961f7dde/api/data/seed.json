@@ -1,0 +1,1003 @@
+{
+  "users": [
+    {
+      "_id": "u-admin-001",
+      "name": "赵明远",
+      "email": "admin@auctionhouse.com",
+      "password": "password123",
+      "phone": "13900001111",
+      "role": "admin",
+      "bidder_number": null,
+      "status": "active"
+    },
+    {
+      "_id": "u-operator-001",
+      "name": "钱晓萍",
+      "email": "operator@auctionhouse.com",
+      "password": "password123",
+      "phone": "13900002222",
+      "role": "operator",
+      "bidder_number": null,
+      "status": "active"
+    },
+    {
+      "_id": "u-appraiser-001",
+      "name": "孙鉴真",
+      "email": "appraiser@auctionhouse.com",
+      "password": "password123",
+      "phone": "13900003333",
+      "role": "appraiser",
+      "bidder_number": null,
+      "status": "active"
+    },
+    {
+      "_id": "u-editor-001",
+      "name": "李文编",
+      "email": "editor@auctionhouse.com",
+      "password": "password123",
+      "phone": "13900004444",
+      "role": "editor",
+      "bidder_number": null,
+      "status": "active"
+    },
+    {
+      "_id": "u-auctioneer-001",
+      "name": "周锤声",
+      "email": "auctioneer@auctionhouse.com",
+      "password": "password123",
+      "phone": "13900005555",
+      "role": "auctioneer",
+      "bidder_number": null,
+      "status": "active"
+    },
+    {
+      "_id": "u-consignor-001",
+      "name": "吴藏家",
+      "email": "consignor1@auctionhouse.com",
+      "password": "password123",
+      "phone": "13900006666",
+      "role": "consignor",
+      "bidder_number": null,
+      "status": "active"
+    },
+    {
+      "_id": "u-consignor-002",
+      "name": "郑古韵",
+      "email": "consignor2@auctionhouse.com",
+      "password": "password123",
+      "phone": "13900007777",
+      "role": "consignor",
+      "bidder_number": null,
+      "status": "active"
+    },
+    {
+      "_id": "u-bidder-001",
+      "name": "王竞投",
+      "email": "bidder1@auctionhouse.com",
+      "password": "password123",
+      "phone": "13900008888",
+      "role": "bidder",
+      "bidder_number": "B001",
+      "status": "active"
+    },
+    {
+      "_id": "u-bidder-002",
+      "name": "冯志远",
+      "email": "bidder2@auctionhouse.com",
+      "password": "password123",
+      "phone": "13900009999",
+      "role": "bidder",
+      "bidder_number": "B002",
+      "status": "active"
+    },
+    {
+      "_id": "u-bidder-003",
+      "name": "陈雅藏",
+      "email": "bidder3@auctionhouse.com",
+      "password": "password123",
+      "phone": "13900010000",
+      "role": "bidder",
+      "bidder_number": "B003",
+      "status": "active"
+    }
+  ],
+  "lots": [
+    {
+      "_id": "lot-001",
+      "lot_number": "LOT-20260601-0001",
+      "name": "明成化斗彩鸡缸杯",
+      "category": "ceramics",
+      "description": "明成化年间御窑出品，斗彩工艺巅峰之作。杯壁绘子母鸡图，笔触细腻，色彩典雅。传承有序，品相完美。",
+      "images": [],
+      "status": "sold",
+      "consignor_id": "u-consignor-001",
+      "auction_id": "auction-001",
+      "reference_price": 280000000,
+      "starting_price": 200000000,
+      "estimate_low": 250000000,
+      "estimate_high": 320000000,
+      "appraisals": [
+        {
+          "appraiser_id": "u-appraiser-001",
+          "estimated_price": 300000000,
+          "description": "品相上佳，成化本朝真品，极为稀有",
+          "appraised_at": "2026-05-10T08:00:00.000Z"
+        }
+      ],
+      "status_history": [
+        { "status": "submitted", "changed_at": "2026-05-01T10:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "appraising", "changed_at": "2026-05-03T10:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "photographed", "changed_at": "2026-05-06T10:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "cataloging", "changed_at": "2026-05-08T10:00:00.000Z", "changed_by": "u-editor-001" },
+        { "status": "previewing", "changed_at": "2026-05-15T10:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "bidding", "changed_at": "2026-06-01T09:00:00.000Z", "changed_by": "u-auctioneer-001" },
+        { "status": "sold", "changed_at": "2026-06-01T09:30:00.000Z", "changed_by": "u-auctioneer-001" }
+      ],
+      "dimensions": { "height": 8.3, "diameter": 8.2, "unit": "cm" },
+      "artist": null,
+      "weight": null,
+      "period": null
+    },
+    {
+      "_id": "lot-002",
+      "lot_number": "LOT-20260601-0002",
+      "name": "清乾隆粉彩镂空转心瓶",
+      "category": "ceramics",
+      "description": "清乾隆年间御窑精品，粉彩镂空工艺，三层转心设计，工艺繁复精湛。",
+      "images": [],
+      "status": "bidding",
+      "consignor_id": "u-consignor-001",
+      "auction_id": "auction-001",
+      "reference_price": 85000000,
+      "starting_price": 60000000,
+      "estimate_low": 70000000,
+      "estimate_high": 100000000,
+      "appraisals": [
+        {
+          "appraiser_id": "u-appraiser-001",
+          "estimated_price": 90000000,
+          "description": "乾隆官窑精品，保存完好",
+          "appraised_at": "2026-05-10T09:00:00.000Z"
+        }
+      ],
+      "status_history": [
+        { "status": "submitted", "changed_at": "2026-05-01T11:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "appraising", "changed_at": "2026-05-03T11:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "photographed", "changed_at": "2026-05-06T11:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "cataloging", "changed_at": "2026-05-08T11:00:00.000Z", "changed_by": "u-editor-001" },
+        { "status": "previewing", "changed_at": "2026-05-15T11:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "bidding", "changed_at": "2026-06-01T10:00:00.000Z", "changed_by": "u-auctioneer-001" }
+      ],
+      "dimensions": { "height": 38.5, "diameter": 15.2, "unit": "cm" },
+      "artist": null,
+      "weight": null,
+      "period": null
+    },
+    {
+      "_id": "lot-003",
+      "lot_number": "LOT-20260601-0003",
+      "name": "宋汝窑天青釉洗",
+      "category": "ceramics",
+      "description": "宋代汝窑天青釉笔洗，釉色温润如玉，开片自然，存世极少。",
+      "images": [],
+      "status": "previewing",
+      "consignor_id": "u-consignor-002",
+      "auction_id": "auction-001",
+      "reference_price": 150000000,
+      "starting_price": 120000000,
+      "estimate_low": 130000000,
+      "estimate_high": 180000000,
+      "appraisals": [
+        {
+          "appraiser_id": "u-appraiser-001",
+          "estimated_price": 160000000,
+          "description": "汝窑真品，釉色纯正",
+          "appraised_at": "2026-05-11T08:00:00.000Z"
+        }
+      ],
+      "status_history": [
+        { "status": "submitted", "changed_at": "2026-05-02T09:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "appraising", "changed_at": "2026-05-04T09:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "photographed", "changed_at": "2026-05-07T09:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "cataloging", "changed_at": "2026-05-09T09:00:00.000Z", "changed_by": "u-editor-001" },
+        { "status": "previewing", "changed_at": "2026-05-16T09:00:00.000Z", "changed_by": "u-operator-001" }
+      ],
+      "dimensions": { "height": 3.8, "diameter": 13.5, "unit": "cm" },
+      "artist": null,
+      "weight": null,
+      "period": null
+    },
+    {
+      "_id": "lot-004",
+      "lot_number": "LOT-20260601-0004",
+      "name": "元青花鬼谷子下山图罐",
+      "category": "ceramics",
+      "description": "元代青花大罐，绘鬼谷子下山故事，笔法生动，青花发色浓艳。",
+      "images": [],
+      "status": "cataloging",
+      "consignor_id": "u-consignor-001",
+      "auction_id": "auction-001",
+      "reference_price": 200000000,
+      "starting_price": 150000000,
+      "estimate_low": 180000000,
+      "estimate_high": 250000000,
+      "appraisals": [
+        {
+          "appraiser_id": "u-appraiser-001",
+          "estimated_price": 220000000,
+          "description": "元青花重器，画工精绝",
+          "appraised_at": "2026-05-12T08:00:00.000Z"
+        }
+      ],
+      "status_history": [
+        { "status": "submitted", "changed_at": "2026-05-03T10:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "appraising", "changed_at": "2026-05-05T10:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "photographed", "changed_at": "2026-05-08T10:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "cataloging", "changed_at": "2026-05-10T10:00:00.000Z", "changed_by": "u-editor-001" }
+      ],
+      "dimensions": { "height": 27.5, "diameter": 33.5, "unit": "cm" },
+      "artist": null,
+      "weight": null,
+      "period": null
+    },
+    {
+      "_id": "lot-005",
+      "lot_number": "LOT-20260601-0005",
+      "name": "明宣德青花缠枝莲纹碗",
+      "category": "ceramics",
+      "description": "明宣德年间御窑青花碗，缠枝莲纹饰，苏麻离青料，铁锈斑自然。",
+      "images": [],
+      "status": "appraising",
+      "consignor_id": "u-consignor-002",
+      "auction_id": "auction-001",
+      "reference_price": 35000000,
+      "starting_price": 25000000,
+      "estimate_low": 30000000,
+      "estimate_high": 40000000,
+      "appraisals": [],
+      "status_history": [
+        { "status": "submitted", "changed_at": "2026-05-05T10:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "appraising", "changed_at": "2026-05-07T10:00:00.000Z", "changed_by": "u-operator-001" }
+      ],
+      "dimensions": { "height": 10.2, "diameter": 20.8, "unit": "cm" },
+      "artist": null,
+      "weight": null,
+      "period": null
+    },
+    {
+      "_id": "lot-006",
+      "lot_number": "LOT-20260601-0006",
+      "name": "张大千泼墨山水图",
+      "category": "painting",
+      "description": "张大千晚年泼墨泼彩代表作，气势恢宏，色彩斑斓，融汇中西技法。",
+      "images": [],
+      "status": "sold",
+      "consignor_id": "u-consignor-002",
+      "auction_id": "auction-001",
+      "reference_price": 120000000,
+      "starting_price": 80000000,
+      "estimate_low": 100000000,
+      "estimate_high": 150000000,
+      "appraisals": [
+        {
+          "appraiser_id": "u-appraiser-001",
+          "estimated_price": 130000000,
+          "description": "大千晚年精品，泼墨泼彩技法登峰造极",
+          "appraised_at": "2026-05-10T10:00:00.000Z"
+        }
+      ],
+      "status_history": [
+        { "status": "submitted", "changed_at": "2026-05-01T12:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "appraising", "changed_at": "2026-05-03T12:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "photographed", "changed_at": "2026-05-06T12:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "cataloging", "changed_at": "2026-05-08T12:00:00.000Z", "changed_by": "u-editor-001" },
+        { "status": "previewing", "changed_at": "2026-05-15T12:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "bidding", "changed_at": "2026-06-01T11:00:00.000Z", "changed_by": "u-auctioneer-001" },
+        { "status": "sold", "changed_at": "2026-06-01T11:20:00.000Z", "changed_by": "u-auctioneer-001" }
+      ],
+      "dimensions": { "width": 180, "height": 96, "unit": "cm" },
+      "artist": "张大千",
+      "weight": null,
+      "period": null
+    },
+    {
+      "_id": "lot-007",
+      "lot_number": "LOT-20260601-0007",
+      "name": "齐白石虾趣图",
+      "category": "painting",
+      "description": "齐白石画虾经典之作，笔墨精炼，神态生动，题款钤印完整。",
+      "images": [],
+      "status": "bidding",
+      "consignor_id": "u-consignor-001",
+      "auction_id": "auction-001",
+      "reference_price": 45000000,
+      "starting_price": 30000000,
+      "estimate_low": 38000000,
+      "estimate_high": 55000000,
+      "appraisals": [
+        {
+          "appraiser_id": "u-appraiser-001",
+          "estimated_price": 48000000,
+          "description": "白石老人画虾精品",
+          "appraised_at": "2026-05-11T10:00:00.000Z"
+        }
+      ],
+      "status_history": [
+        { "status": "submitted", "changed_at": "2026-05-02T10:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "appraising", "changed_at": "2026-05-04T10:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "photographed", "changed_at": "2026-05-07T10:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "cataloging", "changed_at": "2026-05-09T10:00:00.000Z", "changed_by": "u-editor-001" },
+        { "status": "previewing", "changed_at": "2026-05-16T10:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "bidding", "changed_at": "2026-06-01T11:30:00.000Z", "changed_by": "u-auctioneer-001" }
+      ],
+      "dimensions": { "width": 100, "height": 34, "unit": "cm" },
+      "artist": "齐白石",
+      "weight": null,
+      "period": null
+    },
+    {
+      "_id": "lot-008",
+      "lot_number": "LOT-20260601-0008",
+      "name": "徐悲鸿奔马图",
+      "category": "painting",
+      "description": "徐悲鸿画马名作，骏马奔腾之势跃然纸上，笔墨酣畅淋漓。",
+      "images": [],
+      "status": "previewing",
+      "consignor_id": "u-consignor-002",
+      "auction_id": "auction-001",
+      "reference_price": 60000000,
+      "starting_price": 45000000,
+      "estimate_low": 50000000,
+      "estimate_high": 70000000,
+      "appraisals": [
+        {
+          "appraiser_id": "u-appraiser-001",
+          "estimated_price": 65000000,
+          "description": "悲鸿画马代表作，气韵生动",
+          "appraised_at": "2026-05-12T10:00:00.000Z"
+        }
+      ],
+      "status_history": [
+        { "status": "submitted", "changed_at": "2026-05-03T11:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "appraising", "changed_at": "2026-05-05T11:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "photographed", "changed_at": "2026-05-08T11:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "cataloging", "changed_at": "2026-05-10T11:00:00.000Z", "changed_by": "u-editor-001" },
+        { "status": "previewing", "changed_at": "2026-05-17T11:00:00.000Z", "changed_by": "u-operator-001" }
+      ],
+      "dimensions": { "width": 130, "height": 68, "unit": "cm" },
+      "artist": "徐悲鸿",
+      "weight": null,
+      "period": null
+    },
+    {
+      "_id": "lot-009",
+      "lot_number": "LOT-20260601-0009",
+      "name": "傅抱石丽人行图",
+      "category": "painting",
+      "description": "傅抱石人物画名作，绘唐代丽人春行场景，设色雅致。",
+      "images": [],
+      "status": "photographed",
+      "consignor_id": "u-consignor-001",
+      "auction_id": "auction-001",
+      "reference_price": 38000000,
+      "starting_price": 25000000,
+      "estimate_low": 30000000,
+      "estimate_high": 45000000,
+      "appraisals": [
+        {
+          "appraiser_id": "u-appraiser-001",
+          "estimated_price": 40000000,
+          "description": "抱石人物画精品",
+          "appraised_at": "2026-05-13T10:00:00.000Z"
+        }
+      ],
+      "status_history": [
+        { "status": "submitted", "changed_at": "2026-05-04T10:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "appraising", "changed_at": "2026-05-06T10:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "photographed", "changed_at": "2026-05-09T10:00:00.000Z", "changed_by": "u-operator-001" }
+      ],
+      "dimensions": { "width": 145, "height": 68, "unit": "cm" },
+      "artist": "傅抱石",
+      "weight": null,
+      "period": null
+    },
+    {
+      "_id": "lot-010",
+      "lot_number": "LOT-20260601-0010",
+      "name": "黄宾虹山水册页",
+      "category": "painting",
+      "description": "黄宾虹晚年山水册页八开，墨色浑厚华滋，意境深远。",
+      "images": [],
+      "status": "submitted",
+      "consignor_id": "u-consignor-002",
+      "auction_id": "auction-001",
+      "reference_price": 15000000,
+      "starting_price": 10000000,
+      "estimate_low": 12000000,
+      "estimate_high": 18000000,
+      "appraisals": [],
+      "status_history": [
+        { "status": "submitted", "changed_at": "2026-05-06T10:00:00.000Z", "changed_by": "u-operator-001" }
+      ],
+      "dimensions": { "width": 34, "height": 45, "unit": "cm" },
+      "artist": "黄宾虹",
+      "weight": null,
+      "period": null
+    },
+    {
+      "_id": "lot-011",
+      "lot_number": "LOT-20260601-0011",
+      "name": "缅甸天然翡翠手镯",
+      "category": "jewelry",
+      "description": "缅甸天然A货翡翠手镯，满绿冰种，水头极佳，质地细腻通透。",
+      "images": [],
+      "status": "sold",
+      "consignor_id": "u-consignor-001",
+      "auction_id": "auction-001",
+      "reference_price": 50000000,
+      "starting_price": 35000000,
+      "estimate_low": 40000000,
+      "estimate_high": 60000000,
+      "appraisals": [
+        {
+          "appraiser_id": "u-appraiser-001",
+          "estimated_price": 55000000,
+          "description": "满绿冰种，品质卓越",
+          "appraised_at": "2026-05-10T11:00:00.000Z"
+        }
+      ],
+      "status_history": [
+        { "status": "submitted", "changed_at": "2026-05-01T14:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "appraising", "changed_at": "2026-05-03T14:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "photographed", "changed_at": "2026-05-06T14:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "cataloging", "changed_at": "2026-05-08T14:00:00.000Z", "changed_by": "u-editor-001" },
+        { "status": "previewing", "changed_at": "2026-05-15T14:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "bidding", "changed_at": "2026-06-01T14:00:00.000Z", "changed_by": "u-auctioneer-001" },
+        { "status": "sold", "changed_at": "2026-06-01T14:25:00.000Z", "changed_by": "u-auctioneer-001" }
+      ],
+      "dimensions": null,
+      "artist": null,
+      "weight": 68.5,
+      "period": null
+    },
+    {
+      "_id": "lot-012",
+      "lot_number": "LOT-20260601-0012",
+      "name": "哥伦比亚祖母绿戒指",
+      "category": "jewelry",
+      "description": "哥伦比亚产天然祖母绿，主石12.5克拉，颜色浓郁纯正，净度极佳，铂金镶嵌。",
+      "images": [],
+      "status": "passed",
+      "consignor_id": "u-consignor-002",
+      "auction_id": "auction-001",
+      "reference_price": 8000000,
+      "starting_price": 5000000,
+      "estimate_low": 6000000,
+      "estimate_high": 10000000,
+      "appraisals": [
+        {
+          "appraiser_id": "u-appraiser-001",
+          "estimated_price": 8500000,
+          "description": "颜色净度俱佳",
+          "appraised_at": "2026-05-11T11:00:00.000Z"
+        }
+      ],
+      "status_history": [
+        { "status": "submitted", "changed_at": "2026-05-02T14:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "appraising", "changed_at": "2026-05-04T14:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "photographed", "changed_at": "2026-05-07T14:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "cataloging", "changed_at": "2026-05-09T14:00:00.000Z", "changed_by": "u-editor-001" },
+        { "status": "previewing", "changed_at": "2026-05-16T14:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "bidding", "changed_at": "2026-06-01T14:30:00.000Z", "changed_by": "u-auctioneer-001" },
+        { "status": "passed", "changed_at": "2026-06-01T14:35:00.000Z", "changed_by": "u-auctioneer-001" }
+      ],
+      "dimensions": null,
+      "artist": null,
+      "weight": 5.2,
+      "period": null
+    },
+    {
+      "_id": "lot-013",
+      "lot_number": "LOT-20260601-0013",
+      "name": "克什米尔蓝宝石项链",
+      "category": "jewelry",
+      "description": "克什米尔天然无烧蓝宝石项链，主石8.8克拉，矢车菊蓝色，配钻镶嵌。",
+      "images": [],
+      "status": "bidding",
+      "consignor_id": "u-consignor-001",
+      "auction_id": "auction-001",
+      "reference_price": 22000000,
+      "starting_price": 15000000,
+      "estimate_low": 18000000,
+      "estimate_high": 28000000,
+      "appraisals": [
+        {
+          "appraiser_id": "u-appraiser-001",
+          "estimated_price": 24000000,
+          "description": "克什米尔蓝宝，极为珍稀",
+          "appraised_at": "2026-05-12T11:00:00.000Z"
+        }
+      ],
+      "status_history": [
+        { "status": "submitted", "changed_at": "2026-05-03T14:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "appraising", "changed_at": "2026-05-05T14:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "photographed", "changed_at": "2026-05-08T14:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "cataloging", "changed_at": "2026-05-10T14:00:00.000Z", "changed_by": "u-editor-001" },
+        { "status": "previewing", "changed_at": "2026-05-17T14:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "bidding", "changed_at": "2026-06-01T15:00:00.000Z", "changed_by": "u-auctioneer-001" }
+      ],
+      "dimensions": null,
+      "artist": null,
+      "weight": 12.3,
+      "period": null
+    },
+    {
+      "_id": "lot-014",
+      "lot_number": "LOT-20260601-0014",
+      "name": "天然海水珍珠套链",
+      "category": "jewelry",
+      "description": "天然海水珍珠套链，珍珠颗颗圆润饱满，光泽柔和，18K金镶嵌。",
+      "images": [],
+      "status": "cataloging",
+      "consignor_id": "u-consignor-002",
+      "auction_id": "auction-001",
+      "reference_price": 3500000,
+      "starting_price": 2000000,
+      "estimate_low": 2800000,
+      "estimate_high": 4500000,
+      "appraisals": [
+        {
+          "appraiser_id": "u-appraiser-001",
+          "estimated_price": 3800000,
+          "description": "天然海水珠，光泽好",
+          "appraised_at": "2026-05-13T11:00:00.000Z"
+        }
+      ],
+      "status_history": [
+        { "status": "submitted", "changed_at": "2026-05-04T14:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "appraising", "changed_at": "2026-05-06T14:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "photographed", "changed_at": "2026-05-09T14:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "cataloging", "changed_at": "2026-05-11T14:00:00.000Z", "changed_by": "u-editor-001" }
+      ],
+      "dimensions": null,
+      "artist": null,
+      "weight": 35.6,
+      "period": null
+    },
+    {
+      "_id": "lot-015",
+      "lot_number": "LOT-20260601-0015",
+      "name": "红宝石钻石耳环",
+      "category": "jewelry",
+      "description": "缅甸抹谷天然鸽血红红宝石耳环一对，共重6.2克拉，配钻镶嵌。",
+      "images": [],
+      "status": "appraising",
+      "consignor_id": "u-consignor-001",
+      "auction_id": "auction-001",
+      "reference_price": 12000000,
+      "starting_price": 8000000,
+      "estimate_low": 10000000,
+      "estimate_high": 15000000,
+      "appraisals": [],
+      "status_history": [
+        { "status": "submitted", "changed_at": "2026-05-05T14:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "appraising", "changed_at": "2026-05-07T14:00:00.000Z", "changed_by": "u-operator-001" }
+      ],
+      "dimensions": null,
+      "artist": null,
+      "weight": 4.8,
+      "period": null
+    },
+    {
+      "_id": "lot-016",
+      "lot_number": "LOT-20260601-0016",
+      "name": "宋刻本《资治通鉴》",
+      "category": "antique_book",
+      "description": "南宋绍兴年间刻本《资治通鉴》残卷，版心宽大，字体端庄，刀法精湛，纸质坚韧。为海内外现存极罕之宋刻珍本。",
+      "images": [],
+      "status": "sold",
+      "consignor_id": "u-consignor-002",
+      "auction_id": "auction-001",
+      "reference_price": 18000000,
+      "starting_price": 12000000,
+      "estimate_low": 15000000,
+      "estimate_high": 22000000,
+      "appraisals": [
+        {
+          "appraiser_id": "u-appraiser-001",
+          "estimated_price": 20000000,
+          "description": "宋刻珍本，文献价值极高",
+          "appraised_at": "2026-05-10T12:00:00.000Z"
+        }
+      ],
+      "status_history": [
+        { "status": "submitted", "changed_at": "2026-05-01T16:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "appraising", "changed_at": "2026-05-03T16:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "photographed", "changed_at": "2026-05-06T16:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "cataloging", "changed_at": "2026-05-08T16:00:00.000Z", "changed_by": "u-editor-001" },
+        { "status": "previewing", "changed_at": "2026-05-15T16:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "bidding", "changed_at": "2026-06-01T16:00:00.000Z", "changed_by": "u-auctioneer-001" },
+        { "status": "sold", "changed_at": "2026-06-01T16:15:00.000Z", "changed_by": "u-auctioneer-001" }
+      ],
+      "dimensions": { "width": 22, "height": 30, "unit": "cm" },
+      "artist": "司马光 撰",
+      "weight": null,
+      "period": "南宋绍兴年间"
+    },
+    {
+      "_id": "lot-017",
+      "lot_number": "LOT-20260601-0017",
+      "name": "元刻本《金刚经》",
+      "category": "antique_book",
+      "description": "元代大德年间刻本《金刚般若波罗蜜经》，字体古朴，保存尚好。",
+      "images": [],
+      "status": "bidding",
+      "consignor_id": "u-consignor-001",
+      "auction_id": "auction-001",
+      "reference_price": 5500000,
+      "starting_price": 3500000,
+      "estimate_low": 4500000,
+      "estimate_high": 7000000,
+      "appraisals": [
+        {
+          "appraiser_id": "u-appraiser-001",
+          "estimated_price": 6000000,
+          "description": "元刻佛经，存世较少",
+          "appraised_at": "2026-05-11T12:00:00.000Z"
+        }
+      ],
+      "status_history": [
+        { "status": "submitted", "changed_at": "2026-05-02T16:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "appraising", "changed_at": "2026-05-04T16:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "photographed", "changed_at": "2026-05-07T16:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "cataloging", "changed_at": "2026-05-09T16:00:00.000Z", "changed_by": "u-editor-001" },
+        { "status": "previewing", "changed_at": "2026-05-16T16:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "bidding", "changed_at": "2026-06-01T16:20:00.000Z", "changed_by": "u-auctioneer-001" }
+      ],
+      "dimensions": { "width": 18, "height": 26, "unit": "cm" },
+      "artist": null,
+      "weight": null,
+      "period": "元大德年间"
+    },
+    {
+      "_id": "lot-018",
+      "lot_number": "LOT-20260601-0018",
+      "name": "明刻本《本草纲目》",
+      "category": "antique_book",
+      "description": "明万历年间金陵胡承龙刻本《本草纲目》，初刻初印，图文并茂。",
+      "images": [],
+      "status": "previewing",
+      "consignor_id": "u-consignor-002",
+      "auction_id": "auction-001",
+      "reference_price": 8000000,
+      "starting_price": 5000000,
+      "estimate_low": 6500000,
+      "estimate_high": 10000000,
+      "appraisals": [
+        {
+          "appraiser_id": "u-appraiser-001",
+          "estimated_price": 8500000,
+          "description": "金陵本初刻，极为珍贵",
+          "appraised_at": "2026-05-12T12:00:00.000Z"
+        }
+      ],
+      "status_history": [
+        { "status": "submitted", "changed_at": "2026-05-03T16:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "appraising", "changed_at": "2026-05-05T16:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "photographed", "changed_at": "2026-05-08T16:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "cataloging", "changed_at": "2026-05-10T16:00:00.000Z", "changed_by": "u-editor-001" },
+        { "status": "previewing", "changed_at": "2026-05-17T16:00:00.000Z", "changed_by": "u-operator-001" }
+      ],
+      "dimensions": { "width": 20, "height": 28, "unit": "cm" },
+      "artist": "李时珍 撰",
+      "weight": null,
+      "period": "明万历年间"
+    },
+    {
+      "_id": "lot-019",
+      "lot_number": "LOT-20260601-0019",
+      "name": "清内府写本《四库全书》零本",
+      "category": "antique_book",
+      "description": "清乾隆年间内府写本《四库全书》零本一册，馆阁体书写精工，朱丝栏格。",
+      "images": [],
+      "status": "photographed",
+      "consignor_id": "u-consignor-001",
+      "auction_id": "auction-001",
+      "reference_price": 3500000,
+      "starting_price": 2000000,
+      "estimate_low": 2800000,
+      "estimate_high": 4500000,
+      "appraisals": [
+        {
+          "appraiser_id": "u-appraiser-001",
+          "estimated_price": 3800000,
+          "description": "内府写本，书写精工",
+          "appraised_at": "2026-05-13T12:00:00.000Z"
+        }
+      ],
+      "status_history": [
+        { "status": "submitted", "changed_at": "2026-05-04T16:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "appraising", "changed_at": "2026-05-06T16:00:00.000Z", "changed_by": "u-operator-001" },
+        { "status": "photographed", "changed_at": "2026-05-09T16:00:00.000Z", "changed_by": "u-operator-001" }
+      ],
+      "dimensions": { "width": 24, "height": 34, "unit": "cm" },
+      "artist": null,
+      "weight": null,
+      "period": "清乾隆年间"
+    },
+    {
+      "_id": "lot-020",
+      "lot_number": "LOT-20260601-0020",
+      "name": "清刻本《全唐诗》",
+      "category": "antique_book",
+      "description": "清康熙年间扬州诗局刻本《全唐诗》，原装原函，品相上佳。",
+      "images": [],
+      "status": "submitted",
+      "consignor_id": "u-consignor-002",
+      "auction_id": "auction-002",
+      "reference_price": 2000000,
+      "starting_price": 1200000,
+      "estimate_low": 1500000,
+      "estimate_high": 2800000,
+      "appraisals": [],
+      "status_history": [
+        { "status": "submitted", "changed_at": "2026-05-15T10:00:00.000Z", "changed_by": "u-operator-001" }
+      ],
+      "dimensions": { "width": 19, "height": 27, "unit": "cm" },
+      "artist": "曹寅 奉敕编纂",
+      "weight": null,
+      "period": "清康熙年间"
+    }
+  ],
+  "auctions": [
+    {
+      "_id": "auction-001",
+      "name": "2026年春季大拍",
+      "type": "spring",
+      "status": "live",
+      "start_time": "2026-06-01T09:00:00.000Z",
+      "end_time": "2026-06-02T18:00:00.000Z",
+      "venue": "北京昆仑饭店",
+      "lots": [
+        "lot-001", "lot-002", "lot-003", "lot-004", "lot-005",
+        "lot-006", "lot-007", "lot-008", "lot-009", "lot-010",
+        "lot-011", "lot-012", "lot-013", "lot-014", "lot-015",
+        "lot-016", "lot-017", "lot-018", "lot-019"
+      ],
+      "increment_rules": [
+        { "min": 0, "max": 100000, "increment": 5000 },
+        { "min": 100000, "max": 500000, "increment": 10000 },
+        { "min": 500000, "max": 1000000, "increment": 25000 },
+        { "min": 1000000, "max": 5000000, "increment": 50000 },
+        { "min": 5000000, "max": 10000000, "increment": 100000 },
+        { "min": 10000000, "max": 50000000, "increment": 500000 },
+        { "min": 50000000, "max": 100000000, "increment": 1000000 },
+        { "min": 100000000, "max": null, "increment": 2000000 }
+      ],
+      "current_lot_index": 6
+    },
+    {
+      "_id": "auction-002",
+      "name": "2026年6月月拍·古籍专场",
+      "type": "monthly_online",
+      "status": "draft",
+      "start_time": "2026-06-20T10:00:00.000Z",
+      "end_time": "2026-06-20T18:00:00.000Z",
+      "venue": "线上拍卖",
+      "lots": ["lot-020"],
+      "increment_rules": [
+        { "min": 0, "max": 50000, "increment": 2000 },
+        { "min": 50000, "max": 200000, "increment": 5000 },
+        { "min": 200000, "max": 1000000, "increment": 10000 },
+        { "min": 1000000, "max": 5000000, "increment": 50000 },
+        { "min": 5000000, "max": null, "increment": 100000 }
+      ],
+      "current_lot_index": 0
+    }
+  ],
+  "bids": [
+    {
+      "_id": "bid-001",
+      "auction_id": "auction-001",
+      "lot_id": "lot-001",
+      "bidder_id": "u-bidder-001",
+      "bidder_number": "B001",
+      "amount": 280000000,
+      "source": "live"
+    },
+    {
+      "_id": "bid-002",
+      "auction_id": "auction-001",
+      "lot_id": "lot-001",
+      "bidder_id": "u-bidder-002",
+      "bidder_number": "B002",
+      "amount": 290000000,
+      "source": "online"
+    },
+    {
+      "_id": "bid-003",
+      "auction_id": "auction-001",
+      "lot_id": "lot-001",
+      "bidder_id": "u-bidder-001",
+      "bidder_number": "B001",
+      "amount": 300000000,
+      "source": "live"
+    },
+    {
+      "_id": "bid-004",
+      "auction_id": "auction-001",
+      "lot_id": "lot-006",
+      "bidder_id": "u-bidder-003",
+      "bidder_number": "B003",
+      "amount": 105000000,
+      "source": "online"
+    },
+    {
+      "_id": "bid-005",
+      "auction_id": "auction-001",
+      "lot_id": "lot-006",
+      "bidder_id": "u-bidder-001",
+      "bidder_number": "B001",
+      "amount": 110000000,
+      "source": "live"
+    },
+    {
+      "_id": "bid-006",
+      "auction_id": "auction-001",
+      "lot_id": "lot-011",
+      "bidder_id": "u-bidder-002",
+      "bidder_number": "B002",
+      "amount": 42000000,
+      "source": "online"
+    },
+    {
+      "_id": "bid-007",
+      "auction_id": "auction-001",
+      "lot_id": "lot-011",
+      "bidder_id": "u-bidder-003",
+      "bidder_number": "B003",
+      "amount": 45000000,
+      "source": "live"
+    },
+    {
+      "_id": "bid-008",
+      "auction_id": "auction-001",
+      "lot_id": "lot-016",
+      "bidder_id": "u-bidder-001",
+      "bidder_number": "B001",
+      "amount": 16000000,
+      "source": "live"
+    },
+    {
+      "_id": "bid-009",
+      "auction_id": "auction-001",
+      "lot_id": "lot-016",
+      "bidder_id": "u-bidder-003",
+      "bidder_number": "B003",
+      "amount": 17000000,
+      "source": "online"
+    },
+    {
+      "_id": "bid-010",
+      "auction_id": "auction-001",
+      "lot_id": "lot-002",
+      "bidder_id": "u-bidder-001",
+      "bidder_number": "B001",
+      "amount": 65000000,
+      "source": "live"
+    },
+    {
+      "_id": "bid-011",
+      "auction_id": "auction-001",
+      "lot_id": "lot-002",
+      "bidder_id": "u-bidder-002",
+      "bidder_number": "B002",
+      "amount": 70000000,
+      "source": "online"
+    },
+    {
+      "_id": "bid-012",
+      "auction_id": "auction-001",
+      "lot_id": "lot-007",
+      "bidder_id": "u-bidder-003",
+      "bidder_number": "B003",
+      "amount": 40000000,
+      "source": "live"
+    }
+  ],
+  "settlements": [
+    {
+      "_id": "settle-001",
+      "lot_id": "lot-001",
+      "auction_id": "auction-001",
+      "buyer_id": "u-bidder-001",
+      "seller_id": "u-consignor-001",
+      "hammer_price": 300000000,
+      "buyer_premium_rate": 0.15,
+      "seller_commission_rate": 0.10,
+      "buyer_premium": 45000000,
+      "seller_commission": 30000000,
+      "total_buyer_amount": 345000000,
+      "net_seller_amount": 270000000,
+      "deposit_amount": 20000000,
+      "status": "paid"
+    },
+    {
+      "_id": "settle-002",
+      "lot_id": "lot-006",
+      "auction_id": "auction-001",
+      "buyer_id": "u-bidder-001",
+      "seller_id": "u-consignor-002",
+      "hammer_price": 110000000,
+      "buyer_premium_rate": 0.15,
+      "seller_commission_rate": 0.10,
+      "buyer_premium": 16500000,
+      "seller_commission": 11000000,
+      "total_buyer_amount": 126500000,
+      "net_seller_amount": 99000000,
+      "deposit_amount": 20000000,
+      "status": "pending_payment"
+    },
+    {
+      "_id": "settle-003",
+      "lot_id": "lot-011",
+      "auction_id": "auction-001",
+      "buyer_id": "u-bidder-003",
+      "seller_id": "u-consignor-001",
+      "hammer_price": 45000000,
+      "buyer_premium_rate": 0.15,
+      "seller_commission_rate": 0.10,
+      "buyer_premium": 6750000,
+      "seller_commission": 4500000,
+      "total_buyer_amount": 51750000,
+      "net_seller_amount": 40500000,
+      "deposit_amount": 10000000,
+      "status": "pending_payment"
+    },
+    {
+      "_id": "settle-004",
+      "lot_id": "lot-016",
+      "auction_id": "auction-001",
+      "buyer_id": "u-bidder-003",
+      "seller_id": "u-consignor-002",
+      "hammer_price": 17000000,
+      "buyer_premium_rate": 0.15,
+      "seller_commission_rate": 0.10,
+      "buyer_premium": 2550000,
+      "seller_commission": 1700000,
+      "total_buyer_amount": 19550000,
+      "net_seller_amount": 15300000,
+      "deposit_amount": 5000000,
+      "status": "seller_settled"
+    }
+  ],
+  "deposits": [
+    {
+      "_id": "deposit-001",
+      "bidder_id": "u-bidder-001",
+      "auction_id": "auction-001",
+      "amount": 20000000,
+      "status": "applied",
+      "paid_at": "2026-05-25T10:00:00.000Z",
+      "refunded_at": null
+    },
+    {
+      "_id": "deposit-002",
+      "bidder_id": "u-bidder-002",
+      "auction_id": "auction-001",
+      "amount": 20000000,
+      "status": "paid",
+      "paid_at": "2026-05-26T10:00:00.000Z",
+      "refunded_at": null
+    },
+    {
+      "_id": "deposit-003",
+      "bidder_id": "u-bidder-003",
+      "auction_id": "auction-001",
+      "amount": 10000000,
+      "status": "applied",
+      "paid_at": "2026-05-27T10:00:00.000Z",
+      "refunded_at": null
+    }
+  ]
+}

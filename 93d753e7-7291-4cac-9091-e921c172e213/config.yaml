@@ -1,0 +1,108 @@
+server:
+  host: "0.0.0.0"
+  port: 8080
+  mode: "debug"
+
+database:
+  path: "./data/travel_monitor.db"
+  max_open_conns: 100
+  max_idle_conns: 10
+  archive_monthly: true
+
+scraper:
+  max_browsers: 10
+  request_interval_min: 2
+  request_interval_max: 5
+  max_retries: 3
+  timeout_seconds: 30
+  headless: true
+  proxy_pool:
+    enabled: false
+    proxies:
+      - "http://proxy1:8080"
+      - "http://proxy2:8080"
+  user_agents:
+    - "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    - "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    - "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+platforms:
+  ctrip_flight:
+    name: "携程机票"
+    base_url: "https://flights.ctrip.com"
+    enabled: true
+    priority: 1
+  qunar_flight:
+    name: "去哪儿机票"
+    base_url: "https://flight.qunar.com"
+    enabled: true
+    priority: 2
+  fliggy_flight:
+    name: "飞猪机票"
+    base_url: "https://www.fliggy.com"
+    enabled: true
+    priority: 3
+  train12306:
+    name: "12306"
+    base_url: "https://www.12306.cn"
+    enabled: true
+    priority: 4
+  meituan_hotel:
+    name: "美团酒店"
+    base_url: "https://hotel.meituan.com"
+    enabled: true
+    priority: 5
+  ctrip_hotel:
+    name: "携程酒店"
+    base_url: "https://hotels.ctrip.com"
+    enabled: true
+    priority: 6
+
+alert:
+  email:
+    enabled: false
+    smtp_host: "smtp.example.com"
+    smtp_port: 587
+    username: "alert@example.com"
+    password: "your_password"
+    from: "alert@example.com"
+    to:
+      - "admin@example.com"
+  dingtalk:
+    enabled: false
+    webhook_url: "https://oapi.dingtalk.com/robot/send?access_token=YOUR_TOKEN"
+    secret: "YOUR_SECRET"
+  wework:
+    enabled: false
+    webhook_url: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY"
+  threshold:
+    price_drop_percent: 15
+    budget_usage_percent: 80
+
+scheduler:
+  jobs:
+    - name: "daily_flight_scrape"
+      cron: "0 0 9 * * *"
+      type: "flight"
+      enabled: true
+    - name: "daily_hotel_scrape"
+      cron: "0 30 9 * * *"
+      type: "hotel"
+      enabled: true
+    - name: "budget_check"
+      cron: "0 0 10 * * *"
+      type: "budget"
+      enabled: true
+    - name: "data_archive"
+      cron: "0 0 3 1 * *"
+      type: "archive"
+      enabled: true
+
+budget:
+  departments:
+    - name: "技术部"
+      monthly_budget: 50000
+    - name: "销售部"
+      monthly_budget: 80000
+    - name: "市场部"
+      monthly_budget: 30000

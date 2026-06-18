@@ -1,0 +1,227 @@
+.clip {
+  position: absolute;
+  display: flex;
+  align-items: stretch;
+  background: linear-gradient(
+    180deg,
+    rgba(59, 130, 246, 0.15) 0%,
+    rgba(59, 130, 246, 0.08) 100%
+  );
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: grab;
+  transition:
+    box-shadow var(--transition-fast),
+    border-color var(--transition-fast),
+    opacity var(--transition-fast);
+  z-index: 10;
+}
+
+.clip:hover {
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+}
+
+.clip.selected {
+  border-color: var(--color-accent-primary);
+  box-shadow: 0 0 0 2px var(--color-accent-glow), 0 4px 12px rgba(59, 130, 246, 0.3);
+  z-index: 20;
+}
+
+.clip.dragging {
+  cursor: grabbing;
+  opacity: 0.85;
+  z-index: 50;
+}
+
+.clip.resizing {
+  opacity: 0.9;
+  z-index: 50;
+}
+
+.resizeHandleLeft,
+.resizeHandleRight {
+  flex-shrink: 0;
+  cursor: ew-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--transition-fast);
+  position: relative;
+}
+
+.resizeHandleLeft {
+  background: linear-gradient(
+    90deg,
+    rgba(59, 130, 246, 0.4) 0%,
+    transparent 100%
+  );
+}
+
+.resizeHandleRight {
+  background: linear-gradient(
+    -90deg,
+    rgba(59, 130, 246, 0.4) 0%,
+    transparent 100%
+  );
+}
+
+.resizeHandleLeft:hover,
+.resizeHandleRight:hover {
+  background-color: rgba(59, 130, 246, 0.25);
+}
+
+.resizeHandleLeft::after,
+.resizeHandleRight::after {
+  content: '';
+  position: absolute;
+  width: 2px;
+  height: 24px;
+  background-color: rgba(255, 255, 255, 0.5);
+  border-radius: 1px;
+}
+
+.resizeHandleLeft:hover::after,
+.resizeHandleRight:hover::after {
+  background-color: white;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 6px;
+  min-width: 0;
+  position: relative;
+}
+
+.titleBar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 2px;
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.loopIcon {
+  flex-shrink: 0;
+  color: var(--color-warning);
+}
+
+.waveform {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+}
+
+.waveformSvg {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.fadeIn,
+.fadeOut {
+  position: absolute;
+  bottom: 0;
+  height: 100%;
+  pointer-events: none;
+}
+
+.fadeIn {
+  left: 0;
+  border-top-left-radius: var(--radius-md);
+  border-bottom-left-radius: var(--radius-md);
+}
+
+.fadeOut {
+  right: 0;
+  border-top-right-radius: var(--radius-md);
+  border-bottom-right-radius: var(--radius-md);
+}
+
+.fadeTriangle {
+  width: 100%;
+  height: 100%;
+}
+
+.contextMenu {
+  position: fixed;
+  min-width: 160px;
+  padding: var(--spacing-1);
+  background-color: var(--color-bg-tertiary);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-index-dropdown);
+  animation: contextFadeIn 100ms ease-out;
+}
+
+@keyframes contextFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.contextMenuItem {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  width: 100%;
+  padding: var(--spacing-2) var(--spacing-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+}
+
+.contextMenuItem:hover {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.contextMenuItem.danger {
+  color: var(--color-error);
+}
+
+.contextMenuItem.danger:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--color-error);
+}
+
+.contextMenuDivider {
+  height: 1px;
+  margin: var(--spacing-1) 0;
+  background-color: var(--color-border);
+}
+
+@media (max-width: 767px) {
+  .clip {
+    height: calc(var(--track-height, 80px) - 8px);
+  }
+
+  .title {
+    font-size: 9px;
+  }
+}

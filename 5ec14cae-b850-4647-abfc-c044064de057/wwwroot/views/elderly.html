@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>老人档案 - 养老服务集团运营管理系统</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+<link href="../css/style.css" rel="stylesheet">
+</head>
+<body>
+<div class="app-wrapper">
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-logo"><div class="logo-icon">🏠</div><div><h1>养老服务集团 <span>Elderly Care System</span></h1></div></div>
+        <ul class="sidebar-menu">
+            <li><a href="dashboard.html"><i class="bi bi-grid-fill"></i> 运营概览</a></li>
+            <li><a href="elderly.html" class="active"><i class="bi bi-people-fill"></i> 老人档案</a></li>
+            <li><a href="bedmap.html"><i class="bi bi-hospital"></i> 床位管理</a></li>
+            <li><a href="schedule.html"><i class="bi bi-calendar-week-fill"></i> 护理排班</a></li>
+            <li><a href="medication.html"><i class="bi bi-capsule-pill"></i> 用药追踪</a></li>
+            <li><a href="billing.html"><i class="bi bi-cash-coin"></i> 费用结算</a></li>
+            <li style="margin-top:24px; padding:12px 14px; font-size:11px; color:rgba(255,255,255,0.4); text-transform:uppercase;">居家养老</li>
+            <li><a href="homeservice.html"><i class="bi bi-geo-alt-fill"></i> 服务派单</a></li>
+            <li><a href="family.html"><i class="bi bi-chat-heart-fill"></i> 家属沟通</a></li>
+            <li><a href="reports.html"><i class="bi bi-bar-chart-fill"></i> 统计报表</a></li>
+        </ul>
+    </nav>
+    <div class="main-content">
+        <header class="header">
+            <div class="header-left">
+                <button class="menu-toggle" onclick="$('#sidebar').toggleClass('open')"><i class="bi bi-list"></i></button>
+                <h2 class="page-title">老人档案管理</h2>
+                <select class="form-select facility-select"><option>全部机构</option><option>第一养老院</option><option>第二养老院</option></select>
+            </div>
+            <div class="header-right">
+                <div class="dropdown"><div class="user-area" data-bs-toggle="dropdown"><div class="user-avatar" id="u-a">A</div><div class="user-info"><strong id="u-n">管理员</strong><small id="u-r">系统管理员</small></div><i class="bi bi-chevron-down" style="font-size:12px;color:#6c757d;"></i></div>
+                    <ul class="dropdown-menu dropdown-menu-end mt-2" style="border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.1);border:none;">
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-person-circle me-2"></i>个人中心</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-gear me-2"></i>系统设置</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="javascript:logout()"><i class="bi bi-box-arrow-right me-2"></i>退出登录</a></li>
+                    </ul></div>
+            </div>
+        </header>
+        <div class="content-area">
+            <div class="row g-4 mb-4">
+                <div class="col-lg-2 col-md-4 col-6"><div class="stat-card green"><div class="stat-label">在院老人</div><div class="stat-value" id="s1">3,000</div></div></div>
+                <div class="col-lg-2 col-md-4 col-6"><div class="stat-card blue"><div class="stat-label">居家老人</div><div class="stat-value" id="s2">5,000</div></div></div>
+                <div class="col-lg-2 col-md-4 col-6"><div class="stat-card orange"><div class="stat-label">失能照护</div><div class="stat-value" id="s3">1,250</div></div></div>
+                <div class="col-lg-2 col-md-4 col-6"><div class="stat-card purple"><div class="stat-label">失智照护</div><div class="stat-value" id="s4">620</div></div></div>
+                <div class="col-lg-2 col-md-4 col-6"><div class="stat-card teal"><div class="stat-label">康复中</div><div class="stat-value" id="s5">530</div></div></div>
+                <div class="col-lg-2 col-md-4 col-6"><div class="stat-card red"><div class="stat-label">新增本月</div><div class="stat-value" id="s6">+86</div></div></div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <h5 class="me-3"><i class="bi bi-folder2-open me-2 text-primary"></i>档案列表</h5>
+                        <input type="text" id="kw" class="search-input" placeholder="搜索姓名/身份证号/床位号" style="width:280px;">
+                        <select class="form-select form-select-sm" id="f-zone" style="width:140px;"><option value="">全部护理区</option><option>失能护理区</option><option>失智照护区</option><option>康复区</option><option>临终关怀区</option></select>
+                        <select class="form-select form-select-sm" id="f-level" style="width:140px;"><option value="">全部照护等级</option><option>自理</option><option>半自理</option><option>全失能</option><option>特护</option></select>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-upload me-1"></i>导入</button>
+                        <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-download me-1"></i>导出</button>
+                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal" onclick="openModal()"><i class="bi bi-plus-lg me-1"></i>新增档案</button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead><tr><th>老人</th><th>性别/年龄</th><th>身份证号</th><th>护理区</th><th>床位</th><th>照护等级</th><th>状态</th><th>操作</th></tr></thead>
+                            <tbody id="tbody"></tbody>
+                        </table>
+                    </div>
+                    <div class="pagination-wrapper px-4" id="pager"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editModal" tabindex="-1"><div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="m-title">新增老人档案</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+        <form id="e-form">
+            <input type="hidden" id="e-id">
+            <div class="row g-3">
+                <div class="col-md-4"><label class="form-label">姓名 *</label><input class="form-control" id="e-name" required></div>
+                <div class="col-md-2"><label class="form-label">性别 *</label><select class="form-select" id="e-gender"><option>男</option><option>女</option></select></div>
+                <div class="col-md-3"><label class="form-label">出生日期</label><input type="date" class="form-control" id="e-birth"></div>
+                <div class="col-md-3"><label class="form-label">身份证号 *</label><input class="form-control" id="e-idcard" required></div>
+                <div class="col-md-4"><label class="form-label">联系电话</label><input class="form-control" id="e-phone"></div>
+                <div class="col-md-4"><label class="form-label">所属机构</label><select class="form-select" id="e-facility"><option>第一养老院</option><option>第二养老院</option><option>第三养老院</option></select></div>
+                <div class="col-md-4"><label class="form-label">床位号</label><input class="form-control" id="e-bed" placeholder="如 3-205-1"></div>
+                <div class="col-md-4"><label class="form-label">护理区</label><select class="form-select" id="e-zone"><option>失能护理区</option><option>失智照护区</option><option>康复区</option><option>临终关怀区</option></select></div>
+                <div class="col-md-4"><label class="form-label">照护等级</label><select class="form-select" id="e-level"><option>自理</option><option>半自理</option><option>全失能</option><option>特护</option></select></div>
+                <div class="col-md-4"><label class="form-label">入住日期</label><input type="date" class="form-control" id="e-join"></div>
+                <div class="col-md-12"><label class="form-label">慢性病/既往病史</label><textarea class="form-control" id="e-disease" rows="2" placeholder="如：高血压、糖尿病、冠心病等"></textarea></div>
+                <div class="col-md-12"><label class="form-label">药物过敏史</label><textarea class="form-control" id="e-allergy" rows="2" placeholder="如：青霉素过敏、磺胺类药物过敏等"></textarea></div>
+                <div class="col-md-12"><label class="form-label">备注说明</label><textarea class="form-control" id="e-remark" rows="2"></textarea></div>
+                <div class="col-md-6"><label class="form-label">紧急联系人</label><input class="form-control" id="e-contact-name" placeholder="联系人姓名"></div>
+                <div class="col-md-6"><label class="form-label">紧急联系电话</label><input class="form-control" id="e-contact-phone" placeholder="联系电话"></div>
+                <div class="col-md-6"><label class="form-label">与老人关系</label><input class="form-control" id="e-contact-rel" placeholder="如：女儿、儿子、配偶"></div>
+                <div class="col-md-6"><label class="form-label">附件上传</label><div class="input-group"><input type="file" class="form-control form-control-sm" id="e-files" multiple accept=".pdf,.jpg,.jpeg,.png"><label class="input-group-text" for="e-files"><i class="bi bi-paperclip"></i></label></div></div>
+            </div>
+        </form>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+        <button type="button" class="btn btn-primary" onclick="saveElderly()">保存</button>
+    </div>
+</div></div></div>
+
+<div class="modal fade" id="detailModal" tabindex="-1"><div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title"><i class="bi bi-person-vcard me-2 text-primary"></i>档案详情</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body" id="detail-body"></div>
+</div></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../js/common.js"></script>
+<script>
+const u = getUser(); if (!u) logout();
+$('#u-n').text(u.name || '管理员'); $('#u-r').text(u.role === 'Admin' ? '系统管理员' : u.role);
+$('#u-a').text((u.name || 'A').charAt(0));
+
+let page = 1, psize = 10, total = 0;
+let mock = generateMock(68);
+
+function generateMock(n) {
+    const names = ['王秀兰','李建国','张桂芳','陈福生','刘德海','赵淑敏','孙德才','周玉兰','吴建华','郑春梅','马承业','黄丽华','朱明远','林淑英','徐大伟','高月英','何志强','罗秀珍','梁志恒','宋文英'];
+    const zones = ['失能护理区','失智照护区','康复区','临终关怀区'];
+    const levels = ['自理','半自理','全失能','特护'];
+    const dis = ['高血压','糖尿病','冠心病','脑梗塞后遗症','阿尔茨海默症','帕金森','慢性支气管炎','关节炎'];
+    const data = [];
+    for (let i = 0; i < n; i++) {
+        const nm = names[i % names.length] + (i >= names.length ? i % 100 : '');
+        const g = i % 3 === 0 ? '男' : '女';
+        const age = 65 + (i * 7 % 30);
+        const birthY = new Date().getFullYear() - age;
+        data.push({
+            id: 'EL' + (100001 + i),
+            name: nm, gender: g, age: age,
+            birth: `${birthY}-${String(1 + (i%12)).padStart(2,'0')}-${String(1 + (i%27)).padStart(2,'0')}`,
+            idCard: '110101' + birthY + '0101' + String(1000 + i).padStart(4,'0'),
+            phone: '138' + String(10000000 + i * 137 % 89999999).padStart(8,'0'),
+            facility: '第一养老院',
+            bed: `${1 + (i%4)}-${String(100 + (i%5)*100 + (i%9)*10 + (i%9)).slice(0,3)}-${1 + (i%4)}`,
+            zone: zones[i % zones.length],
+            level: levels[i % levels.length],
+            join: `2024-${String(1 + (i%12)).padStart(2,'0')}-15`,
+            disease: dis[i % dis.length] + (i % 3 === 0 ? '、' + dis[(i+1)%dis.length] : ''),
+            allergy: i % 5 === 0 ? '青霉素' : (i % 7 === 0 ? '磺胺类药物' : '无'),
+            contactName: (g === '男' ? '儿子' : '女儿') + ' - ' + (i % 2 === 0 ? '张' : '李') + ['明','华','强','伟','芳'][i%5],
+            contactPhone: '139' + String(10000000 + i * 777 % 89999999).padStart(8,'0'),
+            contactRel: ['儿子','女儿','配偶','孙子','外甥'][i%5],
+            status: i % 17 === 0 ? '离院' : i % 31 === 0 ? '转区' : '在院'
+        });
+    }
+    return data;
+}
+
+function loadStats() {
+    $('#s1').text(mock.filter(m => m.status === '在院' || m.status === '转区').length);
+    $('#s2').text('5,000');
+    $('#s3').text(mock.filter(m => m.zone === '失能护理区').length);
+    $('#s4').text(mock.filter(m => m.zone === '失智照护区').length);
+    $('#s5').text(mock.filter(m => m.zone === '康复区').length);
+    $('#s6').text('+' + (8 + Math.floor(Math.random() * 5)));
+}
+
+function render() {
+    let arr = mock.slice();
+    const kw = $('#kw').val().trim().toLowerCase();
+    const fz = $('#f-zone').val();
+    const fl = $('#f-level').val();
+    if (kw) arr = arr.filter(m => m.name.toLowerCase().includes(kw) || m.idCard.includes(kw) || m.bed.includes(kw));
+    if (fz) arr = arr.filter(m => m.zone === fz);
+    if (fl) arr = arr.filter(m => m.level === fl);
+    total = arr.length;
+    const data = arr.slice((page-1)*psize, page*psize);
+    $('#tbody').html(data.length === 0 ? `<tr><td colspan="8">${emptyPlaceholder()}</td></tr>` : data.map(m => {
+        const badge = m.status === '在院' ? 'success' : m.status === '转区' ? 'info' : m.status === '离院' ? 'secondary' : 'warning';
+        return `<tr>
+            <td><div class="d-flex align-items-center gap-2"><div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;">${m.name.charAt(0)}</div><div><div style="font-weight:600;">${m.name}</div><small style="color:#6c757d;">${m.phone}</small></div></div></td>
+            <td>${m.gender} · ${m.age}岁</td>
+            <td style="font-family:monospace;font-size:12px;">${m.idCard.replace(/^(.{6}).{8}(.{4})$/,'$1********$2')}</td>
+            <td><span class="badge badge-${m.zone==='失能护理区'?'danger':m.zone==='失智照护区'?'warning':m.zone==='康复区'?'success':'secondary'}">${m.zone}</span></td>
+            <td><i class="bi bi-hospital me-1 text-primary"></i>${m.bed}</td>
+            <td><span class="badge badge-${m.level==='特护'?'danger':m.level==='全失能'?'warning':m.level==='半自理'?'info':'success'}">${m.level}</span></td>
+            <td><span class="badge badge-${badge}">${m.status}</span></td>
+            <td><div class="d-flex gap-1"><button class="btn btn-sm btn-outline-primary" onclick="viewDetail('${m.id}')"><i class="bi bi-eye"></i></button><button class="btn btn-sm btn-outline-secondary" onclick="edit('${m.id}')"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-outline-danger" onclick="del('${m.id}')"><i class="bi bi-trash"></i></button></div></td>
+        </tr>`;
+    }).join(''));
+    renderPager();
+}
+
+function renderPager() {
+    const pages = Math.ceil(total / psize) || 1;
+    let html = `<div style="color:#6c757d;font-size:13px;">共 ${total} 条记录，第 ${page}/${pages} 页</div><nav><ul class="pagination pagination-sm mb-0">
+        <li class="page-item ${page<=1?'disabled':''}"><a class="page-link" onclick="goPage(${page-1})">上一页</a></li>`;
+    const start = Math.max(1, page-2), end = Math.min(pages, start+4);
+    for (let i = start; i <= end; i++) html += `<li class="page-item ${i===page?'active':''}"><a class="page-link" onclick="goPage(${i})">${i}</a></li>`;
+    html += `<li class="page-item ${page>=pages?'disabled':''}"><a class="page-link" onclick="goPage(${page+1})">下一页</a></li></ul></nav>`;
+    $('#pager').html(html);
+}
+function goPage(p) { if (p<1 || p>Math.ceil(total/psize)) return; page = p; render(); }
+
+$('#kw,#f-zone,#f-level').on('input change', () => { page = 1; render(); });
+
+function openModal() {
+    $('#e-form')[0].reset();
+    $('#e-id').val('');
+    $('#m-title').text('新增老人档案');
+}
+function edit(id) {
+    const m = mock.find(x => x.id === id);
+    if (!m) return;
+    $('#e-id').val(m.id);
+    $('#m-title').text('编辑档案 - ' + m.name);
+    ['name','gender','birth','idCard','phone','facility','bed','zone','level','join','disease','allergy','contactName','contactPhone','contactRel'].forEach(k => $('#e-'+k.toLowerCase().replace(/-/g,'')).val(m[k]));
+    $('#e-remark').val('');
+    new bootstrap.Modal('#editModal').show();
+}
+async function saveElderly() {
+    const id = $('#e-id').val();
+    const data = {
+        name: $('#e-name').val(), gender: $('#e-gender').val(),
+        idCard: $('#e-idcard').val(), facility: $('#e-facility').val(),
+        careZone: $('#e-zone').val(), careLevel: $('#e-level').val(),
+        birthDate: $('#e-birth').val(), phone: $('#e-phone').val(),
+        bedNumber: $('#e-bed').val(), admissionDate: $('#e-join').val(),
+        medicalHistory: $('#e-disease').val(), allergies: $('#e-allergy').val(),
+        remark: $('#e-remark').val(),
+        emergencyContact: { name: $('#e-contact-name').val(), phone: $('#e-contact-phone').val(), relation: $('#e-contact-rel').val() }
+    };
+    try {
+        if (id) await api(`/Elderly/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+        else await api('/Elderly', { method: 'POST', body: JSON.stringify(data) });
+        toast(id ? '档案更新成功' : '档案创建成功', 'success');
+        bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
+        page = 1; render();
+    } catch(e) {
+        // Fallback: update mock
+        if (id) Object.assign(mock.find(x=>x.id===id), { name:data.name, gender:data.gender, idCard:data.idCard, facility:data.facility, zone:data.careZone, level:data.careLevel, birth:data.birthDate, phone:data.phone, bed:data.bedNumber, join:data.admissionDate, disease:data.medicalHistory, allergy:data.allergies, contactName:data.emergencyContact?.name, contactPhone:data.emergencyContact?.phone, contactRel:data.emergencyContact?.relation });
+        else mock.unshift({ id:'EL'+(Date.now()), name:data.name, gender:data.gender, age:70, idCard:data.idCard, phone:data.phone, facility:data.facility, bed:data.bedNumber||'-', zone:data.careZone, level:data.careLevel, join:data.admissionDate, disease:data.medicalHistory, allergy:data.allergies, status:'在院', contactName:data.emergencyContact?.name, contactPhone:data.emergencyContact?.phone, contactRel:data.emergencyContact?.relation, birth:data.birthDate });
+        toast(id ? '档案更新成功' : '档案创建成功', 'success');
+        bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
+        page = 1; render();
+    }
+}
+async function del(id) {
+    const y = await confirmDialog('确定删除此老人档案？');
+    if (!y) return;
+    try { await api(`/Elderly/${id}`, { method: 'DELETE' }); } catch {}
+    mock = mock.filter(m => m.id !== id);
+    toast('删除成功', 'success');
+    render();
+}
+function viewDetail(id) {
+    const m = mock.find(x => x.id === id);
+    if (!m) return;
+    $('#detail-body').html(`
+        <div class="d-flex align-items-start gap-4 mb-4 pb-4" style="border-bottom:1px solid #f0f2f5;">
+            <div style="width:80px;height:80px;border-radius:16px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:32px;">${m.name.charAt(0)}</div>
+            <div class="flex-grow-1">
+                <h4 style="margin-bottom:4px;">${m.name} <span class="badge badge-${m.status==='在院'?'success':'warning'}">${m.status}</span></h4>
+                <div class="mb-1"><i class="bi bi-telephone me-1"></i> ${m.phone} <i class="bi bi-credit-card ms-3 me-1"></i> ${m.idCard}</div>
+                <div><i class="bi bi-geo-alt me-1"></i> ${m.facility} · ${m.zone} · ${m.bed} · 入住 ${fmtDate(m.join)}</div>
+            </div>
+            <div style="text-align:right;"><div class="stat-card ${m.level==='特护'?'red':'blue'}" style="padding:12px 20px;margin:0;"><div class="stat-label" style="margin:0;">照护等级</div><div class="stat-value" style="font-size:18px;">${m.level}</div></div></div>
+        </div>
+        <div class="row g-3 mb-4">
+            <div class="col-md-6"><div class="p-3 rounded" style="background:#f8f9fa;"><div class="text-muted small mb-1">基本信息</div>性别：${m.gender} · 年龄：${m.age}岁<br>出生日期：${fmtDate(m.birth)}<br>身份证号：${m.idCard}</div></div>
+            <div class="col-md-6"><div class="p-3 rounded" style="background:#f8f9fa;"><div class="text-muted small mb-1">紧急联系人</div>姓名：${m.contactName}<br>电话：${m.contactPhone}<br>关系：${m.contactRel}</div></div>
+            <div class="col-md-6"><div class="p-3 rounded" style="background:#fff5f5;"><div class="text-danger small mb-1">🩺 病史信息</div><div>${m.disease || '无'}</div></div></div>
+            <div class="col-md-6"><div class="p-3 rounded" style="background:#fffbf0;"><div class="text-warning small mb-1">⚠ 过敏史</div><div>${m.allergy || '无'}</div></div></div>
+        </div>
+        <h6 class="mb-3"><i class="bi bi-paperclip me-2 text-primary"></i>档案附件</h6>
+        <div class="d-flex gap-2 flex-wrap mb-4">
+            <div class="p-2 rounded border d-flex align-items-center gap-2" style="min-width:200px;"><i class="bi bi-file-pdf text-danger fs-4"></i><div><div style="font-size:12px;font-weight:600;">入院体检报告.pdf</div><small style="color:#6c757d;">2024-06-15 · 1.2MB</small></div></div>
+            <div class="p-2 rounded border d-flex align-items-center gap-2" style="min-width:200px;"><i class="bi bi-file-earmark-image text-success fs-4"></i><div><div style="font-size:12px;font-weight:600;">医院诊断证明.jpg</div><small style="color:#6c757d;">2024-06-15 · 860KB</small></div></div>
+            <div class="p-2 rounded border d-flex align-items-center gap-2" style="min-width:200px;"><i class="bi bi-file-pdf text-danger fs-4"></i><div><div style="font-size:12px;font-weight:600;">照护等级评定表.pdf</div><small style="color:#6c757d;">2024-06-16 · 520KB</small></div></div>
+            <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-plus"></i> 上传附件</button>
+        </div>
+        <div class="d-flex gap-2 justify-content-end">
+            <button class="btn btn-outline-primary" onclick="edit('${m.id}')"><i class="bi bi-pencil me-1"></i>编辑</button>
+            <button class="btn btn-outline-secondary" data-bs-dismiss="modal">关闭</button>
+        </div>
+    `);
+    new bootstrap.Modal('#detailModal').show();
+}
+
+loadStats(); render();
+</script>
+</body>
+</html>

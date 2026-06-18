@@ -1,0 +1,467 @@
+@import './reset.css';
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+.app {
+  min-height: 100vh;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+  transition: background-color var(--transition-base), color var(--transition-base);
+}
+
+.appLayout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.mainContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-left: var(--sidebar-width);
+  min-height: 100vh;
+  transition: margin-left var(--transition-base);
+}
+
+.mainContent.sidebarCollapsed {
+  margin-left: var(--sidebar-width-collapsed);
+}
+
+.pageContent {
+  flex: 1;
+  padding: var(--spacing-6);
+  overflow-y: auto;
+}
+
+.container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.grid {
+  display: grid;
+  gap: var(--spacing-4);
+}
+
+.gridCols2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.gridCols3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.gridCols4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.flex {
+  display: flex;
+}
+
+.flexCol {
+  flex-direction: column;
+}
+
+.itemsCenter {
+  align-items: center;
+}
+
+.justifyCenter {
+  justify-content: center;
+}
+
+.justifyBetween {
+  justify-content: space-between;
+}
+
+.gap1 {
+  gap: var(--spacing-1);
+}
+
+.gap2 {
+  gap: var(--spacing-2);
+}
+
+.gap3 {
+  gap: var(--spacing-3);
+}
+
+.gap4 {
+  gap: var(--spacing-4);
+}
+
+.gap6 {
+  gap: var(--spacing-6);
+}
+
+.textCenter {
+  text-align: center;
+}
+
+.textRight {
+  text-align: right;
+}
+
+.fontMono {
+  font-family: var(--font-family-display);
+}
+
+.textXs {
+  font-size: var(--font-size-xs);
+}
+
+.textSm {
+  font-size: var(--font-size-sm);
+}
+
+.textBase {
+  font-size: var(--font-size-base);
+}
+
+.textLg {
+  font-size: var(--font-size-lg);
+}
+
+.textXl {
+  font-size: var(--font-size-xl);
+}
+
+.text2xl {
+  font-size: var(--font-size-2xl);
+}
+
+.text3xl {
+  font-size: var(--font-size-3xl);
+}
+
+.fontMedium {
+  font-weight: 500;
+}
+
+.fontSemibold {
+  font-weight: 600;
+}
+
+.fontBold {
+  font-weight: 700;
+}
+
+.textPrimary {
+  color: var(--color-text-primary);
+}
+
+.textSecondary {
+  color: var(--color-text-secondary);
+}
+
+.textMuted {
+  color: var(--color-text-muted);
+}
+
+.textAccent {
+  color: var(--color-accent-primary);
+}
+
+.textWarning {
+  color: var(--color-warning);
+}
+
+.textSuccess {
+  color: var(--color-success);
+}
+
+.textError {
+  color: var(--color-error);
+}
+
+.bgPrimary {
+  background-color: var(--color-bg-primary);
+}
+
+.bgSecondary {
+  background-color: var(--color-bg-secondary);
+}
+
+.bgTertiary {
+  background-color: var(--color-bg-tertiary);
+}
+
+.border {
+  border: var(--border-width-thin) solid var(--color-border);
+}
+
+.borderThick {
+  border: var(--border-width) solid var(--color-border);
+}
+
+.borderAccent {
+  border-color: var(--color-accent-primary);
+}
+
+.roundedSm {
+  border-radius: var(--radius-sm);
+}
+
+.roundedMd {
+  border-radius: var(--radius-md);
+}
+
+.roundedLg {
+  border-radius: var(--radius-lg);
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overflowAuto {
+  overflow: auto;
+}
+
+.overflowHidden {
+  overflow: hidden;
+}
+
+.relative {
+  position: relative;
+}
+
+.absolute {
+  position: absolute;
+}
+
+.fixed {
+  position: fixed;
+}
+
+.sticky {
+  position: sticky;
+}
+
+.top0 {
+  top: 0;
+}
+
+.left0 {
+  left: 0;
+}
+
+.right0 {
+  right: 0;
+}
+
+.bottom0 {
+  bottom: 0;
+}
+
+.wFull {
+  width: 100%;
+}
+
+.hFull {
+  height: 100%;
+}
+
+.minHFull {
+  min-height: 100%;
+}
+
+.opacity0 {
+  opacity: 0;
+}
+
+.opacity50 {
+  opacity: 0.5;
+}
+
+.opacity100 {
+  opacity: 1;
+}
+
+.cursorPointer {
+  cursor: pointer;
+}
+
+.cursorDefault {
+  cursor: default;
+}
+
+.pointerEventsNone {
+  pointer-events: none;
+}
+
+.selectNone {
+  user-select: none;
+}
+
+.transition {
+  transition: all var(--transition-base);
+}
+
+.transitionFast {
+  transition: all var(--transition-fast);
+}
+
+.transitionSlow {
+  transition: all var(--transition-slow);
+}
+
+.hover\:bgHover:hover {
+  background-color: var(--color-bg-hover);
+}
+
+.hover\:textAccent:hover {
+  color: var(--color-accent-primary);
+}
+
+.hover\:borderAccent:hover {
+  border-color: var(--color-accent-primary);
+}
+
+.hover\:shadowGlow:hover {
+  box-shadow: var(--shadow-glow);
+}
+
+.active\:bgActive:active {
+  background-color: var(--color-bg-active);
+}
+
+.focus\:borderAccent:focus {
+  border-color: var(--color-accent-primary);
+}
+
+@media (max-width: 1279px) {
+  .mainContent {
+    margin-left: var(--sidebar-width-collapsed);
+  }
+
+  .mainContent.sidebarCollapsed {
+    margin-left: var(--sidebar-width-collapsed);
+  }
+
+  .gridCols4 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .mainContent {
+    margin-left: 0;
+    margin-bottom: 64px;
+  }
+
+  .mainContent.sidebarCollapsed {
+    margin-left: 0;
+  }
+
+  .pageContent {
+    padding: var(--spacing-4);
+  }
+
+  .gridCols2,
+  .gridCols3,
+  .gridCols4 {
+    grid-template-columns: 1fr;
+  }
+
+  .hideOnMobile {
+    display: none !important;
+  }
+}
+
+@media (min-width: 1280px) {
+  .hideOnDesktop {
+    display: none !important;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+@keyframes pulseRing {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+}
+
+.animatePulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animateFadeIn {
+  animation: fadeIn var(--transition-base) ease-out;
+}
+
+.animateSlideUp {
+  animation: slideUp var(--transition-base) ease-out;
+}
+
+.animateSlideInRight {
+  animation: slideInRight var(--transition-base) ease-out;
+}
+
+.animatePulseRing {
+  animation: pulseRing 2s ease-in-out infinite;
+}

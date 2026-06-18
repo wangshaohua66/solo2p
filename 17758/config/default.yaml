@@ -1,0 +1,10 @@
+# Personal CRM Configuration
+
+data_dir: "~/.crm"
+
+logging:
+  level: "INFO"
+  file: null
+
+reminders:
+  default_days_ahead: 7

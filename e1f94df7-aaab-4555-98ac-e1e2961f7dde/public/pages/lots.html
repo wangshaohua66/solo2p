@@ -1,0 +1,74 @@
+<div class="py-4">
+  <div class="row">
+    <div class="col-lg-3 col-md-4 mb-4">
+      <div class="sidebar-filter">
+        <h6><i class="bi bi-funnel me-1"></i>筛选条件</h6>
+        <form id="lot-filter-form">
+          <div class="mb-3">
+            <label class="form-label">分类</label>
+            <select class="form-select" id="filter-category">
+              <option value="">全部分类</option>
+              <option value="painting">书画</option>
+              <option value="calligraphy">书法</option>
+              <option value="ceramics">瓷器</option>
+              <option value="jade">玉器</option>
+              <option value="bronze">青铜器</option>
+              <option value="furniture">古典家具</option>
+              <option value="jewelry">珠宝</option>
+              <option value="wine">名酒</option>
+              <option value="watch">腕表</option>
+              <option value="other">其他</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">状态</label>
+            <select class="form-select" id="filter-status">
+              <option value="">全部状态</option>
+              <option value="submitted">已提交</option>
+              <option value="appraising">鉴定中</option>
+              <option value="photographed">已拍摄</option>
+              <option value="cataloging">图录中</option>
+              <option value="previewing">预展中</option>
+              <option value="bidding">竞拍中</option>
+              <option value="sold">已成交</option>
+              <option value="passed">流拍</option>
+              <option value="settled">已结算</option>
+              <option value="delivered">已交付</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">拍卖会</label>
+            <select class="form-select" id="filter-auction">
+              <option value="">全部拍卖会</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">搜索</label>
+            <input type="text" class="form-control" id="filter-search" placeholder="拍品名称/编号">
+          </div>
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-gold btn-sm"><i class="bi bi-search me-1"></i>应用筛选</button>
+            <button type="button" class="btn btn-gold-outline btn-sm" id="btn-reset-filter"><i class="bi bi-arrow-counterclockwise me-1"></i>重置</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <div class="col-lg-9 col-md-8">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0"><i class="bi bi-gem me-1"></i>拍品列表</h5>
+        <span class="text-muted" style="font-size:0.85rem" id="lot-count-label"></span>
+      </div>
+      <div class="lot-grid" id="lot-grid">
+        <div class="col-12 text-center py-4">
+          <div class="spinner-border text-gold" role="status"></div>
+          <div class="text-muted mt-2">加载中...</div>
+        </div>
+      </div>
+      <div class="mt-4" id="lot-pagination"></div>
+    </div>
+  </div>
+</div>
+
+<button class="fab-add" id="fab-add-lot" title="新增拍品">
+  <i class="bi bi-plus-lg"></i>
+</button>

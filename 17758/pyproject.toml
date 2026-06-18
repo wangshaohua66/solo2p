@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "personal-crm"
+version = "0.1.0"
+description = "A local personal CRM command-line tool for freelancers"
+authors = [{name = "Your Name", email = "your@email.com"}]
+requires-python = ">=3.9"
+dependencies = [
+    "pydantic>=2.0.0",
+    "pyyaml>=6.0",
+    "colorama>=0.4.6",
+    "watchdog>=3.0.0",
+    "tqdm>=4.66.0",
+    "python-dateutil>=2.8.2",
+]
+
+[project.scripts]
+crm = "cli.main:main"
+
+[project.entry-points."crm.plugins"]
+default_stats = "plugins.default_stats:DefaultStatsPlugin"
+
+[tool.setuptools.packages.find]
+include = ["cli*", "core*", "models*", "storage*", "utils*", "plugins*", "config*"]
