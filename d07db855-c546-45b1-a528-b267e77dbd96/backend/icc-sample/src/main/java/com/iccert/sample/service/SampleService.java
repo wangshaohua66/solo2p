@@ -10,8 +10,10 @@ import com.iccert.common.page.PageQuery;
 import com.iccert.common.page.PageResult;
 import com.iccert.common.result.ResultCode;
 import com.iccert.common.utils.CodeGenerator;
+import com.iccert.sample.entity.SampleFlowLog;
 import com.iccert.sample.entity.SampleInfo;
 import com.iccert.sample.excel.SampleImportExcelVO;
+import com.iccert.sample.mapper.SampleFlowLogMapper;
 import com.iccert.sample.mapper.SampleInfoMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +36,7 @@ import java.util.Map;
 public class SampleService {
 
     private final SampleInfoMapper sampleInfoMapper;
+    private final SampleFlowLogMapper sampleFlowLogMapper;
 
     @Value("${sample.retention.default-days:180}")
     private int defaultRetentionDays;
@@ -150,6 +153,16 @@ public class SampleService {
         return sampleInfoMapper.selectExpiringRetentionSamples(today, today.plusDays(15));
     }
 
+    /**
+     * 查询样品流转记录（调用 addFlowLog 持久化的真实记录）。
+     */
+    public List<SampleFlowLog> listFlowLogs(Long sampleId) {
+        return sampleFlowLogMapper.selectList(
+                new LambdaQueryWrapper<SampleFlowLog>()
+                        .eq(SampleFlowLog::getSampleId, sampleId)
+                        .orderByAsc(SampleFlowLog::getOperationTime));
+    }
+
     private String getStatusText(String status) {
         return switch (status) {
             case "RECEIVED" -> "样品已接收";
@@ -163,33 +176,27 @@ public class SampleService {
         };
     }
 
+    /**
+     * 记录样品流转日志。
+     * 通过构造器注入 SampleFlowLogMapper（Spring 容器管理），
+     * 替换原先废弃的 ContextLoader.getCurrentWebApplicationContext() 反射获取 Bean 的方式，
+     * 确保流转记录能够正确持久化。
+     */
     private void addFlowLog(Long sampleId, String sampleCode, String status, String statusText,
                             Long operatorId, String operatorName, String remark) {
         try {
-            com.iccert.sample.entity.SampleFlowLog log = new com.iccert.sample.entity.SampleFlowLog();
-            log.setSampleId(sampleId);
-            log.setSampleCode(sampleCode);
-            log.setFlowStatus(status);
-            log.setFlowStatusText(statusText);
-            log.setOperatorId(operatorId);
-            log.setOperatorName(operatorName);
-            log.setOperationDesc(remark);
-            log.setOperationTime(LocalDateTime.now());
-            if (sampleFlowLogMapper() != null) sampleFlowLogMapper().insert(log);
+            SampleFlowLog flowLog = new SampleFlowLog();
+            flowLog.setSampleId(sampleId);
+            flowLog.setSampleCode(sampleCode);
+            flowLog.setFlowStatus(status);
+            flowLog.setFlowStatusText(statusText);
+            flowLog.setOperatorId(operatorId);
+            flowLog.setOperatorName(operatorName);
+            flowLog.setOperationDesc(remark);
+            flowLog.setOperationTime(LocalDateTime.now());
+            sampleFlowLogMapper.insert(flowLog);
         } catch (Exception e) {
             log.warn("记录样品流转日志失败", e);
-        }
-    }
-
-    private com.iccert.sample.mapper.SampleFlowLogMapper sampleFlowLogMapper() {
-        try {
-            return org.springframework.web.context.support.WebApplicationContextUtils
-                    .getRequiredWebApplicationContext(org.springframework.web.context.ContextLoader
-                            .getCurrentWebApplicationContext() != null
-                            ? org.springframework.web.context.ContextLoader.getCurrentWebApplicationContext().getServletContext()
-                            : null).getBean(com.iccert.sample.mapper.SampleFlowLogMapper.class);
-        } catch (Exception e) {
-            return null;
         }
     }
 }

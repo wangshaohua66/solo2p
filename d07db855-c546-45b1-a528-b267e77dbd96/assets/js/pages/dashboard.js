@@ -1,40 +1,64 @@
 const DashboardPage = {
   render() {
     AppLayout.setPageHeader('数据概览', ['工作台']);
-    const stats = MockData.stats;
+    $('#pageContent').html(AppUtils.renderLoading());
+    this.load();
+  },
+
+  async load() {
+    let stats = null;
+    try {
+      stats = await ApiClient.analytics.dashboardStats();
+    } catch (e) {
+      ApiClient.handleError(e, '加载仪表盘失败');
+      $('#pageContent').html(AppUtils.renderEmpty('暂无统计数据，请确认后端服务已启动'));
+      return;
+    }
+    stats = stats || {};
+    const monthly = (stats.monthlyTrend || []).map(m => ({
+      month: String(m.month || '').substring(5) || m.month,
+      samples: Number(m.count || 0)
+    }));
+    const category = (stats.byCategory || []).map(c => ({
+      name: c.name,
+      value: Number(c.value || 0),
+      color: UI_CONST.categoryColors[c.name] || '#94a3b8'
+    }));
+    const totalCat = category.reduce((s, c) => s + c.value, 0);
+    category.forEach(c => c.percent = totalCat > 0 ? Math.round(c.value / totalCat * 100) : 0);
 
     const html = `
       <div class="row g-3 mb-4">
         <div class="col-12 col-sm-6 col-lg-3">
           <div class="stat-card primary">
             <div class="stat-card-icon">📦</div>
-            <div class="stat-card-value">${stats.todaySamples}</div>
-            <div class="stat-card-label">今日接收样品</div>
-            <div class="stat-card-trend up">↑ 12.5% 较昨日</div>
+            <div class="stat-card-value">${stats.totalSamples || 0}</div>
+            <div class="stat-card-label">样品总量</div>
+            <div class="stat-card-trend">数据库实时聚合</div>
           </div>
         </div>
         <div class="col-12 col-sm-6 col-lg-3">
           <div class="stat-card warning">
             <div class="stat-card-icon">📝</div>
-            <div class="stat-card-value">${stats.totalTasks}</div>
+            <div class="stat-card-value">${stats.pendingTasks || 0}</div>
             <div class="stat-card-label">进行中检测任务</div>
-            <div class="stat-card-trend up">↑ 8.2% 较上周</div>
+            <div class="stat-card-trend ${stats.overdueTasks > 0 ? 'up' : ''}">${stats.overdueTasks > 0 ? '⚠️ ' + stats.overdueTasks + '个超期' : '暂无超期'}</div>
           </div>
         </div>
         <div class="col-12 col-sm-6 col-lg-3">
           <div class="stat-card success">
             <div class="stat-card-icon">📄</div>
-            <div class="stat-card-value">${stats.pendingReports}</div>
-            <div class="stat-card-label">待审核报告</div>
-            <div class="stat-card-trend down">↓ 5.1% 较昨日</div>
+            <div class="stat-card-value">${stats.passReports || 0}</div>
+            <div class="stat-card-label">合格检测报告</div>
+            <div class="stat-card-trend">合格率 ${(stats.passRate || 0).toFixed(1)}%</div>
           </div>
         </div>
         <div class="col-12 col-sm-6 col-lg-3">
           <div class="stat-card danger">
             <div class="stat-card-icon">📜</div>
-            <div class="stat-card-value">${stats.expiringCerts}</div>
-            <div class="stat-card-label">即将到期证书</div>
-            <div class="stat-card-trend up">↑ 3 新增提醒</div>
+            <div class="stat-card-value">${stats.expiringCerts || 0}</div>
+            <div class="stat-card-label">即将到期证书(60天内)</div>
+            <div class="stat-card-trend">有效证书 ${stats.validCertificates || 0}</div>
           </div>
         </div>
       </div>
@@ -46,12 +70,10 @@ const DashboardPage = {
               <h3 class="card-title">📈 月度检测趋势</h3>
               <div class="tag-filter-group">
                 <span class="tag active">检测批次</span>
-                <span class="tag">任务数</span>
-                <span class="tag">收入</span>
               </div>
             </div>
             <div class="card-body">
-              ${this.renderBarChart(stats.monthlyData)}
+              ${monthly.length ? this.renderBarChart(monthly) : AppUtils.renderEmpty('暂无月度数据')}
             </div>
           </div>
         </div>
@@ -61,7 +83,7 @@ const DashboardPage = {
               <h3 class="card-title">🏭 产品类别分布</h3>
             </div>
             <div class="card-body">
-              ${this.renderPieChart(stats.categoryData)}
+              ${category.length ? this.renderPieChart(category) : AppUtils.renderEmpty('暂无类别数据')}
             </div>
           </div>
         </div>
@@ -71,10 +93,10 @@ const DashboardPage = {
         <div class="col-12 col-lg-6">
           <div class="card h-100">
             <div class="card-header">
-              <h3 class="card-title">⏱️ 检测周期分布</h3>
+              <h3 class="card-title">⏱️ 检测周期概览</h3>
             </div>
             <div class="card-body">
-              ${this.renderCycleBars(stats.cycleData)}
+              ${this.renderTurnaround(stats)}
             </div>
           </div>
         </div>
@@ -82,11 +104,11 @@ const DashboardPage = {
           <div class="card h-100">
             <div class="card-header">
               <h3 class="card-title">🔔 最近动态</h3>
-              <button class="btn btn-sm btn-outline-primary">查看全部</button>
+              <button class="btn btn-sm btn-outline-primary" id="dashViewAllNotif">查看全部</button>
             </div>
             <div class="card-body" style="padding:0;">
               <div class="timeline" style="padding:20px 20px 20px 44px;">
-                ${MockData.notifications.slice(0, 4).map((n, i) => `
+                ${(AppLayout.notifications || []).slice(0, 4).map((n, i) => `
                   <div class="timeline-item ${i < 2 ? 'primary' : 'success'}">
                     <div class="timeline-dot"></div>
                     <div class="timeline-content">
@@ -95,7 +117,7 @@ const DashboardPage = {
                       <div class="timeline-desc">${n.content}</div>
                     </div>
                   </div>
-                `).join('')}
+                `).join('') || AppUtils.renderEmpty('暂无通知')}
               </div>
             </div>
           </div>
@@ -108,7 +130,7 @@ const DashboardPage = {
   },
 
   renderBarChart(data) {
-    const max = Math.max(...data.map(d => d.samples));
+    const max = Math.max(...data.map(d => d.samples), 1);
     return `
       <div class="chart-container">
         <div class="chart-bar">
@@ -132,7 +154,7 @@ const DashboardPage = {
 
   renderPieChart(data) {
     let cumulative = 0;
-    const total = data.reduce((s, d) => s + d.value, 0);
+    const total = data.reduce((s, d) => s + d.value, 0) || 1;
     const segments = data.map(d => {
       const start = cumulative;
       cumulative += d.value;
@@ -168,7 +190,7 @@ const DashboardPage = {
           ${data.map(d => `
             <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;">
               <div class="chart-legend-item"><div class="chart-legend-color" style="background:${d.color};"></div>${d.name}</div>
-              <div style="font-weight:600;color:var(--dark);">${d.value}%</div>
+              <div style="font-weight:600;color:var(--dark);">${d.value} (${d.percent}%)</div>
             </div>
           `).join('')}
         </div>
@@ -176,22 +198,22 @@ const DashboardPage = {
     `;
   },
 
-  renderCycleBars(data) {
-    const max = Math.max(...data.map(d => d.percent));
-    return data.map(d => {
-      const color = d.range.includes('15') ? 'var(--danger)' : d.range.includes('8') ? 'var(--warning)' : 'var(--primary)';
-      return `
-        <div style="margin-bottom:20px;">
-          <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-            <span style="font-size:13px;color:var(--gray-600);">${d.range}</span>
-            <span style="font-size:13px;font-weight:600;color:var(--dark);">${d.count}个 (${d.percent}%)</span>
-          </div>
-          <div class="progress" style="height:8px;">
-            <div style="width:${d.percent}%;height:100%;background:${color};border-radius:4px;"></div>
-          </div>
+  renderTurnaround(stats) {
+    const days = stats.avgTurnaroundDays || 0;
+    const passRate = stats.passRate || 0;
+    return `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+        <div style="padding:18px;background:linear-gradient(135deg, rgba(37,99,235,0.08), rgba(37,99,235,0.02));border-radius:10px;text-align:center;">
+          <div style="font-size:32px;font-weight:700;color:var(--primary);">${days.toFixed(1)}</div>
+          <div style="font-size:13px;color:var(--gray-500);margin-top:4px;">平均检测周期(天)</div>
         </div>
-      `;
-    }).join('');
+        <div style="padding:18px;background:linear-gradient(135deg, rgba(16,185,129,0.08), rgba(16,185,129,0.02));border-radius:10px;text-align:center;">
+          <div style="font-size:32px;font-weight:700;color:var(--success);">${passRate.toFixed(1)}%</div>
+          <div style="font-size:13px;color:var(--gray-500);margin-top:4px;">报告合格率</div>
+        </div>
+      </div>
+      <div style="font-size:13px;color:var(--gray-600);">超期任务：<span style="color:var(--danger);font-weight:600;">${stats.overdueTasks || 0}</span> 个 · 有效证书：<span style="font-weight:600;">${stats.validCertificates || 0}</span> 张 · 即将到期证书：<span style="color:var(--warning);font-weight:600;">${stats.expiringCerts || 0}</span> 张</div>
+    `;
   },
 
   bindEvents() {
@@ -199,16 +221,36 @@ const DashboardPage = {
       $(this).siblings().removeClass('active');
       $(this).addClass('active');
     });
+    $('#dashViewAllNotif').on('click', () => AppLayout.showNotifications());
   }
 };
 
 const TodoPage = {
   render() {
     AppLayout.setPageHeader('我的待办', ['工作台']);
-    const tasks = [
-      ...MockData.tasks.pending.map(t => ({ ...t, type: '待分配任务', due: t.deadline, action: 'assign' })),
-      ...MockData.tasks.review.map(t => ({ ...t, type: '待审核任务', due: t.deadline, action: 'review' })),
-      ...MockData.reports.filter(r => r.status === 'reviewing').map(r => ({ id: r.id, title: r.title, type: '待审核报告', due: r.createDate, action: 'approve' }))
+    $('#pageContent').html(AppUtils.renderLoading());
+    this.load();
+  },
+
+  async load() {
+    let tasks = [], reports = [];
+    try {
+      tasks = await ApiClient.task.list();
+    } catch (e) { ApiClient.handleError(e, '加载任务失败'); }
+    try {
+      reports = await ApiClient.report.list();
+    } catch (e) { /* ignore */ }
+
+    tasks = tasks || [];
+    reports = reports || [];
+    const pending = tasks.filter(t => t.taskStatus === 'PENDING');
+    const review = tasks.filter(t => t.taskStatus === 'REVIEW' || t.taskStatus === 'IN_PROGRESS');
+    const reviewReports = reports.filter(r => r.reportStatus === 'REVIEW' || r.reportStatus === 'DRAFT');
+
+    const rows = [
+      ...pending.map(t => ({ id: t.taskCode, title: t.taskTitle, type: '待分配任务', sample: t.sampleCode, assignee: t.technicianName, due: t.deadline ? AppUtils.formatDate(AppUtils.parseDateTime(t.deadline)) : '-', action: 'assign' })),
+      ...review.map(t => ({ id: t.taskCode, title: t.taskTitle, type: '待审核任务', sample: t.sampleCode, assignee: t.technicianName, due: t.deadline ? AppUtils.formatDate(AppUtils.parseDateTime(t.deadline)) : '-', action: 'review' })),
+      ...reviewReports.map(r => ({ id: r.reportCode, title: r.reportTitle, type: '待审核报告', sample: r.sampleCode, assignee: r.authorName, due: r.createTime ? AppUtils.formatDateTime(r.createTime, 'YYYY-MM-DD') : '-', action: 'approve' }))
     ];
 
     const html = `
@@ -236,10 +278,10 @@ const TodoPage = {
               </tr>
             </thead>
             <tbody>
-              ${tasks.map(t => `
+              ${rows.length ? rows.map(t => `
                 <tr>
-                  <td style="font-family:monospace;color:var(--primary);">${t.id}</td>
-                  <td style="font-weight:500;">${t.title}</td>
+                  <td style="font-family:monospace;color:var(--primary);">${t.id || '-'}</td>
+                  <td style="font-weight:500;">${t.title || '-'}</td>
                   <td><span class="badge badge-primary">${t.type}</span></td>
                   <td>${t.sample || '-'}</td>
                   <td>${t.assignee ? AppUtils.getAvatar(t.assignee) + ' ' + t.assignee : '-'}</td>
@@ -251,7 +293,7 @@ const TodoPage = {
                     </div>
                   </td>
                 </tr>
-              `).join('')}
+              `).join('') : `<tr><td colspan="7">${AppUtils.renderEmpty('暂无待办事项')}</td></tr>`}
             </tbody>
           </table>
         </div>

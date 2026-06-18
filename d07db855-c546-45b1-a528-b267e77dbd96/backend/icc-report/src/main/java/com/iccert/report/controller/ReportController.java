@@ -8,8 +8,13 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -79,6 +84,17 @@ public class ReportController {
         return R.ok(reportService.listReports());
     }
 
+    @Operation(summary = "下载检测报告PDF(结构化生成,替代HTML模拟)")
+    @GetMapping("/report/{id}/pdf")
+    public ResponseEntity<byte[]> downloadReportPdf(@PathVariable Long id) {
+        byte[] pdf = reportService.generateReportPdf(id);
+        String filename = URLEncoder.encode("检测报告_" + id + ".pdf", StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + filename)
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf);
+    }
+
     @Operation(summary = "获取所有证书模板")
     @GetMapping("/certificate/templates")
     public R<List<CertificateTemplate>> listCertTemplates() {
@@ -132,5 +148,16 @@ public class ReportController {
     @GetMapping("/certificate/list")
     public R<List<CertificateInfo>> listCertificates() {
         return R.ok(certificateService.listCertificates());
+    }
+
+    @Operation(summary = "下载证书PDF(含电子签章叠加,非仅存配置JSON)")
+    @GetMapping("/certificate/{id}/pdf")
+    public ResponseEntity<byte[]> downloadCertificatePdf(@PathVariable Long id) {
+        byte[] pdf = certificateService.generateCertificatePdf(id);
+        String filename = URLEncoder.encode("认证证书_" + id + ".pdf", StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + filename)
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf);
     }
 }

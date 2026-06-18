@@ -4,16 +4,20 @@ import com.iccert.common.result.R;
 import com.iccert.task.entity.InspectionTask;
 import com.iccert.task.entity.LabEquipment;
 import com.iccert.task.entity.LabTechnician;
+import com.iccert.task.entity.Notification;
 import com.iccert.task.mapper.LabEquipmentMapper;
 import com.iccert.task.mapper.LabTechnicianMapper;
+import com.iccert.task.mapper.NotificationMapper;
 import com.iccert.task.service.TaskDispatchService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -26,6 +30,7 @@ public class TaskController {
     private final TaskDispatchService dispatchService;
     private final LabEquipmentMapper equipmentMapper;
     private final LabTechnicianMapper technicianMapper;
+    private final NotificationMapper notificationMapper;
 
     @Operation(summary = "获取所有任务列表")
     @GetMapping("/list")
@@ -72,5 +77,34 @@ public class TaskController {
     @GetMapping("/technician/list")
     public R<List<LabTechnician>> listTechnicians() {
         return R.ok(technicianMapper.selectList(null));
+    }
+
+    @Operation(summary = "获取当前用户未读通知(含超期升级提醒)")
+    @GetMapping("/notification/unread")
+    public R<List<Notification>> unreadNotifications(HttpServletRequest request) {
+        Long userId = Long.valueOf(request.getHeader("X-User-Id"));
+        String roleCode = request.getHeader("X-Role-Code");
+        List<Notification> list = new ArrayList<>(notificationMapper.selectUnreadByUser(userId));
+        if (roleCode != null) {
+            List<Notification> byRole = notificationMapper.selectUnreadByRole(roleCode);
+            for (Notification n : byRole) {
+                if (list.stream().noneMatch(e -> e.getId().equals(n.getId()))) {
+                    list.add(n);
+                }
+            }
+        }
+        return R.ok(list);
+    }
+
+    @Operation(summary = "标记通知为已读")
+    @PostMapping("/notification/{id}/read")
+    public R<Boolean> markRead(@PathVariable Long id) {
+        Notification n = notificationMapper.selectById(id);
+        if (n != null) {
+            n.setIsRead(1);
+            n.setReadTime(LocalDateTime.now());
+            notificationMapper.updateById(n);
+        }
+        return R.ok(true);
     }
 }

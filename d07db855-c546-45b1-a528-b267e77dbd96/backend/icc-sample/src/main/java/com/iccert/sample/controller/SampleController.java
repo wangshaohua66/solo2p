@@ -3,6 +3,7 @@ package com.iccert.sample.controller;
 import com.iccert.common.page.PageQuery;
 import com.iccert.common.page.PageResult;
 import com.iccert.common.result.R;
+import com.iccert.sample.entity.SampleFlowLog;
 import com.iccert.sample.entity.SampleInfo;
 import com.iccert.sample.service.FileStorageService;
 import com.iccert.sample.service.SampleService;
@@ -92,5 +93,11 @@ public class SampleController {
     @GetMapping("/retention/expiring")
     public R<List<SampleInfo>> getExpiringRetention() {
         return R.ok(sampleService.getExpiringRetentionSamples());
+    }
+
+    @Operation(summary = "查询样品流转记录")
+    @GetMapping("/{id}/flow-logs")
+    public R<List<SampleFlowLog>> getFlowLogs(@PathVariable Long id) {
+        return R.ok(sampleService.listFlowLogs(id));
     }
 }

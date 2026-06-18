@@ -21,6 +21,39 @@ const AppUtils = {
     return '¥' + Number(num).toLocaleString('zh-CN', { minimumFractionDigits: 2 });
   },
 
+  /** 将后端时间（字符串或 Jackson LocalDateTime 数组）解析为 Date */
+  parseDateTime(v) {
+    if (!v) return null;
+    if (v instanceof Date) return v;
+    if (Array.isArray(v)) {
+      const [y, mo, d, h = 0, mi = 0, s = 0] = v;
+      return new Date(y, (mo || 1) - 1, d || 1, h, mi, s);
+    }
+    const s = String(v);
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})([T ](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+    if (m) return new Date(+m[1], +m[2] - 1, +m[3], +(m[5] || 0), +(m[6] || 0), +(m[7] || 0));
+    const d = new Date(s);
+    return isNaN(d) ? null : d;
+  },
+
+  /** 相对时间（x分钟前 / x小时前 / x天前），超过7天返回日期 */
+  formatRelativeTime(v) {
+    const d = this.parseDateTime(v);
+    if (!d) return '-';
+    const diff = (Date.now() - d.getTime()) / 1000;
+    if (diff < 60) return '刚刚';
+    if (diff < 3600) return Math.floor(diff / 60) + '分钟前';
+    if (diff < 86400) return Math.floor(diff / 3600) + '小时前';
+    if (diff < 604800) return Math.floor(diff / 86400) + '天前';
+    return this.formatDate(d, 'YYYY-MM-DD');
+  },
+
+  /** 格式化日期时间（兼容字符串/数组），默认 YYYY-MM-DD HH:mm:ss */
+  formatDateTime(v, fmt = 'YYYY-MM-DD HH:mm:ss') {
+    const d = this.parseDateTime(v);
+    return d ? this.formatDate(d, fmt) : '-';
+  },
+
   generateId(prefix = 'ID') {
     return prefix + '-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 6).toUpperCase();
   },
@@ -179,28 +212,38 @@ const AppUtils = {
     });
   },
 
-  renderAnnotations(reportId) {
-    const annotations = MockData.reportAnnotations[reportId] || [];
-    if (annotations.length === 0) return `<div style="padding:30px;text-align:center;color:var(--gray-400);"><div style="font-size:36px;">💬</div><div style="margin-top:8px;">暂无批注</div></div>`;
+  renderAnnotations(reportId, annotations) {
+    const list = annotations || [];
+    if (list.length === 0) return `<div style="padding:30px;text-align:center;color:var(--gray-400);"><div style="font-size:36px;">💬</div><div style="margin-top:8px;">暂无批注</div></div>`;
     const typeIcon = { comment: '💬', highlight: '🖍️', stamp: '🖋️' };
     return `
       <div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-          <div style="font-weight:600;">批注列表 (${annotations.length})</div>
+          <div style="font-weight:600;">批注列表 (${list.length})</div>
           <button class="btn btn-sm btn-primary" onclick="ReportsPage.addAnnotationPrompt('${reportId}')">➕ 添加批注</button>
         </div>
         <div style="max-height:320px;overflow-y:auto;">
-          ${annotations.map(a => `
-            <div style="padding:12px;border-radius:8px;margin-bottom:10px;background:rgba(245,158,11,0.08);border-left:3px solid ${a.color};">
+          ${list.map(a => `
+            <div style="padding:12px;border-radius:8px;margin-bottom:10px;background:rgba(245,158,11,0.08);border-left:3px solid ${a.color || '#f59e0b'};">
               <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
-                <div style="font-weight:600;font-size:13px;">${typeIcon[a.type] || '📝'} ${a.annotator} · 第${a.page}页</div>
-                <div style="font-size:11px;color:var(--gray-400);">${a.time}</div>
+                <div style="font-weight:600;font-size:13px;">${typeIcon[a.annotationType] || typeIcon[a.type] || '📝'} ${a.annotatorName || a.annotator || '-'} · 第${a.pageNo || a.page || 1}页</div>
+                <div style="font-size:11px;color:var(--gray-400);">${a.createTime || a.time || ''}</div>
               </div>
-              <div style="font-size:13px;color:var(--gray-700);line-height:1.6;">${a.content}</div>
+              <div style="font-size:13px;color:var(--gray-700);line-height:1.6;">${a.content || a.annotationContent || ''}</div>
             </div>
           `).join('')}
         </div>
       </div>
     `;
+  },
+
+  /** 渲染加载占位 */
+  renderLoading() {
+    return `<div class="empty-state"><div class="empty-state-icon" style="animation:spin 1s linear infinite;display:inline-block;">⏳</div><div class="empty-state-text">数据加载中...</div></div>`;
+  },
+
+  /** 渲染空状态 */
+  renderEmpty(text) {
+    return `<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">${text || '暂无数据'}</div></div>`;
   }
 };

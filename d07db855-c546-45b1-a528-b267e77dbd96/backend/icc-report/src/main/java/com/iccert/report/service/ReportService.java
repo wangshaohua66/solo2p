@@ -30,6 +30,7 @@ public class ReportService {
     private final ReportAnnotationMapper annotationMapper;
     private final Configuration freemarkerConfig;
     private final ObjectMapper objectMapper;
+    private final PdfService pdfService;
 
     @Transactional
     public InspectionReport generateReport(Long templateId, Long sampleId, String sampleName,
@@ -208,5 +209,19 @@ public class ReportService {
 
     public List<InspectionReport> listReports() {
         return reportMapper.selectList(null);
+    }
+
+    /**
+     * 生成报告 PDF（基于结构化数据，使用 OpenPDF 渲染，替代 HTML 模拟）。
+     */
+    public byte[] generateReportPdf(Long reportId) {
+        InspectionReport report = reportMapper.selectById(reportId);
+        if (report == null) throw new BusinessException("报告不存在");
+        byte[] pdfBytes = pdfService.generateReportPdf(report);
+        if (report.getReportPdfUrl() == null || report.getReportPdfUrl().isEmpty()) {
+            report.setReportPdfUrl("/report/" + reportId + "/pdf");
+            reportMapper.updateById(report);
+        }
+        return pdfBytes;
     }
 }

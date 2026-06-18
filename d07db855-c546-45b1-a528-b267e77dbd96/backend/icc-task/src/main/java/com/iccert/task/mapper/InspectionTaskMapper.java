@@ -5,6 +5,7 @@ import com.iccert.task.entity.InspectionTask;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
@@ -16,4 +17,7 @@ public interface InspectionTaskMapper extends BaseMapper<InspectionTask> {
 
     @Select("SELECT * FROM inspection_task WHERE task_status = 'IN_PROGRESS' AND deadline < CURDATE() AND is_overdue_warned = 0")
     List<InspectionTask> selectOverdueTasks();
+
+    @Update("UPDATE inspection_task SET is_overdue_warned = 1 WHERE id = #{taskId}")
+    int markOverdueWarned(@Param("taskId") Long taskId);
 }

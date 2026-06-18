@@ -9,9 +9,9 @@ import org.apache.ibatis.annotations.Select;
 @Mapper
 public interface InspectionRawRecordMapper extends BaseMapper<InspectionRawRecord> {
 
-    @Select("SELECT * FROM inspection_raw_record WHERE task_id = #{taskId} AND is_deleted = 0 ORDER BY id ASC LIMIT 1")
+    @Select("SELECT * FROM raw_record WHERE task_id = #{taskId} ORDER BY id ASC LIMIT 1")
     InspectionRawRecord selectFirstByTask(@Param("taskId") Long taskId);
 
-    @Select("SELECT * FROM inspection_raw_record WHERE task_id = #{taskId} AND is_deleted = 0 ORDER BY id DESC LIMIT 1")
+    @Select("SELECT * FROM raw_record WHERE task_id = #{taskId} ORDER BY id DESC LIMIT 1")
     InspectionRawRecord selectLastByTask(@Param("taskId") Long taskId);
 }

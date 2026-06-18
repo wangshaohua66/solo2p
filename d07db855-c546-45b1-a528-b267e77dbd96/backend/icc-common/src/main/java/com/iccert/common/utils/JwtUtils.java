@@ -86,4 +86,9 @@ public class JwtUtils {
         for (String d : data) sb.append(d == null ? "" : d);
         return DigestUtil.sha256Hex(sb.toString());
     }
+
+    public static boolean verifyHashChain(String expectedHash, String prevHash, String... data) {
+        if (expectedHash == null || expectedHash.isEmpty()) return false;
+        return expectedHash.equals(hashChain(prevHash, data));
+    }
 }

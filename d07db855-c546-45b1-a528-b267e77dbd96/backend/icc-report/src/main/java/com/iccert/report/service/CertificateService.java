@@ -28,6 +28,10 @@ public class CertificateService {
     private final CertificateChangeLogMapper changeLogMapper;
     private final Configuration freemarkerConfig;
     private final ObjectMapper objectMapper;
+    private final PdfService pdfService;
+
+    @org.springframework.beans.factory.annotation.Value("${certificate.signature.image-url:}")
+    private String defaultSignatureImageUrl;
 
     @Transactional
     public CertificateInfo issueCertificate(Long templateId, Long companyId, String companyName,
@@ -75,7 +79,18 @@ public class CertificateService {
         cert.setIssuerId(issuerId);
         cert.setIssuerName(issuerName);
         cert.setIsReminderSent(0);
+        cert.setSignatureUrl(defaultSignatureImageUrl.isEmpty() ? null : defaultSignatureImageUrl);
         certMapper.insert(cert);
+
+        // 生成证书PDF并叠加电子签章（真实叠加到PDF，非仅存配置JSON）
+        try {
+            pdfService.generateCertificatePdfWithSignature(cert, cert.getSignatureUrl());
+            cert.setCertPdfUrl("/certificate/" + cert.getId() + "/pdf");
+            certMapper.updateById(cert);
+            log.info("证书PDF已生成并叠加电子签章: {}", certNo);
+        } catch (Exception e) {
+            log.warn("证书PDF生成失败, 仅存储HTML内容: {}", certNo, e);
+        }
 
         saveChangeLog(cert.getId(), certNo, "ISSUE", null, objectMapper.valueToTree(cert).toString(),
                 "首次签发证书", issuerId, issuerName);
@@ -149,6 +164,16 @@ public class CertificateService {
 
     public List<CertificateInfo> listCertificates() {
         return certMapper.selectList(null);
+    }
+
+    /**
+     * 生成证书 PDF（含电子签章叠加）。
+     */
+    public byte[] generateCertificatePdf(Long certId) {
+        CertificateInfo cert = certMapper.selectById(certId);
+        if (cert == null) throw new BusinessException("证书不存在");
+        String signUrl = cert.getSignatureUrl() != null ? cert.getSignatureUrl() : defaultSignatureImageUrl;
+        return pdfService.generateCertificatePdfWithSignature(cert, signUrl);
     }
 
     public List<CertificateTemplate> listTemplates() {

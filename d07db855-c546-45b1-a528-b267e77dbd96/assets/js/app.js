@@ -1,7 +1,9 @@
 const AppLayout = {
   currentPage: 'dashboard',
+  notifications: [],
 
   init() {
+    if (!Auth.requireAuth()) return;
     this.renderSidebar();
     this.renderHeader();
     this.bindEvents();
@@ -10,7 +12,9 @@ const AppLayout = {
 
   renderSidebar() {
     const $sidebar = $('#sidebar');
-    const roleKey = MockData.currentUser.roleKey;
+    const user = Auth.getCurrentUser();
+    if (!user) { Auth.showLogin(); return; }
+    const roleKey = user.roleKey;
     let html = `
       <div class="sidebar-header">
         <div class="sidebar-logo">
@@ -21,17 +25,18 @@ const AppLayout = {
       <div class="sidebar-menu">
     `;
 
-    MockData.menuConfig.forEach(group => {
+    UI_CONST.menuConfig.forEach(group => {
       if (group.roleKeys && !group.roleKeys.includes(roleKey)) return;
       const visibleItems = group.items.filter(it => !it.roleKeys || it.roleKeys.includes(roleKey));
       if (visibleItems.length === 0) return;
       html += `<div class="menu-group-title">${group.group}</div>`;
       visibleItems.forEach(item => {
+        const badge = item.badge ? `<span class="menu-item-badge">${item.badge}</span>` : '';
         html += `
           <div class="menu-item ${this.currentPage === item.key ? 'active' : ''}" data-page="${item.key}">
             <span class="menu-item-icon">${item.icon}</span>
             <span class="menu-item-text">${item.text}</span>
-            ${item.badge ? `<span class="menu-item-badge">${item.badge}</span>` : ''}
+            ${badge}
           </div>
         `;
       });
@@ -42,8 +47,8 @@ const AppLayout = {
   },
 
   renderHeader() {
-    const unreadCount = MockData.notifications.filter(n => !n.read).length;
-    const user = MockData.currentUser;
+    const user = Auth.getCurrentUser();
+    if (!user) return;
     const html = `
       <button class="header-toggle" id="sidebarToggle">☰</button>
       <div class="header-search">
@@ -53,11 +58,9 @@ const AppLayout = {
       <div class="header-actions">
         <button class="header-action-btn" id="notificationBtn" title="消息通知">
           🔔
-          ${unreadCount > 0 ? '<span class="header-action-dot"></span>' : ''}
+          <span class="header-action-dot" id="notifDot" style="display:none;"></span>
         </button>
-        <button class="header-action-btn" title="帮助中心">
-          ❓
-        </button>
+        <button class="header-action-btn" title="帮助中心">❓</button>
         <div class="header-user" id="userMenu">
           <div class="header-avatar">${user.avatar}</div>
           <div class="header-user-info">
@@ -68,6 +71,36 @@ const AppLayout = {
       </div>
     `;
     $('#header').html(html);
+    this.loadNotifications();
+  },
+
+  async loadNotifications() {
+    try {
+      const list = await ApiClient.task.unreadNotifications();
+      this.notifications = (list || []).map(n => ({
+        id: n.id,
+        title: n.title || '系统通知',
+        content: n.content || '',
+        time: AppUtils.formatRelativeTime(n.createTime),
+        type: this.notifType(n),
+        rawType: n.notificationType,
+        read: n.isRead === 1
+      }));
+      const unread = this.notifications.length;
+      $('#notifDot').toggle(unread > 0);
+    } catch (e) {
+      this.notifications = [];
+      $('#notifDot').hide();
+    }
+  },
+
+  notifType(n) {
+    const t = (n.notificationType || '').toUpperCase();
+    const p = (n.priority || '').toUpperCase();
+    if (t.includes('OVERDUE') || p === 'HIGH' || t.includes('WARNING')) return 'warning';
+    if (t.includes('EXPIRE') || t.includes('CERT')) return 'info';
+    if (t.includes('SUCCESS') || t.includes('ISSUE')) return 'success';
+    return 'info';
   },
 
   bindEvents() {
@@ -108,11 +141,11 @@ const AppLayout = {
   },
 
   showUserMenu() {
-    const user = MockData.currentUser;
-    const roleKeys = Object.keys(MockData.roles);
-    let rolesHtml = roleKeys.map(k => {
+    const user = Auth.getCurrentUser();
+    if (!user) { Auth.showLogin(); return; }
+    const rolesHtml = Object.keys(UI_CONST.roleMeta).map(k => {
       const isActive = k === user.roleKey;
-      const r = MockData.roles[k];
+      const r = UI_CONST.roleMeta[k];
       return `
         <div style="padding:10px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;
                     ${isActive ? 'background:rgba(37,99,235,0.08);' : ''}"
@@ -128,7 +161,7 @@ const AppLayout = {
       `;
     }).join('');
     AppUtils.showModal({
-      title: `👤 ${user.name} - 角色切换`,
+      title: `👤 ${user.name}`,
       content: `
         <div style="margin:-20px -20px 0 -20px;">
           <div style="padding:14px 20px;border-bottom:1px solid var(--gray-200);">
@@ -137,11 +170,14 @@ const AppLayout = {
                           display:flex;align-items:center;justify-content:center;font-weight:600;font-size:18px;">${user.avatar}</div>
               <div>
                 <div style="font-weight:600;">${user.name}</div>
-                <div style="font-size:12px;color:var(--gray-500);">${user.department}</div>
+                <div style="font-size:12px;color:var(--gray-500);">${user.department || user.role}</div>
               </div>
             </div>
           </div>
           <div style="padding:6px 0;">${rolesHtml}</div>
+          <div style="padding:12px 20px;border-top:1px solid var(--gray-200);">
+            <button class="btn btn-outline-danger btn-sm" onclick="Auth.logout()">🚪 退出登录</button>
+          </div>
         </div>
       `,
       width: '420px',
@@ -151,20 +187,9 @@ const AppLayout = {
   },
 
   switchRole(roleKey) {
-    const users = {
-      admin:        { id: 'U001', name: '张明华', role: '实验室管理员',   roleKey: 'admin',        department: '质量管理部', avatar: 'ZM' },
-      auditor:      { id: 'U002', name: '李国华', role: '报告审核员',     roleKey: 'auditor',      department: '报告审核部', avatar: 'LG' },
-      technician:   { id: 'U003', name: '张伟',   role: '实验室技术员',   roleKey: 'technician',   department: '电气实验室', avatar: 'ZW' },
-      sample_admin: { id: 'U004', name: '李娟',   role: '样品管理员',     roleKey: 'sample_admin', department: '样品管理组', avatar: 'LJ' },
-      customer:     { id: 'U005', name: '陈经理', role: '企业客户',       roleKey: 'customer',     department: '上海正泰电器', avatar: 'CJ' }
-    };
-    MockData.currentUser = users[roleKey];
-    this.currentPage = 'dashboard';
-    this.renderSidebar();
-    this.renderHeader();
-    PageRouter.go(this.currentPage);
-    $('.modal-overlay').remove();
-    AppUtils.showToast('角色切换', `已切换为【${MockData.roles[roleKey].name}】`, 'success');
+    $('.modal-overlay, .modal-mask').remove();
+    AppUtils.showToast('切换角色', '切换角色需重新登录，请在登录页选择对应用户', 'warning');
+    Auth.logout();
   },
 
   goToPage(page) {
@@ -186,10 +211,12 @@ const AppLayout = {
 
   showNotifications() {
     let listHtml = '';
-    MockData.notifications.forEach(n => {
+    if (this.notifications.length === 0) {
+      listHtml = `<div style="padding:40px;text-align:center;color:var(--gray-400);"><div style="font-size:36px;">🔕</div><div style="margin-top:8px;">暂无未读通知</div></div>`;
+    } else {
       const icons = { warning: '⚠️', info: 'ℹ️', success: '✅', error: '❌' };
-      listHtml += `
-        <div style="padding:14px;border-bottom:1px solid var(--gray-100);cursor:pointer;${n.read ? 'opacity:0.7' : ''}" 
+      listHtml = this.notifications.map(n => `
+        <div style="padding:14px;border-bottom:1px solid var(--gray-100);cursor:pointer;${n.read ? 'opacity:0.7' : ''}"
              onmouseover="this.style.background='var(--gray-50)'" onmouseout="this.style.background=''">
           <div style="display:flex;align-items:flex-start;gap:10px;">
             <span style="font-size:18px;">${icons[n.type] || '📌'}</span>
@@ -201,8 +228,8 @@ const AppLayout = {
             ${!n.read ? '<span style="width:8px;height:8px;background:var(--danger);border-radius:50%;"></span>' : ''}
           </div>
         </div>
-      `;
-    });
+      `).join('');
+    }
 
     AppUtils.showModal({
       title: '🔔 消息通知',
@@ -210,10 +237,17 @@ const AppLayout = {
       width: '480px',
       confirmText: '全部已读',
       cancelText: '关闭',
-      onConfirm: () => {
-        MockData.notifications.forEach(n => n.read = true);
-        this.renderHeader();
-        AppUtils.showToast('成功', '已全部标记为已读', 'success');
+      onConfirm: async () => {
+        try {
+          for (const n of this.notifications) {
+            if (!n.read) await ApiClient.task.markRead(n.id);
+          }
+          this.notifications = [];
+          $('#notifDot').hide();
+          AppUtils.showToast('成功', '已全部标记为已读', 'success');
+        } catch (e) {
+          ApiClient.handleError(e, '标记已读失败');
+        }
       }
     });
   }
