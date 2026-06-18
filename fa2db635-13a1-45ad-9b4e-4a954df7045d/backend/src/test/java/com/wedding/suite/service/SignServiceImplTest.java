@@ -78,7 +78,6 @@ class SignServiceImplTest {
                     .status(ContractStatus.DRAFT).build();
 
             when(contractRepo.findById(5L)).thenReturn(Optional.of(c));
-            when(exportService.exportContractPdf(5L)).thenReturn(new byte[]{1, 2, 3});
 
             SignResultVO result = signService.createSignFlow(5L, "张三", "13800138000");
 
@@ -87,8 +86,7 @@ class SignServiceImplTest {
             assertNotNull(result.getSignUrl());
             assertTrue(result.getSignUrl().contains("/sign/5"));
             assertTrue(result.getMessage().contains("TODO"));
-            verify(restTemplate, never()).exchange(anyString(), any(), any(), any());
-            verify(restTemplate, never()).postForEntity(anyString(), any(), any());
+            verifyNoInteractions(restTemplate);
         }
 
         @Test

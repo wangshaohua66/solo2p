@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SettingsService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">wedding-suite-backend</a> &gt; <a href="index.source.html" class="el_package">com.wedding.suite.service.impl</a> &gt; <span class="el_source">SettingsService.java</span></div><h1>SettingsService.java</h1><pre class="source lang-java linenums">package com.wedding.suite.service.impl;
+
+import com.wedding.suite.dto.request.StoreSaveRequest;
+import com.wedding.suite.dto.response.SettingsVO;
+import com.wedding.suite.entity.StoreEntity;
+import com.wedding.suite.exception.BusinessException;
+import com.wedding.suite.exception.ErrorCode;
+import com.wedding.suite.repository.AddonRepository;
+import com.wedding.suite.repository.PropRepository;
+import com.wedding.suite.repository.StaffRepository;
+import com.wedding.suite.repository.StoreRepository;
+import com.wedding.suite.repository.VenueRepository;
+import org.springframework.stereotype.Service;
+
+@Service
+public class SettingsService {
+
+    private final StoreRepository storeRepo;
+    private final StaffRepository staffRepo;
+    private final VenueRepository venueRepo;
+    private final PropRepository propRepo;
+    private final AddonRepository addonRepo;
+
+<span class="nc" id="L24">    public SettingsService(StoreRepository storeRepo, StaffRepository staffRepo,</span>
+                           VenueRepository venueRepo, PropRepository propRepo,
+                           AddonRepository addonRepo) {
+<span class="nc" id="L27">        this.storeRepo = storeRepo;</span>
+<span class="nc" id="L28">        this.staffRepo = staffRepo;</span>
+<span class="nc" id="L29">        this.venueRepo = venueRepo;</span>
+<span class="nc" id="L30">        this.propRepo = propRepo;</span>
+<span class="nc" id="L31">        this.addonRepo = addonRepo;</span>
+<span class="nc" id="L32">    }</span>
+
+    public SettingsVO list() {
+<span class="nc" id="L35">        return new SettingsVO(storeRepo.findAll(), staffRepo.findAll(), venueRepo.findAll(),</span>
+<span class="nc" id="L36">                propRepo.findAll(), addonRepo.findAll());</span>
+    }
+
+    public StoreEntity saveStore(StoreSaveRequest req) {
+        StoreEntity s;
+<span class="nc bnc" id="L41" title="All 2 branches missed.">        if (req.getId() != null) {</span>
+<span class="nc" id="L42">            s = storeRepo.findById(req.getId())</span>
+<span class="nc" id="L43">                    .orElseThrow(() -&gt; new BusinessException(ErrorCode.NOT_FOUND, &quot;门店不存在&quot;));</span>
+<span class="nc" id="L44">            s.setName(req.getName());</span>
+<span class="nc" id="L45">            s.setDiscountCoefficient(req.getDiscountCoefficient());</span>
+<span class="nc" id="L46">        } else {</span>
+<span class="nc" id="L47">            s = StoreEntity.builder()</span>
+<span class="nc" id="L48">                    .name(req.getName())</span>
+<span class="nc" id="L49">                    .discountCoefficient(req.getDiscountCoefficient())</span>
+<span class="nc" id="L50">                    .build();</span>
+        }
+<span class="nc" id="L52">        return storeRepo.save(s);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

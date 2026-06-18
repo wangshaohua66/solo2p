@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JwtUtil.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">wedding-suite-backend</a> &gt; <a href="index.source.html" class="el_package">com.wedding.suite.security</a> &gt; <span class="el_source">JwtUtil.java</span></div><h1>JwtUtil.java</h1><pre class="source lang-java linenums">package com.wedding.suite.security;
+
+import com.wedding.suite.config.JwtProperties;
+import com.wedding.suite.enums.UserRole;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import org.springframework.stereotype.Component;
+
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.Date;
+
+@Component
+public class JwtUtil {
+
+    private final JwtProperties props;
+    private final SecretKey key;
+
+<span class="nc" id="L21">    public JwtUtil(JwtProperties props) {</span>
+<span class="nc" id="L22">        this.props = props;</span>
+        byte[] bytes;
+        try {
+<span class="nc" id="L25">            bytes = Base64.getDecoder().decode(props.getSecret());</span>
+<span class="nc" id="L26">        } catch (IllegalArgumentException ex) {</span>
+<span class="nc" id="L27">            bytes = props.getSecret().getBytes(StandardCharsets.UTF_8);</span>
+        }
+<span class="nc bnc" id="L29" title="All 2 branches missed.">        if (bytes.length &lt; 32) {</span>
+<span class="nc" id="L30">            byte[] padded = new byte[32];</span>
+<span class="nc" id="L31">            System.arraycopy(bytes, 0, padded, 0, Math.min(bytes.length, 32));</span>
+<span class="nc" id="L32">            bytes = padded;</span>
+        }
+<span class="nc" id="L34">        this.key = Keys.hmacShaKeyFor(bytes);</span>
+<span class="nc" id="L35">    }</span>
+
+    public String generate(Long userId, String name, UserRole role, Long storeId) {
+<span class="nc" id="L38">        Date now = new Date();</span>
+<span class="nc" id="L39">        Date exp = new Date(now.getTime() + props.getAccessTokenTtl() * 1000L);</span>
+<span class="nc" id="L40">        return Jwts.builder()</span>
+<span class="nc" id="L41">                .issuer(props.getIssuer())</span>
+<span class="nc" id="L42">                .subject(name)</span>
+<span class="nc" id="L43">                .claim(&quot;uid&quot;, userId)</span>
+<span class="nc" id="L44">                .claim(&quot;role&quot;, role.name())</span>
+<span class="nc" id="L45">                .claim(&quot;storeId&quot;, storeId)</span>
+<span class="nc" id="L46">                .issuedAt(now)</span>
+<span class="nc" id="L47">                .expiration(exp)</span>
+<span class="nc" id="L48">                .signWith(key)</span>
+<span class="nc" id="L49">                .compact();</span>
+    }
+
+    private Claims parse(String token) {
+<span class="nc" id="L53">        return Jwts.parser()</span>
+<span class="nc" id="L54">                .verifyWith(key)</span>
+<span class="nc" id="L55">                .build()</span>
+<span class="nc" id="L56">                .parseSignedClaims(token)</span>
+<span class="nc" id="L57">                .getPayload();</span>
+    }
+
+    public boolean isValid(String token) {
+        try {
+<span class="nc" id="L62">            parse(token);</span>
+<span class="nc" id="L63">            return true;</span>
+<span class="nc" id="L64">        } catch (Exception e) {</span>
+<span class="nc" id="L65">            return false;</span>
+        }
+    }
+
+    public Long extractUserId(String token) {
+<span class="nc" id="L70">        return parse(token).get(&quot;uid&quot;, Long.class);</span>
+    }
+
+    public String extractName(String token) {
+<span class="nc" id="L74">        return parse(token).getSubject();</span>
+    }
+
+    public UserRole extractRole(String token) {
+<span class="nc" id="L78">        return UserRole.valueOf(parse(token).get(&quot;role&quot;, String.class));</span>
+    }
+
+    public Long extractStoreId(String token) {
+<span class="nc" id="L82">        Object v = parse(token).get(&quot;storeId&quot;);</span>
+<span class="nc bnc" id="L83" title="All 2 branches missed.">        if (v == null) return null;</span>
+<span class="nc bnc" id="L84" title="All 2 branches missed.">        if (v instanceof Number n) return n.longValue();</span>
+<span class="nc" id="L85">        return Long.valueOf(v.toString());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ReportController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">wedding-suite-backend</a> &gt; <a href="index.source.html" class="el_package">com.wedding.suite.controller</a> &gt; <span class="el_source">ReportController.java</span></div><h1>ReportController.java</h1><pre class="source lang-java linenums">package com.wedding.suite.controller;
+
+import com.wedding.suite.dto.ApiResponse;
+import com.wedding.suite.dto.response.FunnelDataVO;
+import com.wedding.suite.dto.response.RevenuePointVO;
+import com.wedding.suite.dto.response.ScoreDataVO;
+import com.wedding.suite.dto.response.SummaryVO;
+import com.wedding.suite.service.impl.ReportService;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping(&quot;/reports&quot;)
+public class ReportController {
+
+    private final ReportService reportService;
+
+<span class="nc" id="L19">    public ReportController(ReportService reportService) {</span>
+<span class="nc" id="L20">        this.reportService = reportService;</span>
+<span class="nc" id="L21">    }</span>
+
+    @GetMapping(&quot;/revenue&quot;)
+    public ApiResponse&lt;List&lt;RevenuePointVO&gt;&gt; revenue(@RequestParam(required = false) Long storeId) {
+<span class="nc" id="L25">        return ApiResponse.ok(reportService.revenue(storeId));</span>
+    }
+
+    @GetMapping(&quot;/funnel&quot;)
+    public ApiResponse&lt;List&lt;FunnelDataVO&gt;&gt; funnel() {
+<span class="nc" id="L30">        return ApiResponse.ok(reportService.funnel());</span>
+    }
+
+    @GetMapping(&quot;/satisfaction&quot;)
+    public ApiResponse&lt;List&lt;ScoreDataVO&gt;&gt; satisfaction() {
+<span class="nc" id="L35">        return ApiResponse.ok(reportService.satisfaction());</span>
+    }
+
+    @GetMapping(&quot;/summary&quot;)
+    public ApiResponse&lt;SummaryVO&gt; summary() {
+<span class="nc" id="L40">        return ApiResponse.ok(reportService.summary());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

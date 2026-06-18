@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FinanceController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">wedding-suite-backend</a> &gt; <a href="index.source.html" class="el_package">com.wedding.suite.controller</a> &gt; <span class="el_source">FinanceController.java</span></div><h1>FinanceController.java</h1><pre class="source lang-java linenums">package com.wedding.suite.controller;
+
+import com.wedding.suite.dto.ApiResponse;
+import com.wedding.suite.dto.response.MonthlyStatVO;
+import com.wedding.suite.dto.response.OverdueItemVO;
+import com.wedding.suite.entity.FinanceEntity;
+import com.wedding.suite.service.impl.FinanceService;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping(&quot;/finance&quot;)
+public class FinanceController {
+
+    private final FinanceService financeService;
+
+<span class="nc" id="L18">    public FinanceController(FinanceService financeService) {</span>
+<span class="nc" id="L19">        this.financeService = financeService;</span>
+<span class="nc" id="L20">    }</span>
+
+    @GetMapping(&quot;/wedding/{weddingId}&quot;)
+    public ApiResponse&lt;FinanceEntity&gt; wedding(@PathVariable Long weddingId) {
+<span class="nc" id="L24">        return ApiResponse.ok(financeService.wedding(weddingId));</span>
+    }
+
+    @GetMapping(&quot;/monthly&quot;)
+    public ApiResponse&lt;List&lt;MonthlyStatVO&gt;&gt; monthly(@RequestParam(required = false) Long storeId) {
+<span class="nc" id="L29">        return ApiResponse.ok(financeService.monthly(storeId));</span>
+    }
+
+    @GetMapping(&quot;/overdue&quot;)
+    public ApiResponse&lt;List&lt;OverdueItemVO&gt;&gt; overdue() {
+<span class="nc" id="L34">        return ApiResponse.ok(financeService.overdue());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

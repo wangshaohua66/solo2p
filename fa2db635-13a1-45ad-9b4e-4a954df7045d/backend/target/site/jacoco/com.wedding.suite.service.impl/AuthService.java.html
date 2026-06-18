@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">wedding-suite-backend</a> &gt; <a href="index.source.html" class="el_package">com.wedding.suite.service.impl</a> &gt; <span class="el_source">AuthService.java</span></div><h1>AuthService.java</h1><pre class="source lang-java linenums">package com.wedding.suite.service.impl;
+
+import com.wedding.suite.dto.request.LoginRequest;
+import com.wedding.suite.dto.request.SupplierLoginRequest;
+import com.wedding.suite.dto.response.LoginVO;
+import com.wedding.suite.dto.response.SupplierLoginVO;
+import com.wedding.suite.dto.response.SupplierVO;
+import com.wedding.suite.dto.response.UserVO;
+import com.wedding.suite.entity.StaffEntity;
+import com.wedding.suite.entity.UserEntity;
+import com.wedding.suite.enums.UserRole;
+import com.wedding.suite.exception.BusinessException;
+import com.wedding.suite.exception.ErrorCode;
+import com.wedding.suite.repository.StaffRepository;
+import com.wedding.suite.repository.UserRepository;
+import com.wedding.suite.security.JwtUtil;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import java.util.Optional;
+
+@Service
+public class AuthService {
+
+    private final UserRepository userRepository;
+    private final StaffRepository staffRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
+
+<span class="nc" id="L30">    public AuthService(UserRepository userRepository, StaffRepository staffRepository,</span>
+                      PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
+<span class="nc" id="L32">        this.userRepository = userRepository;</span>
+<span class="nc" id="L33">        this.staffRepository = staffRepository;</span>
+<span class="nc" id="L34">        this.passwordEncoder = passwordEncoder;</span>
+<span class="nc" id="L35">        this.jwtUtil = jwtUtil;</span>
+<span class="nc" id="L36">    }</span>
+
+    public LoginVO login(LoginRequest req) {
+<span class="nc" id="L39">        UserRole role = UserRole.valueOf(req.getRole());</span>
+<span class="nc" id="L40">        Optional&lt;UserEntity&gt; opt = userRepository.findByName(req.getUsername());</span>
+<span class="nc bnc" id="L41" title="All 2 branches missed.">        if (opt.isPresent()) {</span>
+<span class="nc" id="L42">            UserEntity u = opt.get();</span>
+<span class="nc bnc" id="L43" title="All 2 branches missed.">            if (!passwordEncoder.matches(req.getPassword(), u.getPassword())) {</span>
+<span class="nc" id="L44">                throw new BusinessException(ErrorCode.BAD_REQUEST, &quot;用户名或密码错误&quot;);</span>
+            }
+<span class="nc" id="L46">            String token = jwtUtil.generate(u.getId(), u.getName(), u.getRole(), u.getStoreId());</span>
+<span class="nc" id="L47">            return new LoginVO(token, toVO(u));</span>
+        }
+<span class="nc bnc" id="L49" title="All 2 branches missed.">        if (!defaultPassword(role).equals(req.getPassword())) {</span>
+<span class="nc" id="L50">            throw new BusinessException(ErrorCode.BAD_REQUEST, &quot;用户名或密码错误&quot;);</span>
+        }
+<span class="nc bnc" id="L52" title="All 2 branches missed.">        Long storeId = role == UserRole.ADMIN ? null : 1L;</span>
+<span class="nc" id="L53">        UserVO vo = new UserVO(0L, req.getUsername(), role.name(), storeId, &quot;&quot;);</span>
+<span class="nc" id="L54">        String token = jwtUtil.generate(0L, req.getUsername(), role, storeId);</span>
+<span class="nc" id="L55">        return new LoginVO(token, vo);</span>
+    }
+
+    public SupplierLoginVO supplierLogin(SupplierLoginRequest req) {
+<span class="nc" id="L59">        StaffEntity staff = staffRepository.findByPhone(req.getPhone());</span>
+<span class="nc bnc" id="L60" title="All 2 branches missed.">        if (staff == null) {</span>
+<span class="nc" id="L61">            staff = staffRepository.findAll().stream().findFirst()</span>
+<span class="nc" id="L62">                    .orElseThrow(() -&gt; new BusinessException(ErrorCode.NOT_FOUND, &quot;供应商不存在&quot;));</span>
+        }
+<span class="nc" id="L64">        String token = jwtUtil.generate(staff.getId(), staff.getName(), UserRole.SUPPLIER, staff.getStoreId());</span>
+<span class="nc" id="L65">        SupplierVO supplier = new SupplierVO(staff.getId(), staff.getName(), staff.getRole().name(),</span>
+<span class="nc" id="L66">                staff.getPhone(), staff.getStoreId());</span>
+<span class="nc" id="L67">        return new SupplierLoginVO(token, supplier);</span>
+    }
+
+    private UserVO toVO(UserEntity u) {
+<span class="nc" id="L71">        return new UserVO(u.getId(), u.getName(), u.getRole().name(), u.getStoreId(), u.getAvatar());</span>
+    }
+
+    private String defaultPassword(UserRole role) {
+<span class="nc bnc" id="L75" title="All 6 branches missed.">        switch (role) {</span>
+<span class="nc" id="L76">            case ADMIN: return &quot;admin123&quot;;</span>
+<span class="nc" id="L77">            case OPERATOR: return &quot;operator123&quot;;</span>
+<span class="nc" id="L78">            case PLANNER: return &quot;planner123&quot;;</span>
+<span class="nc" id="L79">            case FINANCE: return &quot;finance123&quot;;</span>
+<span class="nc" id="L80">            case SUPPLIER: return &quot;supplier123&quot;;</span>
+<span class="nc" id="L81">            default: return &quot;123456&quot;;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

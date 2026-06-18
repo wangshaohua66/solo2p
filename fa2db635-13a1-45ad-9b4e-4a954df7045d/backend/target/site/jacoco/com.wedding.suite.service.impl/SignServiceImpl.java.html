@@ -1,0 +1,349 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SignServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">wedding-suite-backend</a> &gt; <a href="index.source.html" class="el_package">com.wedding.suite.service.impl</a> &gt; <span class="el_source">SignServiceImpl.java</span></div><h1>SignServiceImpl.java</h1><pre class="source lang-java linenums">package com.wedding.suite.service.impl;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wedding.suite.config.SignProperties;
+import com.wedding.suite.dto.response.SignResultVO;
+import com.wedding.suite.entity.ContractEntity;
+import com.wedding.suite.exception.BusinessException;
+import com.wedding.suite.exception.ErrorCode;
+import com.wedding.suite.repository.ContractRepository;
+import com.wedding.suite.service.ExportService;
+import com.wedding.suite.service.SignService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.*;
+import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestTemplate;
+
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
+
+@Service
+public class SignServiceImpl implements SignService {
+
+<span class="fc" id="L31">    private static final Logger log = LoggerFactory.getLogger(SignServiceImpl.class);</span>
+
+    private final SignProperties props;
+    private final ContractRepository contractRepo;
+    private final ExportService exportService;
+    private final ObjectMapper objectMapper;
+    private final RestTemplate restTemplate;
+
+    private String cachedAccessToken;
+    private long tokenExpireTime;
+
+<span class="fc" id="L42">    public SignServiceImpl(SignProperties props, ContractRepository contractRepo,</span>
+                           ExportService exportService, ObjectMapper objectMapper) {
+<span class="fc" id="L44">        this.props = props;</span>
+<span class="fc" id="L45">        this.contractRepo = contractRepo;</span>
+<span class="fc" id="L46">        this.exportService = exportService;</span>
+<span class="fc" id="L47">        this.objectMapper = objectMapper;</span>
+<span class="fc" id="L48">        this.restTemplate = new RestTemplate();</span>
+<span class="fc" id="L49">    }</span>
+
+    @Override
+    public boolean isEnabled() {
+<span class="pc bpc" id="L53" title="1 of 4 branches missed.">        return props.getProvider() != null &amp;&amp; !&quot;none&quot;.equalsIgnoreCase(props.getProvider())</span>
+<span class="pc bpc" id="L54" title="2 of 4 branches missed.">                &amp;&amp; props.getEsign().getAppId() != null &amp;&amp; !props.getEsign().getAppId().isEmpty()</span>
+<span class="pc bpc" id="L55" title="2 of 4 branches missed.">                &amp;&amp; props.getEsign().getAppSecret() != null &amp;&amp; !props.getEsign().getAppSecret().isEmpty();</span>
+    }
+
+    private synchronized String getAccessToken() {
+<span class="pc bpc" id="L59" title="1 of 4 branches missed.">        if (cachedAccessToken != null &amp;&amp; System.currentTimeMillis() &lt; tokenExpireTime) {</span>
+<span class="fc" id="L60">            return cachedAccessToken;</span>
+        }
+<span class="pc bpc" id="L62" title="1 of 2 branches missed.">        if (!isEnabled()) {</span>
+<span class="nc" id="L63">            throw new BusinessException(ErrorCode.SIGN_INIT_FAILED, &quot;电子签名服务未配置 appId/appSecret&quot;);</span>
+        }
+
+        try {
+<span class="fc" id="L67">            String url = props.getEsign().getBaseUrl() + &quot;/v1/oauth2/access_token&quot;;</span>
+<span class="fc" id="L68">            MultiValueMap&lt;String, String&gt; params = new LinkedMultiValueMap&lt;&gt;();</span>
+<span class="fc" id="L69">            params.add(&quot;grant_type&quot;, &quot;client_credentials&quot;);</span>
+<span class="fc" id="L70">            params.add(&quot;app_id&quot;, props.getEsign().getAppId());</span>
+<span class="fc" id="L71">            params.add(&quot;app_secret&quot;, props.getEsign().getAppSecret());</span>
+
+<span class="fc" id="L73">            HttpHeaders headers = new HttpHeaders();</span>
+<span class="fc" id="L74">            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);</span>
+<span class="fc" id="L75">            HttpEntity&lt;MultiValueMap&lt;String, String&gt;&gt; request = new HttpEntity&lt;&gt;(params, headers);</span>
+
+<span class="fc" id="L77">            ResponseEntity&lt;String&gt; response = restTemplate.postForEntity(url, request, String.class);</span>
+<span class="fc" id="L78">            JsonNode body = objectMapper.readTree(response.getBody());</span>
+
+<span class="fc bfc" id="L80" title="All 2 branches covered.">            if (body.has(&quot;access_token&quot;)) {</span>
+<span class="fc" id="L81">                cachedAccessToken = body.get(&quot;access_token&quot;).asText();</span>
+<span class="fc" id="L82">                int expiresIn = body.path(&quot;expires_in&quot;).asInt(7200);</span>
+<span class="fc" id="L83">                tokenExpireTime = System.currentTimeMillis() + (expiresIn - 300) * 1000L;</span>
+<span class="fc" id="L84">                log.info(&quot;[e签宝] 获取 access_token 成功，有效期 {} 秒&quot;, expiresIn);</span>
+<span class="fc" id="L85">                return cachedAccessToken;</span>
+            } else {
+<span class="fc" id="L87">                throw new BusinessException(ErrorCode.SIGN_INIT_FAILED,</span>
+<span class="fc" id="L88">                        &quot;获取 access_token 失败: &quot; + body.path(&quot;msg&quot;).asText(&quot;未知错误&quot;));</span>
+            }
+<span class="fc" id="L90">        } catch (BusinessException e) {</span>
+<span class="fc" id="L91">            throw e;</span>
+<span class="fc" id="L92">        } catch (Exception e) {</span>
+<span class="fc" id="L93">            log.error(&quot;[e签宝] 获取 access_token 异常&quot;, e);</span>
+<span class="fc" id="L94">            throw new BusinessException(ErrorCode.SIGN_INIT_FAILED, &quot;获取 access_token 失败: &quot; + e.getMessage());</span>
+        }
+    }
+
+    @Override
+    public SignResultVO createSignFlow(Long contractId, String signerName, String signerPhone) {
+<span class="fc" id="L100">        ContractEntity c = contractRepo.findById(contractId)</span>
+<span class="fc" id="L101">                .orElseThrow(() -&gt; new BusinessException(ErrorCode.NOT_FOUND, &quot;合同不存在&quot;));</span>
+
+<span class="pc bpc" id="L103" title="1 of 2 branches missed.">        if (!isEnabled()) {</span>
+<span class="fc" id="L104">            String url = props.getEsign().getBaseUrl() + &quot;/sign/&quot; + contractId;</span>
+<span class="fc" id="L105">            log.info(&quot;[Sign disabled] 合同#{} 生成占位签署链接&quot;, contractId);</span>
+<span class="fc" id="L106">            return new SignResultVO(&quot;flow-&quot; + contractId, url, &quot;MANUAL&quot;,</span>
+<span class="fc" id="L107">                    &quot;TODO: 未配置电子签名服务，当前返回占位链接，请在 application.yml 中配置 wedding.sign.esign.app-id 和 app-secret 后启用真实签署流程&quot;);</span>
+        }
+
+        try {
+<span class="nc" id="L111">            byte[] pdfContent = exportService.exportContractPdf(contractId);</span>
+<span class="nc" id="L112">            String fileMd5 = computeMD5(pdfContent);</span>
+
+<span class="nc" id="L114">            String fileKey = uploadFile(pdfContent, fileMd5, &quot;合同-&quot; + contractId + &quot;.pdf&quot;);</span>
+<span class="nc" id="L115">            String flowId = createSignFlowByFile(fileKey, fileMd5, contractId, signerName, signerPhone);</span>
+<span class="nc" id="L116">            String signUrl = getSignUrl(flowId, signerName, signerPhone);</span>
+
+<span class="nc" id="L118">            log.info(&quot;[e签宝] 合同#{} 创建签署流程成功 flowId={}&quot;, contractId, flowId);</span>
+<span class="nc" id="L119">            return new SignResultVO(flowId, signUrl, &quot;PENDING&quot;,</span>
+<span class="nc" id="L120">                    &quot;已发起电子签署流程，请签署人点击链接完成签署：&quot; + signerName + &quot;(&quot; + signerPhone + &quot;)&quot;);</span>
+<span class="nc" id="L121">        } catch (BusinessException e) {</span>
+<span class="nc" id="L122">            throw e;</span>
+<span class="nc" id="L123">        } catch (Exception e) {</span>
+<span class="nc" id="L124">            log.error(&quot;[e签宝] 合同#{} 创建签署流程异常&quot;, contractId, e);</span>
+<span class="nc" id="L125">            throw new BusinessException(ErrorCode.SIGN_INIT_FAILED, &quot;电子签名发起失败: &quot; + e.getMessage());</span>
+        }
+    }
+
+    private String uploadFile(byte[] fileContent, String fileMd5, String fileName) throws Exception {
+<span class="nc" id="L130">        String token = getAccessToken();</span>
+<span class="nc" id="L131">        String url = props.getEsign().getBaseUrl() + &quot;/v2/files/get-upload-url&quot;;</span>
+
+<span class="nc" id="L133">        Map&lt;String, Object&gt; body = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L134">        body.put(&quot;contentMd5&quot;, fileMd5);</span>
+<span class="nc" id="L135">        body.put(&quot;contentType&quot;, &quot;application/pdf&quot;);</span>
+<span class="nc" id="L136">        body.put(&quot;fileName&quot;, fileName);</span>
+<span class="nc" id="L137">        body.put(&quot;fileSize&quot;, fileContent.length);</span>
+<span class="nc" id="L138">        body.put(&quot;convert2Pdf&quot;, false);</span>
+
+<span class="nc" id="L140">        HttpHeaders headers = new HttpHeaders();</span>
+<span class="nc" id="L141">        headers.setContentType(MediaType.APPLICATION_JSON);</span>
+<span class="nc" id="L142">        headers.set(&quot;X-Tsign-Open-App-Id&quot;, props.getEsign().getAppId());</span>
+<span class="nc" id="L143">        headers.set(&quot;X-Tsign-Open-Token&quot;, token);</span>
+<span class="nc" id="L144">        HttpEntity&lt;Map&lt;String, Object&gt;&gt; request = new HttpEntity&lt;&gt;(body, headers);</span>
+
+<span class="nc" id="L146">        ResponseEntity&lt;String&gt; response = restTemplate.postForEntity(url, request, String.class);</span>
+<span class="nc" id="L147">        JsonNode resp = objectMapper.readTree(response.getBody());</span>
+
+<span class="nc bnc" id="L149" title="All 2 branches missed.">        if (!resp.path(&quot;code&quot;).asText().equals(&quot;0&quot;)) {</span>
+<span class="nc" id="L150">            throw new BusinessException(ErrorCode.SIGN_INIT_FAILED,</span>
+<span class="nc" id="L151">                    &quot;获取文件上传地址失败: &quot; + resp.path(&quot;message&quot;).asText(&quot;未知错误&quot;));</span>
+        }
+
+<span class="nc" id="L154">        String uploadUrl = resp.path(&quot;data&quot;).path(&quot;uploadUrl&quot;).asText();</span>
+<span class="nc" id="L155">        String fileKey = resp.path(&quot;data&quot;).path(&quot;fileKey&quot;).asText();</span>
+
+<span class="nc" id="L157">        HttpHeaders uploadHeaders = new HttpHeaders();</span>
+<span class="nc" id="L158">        uploadHeaders.setContentType(MediaType.APPLICATION_PDF);</span>
+<span class="nc" id="L159">        uploadHeaders.set(&quot;Content-MD5&quot;, fileMd5);</span>
+<span class="nc" id="L160">        HttpEntity&lt;byte[]&gt; uploadRequest = new HttpEntity&lt;&gt;(fileContent, uploadHeaders);</span>
+<span class="nc" id="L161">        restTemplate.put(uploadUrl, uploadRequest);</span>
+
+<span class="nc" id="L163">        log.info(&quot;[e签宝] 文件上传成功 fileKey={}, size={}&quot;, fileKey, fileContent.length);</span>
+<span class="nc" id="L164">        return fileKey;</span>
+    }
+
+    private String createSignFlowByFile(String fileKey, String fileMd5, Long contractId,
+                                         String signerName, String signerPhone) throws Exception {
+<span class="nc" id="L169">        String token = getAccessToken();</span>
+<span class="nc" id="L170">        String url = props.getEsign().getBaseUrl() + &quot;/v3/sign-flow/create-by-file&quot;;</span>
+
+<span class="nc" id="L172">        Map&lt;String, Object&gt; doc = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L173">        doc.put(&quot;fileId&quot;, fileKey);</span>
+<span class="nc" id="L174">        doc.put(&quot;fileName&quot;, &quot;合同-&quot; + contractId + &quot;.pdf&quot;);</span>
+<span class="nc" id="L175">        doc.put(&quot;fileMd5&quot;, fileMd5);</span>
+<span class="nc" id="L176">        doc.put(&quot;encryption&quot;, &quot;&quot;);</span>
+
+<span class="nc" id="L178">        Map&lt;String, Object&gt; signer = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L179">        signer.put(&quot;signerType&quot;, 1);</span>
+<span class="nc" id="L180">        signer.put(&quot;signerAccountName&quot;, signerName);</span>
+
+<span class="nc" id="L182">        Map&lt;String, Object&gt; signField = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L183">        signField.put(&quot;fileId&quot;, fileKey);</span>
+<span class="nc" id="L184">        signField.put(&quot;signerType&quot;, 1);</span>
+<span class="nc" id="L185">        signField.put(&quot;signerAccountName&quot;, signerName);</span>
+<span class="nc" id="L186">        signField.put(&quot;mobile&quot;, signerPhone);</span>
+
+<span class="nc" id="L188">        Map&lt;String, Object&gt; normalSignField = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L189">        normalSignField.put(&quot;movable&quot;, false);</span>
+<span class="nc" id="L190">        normalSignField.put(&quot;signFieldType&quot;, 2);</span>
+
+<span class="nc" id="L192">        Map&lt;String, Object&gt; posBean = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L193">        posBean.put(&quot;posPage&quot;, &quot;1&quot;);</span>
+<span class="nc" id="L194">        posBean.put(&quot;posX&quot;, 400.0);</span>
+<span class="nc" id="L195">        posBean.put(&quot;posY&quot;, 150.0);</span>
+<span class="nc" id="L196">        posBean.put(&quot;width&quot;, 150.0);</span>
+<span class="nc" id="L197">        normalSignField.put(&quot;posBean&quot;, posBean);</span>
+<span class="nc" id="L198">        signField.put(&quot;normalSignField&quot;, normalSignField);</span>
+<span class="nc" id="L199">        signer.put(&quot;signFields&quot;, new Map[]{signField});</span>
+
+<span class="nc" id="L201">        Map&lt;String, Object&gt; body = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L202">        body.put(&quot;docs&quot;, new Map[]{doc});</span>
+<span class="nc" id="L203">        body.put(&quot;signers&quot;, new Map[]{signer});</span>
+<span class="nc" id="L204">        body.put(&quot;autoSign&quot;, false);</span>
+<span class="nc" id="L205">        body.put(&quot;signFlowConfig&quot;, Map.of(</span>
+<span class="nc" id="L206">                &quot;signFlowTitle&quot;, &quot;婚礼服务合同签署&quot;,</span>
+<span class="nc" id="L207">                &quot;notifyDeveloperUrl&quot;, &quot;/api/esign/callback&quot;</span>
+        ));
+
+<span class="nc" id="L210">        HttpHeaders headers = new HttpHeaders();</span>
+<span class="nc" id="L211">        headers.setContentType(MediaType.APPLICATION_JSON);</span>
+<span class="nc" id="L212">        headers.set(&quot;X-Tsign-Open-App-Id&quot;, props.getEsign().getAppId());</span>
+<span class="nc" id="L213">        headers.set(&quot;X-Tsign-Open-Token&quot;, token);</span>
+<span class="nc" id="L214">        HttpEntity&lt;Map&lt;String, Object&gt;&gt; request = new HttpEntity&lt;&gt;(body, headers);</span>
+
+<span class="nc" id="L216">        ResponseEntity&lt;String&gt; response = restTemplate.postForEntity(url, request, String.class);</span>
+<span class="nc" id="L217">        JsonNode resp = objectMapper.readTree(response.getBody());</span>
+
+<span class="nc bnc" id="L219" title="All 2 branches missed.">        if (!resp.path(&quot;code&quot;).asText().equals(&quot;0&quot;)) {</span>
+<span class="nc" id="L220">            throw new BusinessException(ErrorCode.SIGN_INIT_FAILED,</span>
+<span class="nc" id="L221">                    &quot;创建签署流程失败: &quot; + resp.path(&quot;message&quot;).asText(&quot;未知错误&quot;));</span>
+        }
+
+<span class="nc" id="L224">        String flowId = resp.path(&quot;data&quot;).path(&quot;signFlowId&quot;).asText();</span>
+
+<span class="nc" id="L226">        String startUrl = props.getEsign().getBaseUrl() + &quot;/v3/sign-flow/&quot; + flowId + &quot;/start&quot;;</span>
+<span class="nc" id="L227">        HttpEntity&lt;Void&gt; startRequest = new HttpEntity&lt;&gt;(headers);</span>
+<span class="nc" id="L228">        restTemplate.postForEntity(startUrl, startRequest, String.class);</span>
+<span class="nc" id="L229">        log.info(&quot;[e签宝] 签署流程已启动 flowId={}&quot;, flowId);</span>
+
+<span class="nc" id="L231">        return flowId;</span>
+    }
+
+    private String getSignUrl(String flowId, String signerName, String signerPhone) throws Exception {
+<span class="nc" id="L235">        String token = getAccessToken();</span>
+<span class="nc" id="L236">        String url = props.getEsign().getBaseUrl() + &quot;/v3/sign-flow/&quot; + flowId + &quot;/sign-urls&quot;;</span>
+
+<span class="nc" id="L238">        Map&lt;String, Object&gt; body = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L239">        body.put(&quot;needLogin&quot;, false);</span>
+<span class="nc" id="L240">        body.put(&quot;signerAccountName&quot;, signerName);</span>
+<span class="nc" id="L241">        body.put(&quot;signerMobile&quot;, signerPhone);</span>
+<span class="nc" id="L242">        body.put(&quot;flowId&quot;, flowId);</span>
+<span class="nc" id="L243">        body.put(&quot;appScheme&quot;, &quot;&quot;);</span>
+<span class="nc" id="L244">        body.put(&quot;urlType&quot;, &quot;&quot;);</span>
+
+<span class="nc" id="L246">        HttpHeaders headers = new HttpHeaders();</span>
+<span class="nc" id="L247">        headers.setContentType(MediaType.APPLICATION_JSON);</span>
+<span class="nc" id="L248">        headers.set(&quot;X-Tsign-Open-App-Id&quot;, props.getEsign().getAppId());</span>
+<span class="nc" id="L249">        headers.set(&quot;X-Tsign-Open-Token&quot;, token);</span>
+<span class="nc" id="L250">        HttpEntity&lt;Map&lt;String, Object&gt;&gt; request = new HttpEntity&lt;&gt;(body, headers);</span>
+
+<span class="nc" id="L252">        ResponseEntity&lt;String&gt; response = restTemplate.postForEntity(url, request, String.class);</span>
+<span class="nc" id="L253">        JsonNode resp = objectMapper.readTree(response.getBody());</span>
+
+<span class="nc bnc" id="L255" title="All 2 branches missed.">        if (!resp.path(&quot;code&quot;).asText().equals(&quot;0&quot;)) {</span>
+<span class="nc" id="L256">            throw new BusinessException(ErrorCode.SIGN_INIT_FAILED,</span>
+<span class="nc" id="L257">                    &quot;获取签署链接失败: &quot; + resp.path(&quot;message&quot;).asText(&quot;未知错误&quot;));</span>
+        }
+
+<span class="nc" id="L260">        return resp.path(&quot;data&quot;).path(&quot;url&quot;).asText();</span>
+    }
+
+    @Override
+    public SignResultVO queryStatus(String flowId) {
+<span class="fc bfc" id="L265" title="All 2 branches covered.">        if (flowId.startsWith(&quot;flow-&quot;)) {</span>
+<span class="fc" id="L266">            return new SignResultVO(flowId, null, &quot;PENDING&quot;,</span>
+<span class="fc" id="L267">                    &quot;TODO: 占位签署流程无真实状态查询，请配置电子签名服务后使用真实 flowId&quot;);</span>
+        }
+
+        try {
+<span class="fc" id="L271">            String token = getAccessToken();</span>
+<span class="fc" id="L272">            String url = props.getEsign().getBaseUrl() + &quot;/v3/sign-flow/&quot; + flowId;</span>
+
+<span class="fc" id="L274">            HttpHeaders headers = new HttpHeaders();</span>
+<span class="fc" id="L275">            headers.set(&quot;X-Tsign-Open-App-Id&quot;, props.getEsign().getAppId());</span>
+<span class="fc" id="L276">            headers.set(&quot;X-Tsign-Open-Token&quot;, token);</span>
+<span class="fc" id="L277">            HttpEntity&lt;Void&gt; request = new HttpEntity&lt;&gt;(headers);</span>
+
+<span class="fc" id="L279">            ResponseEntity&lt;String&gt; response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);</span>
+<span class="fc" id="L280">            JsonNode resp = objectMapper.readTree(response.getBody());</span>
+
+<span class="pc bpc" id="L282" title="1 of 2 branches missed.">            if (!resp.path(&quot;code&quot;).asText().equals(&quot;0&quot;)) {</span>
+<span class="nc" id="L283">                throw new BusinessException(ErrorCode.SIGN_INIT_FAILED,</span>
+<span class="nc" id="L284">                        &quot;查询签署状态失败: &quot; + resp.path(&quot;message&quot;).asText(&quot;未知错误&quot;));</span>
+            }
+
+<span class="fc" id="L287">            String status = resp.path(&quot;data&quot;).path(&quot;signFlowStatus&quot;).asText();</span>
+<span class="pc bpc" id="L288" title="6 of 7 branches missed.">            String statusDesc = switch (status) {</span>
+<span class="nc" id="L289">                case &quot;0&quot; -&gt; &quot;草稿&quot;;</span>
+<span class="nc" id="L290">                case &quot;1&quot; -&gt; &quot;签署中&quot;;</span>
+<span class="fc" id="L291">                case &quot;2&quot; -&gt; &quot;已完成&quot;;</span>
+<span class="nc" id="L292">                case &quot;3&quot; -&gt; &quot;已作废&quot;;</span>
+<span class="nc" id="L293">                case &quot;4&quot; -&gt; &quot;已过期&quot;;</span>
+<span class="nc" id="L294">                case &quot;5&quot; -&gt; &quot;已拒签&quot;;</span>
+<span class="nc" id="L295">                default -&gt; &quot;未知状态&quot;;</span>
+            };
+
+<span class="pc bpc" id="L298" title="1 of 2 branches missed.">            String statusCode = &quot;2&quot;.equals(status) ? &quot;SIGNED&quot; : &quot;PENDING&quot;;</span>
+<span class="fc" id="L299">            return new SignResultVO(flowId, null, statusCode, statusDesc);</span>
+
+<span class="fc" id="L301">        } catch (BusinessException e) {</span>
+<span class="fc" id="L302">            throw e;</span>
+<span class="nc" id="L303">        } catch (Exception e) {</span>
+<span class="nc" id="L304">            log.error(&quot;[e签宝] 查询签署状态异常 flowId={}&quot;, flowId, e);</span>
+<span class="nc" id="L305">            throw new BusinessException(ErrorCode.SIGN_INIT_FAILED, &quot;查询签署状态失败: &quot; + e.getMessage());</span>
+        }
+    }
+
+    @Override
+    public String downloadSignedFileUrl(String flowId) {
+<span class="fc bfc" id="L311" title="All 2 branches covered.">        if (flowId.startsWith(&quot;flow-&quot;)) {</span>
+            // TODO: 未配置电子签名服务，当前返回占位下载链接，请配置电子签名服务后使用真实 flowId
+<span class="fc" id="L313">            return props.getEsign().getBaseUrl() + &quot;/download/&quot; + flowId;</span>
+        }
+
+        try {
+<span class="fc" id="L317">            String token = getAccessToken();</span>
+<span class="fc" id="L318">            String url = props.getEsign().getBaseUrl() + &quot;/v3/sign-flow/&quot; + flowId + &quot;/download-url&quot;;</span>
+
+<span class="fc" id="L320">            HttpHeaders headers = new HttpHeaders();</span>
+<span class="fc" id="L321">            headers.set(&quot;X-Tsign-Open-App-Id&quot;, props.getEsign().getAppId());</span>
+<span class="fc" id="L322">            headers.set(&quot;X-Tsign-Open-Token&quot;, token);</span>
+<span class="fc" id="L323">            HttpEntity&lt;Void&gt; request = new HttpEntity&lt;&gt;(headers);</span>
+
+<span class="fc" id="L325">            ResponseEntity&lt;String&gt; response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);</span>
+<span class="fc" id="L326">            JsonNode resp = objectMapper.readTree(response.getBody());</span>
+
+<span class="pc bpc" id="L328" title="1 of 2 branches missed.">            if (!resp.path(&quot;code&quot;).asText().equals(&quot;0&quot;)) {</span>
+<span class="nc" id="L329">                throw new BusinessException(ErrorCode.SIGN_INIT_FAILED,</span>
+<span class="nc" id="L330">                        &quot;获取签署文件下载地址失败: &quot; + resp.path(&quot;message&quot;).asText(&quot;未知错误&quot;));</span>
+            }
+
+<span class="fc" id="L333">            return resp.path(&quot;data&quot;).path(&quot;downloadUrl&quot;).asText();</span>
+
+<span class="fc" id="L335">        } catch (BusinessException e) {</span>
+<span class="fc" id="L336">            throw e;</span>
+<span class="nc" id="L337">        } catch (Exception e) {</span>
+<span class="nc" id="L338">            log.error(&quot;[e签宝] 获取下载地址异常 flowId={}&quot;, flowId, e);</span>
+<span class="nc" id="L339">            throw new BusinessException(ErrorCode.SIGN_INIT_FAILED, &quot;获取下载地址失败: &quot; + e.getMessage());</span>
+        }
+    }
+
+    private String computeMD5(byte[] content) throws Exception {
+<span class="nc" id="L344">        MessageDigest md = MessageDigest.getInstance(&quot;MD5&quot;);</span>
+<span class="nc" id="L345">        byte[] digest = md.digest(content);</span>
+<span class="nc" id="L346">        return Base64.getEncoder().encodeToString(digest);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

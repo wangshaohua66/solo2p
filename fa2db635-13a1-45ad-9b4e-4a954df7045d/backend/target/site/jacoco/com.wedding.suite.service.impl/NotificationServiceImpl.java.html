@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NotificationServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">wedding-suite-backend</a> &gt; <a href="index.source.html" class="el_package">com.wedding.suite.service.impl</a> &gt; <span class="el_source">NotificationServiceImpl.java</span></div><h1>NotificationServiceImpl.java</h1><pre class="source lang-java linenums">package com.wedding.suite.service.impl;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wedding.suite.entity.NotificationEntity;
+import com.wedding.suite.entity.UserEntity;
+import com.wedding.suite.enums.NotificationType;
+import com.wedding.suite.repository.NotificationRepository;
+import com.wedding.suite.repository.UserRepository;
+import com.wedding.suite.service.NotificationService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+@Service
+public class NotificationServiceImpl implements NotificationService {
+
+<span class="nc" id="L25">    private static final Logger log = LoggerFactory.getLogger(NotificationServiceImpl.class);</span>
+
+    private final NotificationRepository repo;
+    private final UserRepository userRepo;
+    private final ObjectMapper objectMapper;
+<span class="nc" id="L30">    private final Map&lt;Long, List&lt;SseEmitter&gt;&gt; emitters = new ConcurrentHashMap&lt;&gt;();</span>
+
+<span class="nc" id="L32">    public NotificationServiceImpl(NotificationRepository repo, UserRepository userRepo, ObjectMapper objectMapper) {</span>
+<span class="nc" id="L33">        this.repo = repo;</span>
+<span class="nc" id="L34">        this.userRepo = userRepo;</span>
+<span class="nc" id="L35">        this.objectMapper = objectMapper;</span>
+<span class="nc" id="L36">    }</span>
+
+    public SseEmitter register(Long userId) {
+<span class="nc" id="L39">        SseEmitter emitter = new SseEmitter(0L);</span>
+<span class="nc" id="L40">        emitters.computeIfAbsent(userId, k -&gt; new CopyOnWriteArrayList&lt;&gt;()).add(emitter);</span>
+<span class="nc" id="L41">        emitter.onCompletion(() -&gt; remove(userId, emitter));</span>
+<span class="nc" id="L42">        emitter.onTimeout(() -&gt; {</span>
+<span class="nc" id="L43">            remove(userId, emitter);</span>
+<span class="nc" id="L44">            emitter.complete();</span>
+<span class="nc" id="L45">        });</span>
+<span class="nc" id="L46">        emitter.onError(e -&gt; remove(userId, emitter));</span>
+<span class="nc" id="L47">        return emitter;</span>
+    }
+
+    @Override
+    @Transactional
+    public void push(Long userId, String title, String content, NotificationType type, String bizType, Long bizId) {
+<span class="nc" id="L53">        NotificationEntity n = NotificationEntity.builder()</span>
+<span class="nc" id="L54">                .userId(userId).title(title).content(content).type(type)</span>
+<span class="nc" id="L55">                .bizType(bizType).bizId(bizId).readFlag(false).build();</span>
+<span class="nc" id="L56">        repo.save(n);</span>
+<span class="nc" id="L57">        sendSse(userId, n);</span>
+<span class="nc" id="L58">    }</span>
+
+    @Override
+    @Transactional
+    public void broadcast(String title, String content, NotificationType type) {
+<span class="nc" id="L63">        List&lt;UserEntity&gt; users = userRepo.findAll();</span>
+<span class="nc bnc" id="L64" title="All 2 branches missed.">        for (UserEntity u : users) {</span>
+<span class="nc" id="L65">            NotificationEntity n = NotificationEntity.builder()</span>
+<span class="nc" id="L66">                    .userId(u.getId()).title(title).content(content).type(type).readFlag(false).build();</span>
+<span class="nc" id="L67">            repo.save(n);</span>
+<span class="nc" id="L68">            sendSse(u.getId(), n);</span>
+        }
+<span class="nc" id="L70">    }</span>
+
+    @Override
+    public List&lt;NotificationEntity&gt; listMine(Long userId) {
+<span class="nc" id="L74">        return repo.findByUserIdOrderByCreatedAtDesc(userId);</span>
+    }
+
+    @Override
+    public long unreadCount(Long userId) {
+<span class="nc" id="L79">        return repo.findByUserIdOrderByCreatedAtDesc(userId).stream()</span>
+<span class="nc bnc" id="L80" title="All 2 branches missed.">                .filter(n -&gt; !Boolean.TRUE.equals(n.getReadFlag())).count();</span>
+    }
+
+    @Override
+    @Transactional
+    public void markRead(Long id) {
+<span class="nc" id="L86">        repo.findById(id).ifPresent(n -&gt; {</span>
+<span class="nc" id="L87">            n.setReadFlag(true);</span>
+<span class="nc" id="L88">            repo.save(n);</span>
+<span class="nc" id="L89">        });</span>
+<span class="nc" id="L90">    }</span>
+
+    @Override
+    @Transactional
+    public void markAllRead(Long userId) {
+<span class="nc" id="L95">        repo.findByUserIdOrderByCreatedAtDesc(userId).forEach(n -&gt; {</span>
+<span class="nc" id="L96">            n.setReadFlag(true);</span>
+<span class="nc" id="L97">            repo.save(n);</span>
+<span class="nc" id="L98">        });</span>
+<span class="nc" id="L99">    }</span>
+
+    private void sendSse(Long userId, NotificationEntity n) {
+<span class="nc" id="L102">        List&lt;SseEmitter&gt; list = emitters.get(userId);</span>
+<span class="nc bnc" id="L103" title="All 2 branches missed.">        if (list == null) return;</span>
+        String payload;
+        try {
+<span class="nc" id="L106">            payload = objectMapper.writeValueAsString(n);</span>
+<span class="nc" id="L107">        } catch (Exception e) {</span>
+<span class="nc" id="L108">            return;</span>
+        }
+<span class="nc bnc" id="L110" title="All 2 branches missed.">        for (SseEmitter e : list) {</span>
+            try {
+<span class="nc" id="L112">                e.send(SseEmitter.event().name(&quot;notification&quot;).data(payload));</span>
+<span class="nc" id="L113">            } catch (IOException ex) {</span>
+<span class="nc" id="L114">                remove(userId, e);</span>
+            }
+        }
+<span class="nc" id="L117">    }</span>
+
+    private void remove(Long userId, SseEmitter emitter) {
+<span class="nc" id="L120">        List&lt;SseEmitter&gt; list = emitters.get(userId);</span>
+<span class="nc bnc" id="L121" title="All 2 branches missed.">        if (list != null) {</span>
+<span class="nc" id="L122">            list.remove(emitter);</span>
+        }
+<span class="nc" id="L124">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

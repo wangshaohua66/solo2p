@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ScheduleConflictDetector.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">wedding-suite-backend</a> &gt; <a href="index.source.html" class="el_package">com.wedding.suite.util</a> &gt; <span class="el_source">ScheduleConflictDetector.java</span></div><h1>ScheduleConflictDetector.java</h1><pre class="source lang-java linenums">package com.wedding.suite.util;
+
+import com.wedding.suite.dto.response.ResourceVO;
+import com.wedding.suite.entity.ScheduleTaskEntity;
+import com.wedding.suite.enums.ResourceType;
+import org.springframework.stereotype.Component;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@Component
+<span class="fc" id="L18">public class ScheduleConflictDetector {</span>
+
+    public static boolean overlap(LocalDateTime aStart, LocalDateTime aEnd,
+                                   LocalDateTime bStart, LocalDateTime bEnd) {
+<span class="pc bpc" id="L22" title="1 of 4 branches missed.">        return aStart.isBefore(bEnd) &amp;&amp; bStart.isBefore(aEnd);</span>
+    }
+
+    private static final class IndexKey {
+        final ResourceType type;
+        final Long resourceId;
+
+<span class="fc" id="L29">        IndexKey(ResourceType type, Long resourceId) {</span>
+<span class="fc" id="L30">            this.type = type;</span>
+<span class="fc" id="L31">            this.resourceId = resourceId;</span>
+<span class="fc" id="L32">        }</span>
+
+        @Override
+        public boolean equals(Object o) {
+<span class="pc bpc" id="L36" title="1 of 2 branches missed.">            if (this == o) return true;</span>
+<span class="pc bpc" id="L37" title="1 of 2 branches missed.">            if (!(o instanceof IndexKey)) return false;</span>
+<span class="fc" id="L38">            IndexKey that = (IndexKey) o;</span>
+<span class="pc bpc" id="L39" title="2 of 4 branches missed.">            return type == that.type &amp;&amp; resourceId.equals(that.resourceId);</span>
+        }
+
+        @Override
+        public int hashCode() {
+<span class="fc" id="L44">            return 31 * type.hashCode() + resourceId.hashCode();</span>
+        }
+    }
+
+    private Map&lt;IndexKey, List&lt;ScheduleTaskEntity&gt;&gt; buildIndex(List&lt;ScheduleTaskEntity&gt; tasks) {
+<span class="pc bpc" id="L49" title="2 of 4 branches missed.">        if (tasks == null || tasks.isEmpty()) {</span>
+<span class="nc" id="L50">            return Collections.emptyMap();</span>
+        }
+<span class="fc" id="L52">        Map&lt;IndexKey, List&lt;ScheduleTaskEntity&gt;&gt; map = new HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L53" title="All 2 branches covered.">        for (ScheduleTaskEntity t : tasks) {</span>
+<span class="fc" id="L54">            IndexKey k = new IndexKey(t.getResourceType(), t.getResourceId());</span>
+<span class="fc" id="L55">            map.computeIfAbsent(k, _k -&gt; new ArrayList&lt;&gt;()).add(t);</span>
+        }
+<span class="fc bfc" id="L57" title="All 2 branches covered.">        for (var entry : map.entrySet()) {</span>
+<span class="fc" id="L58">            List&lt;ScheduleTaskEntity&gt; list = entry.getValue();</span>
+<span class="fc" id="L59">            list.sort(Comparator.comparing(ScheduleTaskEntity::getStartTime));</span>
+        }
+<span class="fc" id="L61">        return map;</span>
+    }
+
+    private int binarySearchFirstEndAfter(List&lt;ScheduleTaskEntity&gt; sorted, LocalDateTime end) {
+<span class="fc" id="L65">        int lo = 0, hi = sorted.size();</span>
+<span class="fc bfc" id="L66" title="All 2 branches covered.">        while (lo &lt; hi) {</span>
+<span class="fc" id="L67">            int mid = (lo + hi) &gt;&gt;&gt; 1;</span>
+<span class="fc bfc" id="L68" title="All 2 branches covered.">            if (sorted.get(mid).getEndTime().isAfter(end)) {</span>
+<span class="fc" id="L69">                hi = mid;</span>
+<span class="fc" id="L70">            } else {</span>
+<span class="fc" id="L71">                lo = mid + 1;</span>
+            }
+        }
+<span class="fc" id="L74">        return lo;</span>
+    }
+
+    public List&lt;ScheduleTaskEntity&gt; detectConflict(List&lt;ScheduleTaskEntity&gt; tasks, ResourceType type,
+                                                   Long resourceId, LocalDateTime start, LocalDateTime end) {
+<span class="pc bpc" id="L79" title="2 of 4 branches missed.">        if (tasks == null || tasks.isEmpty()) {</span>
+<span class="nc" id="L80">            return Collections.emptyList();</span>
+        }
+<span class="fc" id="L82">        Map&lt;IndexKey, List&lt;ScheduleTaskEntity&gt;&gt; idx = buildIndex(tasks);</span>
+<span class="fc" id="L83">        List&lt;ScheduleTaskEntity&gt; bucket = idx.get(new IndexKey(type, resourceId));</span>
+<span class="pc bpc" id="L84" title="1 of 4 branches missed.">        if (bucket == null || bucket.isEmpty()) {</span>
+<span class="fc" id="L85">            return Collections.emptyList();</span>
+        }
+<span class="fc" id="L87">        int from = binarySearchFirstEndAfter(bucket, start);</span>
+<span class="fc" id="L88">        List&lt;ScheduleTaskEntity&gt; result = new ArrayList&lt;&gt;();</span>
+<span class="pc bpc" id="L89" title="1 of 2 branches missed.">        for (int i = from; i &lt; bucket.size(); i++) {</span>
+<span class="fc" id="L90">            ScheduleTaskEntity t = bucket.get(i);</span>
+<span class="fc bfc" id="L91" title="All 2 branches covered.">            if (!t.getStartTime().isBefore(end)) {</span>
+<span class="fc" id="L92">                break;</span>
+            }
+<span class="fc" id="L94">            result.add(t);</span>
+        }
+<span class="fc" id="L96">        return result;</span>
+    }
+
+    public List&lt;ResourceVO&gt; recommendAlternatives(List&lt;ResourceVO&gt; candidates, List&lt;ScheduleTaskEntity&gt; tasks,
+                                                  ResourceType type, LocalDateTime start, LocalDateTime end,
+                                                  Long excludeId) {
+<span class="pc bpc" id="L102" title="2 of 4 branches missed.">        if (candidates == null || candidates.isEmpty()) {</span>
+<span class="nc" id="L103">            return Collections.emptyList();</span>
+        }
+<span class="fc" id="L105">        Map&lt;IndexKey, List&lt;ScheduleTaskEntity&gt;&gt; idx = buildIndex(tasks);</span>
+<span class="fc" id="L106">        return candidates.stream()</span>
+<span class="fc" id="L107">                .filter(r -&gt; type.name().equals(r.getType()))</span>
+<span class="fc bfc" id="L108" title="All 4 branches covered.">                .filter(r -&gt; excludeId == null || !r.getId().equals(excludeId))</span>
+<span class="fc" id="L109">                .filter(r -&gt; {</span>
+<span class="fc" id="L110">                    List&lt;ScheduleTaskEntity&gt; bucket = idx.get(new IndexKey(type, r.getId()));</span>
+<span class="pc bpc" id="L111" title="1 of 4 branches missed.">                    if (bucket == null || bucket.isEmpty()) {</span>
+<span class="fc" id="L112">                        return true;</span>
+                    }
+<span class="fc" id="L114">                    int from = binarySearchFirstEndAfter(bucket, start);</span>
+<span class="fc bfc" id="L115" title="All 2 branches covered.">                    for (int i = from; i &lt; bucket.size(); i++) {</span>
+<span class="fc" id="L116">                        ScheduleTaskEntity t = bucket.get(i);</span>
+<span class="fc bfc" id="L117" title="All 2 branches covered.">                        if (!t.getStartTime().isBefore(end)) {</span>
+<span class="fc" id="L118">                            break;</span>
+                        }
+<span class="fc" id="L120">                        return false;</span>
+                    }
+<span class="fc" id="L122">                    return true;</span>
+                })
+<span class="fc" id="L124">                .limit(5)</span>
+<span class="fc" id="L125">                .collect(Collectors.toList());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

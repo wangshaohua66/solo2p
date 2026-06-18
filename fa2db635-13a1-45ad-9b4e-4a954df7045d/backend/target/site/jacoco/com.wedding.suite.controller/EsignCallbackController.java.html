@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EsignCallbackController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">wedding-suite-backend</a> &gt; <a href="index.source.html" class="el_package">com.wedding.suite.controller</a> &gt; <span class="el_source">EsignCallbackController.java</span></div><h1>EsignCallbackController.java</h1><pre class="source lang-java linenums">package com.wedding.suite.controller;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wedding.suite.config.SignProperties;
+import com.wedding.suite.dto.ApiResponse;
+import com.wedding.suite.entity.ContractEntity;
+import com.wedding.suite.entity.WeddingEntity;
+import com.wedding.suite.enums.ContractStatus;
+import com.wedding.suite.enums.NotificationType;
+import com.wedding.suite.repository.ContractRepository;
+import com.wedding.suite.repository.WeddingRepository;
+import com.wedding.suite.service.NotificationService;
+import com.wedding.suite.service.SignService;
+import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.web.bind.annotation.*;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.Base64;
+import java.util.stream.Collectors;
+
+@RestController
+@RequestMapping(&quot;/esign&quot;)
+public class EsignCallbackController {
+
+<span class="nc" id="L29">    private static final Logger log = LoggerFactory.getLogger(EsignCallbackController.class);</span>
+
+    private final SignService signService;
+    private final ContractRepository contractRepo;
+    private final WeddingRepository weddingRepo;
+    private final NotificationService notificationService;
+    private final SignProperties signProps;
+    private final ObjectMapper objectMapper;
+
+<span class="nc" id="L38">    public EsignCallbackController(SignService signService, ContractRepository contractRepo,</span>
+                                   WeddingRepository weddingRepo, NotificationService notificationService,
+                                   SignProperties signProps, ObjectMapper objectMapper) {
+<span class="nc" id="L41">        this.signService = signService;</span>
+<span class="nc" id="L42">        this.contractRepo = contractRepo;</span>
+<span class="nc" id="L43">        this.weddingRepo = weddingRepo;</span>
+<span class="nc" id="L44">        this.notificationService = notificationService;</span>
+<span class="nc" id="L45">        this.signProps = signProps;</span>
+<span class="nc" id="L46">        this.objectMapper = objectMapper;</span>
+<span class="nc" id="L47">    }</span>
+
+    @PostMapping(&quot;/callback&quot;)
+    public ApiResponse&lt;String&gt; handleCallback(HttpServletRequest request) {
+        try {
+<span class="nc" id="L52">            String body = request.getReader().lines().collect(Collectors.joining(&quot;\n&quot;));</span>
+<span class="nc" id="L53">            log.info(&quot;[e签宝回调] 收到回调请求 body={}&quot;, body);</span>
+
+<span class="nc" id="L55">            JsonNode payload = objectMapper.readTree(body);</span>
+<span class="nc" id="L56">            String signFlowId = payload.path(&quot;signFlowId&quot;).asText();</span>
+<span class="nc" id="L57">            String status = payload.path(&quot;signFlowStatus&quot;).asText();</span>
+
+<span class="nc" id="L59">            String signature = request.getHeader(&quot;X-Tsign-Signature&quot;);</span>
+<span class="nc bnc" id="L60" title="All 2 branches missed.">            if (signService.isEnabled()) {</span>
+<span class="nc" id="L61">                boolean valid = verifySignature(signature, body, signProps.getEsign().getAppSecret());</span>
+<span class="nc bnc" id="L62" title="All 2 branches missed.">                if (!valid) {</span>
+<span class="nc" id="L63">                    log.warn(&quot;[e签宝回调] 签名验证失败 signFlowId={}&quot;, signFlowId);</span>
+<span class="nc" id="L64">                    return ApiResponse.ok(&quot;签名验证失败&quot;);</span>
+                }
+            } else {
+<span class="nc" id="L67">                log.info(&quot;[e签宝回调] 电子签名服务未启用，跳过签名验证&quot;);</span>
+            }
+
+<span class="nc" id="L70">            ContractEntity contract = contractRepo.findByFlowId(signFlowId).orElse(null);</span>
+<span class="nc bnc" id="L71" title="All 2 branches missed.">            if (contract == null) {</span>
+<span class="nc" id="L72">                log.warn(&quot;[e签宝回调] 未找到对应合同 signFlowId={}&quot;, signFlowId);</span>
+<span class="nc" id="L73">                return ApiResponse.ok(&quot;合同未找到&quot;);</span>
+            }
+
+<span class="nc" id="L76">            WeddingEntity wedding = weddingRepo.findById(contract.getWeddingId()).orElse(null);</span>
+<span class="nc bnc" id="L77" title="All 4 branches missed.">            Long plannerId = (wedding != null &amp;&amp; wedding.getPlannerId() != null)</span>
+<span class="nc" id="L78">                    ? wedding.getPlannerId() : 0L;</span>
+
+<span class="nc bnc" id="L80" title="All 4 branches missed.">            String statusDesc = switch (status) {</span>
+                case &quot;2&quot; -&gt; {
+<span class="nc" id="L82">                    contract.setStatus(ContractStatus.SIGNED);</span>
+<span class="nc" id="L83">                    contractRepo.save(contract);</span>
+<span class="nc" id="L84">                    notificationService.push(</span>
+<span class="nc" id="L85">                            plannerId,</span>
+<span class="nc" id="L86">                            &quot;合同签署完成&quot;,</span>
+<span class="nc" id="L87">                            &quot;合同 #&quot; + contract.getId() + &quot; 已完成签署&quot;,</span>
+<span class="nc" id="L88">                            NotificationType.SUCCESS,</span>
+<span class="nc" id="L89">                            &quot;CONTRACT&quot;,</span>
+<span class="nc" id="L90">                            contract.getId()</span>
+                    );
+<span class="nc" id="L92">                    yield &quot;已完成&quot;;</span>
+                }
+                case &quot;3&quot; -&gt; {
+<span class="nc" id="L95">                    contract.setStatus(ContractStatus.VOID);</span>
+<span class="nc" id="L96">                    contractRepo.save(contract);</span>
+<span class="nc" id="L97">                    notificationService.push(</span>
+<span class="nc" id="L98">                            plannerId,</span>
+<span class="nc" id="L99">                            &quot;合同已作废&quot;,</span>
+<span class="nc" id="L100">                            &quot;合同 #&quot; + contract.getId() + &quot; 已作废&quot;,</span>
+<span class="nc" id="L101">                            NotificationType.WARN,</span>
+<span class="nc" id="L102">                            &quot;CONTRACT&quot;,</span>
+<span class="nc" id="L103">                            contract.getId()</span>
+                    );
+<span class="nc" id="L105">                    yield &quot;已作废&quot;;</span>
+                }
+                case &quot;5&quot; -&gt; {
+<span class="nc" id="L108">                    contract.setStatus(ContractStatus.DRAFT);</span>
+<span class="nc" id="L109">                    contractRepo.save(contract);</span>
+<span class="nc" id="L110">                    notificationService.push(</span>
+<span class="nc" id="L111">                            plannerId,</span>
+<span class="nc" id="L112">                            &quot;合同被拒签&quot;,</span>
+<span class="nc" id="L113">                            &quot;合同 #&quot; + contract.getId() + &quot; 被签署人拒签&quot;,</span>
+<span class="nc" id="L114">                            NotificationType.WARN,</span>
+<span class="nc" id="L115">                            &quot;CONTRACT&quot;,</span>
+<span class="nc" id="L116">                            contract.getId()</span>
+                    );
+<span class="nc" id="L118">                    yield &quot;已拒签&quot;;</span>
+                }
+<span class="nc" id="L120">                default -&gt; &quot;状态: &quot; + status;</span>
+            };
+
+<span class="nc" id="L123">            log.info(&quot;[e签宝回调] 处理完成 signFlowId={}, contractId={}, status={}&quot;,</span>
+<span class="nc" id="L124">                    signFlowId, contract.getId(), statusDesc);</span>
+<span class="nc" id="L125">            return ApiResponse.ok(&quot;success&quot;);</span>
+
+<span class="nc" id="L127">        } catch (Exception e) {</span>
+<span class="nc" id="L128">            log.error(&quot;[e签宝回调] 处理异常&quot;, e);</span>
+<span class="nc" id="L129">            return ApiResponse.ok(&quot;error&quot;);</span>
+        }
+    }
+
+    private boolean verifySignature(String signature, String body, String secret) {
+        try {
+            // TODO: e签宝回调签名验证逻辑需根据官方文档调整。当前使用 SHA256(body + secret) 的简化方式，生产环境请根据官方文档修正
+<span class="nc" id="L136">            String content = body + secret;</span>
+<span class="nc" id="L137">            MessageDigest md = MessageDigest.getInstance(&quot;SHA-256&quot;);</span>
+<span class="nc" id="L138">            byte[] digest = md.digest(content.getBytes(StandardCharsets.UTF_8));</span>
+<span class="nc" id="L139">            String computed = Base64.getEncoder().encodeToString(digest);</span>
+<span class="nc" id="L140">            return computed.equals(signature);</span>
+<span class="nc" id="L141">        } catch (Exception e) {</span>
+<span class="nc" id="L142">            log.error(&quot;[e签宝回调] 签名验证异常&quot;, e);</span>
+<span class="nc" id="L143">            return false;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

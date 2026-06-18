@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PortalService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">wedding-suite-backend</a> &gt; <a href="index.source.html" class="el_package">com.wedding.suite.service.impl</a> &gt; <span class="el_source">PortalService.java</span></div><h1>PortalService.java</h1><pre class="source lang-java linenums">package com.wedding.suite.service.impl;
+
+import com.wedding.suite.dto.request.SupplierVoucherRequest;
+import com.wedding.suite.entity.ScheduleTaskEntity;
+import com.wedding.suite.entity.SupplierOrderEntity;
+import com.wedding.suite.enums.SupplierOrderStatus;
+import com.wedding.suite.exception.BusinessException;
+import com.wedding.suite.exception.ErrorCode;
+import com.wedding.suite.repository.ScheduleTaskRepository;
+import com.wedding.suite.repository.SupplierOrderRepository;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+public class PortalService {
+
+    private final ScheduleTaskRepository scheduleRepo;
+    private final SupplierOrderRepository orderRepo;
+
+<span class="nc" id="L21">    public PortalService(ScheduleTaskRepository scheduleRepo, SupplierOrderRepository orderRepo) {</span>
+<span class="nc" id="L22">        this.scheduleRepo = scheduleRepo;</span>
+<span class="nc" id="L23">        this.orderRepo = orderRepo;</span>
+<span class="nc" id="L24">    }</span>
+
+    public List&lt;ScheduleTaskEntity&gt; schedule(Long supplierId) {
+<span class="nc" id="L27">        return scheduleRepo.findStaffSchedule(supplierId);</span>
+    }
+
+    public List&lt;SupplierOrderEntity&gt; orders(Long supplierId) {
+<span class="nc" id="L31">        return orderRepo.findAll();</span>
+    }
+
+    public SupplierOrderEntity confirmOrder(Long id) {
+<span class="nc" id="L35">        SupplierOrderEntity o = orderRepo.findById(id)</span>
+<span class="nc" id="L36">                .orElseThrow(() -&gt; new BusinessException(ErrorCode.NOT_FOUND, &quot;订单不存在&quot;));</span>
+<span class="nc" id="L37">        o.setStatus(SupplierOrderStatus.CONFIRMED);</span>
+<span class="nc" id="L38">        return orderRepo.save(o);</span>
+    }
+
+    public SupplierOrderEntity submitVoucher(Long id, SupplierVoucherRequest req) {
+<span class="nc" id="L42">        SupplierOrderEntity o = orderRepo.findById(id)</span>
+<span class="nc" id="L43">                .orElseThrow(() -&gt; new BusinessException(ErrorCode.NOT_FOUND, &quot;订单不存在&quot;));</span>
+<span class="nc" id="L44">        o.setVoucherUrl(req.getFileUrl());</span>
+<span class="nc" id="L45">        o.setStatus(SupplierOrderStatus.DONE);</span>
+<span class="nc" id="L46">        return orderRepo.save(o);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WeddingService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">wedding-suite-backend</a> &gt; <a href="index.source.html" class="el_package">com.wedding.suite.service.impl</a> &gt; <span class="el_source">WeddingService.java</span></div><h1>WeddingService.java</h1><pre class="source lang-java linenums">package com.wedding.suite.service.impl;
+
+import com.wedding.suite.dto.request.WeddingCreateRequest;
+import com.wedding.suite.dto.request.WeddingResourceItem;
+import com.wedding.suite.dto.response.WeddingVO;
+import com.wedding.suite.entity.*;
+import com.wedding.suite.enums.ResourceType;
+import com.wedding.suite.enums.ScheduleStatus;
+import com.wedding.suite.enums.WeddingStage;
+import com.wedding.suite.exception.BusinessException;
+import com.wedding.suite.exception.ErrorCode;
+import com.wedding.suite.repository.*;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+public class WeddingService {
+
+    private final WeddingRepository weddingRepo;
+    private final StoreRepository storeRepo;
+    private final PackageRepository packageRepo;
+    private final StaffRepository staffRepo;
+    private final VenueRepository venueRepo;
+    private final PropRepository propRepo;
+    private final ScheduleTaskRepository scheduleRepo;
+
+<span class="nc" id="L32">    public WeddingService(WeddingRepository weddingRepo, StoreRepository storeRepo,</span>
+                           PackageRepository packageRepo, StaffRepository staffRepo,
+                           VenueRepository venueRepo, PropRepository propRepo,
+                           ScheduleTaskRepository scheduleRepo) {
+<span class="nc" id="L36">        this.weddingRepo = weddingRepo;</span>
+<span class="nc" id="L37">        this.storeRepo = storeRepo;</span>
+<span class="nc" id="L38">        this.packageRepo = packageRepo;</span>
+<span class="nc" id="L39">        this.staffRepo = staffRepo;</span>
+<span class="nc" id="L40">        this.venueRepo = venueRepo;</span>
+<span class="nc" id="L41">        this.propRepo = propRepo;</span>
+<span class="nc" id="L42">        this.scheduleRepo = scheduleRepo;</span>
+<span class="nc" id="L43">    }</span>
+
+    public List&lt;WeddingVO&gt; list(String stage, Long storeId, String date, String keyword) {
+<span class="nc" id="L46">        List&lt;WeddingEntity&gt; list = weddingRepo.findAll();</span>
+<span class="nc bnc" id="L47" title="All 4 branches missed.">        if (stage != null &amp;&amp; !stage.isBlank()) {</span>
+<span class="nc" id="L48">            list = list.stream().filter(w -&gt; w.getStage().name().equals(stage)).collect(Collectors.toList());</span>
+        }
+<span class="nc bnc" id="L50" title="All 2 branches missed.">        if (storeId != null) {</span>
+<span class="nc" id="L51">            list = list.stream().filter(w -&gt; storeId.equals(w.getStoreId())).collect(Collectors.toList());</span>
+        }
+<span class="nc bnc" id="L53" title="All 4 branches missed.">        if (date != null &amp;&amp; !date.isBlank()) {</span>
+<span class="nc" id="L54">            list = list.stream().filter(w -&gt; w.getWeddingDate().toString().equals(date)).collect(Collectors.toList());</span>
+        }
+<span class="nc bnc" id="L56" title="All 4 branches missed.">        if (keyword != null &amp;&amp; !keyword.isBlank()) {</span>
+<span class="nc" id="L57">            list = list.stream().filter(w -&gt; w.getCoupleName().contains(keyword)).collect(Collectors.toList());</span>
+        }
+<span class="nc" id="L59">        return list.stream().map(this::toVO).collect(Collectors.toList());</span>
+    }
+
+    public WeddingVO detail(Long id) {
+<span class="nc" id="L63">        return toVO(get(id));</span>
+    }
+
+    public WeddingVO create(WeddingCreateRequest req) {
+<span class="nc" id="L67">        WeddingEntity w = WeddingEntity.builder()</span>
+<span class="nc" id="L68">                .coupleName(req.getCoupleName())</span>
+<span class="nc" id="L69">                .groomName(req.getGroomName())</span>
+<span class="nc" id="L70">                .brideName(req.getBrideName())</span>
+<span class="nc" id="L71">                .phone(req.getPhone())</span>
+<span class="nc" id="L72">                .weddingDate(LocalDate.parse(req.getWeddingDate()))</span>
+<span class="nc" id="L73">                .guests(req.getGuests())</span>
+<span class="nc" id="L74">                .stage(WeddingStage.CONSULT)</span>
+<span class="nc" id="L75">                .storeId(req.getStoreId())</span>
+<span class="nc" id="L76">                .plannerId(req.getPlannerId())</span>
+<span class="nc" id="L77">                .packageId(req.getPackageId())</span>
+<span class="nc bnc" id="L78" title="All 2 branches missed.">                .quoteTotal(req.getQuoteTotal() == null ? null : new BigDecimal(req.getQuoteTotal().toString()))</span>
+<span class="nc" id="L79">                .progress(10)</span>
+<span class="nc" id="L80">                .build();</span>
+<span class="nc" id="L81">        w = weddingRepo.save(w);</span>
+<span class="nc bnc" id="L82" title="All 2 branches missed.">        if (req.getResources() != null) {</span>
+<span class="nc" id="L83">            String date = req.getWeddingDate();</span>
+<span class="nc bnc" id="L84" title="All 2 branches missed.">            for (WeddingResourceItem r : req.getResources()) {</span>
+<span class="nc" id="L85">                String name = resourceName(r.getType(), r.getId());</span>
+<span class="nc" id="L86">                ScheduleTaskEntity t = ScheduleTaskEntity.builder()</span>
+<span class="nc" id="L87">                        .resourceType(r.getType())</span>
+<span class="nc" id="L88">                        .resourceId(r.getId())</span>
+<span class="nc" id="L89">                        .resourceName(name)</span>
+<span class="nc" id="L90">                        .weddingId(w.getId())</span>
+<span class="nc" id="L91">                        .coupleName(w.getCoupleName())</span>
+<span class="nc" id="L92">                        .startTime(LocalDateTime.parse(date + &quot;T08:00:00&quot;))</span>
+<span class="nc" id="L93">                        .endTime(LocalDateTime.parse(date + &quot;T20:00:00&quot;))</span>
+<span class="nc" id="L94">                        .status(ScheduleStatus.BOOKED)</span>
+<span class="nc" id="L95">                        .build();</span>
+<span class="nc" id="L96">                scheduleRepo.save(t);</span>
+            }
+        }
+<span class="nc" id="L99">        return toVO(w);</span>
+    }
+
+    public WeddingVO updateStage(Long id, String stage) {
+<span class="nc" id="L103">        WeddingEntity w = get(id);</span>
+<span class="nc" id="L104">        WeddingStage st = WeddingStage.valueOf(stage);</span>
+<span class="nc" id="L105">        w.setStage(st);</span>
+<span class="nc" id="L106">        w.setProgress(progressOf(st));</span>
+<span class="nc" id="L107">        return toVO(weddingRepo.save(w));</span>
+    }
+
+    public WeddingVO toVO(WeddingEntity w) {
+<span class="nc" id="L111">        String storeName = storeRepo.findById(w.getStoreId()).map(StoreEntity::getName).orElse(null);</span>
+<span class="nc bnc" id="L112" title="All 2 branches missed.">        String plannerName = w.getPlannerId() == null ? null</span>
+<span class="nc" id="L113">                : staffRepo.findById(w.getPlannerId()).map(StaffEntity::getName).orElse(null);</span>
+<span class="nc" id="L114">        String packageName = packageRepo.findById(w.getPackageId()).map(PackageEntity::getName).orElse(null);</span>
+<span class="nc" id="L115">        return new WeddingVO(w.getId(), w.getCoupleName(), w.getGroomName(), w.getBrideName(), w.getPhone(),</span>
+<span class="nc" id="L116">                w.getWeddingDate(), w.getGuests(), w.getStage().name(), w.getStoreId(), storeName,</span>
+<span class="nc" id="L117">                w.getPlannerId(), plannerName, w.getPackageId(), packageName, w.getQuoteTotal(),</span>
+<span class="nc" id="L118">                w.getProgress(), w.getCreatedAt());</span>
+    }
+
+    private int progressOf(WeddingStage st) {
+<span class="nc bnc" id="L122" title="All 6 branches missed.">        switch (st) {</span>
+<span class="nc" id="L123">            case DELIVERY: return 100;</span>
+<span class="nc" id="L124">            case ONSITE: return 85;</span>
+<span class="nc" id="L125">            case PREPARE: return 65;</span>
+<span class="nc" id="L126">            case CONTRACT: return 45;</span>
+<span class="nc" id="L127">            case DESIGN: return 25;</span>
+<span class="nc" id="L128">            default: return 10;</span>
+        }
+    }
+
+    private String resourceName(ResourceType type, Long id) {
+<span class="nc bnc" id="L133" title="All 4 branches missed.">        switch (type) {</span>
+<span class="nc" id="L134">            case STAFF: return staffRepo.findById(id).map(StaffEntity::getName).orElse(&quot;人员#&quot; + id);</span>
+<span class="nc" id="L135">            case VENUE: return venueRepo.findById(id).map(VenueEntity::getName).orElse(&quot;场地#&quot; + id);</span>
+<span class="nc" id="L136">            case PROP: return propRepo.findById(id).map(PropEntity::getName).orElse(&quot;道具#&quot; + id);</span>
+<span class="nc" id="L137">            default: return &quot;资源#&quot; + id;</span>
+        }
+    }
+
+    public WeddingEntity get(Long id) {
+<span class="nc" id="L142">        return weddingRepo.findById(id)</span>
+<span class="nc" id="L143">                .orElseThrow(() -&gt; new BusinessException(ErrorCode.NOT_FOUND, &quot;婚礼不存在&quot;));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

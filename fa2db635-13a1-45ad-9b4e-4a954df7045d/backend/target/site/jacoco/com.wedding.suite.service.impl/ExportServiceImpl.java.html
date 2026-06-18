@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ExportServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">wedding-suite-backend</a> &gt; <a href="index.source.html" class="el_package">com.wedding.suite.service.impl</a> &gt; <span class="el_source">ExportServiceImpl.java</span></div><h1>ExportServiceImpl.java</h1><pre class="source lang-java linenums"><span class="nc" id="L1">package com.wedding.suite.service.impl;</span>
+
+import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
+import com.wedding.suite.entity.ContractEntity;
+import com.wedding.suite.entity.FinanceEntity;
+import com.wedding.suite.entity.WeddingEntity;
+import com.wedding.suite.exception.BusinessException;
+import com.wedding.suite.exception.ErrorCode;
+import com.wedding.suite.repository.ContractRepository;
+import com.wedding.suite.repository.FinanceRepository;
+import com.wedding.suite.repository.WeddingRepository;
+import com.wedding.suite.service.ExportService;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+public class ExportServiceImpl implements ExportService {
+
+<span class="nc" id="L28">    private static final Logger log = LoggerFactory.getLogger(ExportServiceImpl.class);</span>
+<span class="nc" id="L29">    private static final String CJK_FONT_PATH = &quot;/System/Library/Fonts/Supplemental/Arial Unicode.ttf&quot;;</span>
+
+    private final FinanceRepository financeRepo;
+    private final WeddingRepository weddingRepo;
+    private final ContractRepository contractRepo;
+    private final ReportService reportService;
+
+<span class="nc" id="L36">    public ExportServiceImpl(FinanceRepository financeRepo, WeddingRepository weddingRepo,</span>
+                             ContractRepository contractRepo, ReportService reportService) {
+<span class="nc" id="L38">        this.financeRepo = financeRepo;</span>
+<span class="nc" id="L39">        this.weddingRepo = weddingRepo;</span>
+<span class="nc" id="L40">        this.contractRepo = contractRepo;</span>
+<span class="nc" id="L41">        this.reportService = reportService;</span>
+<span class="nc" id="L42">    }</span>
+
+    @Override
+    public byte[] exportFinanceExcel(Long storeId) {
+<span class="nc" id="L46">        List&lt;FinanceEntity&gt; list = financeRepo.findAll().stream()</span>
+<span class="nc bnc" id="L47" title="All 2 branches missed.">                .filter(f -&gt; storeId == null || weddingRepo.findById(f.getWeddingId())</span>
+<span class="nc bnc" id="L48" title="All 2 branches missed.">                        .map(w -&gt; storeId.equals(w.getStoreId())).orElse(false))</span>
+<span class="nc" id="L49">                .collect(Collectors.toList());</span>
+<span class="nc" id="L50">        try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {</span>
+<span class="nc" id="L51">            Sheet sheet = wb.createSheet(&quot;财务汇总&quot;);</span>
+<span class="nc" id="L52">            RowStyle rs = headerStyle(wb);</span>
+<span class="nc" id="L53">            Row header = sheet.createRow(0);</span>
+<span class="nc" id="L54">            String[] cols = {&quot;婚礼ID&quot;, &quot;新人&quot;, &quot;收入&quot;, &quot;已收&quot;, &quot;成本&quot;, &quot;已付&quot;, &quot;利润&quot;};</span>
+<span class="nc bnc" id="L55" title="All 2 branches missed.">            for (int i = 0; i &lt; cols.length; i++) header.createCell(i).setCellValue(cols[i]);</span>
+<span class="nc" id="L56">            header.setRowStyle(rs.style());</span>
+<span class="nc" id="L57">            int r = 1;</span>
+<span class="nc bnc" id="L58" title="All 2 branches missed.">            for (FinanceEntity f : list) {</span>
+<span class="nc" id="L59">                Row row = sheet.createRow(r++);</span>
+<span class="nc" id="L60">                row.createCell(0).setCellValue(f.getWeddingId());</span>
+<span class="nc" id="L61">                row.createCell(1).setCellValue(safe(f.getCoupleName()));</span>
+<span class="nc" id="L62">                row.createCell(2).setCellValue(num(f.getIncome()));</span>
+<span class="nc" id="L63">                row.createCell(3).setCellValue(num(f.getReceived()));</span>
+<span class="nc" id="L64">                row.createCell(4).setCellValue(num(f.getCost()));</span>
+<span class="nc" id="L65">                row.createCell(5).setCellValue(num(f.getPaid()));</span>
+<span class="nc" id="L66">                row.createCell(6).setCellValue(num(f.getProfit()));</span>
+            }
+<span class="nc" id="L68">            autosize(sheet, cols.length);</span>
+<span class="nc" id="L69">            wb.write(out);</span>
+<span class="nc" id="L70">            return out.toByteArray();</span>
+<span class="nc" id="L71">        } catch (Exception e) {</span>
+<span class="nc" id="L72">            log.error(&quot;导出财务Excel失败&quot;, e);</span>
+<span class="nc" id="L73">            throw new BusinessException(ErrorCode.EXPORT_FAILED, &quot;导出财务Excel失败: &quot; + e.getMessage());</span>
+        }
+    }
+
+    @Override
+    public byte[] exportWeddingsExcel(Long storeId, String stage) {
+<span class="nc" id="L79">        List&lt;WeddingEntity&gt; list = weddingRepo.findAll();</span>
+<span class="nc bnc" id="L80" title="All 2 branches missed.">        if (storeId != null) list = list.stream().filter(w -&gt; storeId.equals(w.getStoreId())).collect(Collectors.toList());</span>
+<span class="nc bnc" id="L81" title="All 4 branches missed.">        if (stage != null &amp;&amp; !stage.isBlank()) list = list.stream().filter(w -&gt; w.getStage().name().equals(stage)).collect(Collectors.toList());</span>
+<span class="nc" id="L82">        try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {</span>
+<span class="nc" id="L83">            Sheet sheet = wb.createSheet(&quot;婚礼列表&quot;);</span>
+<span class="nc" id="L84">            Row header = sheet.createRow(0);</span>
+<span class="nc" id="L85">            String[] cols = {&quot;ID&quot;, &quot;新人&quot;, &quot;新郎&quot;, &quot;新娘&quot;, &quot;电话&quot;, &quot;婚期&quot;, &quot;桌数&quot;, &quot;阶段&quot;, &quot;门店&quot;, &quot;套餐&quot;, &quot;报价&quot;, &quot;进度&quot;};</span>
+<span class="nc bnc" id="L86" title="All 2 branches missed.">            for (int i = 0; i &lt; cols.length; i++) header.createCell(i).setCellValue(cols[i]);</span>
+<span class="nc" id="L87">            int r = 1;</span>
+<span class="nc bnc" id="L88" title="All 2 branches missed.">            for (WeddingEntity w : list) {</span>
+<span class="nc" id="L89">                Row row = sheet.createRow(r++);</span>
+<span class="nc" id="L90">                row.createCell(0).setCellValue(w.getId());</span>
+<span class="nc" id="L91">                row.createCell(1).setCellValue(safe(w.getCoupleName()));</span>
+<span class="nc" id="L92">                row.createCell(2).setCellValue(safe(w.getGroomName()));</span>
+<span class="nc" id="L93">                row.createCell(3).setCellValue(safe(w.getBrideName()));</span>
+<span class="nc" id="L94">                row.createCell(4).setCellValue(safe(w.getPhone()));</span>
+<span class="nc bnc" id="L95" title="All 2 branches missed.">                row.createCell(5).setCellValue(w.getWeddingDate() == null ? &quot;&quot; : w.getWeddingDate().toString());</span>
+<span class="nc bnc" id="L96" title="All 2 branches missed.">                row.createCell(6).setCellValue(w.getGuests() == null ? 0 : w.getGuests());</span>
+<span class="nc bnc" id="L97" title="All 2 branches missed.">                row.createCell(7).setCellValue(w.getStage() == null ? &quot;&quot; : w.getStage().name());</span>
+<span class="nc" id="L98">                row.createCell(8).setCellValue(w.getStoreId());</span>
+<span class="nc" id="L99">                row.createCell(9).setCellValue(w.getPackageId());</span>
+<span class="nc" id="L100">                row.createCell(10).setCellValue(num(w.getQuoteTotal()));</span>
+<span class="nc bnc" id="L101" title="All 2 branches missed.">                row.createCell(11).setCellValue(w.getProgress() == null ? 0 : w.getProgress());</span>
+            }
+<span class="nc" id="L103">            autosize(sheet, cols.length);</span>
+<span class="nc" id="L104">            wb.write(out);</span>
+<span class="nc" id="L105">            return out.toByteArray();</span>
+<span class="nc" id="L106">        } catch (Exception e) {</span>
+<span class="nc" id="L107">            log.error(&quot;导出婚礼Excel失败&quot;, e);</span>
+<span class="nc" id="L108">            throw new BusinessException(ErrorCode.EXPORT_FAILED, &quot;导出婚礼Excel失败: &quot; + e.getMessage());</span>
+        }
+    }
+
+    @Override
+    public byte[] exportReportExcel(Long storeId) {
+<span class="nc" id="L114">        var summary = reportService.summary();</span>
+<span class="nc" id="L115">        var funnel = reportService.funnel();</span>
+<span class="nc" id="L116">        var revenue = reportService.revenue(storeId);</span>
+<span class="nc" id="L117">        try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {</span>
+<span class="nc" id="L118">            Sheet sheet = wb.createSheet(&quot;经营报表&quot;);</span>
+<span class="nc" id="L119">            String[][] rows = {</span>
+<span class="nc" id="L120">                    {&quot;指标&quot;, &quot;数值&quot;},</span>
+<span class="nc" id="L121">                    {&quot;总营收&quot;, summary.getRevenue().toPlainString()},</span>
+<span class="nc" id="L122">                    {&quot;总成本&quot;, summary.getCost().toPlainString()},</span>
+<span class="nc" id="L123">                    {&quot;总利润&quot;, summary.getProfit().toPlainString()},</span>
+<span class="nc" id="L124">                    {&quot;婚礼数&quot;, String.valueOf(summary.getWeddings())},</span>
+<span class="nc" id="L125">                    {&quot;已签合同&quot;, String.valueOf(summary.getSigned())},</span>
+<span class="nc" id="L126">                    {&quot;档期冲突预警&quot;, String.valueOf(summary.getConflictAlerts())},</span>
+<span class="nc" id="L127">                    {&quot;逾期应收&quot;, summary.getOverdueReceivable().toPlainString()}</span>
+            };
+<span class="nc bnc" id="L129" title="All 2 branches missed.">            for (int i = 0; i &lt; rows.length; i++) {</span>
+<span class="nc" id="L130">                Row row = sheet.createRow(i);</span>
+<span class="nc" id="L131">                row.createCell(0).setCellValue(rows[i][0]);</span>
+<span class="nc" id="L132">                row.createCell(1).setCellValue(rows[i][1]);</span>
+            }
+<span class="nc" id="L134">            int start = rows.length + 2;</span>
+<span class="nc" id="L135">            Row fr = sheet.createRow(start);</span>
+<span class="nc" id="L136">            fr.createCell(0).setCellValue(&quot;漏斗阶段&quot;);</span>
+<span class="nc" id="L137">            fr.createCell(1).setCellValue(&quot;数量&quot;);</span>
+<span class="nc bnc" id="L138" title="All 2 branches missed.">            for (int i = 0; i &lt; funnel.size(); i++) {</span>
+<span class="nc" id="L139">                Row row = sheet.createRow(start + 1 + i);</span>
+<span class="nc" id="L140">                row.createCell(0).setCellValue(funnel.get(i).getStage());</span>
+<span class="nc" id="L141">                row.createCell(1).setCellValue(funnel.get(i).getCount());</span>
+            }
+<span class="nc" id="L143">            int rstart = start + funnel.size() + 3;</span>
+<span class="nc" id="L144">            Row rr = sheet.createRow(rstart);</span>
+<span class="nc" id="L145">            rr.createCell(0).setCellValue(&quot;婚期&quot;);</span>
+<span class="nc" id="L146">            rr.createCell(1).setCellValue(&quot;报价&quot;);</span>
+<span class="nc bnc" id="L147" title="All 2 branches missed.">            for (int i = 0; i &lt; revenue.size(); i++) {</span>
+<span class="nc" id="L148">                Row row = sheet.createRow(rstart + 1 + i);</span>
+<span class="nc" id="L149">                row.createCell(0).setCellValue(revenue.get(i).getDate());</span>
+<span class="nc" id="L150">                row.createCell(1).setCellValue(revenue.get(i).getAmount().toPlainString());</span>
+            }
+<span class="nc" id="L152">            autosize(sheet, 2);</span>
+<span class="nc" id="L153">            wb.write(out);</span>
+<span class="nc" id="L154">            return out.toByteArray();</span>
+<span class="nc" id="L155">        } catch (Exception e) {</span>
+<span class="nc" id="L156">            log.error(&quot;导出报表Excel失败&quot;, e);</span>
+<span class="nc" id="L157">            throw new BusinessException(ErrorCode.EXPORT_FAILED, &quot;导出报表Excel失败: &quot; + e.getMessage());</span>
+        }
+    }
+
+    @Override
+    public byte[] exportContractPdf(Long contractId) {
+<span class="nc" id="L163">        ContractEntity c = contractRepo.findById(contractId)</span>
+<span class="nc" id="L164">                .orElseThrow(() -&gt; new BusinessException(ErrorCode.NOT_FOUND, &quot;合同不存在&quot;));</span>
+<span class="nc" id="L165">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L166">        sb.append(&quot;&lt;!DOCTYPE html&gt;&lt;html&gt;&lt;head&gt;&lt;meta charset=\&quot;UTF-8\&quot;/&gt;&lt;style&gt;&quot;);</span>
+<span class="nc" id="L167">        sb.append(&quot;body{font-family:'ArialUnicode',sans-serif;font-size:12px;color:#222;margin:32px;}&quot;);</span>
+<span class="nc" id="L168">        sb.append(&quot;h1{text-align:center;color:#b8860b;border-bottom:2px solid #b8860b;padding-bottom:8px;}&quot;);</span>
+<span class="nc" id="L169">        sb.append(&quot;.meta{margin:12px 0;line-height:1.8;} .label{color:#666;width:80px;display:inline-block;}&quot;);</span>
+<span class="nc" id="L170">        sb.append(&quot;ol{padding-left:20px;} li{margin:8px 0;} .title{font-weight:bold;color:#333;}&quot;);</span>
+<span class="nc" id="L171">        sb.append(&quot;&lt;/style&gt;&lt;/head&gt;&lt;body&gt;&quot;);</span>
+<span class="nc" id="L172">        sb.append(&quot;&lt;h1&gt;婚礼服务合同&lt;/h1&gt;&quot;);</span>
+<span class="nc" id="L173">        sb.append(&quot;&lt;div class=\&quot;meta\&quot;&gt;&lt;span class=\&quot;label\&quot;&gt;合同编号：&lt;/span&gt;#&quot;).append(c.getId()).append(&quot;&lt;/div&gt;&quot;);</span>
+<span class="nc" id="L174">        sb.append(&quot;&lt;div class=\&quot;meta\&quot;&gt;&lt;span class=\&quot;label\&quot;&gt;新人：&lt;/span&gt;&quot;).append(esc(c.getCoupleName())).append(&quot;&lt;/div&gt;&quot;);</span>
+<span class="nc" id="L175">        sb.append(&quot;&lt;div class=\&quot;meta\&quot;&gt;&lt;span class=\&quot;label\&quot;&gt;套餐：&lt;/span&gt;&quot;).append(esc(c.getPackageName())).append(&quot;&lt;/div&gt;&quot;);</span>
+<span class="nc" id="L176">        sb.append(&quot;&lt;div class=\&quot;meta\&quot;&gt;&lt;span class=\&quot;label\&quot;&gt;合同金额：&lt;/span&gt;¥&quot;).append(c.getAmount().toPlainString()).append(&quot;&lt;/div&gt;&quot;);</span>
+<span class="nc" id="L177">        sb.append(&quot;&lt;div class=\&quot;meta\&quot;&gt;&lt;span class=\&quot;label\&quot;&gt;合同状态：&lt;/span&gt;&quot;).append(c.getStatus().name()).append(&quot;&lt;/div&gt;&quot;);</span>
+<span class="nc bnc" id="L178" title="All 2 branches missed.">        sb.append(&quot;&lt;div class=\&quot;meta\&quot;&gt;&lt;span class=\&quot;label\&quot;&gt;签署时间：&lt;/span&gt;&quot;).append(c.getSignedAt() == null ? &quot;未签署&quot; : c.getSignedAt().toString()).append(&quot;&lt;/div&gt;&quot;);</span>
+<span class="nc" id="L179">        sb.append(&quot;&lt;h3&gt;合同条款&lt;/h3&gt;&lt;ol&gt;&quot;);</span>
+<span class="nc bnc" id="L180" title="All 2 branches missed.">        if (c.getClauses() != null) {</span>
+<span class="nc" id="L181">            c.getClauses().forEach(cl -&gt; sb.append(&quot;&lt;li&gt;&lt;span class=\&quot;title\&quot;&gt;&quot;).append(esc(cl.getTitle()))</span>
+<span class="nc" id="L182">                    .append(&quot;&lt;/span&gt;&lt;div&gt;&quot;).append(esc(cl.getBody())).append(&quot;&lt;/div&gt;&lt;/li&gt;&quot;));</span>
+        }
+<span class="nc" id="L184">        sb.append(&quot;&lt;/ol&gt;&quot;);</span>
+<span class="nc bnc" id="L185" title="All 4 branches missed.">        if (c.getSignature() != null || c.getSignUrl() != null) {</span>
+<span class="nc" id="L186">            sb.append(&quot;&lt;div class=\&quot;meta\&quot;&gt;&lt;span class=\&quot;label\&quot;&gt;签署：&lt;/span&gt;&quot;)</span>
+<span class="nc bnc" id="L187" title="All 2 branches missed.">                    .append(c.getSignature() != null ? &quot;已手写签署&quot; : &quot;电子签署&quot;)</span>
+<span class="nc bnc" id="L188" title="All 2 branches missed.">                    .append(c.getSignUrl() != null ? &quot;（&quot; + esc(c.getSignUrl()) + &quot;）&quot; : &quot;&quot;)</span>
+<span class="nc" id="L189">                    .append(&quot;&lt;/div&gt;&quot;);</span>
+        }
+<span class="nc" id="L191">        sb.append(&quot;&lt;/body&gt;&lt;/html&gt;&quot;);</span>
+<span class="nc" id="L192">        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {</span>
+<span class="nc" id="L193">            PdfRendererBuilder builder = new PdfRendererBuilder();</span>
+<span class="nc" id="L194">            builder.useFastMode();</span>
+<span class="nc" id="L195">            File font = new File(CJK_FONT_PATH);</span>
+<span class="nc bnc" id="L196" title="All 2 branches missed.">            if (font.exists()) {</span>
+<span class="nc" id="L197">                builder.useFont(font, &quot;ArialUnicode&quot;);</span>
+            }
+<span class="nc" id="L199">            builder.withHtmlContent(sb.toString(), null);</span>
+<span class="nc" id="L200">            builder.toStream(out);</span>
+<span class="nc" id="L201">            builder.run();</span>
+<span class="nc" id="L202">            return out.toByteArray();</span>
+<span class="nc" id="L203">        } catch (Exception e) {</span>
+<span class="nc" id="L204">            log.error(&quot;导出合同PDF失败&quot;, e);</span>
+<span class="nc" id="L205">            throw new BusinessException(ErrorCode.EXPORT_FAILED, &quot;导出合同PDF失败: &quot; + e.getMessage());</span>
+        }
+    }
+
+    private String safe(String s) {
+<span class="nc bnc" id="L210" title="All 2 branches missed.">        return s == null ? &quot;&quot; : s;</span>
+    }
+
+    private double num(BigDecimal v) {
+<span class="nc bnc" id="L214" title="All 2 branches missed.">        return v == null ? 0d : v.doubleValue();</span>
+    }
+
+    private String esc(String s) {
+<span class="nc bnc" id="L218" title="All 2 branches missed.">        if (s == null) return &quot;&quot;;</span>
+<span class="nc" id="L219">        return s.replace(&quot;&amp;&quot;, &quot;&amp;amp;&quot;).replace(&quot;&lt;&quot;, &quot;&amp;lt;&quot;).replace(&quot;&gt;&quot;, &quot;&amp;gt;&quot;);</span>
+    }
+
+    private void autosize(Sheet sheet, int cols) {
+<span class="nc bnc" id="L223" title="All 2 branches missed.">        for (int i = 0; i &lt; cols; i++) sheet.autoSizeColumn(i);</span>
+<span class="nc" id="L224">    }</span>
+
+    private record RowStyle(CellStyle style) {}
+
+    private RowStyle headerStyle(Workbook wb) {
+<span class="nc" id="L229">        CellStyle style = wb.createCellStyle();</span>
+<span class="nc" id="L230">        Font font = wb.createFont();</span>
+<span class="nc" id="L231">        font.setBold(true);</span>
+<span class="nc" id="L232">        style.setFont(font);</span>
+<span class="nc" id="L233">        return new RowStyle(style);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

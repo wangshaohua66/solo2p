@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JwtAuthenticationFilter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">wedding-suite-backend</a> &gt; <a href="index.source.html" class="el_package">com.wedding.suite.security</a> &gt; <span class="el_source">JwtAuthenticationFilter.java</span></div><h1>JwtAuthenticationFilter.java</h1><pre class="source lang-java linenums">package com.wedding.suite.security;
+
+import com.wedding.suite.common.SecurityUser;
+import com.wedding.suite.enums.UserRole;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+
+@Component
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final String BEARER = &quot;Bearer &quot;;
+
+    private final JwtUtil jwtUtil;
+
+<span class="nc" id="L25">    public JwtAuthenticationFilter(JwtUtil jwtUtil) {</span>
+<span class="nc" id="L26">        this.jwtUtil = jwtUtil;</span>
+<span class="nc" id="L27">    }</span>
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws ServletException, IOException {
+<span class="nc" id="L32">        String token = extractToken(request);</span>
+<span class="nc bnc" id="L33" title="All 4 branches missed.">        if (StringUtils.hasText(token) &amp;&amp; jwtUtil.isValid(token)) {</span>
+            try {
+<span class="nc" id="L35">                Long uid = jwtUtil.extractUserId(token);</span>
+<span class="nc" id="L36">                String name = jwtUtil.extractName(token);</span>
+<span class="nc" id="L37">                UserRole role = jwtUtil.extractRole(token);</span>
+<span class="nc" id="L38">                Long storeId = jwtUtil.extractStoreId(token);</span>
+<span class="nc" id="L39">                SecurityUser principal = new SecurityUser(uid, name, role, storeId, null);</span>
+<span class="nc" id="L40">                UsernamePasswordAuthenticationToken auth =</span>
+<span class="nc" id="L41">                        new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());</span>
+<span class="nc" id="L42">                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));</span>
+<span class="nc" id="L43">                SecurityContextHolder.getContext().setAuthentication(auth);</span>
+<span class="nc" id="L44">            } catch (Exception ignored) {</span>
+<span class="nc" id="L45">                SecurityContextHolder.clearContext();</span>
+            }
+        }
+<span class="nc" id="L48">        chain.doFilter(request, response);</span>
+<span class="nc" id="L49">    }</span>
+
+    private String extractToken(HttpServletRequest request) {
+<span class="nc" id="L52">        String header = request.getHeader(&quot;Authorization&quot;);</span>
+<span class="nc bnc" id="L53" title="All 4 branches missed.">        if (StringUtils.hasText(header) &amp;&amp; header.startsWith(BEARER)) {</span>
+<span class="nc" id="L54">            return header.substring(BEARER.length());</span>
+        }
+<span class="nc" id="L56">        String queryToken = request.getParameter(&quot;token&quot;);</span>
+<span class="nc bnc" id="L57" title="All 2 branches missed.">        if (StringUtils.hasText(queryToken)) {</span>
+<span class="nc" id="L58">            return queryToken;</span>
+        }
+<span class="nc" id="L60">        return null;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

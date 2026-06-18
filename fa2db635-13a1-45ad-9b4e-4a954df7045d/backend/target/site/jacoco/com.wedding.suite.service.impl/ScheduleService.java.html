@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ScheduleService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">wedding-suite-backend</a> &gt; <a href="index.source.html" class="el_package">com.wedding.suite.service.impl</a> &gt; <span class="el_source">ScheduleService.java</span></div><h1>ScheduleService.java</h1><pre class="source lang-java linenums">package com.wedding.suite.service.impl;
+
+import com.wedding.suite.dto.request.ScheduleCheckRequest;
+import com.wedding.suite.dto.request.ScheduleMoveRequest;
+import com.wedding.suite.dto.response.ConflictResultVO;
+import com.wedding.suite.dto.response.ResourceVO;
+import com.wedding.suite.entity.PropEntity;
+import com.wedding.suite.entity.ScheduleTaskEntity;
+import com.wedding.suite.entity.StaffEntity;
+import com.wedding.suite.entity.VenueEntity;
+import com.wedding.suite.enums.ResourceType;
+import com.wedding.suite.exception.BusinessException;
+import com.wedding.suite.exception.ErrorCode;
+import com.wedding.suite.repository.PropRepository;
+import com.wedding.suite.repository.ScheduleTaskRepository;
+import com.wedding.suite.repository.StaffRepository;
+import com.wedding.suite.repository.VenueRepository;
+import com.wedding.suite.util.ScheduleConflictDetector;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+@Service
+public class ScheduleService {
+
+    private final ScheduleTaskRepository scheduleRepo;
+    private final StaffRepository staffRepo;
+    private final VenueRepository venueRepo;
+    private final PropRepository propRepo;
+    private final ScheduleConflictDetector detector;
+
+<span class="nc" id="L36">    public ScheduleService(ScheduleTaskRepository scheduleRepo, StaffRepository staffRepo,</span>
+                          VenueRepository venueRepo, PropRepository propRepo,
+                          ScheduleConflictDetector detector) {
+<span class="nc" id="L39">        this.scheduleRepo = scheduleRepo;</span>
+<span class="nc" id="L40">        this.staffRepo = staffRepo;</span>
+<span class="nc" id="L41">        this.venueRepo = venueRepo;</span>
+<span class="nc" id="L42">        this.propRepo = propRepo;</span>
+<span class="nc" id="L43">        this.detector = detector;</span>
+<span class="nc" id="L44">    }</span>
+
+    public List&lt;ScheduleTaskEntity&gt; list(String resourceType, Long storeId, String from, String to) {
+<span class="nc" id="L47">        List&lt;ScheduleTaskEntity&gt; tasks = scheduleRepo.findAll();</span>
+<span class="nc bnc" id="L48" title="All 4 branches missed.">        if (resourceType != null &amp;&amp; !resourceType.isBlank()) {</span>
+<span class="nc" id="L49">            ResourceType rt = ResourceType.valueOf(resourceType);</span>
+<span class="nc bnc" id="L50" title="All 2 branches missed.">            tasks = tasks.stream().filter(t -&gt; t.getResourceType() == rt).collect(Collectors.toList());</span>
+        }
+<span class="nc bnc" id="L52" title="All 2 branches missed.">        if (storeId != null) {</span>
+<span class="nc" id="L53">            Set&lt;Long&gt; staffIds = staffRepo.findByStoreId(storeId).stream().map(StaffEntity::getId).collect(Collectors.toSet());</span>
+<span class="nc" id="L54">            Set&lt;Long&gt; venueIds = venueRepo.findByStoreId(storeId).stream().map(VenueEntity::getId).collect(Collectors.toSet());</span>
+<span class="nc" id="L55">            Set&lt;Long&gt; propIds = propRepo.findByStoreId(storeId).stream().map(PropEntity::getId).collect(Collectors.toSet());</span>
+<span class="nc bnc" id="L56" title="All 3 branches missed.">            tasks = tasks.stream().filter(t -&gt; switch (t.getResourceType()) {</span>
+<span class="nc" id="L57">                case STAFF -&gt; staffIds.contains(t.getResourceId());</span>
+<span class="nc" id="L58">                case VENUE -&gt; venueIds.contains(t.getResourceId());</span>
+<span class="nc" id="L59">                case PROP -&gt; propIds.contains(t.getResourceId());</span>
+<span class="nc" id="L60">            }).collect(Collectors.toList());</span>
+        }
+<span class="nc bnc" id="L62" title="All 4 branches missed.">        if (from != null &amp;&amp; !from.isBlank()) {</span>
+<span class="nc" id="L63">            LocalDateTime f = parse(from);</span>
+<span class="nc bnc" id="L64" title="All 2 branches missed.">            tasks = tasks.stream().filter(t -&gt; !t.getEndTime().isBefore(f)).collect(Collectors.toList());</span>
+        }
+<span class="nc bnc" id="L66" title="All 4 branches missed.">        if (to != null &amp;&amp; !to.isBlank()) {</span>
+<span class="nc" id="L67">            LocalDateTime tt = parse(to);</span>
+<span class="nc bnc" id="L68" title="All 2 branches missed.">            tasks = tasks.stream().filter(t -&gt; !t.getStartTime().isAfter(tt)).collect(Collectors.toList());</span>
+        }
+<span class="nc" id="L70">        return tasks;</span>
+    }
+
+    public ConflictResultVO check(ScheduleCheckRequest req) {
+<span class="nc" id="L74">        long startNs = System.nanoTime();</span>
+<span class="nc" id="L75">        ResourceType type = req.getResourceType();</span>
+<span class="nc" id="L76">        LocalDateTime s = parse(req.getStart());</span>
+<span class="nc" id="L77">        LocalDateTime e = parse(req.getEnd());</span>
+<span class="nc" id="L78">        List&lt;ScheduleTaskEntity&gt; all = scheduleRepo.findAll();</span>
+<span class="nc" id="L79">        List&lt;ScheduleTaskEntity&gt; conflicts = detector.detectConflict(all, type, req.getResourceId(), s, e);</span>
+<span class="nc" id="L80">        List&lt;ResourceVO&gt; candidates = candidatesOf(req.getStoreId(), type);</span>
+<span class="nc" id="L81">        List&lt;ResourceVO&gt; alternatives = detector.recommendAlternatives(candidates, all, type, s, e, req.getResourceId());</span>
+<span class="nc" id="L82">        long costMs = (System.nanoTime() - startNs) / 1_000_000L;</span>
+<span class="nc bnc" id="L83" title="All 2 branches missed.">        return new ConflictResultVO(!conflicts.isEmpty(), conflicts, alternatives, costMs);</span>
+    }
+
+    public ScheduleTaskEntity move(Long taskId, ScheduleMoveRequest req) {
+<span class="nc" id="L87">        ScheduleTaskEntity t = scheduleRepo.findById(taskId)</span>
+<span class="nc" id="L88">                .orElseThrow(() -&gt; new BusinessException(ErrorCode.NOT_FOUND, &quot;档期任务不存在&quot;));</span>
+<span class="nc" id="L89">        t.setStartTime(parse(req.getStart()));</span>
+<span class="nc" id="L90">        t.setEndTime(parse(req.getEnd()));</span>
+<span class="nc" id="L91">        return scheduleRepo.save(t);</span>
+    }
+
+    public void remove(Long taskId) {
+<span class="nc" id="L95">        scheduleRepo.deleteById(taskId);</span>
+<span class="nc" id="L96">    }</span>
+
+    private List&lt;ResourceVO&gt; candidatesOf(Long storeId, ResourceType type) {
+<span class="nc" id="L99">        List&lt;ResourceVO&gt; list = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L100" title="All 4 branches missed.">        switch (type) {</span>
+<span class="nc" id="L101">            case STAFF -&gt; staffRepo.findByStoreId(storeId).forEach(s -&gt;</span>
+<span class="nc" id="L102">                    list.add(new ResourceVO(s.getId(), &quot;STAFF&quot;, s.getName(), s.getStoreId(), s.getRole().name())));</span>
+<span class="nc" id="L103">            case VENUE -&gt; venueRepo.findByStoreId(storeId).forEach(v -&gt;</span>
+<span class="nc" id="L104">                    list.add(new ResourceVO(v.getId(), &quot;VENUE&quot;, v.getName(), v.getStoreId(), &quot;容量&quot; + v.getCapacity() + &quot;桌&quot;)));</span>
+<span class="nc" id="L105">            case PROP -&gt; propRepo.findByStoreId(storeId).forEach(p -&gt;</span>
+<span class="nc" id="L106">                    list.add(new ResourceVO(p.getId(), &quot;PROP&quot;, p.getName(), p.getStoreId(), &quot;库存&quot; + p.getStock())));</span>
+        }
+<span class="nc" id="L108">        return list;</span>
+    }
+
+    private LocalDateTime parse(String s) {
+<span class="nc" id="L112">        return LocalDateTime.parse(s);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

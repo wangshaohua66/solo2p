@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GlobalExceptionHandler.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">wedding-suite-backend</a> &gt; <a href="index.source.html" class="el_package">com.wedding.suite.exception</a> &gt; <span class="el_source">GlobalExceptionHandler.java</span></div><h1>GlobalExceptionHandler.java</h1><pre class="source lang-java linenums">package com.wedding.suite.exception;
+
+import com.wedding.suite.dto.ApiResponse;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+
+import java.util.stream.Collectors;
+
+<span class="fc" id="L19">@Slf4j</span>
+@RestControllerAdvice
+<span class="fc" id="L21">public class GlobalExceptionHandler {</span>
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity&lt;ApiResponse&lt;java.util.Map&lt;String, String&gt;&gt;&gt; handleValidation(MethodArgumentNotValidException ex) {
+<span class="fc" id="L25">        java.util.Map&lt;String, String&gt; errors = ex.getBindingResult().getFieldErrors().stream()</span>
+<span class="pc bpc" id="L26" title="1 of 2 branches missed.">                .collect(Collectors.toMap(FieldError::getField, fe -&gt; fe.getDefaultMessage() == null ? &quot;invalid&quot; : fe.getDefaultMessage(), (a, b) -&gt; a));</span>
+<span class="fc" id="L27">        log.warn(&quot;validation failed: {}&quot;, errors);</span>
+<span class="fc" id="L28">        ApiResponse&lt;java.util.Map&lt;String, String&gt;&gt; resp = ApiResponse.fail(ErrorCode.VALIDATION_ERROR.code(), &quot;参数校验失败&quot;);</span>
+<span class="fc" id="L29">        resp.setData(errors);</span>
+<span class="fc" id="L30">        return ResponseEntity.status(HttpStatus.OK).body(resp);</span>
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity&lt;ApiResponse&lt;java.util.Map&lt;String, String&gt;&gt;&gt; handleConstraint(ConstraintViolationException ex) {
+<span class="fc" id="L35">        java.util.Map&lt;String, String&gt; errors = ex.getConstraintViolations().stream()</span>
+<span class="pc" id="L36">                .collect(Collectors.toMap(v -&gt; v.getPropertyPath().toString(), ConstraintViolation::getMessage, (a, b) -&gt; a));</span>
+<span class="fc" id="L37">        log.warn(&quot;constraint violation: {}&quot;, errors);</span>
+<span class="fc" id="L38">        ApiResponse&lt;java.util.Map&lt;String, String&gt;&gt; resp = ApiResponse.fail(ErrorCode.VALIDATION_ERROR.code(), &quot;参数校验失败&quot;);</span>
+<span class="fc" id="L39">        resp.setData(errors);</span>
+<span class="fc" id="L40">        return ResponseEntity.status(HttpStatus.OK).body(resp);</span>
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity&lt;ApiResponse&lt;Void&gt;&gt; handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+<span class="fc" id="L45">        return ResponseEntity.ok(ApiResponse.fail(ErrorCode.BAD_REQUEST.code(), &quot;参数类型错误: &quot; + ex.getName()));</span>
+    }
+
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity&lt;ApiResponse&lt;Void&gt;&gt; handleBusiness(BusinessException ex) {
+<span class="fc" id="L50">        log.warn(&quot;business error: {} {}&quot;, ex.getErrorCode(), ex.getMessage());</span>
+<span class="fc" id="L51">        return ResponseEntity.ok(ApiResponse.fail(ex.getErrorCode().code(), ex.getMessage()));</span>
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity&lt;ApiResponse&lt;Void&gt;&gt; handleAuth(AuthenticationException ex) {
+<span class="fc" id="L56">        return ResponseEntity.status(HttpStatus.OK)</span>
+<span class="fc" id="L57">                .body(ApiResponse.fail(ErrorCode.UNAUTHORIZED.code(), &quot;认证失败: &quot; + ex.getMessage()));</span>
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity&lt;ApiResponse&lt;Void&gt;&gt; handleAccess(AccessDeniedException ex) {
+<span class="fc" id="L62">        return ResponseEntity.status(HttpStatus.OK)</span>
+<span class="fc" id="L63">                .body(ApiResponse.fail(ErrorCode.FORBIDDEN.code(), &quot;无权限访问&quot;));</span>
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity&lt;ApiResponse&lt;Void&gt;&gt; handleAll(Exception ex) {
+<span class="fc" id="L68">        log.error(&quot;unhandled exception&quot;, ex);</span>
+<span class="fc" id="L69">        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)</span>
+<span class="fc" id="L70">                .body(ApiResponse.fail(500, &quot;服务器内部错误&quot;));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ContractController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">wedding-suite-backend</a> &gt; <a href="index.source.html" class="el_package">com.wedding.suite.controller</a> &gt; <span class="el_source">ContractController.java</span></div><h1>ContractController.java</h1><pre class="source lang-java linenums">package com.wedding.suite.controller;
+
+import com.wedding.suite.dto.ApiResponse;
+import com.wedding.suite.dto.request.ContractDraftRequest;
+import com.wedding.suite.dto.request.ContractSignRequest;
+import com.wedding.suite.dto.request.ContractUpdateRequest;
+import com.wedding.suite.dto.response.SignResultVO;
+import com.wedding.suite.entity.ContractEntity;
+import com.wedding.suite.service.SignService;
+import com.wedding.suite.service.impl.ContractService;
+import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping(&quot;/contracts&quot;)
+public class ContractController {
+
+    private final ContractService contractService;
+    private final SignService signService;
+
+<span class="nc" id="L23">    public ContractController(ContractService contractService, SignService signService) {</span>
+<span class="nc" id="L24">        this.contractService = contractService;</span>
+<span class="nc" id="L25">        this.signService = signService;</span>
+<span class="nc" id="L26">    }</span>
+
+    @GetMapping
+    public ApiResponse&lt;List&lt;ContractEntity&gt;&gt; list(@RequestParam(required = false) String status) {
+<span class="nc" id="L30">        return ApiResponse.ok(contractService.list(status));</span>
+    }
+
+    @GetMapping(&quot;/{id}&quot;)
+    public ApiResponse&lt;ContractEntity&gt; detail(@PathVariable Long id) {
+<span class="nc" id="L35">        return ApiResponse.ok(contractService.detail(id));</span>
+    }
+
+    @PostMapping(&quot;/draft&quot;)
+    public ApiResponse&lt;ContractEntity&gt; draft(@Valid @RequestBody ContractDraftRequest req) {
+<span class="nc" id="L40">        return ApiResponse.ok(contractService.draft(req));</span>
+    }
+
+    @PutMapping(&quot;/{id}&quot;)
+    public ApiResponse&lt;ContractEntity&gt; update(@PathVariable Long id,
+                                              @Valid @RequestBody ContractUpdateRequest req) {
+<span class="nc" id="L46">        return ApiResponse.ok(contractService.update(id, req));</span>
+    }
+
+    @PostMapping(&quot;/{id}/sign&quot;)
+    public ApiResponse&lt;ContractEntity&gt; sign(@PathVariable Long id,
+                                           @Valid @RequestBody ContractSignRequest req) {
+<span class="nc" id="L52">        return ApiResponse.ok(contractService.sign(id, req));</span>
+    }
+
+    @PostMapping(&quot;/{id}/void&quot;)
+    public ApiResponse&lt;ContractEntity&gt; voidContract(@PathVariable Long id) {
+<span class="nc" id="L57">        return ApiResponse.ok(contractService.voidContract(id));</span>
+    }
+
+    @GetMapping(&quot;/{id}/sign-status&quot;)
+    public ApiResponse&lt;SignResultVO&gt; querySignStatus(@PathVariable Long id,
+                                                      @RequestParam(required = false) String flowId) {
+<span class="nc" id="L63">        com.wedding.suite.entity.ContractEntity c = contractService.detail(id);</span>
+<span class="nc bnc" id="L64" title="All 4 branches missed.">        String fid = (flowId != null &amp;&amp; !flowId.isBlank()) ? flowId : c.getFlowId();</span>
+<span class="nc" id="L65">        SignResultVO result = signService.queryStatus(fid);</span>
+<span class="nc bnc" id="L66" title="All 2 branches missed.">        if (&quot;SIGNED&quot;.equals(result.getStatus())) {</span>
+<span class="nc" id="L67">            contractService.markSigned(id);</span>
+        }
+<span class="nc" id="L69">        return ApiResponse.ok(result);</span>
+    }
+
+    @GetMapping(&quot;/{id}/signed-file&quot;)
+    public ApiResponse&lt;String&gt; downloadSignedFile(@PathVariable Long id,
+                                                   @RequestParam(required = false) String flowId) {
+<span class="nc" id="L75">        com.wedding.suite.entity.ContractEntity c = contractService.detail(id);</span>
+<span class="nc bnc" id="L76" title="All 4 branches missed.">        String fid = (flowId != null &amp;&amp; !flowId.isBlank()) ? flowId : c.getFlowId();</span>
+<span class="nc" id="L77">        return ApiResponse.ok(signService.downloadSignedFileUrl(fid));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

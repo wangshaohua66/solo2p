@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ContractService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">wedding-suite-backend</a> &gt; <a href="index.source.html" class="el_package">com.wedding.suite.service.impl</a> &gt; <span class="el_source">ContractService.java</span></div><h1>ContractService.java</h1><pre class="source lang-java linenums">package com.wedding.suite.service.impl;
+
+import com.wedding.suite.common.AuthUtil;
+import com.wedding.suite.dto.request.ContractDraftRequest;
+import com.wedding.suite.dto.request.ContractSignRequest;
+import com.wedding.suite.dto.request.ContractUpdateRequest;
+import com.wedding.suite.dto.response.SignResultVO;
+import com.wedding.suite.entity.ContractClauseEntity;
+import com.wedding.suite.entity.ContractEntity;
+import com.wedding.suite.entity.PackageEntity;
+import com.wedding.suite.entity.WeddingEntity;
+import com.wedding.suite.enums.ContractStatus;
+import com.wedding.suite.enums.NotificationType;
+import com.wedding.suite.exception.BusinessException;
+import com.wedding.suite.exception.ErrorCode;
+import com.wedding.suite.repository.ContractRepository;
+import com.wedding.suite.repository.PackageRepository;
+import com.wedding.suite.repository.WeddingRepository;
+import com.wedding.suite.service.NotificationService;
+import com.wedding.suite.service.SignService;
+import com.wedding.suite.service.SmsService;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+
+@Service
+public class ContractService {
+
+    private final ContractRepository contractRepo;
+    private final WeddingRepository weddingRepo;
+    private final PackageRepository packageRepo;
+    private final NotificationService notificationService;
+    private final SmsService smsService;
+    private final SignService signService;
+
+<span class="fc" id="L40">    public ContractService(ContractRepository contractRepo, WeddingRepository weddingRepo,</span>
+                           PackageRepository packageRepo, NotificationService notificationService,
+                           SmsService smsService, SignService signService) {
+<span class="fc" id="L43">        this.contractRepo = contractRepo;</span>
+<span class="fc" id="L44">        this.weddingRepo = weddingRepo;</span>
+<span class="fc" id="L45">        this.packageRepo = packageRepo;</span>
+<span class="fc" id="L46">        this.notificationService = notificationService;</span>
+<span class="fc" id="L47">        this.smsService = smsService;</span>
+<span class="fc" id="L48">        this.signService = signService;</span>
+<span class="fc" id="L49">    }</span>
+
+    public List&lt;ContractEntity&gt; list(String status) {
+<span class="pc bpc" id="L52" title="1 of 4 branches missed.">        if (status != null &amp;&amp; !status.isBlank()) {</span>
+<span class="fc" id="L53">            return contractRepo.findByStatus(ContractStatus.valueOf(status));</span>
+        }
+<span class="fc" id="L55">        return contractRepo.findAll();</span>
+    }
+
+    public ContractEntity detail(Long id) {
+<span class="nc" id="L59">        return get(id);</span>
+    }
+
+    @Transactional
+    public ContractEntity draft(ContractDraftRequest req) {
+<span class="fc" id="L64">        WeddingEntity w = weddingRepo.findById(req.getWeddingId())</span>
+<span class="fc" id="L65">                .orElseThrow(() -&gt; new BusinessException(ErrorCode.NOT_FOUND, &quot;婚礼不存在&quot;));</span>
+<span class="fc" id="L66">        PackageEntity pkg = packageRepo.findById(req.getPackageId())</span>
+<span class="fc" id="L67">                .orElseThrow(() -&gt; new BusinessException(ErrorCode.NOT_FOUND, &quot;套餐不存在&quot;));</span>
+<span class="fc bfc" id="L68" title="All 2 branches covered.">        BigDecimal amount = w.getQuoteTotal() != null ? w.getQuoteTotal() : pkg.getBasePrice();</span>
+<span class="fc" id="L69">        ContractEntity c = ContractEntity.builder()</span>
+<span class="fc" id="L70">                .weddingId(w.getId())</span>
+<span class="fc" id="L71">                .coupleName(w.getCoupleName())</span>
+<span class="fc" id="L72">                .packageName(pkg.getName())</span>
+<span class="fc" id="L73">                .amount(amount)</span>
+<span class="fc" id="L74">                .status(ContractStatus.DRAFT)</span>
+<span class="fc" id="L75">                .clauses(new java.util.ArrayList&lt;&gt;())</span>
+<span class="fc" id="L76">                .build();</span>
+<span class="fc" id="L77">        c = contractRepo.save(c);</span>
+<span class="fc" id="L78">        String amt = amount.toPlainString();</span>
+<span class="fc" id="L79">        addClause(c, &quot;c0&quot;, &quot;一、服务内容&quot;, &quot;乙方按甲方所选「&quot; + pkg.getName() + &quot;」提供婚礼策划及现场服务。&quot;, false, 0);</span>
+<span class="fc" id="L80">        addClause(c, &quot;c1&quot;, &quot;二、服务费用&quot;, &quot;本项目服务总费用为 &quot; + amt + &quot; 元。&quot;, false, 1);</span>
+<span class="fc" id="L81">        addClause(c, &quot;c2&quot;, &quot;三、付款方式&quot;, &quot;签订本合同时支付定金 30%，婚礼前 30 日支付尾款 70%。&quot;, false, 2);</span>
+<span class="fc" id="L82">        addClause(c, &quot;c3&quot;, &quot;四、档期约定&quot;, &quot;甲方确认婚期后，乙方锁定人员、场地与道具档期。&quot;, false, 3);</span>
+<span class="fc" id="L83">        addClause(c, &quot;c4&quot;, &quot;五、违约责任&quot;, &quot;违约方支付合同总额 20% 违约金；不可抗力除外。&quot;, false, 4);</span>
+<span class="fc" id="L84">        return contractRepo.save(c);</span>
+    }
+
+    @Transactional
+    public ContractEntity update(Long id, ContractUpdateRequest req) {
+<span class="fc" id="L89">        ContractEntity c = get(id);</span>
+<span class="fc" id="L90">        c.getClauses().clear();</span>
+<span class="fc" id="L91">        contractRepo.save(c);</span>
+<span class="fc" id="L92">        int order = 0;</span>
+<span class="fc bfc" id="L93" title="All 2 branches covered.">        for (var cl : req.getClauses()) {</span>
+<span class="pc bpc" id="L94" title="1 of 2 branches missed.">            addClause(c, cl.getId() == null ? &quot;c&quot; + order : cl.getId(), cl.getTitle(), cl.getBody(),</span>
+<span class="pc bpc" id="L95" title="2 of 4 branches missed.">                    cl.getIsAddon() != null &amp;&amp; cl.getIsAddon(), order);</span>
+<span class="fc" id="L96">            order++;</span>
+        }
+<span class="fc bfc" id="L98" title="All 2 branches covered.">        if (req.getAmount() != null) {</span>
+<span class="fc" id="L99">            c.setAmount(req.getAmount());</span>
+        }
+<span class="fc bfc" id="L101" title="All 2 branches covered.">        if (c.getStatus() == ContractStatus.DRAFT) {</span>
+<span class="fc" id="L102">            c.setStatus(ContractStatus.PENDING);</span>
+        }
+<span class="fc" id="L104">        ContractEntity saved = contractRepo.save(c);</span>
+<span class="fc" id="L105">        notifyContractChange(saved, &quot;合同条款已更新&quot;);</span>
+<span class="fc" id="L106">        return saved;</span>
+    }
+
+    @Transactional
+    public ContractEntity sign(Long id, ContractSignRequest req) {
+<span class="fc" id="L111">        ContractEntity c = get(id);</span>
+<span class="fc" id="L112">        WeddingEntity w = weddingRepo.findById(c.getWeddingId()).orElse(null);</span>
+<span class="pc bpc" id="L113" title="1 of 4 branches missed.">        String signer = (req.getSigner() == null || req.getSigner().isBlank())</span>
+<span class="pc bpc" id="L114" title="1 of 2 branches missed.">                ? (w != null ? w.getCoupleName() : &quot;甲方&quot;) : req.getSigner();</span>
+<span class="pc bpc" id="L115" title="1 of 4 branches missed.">        String phone = (req.getSignerPhone() == null || req.getSignerPhone().isBlank())</span>
+<span class="pc bpc" id="L116" title="1 of 2 branches missed.">                ? (w != null ? w.getPhone() : null) : req.getSignerPhone();</span>
+        
+<span class="fc" id="L118">        SignResultVO result = signService.createSignFlow(id, signer, phone);</span>
+<span class="fc" id="L119">        c.setSignUrl(result.getSignUrl());</span>
+<span class="fc" id="L120">        c.setFlowId(result.getFlowId());</span>
+<span class="fc" id="L121">        c.setSignature(signer);</span>
+        
+<span class="fc bfc" id="L123" title="All 4 branches covered.">        if (!signService.isEnabled() &amp;&amp; req.getSignature() != null) {</span>
+<span class="fc" id="L124">            c.setStatus(ContractStatus.SIGNED);</span>
+<span class="fc" id="L125">            c.setSignedAt(LocalDateTime.now());</span>
+<span class="fc bfc" id="L126" title="All 2 branches covered.">        } else if (!signService.isEnabled()) {</span>
+<span class="fc" id="L127">            c.setStatus(ContractStatus.PENDING);</span>
+<span class="fc" id="L128">        } else {</span>
+<span class="fc" id="L129">            c.setStatus(ContractStatus.PENDING);</span>
+        }
+        
+<span class="fc" id="L132">        ContractEntity saved = contractRepo.save(c);</span>
+<span class="fc bfc" id="L133" title="All 2 branches covered.">        if (saved.getStatus() == ContractStatus.SIGNED) {</span>
+<span class="fc" id="L134">            notifyContractChange(saved, &quot;合同已签署&quot;);</span>
+<span class="fc" id="L135">            sendSms(w, &quot;您的合同已签署，签署人：&quot; + signer);</span>
+<span class="fc" id="L136">        } else {</span>
+<span class="fc" id="L137">            notifyContractChange(saved, &quot;合同待签署，请前往电子签约平台完成&quot;);</span>
+        }
+<span class="fc" id="L139">        return saved;</span>
+    }
+
+    @Transactional
+    public ContractEntity voidContract(Long id) {
+<span class="fc" id="L144">        ContractEntity c = get(id);</span>
+<span class="fc" id="L145">        c.setStatus(ContractStatus.VOID);</span>
+<span class="fc" id="L146">        ContractEntity saved = contractRepo.save(c);</span>
+<span class="fc" id="L147">        notifyContractChange(saved, &quot;合同已作废&quot;);</span>
+<span class="fc" id="L148">        return saved;</span>
+    }
+
+    @Transactional
+    public ContractEntity markSigned(Long id) {
+<span class="fc" id="L153">        ContractEntity c = get(id);</span>
+<span class="fc bfc" id="L154" title="All 2 branches covered.">        if (c.getStatus() != ContractStatus.SIGNED) {</span>
+<span class="fc" id="L155">            c.setStatus(ContractStatus.SIGNED);</span>
+<span class="fc" id="L156">            c.setSignedAt(LocalDateTime.now());</span>
+<span class="fc" id="L157">            c = contractRepo.save(c);</span>
+<span class="fc" id="L158">            WeddingEntity w = weddingRepo.findById(c.getWeddingId()).orElse(null);</span>
+<span class="fc" id="L159">            notifyContractChange(c, &quot;合同已签署&quot;);</span>
+<span class="pc bpc" id="L160" title="1 of 2 branches missed.">            sendSms(w, &quot;您的合同已签署，签署人：&quot; + (c.getSignature() != null ? c.getSignature() : &quot;甲方&quot;));</span>
+        }
+<span class="fc" id="L162">        return c;</span>
+    }
+
+    private void addClause(ContractEntity c, String key, String title, String body, boolean isAddon, int order) {
+<span class="fc" id="L166">        c.getClauses().add(ContractClauseEntity.builder()</span>
+<span class="fc" id="L167">                .contractId(c.getId())</span>
+<span class="fc" id="L168">                .clauseKey(key)</span>
+<span class="fc" id="L169">                .title(title)</span>
+<span class="fc" id="L170">                .body(body)</span>
+<span class="fc" id="L171">                .isAddon(isAddon)</span>
+<span class="fc" id="L172">                .sortOrder(order)</span>
+<span class="fc" id="L173">                .build());</span>
+<span class="fc" id="L174">    }</span>
+
+    private void notifyContractChange(ContractEntity c, String action) {
+        try {
+<span class="fc" id="L178">            Long uid = AuthUtil.currentUserId();</span>
+<span class="pc bpc" id="L179" title="1 of 2 branches missed.">            if (uid != null) {</span>
+<span class="nc" id="L180">                notificationService.push(uid, action, &quot;合同#&quot; + c.getId() + &quot; &quot; + c.getCoupleName(),</span>
+<span class="nc" id="L181">                        NotificationType.WARN, &quot;contract&quot;, c.getId());</span>
+            }
+<span class="fc" id="L183">            notificationService.broadcast(action, &quot;合同#&quot; + c.getId() + &quot; &quot; + c.getCoupleName(), NotificationType.WARN);</span>
+<span class="pc" id="L184">        } catch (Exception ignored) {</span>
+        }
+<span class="fc" id="L186">    }</span>
+
+    private void sendSms(WeddingEntity w, String content) {
+<span class="pc bpc" id="L189" title="2 of 4 branches missed.">        if (w == null || w.getPhone() == null) return;</span>
+        try {
+<span class="fc" id="L191">            smsService.send(w.getPhone(), Map.of(&quot;content&quot;, content));</span>
+<span class="pc" id="L192">        } catch (Exception ignored) {</span>
+        }
+<span class="fc" id="L194">    }</span>
+
+    private ContractEntity get(Long id) {
+<span class="fc" id="L197">        return contractRepo.findById(id)</span>
+<span class="fc" id="L198">                .orElseThrow(() -&gt; new BusinessException(ErrorCode.NOT_FOUND, &quot;合同不存在&quot;));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

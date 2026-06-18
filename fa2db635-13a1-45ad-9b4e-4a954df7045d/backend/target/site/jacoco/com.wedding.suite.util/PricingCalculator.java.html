@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PricingCalculator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">wedding-suite-backend</a> &gt; <a href="index.source.html" class="el_package">com.wedding.suite.util</a> &gt; <span class="el_source">PricingCalculator.java</span></div><h1>PricingCalculator.java</h1><pre class="source lang-java linenums">package com.wedding.suite.util;
+
+import com.wedding.suite.dto.response.QuoteItemVO;
+import com.wedding.suite.dto.response.QuoteVO;
+import com.wedding.suite.entity.AddonEntity;
+import com.wedding.suite.entity.PackageEntity;
+import com.wedding.suite.entity.PackageItemEntity;
+import org.springframework.stereotype.Component;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+@Component
+<span class="nc" id="L18">public class PricingCalculator {</span>
+
+    private static int perGuestAdjust(int guests) {
+<span class="nc bnc" id="L21" title="All 2 branches missed.">        if (guests &lt;= 8) return 0;</span>
+<span class="nc" id="L22">        return (guests - 8) * 320;</span>
+    }
+
+    private static BigDecimal round(BigDecimal v) {
+<span class="nc" id="L26">        return v.setScale(0, RoundingMode.HALF_UP);</span>
+    }
+
+    public QuoteVO calcQuote(PackageEntity pkg, int guests, Set&lt;Long&gt; serviceIds,
+                             Map&lt;AddonEntity, Integer&gt; addons, BigDecimal discountCoefficient) {
+<span class="nc" id="L31">        List&lt;QuoteItemVO&gt; items = new ArrayList&lt;&gt;();</span>
+
+<span class="nc bnc" id="L33" title="All 2 branches missed.">        for (PackageItemEntity it : pkg.getItems()) {</span>
+<span class="nc bnc" id="L34" title="All 2 branches missed.">            if (Boolean.TRUE.equals(it.getIncluded())) {</span>
+<span class="nc" id="L35">                items.add(new QuoteItemVO(it.getName(), it.getCost(), it.getPrice(), 1));</span>
+            }
+        }
+
+<span class="nc bnc" id="L39" title="All 2 branches missed.">        for (PackageItemEntity it : pkg.getItems()) {</span>
+<span class="nc bnc" id="L40" title="All 6 branches missed.">            if (!Boolean.TRUE.equals(it.getIncluded()) &amp;&amp; serviceIds != null &amp;&amp; serviceIds.contains(it.getId())) {</span>
+<span class="nc" id="L41">                items.add(new QuoteItemVO(it.getName(), it.getCost(), it.getPrice(), 1));</span>
+            }
+        }
+
+<span class="nc" id="L45">        int guestAdj = perGuestAdjust(guests);</span>
+<span class="nc" id="L46">        BigDecimal guestAdjCost = round(BigDecimal.valueOf(guestAdj).multiply(new BigDecimal(&quot;0.7&quot;)));</span>
+<span class="nc" id="L47">        BigDecimal guestAdjPrice = BigDecimal.valueOf(guestAdj);</span>
+<span class="nc bnc" id="L48" title="All 2 branches missed.">        if (guests &gt; 8) {</span>
+<span class="nc" id="L49">            items.add(new QuoteItemVO(&quot;超桌加位（&quot; + (guests - 8) + &quot;桌）&quot;, guestAdjCost, guestAdjPrice, 1));</span>
+        }
+
+<span class="nc bnc" id="L52" title="All 2 branches missed.">        if (addons != null) {</span>
+<span class="nc bnc" id="L53" title="All 2 branches missed.">            for (Map.Entry&lt;AddonEntity, Integer&gt; e : addons.entrySet()) {</span>
+<span class="nc" id="L54">                int qty = e.getValue();</span>
+<span class="nc bnc" id="L55" title="All 2 branches missed.">                if (qty &lt;= 0) continue;</span>
+<span class="nc" id="L56">                AddonEntity a = e.getKey();</span>
+<span class="nc" id="L57">                items.add(new QuoteItemVO(</span>
+<span class="nc" id="L58">                        a.getName() + &quot; ×&quot; + qty,</span>
+<span class="nc" id="L59">                        a.getCost().multiply(BigDecimal.valueOf(qty)),</span>
+<span class="nc" id="L60">                        a.getPrice().multiply(BigDecimal.valueOf(qty)),</span>
+<span class="nc" id="L61">                        qty));</span>
+            }
+        }
+
+<span class="nc" id="L65">        BigDecimal itemsCost = BigDecimal.ZERO;</span>
+<span class="nc" id="L66">        BigDecimal itemsPrice = BigDecimal.ZERO;</span>
+<span class="nc bnc" id="L67" title="All 2 branches missed.">        for (QuoteItemVO i : items) {</span>
+<span class="nc" id="L68">            itemsCost = itemsCost.add(i.getCost());</span>
+<span class="nc" id="L69">            itemsPrice = itemsPrice.add(i.getPrice());</span>
+        }
+
+<span class="nc" id="L72">        BigDecimal basePrice = pkg.getBasePrice();</span>
+<span class="nc" id="L73">        BigDecimal basePriceCost = round(basePrice.multiply(new BigDecimal(&quot;0.55&quot;)));</span>
+<span class="nc" id="L74">        items.add(0, new QuoteItemVO(&quot;套餐基础服务&quot;, basePriceCost, basePrice, 1));</span>
+
+<span class="nc" id="L76">        BigDecimal totalCost = itemsCost.add(basePriceCost);</span>
+<span class="nc" id="L77">        BigDecimal grossPrice = itemsPrice.add(basePrice);</span>
+<span class="nc" id="L78">        BigDecimal discount = round(grossPrice.multiply(BigDecimal.ONE.subtract(discountCoefficient)));</span>
+<span class="nc" id="L79">        BigDecimal total = grossPrice.subtract(discount);</span>
+<span class="nc" id="L80">        BigDecimal profit = total.subtract(totalCost);</span>
+<span class="nc bnc" id="L81" title="All 2 branches missed.">        BigDecimal margin = total.compareTo(BigDecimal.ZERO) &gt; 0</span>
+<span class="nc" id="L82">                ? profit.multiply(BigDecimal.TEN).divide(total, 1, RoundingMode.HALF_UP)</span>
+<span class="nc" id="L83">                : BigDecimal.ZERO;</span>
+
+<span class="nc" id="L85">        return new QuoteVO(items, totalCost, grossPrice, discount, total, profit, margin);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
