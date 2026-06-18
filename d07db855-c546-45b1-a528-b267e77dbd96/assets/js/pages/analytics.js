@@ -5,6 +5,8 @@
 const LabPage = {
   equipments: [],
   technicians: [],
+  trainings: [],
+  abilityScopes: [],
 
   render() {
     AppLayout.setPageHeader('实验室资源', ['资源管理']);
@@ -19,6 +21,12 @@ const LabPage = {
     try {
       this.technicians = await ApiClient.task.technicianList() || [];
     } catch (e) { ApiClient.handleError(e, '加载技术员列表失败'); }
+    try {
+      this.trainings = await ApiClient.task.training.list() || [];
+    } catch (e) { ApiClient.handleError(e, '加载培训记录失败'); this.trainings = []; }
+    try {
+      this.abilityScopes = await ApiClient.task.abilityScope.list() || [];
+    } catch (e) { ApiClient.handleError(e, '加载能力范围失败'); this.abilityScopes = []; }
     this.renderPage();
   },
 
@@ -155,23 +163,50 @@ const LabPage = {
       <div class="card mb-4">
         <div class="card-header">
           <h3 class="card-title">🎓 培训记录</h3>
-          <button class="btn btn-primary btn-sm" onclick="AppUtils.showToast('提示','培训记录管理需后端补充独立接口','warning')">➕ 新建培训</button>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span style="font-size:13px;color:var(--gray-500);">共 ${trainings.length} 条</span>
+            <button class="btn btn-primary btn-sm" onclick="LabPage.showTrainingModal()">➕ 新建培训</button>
+          </div>
         </div>
         <div class="table-wrapper">
           <table class="data-table">
             <thead>
               <tr>
-                <th>培训编号</th>
+                <th style="width:70px;">ID</th>
                 <th>培训主题</th>
-                <th class="col-hide-md">培训日期</th>
-                <th class="col-hide-lg">学时</th>
-                <th class="col-hide-md">参与人数</th>
-                <th>状态</th>
+                <th class="col-hide-md">技术员</th>
+                <th class="col-hide-lg">讲师</th>
+                <th>培训日期</th>
+                <th class="col-hide-md">学时</th>
+                <th class="col-hide-lg">证书</th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody>
-              <tr><td colspan="7">${AppUtils.renderEmpty('培训记录需后端补充独立查询接口后展示')}</td></tr>
+              ${trainings.length ? trainings.map(t => {
+                const td = t.trainingDate ? AppUtils.formatDateTime(t.trainingDate, 'YYYY-MM-DD') : '-';
+                const tech = t.technicianId ? (t.technicianName || ('技术员#' + t.technicianId)) : '-';
+                const certLink = t.certificateUrl
+                  ? `<a href="${t.certificateUrl}" target="_blank" style="color:var(--primary);">查看</a>`
+                  : '<span style="color:var(--gray-400);">未上传</span>';
+                return `
+                <tr>
+                  <td style="font-family:monospace;font-size:12px;color:var(--primary);">${t.id || '-'}</td>
+                  <td style="font-weight:500;">${t.trainingTitle || '-'}</td>
+                  <td class="col-hide-md">${tech}</td>
+                  <td class="col-hide-lg">${t.trainer || '-'}</td>
+                  <td>${td}</td>
+                  <td class="col-hide-md" style="text-align:center;">${t.trainingHours || 0} 学时</td>
+                  <td class="col-hide-lg">${certLink}</td>
+                  <td>
+                    <div class="table-actions">
+                      <button class="action-btn" title="编辑" onclick="LabPage.showTrainingModal(${t.id})">✏️</button>
+                      <button class="action-btn" title="删除" onclick="LabPage.deleteTraining(${t.id})">🗑️</button>
+                    </div>
+                  </td>
+                </tr>
+                `;
+              }).join('') : `<tr><td colspan="8">${AppUtils.renderEmpty('暂无培训记录，点击右上角「新建培训」创建')}</td></tr>`}
             </tbody>
           </table>
         </div>
@@ -180,23 +215,58 @@ const LabPage = {
       <div class="card">
         <div class="card-header">
           <h3 class="card-title">📋 实验室能力范围维护</h3>
-          <button class="btn btn-primary btn-sm" onclick="AppUtils.showToast('提示','能力范围管理需后端补充独立接口','warning')">➕ 新增能力项</button>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span style="font-size:13px;color:var(--gray-500);">共 ${abilityScopes.length} 项</span>
+            <button class="btn btn-primary btn-sm" onclick="LabPage.showAbilityScopeModal()">➕ 新增能力项</button>
+          </div>
         </div>
         <div class="table-wrapper">
           <table class="data-table">
             <thead>
               <tr>
-                <th>能力代码</th>
-                <th>能力名称</th>
-                <th class="col-hide-md">依据标准</th>
-                <th class="col-hide-lg">检测范围</th>
-                <th>认可机构</th>
+                <th style="width:90px;">认可编号</th>
+                <th>标准号</th>
+                <th class="col-hide-md">标准名称</th>
+                <th>检测项目范围</th>
+                <th class="col-hide-md">认可日期</th>
+                <th class="col-hide-lg">到期日期</th>
                 <th>状态</th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody>
-              <tr><td colspan="7">${AppUtils.renderEmpty('能力范围数据需后端补充独立查询接口后展示')}</td></tr>
+              ${abilityScopes.length ? abilityScopes.map(a => {
+                const accDate = a.accreditationDate ? AppUtils.formatDateTime(a.accreditationDate, 'YYYY-MM-DD') : '-';
+                const expDate = a.expireDate ? AppUtils.formatDateTime(a.expireDate, 'YYYY-MM-DD') : '-';
+                const stMap = {
+                  ACTIVE: { class: 'badge-success', text: '有效' },
+                  EXPIRED: { class: 'badge-danger', text: '已过期' },
+                  PENDING: { class: 'badge-warning', text: '待认可' },
+                  SUSPENDED: { class: 'badge-secondary', text: '暂停' }
+                };
+                const st = a.status || 'ACTIVE';
+                const sm = stMap[st.toUpperCase()] || { class: 'badge-secondary', text: st };
+                const daysToExpire = a.expireDate ? Math.ceil((AppUtils.parseDateTime(a.expireDate) - new Date()) / (1000*60*60*24)) : null;
+                const expireWarn = daysToExpire !== null && daysToExpire <= 90 && daysToExpire > 0;
+                const expireBadge = expireWarn ? ' <span class="badge badge-warning" style="margin-left:4px;">⚠️ ' + daysToExpire + '天后过期</span>' : '';
+                return `
+                <tr>
+                  <td style="font-family:monospace;font-size:12px;color:var(--primary);">${a.accreditationNo || a.id || '-'}</td>
+                  <td style="font-weight:500;">${a.standardCode || '-'}</td>
+                  <td class="col-hide-md">${a.standardName || '-'}</td>
+                  <td>${a.testItemScope || '-'}</td>
+                  <td class="col-hide-md">${accDate}</td>
+                  <td class="col-hide-lg">${expDate}${expireBadge}</td>
+                  <td><span class="badge ${sm.class}">${sm.text}</span></td>
+                  <td>
+                    <div class="table-actions">
+                      <button class="action-btn" title="编辑" onclick="LabPage.showAbilityScopeModal(${a.id})">✏️</button>
+                      <button class="action-btn" title="删除" onclick="LabPage.deleteAbilityScope(${a.id})">🗑️</button>
+                    </div>
+                  </td>
+                </tr>
+                `;
+              }).join('') : `<tr><td colspan="8">${AppUtils.renderEmpty('暂无能力范围数据，点击右上角「新增能力项」创建')}</td></tr>`}
             </tbody>
           </table>
         </div>
@@ -204,6 +274,199 @@ const LabPage = {
     `;
 
     $('#pageContent').html(html);
+  },
+
+  showTrainingModal(id) {
+    const isEdit = !!id;
+    let t = null;
+    if (isEdit) {
+      t = this.trainings.find(x => x.id === id);
+      if (!t) { AppUtils.showToast('错误', '未找到培训记录', 'error'); return; }
+    }
+    const today = new Date().toISOString().substring(0, 10);
+    const html = `
+      <div style="display:grid;gap:12px;">
+        <div class="floating-label">
+          <input type="text" id="trnTitle" placeholder=" " value="${t ? (t.trainingTitle || '') : ''}">
+          <label>培训主题 *</label>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="floating-label">
+            <input type="number" id="trnTech" placeholder=" " value="${t ? (t.technicianId || '') : ''}">
+            <label>技术员ID</label>
+          </div>
+          <div class="floating-label">
+            <input type="number" id="trnHours" placeholder=" " value="${t ? (t.trainingHours || 8) : 8}">
+            <label>学时 *</label>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="floating-label">
+            <input type="text" id="trnTrainer" placeholder=" " value="${t ? (t.trainer || '') : ''}">
+            <label>讲师</label>
+          </div>
+          <div class="floating-label">
+            <input type="date" id="trnDate" placeholder=" " value="${t ? (String(t.trainingDate || '').substring(0,10) || today) : today}">
+            <label>培训日期</label>
+          </div>
+        </div>
+        <div class="floating-label">
+          <textarea id="trnContent" placeholder=" " style="height:90px;resize:vertical;">${t ? (t.trainingContent || '') : ''}</textarea>
+          <label>培训内容</label>
+        </div>
+        <div class="floating-label">
+          <input type="text" id="trnCertUrl" placeholder=" " value="${t ? (t.certificateUrl || '') : ''}">
+          <label>证书URL（可选）</label>
+        </div>
+      </div>
+    `;
+    const mask = AppUtils.showModal({
+      title: (isEdit ? '✏️ 编辑培训记录' : '➕ 新建培训'),
+      content: html,
+      confirmText: '保存',
+      cancelText: '取消',
+      width: '520px',
+      onConfirm: async () => {
+        const payload = {
+          trainingTitle: $('#trnTitle').val().trim(),
+          technicianId: Number($('#trnTech').val()) || null,
+          trainer: $('#trnTrainer').val().trim() || null,
+          trainingHours: Number($('#trnHours').val()) || 0,
+          trainingDate: $('#trnDate').val(),
+          trainingContent: $('#trnContent').val().trim() || null,
+          certificateUrl: $('#trnCertUrl').val().trim() || null
+        };
+        if (!payload.trainingTitle) { AppUtils.showToast('提示', '请填写培训主题', 'warning'); return false; }
+        if (isEdit) payload.id = id;
+        try {
+          if (isEdit) await ApiClient.task.training.update(payload);
+          else await ApiClient.task.training.create(payload);
+          AppUtils.closeModal(mask);
+          AppUtils.showToast('成功', isEdit ? '培训记录已更新' : '培训记录已创建', 'success');
+          await this.load();
+        } catch (e) { ApiClient.handleError(e, '保存培训记录失败'); return false; }
+        return false;
+      }
+    });
+  },
+
+  async deleteTraining(id) {
+    if (!confirm('确定删除该培训记录吗？此操作不可恢复。')) return;
+    try {
+      await ApiClient.task.training.remove(id);
+      AppUtils.showToast('成功', '培训记录已删除', 'success');
+      await this.load();
+    } catch (e) { ApiClient.handleError(e, '删除培训记录失败'); }
+  },
+
+  showAbilityScopeModal(id) {
+    const isEdit = !!id;
+    let a = null;
+    if (isEdit) {
+      a = this.abilityScopes.find(x => x.id === id);
+      if (!a) { AppUtils.showToast('错误', '未找到能力范围记录', 'error'); return; }
+    }
+    const today = new Date().toISOString().substring(0, 10);
+    const nextYear = new Date(); nextYear.setFullYear(nextYear.getFullYear() + 3);
+    const html = `
+      <div style="display:grid;gap:12px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="floating-label">
+            <input type="number" id="ascLabId" placeholder=" " value="${a ? (a.labId || '') : ''}">
+            <label>实验室ID</label>
+          </div>
+          <div class="floating-label">
+            <input type="number" id="ascCategoryId" placeholder=" " value="${a ? (a.productCategoryId || '') : ''}">
+            <label>产品类别ID</label>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="floating-label">
+            <input type="number" id="ascCertTypeId" placeholder=" " value="${a ? (a.certTypeId || '') : ''}">
+            <label>认证类型ID</label>
+          </div>
+          <div class="floating-label">
+            <input type="text" id="ascAccNo" placeholder=" " value="${a ? (a.accreditationNo || '') : ''}">
+            <label>认可编号 *</label>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="floating-label">
+            <input type="text" id="ascStdCode" placeholder=" " value="${a ? (a.standardCode || '') : ''}">
+            <label>标准号 *</label>
+          </div>
+          <div class="floating-label">
+            <input type="text" id="ascStdName" placeholder=" " value="${a ? (a.standardName || '') : ''}">
+            <label>标准名称 *</label>
+          </div>
+        </div>
+        <div class="floating-label">
+          <textarea id="ascScope" placeholder=" " style="height:80px;resize:vertical;">${a ? (a.testItemScope || '') : ''}</textarea>
+          <label>检测项目范围 *</label>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+          <div class="floating-label">
+            <input type="date" id="ascAccDate" placeholder=" " value="${a ? (String(a.accreditationDate || '').substring(0,10) || today) : today}">
+            <label>认可日期</label>
+          </div>
+          <div class="floating-label">
+            <input type="date" id="ascExpDate" placeholder=" " value="${a ? (String(a.expireDate || '').substring(0,10) || '') : nextYear.toISOString().substring(0,10)}">
+            <label>到期日期</label>
+          </div>
+          <div class="floating-label">
+            <select id="ascStatus" style="padding:10px 12px;">
+              <option value="ACTIVE" ${a && a.status==='ACTIVE'?'selected':''}>有效</option>
+              <option value="PENDING" ${a && a.status==='PENDING'?'selected':''}>待认可</option>
+              <option value="EXPIRED" ${a && a.status==='EXPIRED'?'selected':''}>已过期</option>
+              <option value="SUSPENDED" ${a && a.status==='SUSPENDED'?'selected':''}>暂停</option>
+            </select>
+            <label>状态</label>
+          </div>
+        </div>
+      </div>
+    `;
+    const mask = AppUtils.showModal({
+      title: (isEdit ? '✏️ 编辑能力范围' : '➕ 新增能力项'),
+      content: html,
+      confirmText: '保存',
+      cancelText: '取消',
+      width: '580px',
+      onConfirm: async () => {
+        const payload = {
+          labId: Number($('#ascLabId').val()) || null,
+          productCategoryId: Number($('#ascCategoryId').val()) || null,
+          certTypeId: Number($('#ascCertTypeId').val()) || null,
+          accreditationNo: $('#ascAccNo').val().trim(),
+          standardCode: $('#ascStdCode').val().trim(),
+          standardName: $('#ascStdName').val().trim(),
+          testItemScope: $('#ascScope').val().trim(),
+          accreditationDate: $('#ascAccDate').val(),
+          expireDate: $('#ascExpDate').val(),
+          status: $('#ascStatus').val() || 'ACTIVE'
+        };
+        if (!payload.accreditationNo || !payload.standardCode || !payload.standardName || !payload.testItemScope) {
+          AppUtils.showToast('提示', '请填写认可编号、标准号、标准名称、检测范围', 'warning'); return false;
+        }
+        if (isEdit) payload.id = id;
+        try {
+          if (isEdit) await ApiClient.task.abilityScope.update(payload);
+          else await ApiClient.task.abilityScope.create(payload);
+          AppUtils.closeModal(mask);
+          AppUtils.showToast('成功', isEdit ? '能力范围已更新' : '能力范围已创建', 'success');
+          await this.load();
+        } catch (e) { ApiClient.handleError(e, '保存能力范围失败'); return false; }
+        return false;
+      }
+    });
+  },
+
+  async deleteAbilityScope(id) {
+    if (!confirm('确定删除该能力范围吗？此操作不可恢复。')) return;
+    try {
+      await ApiClient.task.abilityScope.remove(id);
+      AppUtils.showToast('成功', '能力范围已删除', 'success');
+      await this.load();
+    } catch (e) { ApiClient.handleError(e, '删除能力范围失败'); }
   }
 };
 
@@ -414,6 +677,8 @@ const TracePage = {
 
 const AnalyticsPage = {
   stats: null,
+  revenueStats: null,
+  enterpriseFrequency: null,
 
   render() {
     AppLayout.setPageHeader('统计分析报表', ['统计分析']);
@@ -423,7 +688,14 @@ const AnalyticsPage = {
 
   async load() {
     try {
-      this.stats = await ApiClient.analytics.dashboardStats();
+      const [stats, revenue, freq] = await Promise.all([
+        ApiClient.analytics.dashboardStats().catch(() => null),
+        ApiClient.analytics.revenueStats().catch(() => null),
+        ApiClient.analytics.enterpriseFrequency().catch(() => null)
+      ]);
+      this.stats = stats || {};
+      this.revenueStats = revenue || {};
+      this.enterpriseFrequency = freq || {};
     } catch (e) {
       ApiClient.handleError(e, '加载统计数据失败');
       $('#pageContent').html(AppUtils.renderEmpty('统计数据加载失败，请确认后端服务已启动'));
@@ -588,6 +860,10 @@ const AnalyticsPage = {
           </div>
         </div>
       </div>
+
+      ${this.renderRevenueSection(this.revenueStats)}
+
+      ${this.renderEnterpriseFrequencySection(this.enterpriseFrequency)}
     `;
 
     $('#pageContent').html(html);
@@ -676,6 +952,213 @@ const AnalyticsPage = {
     return `
       <path d="${bgPath}" fill="none" stroke="#e2e8f0" stroke-width="14" stroke-linecap="round"/>
       ${fillPath ? `<path d="${fillPath}" fill="none" stroke="${color}" stroke-width="14" stroke-linecap="round"/>` : ''}
+    `;
+  },
+
+  renderRevenueSection(r) {
+    r = r || {};
+    const total = Number(r.totalRevenue || 0);
+    const last30 = Number(r.revenueLast30Days || 0);
+    const thisYear = Number(r.revenueThisYear || 0);
+    const fmt = (v) => '¥ ' + Number(v || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const monthly = (r.monthlyRevenueTrend || []).map(m => ({
+      month: String(m.month || '').substring(5) || m.month,
+      revenue: Number(m.revenue || 0),
+      count: Number(m.count || 0)
+    }));
+    const byMethod = (r.revenueByPaymentMethod || []).map(x => ({
+      method: x.method || '未分类',
+      revenue: Number(x.revenue || 0),
+      count: Number(x.count || 0)
+    }));
+    const totalMethod = byMethod.reduce((s, x) => s + x.revenue, 0) || 1;
+    const methodColors = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+
+    return `
+      <div class="card mb-4" style="margin-top:24px;">
+        <div class="card-header">
+          <h3 class="card-title">💵 收入分析报表</h3>
+          <span style="font-size:13px;color:var(--gray-500);">基于 payment_record 聚合数据</span>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-12 col-md-6 col-lg-4">
+              <div style="padding:18px;background:linear-gradient(135deg, rgba(16,185,129,0.1), rgba(16,185,129,0.02));border-radius:10px;">
+                <div style="font-size:13px;color:var(--gray-500);">历史总收入</div>
+                <div style="font-size:26px;font-weight:700;margin-top:8px;color:var(--success);">${fmt(total)}</div>
+                <div style="font-size:12px;color:var(--gray-500);margin-top:4px;">累计所有支付记录</div>
+              </div>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4">
+              <div style="padding:18px;background:linear-gradient(135deg, rgba(37,99,235,0.1), rgba(37,99,235,0.02));border-radius:10px;">
+                <div style="font-size:13px;color:var(--gray-500);">近30天收入</div>
+                <div style="font-size:26px;font-weight:700;margin-top:8px;color:var(--primary);">${fmt(last30)}</div>
+                <div style="font-size:12px;color:var(--gray-500);margin-top:4px;">当月回款情况</div>
+              </div>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4">
+              <div style="padding:18px;background:linear-gradient(135deg, rgba(245,158,11,0.1), rgba(245,158,11,0.02));border-radius:10px;">
+                <div style="font-size:13px;color:var(--gray-500);">本年度收入</div>
+                <div style="font-size:26px;font-weight:700;margin-top:8px;color:var(--warning);">${fmt(thisYear)}</div>
+                <div style="font-size:12px;color:var(--gray-500);margin-top:4px;">1月1日至今累计</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3" style="margin-top:8px;">
+            <div class="col-12 col-lg-8">
+              <div class="card" style="border:1px solid var(--gray-200);box-shadow:none;">
+                <div class="card-header" style="border-bottom:1px solid var(--gray-100);padding:12px 16px;">
+                  <h3 class="card-title" style="font-size:15px;">📈 月度收入趋势</h3>
+                </div>
+                <div class="card-body" style="padding:16px;">
+                  <div style="height:260px;">
+                    ${monthly.length ? this.renderRevenueBarChart(monthly) : AppUtils.renderEmpty('暂无月度收入数据')}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-lg-4">
+              <div class="card h-100" style="border:1px solid var(--gray-200);box-shadow:none;">
+                <div class="card-header" style="border-bottom:1px solid var(--gray-100);padding:12px 16px;">
+                  <h3 class="card-title" style="font-size:15px;">💳 支付方式分布</h3>
+                </div>
+                <div class="card-body" style="padding:16px;">
+                  ${byMethod.length ? `
+                    <div style="height:260px;overflow:auto;">
+                      ${byMethod.map((m, i) => {
+                        const pct = Math.round(m.revenue / totalMethod * 100);
+                        const c = methodColors[i % methodColors.length];
+                        return `
+                        <div style="margin-bottom:14px;">
+                          <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                            <div class="chart-legend-item"><div class="chart-legend-color" style="background:${c};"></div>${m.method}</div>
+                            <span style="font-weight:600;">${fmt(m.revenue)} (${pct}%)</span>
+                          </div>
+                          <div style="font-size:12px;color:var(--gray-500);margin-bottom:6px;">笔数：${m.count} 笔</div>
+                          <div class="progress" style="height:6px;"><div style="width:${pct}%;height:100%;background:${c};border-radius:3px;"></div></div>
+                        </div>
+                        `;
+                      }).join('')}
+                    </div>
+                  ` : AppUtils.renderEmpty('暂无支付方式数据')}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  renderRevenueBarChart(data) {
+    const max = Math.max(...data.map(d => d.revenue), 1);
+    const fmt = (v) => (v >= 10000 ? (v / 10000).toFixed(1) + '万' : v.toFixed(0));
+    return `
+      <div style="display:flex;align-items:flex-end;gap:6px;height:220px;padding:0 8px;">
+        ${data.map(d => {
+          const h = (d.revenue / max) * 100;
+          return `
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;padding-top:20px;">
+              <div style="font-size:11px;color:var(--gray-600);font-weight:600;">${fmt(d.revenue)}</div>
+              <div style="width:100%;height:${h}%;background:linear-gradient(180deg,#10b981,#059669);border-radius:4px 4px 0 0;"></div>
+              <div style="font-size:10px;color:var(--gray-500);margin-top:4px;">${d.count}笔</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        ${data.map(d => `<div style="flex:1;text-align:center;font-size:12px;color:var(--gray-500);">${d.month}</div>`).join('')}
+      </div>
+    `;
+  },
+
+  renderEnterpriseFrequencySection(f) {
+    f = f || {};
+    const detection = (f.detectionFrequency || []).slice(0, 10);
+    const sampleFreq = f.sampleFrequency || {};
+    const totalDetect = detection.reduce((s, d) => s + Number(d.taskCount || 0), 0);
+
+    return `
+      <div class="card" style="margin-top:24px;">
+        <div class="card-header">
+          <h3 class="card-title">🏢 企业客户检测频次分析</h3>
+          <span style="font-size:13px;color:var(--gray-500);">TOP ${detection.length} 活跃企业 · 共 ${totalDetect} 笔任务</span>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-12 col-lg-8">
+              <div class="table-wrapper" style="border:1px solid var(--gray-200);border-radius:8px;">
+                <table class="data-table" style="margin:0;">
+                  <thead>
+                    <tr>
+                      <th>排名</th>
+                      <th>企业名称</th>
+                      <th style="text-align:center;">委托任务</th>
+                      <th style="text-align:center;" class="col-hide-md">检测样品</th>
+                      <th style="width:220px;">活跃度</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${detection.length ? detection.map((d, i) => {
+                      const taskCount = Number(d.taskCount || 0);
+                      const detectCount = Number(d.detectionCount || 0);
+                      const pct = totalDetect > 0 ? Math.min(100, Math.round(taskCount / totalDetect * 100 * 3)) : 0;
+                      const rankBadge = i < 3
+                        ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font-weight:700;font-size:13px;color:#fff;background:${['#f59e0b','#94a3b8','#cd7f32'][i]};">${i+1}</span>`
+                        : `<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font-weight:600;font-size:12px;color:var(--gray-600);background:var(--gray-100);">${i+1}</span>`;
+                      return `
+                      <tr>
+                        <td style="text-align:center;">${rankBadge}</td>
+                        <td style="font-weight:500;">${d.companyName || '未命名企业'}</td>
+                        <td style="text-align:center;font-weight:600;color:var(--primary);">${taskCount}</td>
+                        <td style="text-align:center;" class="col-hide-md">${detectCount}</td>
+                        <td>
+                          <div style="display:flex;align-items:center;gap:8px;">
+                            <div class="progress" style="flex:1;margin:0;"><div class="progress-bar" style="width:${pct}%;background:${i < 3 ? '#f59e0b' : 'var(--primary)'};"></div></div>
+                            <span style="font-size:12px;color:var(--gray-600);min-width:36px;">${pct}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                      `;
+                    }).join('') : `<tr><td colspan="5">${AppUtils.renderEmpty('暂无企业检测数据')}</td></tr>`}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="col-12 col-lg-4">
+              <div class="card h-100" style="border:1px solid var(--gray-200);box-shadow:none;">
+                <div class="card-header" style="border-bottom:1px solid var(--gray-100);padding:12px 16px;">
+                  <h3 class="card-title" style="font-size:15px;">📦 样品总体统计</h3>
+                </div>
+                <div class="card-body" style="padding:16px;">
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div style="padding:16px;background:rgba(37,99,235,0.06);border-radius:10px;text-align:center;">
+                      <div style="font-size:28px;font-weight:700;color:var(--primary);">${Number(sampleFreq.sampleCount || 0).toLocaleString()}</div>
+                      <div style="font-size:12px;color:var(--gray-500);margin-top:4px;">样品总数</div>
+                    </div>
+                    <div style="padding:16px;background:rgba(16,185,129,0.06);border-radius:10px;text-align:center;">
+                      <div style="font-size:28px;font-weight:700;color:var(--success);">${Number(sampleFreq.testedCount || 0).toLocaleString()}</div>
+                      <div style="font-size:12px;color:var(--gray-500);margin-top:4px;">已检测</div>
+                    </div>
+                    <div style="padding:16px;background:rgba(239,68,68,0.06);border-radius:10px;text-align:center;">
+                      <div style="font-size:28px;font-weight:700;color:var(--danger);">${Number(sampleFreq.destroyedCount || 0).toLocaleString()}</div>
+                      <div style="font-size:12px;color:var(--gray-500);margin-top:4px;">已销毁</div>
+                    </div>
+                    <div style="padding:16px;background:rgba(245,158,11,0.06);border-radius:10px;text-align:center;">
+                      <div style="font-size:28px;font-weight:700;color:var(--warning);">${Math.max(0, Number(sampleFreq.sampleCount || 0) - Number(sampleFreq.destroyedCount || 0)).toLocaleString()}</div>
+                      <div style="font-size:12px;color:var(--gray-500);margin-top:4px;">在库中</div>
+                    </div>
+                  </div>
+                  <div style="margin-top:16px;padding:12px;background:var(--gray-50);border-radius:8px;font-size:13px;color:var(--gray-600);line-height:1.8;">
+                    💡 活跃企业排名 = 委托任务数降序 TOP10，基于 inspection_task 与 sample_info 联表聚合。
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     `;
   }
 };

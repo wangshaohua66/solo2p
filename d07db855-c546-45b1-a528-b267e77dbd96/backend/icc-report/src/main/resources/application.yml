@@ -55,6 +55,9 @@ notification:
     api-key: your-sms-api-key
     sign-name: 检验检测认证中心
     template-code: SMS_CERT_EXPIRE_REMIND
+  default-contacts:
+    email: contact@iccert.gov.cn
+    phone: 400-888-8888
 
 minio:
   endpoint: http://127.0.0.1:9000

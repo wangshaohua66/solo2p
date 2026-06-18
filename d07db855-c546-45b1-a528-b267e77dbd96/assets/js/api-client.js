@@ -176,7 +176,23 @@ const ApiClient = (function () {
     equipmentList() { return get(full(PREFIX.task, '/equipment/list')); },
     technicianList() { return get(full(PREFIX.task, '/technician/list')); },
     unreadNotifications() { return get(full(PREFIX.task, '/notification/unread')); },
-    markRead(id) { return post(full(PREFIX.task, '/notification/' + id + '/read')); }
+    markRead(id) { return post(full(PREFIX.task, '/notification/' + id + '/read')); },
+    training: {
+      list() { return get(full(PREFIX.task, '/training/list')); },
+      listByTechnician(techId) { return get(full(PREFIX.task, '/training/technician/' + techId)); },
+      get(id) { return get(full(PREFIX.task, '/training/' + id)); },
+      create(data) { return post(full(PREFIX.task, '/training'), data); },
+      update(data) { return put(full(PREFIX.task, '/training'), data); },
+      remove(id) { return del(full(PREFIX.task, '/training/' + id)); }
+    },
+    abilityScope: {
+      list() { return get(full(PREFIX.task, '/ability-scope/list')); },
+      listByLab(labId) { return get(full(PREFIX.task, '/ability-scope/lab/' + labId)); },
+      get(id) { return get(full(PREFIX.task, '/ability-scope/' + id)); },
+      create(data) { return post(full(PREFIX.task, '/ability-scope'), data); },
+      update(data) { return put(full(PREFIX.task, '/ability-scope'), data); },
+      remove(id) { return del(full(PREFIX.task, '/ability-scope/' + id)); }
+    }
   };
 
   /* ---------------- Report 报告与证书 ---------------- */
@@ -226,7 +242,9 @@ const ApiClient = (function () {
     appendRawRecord(data) { return post(full(PREFIX.analytics, '/raw-record/append'), data); },
     verifyIntegrity(taskId) { return get(full(PREFIX.analytics, '/raw-record/verify/' + taskId)); },
     dashboardStats() { return get(full(PREFIX.analytics, '/dashboard/stats')); },
-    auditLogs() { return get(full(PREFIX.analytics, '/audit/logs')); }
+    auditLogs() { return get(full(PREFIX.analytics, '/audit/logs')); },
+    revenueStats() { return get(full(PREFIX.analytics, '/revenue/stats')); },
+    enterpriseFrequency() { return get(full(PREFIX.analytics, '/enterprise/frequency')); }
   };
 
   return {

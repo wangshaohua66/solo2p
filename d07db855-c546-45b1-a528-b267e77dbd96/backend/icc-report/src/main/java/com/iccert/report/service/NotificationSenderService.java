@@ -52,6 +52,12 @@ public class NotificationSenderService {
     @Value("${notification.sms.template-code:SMS_CERT_EXPIRE_REMIND}")
     private String smsTemplateCode;
 
+    @Value("${notification.default-contacts.email:}")
+    private String defaultContactEmail;
+
+    @Value("${notification.default-contacts.phone:}")
+    private String defaultContactPhone;
+
     /**
      * 异步发送证书到期提醒（邮件 + 短信）。
      */
@@ -168,18 +174,43 @@ public class NotificationSenderService {
     }
 
     /**
-     * 解析企业联系邮箱：优先取证书关联企业邮箱。
-     * 当前证书实体未直接持有邮箱字段，可由后续扩展企业信息补充；
-     * 此处预留，未配置时返回 null 触发日志降级。
+     * 解析企业联系邮箱：
+     * 1. 优先从证书关联的 companyId 查询企业库（预留接口，未来可通过 OpenFeign 调用 icc-customer）；
+     * 2. 若未查到或未配置企业库，回退到 application.yml 的 notification.default-contacts.email；
+     * 3. 若默认也未配置，返回 null 触发日志降级，不抛出异常。
      */
     private String resolveContactEmail(CertificateInfo cert) {
-        return null;
+        if (cert == null) {
+            return safeContact(defaultContactEmail);
+        }
+        // TODO: 当 icc-customer 模块提供企业联系人查询接口后，通过 companyId 查询真实邮箱
+        // if (cert.getCompanyId() != null) {
+        //     try { String email = customerClient.getContactEmail(cert.getCompanyId());
+        //       if (email != null && !email.isBlank()) return email; } catch (Exception ignore) {}
+        // }
+        String fallback = safeContact(defaultContactEmail);
+        if (fallback != null) {
+            log.info("[证书提醒] 证书{}({}) 使用默认联系邮箱: {}", cert.getCertNo(), cert.getCompanyName(), fallback);
+        }
+        return fallback;
     }
 
     /**
-     * 解析企业联系电话：同上预留。
+     * 解析企业联系电话：策略与邮箱一致。
      */
     private String resolveContactPhone(CertificateInfo cert) {
-        return null;
+        if (cert == null) {
+            return safeContact(defaultContactPhone);
+        }
+        // TODO: 同邮箱，未来可通过 companyId 查询企业真实联系电话
+        String fallback = safeContact(defaultContactPhone);
+        if (fallback != null) {
+            log.info("[证书提醒] 证书{}({}) 使用默认联系电话: {}", cert.getCertNo(), cert.getCompanyName(), fallback);
+        }
+        return fallback;
+    }
+
+    private String safeContact(String s) {
+        return (s != null && !s.isBlank()) ? s.trim() : null;
     }
 }
