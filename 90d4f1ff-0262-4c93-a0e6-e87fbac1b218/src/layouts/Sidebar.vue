@@ -43,7 +43,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoute, type RouteRecordRaw } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { filterRoutesByRole } from '@/router'
@@ -51,6 +51,7 @@ import { filterRoutesByRole } from '@/router'
 const appStore = useAppStore()
 const authStore = useAuthStore()
 const route = useRoute()
+const router = useRouter()
 
 const collapsed = computed(() => appStore.sidebarCollapsed)
 

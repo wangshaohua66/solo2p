@@ -309,7 +309,11 @@ const MemberService = (function() {
             transactions = transactions.filter(t => t.type === filters.type);
         }
 
-        return transactions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        const sorted = transactions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        if (filters.limit && filters.limit > 0) {
+            return sorted.slice(0, filters.limit);
+        }
+        return sorted;
     }
 
     function getConsumptionHistory(memberId, limit = 20) {

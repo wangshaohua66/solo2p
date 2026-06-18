@@ -772,7 +772,7 @@ const OrderPage = (function() {
             if (member.cardType === 'prepaid') {
                 balanceText = `余额: ${Helpers.formatCurrency(member.balance || 0)}`;
             } else if (member.cardType === 'count') {
-                balanceText = `剩余: ${member.remainingCount || 0} 次`;
+                balanceText = `剩余: ${member.remainingTimes || 0} 次`;
             } else if (member.cardType === 'year') {
                 balanceText = member.expiryDate ? `有效期至: ${member.expiryDate}` : '年卡';
             }
@@ -816,7 +816,7 @@ const OrderPage = (function() {
                 cardInfo += ' (余额不足100元)';
             }
         } else if (member.cardType === 'count') {
-            cardInfo = `剩余次数: ${member.remainingCount || 0} 次`;
+            cardInfo = `剩余次数: ${member.remainingTimes || 0} 次`;
         } else if (member.cardType === 'year') {
             if (member.expiryDate) {
                 const expiryDate = new Date(member.expiryDate);
@@ -888,8 +888,8 @@ const OrderPage = (function() {
         }
 
         if (paymentMethod === 'count' && selectedMember) {
-            const remainingCount = selectedMember.remainingCount || 0;
-            if (remainingCount < 1) {
+            const remainingTimes = selectedMember.remainingTimes || 0;
+            if (remainingTimes < 1) {
                 Helpers.showToast('次卡次数不足', 'error');
                 return;
             }

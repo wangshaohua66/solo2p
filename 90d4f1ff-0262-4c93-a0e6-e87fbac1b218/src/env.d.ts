@@ -6,6 +6,17 @@ declare module '*.vue' {
 
 declare module 'nprogress'
 
+declare module 'element-plus/dist/locale/zh-cn.mjs' {
+  const locale: any
+  export default locale
+}
+
+declare module 'vue-echarts' {
+  import type { Component } from 'vue'
+  const VChart: Component
+  export default VChart
+}
+
 interface ImportMetaEnv {
   readonly VITE_BASE_PATH: string
   readonly VITE_API_URL: string

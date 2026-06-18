@@ -56,11 +56,11 @@ export function useSignalRService() {
       chargingStore.removeExpiredReservation(reservationId)
     })
 
-    connection.on('PaymentCompleted', (orderId: string) => {
+    connection.on('PaymentCompleted', (_orderId: string) => {
       ElMessage.success('支付成功')
     })
 
-    connection.on('WorkOrderAssigned', (workOrderId: string) => {
+    connection.on('WorkOrderAssigned', (_workOrderId: string) => {
       ElMessage.info('您有新的工单待处理')
     })
 

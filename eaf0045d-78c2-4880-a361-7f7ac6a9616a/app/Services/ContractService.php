@@ -2,12 +2,15 @@
 
 namespace App\Services;
 
+use App\Jobs\PushNotificationJob;
+use App\Models\CertificateTransfer;
 use App\Models\Contract;
 use App\Models\CreditScoreLog;
 use App\Models\Notification;
 use App\Models\Trade;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ContractService
 {
@@ -161,52 +164,89 @@ class ContractService
 
     public function processExpiringContracts(): array
     {
+        Log::info('开始处理到期合同...', ['time' => now()->toDateTimeString()]);
+
         $results = [
             'reminded_3d' => 0,
             'reminded_1d' => 0,
             'breached' => 0,
         ];
 
-        $remind3d = Contract::pendingDelivery()
-            ->expiringInDays(3)
-            ->where('reminder_3d_sent', false)
-            ->get();
+        DB::beginTransaction();
 
-        foreach ($remind3d as $contract) {
-            $contract->update(['reminder_3d_sent' => true]);
-            $this->sendDeliveryReminder($contract, 3);
-            $results['reminded_3d']++;
+        try {
+            $remind3d = Contract::pendingDelivery()
+                ->expiringInDays(3)
+                ->where('reminder_3d_sent', false)
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($remind3d as $contract) {
+                $contract->update(['reminder_3d_sent' => true]);
+                $this->sendDeliveryReminder($contract, 3);
+                $results['reminded_3d']++;
+                Log::info('已发送3天到期提醒', [
+                    'contract_no' => $contract->contract_no,
+                    'contract_id' => $contract->id,
+                ]);
+            }
+
+            $remind1d = Contract::pendingDelivery()
+                ->expiringInDays(1)
+                ->where('reminder_1d_sent', false)
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($remind1d as $contract) {
+                $contract->update(['reminder_1d_sent' => true]);
+                $this->sendDeliveryReminder($contract, 1);
+                $results['reminded_1d']++;
+                Log::info('已发送1天到期提醒', [
+                    'contract_no' => $contract->contract_no,
+                    'contract_id' => $contract->id,
+                ]);
+            }
+
+            $overdueContracts = Contract::overdue()->lockForUpdate()->get();
+
+            foreach ($overdueContracts as $contract) {
+                $this->markAsBreached($contract, '未按期交割');
+                $results['breached']++;
+                Log::info('已标记违约', [
+                    'contract_no' => $contract->contract_no,
+                    'contract_id' => $contract->id,
+                ]);
+            }
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('处理到期合同失败', ['error' => $e->getMessage()]);
+            throw $e;
         }
 
-        $remind1d = Contract::pendingDelivery()
-            ->expiringInDays(1)
-            ->where('reminder_1d_sent', false)
-            ->get();
-
-        foreach ($remind1d as $contract) {
-            $contract->update(['reminder_1d_sent' => true]);
-            $this->sendDeliveryReminder($contract, 1);
-            $results['reminded_1d']++;
-        }
-
-        $overdueContracts = Contract::overdue()->get();
-
-        foreach ($overdueContracts as $contract) {
-            $this->markAsBreached($contract, '未按期交割');
-            $results['breached']++;
-        }
+        Log::info('到期合同处理完成', $results);
 
         return $results;
     }
 
     protected function sendDeliveryReminder(Contract $contract, int $daysBefore): void
     {
-        $this->sendNotification(
+        $sellerNotification = $this->sendNotification(
             $contract->seller_id,
             'contract_delivery_reminder',
             "合同即将到期（{$daysBefore}天后）",
-            "合同 {$contract->contract_no} 将在 {$daysBefore} 天后到期，请及时完成交割。"
+            "合同 {$contract->contract_no} 将在 {$daysBefore} 天后到期，请及时完成交割。合同数量：{$contract->quantity}张，金额：¥{$contract->total_amount}"
         );
+        PushNotificationJob::dispatch($sellerNotification->id);
+
+        $buyerNotification = $this->sendNotification(
+            $contract->buyer_id,
+            'contract_delivery_reminder_buyer',
+            "合同即将到期（{$daysBefore}天后）",
+            "您购买的合同 {$contract->contract_no} 将在 {$daysBefore} 天后到期，卖方即将完成交割。数量：{$contract->quantity}张，金额：¥{$contract->total_amount}"
+        );
+        PushNotificationJob::dispatch($buyerNotification->id);
     }
 
     public function markAsBreached(Contract $contract, string $reason): Contract

@@ -57,39 +57,7 @@
       </div>
 
       <div class="map-area">
-        <div class="map-placeholder">
-          <div class="map-grid"></div>
-          <el-icon class="map-icon"><Location /></el-icon>
-          <div class="map-text">地图组件加载中...</div>
-        </div>
-
-        <div class="vehicle-markers">
-          <div
-            v-for="vehicle in vehicleLocations"
-            :key="vehicle.ambulanceId"
-            class="vehicle-marker"
-            :style="getVehiclePosition(vehicle)"
-            :class="{ selected: selectedVehicleId === vehicle.ambulanceId }"
-            @click="selectVehicle(vehicle.ambulanceId)"
-          >
-            <div :class="['marker-icon', getStatusClass(vehicle.status)]">
-              <el-icon><Van /></el-icon>
-            </div>
-            <div class="marker-label">{{ vehicle.plateNumber }}</div>
-          </div>
-        </div>
-
-        <div class="incident-markers">
-          <div
-            v-for="event in activeEvents"
-            :key="'incident-' + event.id"
-            class="incident-marker"
-            :style="getIncidentPosition(event)"
-          >
-            <el-icon class="marker-pin"><LocationFilled /></el-icon>
-            <div class="marker-label">{{ event.callerName }}</div>
-          </div>
-        </div>
+        <div ref="mapContainer" class="map-container"></div>
       </div>
 
       <div class="event-detail">
@@ -259,7 +227,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { ElMessage, ElNotification } from 'element-plus'
 import {
   getActiveEvents,
@@ -288,6 +256,11 @@ import {
 import type { Client } from '@stomp/stompjs'
 import Stomp from 'stompjs'
 import SockJS from 'sockjs-client'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
+
+const DEFAULT_CENTER = [39.9042, 116.4074] as [number, number]
+const DEFAULT_ZOOM = 12
 
 const activeEvents = ref<DispatchEventSummary[]>([])
 const selectedEvent = ref<DispatchEventDetail | null>(null)
@@ -324,6 +297,9 @@ const statusText: Record<string, string> = {
   CANCELLED: '已取消',
   AVAILABLE: '可用',
   ON_CALL: '执行任务',
+  ON_SCENE_STATUS: '在现场',
+  TRANSPORTING_STATUS: '转运中',
+  AT_HOSPITAL: '已到院',
   MAINTENANCE: '维修中'
 }
 
@@ -358,32 +334,316 @@ const timelineItems = computed(() => {
 
 let stompClient: Client | null = null
 let refreshTimer: number | null = null
+let mapInstance: L.Map | null = null
+const mapContainer = ref<HTMLDivElement | null>(null)
+const vehicleMarkers = new Map<number, L.Marker>()
+const incidentMarkers = new Map<number, L.Marker>()
+const geofenceCircles = new Map<string, L.Circle>()
+
+function createAmbulanceIcon(status: string): L.DivIcon {
+  const colorMap: Record<string, string> = {
+    AVAILABLE: '#22c55e',
+    ON_CALL: '#3b82f6',
+    ON_SCENE_STATUS: '#f59e0b',
+    TRANSPORTING_STATUS: '#8b5cf6',
+    ON_SCENE: '#f59e0b',
+    TRANSPORTING: '#8b5cf6',
+    AT_HOSPITAL: '#10b981',
+    MAINTENANCE: '#ef4444'
+  }
+  const bgColor = colorMap[status] || '#6b7280'
+
+  return L.divIcon({
+    className: 'custom-vehicle-marker',
+    html: `
+      <div style="
+        background: ${bgColor};
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 20px;
+        border: 3px solid white;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        position: relative;
+      ">
+        🚑
+        <div style="
+          position: absolute;
+          bottom: -6px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 0;
+          height: 0;
+          border-left: 6px solid transparent;
+          border-right: 6px solid transparent;
+          border-top: 6px solid ${bgColor};
+        "></div>
+      </div>
+    `,
+    iconSize: [40, 46],
+    iconAnchor: [20, 46],
+    popupAnchor: [0, -46]
+  })
+}
+
+function createIncidentIcon(severity: string): L.DivIcon {
+  const colorMap: Record<string, string> = {
+    MINOR: '#22c55e',
+    MODERATE: '#f59e0b',
+    SEVERE: '#ef4444',
+    CRITICAL: '#dc2626'
+  }
+  const bgColor = colorMap[severity] || '#ef4444'
+
+  return L.divIcon({
+    className: 'custom-incident-marker',
+    html: `
+      <div style="
+        background: ${bgColor};
+        width: 36px;
+        height: 36px;
+        border-radius: 50% 50% 50% 0;
+        transform: rotate(-45deg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 18px;
+        border: 3px solid white;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        animation: pulse-${severity === 'CRITICAL' ? 'fast' : 'normal'} 1.5s ease-in-out infinite;
+      ">
+        <span style="transform: rotate(45deg);">📍</span>
+      </div>
+    `,
+    iconSize: [36, 36],
+    iconAnchor: [18, 36],
+    popupAnchor: [0, -36]
+  })
+}
+
+function initMap() {
+  if (!mapContainer.value) return
+
+  mapInstance = L.map(mapContainer.value, {
+    center: DEFAULT_CENTER,
+    zoom: DEFAULT_ZOOM,
+    zoomControl: true,
+    attributionControl: true
+  })
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19,
+    minZoom: 3
+  }).addTo(mapInstance)
+
+  L.control.scale({
+    imperial: false,
+    metric: true,
+    position: 'bottomleft'
+  }).addTo(mapInstance)
+}
+
+function updateVehicleMarkers() {
+  if (!mapInstance) return
+
+  vehicleLocations.value.forEach(vehicle => {
+    const lat = vehicle.latitude
+    const lng = vehicle.longitude
+    if (!lat || !lng) return
+
+    const markerStatus = getMarkerStatus(vehicle.status)
+    const icon = createAmbulanceIcon(markerStatus)
+    const latLng: L.LatLngTuple = [lat, lng]
+
+    const existing = vehicleMarkers.get(vehicle.ambulanceId)
+    if (existing) {
+      existing.setLatLng(latLng)
+      existing.setIcon(icon)
+      existing.setPopupContent(`
+        <div style="padding: 8px; min-width: 160px;">
+          <div style="font-weight: bold; font-size: 14px; margin-bottom: 4px;">${vehicle.plateNumber}</div>
+          <div style="font-size: 12px; color: #6b7280;">状态: ${statusText[vehicle.status] || vehicle.status}</div>
+          <div style="font-size: 12px; color: #6b7280;">速度: ${vehicle.speedKmh || 0} km/h</div>
+          <div style="font-size: 12px; color: #6b7280;">更新: ${new Date(vehicle.timestamp).toLocaleTimeString()}</div>
+        </div>
+      `)
+    } else {
+      const marker = L.marker(latLng, { icon })
+        .addTo(mapInstance!)
+        .bindPopup('')
+        .on('click', () => {
+          selectedVehicleId.value = vehicle.ambulanceId
+        })
+      vehicleMarkers.set(vehicle.ambulanceId, marker)
+      marker.fire('click')
+    }
+  })
+
+  const removedIds: number[] = []
+  vehicleMarkers.forEach((marker, id) => {
+    const exists = vehicleLocations.value.some(v => v.ambulanceId === id)
+    if (!exists) {
+      mapInstance!.removeLayer(marker)
+      removedIds.push(id)
+    }
+  })
+  removedIds.forEach(id => vehicleMarkers.delete(id))
+}
+
+function getMarkerStatus(status: string): string {
+  const statusMap: Record<string, string> = {
+    ON_CALL: 'ON_CALL',
+    ON_SCENE: 'ON_SCENE_STATUS',
+    TRANSPORTING: 'TRANSPORTING_STATUS',
+    AT_HOSPITAL: 'AT_HOSPITAL'
+  }
+  return statusMap[status] || status
+}
+
+function updateIncidentMarkers() {
+  if (!mapInstance) return
+
+  activeEvents.value.forEach(event => {
+    const lat = event.latitude
+    const lng = event.longitude
+    if (!lat || !lng) return
+
+    const icon = createIncidentIcon(event.severity)
+    const latLng: L.LatLngTuple = [lat, lng]
+
+    const existing = incidentMarkers.get(event.id)
+    if (existing) {
+      existing.setLatLng(latLng)
+      existing.setIcon(icon)
+      existing.setPopupContent(`
+        <div style="padding: 8px; min-width: 200px;">
+          <div style="font-weight: bold; font-size: 14px; margin-bottom: 4px; color: ${getSeverityColor(event.severity)};">
+            ${event.callerName} - ${severityText[event.severity]}
+          </div>
+          <div style="font-size: 12px; color: #6b7280;">电话: ${event.callerPhone}</div>
+          <div style="font-size: 12px; color: #6b7280;">地址: ${event.incidentAddress}</div>
+          <div style="font-size: 12px; color: #6b7280;">主诉: ${event.chiefComplaint}</div>
+          <div style="margin-top: 6px; font-size: 11px;">
+            <span style="display: inline-block; padding: 2px 8px; background: #eff6ff; color: #2563eb; border-radius: 4px;">
+              ${statusText[event.status]}
+            </span>
+          </div>
+        </div>
+      `)
+    } else {
+      const marker = L.marker(latLng, { icon })
+        .addTo(mapInstance!)
+        .bindPopup('')
+        .on('click', () => {
+          selectEvent(event)
+        })
+      incidentMarkers.set(event.id, marker)
+    }
+  })
+
+  const removedIds: number[] = []
+  incidentMarkers.forEach((marker, id) => {
+    const exists = activeEvents.value.some(e => e.id === id)
+    if (!exists) {
+      mapInstance!.removeLayer(marker)
+      removedIds.push(id)
+    }
+  })
+  removedIds.forEach(id => incidentMarkers.delete(id))
+}
+
+function getSeverityColor(severity: string): string {
+  const colorMap: Record<string, string> = {
+    MINOR: '#22c55e',
+    MODERATE: '#f59e0b',
+    SEVERE: '#ef4444',
+    CRITICAL: '#dc2626'
+  }
+  return colorMap[severity] || '#374151'
+}
+
+function updateGeofenceCircles() {
+  if (!mapInstance) return
+
+  geofenceCircles.forEach(circle => mapInstance!.removeLayer(circle))
+  geofenceCircles.clear()
+
+  const geofenceRadius = 50
+
+  activeEvents.value.forEach(event => {
+    if (event.status !== 'EN_ROUTE' || !event.latitude || !event.longitude) return
+
+    const sceneCircle = L.circle([event.latitude, event.longitude], {
+      color: '#3b82f6',
+      fillColor: '#3b82f6',
+      fillOpacity: 0.1,
+      weight: 2,
+      radius: geofenceRadius,
+      dashArray: '5, 5'
+    }).addTo(mapInstance!)
+
+    geofenceCircles.set(`scene-${event.id}`, sceneCircle)
+
+    if (event.hospital?.latitude && event.hospital?.longitude) {
+      const hospitalCircle = L.circle([event.hospital.latitude, event.hospital.longitude], {
+        color: '#10b981',
+        fillColor: '#10b981',
+        fillOpacity: 0.1,
+        weight: 2,
+        radius: geofenceRadius,
+        dashArray: '5, 5'
+      }).addTo(mapInstance!)
+
+      geofenceCircles.set(`hospital-${event.id}`, hospitalCircle)
+    }
+  })
+}
+
+function fitMapToMarkers() {
+  if (!mapInstance) return
+
+  const allLatLngs: L.LatLngTuple[] = []
+
+  vehicleLocations.value.forEach(v => {
+    if (v.latitude && v.longitude) {
+      allLatLngs.push([v.latitude, v.longitude])
+    }
+  })
+
+  activeEvents.value.forEach(e => {
+    if (e.latitude && e.longitude) {
+      allLatLngs.push([e.latitude, e.longitude])
+    }
+  })
+
+  if (allLatLngs.length > 0) {
+    const bounds = L.latLngBounds(allLatLngs)
+    mapInstance.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 })
+  }
+}
 
 function selectEvent(event: DispatchEventSummary) {
   getEventDetail(event.id).then(detail => {
     selectedEvent.value = detail
+    if (mapInstance && event.latitude && event.longitude) {
+      mapInstance.setView([event.latitude, event.longitude], 15)
+    }
   })
 }
 
 function selectVehicle(id: number) {
   selectedVehicleId.value = id
-}
-
-function getVehiclePosition(vehicle: VehicleStatusUpdate) {
-  const x = ((vehicle.longitude - 116.3) / 0.2) * 100
-  const y = ((40.1 - vehicle.latitude) / 0.1) * 100
-  return {
-    left: `${Math.max(10, Math.min(90, x))}%`,
-    top: `${Math.max(10, Math.min(90, y))}%`
-  }
-}
-
-function getIncidentPosition(event: DispatchEventSummary) {
-  const x = ((116.38 - 116.3) / 0.2) * 100
-  const y = ((40.05 - 40.1) / 0.1) * 100 + Math.random() * 30
-  return {
-    left: `${Math.max(15, Math.min(85, x))}%`,
-    top: `${Math.max(20, Math.min(80, y))}%`
+  const vehicle = vehicleLocations.value.find(v => v.ambulanceId === id)
+  if (mapInstance && vehicle?.latitude && vehicle?.longitude) {
+    mapInstance.setView([vehicle.latitude, vehicle.longitude], 16)
+    const marker = vehicleMarkers.get(id)
+    if (marker) marker.openPopup()
   }
 }
 
@@ -494,14 +754,45 @@ function connectWebSocket() {
         const locations = JSON.parse(message.body)
         vehicleLocations.value = Array.from(locations.values())
       })
+
+      stompClient!.subscribe('/topic/dispatch/geofence/scene', (message) => {
+        const data = JSON.parse(message.body)
+        ElNotification({
+          title: '到达现场',
+          message: `车辆 ${data.plateNumber || ''} 已到达现场围栏`,
+          type: 'success'
+        })
+      })
+
+      stompClient!.subscribe('/topic/dispatch/geofence/hospital', (message) => {
+        const data = JSON.parse(message.body)
+        ElNotification({
+          title: '到达医院',
+          message: `车辆 ${data.plateNumber || ''} 已到达医院围栏`,
+          type: 'success'
+        })
+      })
     })
   } catch (error) {
     console.error('WebSocket connection failed:', error)
   }
 }
 
-onMounted(() => {
-  loadData()
+watch([vehicleLocations, activeEvents], () => {
+  nextTick(() => {
+    updateVehicleMarkers()
+    updateIncidentMarkers()
+    updateGeofenceCircles()
+  })
+}, { deep: true })
+
+onMounted(async () => {
+  await nextTick()
+  initMap()
+  await loadData()
+  setTimeout(() => {
+    fitMapToMarkers()
+  }, 500)
   connectWebSocket()
   refreshTimer = window.setInterval(loadData, 5000)
 })
@@ -513,8 +804,52 @@ onUnmounted(() => {
   if (refreshTimer) {
     clearInterval(refreshTimer)
   }
+  if (mapInstance) {
+    mapInstance.remove()
+    mapInstance = null
+  }
+  vehicleMarkers.clear()
+  incidentMarkers.clear()
+  geofenceCircles.clear()
 })
 </script>
+
+<style>
+@keyframes pulse-normal {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+  }
+}
+
+@keyframes pulse-fast {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 0 15px rgba(220, 38, 38, 0);
+  }
+}
+
+.custom-vehicle-marker,
+.custom-incident-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.leaflet-control-attribution {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border-radius: 4px;
+  padding: 2px 8px !important;
+}
+</style>
 
 <style scoped lang="scss">
 .vehicle-recommendation {
@@ -539,5 +874,14 @@ onUnmounted(() => {
     margin-top: 16px;
     font-size: 14px;
   }
+}
+
+.map-container {
+  width: 100%;
+  height: 100%;
+  min-height: 500px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #e5e7eb;
 }
 </style>

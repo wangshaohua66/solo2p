@@ -40,6 +40,9 @@ export interface MedicalRecordCreateRequest {
   disposition?: string
   handoverTo?: string
   handoverNotes?: string
+  signature?: string
+  signerName?: string
+  signedAt?: string
 }
 
 export interface MedicalRecordUpdateRequest {
@@ -60,6 +63,9 @@ export interface MedicalRecordUpdateRequest {
   disposition?: string
   handoverTo?: string
   handoverNotes?: string
+  signature?: string
+  signerName?: string
+  signedAt?: string
 }
 
 export interface MedicalRecordSummary {
@@ -102,6 +108,9 @@ export interface MedicalRecordDetail {
   disposition?: string
   handoverTo?: string
   handoverNotes?: string
+  signature?: string
+  signerName?: string
+  signedAt?: string
   dispatchEventId: number
   eventNo?: string
   incidentAddress?: string

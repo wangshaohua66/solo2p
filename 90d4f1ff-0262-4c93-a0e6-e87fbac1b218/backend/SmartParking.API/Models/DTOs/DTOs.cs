@@ -69,6 +69,7 @@ public class ParkingSpotDto
     public string? PlateNumber { get; set; }
     public DateTime? EntryTime { get; set; }
     public string? ReservationId { get; set; }
+    public DateTime? LastHeartbeat { get; set; }
 }
 
 public class ParkingRecordDto
@@ -109,6 +110,7 @@ public class ChargingStationDto
     public string Location { get; set; } = string.Empty;
     public string ParkingLotId { get; set; } = string.Empty;
     public decimal PricePerKwh { get; set; }
+    public DateTime? LastHeartbeat { get; set; }
 }
 
 public class ChargingReservationDto

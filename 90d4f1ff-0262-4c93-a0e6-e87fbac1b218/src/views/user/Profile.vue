@@ -11,9 +11,9 @@
         </el-tag>
         <div class="member-info" v-if="authStore.user?.memberLevel">
           <el-tag type="warning" effect="dark">
-            <el-icon><Crown /></el-icon>
-            会员 Lv.{{ authStore.user.memberLevel }}
-          </el-tag>
+              <el-icon><Star /></el-icon>
+              会员 Lv.{{ authStore.user.memberLevel }}
+            </el-tag>
         </div>
       </div>
 
@@ -33,7 +33,7 @@
                 ¥{{ (authStore.user?.balance || 0).toFixed(2) }}
               </span>
               <el-button type="primary" size="small" style="margin-left: 12px;">
-                <el-icon><TopUp /></el-icon>充值
+                <el-icon><Wallet /></el-icon>充值
               </el-button>
             </el-descriptions-item>
           </el-descriptions>
@@ -65,7 +65,7 @@
 
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/auth'
-import { User, Lock, Crown, TopUp } from '@element-plus/icons-vue'
+import { User, Lock, Star, Wallet } from '@element-plus/icons-vue'
 import type { UserRole } from '@/types'
 
 const authStore = useAuthStore()
@@ -73,12 +73,12 @@ const authStore = useAuthStore()
 const roleLabel = (r: UserRole) => ({
   SuperAdmin: '超级管理员', ParkOperator: '园区运营', ParkingAdmin: '停车场管理员',
   ChargingOps: '充电桩运维', CarOwner: '车主'
-}[r])
+}[r] || r)
 
 const roleTagType = (r: UserRole) => ({
   SuperAdmin: 'danger', ParkOperator: 'warning', ParkingAdmin: 'primary',
   ChargingOps: 'success', CarOwner: 'info'
-}[r]) as 'danger' | 'warning' | 'primary' | 'success' | 'info'
+}[r] || 'info') as 'danger' | 'warning' | 'primary' | 'success' | 'info'
 </script>
 
 <style lang="scss" scoped>

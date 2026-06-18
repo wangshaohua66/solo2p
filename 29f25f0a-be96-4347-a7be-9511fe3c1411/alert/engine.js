@@ -1,4 +1,4 @@
-const { alerts, rateSnapshots, spaceStatus, surchargeChanges } = require('../store/db');
+const { alerts, rateSnapshots, spaceStatus, surchargeChanges, taskLogs } = require('../store/db');
 const { alertConfig } = require('../config/carriers');
 const logger = require('../utils/logger');
 
@@ -14,6 +14,7 @@ class AlertEngine {
       priceAlerts: 0,
       spaceAlerts: 0,
       surchargeAlerts: 0,
+      loginAlerts: 0,
       totalAlerts: 0
     };
 
@@ -26,7 +27,10 @@ class AlertEngine {
     const surchargeResults = this.checkSurchargeChanges();
     results.surchargeAlerts = surchargeResults.created;
     
-    results.totalAlerts = results.priceAlerts + results.spaceAlerts + results.surchargeAlerts;
+    const loginResults = this.checkLoginFailures();
+    results.loginAlerts = loginResults.created;
+    
+    results.totalAlerts = results.priceAlerts + results.spaceAlerts + results.surchargeAlerts + results.loginAlerts;
     
     logger.info(`预警检查完成，新增 ${results.totalAlerts} 条预警`);
     return results;
@@ -197,6 +201,75 @@ class AlertEngine {
           
           createdCount++;
           logger.info(`附加费预警: ${change.carrier_name} ${change.surcharge_name}`);
+        }
+      }
+    }
+
+    return { created: createdCount };
+  }
+
+  checkLoginFailures() {
+    logger.debug('检查登录失败情况');
+    let createdCount = 0;
+
+    const stats = taskLogs.getStatsByCarrier();
+    
+    for (const stat of stats) {
+      if (stat.failed_count > 0) {
+        const recentLogs = taskLogs.getByCarrier(stat.carrier_id, 10);
+        const failedLogs = recentLogs.filter(log => log.status === 'failed' && log.error_message);
+        
+        for (const log of failedLogs) {
+          const errorMsg = log.error_message || '';
+          const needsCaptcha = errorMsg.includes('验证码') || 
+                              errorMsg.includes('captcha') || 
+                              errorMsg.includes('CAPTCHA') ||
+                              errorMsg.includes('verification');
+          
+          const existing = alerts.checkExists(
+            needsCaptcha ? 'captcha_required' : 'login_failure',
+            stat.carrier_id,
+            null,
+            null,
+            null
+          );
+
+          if (!existing) {
+            const alertType = needsCaptcha ? 'captcha_required' : 'login_failure';
+            const severity = needsCaptcha ? 'warning' : 'info';
+            const title = needsCaptcha 
+              ? `需要验证码: ${stat.carrier_name}`
+              : `登录失败: ${stat.carrier_name}`;
+            const message = needsCaptcha
+              ? `${stat.carrier_name} 登录需要验证码验证，请配置 OCR 回调接口或手动处理`
+              : `${stat.carrier_name} 最近24小时登录失败 ${stat.failed_count} 次，请检查凭据或网络连接`;
+            
+            alerts.create({
+              alert_type: alertType,
+              severity,
+              carrier_id: stat.carrier_id,
+              carrier_name: stat.carrier_name,
+              port_from: null,
+              port_to: null,
+              container_type: null,
+              title,
+              message,
+              previous_value: null,
+              current_value: stat.failed_count,
+              threshold: 1,
+              status: 'active',
+              metadata: JSON.stringify({ 
+                last_error: errorMsg,
+                failed_count: stat.failed_count,
+                success_count: stat.success_count,
+                last_run: stat.last_run,
+                needs_captcha: needsCaptcha
+              })
+            });
+            
+            createdCount++;
+            logger.warn(`登录预警: ${title}`);
+          }
         }
       }
     }

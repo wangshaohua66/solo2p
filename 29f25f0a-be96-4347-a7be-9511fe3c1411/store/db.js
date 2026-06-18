@@ -347,6 +347,13 @@ const taskLogs = {
   create(log) {
     const db = getDb();
     if (!log.start_time) log.start_time = now();
+    if (log.http_status === undefined) log.http_status = null;
+    if (log.records_parsed === undefined) log.records_parsed = 0;
+    if (log.records_failed === undefined) log.records_failed = 0;
+    if (log.duration_ms === undefined) log.duration_ms = null;
+    if (log.end_time === undefined) log.end_time = null;
+    if (log.error_message === undefined) log.error_message = null;
+    if (log.retry_count === undefined) log.retry_count = 0;
     const stmt = db.prepare(`
       INSERT INTO task_logs
       (task_id, carrier_id, carrier_name, task_type, status,

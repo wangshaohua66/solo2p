@@ -39,7 +39,8 @@ class SettlementService
                 $tradeAmount,
                 $serviceFee,
                 $settlementDate,
-                $settlementMonth
+                $settlementMonth,
+                true
             );
 
             $buyerSettlement = $this->createSettlement(
@@ -51,7 +52,8 @@ class SettlementService
                 $tradeAmount,
                 $serviceFee,
                 $settlementDate,
-                $settlementMonth
+                $settlementMonth,
+                true
             );
 
             $this->auditLogService->log(
@@ -64,13 +66,15 @@ class SettlementService
                     'buyer_settlement_id' => $buyerSettlement->id,
                     'trade_amount' => $tradeAmount,
                     'service_fee' => $serviceFee,
+                    'status' => Settlement::STATUS_SETTLED,
                 ],
-                '生成结算单'
+                '交割完成，自动生成并确认结算单'
             );
 
             return [
                 'seller_settlement' => $sellerSettlement,
                 'buyer_settlement' => $buyerSettlement,
+                'auto_confirmed' => true,
             ];
         });
     }
@@ -84,7 +88,8 @@ class SettlementService
         float $tradeAmount,
         float $serviceFee,
         $settlementDate,
-        string $settlementMonth
+        string $settlementMonth,
+        bool $autoConfirm = false
     ): Settlement {
         $netAmount = match ($type) {
             Settlement::TYPE_INCOME => $tradeAmount - $serviceFee,
@@ -93,6 +98,8 @@ class SettlementService
         };
 
         $settlementNo = 'SET' . date('YmdHis') . rand(1000, 9999);
+
+        $status = $autoConfirm ? Settlement::STATUS_SETTLED : Settlement::STATUS_PENDING;
 
         return Settlement::create([
             'settlement_no' => $settlementNo,
@@ -105,7 +112,7 @@ class SettlementService
             'trade_amount' => $tradeAmount,
             'service_fee' => $serviceFee,
             'net_amount' => $netAmount,
-            'status' => Settlement::STATUS_PENDING,
+            'status' => $status,
             'settlement_date' => $settlementDate,
             'settlement_month' => $settlementMonth,
         ]);

@@ -33,6 +33,7 @@ import (
 	emw "github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	echoSwagger "github.com/swaggo/echo-swagger"
 
 	_ "craftbrew-tracker/docs"
 )
@@ -60,6 +61,16 @@ func main() {
 	// 4. Service / Handler / Scheduler
 	svc := service.New(cfg, db)
 	h := handler.New(cfg, svc)
+
+	// 启动时立即执行一次库存预警和偏差检查
+	if err := svc.RunInventoryAlerts(); err != nil {
+		log.Warn().Err(err).Msg("initial inventory check failed")
+	}
+	if err := svc.RunDeviationCheck(); err != nil {
+		log.Warn().Err(err).Msg("initial deviation check failed")
+	}
+	log.Info().Msg("initial inventory & deviation check completed")
+
 	sch := scheduler.New(&cfg.Scheduler, svc)
 	sch.Start()
 	defer sch.Stop()
@@ -90,8 +101,8 @@ func main() {
 		})
 	})
 
-	// 8. Swagger
-	e.GET("/swagger/*", echoSwaggerHandler)
+	// 8. Swagger (swaggo/swag auto-generated)
+	e.GET("/swagger/*", echoSwagger.WrapHandler)
 	e.GET("/", func(c echo.Context) error {
 		return c.Redirect(http.StatusFound, "/swagger/index.html")
 	})
@@ -149,6 +160,7 @@ func main() {
 	inv.POST("/finished/inbound", h.InboundFinished, middleware.RequireRoles(model.RoleWarehouse, model.RoleAdmin))
 	inv.POST("/finished/outbound", h.OutboundFinished, middleware.RequireRoles(model.RoleWarehouse, model.RoleAdmin))
 	inv.GET("/movements", h.ListMovements, middleware.RequireRoles(model.RoleWarehouse, model.RoleCompliance, model.RoleAdmin))
+	inv.POST("/check", h.TriggerInventoryCheck, middleware.RequireRoles(model.RoleWarehouse, model.RoleQC, model.RoleAdmin))
 
 	// 告警 / 偏差
 	api.GET("/alerts", h.ListAlerts, middleware.RequireRoles(model.RoleQC, model.RoleCompliance, model.RoleBrewer, model.RoleWarehouse, model.RoleAdmin))
@@ -205,18 +217,6 @@ func main() {
 	log.Info().Msg("craftbrew tracker shutdown complete")
 }
 
-// echoSwaggerHandler 在没有 swaggo 生成文件时提供占位响应，避免启动报错
-func echoSwaggerHandler(c echo.Context) error {
-	path := c.Param("*")
-	if path == "index.html" || path == "/" {
-		return c.HTML(http.StatusOK, swaggerHTML)
-	}
-	if path == "swagger.json" || path == "doc.json" {
-		return c.JSONBlob(http.StatusOK, swaggerJSONBlob())
-	}
-	return c.NoContent(http.StatusNotFound)
-}
-
 func customHTTPErrorHandler(err error, c echo.Context) {
 	if c.Response().Committed {
 		return
@@ -244,57 +244,4 @@ func customHTTPErrorHandler(err error, c echo.Context) {
 		"message": msg,
 		"traceId": traceID,
 	})
-}
-
-const swaggerHTML = `<!doctype html>
-<html><head><title>CraftBrew API Docs</title>
-<link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
-</head><body><div id="swagger-ui"></div>
-<script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
-<script>
-SwaggerUIBundle({url:"/swagger/swagger.json",dom_id:"#swagger-ui",deepLinking:true});
-</script></body></html>`
-
-// swaggerJSONBlob 返回最小可展示的 swagger spec；如用 swag init 生成可覆盖
-func swaggerJSONBlob() []byte {
-	return []byte(`{
-  "openapi":"3.0.3",
-  "info":{"title":"精酿啤酒批次追踪 API","version":"1.0.0","description":"RESTful API（运行 swag init 可生成完整 spec）"},
-  "servers":[{"url":"/api/v1"}],
-  "components":{
-    "securitySchemes":{"BearerAuth":{"type":"http","scheme":"bearer","bearerFormat":"JWT"}},
-    "schemas":{
-      "Response":{"type":"object","properties":{"code":{"type":"integer"},"message":{"type":"string"},"data":{},"traceId":{"type":"string"}}},
-      "LoginRequest":{"type":"object","required":["username","password"],"properties":{"username":{"type":"string"},"password":{"type":"string"}}},
-      "LoginResponse":{"type":"object","properties":{"token":{"type":"string"},"expiresAt":{"type":"string","format":"date-time"},"user":{"type":"object"}}}
-    }
-  },
-  "security":[{"BearerAuth":[]}],
-  "paths":{
-    "/auth/login":{
-      "post":{"tags":["认证"],"summary":"登录获取 JWT","requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/LoginRequest"}}}},
-        "responses":{"200":{"description":"成功","content":{"application/json":{"schema":{"allOf":[{"$ref":"#/components/schemas/Response"}],"properties":{"data":{"$ref":"#/components/schemas/LoginResponse"}}}}}}}
-    },
-    "/batches":{
-      "get":{"tags":["批次管理"],"summary":"分页查询批次","parameters":[{"name":"status","in":"query","schema":{"type":"string"}},{"name":"page","in":"query","schema":{"type":"integer"}},{"name":"pageSize","in":"query","schema":{"type":"integer"}}],
-        "responses":{"200":{"description":"成功","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Response"}}}}}},
-      "post":{"tags":["批次管理"],"summary":"创建批次","requestBody":{"required":true,"content":{"application/json":{"schema":{"type":"object","required":["recipeId","targetVolumeL"],"properties":{"recipeId":{"type":"integer"},"targetVolumeL":{"type":"number"},"notes":{"type":"string"}}}}},
-        "responses":{"201":{"description":"创建成功","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Response"}}}}}}
-    },
-    "/batches/{id}/transition":{"post":{"tags":["批次管理"],"summary":"流转阶段","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer"}}],
-      "requestBody":{"required":true,"content":{"application/json":{"schema":{"type":"object","required":["toStage"],"properties":{"toStage":{"type":"string","enum":["mashing","fermenting","aging","bottling","completed"]}}}}},
-      "responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Response"}}}}}}
-    },
-    "/quality/samples":{
-      "get":{"tags":["质检测试"],"summary":"查询样本","responses":{"200":{"description":"OK"}}},
-      "post":{"tags":["质检测试"],"summary":"提交样本及结果","responses":{"201":{"description":"OK"}}}
-    },
-    "/inventory/materials/inbound":{"post":{"tags":["库存管理"],"summary":"原料入库","responses":{"200":{"description":"OK"}}}},
-    "/inventory/finished/outbound":{"post":{"tags":["库存管理"],"summary":"成品出库","responses":{"200":{"description":"OK"}}}},
-    "/trace/{id}":{"get":{"tags":["追溯管理"],"summary":"全链路追溯","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer"}}],"responses":{"200":{"description":"OK"}}}},
-    "/reports/export":{"post":{"tags":["合规报告"],"summary":"导出合规报告（异步）","responses":{"200":{"description":"返回 taskId"}}}},
-    "/tasks/{taskId}":{"get":{"tags":["工具"],"summary":"查询异步任务","responses":{"200":{"description":"OK"}}}},
-    "/alerts":{"get":{"tags":["告警管理"],"summary":"告警列表","responses":{"200":{"description":"OK"}}}}
-  }
-}`)
 }

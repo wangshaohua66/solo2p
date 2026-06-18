@@ -44,6 +44,12 @@ const routes: RouteRecordRaw[] = [
         name: 'Quality',
         component: () => import('@/views/quality/QualityDashboard.vue'),
         meta: { title: '质控报表', icon: 'DataAnalysis', roles: ['QC', 'ADMIN'] }
+      },
+      {
+        path: 'hospital',
+        name: 'HospitalNotification',
+        component: () => import('@/views/hospital/HospitalNotification.vue'),
+        meta: { title: '医院预通知', icon: 'Bell', roles: ['HOSPITAL', 'ADMIN', 'DOCTOR'] }
       }
     ]
   }

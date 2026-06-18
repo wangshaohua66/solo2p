@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { get, post, put } from '@/utils/http'
+import { get, post } from '@/utils/http'
 import type { ParkingLot, ParkingSpot, ParkingRecord, PagedResult, PagedQuery, ParkingSpotStatus } from '@/types'
 
 export const useParkingStore = defineStore('parking', () => {

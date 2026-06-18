@@ -3,6 +3,7 @@
 </template>
 
 <script setup lang="ts">
+import { watch, onBeforeUnmount } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useSignalRService } from '@/services/signalr'
 

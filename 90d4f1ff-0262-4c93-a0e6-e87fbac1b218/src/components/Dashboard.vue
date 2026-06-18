@@ -41,7 +41,7 @@
 
         <div class="stat-card parking-card">
           <div class="stat-icon">
-            <el-icon :size="28"><Parking /></el-icon>
+            <el-icon :size="28"><Van /></el-icon>
           </div>
           <div class="stat-content">
             <div class="stat-label">停车次数</div>
@@ -152,11 +152,6 @@ import {
   GridComponent, DataZoomComponent
 } from 'echarts/components'
 import VChart from 'vue-echarts'
-import {
-  DataAnalysis, Refresh, Download, Money, Parking, Lightning,
-  PieChart as PieChartIcon, TrendCharts, Histogram, Aim, Rank, Coin,
-  Top, Bottom
-} from '@element-plus/icons-vue'
 import { useAdminStore } from '@/stores/admin'
 import type { DashboardStats } from '@/types'
 

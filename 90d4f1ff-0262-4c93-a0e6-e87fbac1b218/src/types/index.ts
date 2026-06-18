@@ -1,46 +1,14 @@
-export enum UserRole {
-  SuperAdmin = 'SuperAdmin',
-  ParkOperator = 'ParkOperator',
-  ParkingAdmin = 'ParkingAdmin',
-  ChargingOps = 'ChargingOps',
-  CarOwner = 'CarOwner'
-}
+export type UserRole = 'SuperAdmin' | 'ParkOperator' | 'ParkingAdmin' | 'ChargingOps' | 'CarOwner'
 
-export enum ParkingSpotStatus {
-  Available = 'Available',
-  Occupied = 'Occupied',
-  Reserved = 'Reserved',
-  Offline = 'Offline'
-}
+export type ParkingSpotStatus = 'Available' | 'Occupied' | 'Reserved' | 'Offline'
 
-export enum ChargingStationStatus {
-  Idle = 'Idle',
-  Charging = 'Charging',
-  Reserved = 'Reserved',
-  Faulty = 'Faulty',
-  Offline = 'Offline'
-}
+export type ChargingStationStatus = 'Idle' | 'Charging' | 'Reserved' | 'Faulty' | 'Offline'
 
-export enum OrderStatus {
-  Pending = 'Pending',
-  Paid = 'Paid',
-  Refunding = 'Refunding',
-  Refunded = 'Refunded',
-  Cancelled = 'Cancelled'
-}
+export type OrderStatus = 'Pending' | 'Paid' | 'Refunding' | 'Refunded' | 'Cancelled'
 
-export enum WorkOrderStatus {
-  Pending = 'Pending',
-  Assigned = 'Assigned',
-  Processing = 'Processing',
-  Closed = 'Closed'
-}
+export type WorkOrderStatus = 'Pending' | 'Assigned' | 'Processing' | 'Closed'
 
-export enum PaymentMethod {
-  WeChat = 'WeChat',
-  Alipay = 'Alipay',
-  Balance = 'Balance'
-}
+export type PaymentMethod = 'WeChat' | 'Alipay' | 'Balance'
 
 export interface User {
   id: string
@@ -98,6 +66,7 @@ export interface ParkingSpot {
   plateNumber?: string
   entryTime?: string
   reservationId?: string
+  lastHeartbeat?: string
 }
 
 export interface ParkingRecord {
@@ -124,6 +93,7 @@ export interface ChargingStation {
   location: string
   parkingLotId: string
   pricePerKwh: number
+  lastHeartbeat?: string
 }
 
 export interface ChargingReservation {

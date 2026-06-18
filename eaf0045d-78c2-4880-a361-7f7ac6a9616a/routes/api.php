@@ -30,7 +30,7 @@ Route::prefix('api/v1')->group(function () {
         Route::prefix('meter-readings')->group(function () {
             Route::get('/', [MeterReadingController::class, 'index'])->name('api.v1.meter-readings.index');
             Route::get('/pending-count', [MeterReadingController::class, 'pendingCount'])->name('api.v1.meter-readings.pending-count');
-            Route::post('/submit', [MeterReadingController::class, 'submit'])->name('api.v1.meter-readings.submit');
+            Route::post('/submit', [MeterReadingController::class, 'submit'])->middleware('throttle:meter-batch')->name('api.v1.meter-readings.submit');
             Route::post('/{id}/review', [MeterReadingController::class, 'review'])->name('api.v1.meter-readings.review');
             Route::get('/{id}', [MeterReadingController::class, 'show'])->name('api.v1.meter-readings.show');
         });
@@ -45,12 +45,12 @@ Route::prefix('api/v1')->group(function () {
 
         Route::prefix('listings')->group(function () {
             Route::get('/', [ListingController::class, 'index'])->name('api.v1.listings.index');
-            Route::post('/', [ListingController::class, 'store'])->name('api.v1.listings.store');
+            Route::post('/', [ListingController::class, 'store'])->middleware('trading.throttle')->name('api.v1.listings.store');
             Route::get('/market-depth', [ListingController::class, 'marketDepth'])->name('api.v1.listings.market-depth');
             Route::get('/trades', [ListingController::class, 'trades'])->name('api.v1.listings.trades');
             Route::get('/latest-price', [ListingController::class, 'latestPrice'])->name('api.v1.listings.latest-price');
-            Route::post('/match', [ListingController::class, 'match'])->name('api.v1.listings.match');
-            Route::post('/{id}/cancel', [ListingController::class, 'cancel'])->name('api.v1.listings.cancel');
+            Route::post('/match', [ListingController::class, 'match'])->middleware('trading.throttle')->name('api.v1.listings.match');
+            Route::post('/{id}/cancel', [ListingController::class, 'cancel'])->middleware('trading.throttle')->name('api.v1.listings.cancel');
             Route::get('/{id}', [ListingController::class, 'show'])->name('api.v1.listings.show');
         });
 
@@ -60,7 +60,7 @@ Route::prefix('api/v1')->group(function () {
             Route::get('/notifications/unread-count', [ContractController::class, 'unreadCount'])->name('api.v1.contracts.unread-count');
             Route::post('/notifications/read-all', [ContractController::class, 'markAllNotificationsRead'])->name('api.v1.contracts.mark-all-read');
             Route::post('/notifications/{id}/read', [ContractController::class, 'markNotificationRead'])->name('api.v1.contracts.mark-read');
-            Route::post('/{id}/deliver', [ContractController::class, 'deliver'])->name('api.v1.contracts.deliver');
+            Route::post('/{id}/deliver', [ContractController::class, 'deliver'])->middleware('trading.throttle')->name('api.v1.contracts.deliver');
             Route::post('/{id}/confirm-receipt', [ContractController::class, 'confirmReceipt'])->name('api.v1.contracts.confirm-receipt');
             Route::get('/{id}', [ContractController::class, 'show'])->name('api.v1.contracts.show');
         });

@@ -137,6 +137,9 @@
                 <el-descriptions-item v-if="selectedSpot.entryTime" label="已停时长">
                   <span class="duration-text">{{ computeDuration(selectedSpot.entryTime) }}</span>
                 </el-descriptions-item>
+                <el-descriptions-item v-if="selectedSpot.status === 'Offline' && selectedSpot.lastHeartbeat" label="离线时长">
+                  <span class="offline-duration">{{ computeOfflineDuration(selectedSpot.lastHeartbeat) }}</span>
+                </el-descriptions-item>
               </el-descriptions>
               <div v-if="authStore.hasRole(['SuperAdmin', 'ParkOperator', 'ParkingAdmin'])" class="detail-actions">
                 <el-button
@@ -214,7 +217,7 @@ import type { ParkingSpot, ParkingSpotStatus } from '@/types'
 
 const parkingStore = useParkingStore()
 const authStore = useAuthStore()
-const { isConnected: signalrConnected, startConnection } = useSignalRService()
+const { isConnected: signalrConnected } = useSignalRService()
 
 const selectedSpot = ref<ParkingSpot | null>(null)
 const entryDialogVisible = ref(false)
@@ -284,6 +287,18 @@ const computeDuration = (entryTime: string) => {
   const h = Math.floor(diff / 60)
   const m = diff % 60
   return h > 0 ? `${h}小时${m}分钟` : `${m}分钟`
+}
+
+const computeOfflineDuration = (lastHeartbeat: string) => {
+  const last = new Date(lastHeartbeat).getTime()
+  const now = Date.now()
+  const diff = Math.max(0, Math.floor((now - last) / 60000))
+  if (diff < 60) return `${diff}分钟`
+  const h = Math.floor(diff / 60)
+  const m = diff % 60
+  if (h < 24) return `${h}小时${m}分钟`
+  const d = Math.floor(h / 24)
+  return `${d}天${h % 24}小时`
 }
 
 const handleLotChange = (lotId: string) => {
@@ -523,6 +538,11 @@ onUnmounted(() => {
 
   .duration-text {
     color: var(--primary-color);
+    font-weight: 600;
+  }
+
+  .offline-duration {
+    color: var(--warning-color);
     font-weight: 600;
   }
 }

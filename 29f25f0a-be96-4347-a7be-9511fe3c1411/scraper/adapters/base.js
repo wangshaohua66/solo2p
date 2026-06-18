@@ -10,6 +10,100 @@ class BaseAdapter {
     this.browser = null;
     this.page = null;
     this.isLoggedIn = false;
+    this.captchaCallback = null;
+  }
+
+  setCaptchaCallback(callback) {
+    this.captchaCallback = callback;
+    logger.debug(`[${this.config.name}] 验证码回调已设置`);
+  }
+
+  static setGlobalCaptchaCallback(callback) {
+    BaseAdapter._globalCaptchaCallback = callback;
+  }
+
+  async _detectCaptcha() {
+    const { captchaImage, captchaError } = this.config.selectors;
+    try {
+      if (captchaImage) {
+        const captchaImg = await this.page.$(captchaImage);
+        if (captchaImg) {
+          logger.debug(`[${this.config.name}] 检测到验证码图片`);
+          return true;
+        }
+      }
+      if (captchaError) {
+        const captchaErr = await this.page.$(captchaError);
+        if (captchaErr) {
+          const errText = await this.page.evaluate(el => el.textContent, captchaErr);
+          if (errText && (errText.includes('验证码') || errText.includes('captcha') || errText.includes('CAPTCHA'))) {
+            logger.debug(`[${this.config.name}] 检测到验证码错误提示: ${errText.trim()}`);
+            return true;
+          }
+        }
+      }
+      const pageText = await this.page.evaluate(() => document.body.textContent);
+      if (pageText && (pageText.includes('验证码') || pageText.includes('Captcha') || pageText.includes('CAPTCHA'))) {
+        logger.debug(`[${this.config.name}] 页面文本中检测到验证码关键词`);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      logger.debug(`[${this.config.name}] 验证码检测异常: ${e.message}`);
+      return false;
+    }
+  }
+
+  async _handleCaptcha() {
+    const { captchaImage, captchaInput } = this.config.selectors;
+    const captchaCallback = this.captchaCallback || BaseAdapter._globalCaptchaCallback;
+    
+    if (!captchaCallback) {
+      logger.warn(`[${this.config.name}] 检测到验证码但未配置回调接口，跳过处理`);
+      return false;
+    }
+
+    try {
+      let captchaImageData = null;
+      if (captchaImage) {
+        const imgEl = await this.page.$(captchaImage);
+        if (imgEl) {
+          captchaImageData = await imgEl.screenshot({ encoding: 'base64' });
+          logger.debug(`[${this.config.name}] 已截取验证码图片，大小: ${Math.round(captchaImageData.length / 1024)}KB`);
+        }
+      }
+
+      const pageUrl = this.page.url();
+      const pageHtml = captchaImage ? null : await this.page.content();
+
+      logger.info(`[${this.config.name}] 调用验证码识别回调...`);
+      const result = await captchaCallback({
+        carrierId: this.config.id,
+        carrierName: this.config.name,
+        imageBase64: captchaImageData,
+        pageUrl,
+        pageHtml,
+        pageTitle: await this.page.title(),
+        timestamp: new Date().toISOString()
+      });
+
+      if (result && result.success && result.text) {
+        logger.info(`[${this.config.name}] 验证码识别成功: ${result.text}`);
+        if (captchaInput) {
+          await this.page.waitForSelector(captchaInput, { timeout: 5000 }).catch(() => {});
+          await this.page.click(captchaInput, { clickCount: 3 });
+          await this.page.type(captchaInput, result.text, { delay: 50 });
+          logger.debug(`[${this.config.name}] 验证码已填入`);
+        }
+        return true;
+      } else {
+        logger.warn(`[${this.config.name}] 验证码识别失败: ${result?.error || '未知错误'}`);
+        return false;
+      }
+    } catch (e) {
+      logger.error(`[${this.config.name}] 验证码处理异常: ${e.message}`);
+      return false;
+    }
   }
 
   async initBrowser(headless = true) {
@@ -78,6 +172,7 @@ class BaseAdapter {
     }
 
     logger.info(`[${this.config.name}] 开始登录`);
+    let captchaHandled = false;
     
     try {
       await this.page.goto(this.config.loginUrl, {
@@ -88,6 +183,13 @@ class BaseAdapter {
       const { usernameInput, passwordInput, submitButton } = this.config.selectors;
 
       await this.page.waitForSelector(usernameInput, { timeout: 10000 });
+      
+      const hasCaptcha = await this._detectCaptcha();
+      if (hasCaptcha && !captchaHandled) {
+        logger.info(`[${this.config.name}] 登录前检测到验证码，尝试识别...`);
+        captchaHandled = await this._handleCaptcha();
+      }
+
       await this.page.type(usernameInput, this.config.credentials.username, { delay: 50 });
       await this.page.type(passwordInput, this.config.credentials.password, { delay: 50 });
       
@@ -103,12 +205,47 @@ class BaseAdapter {
         await this._saveSession();
         logger.info(`[${this.config.name}] 登录成功`);
       } else {
-        logger.warn(`[${this.config.name}] 登录验证失败`);
+        logger.warn(`[${this.config.name}] 登录验证失败，检查是否需要验证码...`);
+        
+        const hasCaptchaAfter = await this._detectCaptcha();
+        if (hasCaptchaAfter && !captchaHandled) {
+          logger.info(`[${this.config.name}] 登录失败后检测到验证码，尝试识别...`);
+          captchaHandled = await this._handleCaptcha();
+          
+          if (captchaHandled) {
+            logger.info(`[${this.config.name}] 验证码处理完成，重试登录...`);
+            await this.page.type(usernameInput, this.config.credentials.username, { delay: 50 });
+            await this.page.type(passwordInput, this.config.credentials.password, { delay: 50 });
+            
+            await Promise.all([
+              this.page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 15000 })
+                .catch(() => {}),
+              this.page.click(submitButton)
+            ]);
+            
+            const loggedInRetry = await this._verifyLogin();
+            if (loggedInRetry) {
+              this.isLoggedIn = true;
+              await this._saveSession();
+              logger.info(`[${this.config.name}] 重试登录成功`);
+              return true;
+            }
+          }
+        }
+        
+        logger.warn(`[${this.config.name}] 登录失败，可能需要手动处理验证码或检查凭据`);
       }
       
-      return loggedIn;
+      return this.isLoggedIn;
     } catch (error) {
       logger.error(`[${this.config.name}] 登录失败: ${error.message}`);
+      
+      const hasCaptcha = await this._detectCaptcha().catch(() => false);
+      if (hasCaptcha && !captchaHandled) {
+        logger.info(`[${this.config.name}] 登录异常后检测到验证码，尝试识别...`);
+        await this._handleCaptcha();
+      }
+      
       sessions.invalidate(this.config.id);
       return false;
     }

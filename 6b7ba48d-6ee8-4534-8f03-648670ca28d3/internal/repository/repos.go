@@ -329,6 +329,18 @@ func (r *RecipeRepo) GetByID(id int64) (*model.Recipe, error) {
 	return rc, nil
 }
 
+func (r *RecipeRepo) GetByVersion(code string, version int) (*model.Recipe, error) {
+	rc := &model.Recipe{}
+	err := r.QueryRow(
+		"SELECT id, name, code, version, description, style, abv_target, ibu_target, srm_target, created_by, active, created_at FROM recipes WHERE code=? AND version=?",
+		code, version,
+	).Scan(&rc.ID, &rc.Name, &rc.Code, &rc.Version, &rc.Description, &rc.Style, &rc.ABVTarget, &rc.IBUTarget, &rc.SRMTarget, &rc.CreatedBy, &rc.Active, &rc.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return rc, nil
+}
+
 func (r *RecipeRepo) List(page, size int) ([]*model.Recipe, int64, error) {
 	var total int64
 	if err := r.QueryRow("SELECT COUNT(*) FROM recipes WHERE active=1").Scan(&total); err != nil {

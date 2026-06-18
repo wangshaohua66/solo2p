@@ -3,7 +3,7 @@
     <div class="card">
       <div class="flex-between mb-4">
         <div class="card-title" style="margin: 0;">计费规则管理</div>
-        <el-button type="primary" :icon="Plus" @click="showCreateDialog">新建规则</el-button>
+        <el-button type="primary" :icon="Plus" @click="showCreateDialog = true">新建规则</el-button>
       </div>
       <el-table :data="billingStore.rules" v-loading="billingStore.loading" stripe>
         <el-table-column prop="name" label="规则名称" min-width="160" />
@@ -25,14 +25,14 @@
           <template #default="{ row }">
             <el-switch
               :model-value="row.isEnabled"
-              @change="(v: boolean) => billingStore.toggleRule(row.id, v)"
+              @change="(v) => handleToggle(row.id, v as boolean)"
             />
           </template>
         </el-table-column>
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" size="small" link>编辑</el-button>
-            <el-button type="danger" size="small" link>删除</el-button>
+            <el-button type="primary" size="small" link @click="handleEdit(row)">编辑</el-button>
+            <el-button type="danger" size="small" link @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -44,10 +44,22 @@
 import { onMounted, ref } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { useBillingStore } from '@/stores/billing'
-import { ElMessage } from 'element-plus'
+import type { BillingRule } from '@/types'
 
 const billingStore = useBillingStore()
 const showCreateDialog = ref(false)
+
+const handleToggle = (id: string, enabled: boolean) => {
+  billingStore.toggleRule(id, enabled)
+}
+
+const handleEdit = (_row: BillingRule) => {
+  // TODO: 编辑规则
+}
+
+const handleDelete = (_row: BillingRule) => {
+  // TODO: 删除规则
+}
 
 onMounted(async () => {
   try {

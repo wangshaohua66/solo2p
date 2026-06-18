@@ -72,6 +72,7 @@ const PackageService = (function() {
         return packages.map(pkg => ({
             ...pkg,
             typeText: Helpers.getPackageTypeText(pkg.type),
+            items: DataStore.indexes.packageItems.byPackageId.get(pkg.id) || [],
             priceInfo: calculatePackagePrice(pkg.id)
         }));
     }

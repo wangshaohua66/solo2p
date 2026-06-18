@@ -139,6 +139,27 @@ func genBatchNo() string {
 	return fmt.Sprintf("B%s%s", time.Now().Format("20060102"), uuid.NewString()[:6])
 }
 
+// lockedRecipeID returns the recipe ID of the version locked by the batch.
+// Batches store recipe_code + recipe_version at creation time; we use those
+// to look up the exact recipe version rather than the latest one.
+func (s *Service) lockedRecipeID(batch *model.Batch) (int64, error) {
+	if batch.RecipeVersion > 0 && batch.RecipeName != "" {
+		// Extract recipe code from batch: the batch stores recipe_name which
+		// is the display name, but the actual code is in the recipe record.
+		// We first try to get the original recipe by ID to obtain the code.
+		orig, err := s.Recipes.GetByID(batch.RecipeID)
+		if err != nil {
+			return 0, err
+		}
+		locked, err := s.Recipes.GetByVersion(orig.Code, batch.RecipeVersion)
+		if err != nil {
+			return batch.RecipeID, nil
+		}
+		return locked.ID, nil
+	}
+	return batch.RecipeID, nil
+}
+
 func (s *Service) CreateBatch(req *dto.CreateBatchRequest, brewerID int64, brewerName string) (int64, error) {
 	recipe, err := s.Recipes.GetByID(req.RecipeID)
 	if err != nil {
@@ -183,8 +204,12 @@ func (s *Service) TransitionStage(batchID int64, toStage model.BatchStage, userI
 		return fmt.Errorf("%w: %s -> %s", ErrInvalidTransition, batch.CurrentStage, toStage)
 	}
 
-	// 校验当前阶段必需参数
-	requiredParams, err := s.Recipes.GetParamsByStage(batch.RecipeID, batch.CurrentStage)
+	// 校验当前阶段必需参数（使用批次锁定的配方版本）
+	lockedRecipeID, err := s.lockedRecipeID(batch)
+	if err != nil {
+		return err
+	}
+	requiredParams, err := s.Recipes.GetParamsByStage(lockedRecipeID, batch.CurrentStage)
 	if err != nil {
 		return err
 	}
@@ -232,8 +257,12 @@ func (s *Service) RecordParam(batchID int64, req *dto.RecordParamRequest, userID
 	if batch.Status == model.BatchStatusFrozen {
 		return 0, ErrBatchFrozen
 	}
-	// 校验配方范围
-	standardParams, _ := s.Recipes.GetParamsByStage(batch.RecipeID, req.Stage)
+	// 使用批次锁定的配方版本查参数标准
+	lockedRecipeID, err := s.lockedRecipeID(batch)
+	if err != nil {
+		return 0, err
+	}
+	standardParams, _ := s.Recipes.GetParamsByStage(lockedRecipeID, req.Stage)
 	for _, sp := range standardParams {
 		if sp.ParamName == req.ParamName {
 			if sp.MinValue != 0 || sp.MaxValue != 0 {
@@ -542,7 +571,11 @@ func (s *Service) RunDeviationCheck() error {
 		if err != nil {
 			continue
 		}
-		stdParams, err := s.Recipes.GetParams(b.RecipeID)
+		lockedRecipeID, err := s.lockedRecipeID(b)
+		if err != nil {
+			continue
+		}
+		stdParams, err := s.Recipes.GetParams(lockedRecipeID)
 		if err != nil {
 			continue
 		}
@@ -589,6 +622,13 @@ func (s *Service) GetTraceChain(batchID int64) (*dto.TraceChainResponse, error) 
 	recipe, err := s.Recipes.GetByID(batch.RecipeID)
 	if err != nil {
 		recipe = nil
+	}
+	// 追溯时使用批次锁定的配方版本
+	if recipe != nil && batch.RecipeVersion > 0 {
+		locked, lerr := s.Recipes.GetByVersion(recipe.Code, batch.RecipeVersion)
+		if lerr == nil && locked != nil {
+			recipe = locked
+		}
 	}
 	materials, err := s.Batches.GetBatchMaterials(batchID)
 	if err != nil {

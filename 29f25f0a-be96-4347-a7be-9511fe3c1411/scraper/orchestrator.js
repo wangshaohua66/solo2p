@@ -9,6 +9,8 @@ class ScrapeOrchestrator {
     this.maxPuppeteerInstances = options.maxPuppeteerInstances || schedulerConfig.maxPuppeteerInstances;
     this.maxConcurrentPerSite = options.maxConcurrentPerSite || schedulerConfig.maxConcurrentPerSite;
     this.defaultTimeout = options.defaultTimeout || schedulerConfig.defaultTimeout;
+    this.memoryLimitMB = options.memoryLimitMB || schedulerConfig.memoryLimitMB || 512;
+    this.memoryCheckInterval = options.memoryCheckInterval || 1;
     
     this.activeBrowsers = new Map();
     this.taskQueue = [];
@@ -16,6 +18,101 @@ class ScrapeOrchestrator {
     this.isRunning = false;
     this.results = {};
     this.listeners = {};
+    this.memoryWarningEmitted = false;
+    this.lastMemoryCheck = 0;
+    this.memoryHistory = [];
+  }
+
+  _checkMemoryUsage() {
+    const now = Date.now();
+    if (now - this.lastMemoryCheck < 1000) {
+      return { overLimit: false, usedMB: 0 };
+    }
+    
+    this.lastMemoryCheck = now;
+    const memUsage = process.memoryUsage();
+    const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
+    const heapTotalMB = Math.round(memUsage.heapTotal / 1024 / 1024);
+    const rssMB = Math.round(memUsage.rss / 1024 / 1024);
+    
+    this.memoryHistory.push({ time: now, heapUsedMB, heapTotalMB, rssMB });
+    if (this.memoryHistory.length > 10) {
+      this.memoryHistory.shift();
+    }
+    
+    const overLimit = heapUsedMB > this.memoryLimitMB;
+    
+    if (overLimit && !this.memoryWarningEmitted) {
+      logger.warn(
+        `内存使用超过阈值: 当前 ${heapUsedMB}MB / 限制 ${this.memoryLimitMB}MB, ` +
+        `RSS: ${rssMB}MB, HeapTotal: ${heapTotalMB}MB`
+      );
+      this.memoryWarningEmitted = true;
+      this.emit('memoryWarning', {
+        usedMB: heapUsedMB,
+        limitMB: this.memoryLimitMB,
+        rssMB,
+        heapTotalMB
+      });
+    } else if (!overLimit && this.memoryWarningEmitted) {
+      logger.info(`内存使用已恢复正常: ${heapUsedMB}MB / ${this.memoryLimitMB}MB`);
+      this.memoryWarningEmitted = false;
+      this.emit('memoryNormal', { usedMB: heapUsedMB, limitMB: this.memoryLimitMB });
+    }
+    
+    return {
+      overLimit,
+      usedMB: heapUsedMB,
+      totalMB: heapTotalMB,
+      rssMB,
+      history: [...this.memoryHistory]
+    };
+  }
+
+  async _forceMemoryCleanup() {
+    logger.warn('执行强制内存清理，关闭所有空闲浏览器...');
+    
+    for (const [carrierId, adapter] of this.activeBrowsers) {
+      let inUse = false;
+      for (const taskId of this.runningTasks) {
+        const task = this.results.tasks?.find(t => t.id === taskId);
+        if (task && task.carrierId === carrierId) {
+          inUse = true;
+          break;
+        }
+      }
+      
+      if (!inUse) {
+        try {
+          await adapter.closeBrowser();
+          this.activeBrowsers.delete(carrierId);
+          logger.debug(`已关闭 ${carrierId} 浏览器以释放内存`);
+        } catch (e) {
+          logger.warn(`关闭浏览器失败 ${carrierId}: ${e.message}`);
+        }
+      }
+    }
+    
+    if (global.gc) {
+      global.gc();
+      logger.debug('已调用垃圾回收');
+    }
+    
+    const memAfter = process.memoryUsage();
+    logger.info(`内存清理完成，当前使用: ${Math.round(memAfter.heapUsed / 1024 / 1024)}MB`);
+  }
+
+  getMemoryStats() {
+    const memUsage = process.memoryUsage();
+    return {
+      heapUsedMB: Math.round(memUsage.heapUsed / 1024 / 1024),
+      heapTotalMB: Math.round(memUsage.heapTotal / 1024 / 1024),
+      rssMB: Math.round(memUsage.rss / 1024 / 1024),
+      externalMB: Math.round(memUsage.external / 1024 / 1024),
+      limitMB: this.memoryLimitMB,
+      overLimit: Math.round(memUsage.heapUsed / 1024 / 1024) > this.memoryLimitMB,
+      history: [...this.memoryHistory]
+    };
   }
 
   on(event, callback) {
@@ -131,6 +228,13 @@ class ScrapeOrchestrator {
     if (this.activeBrowsers.size >= this.maxPuppeteerInstances) {
       return false;
     }
+    
+    const memoryCheck = this._checkMemoryUsage();
+    if (memoryCheck.overLimit) {
+      logger.debug(`内存超限 (${memoryCheck.usedMB}MB > ${this.memoryLimitMB}MB)，暂不启动新任务`);
+      return false;
+    }
+    
     return true;
   }
 
@@ -168,6 +272,16 @@ class ScrapeOrchestrator {
       logger.error(`[${task.carrierName}] 任务失败: ${task.taskType} - ${error.message}`);
     } finally {
       this.runningTasks.delete(task.id);
+      
+      const memoryCheck = this._checkMemoryUsage();
+      if (memoryCheck.overLimit) {
+        logger.warn(
+          `任务完成后内存超限: ${memoryCheck.usedMB}MB / ${this.memoryLimitMB}MB, ` +
+          `触发内存清理`
+        );
+        this.emit('memoryWarning', memoryCheck);
+        await this._forceMemoryCleanup();
+      }
     }
   }
 
@@ -325,12 +439,14 @@ class ScrapeOrchestrator {
   }
 
   getStats() {
+    const memoryStats = this.getMemoryStats();
     return {
       queued: this.taskQueue.length,
       running: this.runningTasks.size,
       activeBrowsers: this.activeBrowsers.size,
       isRunning: this.isRunning,
-      results: this.results
+      results: this.results,
+      memory: memoryStats
     };
   }
 

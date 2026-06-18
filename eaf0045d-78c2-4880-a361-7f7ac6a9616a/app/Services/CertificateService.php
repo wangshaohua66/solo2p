@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Certificate;
 use App\Models\CertificateBalance;
+use App\Models\CertificateRemainder;
 use App\Models\CertificateTransfer;
 use App\Models\MeterReading;
 use App\Models\PowerStation;
@@ -68,46 +69,73 @@ class CertificateService
     public function issueForStation(MeterReading $reading, User $issuer): Certificate
     {
         $station = $reading->station;
+        $reportMonth = $reading->report_month;
 
         $existing = Certificate::where('station_id', $station->id)
-            ->where('issue_month', $reading->report_month)
+            ->where('issue_month', $reportMonth)
             ->exists();
 
         if ($existing) {
             throw new \Exception('该月份已核发绿证');
         }
 
-        $generationKwh = $reading->generation_kwh;
-        $quantity = floor($generationKwh / 1000);
+        $originalGenerationKwh = (float)$reading->generation_kwh;
+        $previousRemainder = CertificateRemainder::getPreviousMonthRemainder($station->id, $reportMonth);
+        $totalKwh = $originalGenerationKwh + $previousRemainder;
+        $quantity = (int)floor($totalKwh / 1000);
+        $currentRemainder = round($totalKwh - ($quantity * 1000), 2);
 
         if ($quantity <= 0) {
-            throw new \Exception('发电量不足1MWh，无法核发绿证');
+            CertificateRemainder::updateOrCreate(
+                ['station_id' => $station->id, 'report_month' => $reportMonth],
+                [
+                    'remainder_kwh' => $currentRemainder,
+                    'original_generation_kwh' => $originalGenerationKwh,
+                    'total_kwh' => $totalKwh,
+                    'issued_quantity' => 0,
+                ]
+            );
+            throw new \Exception("发电量累计 {$totalKwh}kWh（含上月余数{$previousRemainder}kWh）不足1MWh，无法核发绿证，余数已累计至下月");
         }
 
-        $certificateNo = $this->generateCertificateNo($station, $reading->report_month);
+        $certificateNo = $this->generateCertificateNo($station, $reportMonth);
 
         return DB::transaction(function () use (
             $station,
             $reading,
+            $reportMonth,
             $quantity,
-            $generationKwh,
+            $originalGenerationKwh,
+            $totalKwh,
+            $currentRemainder,
+            $previousRemainder,
             $certificateNo,
             $issuer
         ) {
+            CertificateRemainder::updateOrCreate(
+                ['station_id' => $station->id, 'report_month' => $reportMonth],
+                [
+                    'remainder_kwh' => $currentRemainder,
+                    'original_generation_kwh' => $originalGenerationKwh,
+                    'total_kwh' => $totalKwh,
+                    'issued_quantity' => $quantity,
+                ]
+            );
+
             $certificate = Certificate::create([
                 'certificate_no' => $certificateNo,
                 'station_id' => $station->id,
                 'owner_id' => $station->owner_id,
-                'issue_month' => $reading->report_month,
+                'issue_month' => $reportMonth,
                 'quantity' => $quantity,
-                'generation_kwh' => $generationKwh,
+                'generation_kwh' => $totalKwh,
                 'energy_type' => $station->energy_type,
                 'province' => $station->province,
                 'issuer_id' => $issuer->id,
                 'issued_at' => now(),
             ]);
 
-            $this->updateBalance($station->owner_id, $station->energy_type, $quantity, 0);
+            $this->updateBalance($station->owner_id, $station->energy_type, $quantity, 0, $quantity, 0);
 
             $this->recordTransfer(
                 null,
@@ -117,7 +145,7 @@ class CertificateService
                 CertificateTransfer::TYPE_ISSUE,
                 $certificate->id,
                 Certificate::class,
-                '绿证核发'
+                "绿证核发（含上月余数{$previousRemainder}kWh，本月余数{$currentRemainder}kWh累计至下月）"
             );
 
             $this->auditLogService->log(
@@ -125,8 +153,13 @@ class CertificateService
                 AuditLogService::ACTION_ISSUE,
                 $certificate->id,
                 null,
-                $certificate->toArray(),
-                '绿证核发'
+                array_merge($certificate->toArray(), [
+                    'previous_remainder_kwh' => $previousRemainder,
+                    'current_remainder_kwh' => $currentRemainder,
+                    'original_generation_kwh' => $originalGenerationKwh,
+                    'total_kwh' => $totalKwh,
+                ]),
+                "绿证核发：上月余数{$previousRemainder}kWh + 本月{$originalGenerationKwh}kWh = 总计{$totalKwh}kWh，核发{$quantity}张，余数{$currentRemainder}kWh累计至下月"
             );
 
             $this->clearBalanceCache($station->owner_id, $station->energy_type);

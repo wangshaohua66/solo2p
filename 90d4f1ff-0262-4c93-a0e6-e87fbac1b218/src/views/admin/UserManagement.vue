@@ -36,25 +36,24 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import type { User, UserRole } from '@/types'
 
-const roleLabel = (r: UserRole) => ({
+const roleLabel = (r: string) => ({
   SuperAdmin: '超级管理员',
   ParkOperator: '园区运营',
   ParkingAdmin: '停车场管理员',
   ChargingOps: '充电桩运维',
   CarOwner: '车主'
-}[r])
+}[r] || r)
 
-const roleTagType = (r: UserRole) => ({
+const roleTagType = (r: string) => ({
   SuperAdmin: 'danger',
   ParkOperator: 'warning',
   ParkingAdmin: 'primary',
   ChargingOps: 'success',
   CarOwner: 'info'
-}[r]) as 'danger' | 'warning' | 'primary' | 'success' | 'info'
+}[r] || 'info') as 'danger' | 'warning' | 'primary' | 'success' | 'info'
 
-const mockUsers = ref<User[]>([
+const mockUsers = ref([
   { id: '1', username: 'admin', nickname: '超级管理员', phone: '13800000001', email: 'admin@park.com', role: 'SuperAdmin', balance: 0 },
   { id: '2', username: 'operator', nickname: '园区运营', phone: '13800000002', email: 'op@park.com', role: 'ParkOperator', balance: 0 },
   { id: '3', username: 'parking', nickname: '停车管理员', phone: '13800000003', email: 'parking@park.com', role: 'ParkingAdmin', balance: 0 },

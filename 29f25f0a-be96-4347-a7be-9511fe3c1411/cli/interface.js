@@ -6,7 +6,7 @@ const ScrapeOrchestrator = require('../scraper/orchestrator');
 const AlertEngine = require('../alert/engine');
 const ReportGenerator = require('../utils/report');
 const { getCarrierList } = require('../config/carriers');
-const { rateSnapshots, spaceStatus, taskLogs, alerts: alertsDb } = require('../store/db');
+const { rateSnapshots, spaceStatus, schedules, taskLogs, alerts: alertsDb } = require('../store/db');
 const logger = require('../utils/logger');
 
 class CliInterface {
@@ -525,12 +525,22 @@ class CliInterface {
     const stats = taskLogs.getStatsByCarrier();
     const activeAlerts = alertsDb.getActive(100);
     const allRates = rateSnapshots.getAllLatest(500);
+    const orchStats = this.orchestrator.getStats();
+    const memory = orchStats.memory;
     
     console.log('\n');
     console.log('━━━ 系统状态 ━━━'.yellow.bold);
     console.log('');
     
-    console.log('  📊 采集统计 (最近24小时):');
+    console.log('  💾 内存使用:');
+    const memColor = memory.overLimit ? 'red' : 'green';
+    const memStatus = memory.overLimit ? '超限'.red : '正常'.green;
+    console.log(`    Heap使用: ${String(memory.heapUsedMB + 'MB')[memColor]} / ${memory.limitMB}MB (${memStatus})`);
+    console.log(`    Heap总计: ${memory.heapTotalMB}MB`);
+    console.log(`    RSS: ${memory.rssMB}MB`);
+    console.log(`    活跃浏览器: ${orchStats.activeBrowsers} 个`);
+    
+    console.log('\n  📊 采集统计 (最近24小时):');
     stats.forEach(s => {
       const status = s.failed_count > 0 ? '异常'.red : '正常'.green;
       console.log(`    ${s.carrier_name.padEnd(12)} 成功: ${String(s.success_count).green} 失败: ${String(s.failed_count).red} 状态: ${status}`);

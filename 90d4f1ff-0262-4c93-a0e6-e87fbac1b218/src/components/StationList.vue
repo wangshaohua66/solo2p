@@ -112,6 +112,11 @@
               </div>
             </div>
 
+            <div v-if="station.status === 'Offline' && station.lastHeartbeat" class="offline-info">
+              <el-icon><Warning /></el-icon>
+              <span>已离线 {{ computeOfflineDuration(station.lastHeartbeat) }}</span>
+            </div>
+
             <div class="station-actions">
               <el-button
                 v-if="station.status === 'Idle'"
@@ -130,6 +135,14 @@
                 @click.stop="startCharging(station)"
               >
                 开始充电
+              </el-button>
+              <el-button
+                v-if="station.status === 'Offline'"
+                type="info"
+                size="small"
+                disabled
+              >
+                离线不可用
               </el-button>
               <el-button
                 v-if="station.status === 'Charging'"
@@ -280,7 +293,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Search, Refresh, Grid, List, Lightning, Location, Calendar,
-  VideoPlay, VideoPause, Tools
+  VideoPlay, VideoPause, Tools, Warning
 } from '@element-plus/icons-vue'
 import { useChargingStore } from '@/stores/charging'
 import { useAuthStore } from '@/stores/auth'
@@ -373,6 +386,18 @@ const chargedPercent = (station: ChargingStation) => {
   return Math.min(100, ((station.chargedKwh || 0) / (station.power * 4)) * 100)
 }
 
+const computeOfflineDuration = (lastHeartbeat: string) => {
+  const last = new Date(lastHeartbeat).getTime()
+  const now = Date.now()
+  const diff = Math.max(0, Math.floor((now - last) / 60000))
+  if (diff < 60) return `${diff}分钟`
+  const h = Math.floor(diff / 60)
+  const m = diff % 60
+  if (h < 24) return `${h}小时${m}分钟`
+  const d = Math.floor(h / 24)
+  return `${d}天${h % 24}小时`
+}
+
 const formatSlotTime = (t: string) => t.substring(0, 5)
 
 const disablePastDate = (date: Date) => {
@@ -442,7 +467,7 @@ const generateMockSlots = () => {
   return slots
 }
 
-const handleStationClick = (station: ChargingStation) => {
+const handleStationClick = (_station: ChargingStation) => {
   // card click navigation if needed
 }
 
@@ -665,6 +690,22 @@ onMounted(async () => {
     justify-content: space-between;
     font-size: 12px;
     color: #606266;
+  }
+}
+
+.offline-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #fdf6ec;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #e6a23c;
+
+  .el-icon {
+    font-size: 14px;
   }
 }
 

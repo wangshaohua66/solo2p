@@ -53,7 +53,7 @@
 
           <div v-if="selectedOrders.length > 0 || currentCalculation" class="card mb-4">
             <div class="card-title">
-              <el-icon><Calculator /></el-icon>
+              <el-icon><Coin /></el-icon>
               费用明细
             </div>
             <div v-if="currentCalculation" class="calculation-detail">
@@ -201,6 +201,31 @@
         </el-button>
       </div>
     </el-dialog>
+
+    <div class="payment-footer">
+      <div class="footer-content">
+        <div class="footer-info">
+          <span class="footer-label">合计：</span>
+          <span class="footer-amount">¥{{ finalAmount.toFixed(2) }}</span>
+        </div>
+        <el-button
+          class="footer-pay-btn"
+          type="primary"
+          size="large"
+          :disabled="!canPay"
+          :loading="paying"
+          @click="handlePay"
+        >
+          <template v-if="paying">
+            <el-icon class="is-loading spin-icon"><Loading /></el-icon>
+            支付处理中...
+          </template>
+          <template v-else>
+            立即支付
+          </template>
+        </el-button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -208,13 +233,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Wallet, Calculator, CreditCard, Lock, Document, Loading, Refresh,
+  Wallet, Coin, CreditCard, Lock, Document, Loading, Refresh,
   ChatDotRound, Money, Avatar
 } from '@element-plus/icons-vue'
 import { useBillingStore } from '@/stores/billing'
 import { useAuthStore } from '@/stores/auth'
 import { formatDate } from '@/utils'
-import type { PaymentOrder, PaymentMethod, OrderStatus, BillingCalculation } from '@/types'
+import type { PaymentOrder, PaymentMethod, BillingCalculation } from '@/types'
 
 const billingStore = useBillingStore()
 const authStore = useAuthStore()
@@ -280,13 +305,13 @@ const qrCountdownPercent = computed(() => Math.round((qrCountdown.value / 180) *
 const orderTypeLabel = (t: string) => ({ Parking: '停车', Charging: '充电', Reservation: '预约' }[t] || t)
 const orderTypeTag = (t: string) => ({ Parking: 'primary', Charging: 'success', Reservation: 'warning' }[t] || 'info') as 'primary' | 'success' | 'warning' | 'info'
 
-const orderStatusLabel = (s: OrderStatus) => ({
+const orderStatusLabel = (s: string) => ({
   Pending: '待支付', Paid: '已支付', Refunding: '退款中', Refunded: '已退款', Cancelled: '已取消'
-}[s])
+}[s] || s)
 
-const orderStatusTag = (s: OrderStatus) => ({
+const orderStatusTag = (s: string) => ({
   Pending: 'warning', Paid: 'success', Refunding: 'primary', Refunded: 'info', Cancelled: 'danger'
-}[s]) as 'warning' | 'success' | 'primary' | 'info' | 'danger'
+}[s] || 'info') as 'warning' | 'success' | 'primary' | 'info' | 'danger'
 
 const handleSelectionChange = (rows: PaymentOrder[]) => {
   selectedOrders.value = rows
@@ -368,9 +393,8 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.payment-center-wrapper { width: 100%; }
+.payment-center-wrapper { width: 100%; padding-bottom: 80px; }
 .mb-4 { margin-bottom: 16px; }
-.mt-4 { margin-top: 16px; }
 .mt-4 { margin-top: 16px; }
 
 .content-layout {
@@ -517,6 +541,7 @@ onMounted(async () => {
   font-weight: 600;
   background: linear-gradient(135deg, #f56c6c 0%, #e6a23c 100%);
   border: none;
+  display: none;
 
   &:hover { opacity: 0.9; }
 
@@ -586,6 +611,89 @@ onMounted(async () => {
   .refresh-qr {
     margin-top: 12px;
     color: var(--primary-color);
+  }
+}
+
+.payment-footer {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: #fff;
+  border-top: 1px solid #ebeef5;
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
+  z-index: 100;
+  padding: 12px 20px;
+
+  .footer-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .footer-info {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .footer-label {
+    font-size: 14px;
+    color: #606266;
+  }
+
+  .footer-amount {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--danger-color);
+  }
+
+  .footer-pay-btn {
+    min-width: 160px;
+    height: 44px;
+    font-size: 16px;
+    font-weight: 600;
+    background: linear-gradient(135deg, #f56c6c 0%, #e6a23c 100%);
+    border: none;
+    border-radius: 22px;
+    transition: all 0.3s;
+
+    &:hover:not(:disabled) {
+      opacity: 0.9;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(245, 108, 108, 0.35);
+    }
+
+    &:disabled {
+      background: #dcdfe6;
+      cursor: not-allowed;
+      color: #fff;
+    }
+
+    .spin-icon {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+  }
+
+  @media (max-width: 768px) {
+    padding: 10px 16px;
+
+    .footer-amount {
+      font-size: 20px;
+    }
+
+    .footer-pay-btn {
+      min-width: 120px;
+      height: 40px;
+      font-size: 14px;
+    }
   }
 }
 </style>

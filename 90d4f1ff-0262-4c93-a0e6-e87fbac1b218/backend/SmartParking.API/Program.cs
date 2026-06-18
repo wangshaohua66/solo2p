@@ -171,6 +171,9 @@ services.AddScoped<IWorkOrderService, WorkOrderService>();
 services.AddScoped<INotificationService, NotificationService>();
 services.AddScoped<IRedisCacheService, RedisCacheService>();
 
+services.AddHostedService<ReservationExpirationService>();
+services.AddHostedService<HeartbeatMonitorService>();
+
 services.AddHttpContextAccessor();
 
 var app = builder.Build();

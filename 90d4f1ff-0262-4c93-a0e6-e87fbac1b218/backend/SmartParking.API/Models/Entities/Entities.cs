@@ -150,6 +150,9 @@ public class ParkingSpot : BaseEntity
     [MaxLength(50)]
     public string? ReservationId { get; set; }
 
+    [Column("last_heartbeat")]
+    public DateTime? LastHeartbeat { get; set; }
+
     [ForeignKey(nameof(FloorId))]
     public virtual ParkingFloor? Floor { get; set; }
 }
@@ -229,6 +232,9 @@ public class ChargingStation : BaseEntity
     [Column("price_per_kwh")]
     [Precision(10, 4)]
     public decimal PricePerKwh { get; set; } = 1.5m;
+
+    [Column("last_heartbeat")]
+    public DateTime? LastHeartbeat { get; set; }
 }
 
 [Table("charging_reservations")]

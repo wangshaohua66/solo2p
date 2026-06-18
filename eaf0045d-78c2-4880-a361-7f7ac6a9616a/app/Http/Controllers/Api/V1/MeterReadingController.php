@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\MeterReadingSubmitRequest;
+use App\Models\MeterReading;
 use App\Services\MeterDataService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -61,9 +62,10 @@ class MeterReadingController extends Controller
     public function show(int $id)
     {
         $user = Auth::user();
-        $readings = $this->meterDataService->getReadings(null, null, null, $user->isGenerator() ? $user->id : null, 1, 1);
 
-        if ($readings->isEmpty()) {
+        $reading = MeterReading::with('station')->find($id);
+
+        if (!$reading) {
             return response()->json([
                 'code' => 404,
                 'message' => '记录不存在',
@@ -71,12 +73,18 @@ class MeterReadingController extends Controller
             ], 404);
         }
 
-        $item = $readings->first();
+        if ($user->isGenerator() && $reading->station->owner_id !== $user->id) {
+            return response()->json([
+                'code' => 403,
+                'message' => '无权访问该记录',
+                'errors' => [],
+            ], 403);
+        }
 
         return response()->json([
             'code' => 0,
             'message' => 'success',
-            'data' => $item,
+            'data' => $reading,
         ]);
     }
 

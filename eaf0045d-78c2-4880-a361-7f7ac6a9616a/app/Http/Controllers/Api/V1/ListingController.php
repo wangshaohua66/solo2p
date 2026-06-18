@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ListingCreateRequest;
 use App\Http\Requests\MatchOrderRequest;
+use App\Models\Listing;
 use App\Services\MatchingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -60,9 +61,11 @@ class ListingController extends Controller
 
     public function show(int $id)
     {
-        $listings = $this->matchingService->getListings(null, null, null, 1, 1);
+        $user = Auth::user();
 
-        if ($listings->isEmpty()) {
+        $listing = Listing::with('seller')->find($id);
+
+        if (!$listing) {
             return response()->json([
                 'code' => 404,
                 'message' => '挂牌单不存在',
@@ -70,10 +73,18 @@ class ListingController extends Controller
             ], 404);
         }
 
+        if ($user->isGenerator() && $listing->seller_id !== $user->id) {
+            return response()->json([
+                'code' => 403,
+                'message' => '无权访问该挂牌单',
+                'errors' => [],
+            ], 403);
+        }
+
         return response()->json([
             'code' => 0,
             'message' => 'success',
-            'data' => $listings->first(),
+            'data' => $listing,
         ]);
     }
 

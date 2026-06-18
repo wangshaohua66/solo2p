@@ -47,10 +47,10 @@ categories:
     items:
       - id: veg_001
         name: 大白菜
-        aliases: [白菜, 圆白菜, 包菜, 卷心菜
+        aliases: [白菜, 圆白菜, 包菜, 卷心菜]
       - id: veg_002
         name: 西红柿
-        aliases: [番茄, 洋柿子
+        aliases: [番茄, 洋柿子]
       - id: veg_003
         name: 黄瓜
         aliases: [胡瓜, 青瓜]
@@ -59,7 +59,7 @@ categories:
         aliases: [落苏]
       - id: veg_005
         name: 辣椒
-        aliases: [青椒, 尖椒, 辣子
+        aliases: [青椒, 尖椒, 辣子]
       - id: veg_006
         name: 土豆
         aliases: [马铃薯, 洋芋]
@@ -135,7 +135,7 @@ markets:
     - id: bj_xinfadi
       name: 北京新发地农产品批发市场
       type: html
-      url: "http://www.xinfadi.com.cn/priceDetail.html
+      url: "http://www.xinfadi.com.cn/priceDetail.html"
       category: vegetable,fruit,livestock,aquatic
       enabled: true
       encoding: utf-8
@@ -545,7 +545,7 @@ markets:
       category: vegetable,fruit
       enabled: true
       article_pattern: "每日价格"
-      ocr_region: [100,150,800,1000
+      ocr_region: [100,150,800,1000]
       table_header:
         - 品名
         - 最高价
@@ -558,7 +558,7 @@ markets:
       category: vegetable
       enabled: true
       article_pattern: "行情"
-      ocr_region: [50,100,750,900
+      ocr_region: [50,100,750,900]
       table_header:
         - 品种
         - 最高
@@ -571,7 +571,7 @@ markets:
       category: fruit,vegetable
       enabled: true
       article_pattern: "价格日报"
-      ocr_region: [80,120,780,950
+      ocr_region: [80,120,780,950]
       table_header:
         - 商品
         - 最高价
@@ -584,7 +584,7 @@ markets:
       category: fruit,vegetable,livestock
       enabled: true
       article_pattern: "每日行情"
-      ocr_region: [60,110,720,880
+      ocr_region: [60,110,720,880]
       table_header:
         - 品名
         - 最高
@@ -597,7 +597,7 @@ markets:
       category: vegetable,livestock
       enabled: true
       article_pattern: "价格信息"
-      ocr_region: [70,130,760,920
+      ocr_region: [70,130,760,920]
       table_header:
         - 品种
         - 最高价

@@ -70,6 +70,12 @@ public class ChargingService : IChargingService
             if (station == null)
                 return ApiResponse<ChargingReservationDto>.Error("充电桩不存在", 404);
 
+            if (station.Status == ChargingStationStatus.Offline)
+                return ApiResponse<ChargingReservationDto>.Error("充电桩已离线，无法预约");
+
+            if (station.Status == ChargingStationStatus.Faulty)
+                return ApiResponse<ChargingReservationDto>.Error("充电桩故障，无法预约");
+
             if (request.StartTime >= request.EndTime)
                 return ApiResponse<ChargingReservationDto>.Error("预约时间不正确");
 

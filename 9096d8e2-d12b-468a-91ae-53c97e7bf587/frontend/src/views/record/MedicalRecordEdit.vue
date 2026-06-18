@@ -24,6 +24,7 @@
       <el-step title="处置措施" />
       <el-step title="用药记录" />
       <el-step title="交接信息" />
+      <el-step title="电子签名" />
     </el-steps>
 
     <div class="edit-content">
@@ -421,6 +422,80 @@
             </div>
           </el-card>
         </div>
+
+        <div v-show="activeStep === 5" class="step-content">
+          <el-card class="form-card">
+            <template #header>
+              <div class="card-header">
+                <span>医师电子签名</span>
+                <el-tag v-if="recordForm.signature" type="success">已签名</el-tag>
+                <el-tag v-else type="warning">未签名</el-tag>
+              </div>
+            </template>
+            <div class="signature-section">
+              <div class="signature-main">
+                <SignaturePad
+                  v-model="recordForm.signature"
+                  :disabled="isViewMode"
+                  :show-signer-info="true"
+                  :require-signer="true"
+                  :show-footer="true"
+                  @change="onSignatureChange"
+                  @confirm="onSignatureConfirm"
+                  @clear="onSignatureClear"
+                />
+              </div>
+              <div class="signature-preview" v-if="recordForm.signature">
+                <div class="preview-title">签名预览</div>
+                <div class="preview-box">
+                  <img :src="recordForm.signature" alt="签名" />
+                </div>
+                <div class="preview-meta">
+                  <div v-if="recordForm.signerName">
+                    <span class="meta-label">签名人:</span>
+                    <span class="meta-value">{{ recordForm.signerName }}</span>
+                  </div>
+                  <div v-if="recordForm.signedAt">
+                    <span class="meta-label">签名时间:</span>
+                    <span class="meta-value">{{ recordForm.signedAt }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </el-card>
+
+          <el-card class="form-card">
+            <template #header>
+              <div class="card-header">
+                <span>提交锁定前校验</span>
+                <el-tag :type="canSubmit ? 'success' : 'danger'">
+                  {{ canSubmit ? '可提交' : '检查未通过' }}
+                </el-tag>
+              </div>
+            </template>
+            <div class="validation-list">
+              <div
+                v-for="(item, index) in submissionValidation"
+                :key="index"
+                class="validation-item"
+                :class="{ passed: item.passed }"
+              >
+                <el-icon :class="item.passed ? 'icon-success' : 'icon-error'">
+                  <component :is="item.passed ? 'Check' : 'Close'" />
+                </el-icon>
+                <span>{{ item.message }}</span>
+              </div>
+            </div>
+            <div class="submit-hint">
+              <el-alert
+                title="提交后病历将被锁定，无法再修改"
+                type="warning"
+                :closable="false"
+                show-icon
+              />
+            </div>
+          </el-card>
+        </div>
       </el-form>
     </div>
 
@@ -428,7 +503,7 @@
       <el-button @click="prevStep" :disabled="activeStep === 0">
         上一步
       </el-button>
-      <el-button type="primary" @click="nextStep" v-if="activeStep < 4">
+      <el-button type="primary" @click="nextStep" v-if="activeStep < 5">
         下一步
       </el-button>
     </div>
@@ -453,9 +528,10 @@ import type {
   Treatment,
   Medication
 } from '@/types/medicalRecord'
-import { ArrowLeft, Save, Check, Plus, Microphone } from '@element-plus/icons-vue'
+import { ArrowLeft, Save, Check, Plus, Microphone, EditPen } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import SpeechInputButton from '@/components/SpeechInputButton.vue'
+import SignaturePad from '@/components/SignaturePad.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -485,7 +561,10 @@ const recordForm = reactive<MedicalRecordCreateRequest & { id?: number }>({
   medications: [] as Medication[],
   disposition: '',
   handoverTo: '',
-  handoverNotes: ''
+  handoverNotes: '',
+  signature: '',
+  signerName: '',
+  signedAt: ''
 })
 
 const formRules: FormRules = {
@@ -563,7 +642,7 @@ function removeMedication(index: number) {
 }
 
 function nextStep() {
-  if (activeStep.value < 4) {
+  if (activeStep.value < 5) {
     activeStep.value++
   }
 }
@@ -572,6 +651,62 @@ function prevStep() {
   if (activeStep.value > 0) {
     activeStep.value--
   }
+}
+
+const submissionValidation = computed(() => [
+  {
+    passed: !!recordForm.patientName,
+    message: '患者姓名已填写'
+  },
+  {
+    passed: !!recordForm.chiefComplaint,
+    message: '主诉已填写'
+  },
+  {
+    passed: !!recordForm.preliminaryDiagnosis,
+    message: '初步诊断已填写'
+  },
+  {
+    passed: recordForm.vitalSigns.length > 0,
+    message: '至少记录一项生命体征'
+  },
+  {
+    passed: recordForm.vitalSigns.every(v => v.type && v.value > 0 && v.unit),
+    message: '生命体征数据完整'
+  },
+  {
+    passed: !!recordForm.disposition,
+    message: '处置结果已选择'
+  },
+  {
+    passed: !!recordForm.signature,
+    message: '医师已完成电子签名'
+  },
+  {
+    passed: !!recordForm.signerName,
+    message: '签名人姓名已填写'
+  }
+])
+
+const canSubmit = computed(() => submissionValidation.value.every(v => v.passed))
+
+function onSignatureChange(data: { dataUrl: string; signerName?: string; signedAt?: string }) {
+  recordForm.signature = data.dataUrl
+  if (data.signerName) recordForm.signerName = data.signerName
+  if (data.signedAt) recordForm.signedAt = data.signedAt
+}
+
+function onSignatureConfirm(data: { dataUrl: string; signerName?: string; signedAt?: string }) {
+  recordForm.signature = data.dataUrl
+  if (data.signerName) recordForm.signerName = data.signerName
+  if (data.signedAt) recordForm.signedAt = data.signedAt
+  ElMessage.success('签名确认成功')
+}
+
+function onSignatureClear() {
+  recordForm.signature = ''
+  recordForm.signerName = ''
+  recordForm.signedAt = ''
 }
 
 function goBack() {
@@ -601,7 +736,10 @@ async function saveRecord() {
         medications: recordForm.medications,
         disposition: recordForm.disposition,
         handoverTo: recordForm.handoverTo,
-        handoverNotes: recordForm.handoverNotes
+        handoverNotes: recordForm.handoverNotes,
+        signature: recordForm.signature,
+        signerName: recordForm.signerName,
+        signedAt: recordForm.signedAt
       }
 
       if (recordId.value) {
@@ -619,14 +757,21 @@ async function saveRecord() {
 }
 
 async function submitRecord() {
-  if (!validationPassed.value) {
-    ElMessage.error('请先完成所有必填项')
+  if (!canSubmit.value) {
+    const failedItems = submissionValidation.value.filter(v => !v.passed).map(v => v.message)
+    ElMessage.error('提交前请完成所有必要项：\n' + failedItems.join('\n'))
+    return
+  }
+
+  if (!recordForm.signature) {
+    ElMessage.error('请先完成电子签名后再提交')
+    activeStep.value = 5
     return
   }
 
   await ElMessageBox.confirm(
-    '提交后病历将锁定不可修改，确定提交吗？',
-    '提示',
+    `确认提交并锁定病历吗？\n签名人：${recordForm.signerName}\n签名时间：${recordForm.signedAt}\n提交后将无法修改。`,
+    '病历提交确认',
     {
       confirmButtonText: '确定提交',
       cancelButtonText: '取消',
@@ -635,11 +780,24 @@ async function submitRecord() {
   )
 
   try {
+    if (!recordId.value) {
+      await saveRecord()
+    } else {
+      const request: MedicalRecordUpdateRequest = {
+        signature: recordForm.signature,
+        signerName: recordForm.signerName,
+        signedAt: recordForm.signedAt
+      }
+      await updateRecord(recordId.value, request)
+    }
+
     if (recordId.value) {
       await lockRecord(recordId.value)
       isLocked.value = true
       ElMessage.success('病历已提交锁定')
-      router.push('/record')
+      setTimeout(() => {
+        router.push('/record')
+      }, 1500)
     }
   } catch (error) {
     console.error('Submit failed:', error)
@@ -675,7 +833,10 @@ async function loadRecord() {
       medications: record.medications || [],
       disposition: record.disposition || '',
       handoverTo: record.handoverTo || '',
-      handoverNotes: record.handoverNotes || ''
+      handoverNotes: record.handoverNotes || '',
+      signature: record.signature || '',
+      signerName: record.signerName || '',
+      signedAt: record.signedAt || ''
     })
   } catch (error) {
     console.error('Failed to load record:', error)
@@ -802,5 +963,89 @@ onMounted(() => {
     flex-shrink: 0;
     margin-top: 1px;
   }
+}
+
+.signature-section {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.signature-main {
+  min-width: 0;
+}
+
+.signature-preview {
+  width: 280px;
+  padding: 16px;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+
+  .preview-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #166534;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #bbf7d0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    &::before {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      background: #22c55e;
+      border-radius: 50%;
+    }
+  }
+
+  .preview-box {
+    background: white;
+    border: 1px dashed #86efac;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 12px;
+    min-height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    img {
+      max-width: 100%;
+      max-height: 120px;
+      display: block;
+    }
+  }
+
+  .preview-meta {
+    font-size: 12px;
+    color: #14532d;
+
+    .meta-label {
+      color: #166534;
+      font-weight: 500;
+      margin-right: 6px;
+    }
+
+    .meta-value {
+      color: #14532d;
+    }
+
+    div {
+      padding: 4px 0;
+    }
+  }
+}
+
+.submit-hint {
+  margin-top: 16px;
 }
 </style>

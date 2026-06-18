@@ -274,8 +274,11 @@ export function filterRoutesByRole(routes: RouteRecordRaw[], role: UserRole): Ro
       if (!route.meta?.roles) return true
       return (route.meta.roles as UserRole[]).includes(role)
     })
-    .map(route => ({
-      ...route,
-      children: route.children ? filterRoutesByRole(route.children, role) : undefined
-    }))
+    .map(route => {
+      const result: RouteRecordRaw = {
+        ...route,
+        children: route.children ? filterRoutesByRole(route.children, role) : undefined
+      }
+      return result
+    })
 }

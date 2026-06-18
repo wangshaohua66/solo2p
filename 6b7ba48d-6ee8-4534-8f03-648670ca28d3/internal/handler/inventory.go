@@ -7,8 +7,10 @@ import (
 	"craftbrew-tracker/internal/service"
 	"craftbrew-tracker/internal/util"
 	"craftbrew-tracker/internal/repository"
+	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/rs/zerolog/log"
 )
 
 // ---------- Material ----------
@@ -186,6 +188,26 @@ func (h *Handler) ListMovements(c echo.Context) error {
 		return util.FailInternal(c, err.Error())
 	}
 	return util.Page(c, list, total, page, size)
+}
+
+// TriggerInventoryCheck godoc
+// @Summary 手动触发库存预警检查
+// @Description 立即执行低库存和临期预警检查，生成告警记录并返回检查结果
+// @Tags 库存管理
+// @Param Authorization header string true "Bearer token"
+// @Success 200 {object} util.Response{data=map[string]interface{}}
+// @Router /api/v1/inventory/check [post]
+func (h *Handler) TriggerInventoryCheck(c echo.Context) error {
+	if err := h.svc.RunInventoryAlerts(); err != nil {
+		return util.FailInternal(c, "库存检查执行失败: "+err.Error())
+	}
+	if err := h.svc.RunDeviationCheck(); err != nil {
+		log.Warn().Err(err).Msg("deviation check failed during manual trigger")
+	}
+	return util.Success(c, map[string]interface{}{
+		"checkedAt": time.Now().UTC().Format(time.RFC3339),
+		"message":   "库存预警检查已完成",
+	})
 }
 
 // ---------- Alerts ----------
