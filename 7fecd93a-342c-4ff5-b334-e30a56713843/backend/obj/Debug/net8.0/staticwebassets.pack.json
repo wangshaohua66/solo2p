@@ -1,0 +1,61 @@
+{
+  "Files": [
+    {
+      "Id": "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/wwwroot/css/app.css",
+      "PackagePath": "staticwebassets/css/app.css"
+    },
+    {
+      "Id": "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/wwwroot/index.html",
+      "PackagePath": "staticwebassets/index.html"
+    },
+    {
+      "Id": "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/wwwroot/js/app.js",
+      "PackagePath": "staticwebassets/js/app.js"
+    },
+    {
+      "Id": "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/wwwroot/js/db.js",
+      "PackagePath": "staticwebassets/js/db.js"
+    },
+    {
+      "Id": "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/wwwroot/js/pages/dispatch.js",
+      "PackagePath": "staticwebassets/js/pages/dispatch.js"
+    },
+    {
+      "Id": "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/wwwroot/js/pages/emergency.js",
+      "PackagePath": "staticwebassets/js/pages/emergency.js"
+    },
+    {
+      "Id": "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/wwwroot/js/pages/inspection.js",
+      "PackagePath": "staticwebassets/js/pages/inspection.js"
+    },
+    {
+      "Id": "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/wwwroot/js/pages/overview.js",
+      "PackagePath": "staticwebassets/js/pages/overview.js"
+    },
+    {
+      "Id": "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/wwwroot/js/pages/report.js",
+      "PackagePath": "staticwebassets/js/pages/report.js"
+    },
+    {
+      "Id": "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/wwwroot/js/services.js",
+      "PackagePath": "staticwebassets/js/services.js"
+    },
+    {
+      "Id": "obj/Debug/net8.0/staticwebassets/msbuild.WaterManagement.API.Microsoft.AspNetCore.StaticWebAssets.props",
+      "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssets.props"
+    },
+    {
+      "Id": "obj/Debug/net8.0/staticwebassets/msbuild.build.WaterManagement.API.props",
+      "PackagePath": "build\\WaterManagement.API.props"
+    },
+    {
+      "Id": "obj/Debug/net8.0/staticwebassets/msbuild.buildMultiTargeting.WaterManagement.API.props",
+      "PackagePath": "buildMultiTargeting\\WaterManagement.API.props"
+    },
+    {
+      "Id": "obj/Debug/net8.0/staticwebassets/msbuild.buildTransitive.WaterManagement.API.props",
+      "PackagePath": "buildTransitive\\WaterManagement.API.props"
+    }
+  ],
+  "ElementsToRemove": []
+}

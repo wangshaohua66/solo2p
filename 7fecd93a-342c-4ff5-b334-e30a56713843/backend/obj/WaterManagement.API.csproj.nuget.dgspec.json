@@ -1,0 +1,83 @@
+{
+  "format": 1,
+  "restore": {
+    "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/WaterManagement.API.csproj": {}
+  },
+  "projects": {
+    "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/WaterManagement.API.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/WaterManagement.API.csproj",
+        "projectName": "WaterManagement.API",
+        "projectPath": "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/WaterManagement.API.csproj",
+        "packagesPath": "/Users/paul/.nuget/packages/",
+        "outputPath": "/Users/paul/WorkSpace/TestSoloCoder/7fecd93a-342c-4ff5-b334-e30a56713843/backend/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/Users/paul/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "MongoDB.Driver": {
+              "target": "Package",
+              "version": "[2.24.0, )"
+            },
+            "Swashbuckle.AspNetCore": {
+              "target": "Package",
+              "version": "[6.5.0, )"
+            },
+            "Swashbuckle.AspNetCore.Annotations": {
+              "target": "Package",
+              "version": "[6.5.0, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.AspNetCore.App": {
+              "privateAssets": "none"
+            },
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/Users/paul/.dotnet/sdk/8.0.422/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}
