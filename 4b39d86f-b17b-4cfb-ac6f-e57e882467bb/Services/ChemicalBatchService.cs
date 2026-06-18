@@ -428,6 +428,17 @@ public class ChemicalBatchService : IChemicalBatchService
             ? (int)processRecords.Max(p => p.Stage)
             : (int)ProcessStage.BatchCreated;
 
+        var currentStageName = processRecords
+            .Where(p => (int)p.Stage == currentStage)
+            .OrderByDescending(p => p.CreatedAt)
+            .Select(p => p.StageName)
+            .FirstOrDefault();
+
+        if (string.IsNullOrWhiteSpace(currentStageName))
+        {
+            currentStageName = ProcessStageNames.GetStageName((ProcessStage)currentStage);
+        }
+
         return new BatchLifeCycleDto
         {
             BatchId = batchId,
@@ -436,7 +447,7 @@ public class ChemicalBatchService : IChemicalBatchService
             Quantity = batch.Quantity,
             ProcessRecords = _mapper.Map<List<ProcessRecordDto>>(processRecords),
             CurrentStage = currentStage,
-            CurrentStageName = ((ProcessStage)currentStage).ToString(),
+            CurrentStageName = currentStageName,
             IsCompleted = batch.Status == BatchStatus.Delivered || batch.Status == BatchStatus.Cancelled
         };
     }

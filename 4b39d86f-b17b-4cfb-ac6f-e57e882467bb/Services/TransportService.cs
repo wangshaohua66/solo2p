@@ -331,43 +331,15 @@ public class TransportService : ITransportService
         decimal startLat, decimal startLon,
         decimal endLat, decimal endLon)
     {
-        var points = new List<(decimal Lat, decimal Lon)>();
-        var totalDistance = CalculateDistance(startLat, startLon, endLat, endLon);
+        var path = RoadNetworkPathFinder.FindPath(
+            startLat, startLon,
+            endLat, endLon,
+            CalculateDistance);
 
-        points.Add((startLat, startLon));
+        if (path.Count < 2)
+            return new List<(decimal Lat, decimal Lon)> { (startLat, startLon), (endLat, endLon) };
 
-        if (totalDistance < 1000)
-        {
-            var midLat = (startLat + endLat) / 2;
-            var midLon = (startLon + endLon) / 2;
-            var offset = Math.Min(0.0005m, Math.Abs(endLat - startLat) * 0.2m);
-            points.Add((midLat + offset, midLon - offset));
-            points.Add((endLat, endLon));
-            return points;
-        }
-
-        var dLat = endLat - startLat;
-        var dLon = endLon - startLon;
-
-        var turnPoints = Math.Max(2, (int)Math.Ceiling((double)totalDistance / 5000.0));
-        var segmentCount = Math.Min(turnPoints, 8);
-        var rng = new Random((int)(Math.Abs((double)(startLat * 1000000 + endLon * 1000000)) % int.MaxValue));
-
-        for (int i = 1; i < segmentCount; i++)
-        {
-            var ratio = (decimal)i / segmentCount;
-            var baseLat = startLat + dLat * ratio;
-            var baseLon = startLon + dLon * ratio;
-
-            var maxJitter = Math.Max(0.0002m, Math.Min(0.002m, Math.Abs(dLat + dLon) * 0.08m));
-            var jitterLat = ((decimal)rng.NextDouble() - 0.5m) * 2 * maxJitter;
-            var jitterLon = ((decimal)rng.NextDouble() - 0.5m) * 2 * maxJitter;
-
-            points.Add((baseLat + jitterLat, baseLon + jitterLon));
-        }
-
-        points.Add((endLat, endLon));
-        return points;
+        return path;
     }
 
     private static List<(decimal Lat, decimal Lon)> SimplifyRoutePoints(List<(decimal Lat, decimal Lon)> points, int maxPoints)
