@@ -1,0 +1,839 @@
+[
+  {
+    "id": "bj-rsj",
+    "name": "北京市人力资源和社会保障局",
+    "province": "北京市",
+    "category": "social_security",
+    "baseUrl": "http://rsj.beijing.gov.cn",
+    "listUrl": "http://rsj.beijing.gov.cn/xxgk/zcwj/index.html",
+    "selectors": {
+      "listItem": ".list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".TRS_Editor",
+      "docNumber": ".doc-number",
+      "issueOrg": ".issue-org",
+      "effectiveDate": ".effective-date"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 7,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 1
+  },
+  {
+    "id": "bj-ybj",
+    "name": "北京市医疗保障局",
+    "province": "北京市",
+    "category": "medical_insurance",
+    "baseUrl": "http://ybj.beijing.gov.cn",
+    "listUrl": "http://ybj.beijing.gov.cn/zwgk/zcfg/index.html",
+    "selectors": {
+      "listItem": ".news-list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".time",
+      "detailContent": ".content",
+      "docNumber": ".wenhao",
+      "issueOrg": ".laiyuan"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 7,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 1
+  },
+  {
+    "id": "bj-gjj",
+    "name": "北京住房公积金管理中心",
+    "province": "北京市",
+    "category": "housing_fund",
+    "baseUrl": "http://gjj.beijing.gov.cn",
+    "listUrl": "http://gjj.beijing.gov.cn/web/zwgk/zcwj/index.html",
+    "selectors": {
+      "listItem": ".policy-list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".article-content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 7,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 1
+  },
+  {
+    "id": "sh-rsj",
+    "name": "上海市人力资源和社会保障局",
+    "province": "上海市",
+    "category": "social_security",
+    "baseUrl": "http://rsj.sh.gov.cn",
+    "listUrl": "http://rsj.sh.gov.cn/tlxry_17425/index.html",
+    "selectors": {
+      "listItem": ".list-item",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": "#ivs_content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 4,
+      "requestIntervalMax": 8,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": true
+    },
+    "enabled": true,
+    "priority": 1
+  },
+  {
+    "id": "sh-ybj",
+    "name": "上海市医疗保障局",
+    "province": "上海市",
+    "category": "medical_insurance",
+    "baseUrl": "http://ybj.sh.gov.cn",
+    "listUrl": "http://ybj.sh.gov.cn/xxgk/zcfg/index.html",
+    "selectors": {
+      "listItem": ".news_list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 4,
+      "requestIntervalMax": 8,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 1
+  },
+  {
+    "id": "sh-gjj",
+    "name": "上海市住房公积金管理委员会",
+    "province": "上海市",
+    "category": "housing_fund",
+    "baseUrl": "http://www.shgjj.com",
+    "listUrl": "http://www.shgjj.com/html/zcxx/index.html",
+    "selectors": {
+      "listItem": ".list_box li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".time",
+      "detailContent": ".article"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 6,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 1
+  },
+  {
+    "id": "gd-rsj",
+    "name": "广东省人力资源和社会保障厅",
+    "province": "广东省",
+    "category": "social_security",
+    "baseUrl": "http://hrss.gd.gov.cn",
+    "listUrl": "http://hrss.gd.gov.cn/zwgk/zcgj/zcfg/index.html",
+    "selectors": {
+      "listItem": ".news_list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 2,
+      "requestIntervalMax": 5,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 2
+  },
+  {
+    "id": "gd-ybj",
+    "name": "广东省医疗保障局",
+    "province": "广东省",
+    "category": "medical_insurance",
+    "baseUrl": "http://ybj.gd.gov.cn",
+    "listUrl": "http://ybj.gd.gov.cn/zwgk/zcfg/index.html",
+    "selectors": {
+      "listItem": ".list-item",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".time",
+      "detailContent": ".article-content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 2,
+      "requestIntervalMax": 5,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 2
+  },
+  {
+    "id": "gd-gjj",
+    "name": "广州住房公积金管理中心",
+    "province": "广东省",
+    "category": "housing_fund",
+    "baseUrl": "http://gjj.gz.gov.cn",
+    "listUrl": "http://gjj.gz.gov.cn/zwxx/zcfg/index.html",
+    "selectors": {
+      "listItem": ".policy-list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 2,
+      "requestIntervalMax": 6,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": true,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 2
+  },
+  {
+    "id": "js-rsj",
+    "name": "江苏省人力资源和社会保障厅",
+    "province": "江苏省",
+    "category": "social_security",
+    "baseUrl": "http://jshrss.jiangsu.gov.cn",
+    "listUrl": "http://jshrss.jiangsu.gov.cn/col/col74953/index.html",
+    "selectors": {
+      "listItem": ".list-item",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": "#zoom"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 6,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 2
+  },
+  {
+    "id": "js-ybj",
+    "name": "江苏省医疗保障局",
+    "province": "江苏省",
+    "category": "medical_insurance",
+    "baseUrl": "http://ybj.jiangsu.gov.cn",
+    "listUrl": "http://ybj.jiangsu.gov.cn/col/col122923/index.html",
+    "selectors": {
+      "listItem": ".news_list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".time",
+      "detailContent": ".article-body"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 6,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 2
+  },
+  {
+    "id": "nj-gjj",
+    "name": "南京住房公积金管理中心",
+    "province": "江苏省",
+    "category": "housing_fund",
+    "baseUrl": "http://gjj.nanjing.gov.cn",
+    "listUrl": "http://gjj.nanjing.gov.cn/zwgk/zcfg/index.html",
+    "selectors": {
+      "listItem": ".list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 6,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 2
+  },
+  {
+    "id": "zj-rsj",
+    "name": "浙江省人力资源和社会保障厅",
+    "province": "浙江省",
+    "category": "social_security",
+    "baseUrl": "http://hrss.zj.gov.cn",
+    "listUrl": "http://hrss.zj.gov.cn/col/col1229635544/index.html",
+    "selectors": {
+      "listItem": ".list-item",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 6,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 2
+  },
+  {
+    "id": "zj-ybj",
+    "name": "浙江省医疗保障局",
+    "province": "浙江省",
+    "category": "medical_insurance",
+    "baseUrl": "http://ybj.zj.gov.cn",
+    "listUrl": "http://ybj.zj.gov.cn/col/col122942/index.html",
+    "selectors": {
+      "listItem": ".list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".time",
+      "detailContent": ".article"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 6,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 2
+  },
+  {
+    "id": "hz-gjj",
+    "name": "杭州住房公积金管理中心",
+    "province": "浙江省",
+    "category": "housing_fund",
+    "baseUrl": "http://gjj.hangzhou.gov.cn",
+    "listUrl": "http://gjj.hangzhou.gov.cn/zwgk/zcfg/index.html",
+    "selectors": {
+      "listItem": ".policy-list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".content-body"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 6,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 2
+  },
+  {
+    "id": "sd-rsj",
+    "name": "山东省人力资源和社会保障厅",
+    "province": "山东省",
+    "category": "social_security",
+    "baseUrl": "http://hrss.shandong.gov.cn",
+    "listUrl": "http://hrss.shandong.gov.cn/zwgk/zcfg/index.html",
+    "selectors": {
+      "listItem": ".news-list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 6,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 2
+  },
+  {
+    "id": "sd-ybj",
+    "name": "山东省医疗保障局",
+    "province": "山东省",
+    "category": "medical_insurance",
+    "baseUrl": "http://ybj.shandong.gov.cn",
+    "listUrl": "http://ybj.shandong.gov.cn/zwgk/zcwj/index.html",
+    "selectors": {
+      "listItem": ".list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".time",
+      "detailContent": ".article-content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 6,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 2
+  },
+  {
+    "id": "jn-gjj",
+    "name": "济南住房公积金中心",
+    "province": "山东省",
+    "category": "housing_fund",
+    "baseUrl": "http://gjj.jinan.gov.cn",
+    "listUrl": "http://gjj.jinan.gov.cn/zwgk/zcwj/index.html",
+    "selectors": {
+      "listItem": ".list-item",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 6,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 2
+  },
+  {
+    "id": "sc-rsj",
+    "name": "四川省人力资源和社会保障厅",
+    "province": "四川省",
+    "category": "social_security",
+    "baseUrl": "http://rst.sc.gov.cn",
+    "listUrl": "http://rst.sc.gov.cn/rst/c100003/zcwj_list.shtml",
+    "selectors": {
+      "listItem": ".list-item",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 7,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": true
+    },
+    "enabled": true,
+    "priority": 3
+  },
+  {
+    "id": "sc-ybj",
+    "name": "四川省医疗保障局",
+    "province": "四川省",
+    "category": "medical_insurance",
+    "baseUrl": "http://ylbzj.sc.gov.cn",
+    "listUrl": "http://ylbzj.sc.gov.cn/scybj/zcwj/zc_list.shtml",
+    "selectors": {
+      "listItem": ".news-list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".time",
+      "detailContent": ".article-body"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 7,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 3
+  },
+  {
+    "id": "cd-gjj",
+    "name": "成都住房公积金管理中心",
+    "province": "四川省",
+    "category": "housing_fund",
+    "baseUrl": "http://gjj.chengdu.gov.cn",
+    "listUrl": "http://gjj.chengdu.gov.cn/zwgk/zcfg/index.html",
+    "selectors": {
+      "listItem": ".policy-list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 7,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": true,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 3
+  },
+  {
+    "id": "hb-rsj",
+    "name": "湖北省人力资源和社会保障厅",
+    "province": "湖北省",
+    "category": "social_security",
+    "baseUrl": "http://rst.hubei.gov.cn",
+    "listUrl": "http://rst.hubei.gov.cn/bmdt/ztzl/zcwj/index.html",
+    "selectors": {
+      "listItem": ".list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 7,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 3
+  },
+  {
+    "id": "hb-ybj",
+    "name": "湖北省医疗保障局",
+    "province": "湖北省",
+    "category": "medical_insurance",
+    "baseUrl": "http://ybj.hubei.gov.cn",
+    "listUrl": "http://ybj.hubei.gov.cn/zwgk/zcfb/zc/index.html",
+    "selectors": {
+      "listItem": ".news_list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".time",
+      "detailContent": ".article-content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 7,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 3
+  },
+  {
+    "id": "wh-gjj",
+    "name": "武汉住房公积金管理中心",
+    "province": "湖北省",
+    "category": "housing_fund",
+    "baseUrl": "http://gjj.wuhan.gov.cn",
+    "listUrl": "http://gjj.wuhan.gov.cn/zwgk/zcwj/index.html",
+    "selectors": {
+      "listItem": ".list-item",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".content-body"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 7,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 3
+  },
+  {
+    "id": "hn-rsj",
+    "name": "河南省人力资源和社会保障厅",
+    "province": "河南省",
+    "category": "social_security",
+    "baseUrl": "http://hrss.henan.gov.cn",
+    "listUrl": "http://hrss.henan.gov.cn/zwgk/zcwj/index.html",
+    "selectors": {
+      "listItem": ".list-item",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 7,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 3
+  },
+  {
+    "id": "hn-ybj",
+    "name": "河南省医疗保障局",
+    "province": "河南省",
+    "category": "medical_insurance",
+    "baseUrl": "http://ybj.henan.gov.cn",
+    "listUrl": "http://ybj.henan.gov.cn/zwgk/zcwj/index.html",
+    "selectors": {
+      "listItem": ".news-list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".time",
+      "detailContent": ".article"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 7,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 3
+  },
+  {
+    "id": "zz-gjj",
+    "name": "郑州住房公积金管理中心",
+    "province": "河南省",
+    "category": "housing_fund",
+    "baseUrl": "http://zzgjj.zhengzhou.gov.cn",
+    "listUrl": "http://zzgjj.zhengzhou.gov.cn/zwgk/zcfg/index.html",
+    "selectors": {
+      "listItem": ".policy-list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 7,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 3
+  },
+  {
+    "id": "sn-rsj",
+    "name": "陕西省人力资源和社会保障厅",
+    "province": "陕西省",
+    "category": "social_security",
+    "baseUrl": "http://rst.shaanxi.gov.cn",
+    "listUrl": "http://rst.shaanxi.gov.cn/zfxxgk/zcwj/index.html",
+    "selectors": {
+      "listItem": ".list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 7,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 3
+  },
+  {
+    "id": "sn-ybj",
+    "name": "陕西省医疗保障局",
+    "province": "陕西省",
+    "category": "medical_insurance",
+    "baseUrl": "http://ybj.shaanxi.gov.cn",
+    "listUrl": "http://ybj.shaanxi.gov.cn/zcwj/index.html",
+    "selectors": {
+      "listItem": ".news_list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".time",
+      "detailContent": ".article-body"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 7,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": true,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 3
+  },
+  {
+    "id": "xa-gjj",
+    "name": "西安住房公积金管理中心",
+    "province": "陕西省",
+    "category": "housing_fund",
+    "baseUrl": "http://gjj.xa.gov.cn",
+    "listUrl": "http://gjj.xa.gov.cn/zwgk/zcfg/index.html",
+    "selectors": {
+      "listItem": ".list-item",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 7,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 3
+  },
+  {
+    "id": "mohrss",
+    "name": "人力资源和社会保障部",
+    "province": "中央",
+    "category": "social_security",
+    "baseUrl": "http://www.mohrss.gov.cn",
+    "listUrl": "http://www.mohrss.gov.cn/xxgk2020/fdzdgknr/zcfg/index.html",
+    "selectors": {
+      "listItem": ".list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 5,
+      "requestIntervalMax": 8,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 1
+  },
+  {
+    "id": "nhsa",
+    "name": "国家医疗保障局",
+    "province": "中央",
+    "category": "medical_insurance",
+    "baseUrl": "http://www.nhsa.gov.cn",
+    "listUrl": "http://www.nhsa.gov.cn/col/col46/index.html",
+    "selectors": {
+      "listItem": ".list-item",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".time",
+      "detailContent": ".article-content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 5,
+      "requestIntervalMax": 8,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 1
+  }
+]
