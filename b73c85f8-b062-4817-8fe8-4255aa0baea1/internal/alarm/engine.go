@@ -491,10 +491,16 @@ func (e *AlarmEngine) CalculateHourlyVolatility(stationID uint, hour time.Time) 
 func (e *AlarmEngine) ArchiveOldData() (int64, error) {
 	cutoffDate := time.Now().AddDate(0, 0, -e.config.Pressure.DataRetentionDays)
 
+	sizeBefore, _ := e.repo.Pressure.GetDatabaseSizeMB()
+
 	aggRows, err := e.repo.Pressure.GetDailyAggregationData(cutoffDate)
 	if err != nil {
-		e.logger.Error("获取归档前日聚合数据失败", zap.Error(err))
-	} else if len(aggRows) > 0 {
+		e.logger.Error("获取归档前日聚合数据失败，中止归档", zap.Error(err))
+		return 0, fmt.Errorf("获取聚合数据失败: %w", err)
+	}
+
+	statsSaved := 0
+	if len(aggRows) > 0 {
 		var statsList []model.PressureDailyStats
 		for _, row := range aggRows {
 			statsDate, parseErr := time.ParseInLocation("2006-01-02", row.StatsDate, time.Local)
@@ -521,12 +527,13 @@ func (e *AlarmEngine) ArchiveOldData() (int64, error) {
 		}
 		if len(statsList) > 0 {
 			if saveErr := e.repo.Pressure.BatchCreateDailyStats(statsList); saveErr != nil {
-				e.logger.Error("批量保存日统计失败", zap.Error(saveErr))
-			} else {
-				e.logger.Info("归档前日统计已保存",
-					zap.Int("stats_count", len(statsList)),
-					zap.Time("cutoff_date", cutoffDate))
+				e.logger.Error("批量保存日统计失败，中止归档以防止数据丢失", zap.Error(saveErr))
+				return 0, fmt.Errorf("保存日统计失败: %w", saveErr)
 			}
+			statsSaved = len(statsList)
+			e.logger.Info("归档前日统计已保存",
+				zap.Int("stats_count", statsSaved),
+				zap.Time("cutoff_date", cutoffDate))
 		}
 	}
 
@@ -535,7 +542,7 @@ func (e *AlarmEngine) ArchiveOldData() (int64, error) {
 	for {
 		count, err := e.repo.Pressure.ArchiveOldData(cutoffDate, e.config.Pressure.ArchiveBatchSize)
 		if err != nil {
-			return totalArchived, err
+			return totalArchived, fmt.Errorf("标记归档失败: %w", err)
 		}
 		totalArchived += count
 		if count == 0 {
@@ -556,11 +563,24 @@ func (e *AlarmEngine) ArchiveOldData() (int64, error) {
 		}
 	}
 
+	if totalDeleted > 0 {
+		if vacuumErr := e.repo.Pressure.Vacuum(); vacuumErr != nil {
+			e.logger.Warn("VACUUM压缩数据库失败", zap.Error(vacuumErr))
+		} else {
+			e.logger.Info("VACUUM数据库压缩完成")
+		}
+	}
+
+	sizeAfter, _ := e.repo.Pressure.GetDatabaseSizeMB()
+
 	e.logger.Info("压力数据归档完成",
 		zap.Int64("archived_count", totalArchived),
 		zap.Int64("deleted_count", totalDeleted),
-		zap.Int("daily_stats_saved", len(aggRows)),
+		zap.Int("daily_stats_saved", statsSaved),
 		zap.Time("cutoff_date", cutoffDate),
+		zap.Float64("db_size_mb_before", sizeBefore),
+		zap.Float64("db_size_mb_after", sizeAfter),
+		zap.Float64("db_size_reduced_mb", sizeBefore-sizeAfter),
 	)
 
 	return totalArchived, nil

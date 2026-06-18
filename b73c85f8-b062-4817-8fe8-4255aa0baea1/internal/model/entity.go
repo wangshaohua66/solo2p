@@ -286,15 +286,15 @@ type PressureData struct {
 }
 
 type PressureDailyStats struct {
-	ID             uint      `gorm:"primaryKey" json:"id"`
-	StationID      uint      `json:"station_id"`
-	StatsDate      time.Time `gorm:"index" json:"stats_date"`
-	MaxPressure    float64   `json:"max_pressure"`
-	MinPressure    float64   `json:"min_pressure"`
-	AvgPressure    float64   `json:"avg_pressure"`
-	Volatility     float64   `json:"volatility"`
-	SampleCount    int       `json:"sample_count"`
-	CreatedAt      time.Time `json:"created_at"`
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	StationID   uint      `gorm:"uniqueIndex:idx_station_date;not null" json:"station_id"`
+	StatsDate   time.Time `gorm:"uniqueIndex:idx_station_date;not null" json:"stats_date"`
+	MaxPressure float64   `json:"max_pressure"`
+	MinPressure float64   `json:"min_pressure"`
+	AvgPressure float64   `json:"avg_pressure"`
+	Volatility  float64   `json:"volatility"`
+	SampleCount  int       `json:"sample_count"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 type InspectionTrack struct {

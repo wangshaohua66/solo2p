@@ -6,6 +6,7 @@ import (
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type PressureRepository struct {
@@ -159,7 +160,13 @@ func (r *PressureRepository) BatchCreateDailyStats(statsList []model.PressureDai
 	if len(statsList) == 0 {
 		return nil
 	}
-	return r.db.CreateInBatches(statsList, 100).Error
+	return r.db.Clauses(clause.OnConflict{
+		Columns: []clause.Column{
+			{Name: "station_id"},
+			{Name: "stats_date"},
+		},
+		DoNothing: true,
+	}).CreateInBatches(statsList, 100).Error
 }
 
 func (r *PressureRepository) GetDailyAggregationData(beforeDate time.Time) ([]DailyAggregationRow, error) {
@@ -245,6 +252,21 @@ func (r *PressureRepository) GetAllStations() ([]model.PressureRegulatingStation
 	var stations []model.PressureRegulatingStation
 	err := r.db.Find(&stations).Error
 	return stations, err
+}
+
+func (r *PressureRepository) Vacuum() error {
+	return r.db.Exec("VACUUM").Error
+}
+
+func (r *PressureRepository) GetDatabaseSizeMB() (float64, error) {
+	var pageCount, pageSize int
+	if err := r.db.Raw("PRAGMA page_count").Scan(&pageCount).Error; err != nil {
+		return 0, err
+	}
+	if err := r.db.Raw("PRAGMA page_size").Scan(&pageSize).Error; err != nil {
+		return 0, err
+	}
+	return float64(pageCount*pageSize) / (1024 * 1024), nil
 }
 
 type TrackRepository struct {
