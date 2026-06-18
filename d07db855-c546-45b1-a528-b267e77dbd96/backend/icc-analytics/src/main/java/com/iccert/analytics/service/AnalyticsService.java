@@ -199,4 +199,31 @@ public class AnalyticsService {
         }
         return logs;
     }
+
+    /**
+     * 收入分析：从 payment_record 表聚合真实收入数据。
+     */
+    public Map<String, Object> getRevenueStats() {
+        Map<String, Object> r = new HashMap<>();
+        Double total = statsMapper.sumTotalRevenue();
+        Double last30 = statsMapper.sumRevenueLast30Days();
+        Double thisYear = statsMapper.sumRevenueThisYear();
+        r.put("totalRevenue", total != null ? total : 0.0);
+        r.put("revenueLast30Days", last30 != null ? last30 : 0.0);
+        r.put("revenueThisYear", thisYear != null ? thisYear : 0.0);
+        r.put("monthlyRevenueTrend", statsMapper.monthlyRevenueTrend());
+        r.put("revenueByPaymentMethod", statsMapper.revenueByPaymentMethod());
+        return r;
+    }
+
+    /**
+     * 企业客户检测频次分析：跨 inspection_task 与 sample_info 聚合。
+     * 返回每个企业的检测任务数、送样数、已检/销毁数量。
+     */
+    public Map<String, Object> getEnterpriseFrequency() {
+        Map<String, Object> r = new HashMap<>();
+        r.put("detectionFrequency", statsMapper.enterpriseDetectionFrequency());
+        r.put("sampleFrequency", statsMapper.enterpriseSampleFrequency());
+        return r;
+    }
 }

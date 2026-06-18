@@ -165,6 +165,9 @@ const ApiClient = (function () {
   const task = {
     list() { return get(full(PREFIX.task, '/list')); },
     create(data) { return post(full(PREFIX.task, ''), data); },
+    updateStatus(id, status) {
+      return put(full(PREFIX.task, '/' + id + '/status'), null, { query: { status } });
+    },
     autoDispatch() { return post(full(PREFIX.task, '/dispatch/auto')); },
     dispatchSingle(taskId) { return post(full(PREFIX.task, '/dispatch/' + taskId)); },
     checkConflict(equipmentId, startTime, endTime) {

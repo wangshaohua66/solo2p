@@ -52,10 +52,10 @@ const TasksPage = {
         </div>
 
         <div class="kanban-board" id="kanbanBoard">
-          ${this.renderKanbanColumn('待分配', 'pending', g.pending, 'var(--warning)')}
-          ${this.renderKanbanColumn('进行中', 'inProgress', g.inProgress, 'var(--primary)')}
-          ${this.renderKanbanColumn('待审核', 'review', g.review, 'var(--warning)')}
-          ${this.renderKanbanColumn('已完成', 'completed', g.completed, 'var(--success)')}
+          ${this.renderKanbanColumn('待分配', 'pending', 'PENDING', g.pending, 'var(--warning)')}
+          ${this.renderKanbanColumn('进行中', 'inProgress', 'IN_PROGRESS', g.inProgress, 'var(--primary)')}
+          ${this.renderKanbanColumn('待审核', 'review', 'REVIEW', g.review, 'var(--warning)')}
+          ${this.renderKanbanColumn('已完成', 'completed', 'COMPLETED', g.completed, 'var(--success)')}
         </div>
       </div>
     `;
@@ -64,9 +64,9 @@ const TasksPage = {
     this.bindEvents();
   },
 
-  renderKanbanColumn(title, key, tasks, color) {
+  renderKanbanColumn(title, key, status, tasks, color) {
     return `
-      <div class="kanban-column" data-status="${key}">
+      <div class="kanban-column" data-status="${status}" data-key="${key}">
         <div class="kanban-column-header">
           <div class="kanban-column-title" style="color:${color};">
             <span style="width:8px;height:8px;border-radius:50%;background:${color};"></span>
@@ -129,11 +129,9 @@ const TasksPage = {
     });
 
     let dragId = null;
-    let dragStatus = null;
 
     $(document).on('dragstart', '.kanban-card', function(e) {
       dragId = $(this).data('id');
-      dragStatus = $(this).data('status');
       $(this).css('opacity', '0.5');
     }).on('dragend', '.kanban-card', function() {
       $(this).css('opacity', '1');
@@ -144,12 +142,22 @@ const TasksPage = {
       $(this).css('background', 'rgba(37,99,235,0.08)');
     }).on('dragleave', '.kanban-column', function() {
       $(this).css('background', '');
-    }).on('drop', '.kanban-column', function(e) {
+    }).on('drop', '.kanban-column', async function(e) {
       e.preventDefault();
       $(this).css('background', '');
-      const newStatus = $(this).data('status');
-      const statusMap = { pending: 'PENDING', inProgress: 'IN_PROGRESS', review: 'REVIEW', completed: 'COMPLETED' };
-      AppUtils.showToast('任务状态已更新', `任务 ${dragId} 已移动至 ${$(this).find('.kanban-column-title').text().trim()}`, 'success');
+      const targetStatus = $(this).data('status');
+      const columnTitle = $(this).find('.kanban-column-title').text().trim();
+      const taskId = dragId;
+      dragId = null;
+      if (!taskId || !targetStatus) return;
+      try {
+        await ApiClient.task.updateStatus(taskId, targetStatus);
+        AppUtils.showToast('任务状态已更新', `任务 ${taskId} 已移动至 ${columnTitle} 并持久化`, 'success');
+        TasksPage.load();
+      } catch (err) {
+        ApiClient.handleError(err, '任务状态更新失败');
+        TasksPage.load();
+      }
     });
   },
 

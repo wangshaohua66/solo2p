@@ -18,6 +18,21 @@ spring:
       initial-size: 5
       max-active: 20
       min-idle: 5
+  mail:
+    enabled: false
+    host: smtp.qq.com
+    port: 465
+    username: noreply@iccert.gov.cn
+    password: your-smtp-authorization-code
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          ssl:
+            enable: true
   freemarker:
     template-loader-path: classpath:/templates/
     suffix: .ftl
@@ -32,6 +47,14 @@ mybatis-plus:
 certificate:
   reminder:
     advance-days: 60
+
+notification:
+  sms:
+    enabled: false
+    gateway-url: https://dysmsapi.aliyuncs.com/sms/send
+    api-key: your-sms-api-key
+    sign-name: 检验检测认证中心
+    template-code: SMS_CERT_EXPIRE_REMIND
 
 minio:
   endpoint: http://127.0.0.1:9000

@@ -57,4 +57,45 @@ public interface AnalyticsStatsMapper {
             "operation_ip AS ip, operation_time AS time, operation_detail AS detail " +
             "FROM sys_audit_log ORDER BY operation_time DESC LIMIT 50")
     List<Map<String, Object>> selectAuditLogs();
+
+    /* ============ 收入分析（基于 payment_record 表真实聚合） ============ */
+
+    @Select("SELECT IFNULL(SUM(payment_amount), 0) FROM payment_record WHERE payment_status = 'SUCCESS'")
+    Double sumTotalRevenue();
+
+    @Select("SELECT IFNULL(SUM(payment_amount), 0) FROM payment_record " +
+            "WHERE payment_status = 'SUCCESS' AND payment_time >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)")
+    Double sumRevenueLast30Days();
+
+    @Select("SELECT IFNULL(SUM(payment_amount), 0) FROM payment_record " +
+            "WHERE payment_status = 'SUCCESS' AND YEAR(payment_time) = YEAR(CURDATE())")
+    Double sumRevenueThisYear();
+
+    @Select("SELECT DATE_FORMAT(payment_time, '%Y-%m') AS month, IFNULL(SUM(payment_amount), 0) AS revenue, COUNT(*) AS count " +
+            "FROM payment_record WHERE payment_status = 'SUCCESS' " +
+            "AND payment_time >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) " +
+            "GROUP BY month ORDER BY month")
+    List<Map<String, Object>> monthlyRevenueTrend();
+
+    @Select("SELECT payment_method AS method, IFNULL(SUM(payment_amount), 0) AS revenue, COUNT(*) AS count " +
+            "FROM payment_record WHERE payment_status = 'SUCCESS' " +
+            "GROUP BY payment_method ORDER BY revenue DESC")
+    List<Map<String, Object>> revenueByPaymentMethod();
+
+    /* ============ 企业客户检测频次分析（跨 inspection_task / sample_info 真实聚合） ============ */
+
+    @Select("SELECT IFNULL(s.company_id, 0) AS companyId, IFNULL(s.company_name, '未知企业') AS companyName, " +
+            "COUNT(DISTINCT t.id) AS taskCount, COUNT(DISTINCT t.id) AS detectionCount " +
+            "FROM inspection_task t LEFT JOIN sample_info s ON t.sample_id = s.id " +
+            "WHERE t.is_deleted = 0 " +
+            "GROUP BY s.company_id, s.company_name ORDER BY taskCount DESC LIMIT 20")
+    List<Map<String, Object>> enterpriseDetectionFrequency();
+
+    @Select("SELECT IFNULL(s.company_id, 0) AS companyId, IFNULL(s.company_name, '未知企业') AS companyName, " +
+            "COUNT(*) AS sampleCount, " +
+            "SUM(CASE WHEN s.sample_status IN ('TESTING','TESTED') THEN 1 ELSE 0 END) AS testedCount, " +
+            "SUM(CASE WHEN s.sample_status = 'DESTROYED' THEN 1 ELSE 0 END) AS destroyedCount " +
+            "FROM sample_info s WHERE s.is_deleted = 0 " +
+            "GROUP BY s.company_id, s.company_name ORDER BY sampleCount DESC LIMIT 20")
+    List<Map<String, Object>> enterpriseSampleFrequency();
 }

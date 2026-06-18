@@ -155,4 +155,37 @@ public class TaskDispatchService {
     public List<InspectionTask> listAll() {
         return taskMapper.selectList(null);
     }
+
+    /**
+     * 更新任务状态（看板拖拽持久化）。
+     * 校验目标状态合法性后落库，并按状态联动时间字段。
+     */
+    @Transactional
+    public InspectionTask updateTaskStatus(Long taskId, String status) {
+        Set<String> valid = Set.of("PENDING", "IN_PROGRESS", "REVIEW", "COMPLETED");
+        String target = status == null ? "" : status.toUpperCase();
+        if (!valid.contains(target)) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "非法任务状态: " + status);
+        }
+        InspectionTask task = taskMapper.selectById(taskId);
+        if (task == null) {
+            throw new BusinessException(ResultCode.NOT_FOUND, "任务不存在: " + taskId);
+        }
+        task.setTaskStatus(target);
+        switch (target) {
+            case "IN_PROGRESS" -> {
+                if (task.getStartTime() == null) task.setStartTime(LocalDateTime.now());
+                if (task.getProgress() == null) task.setProgress(0);
+            }
+            case "REVIEW" -> {
+                if (task.getProgress() == null || task.getProgress() < 100) task.setProgress(100);
+                if (task.getExpectedFinishTime() == null) task.setExpectedFinishTime(LocalDateTime.now());
+            }
+            case "COMPLETED" -> task.setActualFinishTime(LocalDateTime.now());
+            default -> { /* PENDING: 无需联动 */ }
+        }
+        taskMapper.updateById(task);
+        log.info("[看板拖拽] 任务{}状态更新为{}", task.getTaskCode(), target);
+        return task;
+    }
 }

@@ -44,6 +44,12 @@ public class TaskController {
         return R.ok(dispatchService.createTask(task));
     }
 
+    @Operation(summary = "更新任务状态(看板拖拽持久化)")
+    @PutMapping("/{id}/status")
+    public R<InspectionTask> updateStatus(@PathVariable Long id, @RequestParam String status) {
+        return R.ok(dispatchService.updateTaskStatus(id, status));
+    }
+
     @Operation(summary = "系统自动批量调度所有待分配任务")
     @PostMapping("/dispatch/auto")
     public R<Map<String, Object>> autoDispatchAll() {

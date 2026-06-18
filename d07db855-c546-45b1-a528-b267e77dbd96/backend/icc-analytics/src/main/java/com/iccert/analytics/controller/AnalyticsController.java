@@ -64,4 +64,16 @@ public class AnalyticsController {
     public R<List<Map<String, Object>>> auditLogs() {
         return R.ok(analyticsService.getAuditLogs());
     }
+
+    @Operation(summary = "获取收入分析(基于payment_record真实聚合)")
+    @GetMapping("/revenue/stats")
+    public R<Map<String, Object>> revenueStats() {
+        return R.ok(analyticsService.getRevenueStats());
+    }
+
+    @Operation(summary = "获取企业客户检测频次分析(跨任务/样品表聚合)")
+    @GetMapping("/enterprise/frequency")
+    public R<Map<String, Object>> enterpriseFrequency() {
+        return R.ok(analyticsService.getEnterpriseFrequency());
+    }
 }
