@@ -174,3 +174,27 @@ func TranslateError(err error) error {
 		return err
 	}
 }
+
+func NormalizeETag(etag string) string {
+	if etag == "" {
+		return ""
+	}
+	etag = strings.Trim(etag, `"`)
+	etag = strings.ToLower(etag)
+	return etag
+}
+
+func IsMultipartETag(etag string) bool {
+	return strings.Contains(etag, "-")
+}
+
+func ExtractMD5FromETag(etag string) string {
+	etag = NormalizeETag(etag)
+	if etag == "" {
+		return ""
+	}
+	if IsMultipartETag(etag) {
+		return ""
+	}
+	return etag
+}

@@ -1,6 +1,7 @@
 package conflict
 
 import (
+	"context"
 	"crypto/md5"
 	"fmt"
 	"io"
@@ -44,6 +45,7 @@ type ConflictRecord struct {
 type Resolver struct {
 	mu        sync.RWMutex
 	cfg       config.ConflictConfig
+	target    storage.StorageProvider
 	records   []ConflictRecord
 	recordMap map[string]*ConflictRecord
 }
@@ -54,6 +56,10 @@ func NewResolver(cfg config.ConflictConfig) *Resolver {
 		records:   []ConflictRecord{},
 		recordMap: make(map[string]*ConflictRecord),
 	}
+}
+
+func (r *Resolver) SetTargetProvider(target storage.StorageProvider) {
+	r.target = target
 }
 
 func (r *Resolver) Detect(src, dst *storage.FileObject) (bool, ConflictType) {
@@ -208,13 +214,34 @@ func (r *Resolver) backupFile(key string, obj *storage.FileObject) error {
 	timestamp := time.Now().Format("20060102-150405")
 	backupPath := filepath.Join(conflictDir, fmt.Sprintf("%s-%s.backup", timestamp, safeName))
 
-	sizeStr := fmt.Sprintf("size: %d, mod: %s, checksum: %s",
-		obj.Size, obj.LastModified.Format(time.RFC3339), obj.ETag)
-	if err := os.WriteFile(backupPath, []byte(sizeStr), 0644); err != nil {
-		return fmt.Errorf("write backup metadata: %w", err)
+	if r.target != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		reader, _, getErr := r.target.Get(ctx, key)
+		if getErr != nil {
+			return fmt.Errorf("read target for backup: %w", getErr)
+		}
+		defer reader.Close()
+
+		outFile, createErr := os.Create(backupPath)
+		if createErr != nil {
+			return fmt.Errorf("create backup file: %w", createErr)
+		}
+		defer outFile.Close()
+
+		buf := make([]byte, 512*1024)
+		if _, cpErr := io.CopyBuffer(outFile, reader, buf); cpErr != nil {
+			return fmt.Errorf("write backup content: %w", cpErr)
+		}
+	} else {
+		sizeStr := fmt.Sprintf("size: %d, mod: %s, etag: %s, checksum: %s",
+			obj.Size, obj.LastModified.Format(time.RFC3339), obj.ETag, obj.Checksum)
+		if err := os.WriteFile(backupPath, []byte(sizeStr), 0644); err != nil {
+			return fmt.Errorf("write backup metadata: %w", err)
+		}
 	}
 
-	logger.Debug("Created backup metadata: %s", backupPath)
+	logger.Debug("Created backup: %s", backupPath)
 	return nil
 }
 

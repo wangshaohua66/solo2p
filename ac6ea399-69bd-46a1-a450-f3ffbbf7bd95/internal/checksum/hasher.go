@@ -74,6 +74,49 @@ func (h *Hasher) ComputeFromReader(r io.Reader) (string, int64, error) {
 	return sum, total, nil
 }
 
+type HashingReader struct {
+	reader io.Reader
+	hasher hash.Hash
+	pool   *sync.Pool
+	total  int64
+}
+
+func (h *Hasher) NewHashingReader(r io.Reader) *HashingReader {
+	hashImpl := h.pool.Get().(hash.Hash)
+	hashImpl.Reset()
+	return &HashingReader{
+		reader: r,
+		hasher: hashImpl,
+		pool:   &h.pool,
+	}
+}
+
+func (hr *HashingReader) Read(p []byte) (int, error) {
+	n, err := hr.reader.Read(p)
+	if n > 0 {
+		hr.hasher.Write(p[:n])
+		hr.total += int64(n)
+	}
+	return n, err
+}
+
+func (hr *HashingReader) Sum() string {
+	return hex.EncodeToString(hr.hasher.Sum(nil))
+}
+
+func (hr *HashingReader) Size() int64 {
+	return hr.total
+}
+
+func (hr *HashingReader) Close() error {
+	hr.hasher.Reset()
+	hr.pool.Put(hr.hasher)
+	if rc, ok := hr.reader.(io.Closer); ok {
+		return rc.Close()
+	}
+	return nil
+}
+
 func (h *Hasher) ComputeFromFile(path string) (*FileChecksum, error) {
 	f, err := os.Open(path)
 	if err != nil {

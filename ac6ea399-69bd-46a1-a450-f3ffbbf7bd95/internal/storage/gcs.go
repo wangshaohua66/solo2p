@@ -92,11 +92,13 @@ func (g *gcsProvider) List(ctx context.Context, opts ListOptions) (*ListResult, 
 		}
 
 		key := g.stripPrefix(attrs.Name)
+		etag := NormalizeETag(attrs.Etag)
 		result.Objects = append(result.Objects, FileObject{
 			Key:          key,
 			Size:         attrs.Size,
 			LastModified: attrs.Updated,
-			ETag:         attrs.Etag,
+			ETag:         etag,
+			Checksum:     ExtractMD5FromETag(etag),
 			ContentType:  attrs.ContentType,
 			StorageClass: attrs.StorageClass,
 		})
@@ -135,11 +137,13 @@ func (g *gcsProvider) ListAll(ctx context.Context, prefix string) ([]FileObject,
 		}
 
 		key := g.stripPrefix(attrs.Name)
+		etag := NormalizeETag(attrs.Etag)
 		allObjects = append(allObjects, FileObject{
 			Key:          key,
 			Size:         attrs.Size,
 			LastModified: attrs.Updated,
-			ETag:         attrs.Etag,
+			ETag:         etag,
+			Checksum:     ExtractMD5FromETag(etag),
 			ContentType:  attrs.ContentType,
 			StorageClass: attrs.StorageClass,
 		})
@@ -154,12 +158,13 @@ func (g *gcsProvider) Head(ctx context.Context, key string) (*FileObject, error)
 	if err != nil {
 		return nil, TranslateError(err)
 	}
-
+	etag := NormalizeETag(attrs.Etag)
 	return &FileObject{
 		Key:          key,
 		Size:         attrs.Size,
 		LastModified: attrs.Updated,
-		ETag:         attrs.Etag,
+		ETag:         etag,
+		Checksum:     ExtractMD5FromETag(etag),
 		ContentType:  attrs.ContentType,
 		StorageClass: attrs.StorageClass,
 	}, nil
@@ -246,7 +251,9 @@ func (g *gcsProvider) Put(ctx context.Context, key string, body io.Reader, size 
 	}
 	if err == nil && attrs != nil {
 		fo.Size = attrs.Size
-		fo.ETag = attrs.Etag
+		etag := NormalizeETag(attrs.Etag)
+		fo.ETag = etag
+		fo.Checksum = ExtractMD5FromETag(etag)
 		fo.LastModified = attrs.Updated
 	}
 

@@ -78,13 +78,16 @@ func NewEngine(cfg *config.Config) (*Engine, error) {
 		return nil, fmt.Errorf("create progress db: %w", err)
 	}
 
+	resolver := conflict.NewResolver(cfg.Conflict)
+	resolver.SetTargetProvider(dst)
+
 	return &Engine{
 		cfg:      cfg,
 		source:   src,
 		target:   dst,
 		hasher:   checksum.New(cfg.Checksum.Algorithm),
 		verifier: checksum.NewVerifier(cfg.Checksum.Algorithm),
-		resolver: conflict.NewResolver(cfg.Conflict),
+		resolver: resolver,
 		db:       db,
 	}, nil
 }
@@ -667,26 +670,15 @@ func (e *Engine) doTransfer(ctx context.Context, change *FileChange) error {
 	}
 	defer reader.Close()
 
-	checksumStr, size, err := e.hasher.ComputeFromReader(reader)
-	if err != nil {
-		return fmt.Errorf("compute source checksum: %w", err)
-	}
-	if srcMeta != nil {
-		srcMeta.Checksum = checksumStr
-	}
+	hashingReader := e.hasher.NewHashingReader(reader)
+	defer hashingReader.Close()
 
-	reader2, _, err := e.source.Get(ctx, srcKey)
-	if err != nil {
-		return fmt.Errorf("re-read source: %w", err)
-	}
-	defer reader2.Close()
-
-	targetReader := io.Reader(reader2)
+	targetReader := io.Reader(hashingReader)
 	uploadKey := change.Key
 
 	if change.TargetObj != nil {
 		conflictRec, resolvedReader, resolveErr := e.resolver.Resolve(
-			change.Key, srcMeta, change.TargetObj, reader2)
+			change.Key, srcMeta, change.TargetObj, hashingReader)
 		if resolveErr != nil {
 			return fmt.Errorf("resolve conflict: %w", resolveErr)
 		}
@@ -714,15 +706,25 @@ func (e *Engine) doTransfer(ctx context.Context, change *FileChange) error {
 	opts := &storage.UploadOptions{
 		Concurrency: 10,
 		PartSize:    e.cfg.Sync.ChunkSize,
-		Metadata:    map[string]string{"checksum": checksumStr},
 	}
 	if srcMeta != nil {
 		opts.ContentType = srcMeta.ContentType
 	}
 
+	var size int64
+	if srcMeta != nil && srcMeta.Size > 0 {
+		size = srcMeta.Size
+	}
+
 	_, err = e.target.Put(ctx, uploadKey, targetReader, size, opts)
 	if err != nil {
 		return fmt.Errorf("upload target: %w", err)
+	}
+
+	checksumStr := hashingReader.Sum()
+	size = hashingReader.Size()
+	if srcMeta != nil {
+		srcMeta.Checksum = checksumStr
 	}
 
 	if e.cfg.Checksum.VerifyAfterSync {

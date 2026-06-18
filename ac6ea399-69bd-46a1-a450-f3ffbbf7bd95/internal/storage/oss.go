@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -85,11 +84,13 @@ func (o *ossProvider) List(ctx context.Context, opts ListOptions) (*ListResult, 
 
 	for _, obj := range res.Objects {
 		key := o.stripPrefix(obj.Key)
+		etag := NormalizeETag(obj.ETag)
 		result.Objects = append(result.Objects, FileObject{
 			Key:          key,
 			Size:         obj.Size,
 			LastModified: obj.LastModified,
-			ETag:         strings.Trim(obj.ETag, `"`),
+			ETag:         etag,
+			Checksum:     ExtractMD5FromETag(etag),
 			StorageClass: obj.Type,
 		})
 	}
@@ -122,11 +123,13 @@ func (o *ossProvider) ListAll(ctx context.Context, prefix string) ([]FileObject,
 
 		for _, obj := range res.Objects {
 			key := o.stripPrefix(obj.Key)
+			etag := NormalizeETag(obj.ETag)
 			allObjects = append(allObjects, FileObject{
 				Key:          key,
 				Size:         obj.Size,
 				LastModified: obj.LastModified,
-				ETag:         strings.Trim(obj.ETag, `"`),
+				ETag:         etag,
+				Checksum:     ExtractMD5FromETag(etag),
 				StorageClass: obj.Type,
 			})
 		}
@@ -162,7 +165,9 @@ func (o *ossProvider) Head(ctx context.Context, key string) (*FileObject, error)
 		}
 	}
 	if v, ok := headers["ETag"]; ok && len(v) > 0 {
-		fo.ETag = strings.Trim(v[0], `"`)
+		etag := NormalizeETag(v[0])
+		fo.ETag = etag
+		fo.Checksum = ExtractMD5FromETag(etag)
 	}
 	return fo, nil
 }
@@ -183,7 +188,9 @@ func (o *ossProvider) Get(ctx context.Context, key string) (io.ReadCloser, *File
 			}
 		}
 		if v, ok := headers["ETag"]; ok && len(v) > 0 {
-			fo.ETag = strings.Trim(v[0], `"`)
+			etag := NormalizeETag(v[0])
+			fo.ETag = etag
+			fo.Checksum = ExtractMD5FromETag(etag)
 		}
 		if v, ok := headers["Content-Type"]; ok && len(v) > 0 {
 			fo.ContentType = v[0]
@@ -248,7 +255,9 @@ func (o *ossProvider) putSingle(ctx context.Context, key, fullKey string, body i
 	}
 	if headers, hErr := o.bucket.GetObjectMeta(fullKey); hErr == nil {
 		if v, ok := headers["ETag"]; ok && len(v) > 0 {
-			fo.ETag = strings.Trim(v[0], `"`)
+			etag := NormalizeETag(v[0])
+			fo.ETag = etag
+			fo.Checksum = ExtractMD5FromETag(etag)
 		}
 	}
 	return fo, nil
@@ -358,7 +367,9 @@ func (o *ossProvider) putMultipart(ctx context.Context, key, fullKey string, bod
 	}
 	if headers, hErr := o.bucket.GetObjectMeta(fullKey); hErr == nil {
 		if v, ok := headers["ETag"]; ok && len(v) > 0 {
-			fo.ETag = strings.Trim(v[0], `"`)
+			etag := NormalizeETag(v[0])
+			fo.ETag = etag
+			fo.Checksum = ExtractMD5FromETag(etag)
 		}
 	}
 	return fo, nil

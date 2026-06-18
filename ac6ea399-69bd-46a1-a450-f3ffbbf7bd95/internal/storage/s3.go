@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"strings"
 	"time"
 
 	"cloudsync/internal/config"
@@ -124,11 +123,13 @@ func (s *s3Provider) List(ctx context.Context, opts ListOptions) (*ListResult, e
 
 	for _, obj := range out.Contents {
 		key := s.stripPrefix(*obj.Key)
+		etag := NormalizeETag(*obj.ETag)
 		result.Objects = append(result.Objects, FileObject{
 			Key:          key,
 			Size:         aws.ToInt64(obj.Size),
 			LastModified: *obj.LastModified,
-			ETag:         strings.Trim(*obj.ETag, `"`),
+			ETag:         etag,
+			Checksum:     ExtractMD5FromETag(etag),
 			StorageClass: string(obj.StorageClass),
 		})
 	}
@@ -169,11 +170,13 @@ func (s *s3Provider) ListAll(ctx context.Context, prefix string) ([]FileObject, 
 				continue
 			}
 			key := s.stripPrefix(*obj.Key)
+			etag := NormalizeETag(*obj.ETag)
 			fo := FileObject{
 				Key:          key,
 				Size:         aws.ToInt64(obj.Size),
 				LastModified: *obj.LastModified,
-				ETag:         strings.Trim(*obj.ETag, `"`),
+				ETag:         etag,
+				Checksum:     ExtractMD5FromETag(etag),
 				StorageClass: string(obj.StorageClass),
 			}
 			allObjects = append(allObjects, fo)
@@ -207,7 +210,9 @@ func (s *s3Provider) Head(ctx context.Context, key string) (*FileObject, error) 
 		fo.LastModified = *out.LastModified
 	}
 	if out.ETag != nil {
-		fo.ETag = strings.Trim(*out.ETag, `"`)
+		etag := NormalizeETag(*out.ETag)
+		fo.ETag = etag
+		fo.Checksum = ExtractMD5FromETag(etag)
 	}
 	if out.Metadata != nil {
 		fo.Metadata = make(map[string]string, len(out.Metadata))
@@ -242,7 +247,9 @@ func (s *s3Provider) Get(ctx context.Context, key string) (io.ReadCloser, *FileO
 		fo.LastModified = *out.LastModified
 	}
 	if out.ETag != nil {
-		fo.ETag = strings.Trim(*out.ETag, `"`)
+		etag := NormalizeETag(*out.ETag)
+		fo.ETag = etag
+		fo.Checksum = ExtractMD5FromETag(etag)
 	}
 	if out.Metadata != nil {
 		fo.Metadata = make(map[string]string, len(out.Metadata))
@@ -318,8 +325,10 @@ func (s *s3Provider) Put(ctx context.Context, key string, body io.Reader, size i
 	}
 
 	etag := ""
+	checksum := ""
 	if out.ETag != nil {
-		etag = strings.Trim(*out.ETag, `"`)
+		etag = NormalizeETag(*out.ETag)
+		checksum = ExtractMD5FromETag(etag)
 	}
 
 	return &FileObject{
@@ -327,6 +336,7 @@ func (s *s3Provider) Put(ctx context.Context, key string, body io.Reader, size i
 		Size:         size,
 		LastModified: time.Now(),
 		ETag:         etag,
+		Checksum:     checksum,
 		ContentType:  contentType,
 		Metadata:     getMetadata(opts),
 	}, nil
