@@ -1,11 +1,23 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
-import { PolicySnapshot, PolicyDetail, ChangeRecord, SiteConfig } from '../types';
+import dayjs from 'dayjs';
+import { PolicySnapshot, PolicyDetail, ChangeRecord, SiteConfig, ListSnapshot, CustomerMapping } from '../types';
 import logger from '../utils/logger';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_PATH = path.join(DATA_DIR, 'policy-monitor.db');
+const MAX_DB_SIZE_BYTES = 2 * 1024 * 1024 * 1024;
+const RETENTION_MONTHS = 6;
+
+export interface CleanupResult {
+  deletedSnapshots: number;
+  deletedListSnapshots: number;
+  deletedChanges: number;
+  deletedRuns: number;
+  deletedLogs: number;
+  freedBytes: number;
+}
 
 export class Repository {
   private db: Database.Database;
@@ -103,6 +115,26 @@ export class Repository {
         event_data TEXT,
         created_at TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS list_snapshots (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        site_id TEXT NOT NULL,
+        url TEXT NOT NULL,
+        items_json TEXT NOT NULL,
+        items_hash TEXT NOT NULL,
+        item_count INTEGER DEFAULT 0,
+        fetched_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_list_snapshots_site ON list_snapshots(site_id);
+      CREATE INDEX IF NOT EXISTS idx_list_snapshots_fetched ON list_snapshots(fetched_at);
+
+      CREATE TABLE IF NOT EXISTS customer_mappings (
+        customer_id TEXT PRIMARY KEY,
+        customer_name TEXT NOT NULL,
+        province TEXT NOT NULL,
+        categories_json TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_customers_province ON customer_mappings(province);
     `);
   }
 
@@ -344,8 +376,199 @@ export class Repository {
     stmt.run(eventType, eventData ? JSON.stringify(eventData) : null);
   }
 
+  insertListSnapshot(snapshot: ListSnapshot): number {
+    const stmt = this.db.prepare(`
+      INSERT INTO list_snapshots
+      (site_id, url, items_json, items_hash, item_count, fetched_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    const result = stmt.run(
+      snapshot.siteId,
+      snapshot.url,
+      snapshot.itemsJson,
+      snapshot.itemsHash,
+      snapshot.itemCount,
+      snapshot.fetchedAt
+    );
+    return Number(result.lastInsertRowid);
+  }
+
+  getLatestListSnapshot(siteId: string, url: string): ListSnapshot | null {
+    const stmt = this.db.prepare(`
+      SELECT * FROM list_snapshots
+      WHERE site_id = ? AND url = ?
+      ORDER BY fetched_at DESC, id DESC
+      LIMIT 1
+    `);
+    const row = stmt.get(siteId, url) as any;
+    if (!row) return null;
+    return {
+      id: row.id,
+      siteId: row.site_id,
+      url: row.url,
+      itemsJson: row.items_json,
+      itemsHash: row.items_hash,
+      itemCount: row.item_count,
+      fetchedAt: row.fetched_at
+    };
+  }
+
+  getListSnapshotHistory(siteId: string, url: string, limit = 5): ListSnapshot[] {
+    const stmt = this.db.prepare(`
+      SELECT * FROM list_snapshots
+      WHERE site_id = ? AND url = ?
+      ORDER BY fetched_at DESC
+      LIMIT ?
+    `);
+    const rows = stmt.all(siteId, url, limit) as any[];
+    return rows.map(row => ({
+      id: row.id,
+      siteId: row.site_id,
+      url: row.url,
+      itemsJson: row.items_json,
+      itemsHash: row.items_hash,
+      itemCount: row.item_count,
+      fetchedAt: row.fetched_at
+    }));
+  }
+
+  upsertCustomer(customer: CustomerMapping): void {
+    const stmt = this.db.prepare(`
+      INSERT OR REPLACE INTO customer_mappings
+      (customer_id, customer_name, province, categories_json)
+      VALUES (?, ?, ?, ?)
+    `);
+    stmt.run(
+      customer.customerId,
+      customer.customerName,
+      customer.province,
+      customer.categories ? JSON.stringify(customer.categories) : null
+    );
+  }
+
+  getCustomersByProvince(province: string): CustomerMapping[] {
+    const stmt = this.db.prepare('SELECT * FROM customer_mappings WHERE province = ?');
+    const rows = stmt.all(province) as any[];
+    return rows.map(row => ({
+      customerId: row.customer_id,
+      customerName: row.customer_name,
+      province: row.province,
+      categories: row.categories_json ? JSON.parse(row.categories_json) : []
+    }));
+  }
+
+  getCustomersByCategoryAndProvince(category: string, province: string): CustomerMapping[] {
+    const customers = this.getCustomersByProvince(province);
+    return customers.filter(c =>
+      c.categories.length === 0 || c.categories.includes(category as any)
+    );
+  }
+
+  getAllCustomers(): CustomerMapping[] {
+    const stmt = this.db.prepare('SELECT * FROM customer_mappings');
+    const rows = stmt.all() as any[];
+    return rows.map(row => ({
+      customerId: row.customer_id,
+      customerName: row.customer_name,
+      province: row.province,
+      categories: row.categories_json ? JSON.parse(row.categories_json) : []
+    }));
+  }
+
   getDb(): Database.Database {
     return this.db;
+  }
+
+  getDbSizeBytes(): number {
+    let totalSize = 0;
+    const walPath = DB_PATH + '-wal';
+    const shmPath = DB_PATH + '-shm';
+    try {
+      if (fs.existsSync(DB_PATH)) totalSize += fs.statSync(DB_PATH).size;
+      if (fs.existsSync(walPath)) totalSize += fs.statSync(walPath).size;
+      if (fs.existsSync(shmPath)) totalSize += fs.statSync(shmPath).size;
+    } catch {
+      // ignore
+    }
+    return totalSize;
+  }
+
+  cleanupOldData(months: number = RETENTION_MONTHS): {
+    deletedSnapshots: number;
+    deletedListSnapshots: number;
+    deletedChanges: number;
+    deletedRuns: number;
+    deletedLogs: number;
+    freedBytes: number;
+  } {
+    const beforeSize = this.getDbSizeBytes();
+    const cutoffDate = dayjs().subtract(months, 'month').format('YYYY-MM-DD HH:mm:ss');
+    logger.info(`Cleaning up data older than ${cutoffDate} (${months} months retention)`);
+
+    const delSnapshots = this.db.prepare(`
+      DELETE FROM policy_snapshots WHERE fetched_at < ?
+    `).run(cutoffDate);
+
+    const delListSnapshots = this.db.prepare(`
+      DELETE FROM list_snapshots WHERE fetched_at < ?
+    `).run(cutoffDate);
+
+    const delChanges = this.db.prepare(`
+      DELETE FROM change_records WHERE detected_at < ?
+    `).run(cutoffDate);
+
+    const delRuns = this.db.prepare(`
+      DELETE FROM crawl_runs WHERE started_at < ?
+    `).run(cutoffDate);
+
+    const delLogs = this.db.prepare(`
+      DELETE FROM audit_logs WHERE created_at < ?
+    `).run(cutoffDate);
+
+    const deletedDetails = this.db.prepare(`
+      DELETE FROM policy_details WHERE extracted_at < ?
+    `).run(cutoffDate);
+
+    this.db.pragma('wal_checkpoint(TRUNCATE)');
+    this.db.pragma('optimize');
+
+    const afterSize = this.getDbSizeBytes();
+    const freedBytes = Math.max(0, beforeSize - afterSize);
+
+    const result = {
+      deletedSnapshots: delSnapshots.changes + deletedDetails.changes,
+      deletedListSnapshots: delListSnapshots.changes,
+      deletedChanges: delChanges.changes,
+      deletedRuns: delRuns.changes,
+      deletedLogs: delLogs.changes,
+      freedBytes
+    };
+
+    logger.info('Data cleanup completed', result);
+    return result;
+  }
+
+  enforceSizeLimit(maxBytes: number = MAX_DB_SIZE_BYTES): { cleaned: boolean; result?: CleanupResult } {
+    const currentSize = this.getDbSizeBytes();
+    if (currentSize <= maxBytes) {
+      return { cleaned: false };
+    }
+
+    logger.warn(`Database size ${currentSize} bytes exceeds limit ${maxBytes} bytes, triggering aggressive cleanup`);
+
+    let result = this.cleanupOldData(RETENTION_MONTHS);
+
+    if (this.getDbSizeBytes() > maxBytes) {
+      logger.warn('Still over limit after 6-month cleanup, reducing to 3 months');
+      result = this.cleanupOldData(3);
+    }
+
+    if (this.getDbSizeBytes() > maxBytes) {
+      logger.warn('Still over limit, reducing to 1 month');
+      result = this.cleanupOldData(1);
+    }
+
+    return { cleaned: true, result };
   }
 
   close(): void {

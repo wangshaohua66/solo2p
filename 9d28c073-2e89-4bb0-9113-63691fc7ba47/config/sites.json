@@ -835,5 +835,268 @@
     },
     "enabled": true,
     "priority": 1
+  },
+  {
+    "id": "bj-labor",
+    "name": "北京市劳动保障监察网",
+    "province": "北京市",
+    "category": "labor",
+    "baseUrl": "http://rsj.beijing.gov.cn",
+    "listUrl": "http://rsj.beijing.gov.cn/xxgk/zcfgjd/index.html",
+    "selectors": {
+      "listItem": ".list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".TRS_Editor",
+      "docNumber": ".doc-number",
+      "issueOrg": ".issue-org",
+      "effectiveDate": ".effective-date"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 3,
+      "requestIntervalMax": 7,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 2
+  },
+  {
+    "id": "sh-labor",
+    "name": "上海市劳动保障监察网",
+    "province": "上海市",
+    "category": "labor",
+    "baseUrl": "https://rsj.sh.gov.cn",
+    "listUrl": "https://rsj.sh.gov.cn/zcfgjd_17301/index.html",
+    "selectors": {
+      "listItem": ".news-list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".article-content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 4,
+      "requestIntervalMax": 8,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 2
+  },
+  {
+    "id": "gd-labor",
+    "name": "广东省劳动保障监察网",
+    "province": "广东省",
+    "category": "labor",
+    "baseUrl": "http://hrss.gd.gov.cn",
+    "listUrl": "http://hrss.gd.gov.cn/zcfgjd/index.html",
+    "selectors": {
+      "listItem": ".list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 5,
+      "requestIntervalMax": 10,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 2
+  },
+  {
+    "id": "js-labor",
+    "name": "江苏省劳动保障监察网",
+    "province": "江苏省",
+    "category": "labor",
+    "baseUrl": "https://jshrss.jiangsu.gov.cn",
+    "listUrl": "https://jshrss.jiangsu.gov.cn/col/col77852/index.html",
+    "selectors": {
+      "listItem": ".news-list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".article-content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 4,
+      "requestIntervalMax": 8,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 2
+  },
+  {
+    "id": "zj-labor",
+    "name": "浙江省劳动保障监察网",
+    "province": "浙江省",
+    "category": "labor",
+    "baseUrl": "http://rlsbt.zj.gov.cn",
+    "listUrl": "http://rlsbt.zj.gov.cn/col/col1228965825/index.html",
+    "selectors": {
+      "listItem": ".news-list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".article-content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 4,
+      "requestIntervalMax": 8,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 2
+  },
+  {
+    "id": "sd-labor",
+    "name": "山东省劳动保障监察网",
+    "province": "山东省",
+    "category": "labor",
+    "baseUrl": "http://hrss.shandong.gov.cn",
+    "listUrl": "http://hrss.shandong.gov.cn/zcfgjd/index.html",
+    "selectors": {
+      "listItem": ".list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 5,
+      "requestIntervalMax": 8,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 2
+  },
+  {
+    "id": "sc-labor",
+    "name": "四川省劳动保障监察网",
+    "province": "四川省",
+    "category": "labor",
+    "baseUrl": "http://rst.sc.gov.cn",
+    "listUrl": "http://rst.sc.gov.cn//zcjd/index.html",
+    "selectors": {
+      "listItem": ".news-list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".article-content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 4,
+      "requestIntervalMax": 8,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 2
+  },
+  {
+    "id": "hb-labor",
+    "name": "湖北省劳动保障监察网",
+    "province": "湖北省",
+    "category": "labor",
+    "baseUrl": "http://rst.hubei.gov.cn",
+    "listUrl": "http://rst.hubei.gov.cn/zcfgjd/index.html",
+    "selectors": {
+      "listItem": ".list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 5,
+      "requestIntervalMax": 8,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 2
+  },
+  {
+    "id": "fj-labor",
+    "name": "福建省劳动保障监察网",
+    "province": "福建省",
+    "category": "labor",
+    "baseUrl": "https://rst.fujian.gov.cn",
+    "listUrl": "https://rst.fujian.gov.cn/zwgk/zcfgjd/index.html",
+    "selectors": {
+      "listItem": ".news-list li",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".date",
+      "detailContent": ".article-content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 4,
+      "requestIntervalMax": 8,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 2
+  },
+  {
+    "id": "central-labor",
+    "name": "人社部劳动保障监察局",
+    "province": "中央",
+    "category": "labor",
+    "baseUrl": "http://www.mohrss.gov.cn",
+    "listUrl": "http://www.mohrss.gov.cn/SYrlzyhshbzb/dongtaixinwen/zcfgjd/index.html",
+    "selectors": {
+      "listItem": ".list-item",
+      "title": "a",
+      "link": "a",
+      "publishDate": ".time",
+      "detailContent": ".article-content"
+    },
+    "crawlStrategy": {
+      "requestIntervalMin": 5,
+      "requestIntervalMax": 8,
+      "maxRetries": 3,
+      "timeout": 15000,
+      "needLogin": false,
+      "hasCaptcha": false,
+      "dynamicLoading": false
+    },
+    "enabled": true,
+    "priority": 1
   }
 ]

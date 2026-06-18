@@ -2,11 +2,25 @@ import * as cheerio from 'cheerio';
 import { compareTwoStrings } from 'string-similarity';
 import { diffLines, Change } from 'diff';
 import logger from '../utils/logger';
-import { PolicySnapshot, PolicyListItem, ChangeRecord, SiteConfig } from '../types';
+import { PolicySnapshot, PolicyListItem, ChangeRecord, SiteConfig, CustomerMapping } from '../types';
 import { md5, cleanText, truncate, nowIso } from '../utils/helpers';
 import repository from '../storage/repository';
 
 const SIMILARITY_THRESHOLD = 0.85;
+
+const ABOLISH_KEYWORDS = [
+  '废止', '失效', '停止执行', '不再执行', '予以废止',
+  '自本通知印发之日起废止', '同时废止', '宣告失效',
+  '自动失效', '失去效力', '停止适用', '不再适用'
+];
+
+const ABOLISH_TITLE_PATTERNS = [
+  /关于废止/i,
+  /关于宣布.*失效/i,
+  /关于失效/i,
+  /废止.*通知/i,
+  /失效.*公告/i
+];
 
 export class ChangeDetector {
   private siteConfig: SiteConfig;
@@ -123,6 +137,46 @@ export class ChangeDetector {
     };
   }
 
+  detectAbolish(title: string, content: string): boolean {
+    for (const pattern of ABOLISH_TITLE_PATTERNS) {
+      if (pattern.test(title)) {
+        logger.getLogger(this.siteConfig.id).info(`Abolish detected by title pattern: ${truncate(title, 60)}`);
+        return true;
+      }
+    }
+
+    const contentLower = content.toLowerCase();
+    let abolishScore = 0;
+    for (const keyword of ABOLISH_KEYWORDS) {
+      if (contentLower.includes(keyword.toLowerCase())) {
+        abolishScore++;
+      }
+    }
+
+    if (abolishScore >= 2) {
+      logger.getLogger(this.siteConfig.id).info(`Abolish detected by keywords (${abolishScore} matches): ${truncate(title, 60)}`);
+      return true;
+    }
+
+    return false;
+  }
+
+  resolveAffectedCustomers(): string[] {
+    const customers = repository.getCustomersByCategoryAndProvince(
+      this.siteConfig.category,
+      this.siteConfig.province
+    );
+
+    const customerIds = customers.map(c => c.customerId);
+    if (customerIds.length > 0) {
+      logger.getLogger(this.siteConfig.id).debug(
+        `Resolved ${customerIds.length} affected customers for ${this.siteConfig.province}/${this.siteConfig.category}`
+      );
+    }
+
+    return customerIds;
+  }
+
   extractContentText(html: string): string {
     const $ = cheerio.load(html);
     const contentSelector = this.siteConfig.selectors.detailContent;
@@ -163,15 +217,19 @@ export class ChangeDetector {
       };
       const snapshotId = repository.insertSnapshot(snapshot);
 
+      const isAbolish = this.detectAbolish(currentTitle, currentText);
+      const changeType = isAbolish ? 'abolish' : 'add';
+
       const changeRecord: ChangeRecord = {
         siteId: this.siteConfig.id,
         policyUrl: url,
         policyTitle: currentTitle,
-        changeType: 'add',
+        changeType,
         similarity: 0,
-        diffSummary: '新增政策文件',
+        diffSummary: isAbolish ? '新增废止类政策文件' : '新增政策文件',
         currentSnapshotId: snapshotId,
-        changeLevel: this.classifyChangeLevel(currentText),
+        changeLevel: this.classifyChangeLevel(currentText, undefined, isAbolish),
+        affectedCustomers: this.resolveAffectedCustomers(),
         detectedAt: nowIso(),
         notified: false
       };
@@ -188,6 +246,46 @@ export class ChangeDetector {
     }
 
     const diffResult = this.computeContentDiff(previous.contentText || '', currentText);
+
+    const isAbolish = this.detectAbolish(currentTitle, currentText);
+
+    if (isAbolish) {
+      siteLogger.info(`Policy abolished: ${truncate(currentTitle, 60)}`);
+
+      const newVersion = (previous.snapshotVersion || 1) + 1;
+      const snapshot: PolicySnapshot = {
+        siteId: this.siteConfig.id,
+        url,
+        title: currentTitle,
+        publishDate: '',
+        contentHash: currentHash,
+        contentText: currentText,
+        contentHtml: currentHtml,
+        fetchedAt: nowIso(),
+        snapshotVersion: newVersion
+      };
+      const newSnapshotId = repository.insertSnapshot(snapshot);
+
+      const changeRecord: ChangeRecord = {
+        siteId: this.siteConfig.id,
+        policyUrl: url,
+        policyTitle: currentTitle,
+        changeType: 'abolish',
+        similarity: diffResult.similarity,
+        diffSummary: `政策废止。${diffResult.diffSummary}`,
+        previousSnapshotId: previous.id,
+        currentSnapshotId: newSnapshotId,
+        changeLevel: 'high',
+        affectedCustomers: this.resolveAffectedCustomers(),
+        detectedAt: nowIso(),
+        notified: false
+      };
+
+      const changeId = repository.insertChangeRecord(changeRecord);
+      changeRecord.id = changeId;
+
+      return changeRecord;
+    }
 
     if (!diffResult.changed) {
       siteLogger.debug(
@@ -223,7 +321,8 @@ export class ChangeDetector {
       diffSummary: diffResult.diffSummary,
       previousSnapshotId: previous.id,
       currentSnapshotId: newSnapshotId,
-      changeLevel: this.classifyChangeLevel(currentText, diffResult.similarity),
+      changeLevel: this.classifyChangeLevel(currentText, diffResult.similarity, false),
+      affectedCustomers: this.resolveAffectedCustomers(),
       detectedAt: nowIso(),
       notified: false
     };
@@ -234,7 +333,45 @@ export class ChangeDetector {
     return changeRecord;
   }
 
-  private classifyChangeLevel(content: string, similarity?: number): 'high' | 'medium' | 'low' {
+  detectAbolishFromListRemoval(
+    removedItems: PolicyListItem[]
+  ): ChangeRecord[] {
+    const siteLogger = logger.getLogger(this.siteConfig.id);
+    const records: ChangeRecord[] = [];
+
+    for (const item of removedItems) {
+      siteLogger.info(`Policy removed from list (potential abolish): ${truncate(item.title, 60)}`);
+
+      const changeRecord: ChangeRecord = {
+        siteId: this.siteConfig.id,
+        policyUrl: item.url,
+        policyTitle: item.title,
+        changeType: 'abolish',
+        similarity: 0,
+        diffSummary: `政策从列表页移除，疑似废止。原发布日期: ${item.publishDate || '未知'}`,
+        changeLevel: 'medium',
+        affectedCustomers: this.resolveAffectedCustomers(),
+        detectedAt: nowIso(),
+        notified: false
+      };
+
+      const changeId = repository.insertChangeRecord(changeRecord);
+      changeRecord.id = changeId;
+      records.push(changeRecord);
+    }
+
+    return records;
+  }
+
+  private classifyChangeLevel(
+    content: string,
+    similarity?: number,
+    isAbolish?: boolean
+  ): 'high' | 'medium' | 'low' {
+    if (isAbolish) {
+      return 'high';
+    }
+
     const highKeywords = [
       '缴费基数', '缴费比例', '最低工资', '缴存比例', '缴存基数',
       '生育津贴', '报销比例', '医保待遇', '养老金', '退休金',

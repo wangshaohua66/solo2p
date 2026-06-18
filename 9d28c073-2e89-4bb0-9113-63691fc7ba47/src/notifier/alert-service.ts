@@ -1,9 +1,17 @@
 import nodemailer from 'nodemailer';
 import axios from 'axios';
+import path from 'path';
+import fs from 'fs';
 import logger from '../utils/logger';
-import { ChangeRecord, NotificationConfig, SiteConfig } from '../types';
+import { ChangeRecord, NotificationConfig, SiteConfig, CustomerMapping } from '../types';
 import repository from '../storage/repository';
 import { formatDate } from '../utils/helpers';
+
+const REPORT_DIR = path.join(process.cwd(), 'reports');
+
+if (!fs.existsSync(REPORT_DIR)) {
+  fs.mkdirSync(REPORT_DIR, { recursive: true });
+}
 
 const DEFAULT_NOTIFICATION_CONFIG: NotificationConfig = {
   email: {
@@ -52,17 +60,27 @@ export class AlertService {
     }
   }
 
-  async sendAlerts(changes: ChangeRecord[]): Promise<{
+  async sendAlerts(changes: ChangeRecord[], sites: SiteConfig[]): Promise<{
     email: { success: boolean; sent: number; error?: string };
     wecom: { success: boolean; sent: number; error?: string };
+    reportFile?: string;
   }> {
     type AlertResult = { success: boolean; sent: number; error?: string };
+
+    let reportFile: string | undefined;
 
     if (changes.length === 0) {
       return {
         email: { success: true, sent: 0 },
         wecom: { success: true, sent: 0 }
       };
+    }
+
+    try {
+      reportFile = this.exportChangeReportToFile(changes, sites);
+      logger.info(`Change report exported: ${reportFile}`);
+    } catch (err) {
+      logger.error(`Report export failed: ${(err as Error).message}`);
     }
 
     const highPriority = changes.filter(c => c.changeLevel === 'high');
@@ -98,8 +116,8 @@ export class AlertService {
       }
     }
 
-    logger.info(`Alert sending completed: email ${emailResult.sent}, wecom ${wecomResult.sent}`);
-    return { email: emailResult, wecom: wecomResult };
+    logger.info(`Alert sending completed: email ${emailResult.sent}, wecom ${wecomResult.sent}, reportFile ${reportFile || 'none'}`);
+    return { email: emailResult, wecom: wecomResult, reportFile };
   }
 
   private async sendEmailAlert(changes: ChangeRecord[]): Promise<number> {
@@ -130,7 +148,14 @@ export class AlertService {
     const mediumChanges = changes.filter(c => c.changeLevel === 'medium');
     const lowChanges = changes.filter(c => c.changeLevel === 'low');
 
-    const renderChangeRow = (c: ChangeRecord) => `
+    const allCustomers = repository.getAllCustomers();
+    const customerMap = new Map(allCustomers.map(c => [c.customerId, c.customerName]));
+
+    const renderChangeRow = (c: ChangeRecord) => {
+      const customerNames = (c.affectedCustomers || [])
+        .map(id => customerMap.get(id) || id)
+        .join('、');
+      return `
       <tr>
         <td style="padding:8px;border:1px solid #ddd;">
           <span style="color:${c.changeLevel === 'high' ? '#d00' : c.changeLevel === 'medium' ? '#f90' : '#090'};font-weight:bold;">
@@ -143,8 +168,12 @@ export class AlertService {
         <td style="padding:8px;border:1px solid #ddd;">
           <a href="${c.policyUrl}" style="color:#06c;">${c.policyTitle}</a>
         </td>
+        <td style="padding:8px;border:1px solid #ddd;font-size:12px;color:#666;">
+          ${customerNames || '无'}
+        </td>
       </tr>
     `;
+    };
 
     return `
       <div style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;">
@@ -166,6 +195,7 @@ export class AlertService {
               <th style="padding:10px;border:1px solid #ddd;width:60px;">等级</th>
               <th style="padding:10px;border:1px solid #ddd;width:60px;">类型</th>
               <th style="padding:10px;border:1px solid #ddd;">政策标题</th>
+              <th style="padding:10px;border:1px solid #ddd;">受影响客户</th>
             </tr>
           </thead>
           <tbody>
@@ -257,6 +287,14 @@ export class AlertService {
       abolish: changes.filter(c => c.changeType === 'abolish')
     };
 
+    const allCustomers = repository.getAllCustomers();
+    const customerMap = new Map(allCustomers.map(c => [c.customerId, c.customerName]));
+
+    const totalAffectedCustomers = new Set<string>();
+    for (const change of changes) {
+      (change.affectedCustomers || []).forEach(id => totalAffectedCustomers.add(id));
+    }
+
     for (const change of changes) {
       const site = sites.find(s => s.id === change.siteId);
       const province = site?.province || '未知';
@@ -269,7 +307,14 @@ export class AlertService {
     const levelColor = (level: string) => level === 'high' ? '#d00' : level === 'medium' ? '#f90' : '#090';
     const levelText = (level: string) => level === 'high' ? '高' : level === 'medium' ? '中' : '低';
     const typeText = (type: string) => type === 'add' ? '新增' : type === 'modify' ? '修改' : '废止';
-    const typeColor = (type: string) => type === 'add' ? '#2e7d32' : type === 'modify' ? '#1565c0' : '#c62828';
+
+    const renderCustomerBadges = (change: ChangeRecord) => {
+      const customers = (change.affectedCustomers || []).map(id => {
+        const name = customerMap.get(id) || id;
+        return `<span class="customer-badge">${name}</span>`;
+      }).join('');
+      return customers || '<span style="color:#999;">无</span>';
+    };
 
     let html = `
 <!DOCTYPE html>
@@ -291,10 +336,12 @@ export class AlertService {
     .summary-card.high .number { color: #d00; }
     .summary-card.medium .number { color: #f90; }
     .summary-card.low .number { color: #090; }
+    .summary-card.abolish .number { color: #c62828; }
+    .summary-card.customers .number { color: #7b1fa2; }
     .section { padding: 24px 40px; border-bottom: 1px solid #eee; }
     .section h2 { font-size: 18px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #1976d2; display: inline-block; }
     table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; vertical-align: top; }
     th { background: #f5f7fa; font-weight: 600; color: #555; }
     tr:hover { background: #f8f9fa; }
     .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
@@ -304,6 +351,7 @@ export class AlertService {
     .badge-type-add { background: #e8f5e9; color: #2e7d32; }
     .badge-type-modify { background: #e3f2fd; color: #1565c0; }
     .badge-type-abolish { background: #ffebee; color: #c62828; }
+    .customer-badge { display: inline-block; background: #f3e5f5; color: #7b1fa2; padding: 1px 6px; border-radius: 3px; font-size: 11px; margin: 2px 2px; }
     .province-group { margin-bottom: 24px; }
     .province-group h3 { font-size: 16px; color: #1976d2; margin-bottom: 12px; }
     .diff-summary { font-size: 12px; color: #666; max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -336,6 +384,10 @@ export class AlertService {
         <div class="number">${byLevel.low.length}</div>
         <div class="label">低风险</div>
       </div>
+      <div class="summary-card abolish">
+        <div class="number">${byType.abolish.length}</div>
+        <div class="label">废止政策</div>
+      </div>
       <div class="summary-card">
         <div class="number">${byType.add.length}</div>
         <div class="label">新增政策</div>
@@ -344,30 +396,38 @@ export class AlertService {
         <div class="number">${byType.modify.length}</div>
         <div class="label">修改政策</div>
       </div>
+      <div class="summary-card customers">
+        <div class="number">${totalAffectedCustomers.size}</div>
+        <div class="label">受影响客户</div>
+      </div>
     </div>
 
     <div class="section">
       <h2>按省份分布</h2>
       <table>
         <thead>
-          <tr><th>省份</th><th>变更数量</th><th>高风险</th><th>中风险</th><th>低风险</th></tr>
+          <tr><th>省份</th><th>变更数量</th><th>高风险</th><th>中风险</th><th>低风险</th><th>受影响客户数</th></tr>
         </thead>
         <tbody>
-          ${[...byProvince.entries()].sort((a, b) => b[1].length - a[1].length).map(([province, list]) => `
+          ${[...byProvince.entries()].sort((a, b) => b[1].length - a[1].length).map(([province, list]) => {
+            const provinceCustomers = new Set<string>();
+            list.forEach(c => (c.affectedCustomers || []).forEach(id => provinceCustomers.add(id)));
+            return `
             <tr>
               <td><strong>${province}</strong></td>
               <td>${list.length}</td>
               <td style="color:#d00;">${list.filter(c => c.changeLevel === 'high').length}</td>
               <td style="color:#f90;">${list.filter(c => c.changeLevel === 'medium').length}</td>
               <td style="color:#090;">${list.filter(c => c.changeLevel === 'low').length}</td>
+              <td style="color:#7b1fa2;">${provinceCustomers.size}</td>
             </tr>
-          `).join('')}
+          `}).join('')}
         </tbody>
       </table>
     </div>
 
     <div class="section">
-      <h2>变更明细</h2>
+      <h2>变更明细（含受影响客户）</h2>
       ${[...byProvince.entries()].sort((a, b) => b[1].length - a[1].length).map(([province, list]) => `
         <div class="province-group">
           <h3>${province}（${list.length}项）</h3>
@@ -377,7 +437,8 @@ export class AlertService {
                 <th style="width:70px;">风险等级</th>
                 <th style="width:70px;">变更类型</th>
                 <th>政策标题</th>
-                <th>相似度</th>
+                <th style="width:60px;">相似度</th>
+                <th>受影响企业客户</th>
               </tr>
             </thead>
             <tbody>
@@ -387,6 +448,7 @@ export class AlertService {
                   <td><span class="badge badge-type-${c.changeType}">${typeText(c.changeType)}</span></td>
                   <td><a href="${c.policyUrl}" target="_blank">${c.policyTitle}</a></td>
                   <td>${c.similarity !== undefined ? (c.similarity * 100).toFixed(1) + '%' : '-'}</td>
+                  <td>${renderCustomerBadges(c)}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -404,6 +466,25 @@ export class AlertService {
 `;
 
     return html;
+  }
+
+  exportChangeReportToFile(changes: ChangeRecord[], sites: SiteConfig[]): string {
+    const html = this.generateChangeReport(changes, sites);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = `policy-change-report-${timestamp}.html`;
+    const filepath = path.join(REPORT_DIR, filename);
+
+    try {
+      fs.writeFileSync(filepath, html, 'utf-8');
+      logger.info(`Change report exported to file: ${filepath}`, {
+        changeCount: changes.length,
+        fileSize: fs.statSync(filepath).size
+      });
+      return filepath;
+    } catch (err) {
+      logger.error(`Failed to export report to file: ${(err as Error).message}`);
+      throw err;
+    }
   }
 
   updateConfig(config: Partial<NotificationConfig>): void {

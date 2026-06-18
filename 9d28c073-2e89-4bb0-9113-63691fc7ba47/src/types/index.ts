@@ -99,6 +99,33 @@ export interface PolicyListItem {
   publishDate: string;
 }
 
+export interface ListSnapshot {
+  id?: number;
+  siteId: string;
+  url: string;
+  itemsJson: string;
+  itemsHash: string;
+  itemCount: number;
+  fetchedAt: string;
+}
+
+export interface CustomerMapping {
+  customerId: string;
+  customerName: string;
+  province: string;
+  categories: Array<SiteConfig['category']>;
+}
+
+export interface CaptchaManualIntervention {
+  siteId: string;
+  url: string;
+  captchaType: 'graphic' | 'slider' | 'unknown';
+  screenshotPath: string;
+  detectedAt: string;
+  resolved: boolean;
+  resolvedAt?: string;
+}
+
 export type SiteStatus = 'idle' | 'running' | 'success' | 'captcha' | 'failed' | 'pending';
 
 export interface SiteRuntimeInfo {

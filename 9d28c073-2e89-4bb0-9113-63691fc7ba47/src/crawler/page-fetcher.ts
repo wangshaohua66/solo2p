@@ -1,4 +1,4 @@
-import { chromium, Browser, BrowserContext, Page, Request, Response } from 'playwright';
+import { Browser, BrowserContext, Page, Request } from 'playwright';
 import path from 'path';
 import fs from 'fs';
 import logger from '../utils/logger';
@@ -13,6 +13,7 @@ export interface FetchResult {
   status?: number;
   error?: string;
   captchaDetected?: boolean;
+  captchaType?: 'graphic' | 'slider' | 'unknown';
   screenshotPath?: string;
   duration: number;
 }
@@ -23,12 +24,7 @@ if (!fs.existsSync(SCREENSHOT_DIR)) {
   fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
 }
 
-const USER_AGENTS = [
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_2) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15'
-];
+const MAX_SLIDER_ATTEMPTS = 3;
 
 export class PageFetcher {
   private browser: Browser | null = null;
@@ -36,31 +32,25 @@ export class PageFetcher {
   private page: Page | null = null;
   private siteConfig: SiteConfig;
   private requestCount: number = 0;
-  private captchaSites: Set<string> = new Set();
+  private userAgent: string;
+  private captchaBlocked: boolean = false;
 
-  constructor(siteConfig: SiteConfig) {
+  constructor(siteConfig: SiteConfig, browser?: Browser, userAgent?: string) {
     this.siteConfig = siteConfig;
+    this.browser = browser ?? null;
+    this.userAgent = userAgent ?? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
   }
 
   async init(): Promise<void> {
     const siteLogger = logger.getLogger(this.siteConfig.id);
-    siteLogger.info('Initializing browser context');
+    siteLogger.info('Initializing page context (reusing browser from pool)');
 
-    this.browser = await chromium.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--window-size=1366,768'
-      ]
-    });
-
-    const userAgent = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+    if (!this.browser) {
+      throw new Error('No browser instance provided to PageFetcher');
+    }
 
     this.context = await this.browser.newContext({
-      userAgent,
+      userAgent: this.userAgent,
       viewport: { width: 1366, height: 768 },
       locale: 'zh-CN',
       timezoneId: 'Asia/Shanghai',
@@ -80,7 +70,7 @@ export class PageFetcher {
 
     await this.setupRequestInterception();
 
-    siteLogger.info('Browser context initialized');
+    siteLogger.info('Page context initialized');
   }
 
   private async injectStealthScripts(): Promise<void> {
@@ -142,12 +132,13 @@ export class PageFetcher {
       await this.init();
     }
 
-    if (this.captchaSites.has(this.siteConfig.id)) {
+    if (this.captchaBlocked) {
       return {
         success: false,
         url,
         error: 'Site requires manual captcha handling',
         captchaDetected: true,
+        captchaType: 'graphic',
         duration: Date.now() - startTime
       };
     }
@@ -170,8 +161,20 @@ export class PageFetcher {
         );
 
         if (result.captchaDetected) {
-          siteLogger.warn('Captcha detected, marking site for manual review', { url });
-          this.captchaSites.add(this.siteConfig.id);
+          if (result.captchaType === 'slider') {
+            siteLogger.warn('Slider captcha detected, attempting auto-solve', { url });
+            const solved = await this.attemptSliderSolve(url);
+            if (solved) {
+              siteLogger.info('Slider captcha solved, retrying fetch', { url });
+              continue;
+            }
+          }
+
+          siteLogger.warn('Captcha cannot be auto-solved, marking site for manual review', {
+            url,
+            captchaType: result.captchaType
+          });
+          this.captchaBlocked = true;
           return result;
         }
 
@@ -196,6 +199,25 @@ export class PageFetcher {
       error: lastError?.message,
       duration: Date.now() - startTime
     };
+  }
+
+  async attemptSliderSolve(url?: string): Promise<boolean> {
+    const siteLogger = logger.getLogger(this.siteConfig.id);
+    const targetUrl = url || this.siteConfig.listUrl;
+
+    for (let attempt = 1; attempt <= MAX_SLIDER_ATTEMPTS; attempt++) {
+      siteLogger.info(`Slider captcha solve attempt ${attempt}/${MAX_SLIDER_ATTEMPTS}`, { url: targetUrl });
+      const solved = await this.trySolveSliderCaptcha();
+      if (solved) {
+        siteLogger.info(`Slider captcha solved on attempt ${attempt}`, { url: targetUrl });
+        return true;
+      }
+      siteLogger.warn(`Slider captcha attempt ${attempt} failed`, { url: targetUrl });
+      await sleep(1000 + attempt * 500);
+    }
+
+    siteLogger.error(`Failed to solve slider captcha after ${MAX_SLIDER_ATTEMPTS} attempts`, { url: targetUrl });
+    return false;
   }
 
   private async doFetch(url: string): Promise<FetchResult> {
@@ -225,14 +247,15 @@ export class PageFetcher {
       await this.page.waitForLoadState('networkidle').catch(() => {});
     }
 
-    const captchaDetected = await this.detectCaptcha();
+    const captchaInfo = await this.detectCaptcha();
 
-    if (captchaDetected) {
+    if (captchaInfo.detected) {
       const screenshotPath = await this.takeScreenshot('captcha');
       return {
         success: false,
         url,
         captchaDetected: true,
+        captchaType: captchaInfo.type,
         screenshotPath,
         duration: Date.now() - startTime
       };
@@ -264,10 +287,35 @@ export class PageFetcher {
     };
   }
 
-  private async detectCaptcha(): Promise<boolean> {
-    if (!this.page) return false;
+  private async detectCaptcha(): Promise<{ detected: boolean; type: 'graphic' | 'slider' | 'unknown' }> {
+    if (!this.page) return { detected: false, type: 'unknown' };
 
-    const captchaIndicators = [
+    const sliderSelectors = [
+      '.slider-captcha',
+      '.geetest_slider_button',
+      '.btn_slide',
+      '.slider-btn',
+      '.slide-btn',
+      '#sliderBtn',
+      '.captcha-slider-btn'
+    ];
+
+    for (const selector of sliderSelectors) {
+      try {
+        const element = await this.page.$(selector);
+        if (element) {
+          const box = await element.boundingBox();
+          if (box && box.width > 20 && box.height > 20) {
+            logger.getLogger(this.siteConfig.id).debug(`Slider captcha element found: ${selector}`);
+            return { detected: true, type: 'slider' };
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    const graphicSelectors = [
       'img[src*="captcha"]',
       'img[src*="verify"]',
       'img[src*="checkcode"]',
@@ -276,18 +324,18 @@ export class PageFetcher {
       '.captcha',
       '#verify',
       '.verify',
-      '.slider-captcha',
       '.geetest',
       '.tcaptcha'
     ];
 
-    for (const selector of captchaIndicators) {
+    for (const selector of graphicSelectors) {
       try {
         const element = await this.page.$(selector);
         if (element) {
           const box = await element.boundingBox();
           if (box && box.width > 20 && box.height > 20) {
-            return true;
+            logger.getLogger(this.siteConfig.id).debug(`Graphic captcha element found: ${selector}`);
+            return { detected: true, type: 'graphic' };
           }
         }
       } catch {
@@ -296,11 +344,11 @@ export class PageFetcher {
     }
 
     const pageTitle = await this.page.title().catch(() => '');
-    if (/验证码|验证|captcha/i.test(pageTitle)) {
-      return true;
+    if (/验证码|captcha/i.test(pageTitle)) {
+      return { detected: true, type: 'unknown' };
     }
 
-    return false;
+    return { detected: false, type: 'unknown' };
   }
 
   async trySolveSliderCaptcha(): Promise<boolean> {
@@ -347,8 +395,8 @@ export class PageFetcher {
             await this.page.mouse.up();
             await sleep(1500);
 
-            const stillHasCaptcha = await this.detectCaptcha();
-            if (!stillHasCaptcha) {
+            const captchaInfo = await this.detectCaptcha();
+            if (!captchaInfo.detected) {
               siteLogger.info('Slider captcha solved successfully');
               return true;
             }
@@ -388,7 +436,11 @@ export class PageFetcher {
   }
 
   async resetCaptchaStatus(): Promise<void> {
-    this.captchaSites.delete(this.siteConfig.id);
+    this.captchaBlocked = false;
+  }
+
+  isCaptchaBlocked(): boolean {
+    return this.captchaBlocked;
   }
 
   getRequestCount(): number {
@@ -397,17 +449,14 @@ export class PageFetcher {
 
   async close(): Promise<void> {
     const siteLogger = logger.getLogger(this.siteConfig.id);
-    siteLogger.info(`Closing browser, total requests: ${this.requestCount}`);
+    siteLogger.info(`Closing page context, total requests: ${this.requestCount}`);
 
     if (this.context) {
       await this.context.close().catch(() => {});
       this.context = null;
     }
-    if (this.browser) {
-      await this.browser.close().catch(() => {});
-      this.browser = null;
-    }
     this.page = null;
+    this.browser = null;
   }
 }
 

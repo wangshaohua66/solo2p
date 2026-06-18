@@ -1,0 +1,4 @@
+{"level":"info","message":"Database initialized","path":"/Users/paul/WorkSpace/TestSoloCoder/9d28c073-2e89-4bb0-9113-63691fc7ba47/data/policy-monitor.db","timestamp":"2026-06-19 02:26:59"}
+{"level":"info","message":"Loaded 42 site configurations from file","timestamp":"2026-06-19 02:26:59"}
+{"level":"info","message":"Config file watcher started","timestamp":"2026-06-19 02:26:59"}
+{"changeCount":0,"fileSize":4734,"level":"info","message":"Change report exported to file: /Users/paul/WorkSpace/TestSoloCoder/9d28c073-2e89-4bb0-9113-63691fc7ba47/reports/policy-change-report-2026-06-18T18-27-00.html","timestamp":"2026-06-19 02:27:00"}

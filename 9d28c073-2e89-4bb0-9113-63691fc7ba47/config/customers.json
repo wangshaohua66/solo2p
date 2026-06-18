@@ -1,0 +1,110 @@
+[
+  {
+    "customerId": "C001",
+    "customerName": "北京恒达科技有限公司",
+    "province": "北京市",
+    "categories": ["social_security", "housing_fund", "medical_insurance"]
+  },
+  {
+    "customerId": "C002",
+    "customerName": "北京文创文化传媒股份有限公司",
+    "province": "北京市",
+    "categories": ["social_security", "medical_insurance"]
+  },
+  {
+    "customerId": "C003",
+    "customerName": "上海浦江实业集团有限公司",
+    "province": "上海市",
+    "categories": ["social_security", "housing_fund", "medical_insurance"]
+  },
+  {
+    "customerId": "C004",
+    "customerName": "上海东方信息技术有限公司",
+    "province": "上海市",
+    "categories": ["social_security", "medical_insurance", "labor"]
+  },
+  {
+    "customerId": "C005",
+    "customerName": "广州南方制造有限公司",
+    "province": "广东省",
+    "categories": ["social_security", "housing_fund", "medical_insurance", "labor"]
+  },
+  {
+    "customerId": "C006",
+    "customerName": "深圳创新科技集团有限公司",
+    "province": "广东省",
+    "categories": ["social_security", "housing_fund"]
+  },
+  {
+    "customerId": "C007",
+    "customerName": "南京华东建设集团",
+    "province": "江苏省",
+    "categories": ["social_security", "housing_fund", "labor"]
+  },
+  {
+    "customerId": "C008",
+    "customerName": "苏州工业园区精密机械有限公司",
+    "province": "江苏省",
+    "categories": ["social_security", "medical_insurance"]
+  },
+  {
+    "customerId": "C009",
+    "customerName": "杭州钱塘电子商务有限公司",
+    "province": "浙江省",
+    "categories": ["social_security", "housing_fund", "medical_insurance"]
+  },
+  {
+    "customerId": "C010",
+    "customerName": "宁波港通物流股份有限公司",
+    "province": "浙江省",
+    "categories": ["social_security", "labor"]
+  },
+  {
+    "customerId": "C011",
+    "customerName": "济南齐鲁制药有限公司",
+    "province": "山东省",
+    "categories": ["social_security", "housing_fund", "medical_insurance"]
+  },
+  {
+    "customerId": "C012",
+    "customerName": "青岛海尔配套服务有限公司",
+    "province": "山东省",
+    "categories": ["social_security", "housing_fund"]
+  },
+  {
+    "customerId": "C013",
+    "customerName": "成都天府软件开发有限公司",
+    "province": "四川省",
+    "categories": ["social_security", "housing_fund", "medical_insurance", "labor"]
+  },
+  {
+    "customerId": "C014",
+    "customerName": "武汉光谷电子科技有限公司",
+    "province": "湖北省",
+    "categories": ["social_security", "housing_fund", "medical_insurance"]
+  },
+  {
+    "customerId": "C015",
+    "customerName": "郑州中原商贸集团有限公司",
+    "province": "河南省",
+    "categories": ["social_security", "housing_fund", "labor"]
+  },
+  {
+    "customerId": "C016",
+    "customerName": "西安高新技术开发有限公司",
+    "province": "陕西省",
+    "categories": ["social_security", "housing_fund", "medical_insurance"]
+  },
+  {
+    "customerId": "C017",
+    "customerName": "全国连锁零售集团有限公司",
+    "province": "北京市",
+    "categories": ["social_security", "housing_fund", "medical_insurance", "labor"]
+  },
+  {
+    "customerId": "C018",
+    "customerName": "跨区域建筑工程总承包有限公司",
+    "province": "上海市",
+    "categories": ["social_security", "housing_fund", "labor"]
+  }
+]
