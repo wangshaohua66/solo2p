@@ -27,12 +27,17 @@ App.registerPage('emergency', {
     $el.html(`
       <div class="row g-3">
         <div class="col-12 col-xl-3">
-          <div class="panel"><div class="panel-head"><span class="panel-title"><i class="bi bi-diagram-2"></i>预案层级</span></div>
+          <div class="panel"><div class="panel-head"><span class="panel-title"><i class="bi bi-diagram-2"></i>预案层级</span><button class="btn btn-primary btn-sm ms-auto" id="addPlanBtn"><i class="bi bi-plus-lg"></i> 新建预案</button></div>
             <div class="panel-body"><div class="tree" id="planTree"></div></div>
           </div>
         </div>
         <div class="col-12 col-xl-5">
-          <div class="panel"><div class="panel-head"><span class="panel-title"><i class="bi bi-file-earmark-ruled"></i>预案详情</span><span class="small text-muted" id="verMeta"></span></div>
+          <div class="panel"><div class="panel-head"><span class="panel-title"><i class="bi bi-file-earmark-ruled"></i>预案详情</span><span class="small text-muted" id="verMeta"></span>
+              <div class="btn-group btn-group-sm ms-auto">
+                <button class="btn btn-outline-light" id="editPlanBtn"><i class="bi bi-pencil"></i> 编辑</button>
+                <button class="btn btn-outline-danger" id="delPlanBtn"><i class="bi bi-trash"></i> 删除</button>
+              </div>
+            </div>
             <div class="panel-body" id="verDetail"></div></div>
           <div class="panel mt-3"><div class="panel-head"><span class="panel-title"><i class="bi bi-git"></i>版本差异比对</span></div>
             <div class="panel-body" id="diffArea"></div></div>
@@ -59,6 +64,82 @@ App.registerPage('emergency', {
           </div>
         </div>
       </div>
+
+      <div class="modal fade" tabindex="-1" id="planModal">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+          <div class="modal-content bg-dark border border-secondary">
+            <div class="modal-header border-secondary">
+              <h6 class="modal-title" id="planModalTitle"><i class="bi bi-plus-lg"></i> 新建预案</h6>
+              <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <form id="planForm">
+                <div class="row g-2">
+                  <div class="col-12 col-md-6"><label class="form-label">所属水库 <span class="text-danger">*</span></label>
+                    <select class="form-select form-select-sm" id="fReservoir"></select>
+                  </div>
+                  <div class="col-12 col-md-6"><label class="form-label">预案名称 <span class="text-danger">*</span></label>
+                    <input class="form-control form-control-sm" id="fPlanName" placeholder="例：2024年度防汛应急预案">
+                  </div>
+                  <div class="col-6 col-md-3"><label class="form-label">版本号</label>
+                    <input class="form-control form-control-sm mono" id="fVersion" value="1.0" placeholder="1.0">
+                  </div>
+                  <div class="col-6 col-md-3"><label class="form-label">创建人</label>
+                    <input class="form-control form-control-sm" id="fCreatedBy" placeholder="例：张工">
+                  </div>
+                  <div class="col-12"><label class="form-label">响应等级</label>
+                    <div class="btn-group btn-group-sm w-100" id="levelTags">
+                      <button type="button" class="btn btn-outline-info active" data-lv="Level4">Ⅳ级（蓝）</button>
+                      <button type="button" class="btn btn-outline-success" data-lv="Level3">Ⅲ级（黄）</button>
+                      <button type="button" class="btn btn-outline-warning" data-lv="Level2">Ⅱ级（橙）</button>
+                      <button type="button" class="btn btn-outline-danger" data-lv="Level1">Ⅰ级（红）</button>
+                    </div>
+                  </div>
+                  <div class="col-12"><div class="divider"></div><div class="small text-muted mb-2"><i class="bi bi-layers"></i> 等级参数（按启用的等级填写）</div></div>
+                  <div class="col-6 col-md-3"><label class="form-label">Ⅳ级 触发水位(m)</label>
+                    <input class="form-control form-control-sm mono lv-input" data-lv="Level4" data-field="threshold" type="number" step="0.1" value="75">
+                  </div>
+                  <div class="col-6 col-md-3"><label class="form-label">Ⅲ级 触发水位(m)</label>
+                    <input class="form-control form-control-sm mono lv-input" data-lv="Level3" data-field="threshold" type="number" step="0.1" value="80">
+                  </div>
+                  <div class="col-6 col-md-3"><label class="form-label">Ⅱ级 触发水位(m)</label>
+                    <input class="form-control form-control-sm mono lv-input" data-lv="Level2" data-field="threshold" type="number" step="0.1" value="85">
+                  </div>
+                  <div class="col-6 col-md-3"><label class="form-label">Ⅰ级 触发水位(m)</label>
+                    <input class="form-control form-control-sm mono lv-input" data-lv="Level1" data-field="threshold" type="number" step="0.1" value="90">
+                  </div>
+                  <div class="col-12 col-md-6"><label class="form-label">Ⅳ级 响应措施 <span class="small text-muted">(每行一条)</span></label>
+                    <textarea class="form-control form-control-sm lv-input" data-lv="Level4" data-field="measures" rows="3" placeholder="启动防汛Ⅳ级应急响应&#10;值班人员到岗&#10;加强水位监测"></textarea>
+                  </div>
+                  <div class="col-12 col-md-6"><label class="form-label">Ⅲ级 响应措施 <span class="small text-muted">(每行一条)</span></label>
+                    <textarea class="form-control form-control-sm lv-input" data-lv="Level3" data-field="measures" rows="3" placeholder="启动防汛Ⅲ级应急响应&#10;抢险队伍待命&#10;开启部分泄洪闸"></textarea>
+                  </div>
+                  <div class="col-12 col-md-6"><label class="form-label">Ⅱ级 响应措施 <span class="small text-muted">(每行一条)</span></label>
+                    <textarea class="form-control form-control-sm lv-input" data-lv="Level2" data-field="measures" rows="3" placeholder="启动防汛Ⅱ级应急响应&#10;抢险队伍进驻&#10;加大泄洪力度"></textarea>
+                  </div>
+                  <div class="col-12 col-md-6"><label class="form-label">Ⅰ级 响应措施 <span class="small text-muted">(每行一条)</span></label>
+                    <textarea class="form-control form-control-sm lv-input" data-lv="Level1" data-field="measures" rows="3" placeholder="启动防汛Ⅰ级应急响应&#10;全员到岗&#10;全力泄洪&#10;人员转移"></textarea>
+                  </div>
+                  <div class="col-12"><div class="divider"></div></div>
+                  <div class="col-12"><label class="form-label">通用措施 <span class="small text-muted">(每行一条)</span></label>
+                    <textarea class="form-control form-control-sm" id="fGeneralMeasures" rows="2" placeholder="做好值班记录&#10;保持通讯畅通"></textarea>
+                  </div>
+                  <div class="col-12"><label class="form-label">应急联系人 <span class="small text-muted">(每行：姓名,角色,电话)</span></label>
+                    <textarea class="form-control form-control-sm mono" id="fContacts" rows="3" placeholder="李明,指挥长,13800000001&#10;王芳,副指挥,13800000002&#10;张伟,抢险队长,13800000003"></textarea>
+                  </div>
+                  <div class="col-12"><label class="form-label">预案描述</label>
+                    <textarea class="form-control form-control-sm" id="fDescription" rows="2" placeholder="选填，简要说明本预案适用场景和总体要求"></textarea>
+                  </div>
+                </div>
+              </form>
+            </div>
+            <div class="modal-footer border-secondary">
+              <button class="btn btn-outline-light btn-sm" data-bs-dismiss="modal">取消</button>
+              <button class="btn btn-primary btn-sm" id="submitPlan"><i class="bi bi-check2-circle"></i> 保存</button>
+            </div>
+          </div>
+        </div>
+      </div>
     `);
 
     function chip(l, v, t) { return `<div class="qstat"><span class="dot ${t}"></span>${l} <b>${v}</b></div>`; }
@@ -68,9 +149,19 @@ App.registerPage('emergency', {
         const open = r.reservoirId === selRes ? 'open' : '';
         return `<div>
           <div class="tnode ${open}" data-res="${r.reservoirId}"><i class="bi bi-caret-right-fill twist"></i><i class="bi bi-water"></i> ${r.reservoirName}</div>
-          <ul ${open ? '' : 'style="display:none"'}>${r.versions.map(v => `<li><div class="tnode ${v._id === selVer ? 'sel' : ''}" data-ver="${v._id}" data-res="${r.reservoirId}"><i class="bi bi-${v.current ? 'star-fill' : v.draft ? 'pencil' : 'file-earmark'}"></i> v${v.version} ${v.current ? '<span class="tag ok">现行</span>' : v.draft ? '<span class="tag warn">草案</span>' : ''}</div></li>`).join('')}</ul>
+          <ul ${open ? '' : 'style="display:none"'}>${r.versions.map(v => `<li><div class="tnode ${v._id === selVer ? 'sel' : ''}" data-ver="${v._id}" data-res="${r.reservoirId}" style="position:relative">
+            <span class="ver-label"><i class="bi bi-${v.current ? 'star-fill' : v.draft ? 'pencil' : 'file-earmark'}"></i> v${v.version} ${v.current ? '<span class="tag ok">现行</span>' : v.draft ? '<span class="tag warn">草案</span>' : ''}</span>
+            <span class="ver-actions" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);display:none">
+              <i class="bi bi-pencil-square text-info ver-edit" style="cursor:pointer;margin-right:6px" title="编辑"></i>
+              <i class="bi bi-trash text-danger ver-del" style="cursor:pointer" title="删除"></i>
+            </span>
+          </div></li>`).join('')}</ul>
         </div>`;
       }).join(''));
+      $('#planTree .tnode[data-ver]').hover(
+        function () { $(this).find('.ver-actions').show(); },
+        function () { $(this).find('.ver-actions').hide(); }
+      );
     }
 
     async function renderVersion() {
@@ -171,14 +262,194 @@ App.registerPage('emergency', {
       }
     }
 
+    let editingId = null;
+    let modal = null;
+
+    const LEVEL_NAMES = {
+      Level4: 'Ⅳ级响应',
+      Level3: 'Ⅲ级响应',
+      Level2: 'Ⅱ级响应',
+      Level1: 'Ⅰ级响应'
+    };
+    const LEVEL_COLORS = {
+      Level4: 'blue',
+      Level3: 'yellow',
+      Level2: 'orange',
+      Level1: 'red'
+    };
+
+    function initModal() {
+      modal = new bootstrap.Modal(document.getElementById('planModal'));
+      $('#fReservoir').html(tree.map(r => `<option value="${r.reservoirId}">${r.reservoirName}</option>`).join(''));
+    }
+
+    function getActiveLevels() {
+      return $('#levelTags .btn.active').map(function () { return $(this).data('lv'); }).get();
+    }
+
+    function updateLevelInputsState() {
+      const active = getActiveLevels();
+      $('.lv-input').each(function () {
+        const lv = $(this).data('lv');
+        $(this).prop('disabled', !active.includes(lv));
+      });
+    }
+
+    async function openModal(planId) {
+      editingId = planId || null;
+      $('#planModalTitle').html(planId ? '<i class="bi bi-pencil"></i> 编辑预案' : '<i class="bi bi-plus-lg"></i> 新建预案');
+
+      if (planId) {
+        try {
+          const raw = await api.emergency.getVersion(planId);
+          const detail = adaptPlanDetail(raw);
+          $('#fReservoir').val(detail.reservoirId);
+          $('#fPlanName').val(detail.planName || '');
+          $('#fVersion').val(detail.version || '');
+          $('#fCreatedBy').val(detail.author || '');
+          $('#fDescription').val(detail.description || '');
+          $('#fGeneralMeasures').val((detail.generalMeasures || []).join('\n'));
+          $('#fContacts').val((detail.contacts || []).map(c => `${c.name},${c.role},${c.phone}`).join('\n'));
+
+          const levelKeys = (detail.levels || []).map(l => l.key);
+          $('#levelTags .btn').each(function () {
+            const lv = $(this).data('lv');
+            $(this).toggleClass('active', levelKeys.includes(lv));
+          });
+
+          (detail.levels || []).forEach(l => {
+            $(`.lv-input[data-lv="${l.key}"][data-field="threshold"]`).val(l.threshold);
+            $(`.lv-input[data-lv="${l.key}"][data-field="measures"]`).val((l.measures || []).join('\n'));
+          });
+
+          updateLevelInputsState();
+        } catch (err) {
+          App.toast(err.message || '加载预案详情失败', 'error');
+          return;
+        }
+      } else {
+        $('#fReservoir').val(selRes);
+        $('#fPlanName').val('');
+        $('#fVersion').val('1.0');
+        $('#fCreatedBy').val(App.currentUser ? App.currentUser() : '');
+        $('#fDescription').val('');
+        $('#fGeneralMeasures').val('');
+        $('#fContacts').val('');
+        $('#levelTags .btn').removeClass('active').first().addClass('active');
+        $('.lv-input[data-field="threshold"]').each(function (i) {
+          $(this).val([75, 80, 85, 90][i]);
+        });
+        $('.lv-input[data-field="measures"]').val('');
+        updateLevelInputsState();
+      }
+
+      modal.show();
+    }
+
+    function collectFormData() {
+      const activeLevels = getActiveLevels();
+      const levels = activeLevels.map(lv => {
+        const threshold = parseFloat($(`.lv-input[data-lv="${lv}"][data-field="threshold"]`).val()) || 0;
+        const measuresText = $(`.lv-input[data-lv="${lv}"][data-field="measures"]`).val() || '';
+        const measures = measuresText.split('\n').filter(s => s.trim()).map((m, i) => ({
+          measureId: '',
+          title: m.trim().slice(0, 20),
+          content: m.trim(),
+          category: '',
+          order: i
+        }));
+        return {
+          level: lv,
+          levelName: LEVEL_NAMES[lv],
+          triggerWaterLevel: threshold,
+          color: LEVEL_COLORS[lv],
+          measures: measures
+        };
+      });
+
+      const generalText = $('#fGeneralMeasures').val() || '';
+      const generalMeasures = generalText.split('\n').filter(s => s.trim()).map(s => s.trim());
+
+      const contactsText = $('#fContacts').val() || '';
+      const contacts = contactsText.split('\n').filter(s => s.trim()).map(line => {
+        const parts = line.split(',').map(s => s.trim());
+        return {
+          name: parts[0] || '',
+          role: parts[1] || '',
+          phone: parts[2] || '',
+          department: parts[3] || ''
+        };
+      }).filter(c => c.name);
+
+      return {
+        reservoirId: $('#fReservoir').val(),
+        planName: $('#fPlanName').val().trim(),
+        version: $('#fVersion').val().trim(),
+        levels: levels,
+        generalMeasures: generalMeasures,
+        emergencyContacts: contacts,
+        description: $('#fDescription').val().trim(),
+        createdBy: $('#fCreatedBy').val().trim()
+      };
+    }
+
+    function validateForm(d) {
+      if (!d.reservoirId) return '请选择所属水库';
+      if (!d.planName) return '请填写预案名称';
+      if (!d.version) return '请填写版本号';
+      if (d.levels.length === 0) return '请至少选择一个响应等级';
+      for (const lv of d.levels) {
+        if (isNaN(lv.triggerWaterLevel) || lv.triggerWaterLevel < 0) return `${lv.levelName} 的触发水位无效`;
+      }
+      return null;
+    }
+
+    async function refreshTreeAndVersion() {
+      const treeRaw = await api.emergency.planTree();
+      tree.splice(0, tree.length, ...adaptPlanTree(treeRaw));
+      if (selVer) {
+        const versRaw = await api.emergency.versions(selRes);
+        const vers = adaptVersions(versRaw);
+        if (!vers.find(v => v._id === selVer)) {
+          selVer = (vers.find(v => v.current) || vers[vers.length - 1])._id;
+        }
+      }
+      renderTree();
+      renderVersion();
+    }
+
     $('#planTree').on('click', '.tnode[data-res]', async function (e) {
+      if ($(e.target).hasClass('ver-edit') || $(e.target).hasClass('ver-del')) return;
       selRes = $(this).data('res');
       const versRaw = await api.emergency.versions(selRes);
       const vers = adaptVersions(versRaw);
       selVer = (vers.find(v => v.current) || vers[vers.length - 1])._id;
       renderTree(); renderVersion();
     });
-    $('#planTree').on('click', '.tnode[data-ver]', function () { selVer = $(this).data('ver'); renderTree(); renderVersion(); });
+    $('#planTree').on('click', '.tnode[data-ver]', function (e) {
+      if ($(e.target).hasClass('ver-edit') || $(e.target).hasClass('ver-del')) return;
+      selVer = $(this).data('ver');
+      renderTree(); renderVersion();
+    });
+    $('#planTree').on('click', '.ver-edit', function (e) {
+      e.stopPropagation();
+      const verId = $(this).closest('.tnode[data-ver]').data('ver');
+      selVer = verId;
+      openModal(verId);
+    });
+    $('#planTree').on('click', '.ver-del', async function (e) {
+      e.stopPropagation();
+      const verId = $(this).closest('.tnode[data-ver]').data('ver');
+      const resId = $(this).closest('.tnode[data-ver]').data('res');
+      if (!window.confirm('确定要删除该预案版本吗？此操作不可恢复。')) return;
+      try {
+        await api.emergency.deletePlan(verId);
+        App.toast('删除成功', 'success');
+        if (selVer === verId) selVer = null;
+        selRes = resId;
+        await refreshTreeAndVersion();
+      } catch (err) { App.toast(err.message || '删除失败', 'error'); }
+    });
     $('#diffArea').on('click', '#diffBtn', renderDiff);
     $('#matchArea').on('click', '#matchBtn', renderMatch);
     $('#ctSearch').on('input', function () { renderContacts($(this).val()); });
@@ -197,6 +468,52 @@ App.registerPage('emergency', {
       catch (err) { App.toast(err.message || '通知失败', 'error'); }
     });
 
+    $('#addPlanBtn').on('click', function () { openModal(null); });
+
+    $('#editPlanBtn').on('click', function () {
+      if (!selVer) { App.toast('请先选择预案版本', 'warn'); return; }
+      openModal(selVer);
+    });
+
+    $('#delPlanBtn').on('click', async function () {
+      if (!selVer) { App.toast('请先选择预案版本', 'warn'); return; }
+      if (!window.confirm('确定要删除该预案版本吗？此操作不可恢复。')) return;
+      try {
+        await api.emergency.deletePlan(selVer);
+        App.toast('删除成功', 'success');
+        selVer = null;
+        await refreshTreeAndVersion();
+      } catch (err) { App.toast(err.message || '删除失败', 'error'); }
+    });
+
+    $('#levelTags').on('click', '.btn', function (e) {
+      e.preventDefault();
+      $(this).toggleClass('active');
+      updateLevelInputsState();
+    });
+
+    $('#submitPlan').on('click', async function () {
+      const data = collectFormData();
+      const err = validateForm(data);
+      if (err) { App.toast(err, 'warn'); return; }
+      try {
+        let result;
+        if (editingId) {
+          result = await api.emergency.updatePlan(editingId, data);
+          App.toast('更新成功', 'success');
+        } else {
+          result = await api.emergency.createPlan(data);
+          App.toast('创建成功', 'success');
+        }
+        const adapted = adaptPlanDetail(result);
+        selRes = adapted.reservoirId;
+        selVer = adapted._id;
+        modal.hide();
+        await refreshTreeAndVersion();
+      } catch (err) { App.toast(err.message || '保存失败', 'error'); }
+    });
+
+    initModal();
     renderTree(); renderVersion(); renderContacts(); renderLogs();
   }
 });
@@ -222,6 +539,34 @@ function adaptVersions(raw) {
     levels: v.levels || v.Levels || [],
     currentLevel: v.currentLevel || 80
   }));
+}
+
+function adaptPlanDetail(raw) {
+  if (!raw) return null;
+  const levels = raw.levels || raw.Levels || [];
+  const adaptedLevels = levels.map(l => ({
+    key: l.level || l.Level || '',
+    name: l.levelName || l.LevelName || '',
+    threshold: l.triggerWaterLevel ?? l.TriggerWaterLevel ?? 0,
+    measures: (l.measures || l.Measures || []).map(m => m.content || m.Content || m.title || m.Title || '')
+  }));
+  return {
+    _id: raw.id || raw.Id || raw._id,
+    reservoirId: raw.reservoirId || raw.ReservoirId || '',
+    reservoirName: raw.reservoirName || raw.ReservoirName || '',
+    planName: raw.planName || raw.PlanName || '',
+    version: raw.version || raw.Version || '',
+    author: raw.author || raw.Author || raw.approvedBy || raw.ApprovedBy || '',
+    description: raw.description || raw.Description || '',
+    levels: adaptedLevels,
+    generalMeasures: raw.generalMeasures || raw.GeneralMeasures || [],
+    contacts: (raw.emergencyContacts || raw.EmergencyContacts || []).map(c => ({
+      name: c.name || c.Name || '',
+      role: c.role || c.Role || '',
+      phone: c.phone || c.Phone || '',
+      department: c.department || c.Department || ''
+    }))
+  };
 }
 
 function adaptDiff(d) {

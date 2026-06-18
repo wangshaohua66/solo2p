@@ -48,21 +48,34 @@ public class EmergencyController : ControllerBase
     public async Task<ActionResult<ApiResponse<object>>> GetPlanTree()
     {
         var reservoirs = await _db.Reservoirs.Find(_ => true).ToListAsync();
-        var tree = new List<object>();
+        var reservoirIds = reservoirs.Select(r => r.Id).ToList();
 
-        foreach (var res in reservoirs)
+        var allPlans = new List<EmergencyPlan>();
+        if (reservoirIds.Count > 0)
         {
-            var plans = await _db.EmergencyPlans
-                .Find(p => p.ReservoirId == res.Id)
+            var plansFilter = Builders<EmergencyPlan>.Filter.In(p => p.ReservoirId, reservoirIds);
+            allPlans = await _db.EmergencyPlans
+                .Find(plansFilter)
                 .SortByDescending(p => p.VersionNumber)
                 .ToListAsync();
+        }
+
+        var plansByReservoir = allPlans
+            .GroupBy(p => p.ReservoirId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var tree = new List<object>();
+        foreach (var res in reservoirs)
+        {
+            plansByReservoir.TryGetValue(res.Id, out var plans);
+            var planList = plans ?? new List<EmergencyPlan>();
 
             tree.Add(new
             {
                 id = "res_" + res.Id,
                 name = res.Name,
                 type = "reservoir",
-                children = plans.Select(p => new
+                children = planList.Select(p => new
                 {
                     id = p.Id,
                     name = p.PlanName + " v" + p.Version,

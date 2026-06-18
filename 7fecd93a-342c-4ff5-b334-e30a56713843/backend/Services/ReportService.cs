@@ -53,13 +53,28 @@ public class ReportService : IReportService
         var stations = await _db.RainfallStations.Find(_ => true).ToListAsync();
         var result = new List<RainfallPoint>();
 
+        var stationIds = stations.Select(s => s.Id).ToList();
+        var latestReadingsDict = new Dictionary<string, WaterLevelReading>();
+
+        if (stationIds.Count > 0)
+        {
+            var readingsFilter = Builders<WaterLevelReading>.Filter.And(
+                Builders<WaterLevelReading>.Filter.In(r => r.StationId, stationIds),
+                Builders<WaterLevelReading>.Filter.Eq(r => r.StationType, "rainfall")
+            );
+            var allReadings = await _db.WaterLevelReadings
+                .Find(readingsFilter)
+                .SortByDescending(r => r.Timestamp)
+                .ToListAsync();
+
+            latestReadingsDict = allReadings
+                .GroupBy(r => r.StationId)
+                .ToDictionary(g => g.Key, g => g.First());
+        }
+
         foreach (var stn in stations)
         {
-            var latest = await _db.WaterLevelReadings
-                .Find(r => r.StationId == stn.Id && r.StationType == "rainfall")
-                .SortByDescending(r => r.Timestamp)
-                .FirstOrDefaultAsync();
-
+            latestReadingsDict.TryGetValue(stn.Id, out var latest);
             result.Add(new RainfallPoint
             {
                 X = MapLongitudeToX(stn.Longitude),

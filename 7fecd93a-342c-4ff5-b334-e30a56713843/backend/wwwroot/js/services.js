@@ -135,6 +135,15 @@ const api = {
     },
     async match(reservoirId, level) {
       return api._request('GET', `/emergency/plans/${reservoirId}/match`, null, { waterLevel: level });
+    },
+    async createPlan(data) {
+      return api._request('POST', '/emergency/plans', data);
+    },
+    async updatePlan(id, data) {
+      return api._request('PUT', `/emergency/plans/${id}`, data);
+    },
+    async deletePlan(id) {
+      return api._request('DELETE', `/emergency/plans/${id}`);
     }
   },
 
