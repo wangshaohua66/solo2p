@@ -1,0 +1,373 @@
+using AutoMapper;
+using HazChemSupervision.DTOs;
+using HazChemSupervision.Models;
+using HazChemSupervision.Repositories;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+
+namespace HazChemSupervision.Services;
+
+public class TransportService : ITransportService
+{
+    private readonly IBaseRepository<TransportRecord> _transportRepo;
+    private readonly IBaseRepository<TransportTrajectory> _trajectoryRepo;
+    private readonly IBaseRepository<ChemicalBatch> _batchRepo;
+    private readonly IBaseRepository<Enterprise> _enterpriseRepo;
+    private readonly IAlertService _alertService;
+    private readonly IMapper _mapper;
+    private readonly IConfiguration _configuration;
+
+    public TransportService(
+        IBaseRepository<TransportRecord> transportRepo,
+        IBaseRepository<TransportTrajectory> trajectoryRepo,
+        IBaseRepository<ChemicalBatch> batchRepo,
+        IBaseRepository<Enterprise> enterpriseRepo,
+        IAlertService alertService,
+        IMapper mapper,
+        IConfiguration configuration)
+    {
+        _transportRepo = transportRepo;
+        _trajectoryRepo = trajectoryRepo;
+        _batchRepo = batchRepo;
+        _enterpriseRepo = enterpriseRepo;
+        _alertService = alertService;
+        _mapper = mapper;
+        _configuration = configuration;
+    }
+
+    public async Task<TransportRecordDto?> GetTransportByIdAsync(int id)
+    {
+        var transport = await _transportRepo.GetQueryable()
+            .Include(t => t.Enterprise)
+            .Include(t => t.ChemicalBatch)
+                .ThenInclude(b => b.Chemical)
+            .FirstOrDefaultAsync(t => t.Id == id);
+
+        return transport != null ? _mapper.Map<TransportRecordDto>(transport) : null;
+    }
+
+    public async Task<PagedResult<TransportRecordDto>> GetTransportsAsync(TransportRecordQueryDto dto)
+    {
+        var predicate = PredicateBuilder.True<TransportRecord>();
+
+        if (!string.IsNullOrEmpty(dto.TransportNo))
+            predicate = predicate.And(t => t.TransportNo.Contains(dto.TransportNo));
+
+        if (dto.EnterpriseId.HasValue)
+            predicate = predicate.And(t => t.EnterpriseId == dto.EnterpriseId.Value);
+
+        if (dto.ChemicalBatchId.HasValue)
+            predicate = predicate.And(t => t.ChemicalBatchId == dto.ChemicalBatchId.Value);
+
+        if (!string.IsNullOrEmpty(dto.VehiclePlateNo))
+            predicate = predicate.And(t => t.VehiclePlateNo.Contains(dto.VehiclePlateNo));
+
+        if (dto.Status.HasValue)
+            predicate = predicate.And(t => t.Status == (TransportStatus)dto.Status.Value);
+
+        if (dto.HasAnomaly.HasValue)
+        {
+            if (dto.HasAnomaly.Value)
+                predicate = predicate.And(t => t.IsDeviating || t.IsOverspeeding || t.IsTemperatureAbnormal);
+            else
+                predicate = predicate.And(t => !t.IsDeviating && !t.IsOverspeeding && !t.IsTemperatureAbnormal);
+        }
+
+        if (dto.DepartureDateRange?.StartDate.HasValue == true)
+            predicate = predicate.And(t => t.PlannedDepartureTime >= dto.DepartureDateRange.StartDate.Value);
+
+        if (dto.DepartureDateRange?.EndDate.HasValue == true)
+            predicate = predicate.And(t => t.PlannedDepartureTime < dto.DepartureDateRange.EndDate.Value.AddDays(1));
+
+        var result = await _transportRepo.GetPagedAsync(
+            predicate,
+            q => q.OrderByDescending(t => t.UpdatedAt),
+            dto.PageIndex,
+            dto.PageSize);
+
+        var items = await _transportRepo.GetQueryable()
+            .Include(t => t.Enterprise)
+            .Include(t => t.ChemicalBatch)
+                .ThenInclude(b => b.Chemical)
+            .Where(predicate)
+            .OrderByDescending(t => t.UpdatedAt)
+            .Skip((dto.PageIndex - 1) * dto.PageSize)
+            .Take(dto.PageSize)
+            .ToListAsync();
+
+        return new PagedResult<TransportRecordDto>
+        {
+            Items = _mapper.Map<List<TransportRecordDto>>(items),
+            TotalCount = result.TotalCount,
+            PageIndex = dto.PageIndex,
+            PageSize = dto.PageSize
+        };
+    }
+
+    public async Task<TransportRecordDto> CreateTransportAsync(TransportRecordCreateDto dto)
+    {
+        var exists = await _transportRepo.ExistsAsync(t => t.TransportNo == dto.TransportNo);
+        if (exists)
+            throw new InvalidOperationException($"运输单号已存在: {dto.TransportNo}");
+
+        var batch = await _batchRepo.GetByIdAsync(dto.ChemicalBatchId) ??
+            throw new KeyNotFoundException($"批次不存在: {dto.ChemicalBatchId}");
+
+        if (batch.Status != BatchStatus.InStorage)
+            throw new InvalidOperationException("批次未入库，无法创建运输记录");
+
+        var transport = _mapper.Map<TransportRecord>(dto);
+        transport.Status = TransportStatus.Pending;
+        transport.CreatedAt = DateTime.UtcNow;
+        transport.UpdatedAt = DateTime.UtcNow;
+
+        var result = await _transportRepo.AddAsync(transport);
+
+        batch.Status = BatchStatus.OutForDelivery;
+        batch.TransportRecordId = result.Id;
+        batch.UpdatedAt = DateTime.UtcNow;
+        await _batchRepo.UpdateAsync(batch);
+
+        return _mapper.Map<TransportRecordDto>(result);
+    }
+
+    public async Task<TransportRecordDto> UpdateTransportAsync(int id, TransportRecordUpdateDto dto)
+    {
+        var transport = await _transportRepo.GetByIdAsync(id) ??
+            throw new KeyNotFoundException($"运输记录不存在: {id}");
+
+        transport.VehiclePlateNo = dto.VehiclePlateNo;
+        transport.DriverName = dto.DriverName;
+        transport.DriverLicenseNo = dto.DriverLicenseNo;
+        transport.DriverPhone = dto.DriverPhone;
+        transport.EscortName = dto.EscortName;
+        transport.ActualDepartureTime = dto.ActualDepartureTime;
+        transport.ActualArrivalTime = dto.ActualArrivalTime;
+        transport.Status = (TransportStatus)dto.Status;
+        transport.UpdatedAt = DateTime.UtcNow;
+
+        await _transportRepo.UpdateAsync(transport);
+
+        if (transport.Status == TransportStatus.Completed || transport.Status == TransportStatus.Delivered)
+        {
+            var batch = await _batchRepo.GetByIdAsync(transport.ChemicalBatchId);
+            if (batch != null)
+            {
+                batch.Status = BatchStatus.Delivered;
+                batch.UpdatedAt = DateTime.UtcNow;
+                await _batchRepo.UpdateAsync(batch);
+            }
+        }
+
+        return _mapper.Map<TransportRecordDto>(transport);
+    }
+
+    public async Task<TransportMonitoringDto> GetTransportMonitoringAsync(int id)
+    {
+        var transport = await _transportRepo.GetQueryable()
+            .Include(t => t.ChemicalBatch)
+                .ThenInclude(b => b.Chemical)
+            .FirstOrDefaultAsync(t => t.Id == id) ??
+            throw new KeyNotFoundException($"运输记录不存在: {id}");
+
+        var recentTrajectories = await _trajectoryRepo.GetQueryable()
+            .Where(t => t.TransportRecordId == id)
+            .OrderByDescending(t => t.RecordTime)
+            .Take(100)
+            .OrderBy(t => t.RecordTime)
+            .ToListAsync();
+
+        var latestTrajectory = recentTrajectories.LastOrDefault();
+
+        return new TransportMonitoringDto
+        {
+            TransportRecordId = id,
+            TransportNo = transport.TransportNo,
+            VehiclePlateNo = transport.VehiclePlateNo,
+            DriverName = transport.DriverName,
+            ChemicalName = transport.ChemicalBatch.Chemical.Name,
+            Status = (int)transport.Status,
+            StatusName = transport.Status.ToString(),
+            CurrentLongitude = latestTrajectory?.Longitude ?? transport.StartLongitude,
+            CurrentLatitude = latestTrajectory?.Latitude ?? transport.StartLatitude,
+            CurrentSpeed = latestTrajectory?.Speed ?? 0,
+            CurrentTemperature = latestTrajectory?.Temperature ?? 0,
+            HasDeviation = transport.IsDeviating,
+            HasOverspeeding = transport.IsOverspeeding,
+            HasTemperatureAbnormal = transport.IsTemperatureAbnormal,
+            RecentTrajectories = _mapper.Map<List<TransportTrajectoryDto>>(recentTrajectories)
+        };
+    }
+
+    public async Task<TransportTrajectoryDto> UploadTrajectoryAsync(TransportTrajectoryCreateDto dto)
+    {
+        var transport = await _transportRepo.GetByIdAsync(dto.TransportRecordId) ??
+            throw new KeyNotFoundException($"运输记录不存在: {dto.TransportRecordId}");
+
+        var trajectory = _mapper.Map<TransportTrajectory>(dto);
+        trajectory.IsDeviation = await CheckRouteDeviationAsync(dto.TransportRecordId, dto.Longitude, dto.Latitude);
+        trajectory.IsOverspeeding = await CheckOverspeedingAsync(dto.TransportRecordId, dto.Speed);
+        trajectory.IsTemperatureAbnormal = await CheckTemperatureAbnormalAsync(dto.TransportRecordId, dto.Temperature);
+        trajectory.RecordTime = DateTime.UtcNow;
+
+        var result = await _trajectoryRepo.AddAsync(trajectory);
+
+        transport.CurrentSpeed = dto.Speed;
+        transport.CurrentTemperature = dto.Temperature;
+        transport.UpdatedAt = DateTime.UtcNow;
+
+        var now = DateTime.UtcNow;
+        var deviationThresholdSec = int.Parse(_configuration["Alert:TransportDeviationDurationSec"] ?? "180");
+        var overspeedThresholdSec = int.Parse(_configuration["Alert:TransportOverspeedDurationSec"] ?? "180");
+
+        if (trajectory.IsDeviation)
+        {
+            transport.DeviationStartTime ??= now;
+            if ((now - transport.DeviationStartTime.Value).TotalSeconds >= deviationThresholdSec)
+            {
+                transport.IsDeviating = true;
+                transport.Status = TransportStatus.Deviating;
+            }
+        }
+        else
+        {
+            transport.DeviationStartTime = null;
+            transport.IsDeviating = false;
+            if (transport.Status == TransportStatus.Deviating)
+                transport.Status = TransportStatus.InTransit;
+        }
+
+        if (trajectory.IsOverspeeding)
+        {
+            transport.OverspeedingStartTime ??= now;
+            if ((now - transport.OverspeedingStartTime.Value).TotalSeconds >= overspeedThresholdSec)
+            {
+                transport.IsOverspeeding = true;
+            }
+        }
+        else
+        {
+            transport.OverspeedingStartTime = null;
+            transport.IsOverspeeding = false;
+        }
+
+        transport.IsTemperatureAbnormal = trajectory.IsTemperatureAbnormal;
+
+        await _transportRepo.UpdateAsync(transport);
+        await _alertService.CheckAndGenerateTransportAlertsAsync();
+
+        return _mapper.Map<TransportTrajectoryDto>(result);
+    }
+
+    public async Task<List<TransportTrajectoryDto>> BatchUploadTrajectoriesAsync(GpsDataUploadDto dto)
+    {
+        var results = new List<TransportTrajectoryDto>();
+
+        foreach (var trajectoryDto in dto.Trajectories)
+        {
+            var result = await UploadTrajectoryAsync(trajectoryDto);
+            results.Add(result);
+        }
+
+        return results;
+    }
+
+    public async Task<List<TransportTrajectoryDto>> GetTrajectoriesAsync(int transportRecordId, int? limit = 100)
+    {
+        var query = _trajectoryRepo.GetQueryable()
+            .Where(t => t.TransportRecordId == transportRecordId)
+            .OrderByDescending(t => t.RecordTime);
+
+        if (limit.HasValue)
+            query = query.Take(limit.Value);
+
+        var trajectories = await query.OrderBy(t => t.RecordTime).ToListAsync();
+        return _mapper.Map<List<TransportTrajectoryDto>>(trajectories);
+    }
+
+    public async Task<bool> CheckRouteDeviationAsync(int transportRecordId, decimal longitude, decimal latitude)
+    {
+        var transport = await _transportRepo.GetByIdAsync(transportRecordId);
+        if (transport == null) return false;
+
+        var distanceThreshold = decimal.Parse(_configuration["Alert:RouteDeviationMeters"] ?? "500");
+
+        var totalDistance = CalculateDistance(
+            transport.StartLatitude, transport.StartLongitude,
+            transport.EndLatitude, transport.EndLongitude);
+
+        if (totalDistance == 0) return false;
+
+        var distToStart = CalculateDistance(transport.StartLatitude, transport.StartLongitude, latitude, longitude);
+        var distToEnd = CalculateDistance(transport.EndLatitude, transport.EndLongitude, latitude, longitude);
+
+        var progress = distToStart / totalDistance;
+        var expectedLat = transport.StartLatitude + (transport.EndLatitude - transport.StartLatitude) * progress;
+        var expectedLon = transport.StartLongitude + (transport.EndLongitude - transport.StartLongitude) * progress;
+
+        var deviation = CalculateDistance(expectedLat, expectedLon, latitude, longitude);
+
+        return deviation > distanceThreshold;
+    }
+
+    public async Task<bool> CheckOverspeedingAsync(int transportRecordId, decimal speed)
+    {
+        var speedLimit = decimal.Parse(_configuration["Alert:SpeedLimitKmh"] ?? "80");
+        return speed > speedLimit;
+    }
+
+    public async Task<bool> CheckTemperatureAbnormalAsync(int transportRecordId, decimal temperature)
+    {
+        var transport = await _transportRepo.GetByIdAsync(transportRecordId);
+        if (transport == null) return false;
+
+        var batch = await _batchRepo.GetByIdAsync(transport.ChemicalBatchId);
+        if (batch == null) return false;
+
+        var minTemp = decimal.Parse(_configuration["Alert:TemperatureMinC"] ?? "-10");
+        var maxTemp = decimal.Parse(_configuration["Alert:TemperatureMaxC"] ?? "40");
+
+        return temperature < minTemp || temperature > maxTemp;
+    }
+
+    public async Task UpdateTransportStatusAsync(int transportRecordId)
+    {
+        var transport = await _transportRepo.GetByIdAsync(transportRecordId);
+        if (transport == null) return;
+
+        var now = DateTime.UtcNow;
+        var deviationThresholdSec = int.Parse(_configuration["Alert:TransportDeviationDurationSec"] ?? "180");
+        var overspeedThresholdSec = int.Parse(_configuration["Alert:TransportOverspeedDurationSec"] ?? "180");
+
+        if (transport.IsDeviating && transport.DeviationStartTime.HasValue &&
+            (now - transport.DeviationStartTime.Value).TotalSeconds < deviationThresholdSec)
+        {
+            transport.IsDeviating = false;
+            transport.Status = TransportStatus.InTransit;
+        }
+
+        if (transport.IsOverspeeding && transport.OverspeedingStartTime.HasValue &&
+            (now - transport.OverspeedingStartTime.Value).TotalSeconds < overspeedThresholdSec)
+        {
+            transport.IsOverspeeding = false;
+        }
+
+        transport.UpdatedAt = DateTime.UtcNow;
+        await _transportRepo.UpdateAsync(transport);
+    }
+
+    private static decimal CalculateDistance(decimal lat1, decimal lon1, decimal lat2, decimal lon2)
+    {
+        var dLat = (double)(lat2 - lat1) * Math.PI / 180.0;
+        var dLon = (double)(lon2 - lon1) * Math.PI / 180.0;
+
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos((double)lat1 * Math.PI / 180.0) * Math.Cos((double)lat2 * Math.PI / 180.0) *
+                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+
+        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+        var distance = 6371000 * c;
+
+        return (decimal)distance;
+    }
+}
