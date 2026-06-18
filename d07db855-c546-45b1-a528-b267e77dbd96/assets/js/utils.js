@@ -162,5 +162,45 @@ const AppUtils = {
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+  },
+
+  applyResponsiveColumns() {
+    const w = $(window).width();
+    const rules = [
+      { break: 1400, hide: '.col-hide-xxl' },
+      { break: 1200, hide: '.col-hide-xl' },
+      { break: 992,  hide: '.col-hide-lg' },
+      { break: 768,  hide: '.col-hide-md' },
+      { break: 576,  hide: '.col-hide-sm' }
+    ];
+    rules.forEach(r => {
+      if (w < r.break) $(r.hide).hide();
+      else $(r.hide).show();
+    });
+  },
+
+  renderAnnotations(reportId) {
+    const annotations = MockData.reportAnnotations[reportId] || [];
+    if (annotations.length === 0) return `<div style="padding:30px;text-align:center;color:var(--gray-400);"><div style="font-size:36px;">💬</div><div style="margin-top:8px;">暂无批注</div></div>`;
+    const typeIcon = { comment: '💬', highlight: '🖍️', stamp: '🖋️' };
+    return `
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div style="font-weight:600;">批注列表 (${annotations.length})</div>
+          <button class="btn btn-sm btn-primary" onclick="ReportsPage.addAnnotationPrompt('${reportId}')">➕ 添加批注</button>
+        </div>
+        <div style="max-height:320px;overflow-y:auto;">
+          ${annotations.map(a => `
+            <div style="padding:12px;border-radius:8px;margin-bottom:10px;background:rgba(245,158,11,0.08);border-left:3px solid ${a.color};">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+                <div style="font-weight:600;font-size:13px;">${typeIcon[a.type] || '📝'} ${a.annotator} · 第${a.page}页</div>
+                <div style="font-size:11px;color:var(--gray-400);">${a.time}</div>
+              </div>
+              <div style="font-size:13px;color:var(--gray-700);line-height:1.6;">${a.content}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
   }
 };

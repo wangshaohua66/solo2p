@@ -9,23 +9,42 @@ const MockData = {
   },
 
   menuConfig: [
-    { group: '工作台', items: [
+    { group: '工作台', roleKeys: ['admin', 'auditor', 'technician', 'sample_admin', 'customer'], items: [
       { key: 'dashboard', icon: '📊', text: '数据概览', badge: null },
       { key: 'todo', icon: '📋', text: '我的待办', badge: 8 }
     ]},
-    { group: '业务管理', items: [
-      { key: 'samples', icon: '📦', text: '样品管理', badge: null },
-      { key: 'tasks', icon: '📝', text: '检测任务', badge: 12 },
-      { key: 'reports', icon: '📄', text: '报告证书', badge: null },
-      { key: 'customers', icon: '🏢', text: '客户服务', badge: null }
+    { group: '业务管理', roleKeys: ['admin', 'auditor', 'technician', 'sample_admin'], items: [
+      { key: 'samples', icon: '📦', text: '样品管理', badge: null, roleKeys: ['admin', 'sample_admin', 'technician'] },
+      { key: 'tasks', icon: '📝', text: '检测任务', badge: 12, roleKeys: ['admin', 'technician', 'auditor'] },
+      { key: 'reports', icon: '📄', text: '报告证书', badge: null, roleKeys: ['admin', 'auditor'] },
+      { key: 'customers', icon: '🏢', text: '客户服务', badge: null, roleKeys: ['admin', 'customer'] }
     ]},
-    { group: '资源管理', items: [
+    { group: '资源管理', roleKeys: ['admin', 'auditor', 'technician'], items: [
       { key: 'lab', icon: '🔬', text: '实验室资源', badge: null },
       { key: 'trace', icon: '🔍', text: '数据追溯', badge: null }
     ]},
-    { group: '统计分析', items: [
+    { group: '统计分析', roleKeys: ['admin', 'auditor'], items: [
       { key: 'analytics', icon: '📈', text: '统计报表', badge: null }
     ]}
+  ],
+
+  roles: {
+    admin:     { name: '实验室管理员',   desc: '全部权限' },
+    auditor:   { name: '报告审核员',     desc: '报告审核、证书签发' },
+    technician:{ name: '实验室技术员',   desc: '检测任务执行、原始记录录入' },
+    sample_admin: { name: '样品管理员', desc: '样品接收、登记、流转' },
+    customer:  { name: '企业客户',       desc: '申请检测、进度查询、报告下载' }
+  },
+
+  productCategories: [
+    { code: 'EE',  name: '电子电器' },
+    { code: 'ME',  name: '机械装备' },
+    { code: 'BM',  name: '建材家具' },
+    { code: 'AU',  name: '汽车零部件' },
+    { code: 'FC',  name: '食品接触' },
+    { code: 'TX',  name: '纺织服装' },
+    { code: 'TW',  name: '玩具文具' },
+    { code: 'MD',  name: '医疗器械' }
   ],
 
   notifications: [
@@ -53,7 +72,10 @@ const MockData = {
       { name: '机械装备', value: 25, color: '#10b981' },
       { name: '建材家具', value: 18, color: '#f59e0b' },
       { name: '汽车零部件', value: 12, color: '#ef4444' },
-      { name: '食品接触', value: 10, color: '#06b6d4' }
+      { name: '食品接触', value: 10, color: '#06b6d4' },
+      { name: '纺织服装', value: 8,  color: '#8b5cf6' },
+      { name: '玩具文具', value: 7,  color: '#ec4899' },
+      { name: '医疗器械', value: 6,  color: '#14b8a6' }
     ],
     cycleData: [
       { range: '1-3天', count: 120, percent: 35 },
@@ -71,7 +93,10 @@ const MockData = {
     { id: 'SP-2026-0887', name: '食品级不锈钢容器', code: 'BX-2026-033', company: '苏泊尔集团有限公司', category: '食品接触', certType: 'CE', status: 'received', receiver: '李娟', receiveDate: '2026-06-13', amount: 6, expireDate: '2026-12-13', priority: 'normal' },
     { id: 'SP-2026-0886', name: '光伏逆变器', code: 'GF-2026-089', company: '阳光电源股份有限公司', category: '电子电器', certType: 'CE', status: 'testing', receiver: '王建国', receiveDate: '2026-06-13', amount: 2, expireDate: '2026-12-13', priority: 'high' },
     { id: 'SP-2026-0885', name: '液压挖掘机', code: 'WJ-2026-012', company: '三一重工股份有限公司', category: '机械装备', certType: 'CE', status: 'archived', receiver: '陈明', receiveDate: '2026-06-12', amount: 1, expireDate: '2026-06-12', priority: 'medium' },
-    { id: 'SP-2026-0884', name: '儿童学习桌椅', code: 'ZY-2026-044', company: '两平米智能科技', category: '建材家具', certType: 'CCC', status: 'testing', receiver: '李娟', receiveDate: '2026-06-12', amount: 2, expireDate: '2026-12-12', priority: 'medium' }
+    { id: 'SP-2026-0884', name: '儿童学习桌椅', code: 'ZY-2026-044', company: '两平米智能科技', category: '建材家具', certType: 'CCC', status: 'testing', receiver: '李娟', receiveDate: '2026-06-12', amount: 2, expireDate: '2026-12-12', priority: 'medium' },
+    { id: 'SP-2026-0883', name: '纯棉儿童T恤', code: 'FZ-2026-067', company: '浙江森马服饰股份', category: '纺织服装', certType: 'CCC', status: 'registered', receiver: '王建国', receiveDate: '2026-06-11', amount: 8, expireDate: '2026-12-11', priority: 'normal' },
+    { id: 'SP-2026-0882', name: '益智积木玩具', code: 'WJ-2026-035', company: '广东邦宝益智玩具', category: '玩具文具', certType: 'CCC', status: 'testing', receiver: '陈明', receiveDate: '2026-06-11', amount: 4, expireDate: '2026-12-11', priority: 'high' },
+    { id: 'SP-2026-0881', name: '电子血压计', code: 'YL-2026-011', company: '鱼跃医疗设备股份', category: '医疗器械', certType: 'ISO', status: 'received', receiver: '李娟', receiveDate: '2026-06-10', amount: 3, expireDate: '2026-12-10', priority: 'high' }
   ],
 
   sampleTimeline: [
@@ -124,7 +149,10 @@ const MockData = {
     { id: 'C003', name: '苏泊尔集团有限公司', contact: '王总', phone: '13700001234', creditCode: '913310007195XXXXX1', category: '食品接触', certCount: 52, totalOrders: 98, level: 'B' },
     { id: 'C004', name: '德尔未来科技控股', contact: '张工', phone: '13655556666', creditCode: '91320500678XXXX1X', category: '建材家具', certCount: 41, totalOrders: 76, level: 'B' },
     { id: 'C005', name: '浙江天成自控股份', contact: '刘经理', phone: '13588889999', creditCode: '91330000704XXXX1X', category: '汽车零部件', certCount: 35, totalOrders: 62, level: 'B' },
-    { id: 'C006', name: '阳光电源股份有限公司', contact: '赵总监', phone: '13477778888', creditCode: '91340100719XXXX1X', category: '电子电器', certCount: 28, totalOrders: 54, level: 'C' }
+    { id: 'C006', name: '阳光电源股份有限公司', contact: '赵总监', phone: '13477778888', creditCode: '91340100719XXXX1X', category: '电子电器', certCount: 28, totalOrders: 54, level: 'C' },
+    { id: 'C007', name: '浙江森马服饰股份', contact: '周经理', phone: '13366665555', creditCode: '91330000712XXXX1X', category: '纺织服装', certCount: 22, totalOrders: 45, level: 'B' },
+    { id: 'C008', name: '广东邦宝益智玩具', contact: '陈总', phone: '13255554444', creditCode: '91440000721XXXX1X', category: '玩具文具', certCount: 18, totalOrders: 36, level: 'C' },
+    { id: 'C009', name: '鱼跃医疗设备股份', contact: '吴工', phone: '13144443333', creditCode: '91320000704XXXX1X', category: '医疗器械', certCount: 30, totalOrders: 58, level: 'A' }
   ],
 
   applications: [
@@ -155,6 +183,28 @@ const MockData = {
     { id: 'LOG-002', operator: '张伟', action: '检测数据录入', target: 'T-2026-0339', time: '2026-06-16 09:30:00', ip: '192.168.1.105', detail: '录入光伏逆变器EMC测试数据第3组' },
     { id: 'LOG-003', operator: '审核组', action: '报告审核通过', target: 'RPT-2026-0421', time: '2026-06-16 14:20:00', ip: '192.168.1.120', detail: '报告RPT-2026-0421审核通过，已签发' },
     { id: 'LOG-004', operator: '系统', action: '证书到期提醒', target: 'CERT-2026-0154', time: '2026-06-16 00:00:00', ip: 'SYSTEM', detail: 'ISO证书距到期还有30天，已发送提醒' }
+  ],
+
+  reportAnnotations: {
+    'RPT-2026-0420': [
+      { id: 'A001', page: 3, x: 15, y: 42, type: 'comment', color: '#f59e0b', content: '第3.2节判定标准请引用最新版GB 4706.1-2020', annotator: '李主任', time: '2026-06-15 09:20' },
+      { id: 'A002', page: 7, x: 55, y: 28, type: 'highlight', color: '#ef4444', content: '此处温升测试结果65K，超标5K，请重新核查原始记录', annotator: '王审核', time: '2026-06-15 11:45' },
+      { id: 'A003', page: 12, x: 30, y: 60, type: 'comment', color: '#2563eb', content: '建议补充EMC辐射骚扰测试的频率范围说明', annotator: '赵专家', time: '2026-06-15 14:30' }
+    ]
+  },
+
+  labTrainings: [
+    { id: 'TR-001', name: 'GB 4706.1-2020家用和类似用途电器安全', date: '2026-05-20', participants: 12, hours: 8, status: 'completed' },
+    { id: 'TR-002', name: '电磁兼容测试规范与设备操作', date: '2026-06-10', participants: 8, hours: 6, status: 'completed' },
+    { id: 'TR-003', name: '新版ISO 17025实验室管理体系', date: '2026-06-25', participants: 15, hours: 12, status: 'planned' }
+  ],
+
+  labCapabilities: [
+    { id: 'CAP-001', code: 'EE-001', name: '电子电器安全检测', standard: 'GB 4706系列', scope: '家用、工业电器', status: 'active', accreditor: 'CNAS' },
+    { id: 'CAP-002', code: 'EMC-001', name: '电磁兼容检测', standard: 'GB/T 17626系列', scope: '30MHz-6GHz', status: 'active', accreditor: 'CNAS' },
+    { id: 'CAP-003', code: 'MD-001', name: '医疗器械生物相容性', standard: 'GB/T 16886系列', scope: '细胞毒性、致敏、刺激', status: 'active', accreditor: 'CNAS' },
+    { id: 'CAP-004', code: 'TX-001', name: '纺织品有害物质检测', standard: 'GB 18401-2010', scope: '甲醛、pH、可分解致癌芳香胺', status: 'active', accreditor: 'CNAS' },
+    { id: 'CAP-005', code: 'TW-001', name: '玩具安全检测', standard: 'GB 6675系列', scope: '机械物理、燃烧、化学迁移', status: 'pending', accreditor: '扩项中' }
   ],
 
   getSamples() {

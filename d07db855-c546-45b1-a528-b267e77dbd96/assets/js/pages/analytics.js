@@ -3,6 +3,8 @@ const LabPage = {
     AppLayout.setPageHeader('实验室资源', ['资源管理']);
     const equipments = MockData.equipments;
     const technicians = MockData.technicians;
+    const trainings = MockData.labTrainings;
+    const capabilities = MockData.labCapabilities;
 
     const getEquipStatus = (s) => {
       const map = { running: { class: 'badge-success', text: '运行中' }, maintenance: { class: 'badge-warning', text: '维护中' }, idle: { class: 'badge-secondary', text: '空闲' } };
@@ -26,7 +28,10 @@ const LabPage = {
           </div>
         </div>
         <div class="row g-3" style="padding:20px;">
-          ${equipments.map(e => `
+          ${equipments.map(e => {
+            const daysToCal = Math.ceil((new Date(e.nextCal) - new Date()) / (1000 * 60 * 60 * 24));
+            const calStatus = daysToCal < 0 ? 'danger' : daysToCal <= 30 ? 'warning' : 'success';
+            return `
             <div class="col-12 col-sm-6 col-lg-4">
               <div style="border:1px solid var(--gray-200);border-radius:10px;padding:16px;background:#fff;">
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
@@ -41,18 +46,19 @@ const LabPage = {
                 <div style="font-size:12px;color:var(--gray-500);margin-bottom:10px;">上次校准：<span style="color:var(--gray-700);">${e.lastCal}</span></div>
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
                   <span style="font-size:12px;color:var(--gray-500);">下次校准: ${e.nextCal}</span>
-                  <span style="font-size:12px;color:${e.load > 70 ? 'var(--danger)' : 'var(--success)'};font-weight:600;">负载 ${e.load}%</span>
+                  <span style="font-size:12px;color:var(--${calStatus});font-weight:600;">${daysToCal < 0 ? '已超期' : daysToCal + '天后到期'}</span>
                 </div>
                 <div class="progress">
                   <div class="progress-bar ${e.load > 70 ? 'danger' : ''}" style="width:${e.load}%;"></div>
                 </div>
               </div>
             </div>
-          `).join('')}
+            `;
+          }).join('')}
         </div>
       </div>
 
-      <div class="card">
+      <div class="card mb-4">
         <div class="card-header">
           <h3 class="card-title">👨‍🔬 技术人员</h3>
           <button class="btn btn-outline-primary btn-sm">🎓 培训管理</button>
@@ -64,8 +70,8 @@ const LabPage = {
                 <th>姓名</th>
                 <th>所属实验室</th>
                 <th>职称</th>
-                <th>专业技能</th>
-                <th>资质证书</th>
+                <th class="col-hide-lg">专业技能</th>
+                <th class="col-hide-md">资质证书</th>
                 <th>状态</th>
                 <th>工作负载</th>
                 <th>操作</th>
@@ -82,12 +88,12 @@ const LabPage = {
                   </td>
                   <td>${t.lab}</td>
                   <td>${t.title}</td>
-                  <td>
+                  <td class="col-hide-lg">
                     <div style="display:flex;gap:4px;flex-wrap:wrap;">
                       ${t.skills.map(s => `<span class="badge badge-secondary">${s}</span>`).join('')}
                     </div>
                   </td>
-                  <td style="text-align:center;font-weight:600;">${t.certs} 个</td>
+                  <td class="col-hide-md" style="text-align:center;font-weight:600;">${t.certs} 个</td>
                   <td>${getTechStatus(t.status)}</td>
                   <td style="width:180px;">
                     <div style="display:flex;align-items:center;gap:10px;">
@@ -97,6 +103,81 @@ const LabPage = {
                       <span style="font-size:12px;color:var(--gray-600);min-width:36px;">${t.workload}%</span>
                     </div>
                   </td>
+                  <td>
+                    <div class="table-actions">
+                      <button class="action-btn">👁️</button>
+                      <button class="action-btn">✏️</button>
+                    </div>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-header">
+          <h3 class="card-title">🎓 培训记录</h3>
+          <button class="btn btn-primary btn-sm">➕ 新建培训</button>
+        </div>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>培训编号</th>
+                <th>培训主题</th>
+                <th class="col-hide-md">培训日期</th>
+                <th class="col-hide-lg">学时</th>
+                <th class="col-hide-md">参与人数</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${trainings.map(t => `
+                <tr>
+                  <td style="font-family:monospace;color:var(--primary);">${t.id}</td>
+                  <td style="font-weight:500;">${t.name}</td>
+                  <td class="col-hide-md">${t.date}</td>
+                  <td class="col-hide-lg">${t.hours} 学时</td>
+                  <td class="col-hide-md">${t.participants} 人</td>
+                  <td>${t.status === 'completed' ? '<span class="badge badge-success">已完成</span>' : '<span class="badge badge-warning">计划中</span>'}</td>
+                  <td><div class="table-actions"><button class="action-btn">👁️</button></div></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">📋 实验室能力范围维护</h3>
+          <button class="btn btn-primary btn-sm">➕ 新增能力项</button>
+        </div>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>能力代码</th>
+                <th>能力名称</th>
+                <th class="col-hide-md">依据标准</th>
+                <th class="col-hide-lg">检测范围</th>
+                <th>认可机构</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${capabilities.map(c => `
+                <tr>
+                  <td style="font-family:monospace;color:var(--primary);font-weight:600;">${c.code}</td>
+                  <td style="font-weight:500;">${c.name}</td>
+                  <td class="col-hide-md" style="font-size:13px;">${c.standard}</td>
+                  <td class="col-hide-lg" style="color:var(--gray-600);">${c.scope}</td>
+                  <td><span class="badge badge-info">${c.accreditor}</span></td>
+                  <td>${c.status === 'active' ? '<span class="badge badge-success">已获认可</span>' : '<span class="badge badge-warning">扩项中</span>'}</td>
                   <td>
                     <div class="table-actions">
                       <button class="action-btn">👁️</button>

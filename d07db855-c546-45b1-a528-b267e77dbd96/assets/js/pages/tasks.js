@@ -264,47 +264,121 @@ const ReportsPage = {
 
   showReportPreview(id) {
     const r = MockData.reports.find(x => x.id === id) || MockData.reports[0];
+    const annotations = MockData.reportAnnotations[id] || [];
     const content = `
-      <div class="pdf-preview">
-        <div class="pdf-page">
-          <div class="pdf-header">
-          <div class="pdf-title">检测报告</div>
-          <div class="pdf-subtitle">TESTING REPORT</div>
-          <div style="margin-top:12px;font-family:monospace;font-size:14px;color:var(--gray-500);">报告编号: ${r.id}</div>
-        </div>
-          <div class="pdf-info-row"><div class="pdf-info-label">委托单位</div><div class="pdf-info-value">${r.company}</div></div>
-          <div class="pdf-info-row"><div class="pdf-info-label">样品名称</div><div class="pdf-info-value">${r.title.replace('检测报告', '')}</div></div>
-          <div class="pdf-info-row"><div class="pdf-info-label">认证类型</div><div class="pdf-info-value">${r.certType} 认证</div></div>
-          <div class="pdf-info-row"><div class="pdf-info-label">检测依据</div><div class="pdf-info-value">GB 7251.1-2013 / IEC 61439-1:2011</div></div>
-          <div class="pdf-info-row"><div class="pdf-info-label">检测日期</div><div class="pdf-info-value">2026-06-10 至 2026-06-15</div></div>
-          <div class="pdf-info-row"><div class="pdf-info-label">报告签发</div><div class="pdf-info-value">${r.createDate}</div></div>
-          <div class="pdf-section-title">检测结论</div>
-          <div style="padding:16px;background:var(--gray-50);border-radius:8px;">
-            <div style="font-size:16px;font-weight:600;color:var(--success);margin-bottom:8px;">✓ 合格 PASS</div>
-            <div style="font-size:13px;color:var(--gray-600);line-height:1.8;">
-              依据相关标准及委托方提供的技术要求，对送检样品进行了全项检测，所检项目符合标准要求。
-            </div>
+      <div style="display:grid;grid-template-columns:1fr 280px;gap:20px;">
+        <div class="pdf-preview" style="margin:0;">
+          <div class="pdf-page" style="position:relative;">
+            <div class="pdf-header">
+            <div class="pdf-title">检测报告</div>
+            <div class="pdf-subtitle">TESTING REPORT</div>
+            <div style="margin-top:12px;font-family:monospace;font-size:14px;color:var(--gray-500);">报告编号: ${r.id}</div>
           </div>
-          <div class="pdf-section-title">检测项目结果</div>
-          <table style="width:100%;font-size:13px;border-collapse:collapse;">
-            <thead>
-              <tr style="background:var(--gray-50);">
-                <th style="padding:10px;text-align:left;border-bottom:1px solid var(--gray-200);">检测项目</th>
-                <th style="padding:10px;text-align:left;border-bottom:1px solid var(--gray-200);">标准要求</th>
-                <th style="padding:10px;text-align:left;border-bottom:1px solid var(--gray-200);">检测结果</th>
-                <th style="padding:10px;text-align:left;border-bottom:1px solid var(--gray-200);">单项判定</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><td style="padding:10px;border-bottom:1px solid var(--gray-100);">介电强度</td><td style="padding:10px;border-bottom:1px solid var(--gray-100);">2000V AC 1min</td><td style="padding:10px;border-bottom:1px solid var(--gray-100);">无击穿、闪络</td><td style="padding:10px;border-bottom:1px solid var(--gray-100);color:var(--success);">合格</td></tr>
-              <tr><td style="padding:10px;border-bottom:1px solid var(--gray-100);">温升试验</td><td style="padding:10px;border-bottom:1px solid var(--gray-100);">≤70K</td><td style="padding:10px;border-bottom:1px solid var(--gray-100);">45K</td><td style="padding:10px;border-bottom:1px solid var(--gray-100);color:var(--success);">合格</td></tr>
-              <tr><td style="padding:10px;border-bottom:1px solid var(--gray-100);">绝缘电阻</td><td style="padding:10px;border-bottom:1px solid var(--gray-100);">≥100MΩ</td><td style="padding:10px;border-bottom:1px solid var(--gray-100);">520MΩ</td><td style="padding:10px;border-bottom:1px solid var(--gray-100);color:var(--success);">合格</td></tr>
-            </tbody>
-          </table>
+            <div class="pdf-info-row"><div class="pdf-info-label">委托单位</div><div class="pdf-info-value">${r.company}</div></div>
+            <div class="pdf-info-row"><div class="pdf-info-label">样品名称</div><div class="pdf-info-value">${r.title.replace('检测报告', '')}</div></div>
+            <div class="pdf-info-row"><div class="pdf-info-label">认证类型</div><div class="pdf-info-value">${r.certType} 认证</div></div>
+            <div class="pdf-info-row"><div class="pdf-info-label">检测依据</div><div class="pdf-info-value">GB 7251.1-2013 / IEC 61439-1:2011</div></div>
+            <div class="pdf-info-row"><div class="pdf-info-label">检测日期</div><div class="pdf-info-value">2026-06-10 至 2026-06-15</div></div>
+            <div class="pdf-info-row"><div class="pdf-info-label">报告签发</div><div class="pdf-info-value">${r.createDate}</div></div>
+            <div class="pdf-section-title">检测结论</div>
+            <div style="padding:16px;background:var(--gray-50);border-radius:8px;">
+              <div style="font-size:16px;font-weight:600;color:var(--success);margin-bottom:8px;">✓ 合格 PASS</div>
+              <div style="font-size:13px;color:var(--gray-600);line-height:1.8;">
+                依据相关标准及委托方提供的技术要求，对送检样品进行了全项检测，所检项目符合标准要求。
+              </div>
+            </div>
+            <div class="pdf-section-title">检测项目结果</div>
+            <table style="width:100%;font-size:13px;border-collapse:collapse;">
+              <thead>
+                <tr style="background:var(--gray-50);">
+                  <th style="padding:10px;text-align:left;border-bottom:1px solid var(--gray-200);">检测项目</th>
+                  <th style="padding:10px;text-align:left;border-bottom:1px solid var(--gray-200);">标准要求</th>
+                  <th style="padding:10px;text-align:left;border-bottom:1px solid var(--gray-200);">检测结果</th>
+                  <th style="padding:10px;text-align:left;border-bottom:1px solid var(--gray-200);">单项判定</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td style="padding:10px;border-bottom:1px solid var(--gray-100);">介电强度</td><td style="padding:10px;border-bottom:1px solid var(--gray-100);">2000V AC 1min</td><td style="padding:10px;border-bottom:1px solid var(--gray-100);">无击穿、闪络</td><td style="padding:10px;border-bottom:1px solid var(--gray-100);color:var(--success);">合格</td></tr>
+                <tr><td style="padding:10px;border-bottom:1px solid var(--gray-100);">温升试验</td><td style="padding:10px;border-bottom:1px solid var(--gray-100);">≤70K</td><td style="padding:10px;border-bottom:1px solid var(--gray-100);background:rgba(239,68,68,0.08);">45K <span style="color:var(--danger);font-size:11px;">⚠️批注:超标5K</span></td><td style="padding:10px;border-bottom:1px solid var(--gray-100);color:var(--danger);">待复核</td></tr>
+                <tr><td style="padding:10px;border-bottom:1px solid var(--gray-100);">绝缘电阻</td><td style="padding:10px;border-bottom:1px solid var(--gray-100);">≥100MΩ</td><td style="padding:10px;border-bottom:1px solid var(--gray-100);">520MΩ</td><td style="padding:10px;border-bottom:1px solid var(--gray-100);color:var(--success);">合格</td></tr>
+              </tbody>
+            </table>
+            ${annotations.length > 0 ? `
+              <div style="position:absolute;top:35%;right:16px;background:#fff;border:1px solid var(--gray-200);border-radius:8px;padding:10px 12px;box-shadow:0 4px 12px rgba(0,0,0,0.08);max-width:200px;">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+                  <span style="color:${annotations[0].color};font-size:16px;">💬</span>
+                  <span style="font-weight:600;font-size:12px;">${annotations[0].annotator}</span>
+                </div>
+                <div style="font-size:12px;color:var(--gray-700);line-height:1.5;">${annotations[0].content}</div>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+        <div style="border-left:1px solid var(--gray-200);padding-left:16px;">
+          ${AppUtils.renderAnnotations(id)}
         </div>
       </div>
     `;
-    AppUtils.showModal({ title: '📄 报告预览', content, width: '760px', confirmText: '下载PDF' });
+    AppUtils.showModal({ title: '📄 报告预览（含批注）', content, width: '1080px', confirmText: '下载PDF', cancelText: '关闭' });
+  },
+
+  addAnnotationPrompt(reportId) {
+    const content = `
+      <div class="row g-3">
+        <div class="col-12 col-sm-6">
+          <div class="floating-label">
+            <select placeholder=" " id="annType">
+            <option value=""></option>
+            <option value="comment">文字批注</option>
+            <option value="highlight">高亮标记</option>
+            <option value="stamp">签章批注</option>
+            </select>
+            <label>批注类型 *</label>
+          </div>
+        </div>
+        <div class="col-12 col-sm-6">
+          <div class="floating-label">
+            <input type="number" placeholder=" " id="annPage" value="1">
+            <label>页码</label>
+          </div>
+        </div>
+        <div class="col-12 col-sm-6">
+          <div class="floating-label">
+            <input type="text" placeholder=" " id="annColor" value="#f59e0b">
+            <label>批注颜色</label>
+          </div>
+        </div>
+        <div class="col-12">
+          <div class="floating-label">
+            <textarea placeholder=" " rows="4" id="annContent" style="height:auto;padding-top:22px;"></textarea>
+            <label>批注内容 *</label>
+          </div>
+        </div>
+      </div>
+    `;
+    const mask = AppUtils.showModal({
+      title: '➕ 添加批注',
+      content,
+      confirmText: '提交批注',
+      onConfirm: () => {
+        const annContent = $('#annContent').val().trim();
+        if (!annContent) { AppUtils.showToast('提示', '请填写批注内容', 'warning'); return false; }
+        const list = MockData.reportAnnotations[reportId] || [];
+        list.push({
+          id: 'A' + Date.now(),
+          page: parseInt($('#annPage').val()) || 1,
+          x: 30, y: 50,
+          type: $('#annType').val() || 'comment',
+          color: $('#annColor').val() || '#f59e0b',
+          content: annContent,
+          annotator: MockData.currentUser.name,
+          time: new Date().toISOString().replace('T', ' ').substring(0, 16)
+        });
+        MockData.reportAnnotations[reportId] = list;
+        AppUtils.closeModal(mask);
+        AppUtils.showToast('批注', '批注添加成功', 'success');
+      }
+    });
   },
 
   showCertPreview(id) {

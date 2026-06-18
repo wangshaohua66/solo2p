@@ -1,0 +1,68 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: icc-gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+        namespace: public
+      config:
+        server-addr: 127.0.0.1:8848
+        file-extension: yaml
+        namespace: public
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        - id: icc-auth
+          uri: lb://icc-auth
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - StripPrefix=2
+        - id: icc-sample
+          uri: lb://icc-sample
+          predicates:
+            - Path=/api/sample/**
+          filters:
+            - StripPrefix=2
+        - id: icc-task
+          uri: lb://icc-task
+          predicates:
+            - Path=/api/task/**
+          filters:
+            - StripPrefix=2
+        - id: icc-report
+          uri: lb://icc-report
+          predicates:
+            - Path=/api/report/**
+          filters:
+            - StripPrefix=2
+        - id: icc-customer
+          uri: lb://icc-customer
+          predicates:
+            - Path=/api/customer/**
+          filters:
+            - StripPrefix=2
+        - id: icc-analytics
+          uri: lb://icc-analytics
+          predicates:
+            - Path=/api/analytics/**
+          filters:
+            - StripPrefix=2
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
+  webflux:
+    multipart:
+      max-in-memory-size: 100MB

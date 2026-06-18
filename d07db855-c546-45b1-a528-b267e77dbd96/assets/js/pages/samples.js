@@ -17,11 +17,7 @@ const SamplesPage = {
             </select>
             <select class="form-control" style="width:140px;">
             <option value="">全部类别</option>
-            <option>电子电器</option>
-            <option>机械装备</option>
-            <option>建材家具</option>
-            <option>汽车零部件</option>
-            <option>食品接触</option>
+            ${MockData.productCategories.map(c => `<option>${c.name}</option>`).join('')}
             </select>
             <select class="form-control" style="width:120px;">
             <option value="">认证类型</option>
@@ -42,11 +38,11 @@ const SamplesPage = {
                 <th>追溯码</th>
                 <th>样品名称</th>
                 <th>企业名称</th>
-                <th>产品类别</th>
-                <th>认证类型</th>
-                <th>数量</th>
-                <th>接收人</th>
-                <th>接收日期</th>
+                <th class="col-hide-lg">产品类别</th>
+                <th class="col-hide-md">认证类型</th>
+                <th class="col-hide-xl">数量</th>
+                <th class="col-hide-lg">接收人</th>
+                <th class="col-hide-md">接收日期</th>
                 <th>状态</th>
                 <th>操作</th>
               </tr>
@@ -79,11 +75,11 @@ const SamplesPage = {
         <td style="font-family:monospace;color:var(--primary);font-weight:600;">${s.id}</td>
         <td style="font-weight:500;">${s.name}<div style="font-size:12px;color:var(--gray-400);">${s.code}</div></td>
         <td>${s.company}</td>
-        <td><span class="badge badge-secondary">${s.category}</span></td>
-        <td>${this.renderCertType(s.certType)}</td>
-        <td>${s.amount} 件</td>
-        <td>${AppUtils.getAvatar(s.receiver) + ' ' + s.receiver}</td>
-        <td>${s.receiveDate}</td>
+        <td class="col-hide-lg"><span class="badge badge-secondary">${s.category}</span></td>
+        <td class="col-hide-md">${this.renderCertType(s.certType)}</td>
+        <td class="col-hide-xl">${s.amount} 件</td>
+        <td class="col-hide-lg">${AppUtils.getAvatar(s.receiver) + ' ' + s.receiver}</td>
+        <td class="col-hide-md">${s.receiveDate}</td>
         <td>${AppUtils.getSampleStatusBadge(s.status)}</td>
         <td>
           <div class="table-actions">
@@ -145,11 +141,7 @@ const SamplesPage = {
           <div class="floating-label">
             <select placeholder=" " id="sampleCategory">
             <option value=""></option>
-            <option>电子电器</option>
-            <option>机械装备</option>
-            <option>建材家具</option>
-            <option>汽车零部件</option>
-            <option>食品接触</option>
+            ${MockData.productCategories.map(c => `<option>${c.name}</option>`).join('')}
             </select>
             <label>产品类别 *</label>
           </div>

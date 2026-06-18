@@ -35,6 +35,14 @@ body {
   line-height: 1.6;
 }
 
+.col-hide-xxl, .col-hide-xl, .col-hide-lg, .col-hide-md, .col-hide-sm { display: table-cell; }
+
+@media (max-width: 1400px) { .col-hide-xxl { display: none !important; } }
+@media (max-width: 1200px) { .col-hide-xl  { display: none !important; } }
+@media (max-width: 992px)  { .col-hide-lg  { display: none !important; } }
+@media (max-width: 768px)  { .col-hide-md  { display: none !important; } }
+@media (max-width: 576px)  { .col-hide-sm  { display: none !important; } }
+
 .app-wrapper {
   display: flex;
   min-height: 100vh;
