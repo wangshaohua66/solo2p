@@ -107,6 +107,9 @@ func (s *ForbiddenService) CheckForbiddenZone(ctx context.Context, vesselID, ves
 		return nil, err
 	}
 
+	intersectedZoneIDs := make(map[string]struct{})
+	var firstNewViolation *model.ForbiddenViolation
+
 	for _, zone := range activeZones {
 		pipeline := bson.A{
 			bson.M{
@@ -136,38 +139,40 @@ func (s *ForbiddenService) CheckForbiddenZone(ctx context.Context, vesselID, ves
 		hasIntersection := cursor.Next(ctx)
 		cursor.Close(ctx)
 
-		if hasIntersection {
-			activeFilter := bson.M{
-				"vessel_id": vesselID,
-				"zone_id":   zone.ID,
-				"status":    model.ViolationStatusActive,
-			}
+		if !hasIntersection {
+			continue
+		}
 
-			var existingViolation model.ForbiddenViolation
-			err := s.violationCol.FindOne(ctx, activeFilter).Decode(&existingViolation)
-			if err == nil {
-				return nil, nil
-			}
+		intersectedZoneIDs[zone.ID] = struct{}{}
 
-			violation := &model.ForbiddenViolation{
-				ID:         bson.NewObjectID().Hex(),
-				VesselID:   vesselID,
-				VesselNo:   vesselNo,
-				ZoneID:     zone.ID,
-				ZoneName:   zone.Name,
-				EnterPoint: location,
-				EnterTime:  checkTime,
-				Status:     model.ViolationStatusActive,
-				Handled:    false,
-				CreatedAt:  time.Now(),
-				UpdatedAt:  time.Now(),
-			}
+		activeFilter := bson.M{
+			"vessel_id": vesselID,
+			"zone_id":   zone.ID,
+			"status":    model.ViolationStatusActive,
+		}
 
-			_, err = s.violationCol.InsertOne(ctx, violation)
-			if err != nil {
-				return nil, err
-			}
-			return violation, nil
+		var existingViolation model.ForbiddenViolation
+		err = s.violationCol.FindOne(ctx, activeFilter).Decode(&existingViolation)
+		if err == nil {
+			continue
+		}
+
+		violation := &model.ForbiddenViolation{
+			ID:         bson.NewObjectID().Hex(),
+			VesselID:   vesselID,
+			VesselNo:   vesselNo,
+			ZoneID:     zone.ID,
+			ZoneName:   zone.Name,
+			EnterPoint: location,
+			EnterTime:  checkTime,
+			Status:     model.ViolationStatusActive,
+			Handled:    false,
+			CreatedAt:  time.Now(),
+			UpdatedAt:  time.Now(),
+		}
+
+		if _, err := s.violationCol.InsertOne(ctx, violation); err == nil && firstNewViolation == nil {
+			firstNewViolation = violation
 		}
 	}
 
@@ -176,23 +181,32 @@ func (s *ForbiddenService) CheckForbiddenZone(ctx context.Context, vesselID, ves
 		"status":    model.ViolationStatusActive,
 	}
 
-	var activeViolation model.ForbiddenViolation
-	err = s.violationCol.FindOne(ctx, exitFilter).Decode(&activeViolation)
+	exitCursor, err := s.violationCol.Find(ctx, exitFilter)
 	if err == nil {
-		duration := checkTime.Sub(activeViolation.EnterTime).Hours()
-		update := bson.M{
-			"$set": bson.M{
-				"exit_point": location,
-				"exit_time":  checkTime,
-				"duration":   duration,
-				"status":     model.ViolationStatusExited,
-				"updated_at": time.Now(),
-			},
+		defer exitCursor.Close(ctx)
+
+		var activeViolations = make([]model.ForbiddenViolation, 0)
+		if err = exitCursor.All(ctx, &activeViolations); err == nil {
+			for _, v := range activeViolations {
+				if _, stillIn := intersectedZoneIDs[v.ZoneID]; stillIn {
+					continue
+				}
+				duration := checkTime.Sub(v.EnterTime).Hours()
+				update := bson.M{
+					"$set": bson.M{
+						"exit_point": location,
+						"exit_time":  checkTime,
+						"duration":   duration,
+						"status":     model.ViolationStatusExited,
+						"updated_at": time.Now(),
+					},
+				}
+				_, _ = s.violationCol.UpdateByID(ctx, v.ID, update)
+			}
 		}
-		_, _ = s.violationCol.UpdateByID(ctx, activeViolation.ID, update)
 	}
 
-	return nil, nil
+	return firstNewViolation, nil
 }
 
 func (s *ForbiddenService) ListViolations(ctx context.Context, vesselID string, status string, handled *bool, page, pageSize int64) ([]model.ForbiddenViolation, int64, error) {

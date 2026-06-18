@@ -283,9 +283,29 @@ func (s *QuotaService) ApproveTransfer(ctx context.Context, transferID string, a
 		return errors.New("insufficient quota in source vessel")
 	}
 
+	session, err := config.DB.Client.StartSession()
+	if err != nil {
+		return err
+	}
+	defer session.EndSession(ctx)
+
+	_, err = session.WithTransaction(ctx, func(sessCtx context.Context) (interface{}, error) {
+		if err := s.approveTransferCore(sessCtx, transferID, transfer.FromVesselID, transfer.ToVesselID, fromQuota.ID, year, speciesCode, amount, approvedBy, remark); err != nil {
+			return nil, err
+		}
+		return nil, nil
+	})
+	if err != nil {
+		s.rejectTransfer(ctx, transferID, err.Error())
+		return err
+	}
+
+	return nil
+}
+
+func (s *QuotaService) approveTransferCore(ctx context.Context, transferID, fromVesselID, toVesselID, fromQuotaID string, year int, speciesCode string, amount float64, approvedBy, remark string) error {
 	fromDeductFilter := bson.M{
-		"_id":             fromQuota.ID,
-		"remaining_quota": bson.M{"$gte": amount},
+		"_id": fromQuotaID,
 	}
 	fromUpdate := bson.M{
 		"$inc": bson.M{
@@ -299,12 +319,11 @@ func (s *QuotaService) ApproveTransfer(ctx context.Context, transferID string, a
 		return err
 	}
 	if fromResult.MatchedCount == 0 {
-		s.rejectTransfer(ctx, transferID, "Source vessel has insufficient quota")
-		return errors.New("insufficient quota in source vessel")
+		return errors.New("source vessel quota document not found")
 	}
 
 	toFilter := bson.M{
-		"vessel_id":    transfer.ToVesselID,
+		"vessel_id":    toVesselID,
 		"year":         year,
 		"species_code": speciesCode,
 	}
@@ -316,21 +335,11 @@ func (s *QuotaService) ApproveTransfer(ctx context.Context, transferID string, a
 		"$set": bson.M{"updated_at": time.Now()},
 	}
 	toResult, err := s.vesselQuotaCol.UpdateOne(ctx, toFilter, toUpdate)
-	if err != nil || toResult.MatchedCount == 0 {
-		rollbackFromUpdate := bson.M{
-			"$inc": bson.M{
-				"total_quota":     amount,
-				"remaining_quota": amount,
-			},
-			"$set": bson.M{"updated_at": time.Now()},
-		}
-		_, _ = s.vesselQuotaCol.UpdateByID(ctx, fromQuota.ID, rollbackFromUpdate)
-
-		s.rejectTransfer(ctx, transferID, "Target vessel quota not found, transfer rolled back")
-		if err != nil {
-			return err
-		}
-		return errors.New("target vessel quota not found, transfer rolled back")
+	if err != nil {
+		return err
+	}
+	if toResult.MatchedCount == 0 {
+		return errors.New("target vessel quota not found")
 	}
 
 	return s.updateTransferStatus(ctx, transferID, model.QuotaTransferStatusApproved, approvedBy, remark, time.Now())
