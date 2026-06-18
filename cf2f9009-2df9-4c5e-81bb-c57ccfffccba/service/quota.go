@@ -106,14 +106,32 @@ func (s *QuotaService) ListVesselQuotas(ctx context.Context, vesselID string, ye
 }
 
 func (s *QuotaService) DeductQuota(ctx context.Context, vesselID string, speciesCode string, amount float64, fishingGround string) (bool, error) {
+	session, err := config.DB.Client.StartSession()
+	if err != nil {
+		return false, err
+	}
+	defer session.EndSession(ctx)
+
+	res, err := session.WithTransaction(ctx, func(sessCtx context.Context) (interface{}, error) {
+		return s.deductQuotaCore(sessCtx, vesselID, speciesCode, amount, fishingGround)
+	})
+	if err != nil {
+		return false, err
+	}
+
+	warning, _ := res.(bool)
+	return warning, nil
+}
+
+func (s *QuotaService) deductQuotaCore(ctx context.Context, vesselID string, speciesCode string, amount float64, fishingGround string) (bool, error) {
 	year := time.Now().Year()
 
 	vesselFilter := bson.M{
-		"vessel_id":        vesselID,
-		"year":             year,
-		"species_code":     speciesCode,
-		"locked":           false,
-		"remaining_quota":  bson.M{"$gte": amount},
+		"vessel_id":       vesselID,
+		"year":            year,
+		"species_code":    speciesCode,
+		"locked":          false,
+		"remaining_quota": bson.M{"$gte": amount},
 	}
 
 	vesselUpdate := bson.M{
@@ -154,9 +172,9 @@ func (s *QuotaService) DeductQuota(ctx context.Context, vesselID string, species
 	}
 
 	annualFilter := bson.M{
-		"year":           year,
-		"species_code":   speciesCode,
-		"fishing_ground": fishingGround,
+		"year":            year,
+		"species_code":    speciesCode,
+		"fishing_ground":  fishingGround,
 		"remaining_quota": bson.M{"$gte": amount},
 	}
 	annualUpdate := bson.M{
@@ -170,20 +188,10 @@ func (s *QuotaService) DeductQuota(ctx context.Context, vesselID string, species
 	}
 
 	annualResult, err := s.quotaCol.UpdateOne(ctx, annualFilter, annualUpdate)
-	if err != nil || annualResult.MatchedCount == 0 {
-		rollbackUpdate := bson.M{
-			"$inc": bson.M{
-				"used_quota":      -amount,
-				"remaining_quota": amount,
-			},
-			"$set": bson.M{
-				"updated_at": time.Now(),
-			},
-		}
-		_, _ = s.vesselQuotaCol.UpdateByID(ctx, oldQuota.ID, rollbackUpdate)
-		if err != nil {
-			return false, err
-		}
+	if err != nil {
+		return false, err
+	}
+	if annualResult.MatchedCount == 0 {
 		return false, errors.New("annual quota insufficient")
 	}
 
@@ -208,6 +216,31 @@ func (s *QuotaService) DeductQuota(ctx context.Context, vesselID string, species
 	return warning, nil
 }
 
+func (s *QuotaService) DeductQuotaAndInsertCatch(ctx context.Context, vesselID string, speciesCode string, amount float64, fishingGround string, record *model.CatchRecord) (bool, error) {
+	session, err := config.DB.Client.StartSession()
+	if err != nil {
+		return false, err
+	}
+	defer session.EndSession(ctx)
+
+	res, err := session.WithTransaction(ctx, func(sessCtx context.Context) (interface{}, error) {
+		warning, err := s.deductQuotaCore(sessCtx, vesselID, speciesCode, amount, fishingGround)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := s.catchCol.InsertOne(sessCtx, record); err != nil {
+			return nil, err
+		}
+		return warning, nil
+	})
+	if err != nil {
+		return false, err
+	}
+
+	warning, _ := res.(bool)
+	return warning, nil
+}
+
 func (s *QuotaService) CreateTransfer(ctx context.Context, transfer *model.QuotaTransfer) error {
 	transfer.Status = model.QuotaTransferStatusPending
 	transfer.CreatedAt = time.Now()
@@ -227,99 +260,105 @@ func (s *QuotaService) ApproveTransfer(ctx context.Context, transferID string, a
 		return errors.New("transfer not in pending status")
 	}
 
-	status := model.QuotaTransferStatusRejected
-	if approved {
-		status = model.QuotaTransferStatusApproved
+	if !approved {
+		return s.updateTransferStatus(ctx, transferID, model.QuotaTransferStatusRejected, approvedBy, remark, time.Now())
 	}
 
-	update := bson.M{
-		"$set": bson.M{
-			"status":          status,
-			"approved_by":     approvedBy,
-			"approval_remark": remark,
-			"approved_at":     time.Now(),
-			"updated_at":      time.Now(),
-		},
+	year := transfer.Year
+	speciesCode := transfer.SpeciesCode
+	amount := transfer.Amount
+
+	var fromQuota model.VesselQuota
+	fromQueryFilter := bson.M{
+		"vessel_id":    transfer.FromVesselID,
+		"year":         year,
+		"species_code": speciesCode,
 	}
-	_, err = s.transferCol.UpdateByID(ctx, transferID, update)
+	if err := s.vesselQuotaCol.FindOne(ctx, fromQueryFilter).Decode(&fromQuota); err != nil {
+		s.rejectTransfer(ctx, transferID, "Source vessel quota not found")
+		return errors.New("source vessel quota not found")
+	}
+	if fromQuota.RemainingQuota < amount {
+		s.rejectTransfer(ctx, transferID, "Source vessel has insufficient quota")
+		return errors.New("insufficient quota in source vessel")
+	}
+
+	fromDeductFilter := bson.M{
+		"_id":             fromQuota.ID,
+		"remaining_quota": bson.M{"$gte": amount},
+	}
+	fromUpdate := bson.M{
+		"$inc": bson.M{
+			"total_quota":     -amount,
+			"remaining_quota": -amount,
+		},
+		"$set": bson.M{"updated_at": time.Now()},
+	}
+	fromResult, err := s.vesselQuotaCol.UpdateOne(ctx, fromDeductFilter, fromUpdate)
 	if err != nil {
 		return err
 	}
+	if fromResult.MatchedCount == 0 {
+		s.rejectTransfer(ctx, transferID, "Source vessel has insufficient quota")
+		return errors.New("insufficient quota in source vessel")
+	}
 
-	if approved {
-		year := transfer.Year
-		speciesCode := transfer.SpeciesCode
-		amount := transfer.Amount
-
-		fromFilter := bson.M{
-			"vessel_id":       transfer.FromVesselID,
-			"year":            year,
-			"species_code":    speciesCode,
-			"remaining_quota": bson.M{"$gte": amount},
-		}
-		fromUpdate := bson.M{
-			"$inc": bson.M{
-				"total_quota":     -amount,
-				"remaining_quota": -amount,
-			},
-			"$set": bson.M{"updated_at": time.Now()},
-		}
-		fromResult, err := s.vesselQuotaCol.UpdateOne(ctx, fromFilter, fromUpdate)
-		if err != nil {
-			return err
-		}
-		if fromResult.MatchedCount == 0 {
-			rejectUpdate := bson.M{
-				"$set": bson.M{
-					"status":          model.QuotaTransferStatusRejected,
-					"approval_remark": "Source vessel has insufficient quota",
-					"updated_at":      time.Now(),
-				},
-			}
-			_, _ = s.transferCol.UpdateByID(ctx, transferID, rejectUpdate)
-			return errors.New("insufficient quota in source vessel")
-		}
-
-		toFilter := bson.M{
-			"vessel_id":    transfer.ToVesselID,
-			"year":         year,
-			"species_code": speciesCode,
-		}
-		toUpdate := bson.M{
+	toFilter := bson.M{
+		"vessel_id":    transfer.ToVesselID,
+		"year":         year,
+		"species_code": speciesCode,
+	}
+	toUpdate := bson.M{
+		"$inc": bson.M{
+			"total_quota":     amount,
+			"remaining_quota": amount,
+		},
+		"$set": bson.M{"updated_at": time.Now()},
+	}
+	toResult, err := s.vesselQuotaCol.UpdateOne(ctx, toFilter, toUpdate)
+	if err != nil || toResult.MatchedCount == 0 {
+		rollbackFromUpdate := bson.M{
 			"$inc": bson.M{
 				"total_quota":     amount,
 				"remaining_quota": amount,
 			},
 			"$set": bson.M{"updated_at": time.Now()},
 		}
-		toResult, err := s.vesselQuotaCol.UpdateOne(ctx, toFilter, toUpdate)
-		if err != nil || toResult.MatchedCount == 0 {
-			rollbackFromUpdate := bson.M{
-				"$inc": bson.M{
-					"total_quota":     amount,
-					"remaining_quota": amount,
-				},
-				"$set": bson.M{"updated_at": time.Now()},
-			}
-			_, _ = s.vesselQuotaCol.UpdateOne(ctx, fromFilter, rollbackFromUpdate)
+		_, _ = s.vesselQuotaCol.UpdateByID(ctx, fromQuota.ID, rollbackFromUpdate)
 
-			rejectUpdate := bson.M{
-				"$set": bson.M{
-					"status":          model.QuotaTransferStatusRejected,
-					"approval_remark": "Target vessel quota not found, transfer rolled back",
-					"updated_at":      time.Now(),
-				},
-			}
-			_, _ = s.transferCol.UpdateByID(ctx, transferID, rejectUpdate)
-
-			if err != nil {
-				return err
-			}
-			return errors.New("target vessel quota not found, transfer rolled back")
+		s.rejectTransfer(ctx, transferID, "Target vessel quota not found, transfer rolled back")
+		if err != nil {
+			return err
 		}
+		return errors.New("target vessel quota not found, transfer rolled back")
 	}
 
-	return nil
+	return s.updateTransferStatus(ctx, transferID, model.QuotaTransferStatusApproved, approvedBy, remark, time.Now())
+}
+
+func (s *QuotaService) updateTransferStatus(ctx context.Context, transferID, status, approvedBy, remark string, approvedAt time.Time) error {
+	update := bson.M{
+		"$set": bson.M{
+			"status":          status,
+			"approved_by":     approvedBy,
+			"approval_remark": remark,
+			"approved_at":     approvedAt,
+			"updated_at":      time.Now(),
+		},
+	}
+	_, err := s.transferCol.UpdateByID(ctx, transferID, update)
+	return err
+}
+
+func (s *QuotaService) rejectTransfer(ctx context.Context, transferID, reason string) {
+	update := bson.M{
+		"$set": bson.M{
+			"status":          model.QuotaTransferStatusRejected,
+			"approval_remark": reason,
+			"updated_at":      time.Now(),
+		},
+	}
+	_, _ = s.transferCol.UpdateByID(ctx, transferID, update)
 }
 
 func (s *QuotaService) ListTransfers(ctx context.Context, vesselID string, status string, page, pageSize int64) ([]model.QuotaTransfer, int64, error) {

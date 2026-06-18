@@ -19,6 +19,12 @@ type VesselHandler struct {
 	vesselCol        *mongo.Collection
 }
 
+const (
+	nauticalMileInKm        = 1.852
+	defaultMaxYawNauticalMiles = 5.0
+	defaultMaxYawDistanceKm = defaultMaxYawNauticalMiles * nauticalMileInKm
+)
+
 func NewVesselHandler() *VesselHandler {
 	return &VesselHandler{
 		trackerService:   service.NewTrackerService(),
@@ -124,6 +130,9 @@ func (h *VesselHandler) UpdateVessel(c echo.Context) error {
 			"beidou_id":                vessel.BeidouID,
 			"fuel_tank_capacity":        vessel.FuelTankCapacity,
 			"daily_fuel_consumption":    vessel.DailyFuelConsumption,
+			"average_speed":            vessel.AverageSpeed,
+			"operation_base_point":     vessel.OperationBasePoint,
+			"max_yaw_distance":         vessel.MaxYawDistance,
 			"updated_at":                time.Now(),
 		},
 	}
@@ -214,7 +223,7 @@ func (h *VesselHandler) ReportPosition(c echo.Context) error {
 		}
 		maxDistance := vessel.MaxYawDistance
 		if maxDistance <= 0 {
-			maxDistance = 5.0
+			maxDistance = defaultMaxYawDistanceKm
 		}
 
 		yawAlert, _ = h.trackerService.CheckYaw(ctx, point, basePoint, maxDistance)

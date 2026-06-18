@@ -65,43 +65,38 @@ func (h *CatchHandler) ReportCatch(c echo.Context) error {
 		}
 	}
 
-	warning, err := h.quotaService.DeductQuota(ctx, req.VesselID, req.SpeciesCode, req.Weight, req.FishingGround)
+	record := &model.CatchRecord{
+		ID:            bson.NewObjectID().Hex(),
+		VesselID:      req.VesselID,
+		VesselNo:      req.VesselNo,
+		SpeciesCode:   req.SpeciesCode,
+		SpeciesName:   req.SpeciesName,
+		Weight:        req.Weight,
+		LengthMin:     req.LengthMin,
+		LengthMax:     req.LengthMax,
+		Location:      model.NewPoint(req.Longitude, req.Latitude),
+		WaterTemp:     req.WaterTemp,
+		FishingGround: req.FishingGround,
+		CatchTime:     catchTime,
+		ReportedBy:    req.ReportedBy,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+	}
+
+	warning, err := h.quotaService.DeductQuotaAndInsertCatch(ctx, req.VesselID, req.SpeciesCode, req.Weight, req.FishingGround, record)
 	if err != nil {
-		if err.Error() == "quota not found or locked" {
+		switch err.Error() {
+		case "quota not found", "quota is locked":
 			return errorResponse(c, model.ErrCodeQuotaLocked, "quota is locked or not found")
-		}
-		if err.Error() == "insufficient quota" {
+		case "insufficient quota", "annual quota insufficient":
 			return errorResponse(c, model.ErrCodeQuotaExceeded, "insufficient quota")
 		}
 		return systemErrorResponse(c, err.Error())
 	}
 
-	record := &model.CatchRecord{
-		ID:           bson.NewObjectID().Hex(),
-		VesselID:     req.VesselID,
-		VesselNo:     req.VesselNo,
-		SpeciesCode:  req.SpeciesCode,
-		SpeciesName:  req.SpeciesName,
-		Weight:       req.Weight,
-		LengthMin:    req.LengthMin,
-		LengthMax:    req.LengthMax,
-		Location:     model.NewPoint(req.Longitude, req.Latitude),
-		WaterTemp:    req.WaterTemp,
-		FishingGround: req.FishingGround,
-		CatchTime:    catchTime,
-		ReportedBy:   req.ReportedBy,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
-	}
-
-	_, err = h.catchCol.InsertOne(ctx, record)
-	if err != nil {
-		return systemErrorResponse(c, err.Error())
-	}
-
 	result := map[string]interface{}{
-		"record":         record,
-		"quota_warning":  warning,
+		"record":        record,
+		"quota_warning": warning,
 	}
 
 	return successResponse(c, result)
