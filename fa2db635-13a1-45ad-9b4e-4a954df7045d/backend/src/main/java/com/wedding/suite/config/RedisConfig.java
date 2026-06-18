@@ -17,6 +17,7 @@ import java.time.Duration;
 
 @Configuration
 @ConditionalOnProperty(prefix = "spring.redis", name = "host", matchIfMissing = false)
+// FIXME: Redis 缓存配置已就绪，但当前未启用 @Cacheable 注解。如需启用热点档期缓存，请在 application.yml 中配置 spring.redis.host 并在相关 Service 方法上添加 @Cacheable 注解
 public class RedisConfig {
 
     @Value("${wedding.cache.schedule-ttl:1800}")

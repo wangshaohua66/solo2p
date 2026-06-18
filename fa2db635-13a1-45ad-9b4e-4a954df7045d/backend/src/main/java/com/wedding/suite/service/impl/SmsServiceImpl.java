@@ -40,6 +40,7 @@ public class SmsServiceImpl implements SmsService {
     @Override
     public void send(String phone, String templateCode, Map<String, String> params) {
         if (!isEnabled()) {
+            // TODO: 未配置短信服务，当前仅记录日志。请在 application.yml 中配置 wedding.sms.provider 及对应的服务商密钥后启用真实短信发送
             log.info("[SMS disabled] phone={}, params={}", phone, params);
             return;
         }

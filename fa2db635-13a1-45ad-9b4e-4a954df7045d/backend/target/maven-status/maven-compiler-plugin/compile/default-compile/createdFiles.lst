@@ -18,6 +18,7 @@ com/wedding/suite/dto/response/QuoteVO.class
 com/wedding/suite/dto/request/StoreSaveRequest.class
 com/wedding/suite/service/impl/SmsServiceImpl.class
 com/wedding/suite/repository/SupplierOrderRepository.class
+com/wedding/suite/controller/EsignCallbackController.class
 com/wedding/suite/service/impl/ExportServiceImpl.class
 com/wedding/suite/dto/request/ContractClauseRequest.class
 com/wedding/suite/entity/TimelineEventEntity.class

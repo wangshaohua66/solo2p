@@ -34,7 +34,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/auth/**", "/api/auth/**", "/error", "/api/error",
-                                "/notifications/sse", "/api/notifications/sse").permitAll()
+                                "/notifications/sse", "/api/notifications/sse",
+                                "/esign/**", "/api/esign/**").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

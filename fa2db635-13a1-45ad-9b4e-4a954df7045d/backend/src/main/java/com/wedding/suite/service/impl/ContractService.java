@@ -112,17 +112,23 @@ public class ContractService {
         WeddingEntity w = weddingRepo.findById(c.getWeddingId()).orElse(null);
         String signer = (req.getSigner() == null || req.getSigner().isBlank())
                 ? (w != null ? w.getCoupleName() : "甲方") : req.getSigner();
-        if (signService.isEnabled()) {
-            SignResultVO result = signService.createSignFlow(id, signer, w != null ? w.getPhone() : null);
-            c.setSignUrl(result.getSignUrl());
-            c.setFlowId(result.getFlowId());
-            c.setSignature(signer);
-            c.setStatus(ContractStatus.PENDING);
-        } else if (req.getSignature() != null) {
-            c.setSignature(req.getSignature());
+        String phone = (req.getSignerPhone() == null || req.getSignerPhone().isBlank())
+                ? (w != null ? w.getPhone() : null) : req.getSignerPhone();
+        
+        SignResultVO result = signService.createSignFlow(id, signer, phone);
+        c.setSignUrl(result.getSignUrl());
+        c.setFlowId(result.getFlowId());
+        c.setSignature(signer);
+        
+        if (!signService.isEnabled() && req.getSignature() != null) {
             c.setStatus(ContractStatus.SIGNED);
             c.setSignedAt(LocalDateTime.now());
+        } else if (!signService.isEnabled()) {
+            c.setStatus(ContractStatus.PENDING);
+        } else {
+            c.setStatus(ContractStatus.PENDING);
         }
+        
         ContractEntity saved = contractRepo.save(c);
         if (saved.getStatus() == ContractStatus.SIGNED) {
             notifyContractChange(saved, "合同已签署");

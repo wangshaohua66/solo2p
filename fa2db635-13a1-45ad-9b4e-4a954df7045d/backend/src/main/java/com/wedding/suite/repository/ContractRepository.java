@@ -10,4 +10,5 @@ public interface ContractRepository extends JpaRepository<ContractEntity, Long> 
     List<ContractEntity> findByStatus(ContractStatus status);
     List<ContractEntity> findByWeddingId(Long weddingId);
     long countByStatus(ContractStatus status);
+    java.util.Optional<ContractEntity> findByFlowId(String flowId);
 }
