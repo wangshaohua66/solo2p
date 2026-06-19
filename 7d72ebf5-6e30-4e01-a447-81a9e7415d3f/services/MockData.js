@@ -292,7 +292,174 @@ const MockData = {
     '公积金': 'item-009',
     '税务登记': 'item-010',
     '办税': 'item-010'
-  }
+  },
+
+  materialTemplates: {
+    'm-001-3': {
+      id: 'm-001-3',
+      name: '身份证申领登记表',
+      formTitle: '居民身份证申领登记表',
+      issuingAuthority: '公安局人口管理支队',
+      formNumber: 'GA-2024-001',
+      fields: [
+        { name: '姓名', type: 'text', required: true, width: 'full', example: '张三', placeholder: '请填写真实姓名' },
+        { name: '性别', type: 'radio', required: true, width: 'half', options: ['男', '女'], example: '男' },
+        { name: '民族', type: 'text', required: true, width: 'half', example: '汉族' },
+        { name: '出生日期', type: 'date', required: true, width: 'half', example: '1990-01-15' },
+        { name: '公民身份号码', type: 'text', required: true, width: 'half', example: '110101199001151234' },
+        { name: '户籍地址', type: 'textarea', required: true, width: 'full', example: '北京市东城区某某街道某某小区1号楼1单元101室' },
+        { name: '现居住地址', type: 'textarea', required: true, width: 'full', example: '同上' },
+        { name: '联系电话', type: 'text', required: true, width: 'half', example: '138****8000' },
+        { name: '申领原因', type: 'select', required: true, width: 'half', options: ['首次申领', '到期换领', '丢失补领', '损坏换领'], example: '到期换领' },
+        { name: '申领人签名', type: 'signature', required: true, width: 'full', example: '（手写签名区域）' }
+      ],
+      notices: [
+        '本表请用黑色签字笔填写，字迹要清楚、工整',
+        '申请时请携带本人户口簿、原居民身份证（换领时）',
+        '未满16周岁公民申请领取居民身份证，由监护人代为申请领取',
+        '提交申请后60日内发放居民身份证'
+      ]
+    },
+    'm-002-3': {
+      id: 'm-002-3',
+      name: '社保卡申领表',
+      formTitle: '社会保障卡申领登记表',
+      issuingAuthority: '人力资源和社会保障局',
+      formNumber: 'SB-2024-003',
+      fields: [
+        { name: '姓名', type: 'text', required: true, width: 'full', example: '李四', placeholder: '请填写真实姓名' },
+        { name: '性别', type: 'radio', required: true, width: 'half', options: ['男', '女'], example: '女' },
+        { name: '身份证号', type: 'text', required: true, width: 'half', example: '110101198805205678' },
+        { name: '出生日期', type: 'date', required: true, width: 'half', example: '1988-05-20' },
+        { name: '民族', type: 'text', required: true, width: 'half', example: '汉族' },
+        { name: '户口性质', type: 'select', required: true, width: 'half', options: ['城镇户口', '农业户口'], example: '城镇户口' },
+        { name: '参保单位', type: 'text', required: true, width: 'full', example: '北京某某科技有限公司' },
+        { name: '联系电话', type: 'text', required: true, width: 'half', example: '139****6666' },
+        { name: '通讯地址', type: 'textarea', required: true, width: 'full', example: '北京市海淀区中关村大街1号' },
+        { name: '申领人签名', type: 'signature', required: true, width: 'full', example: '（手写签名区域）' }
+      ],
+      notices: [
+        '办理社保卡需本人携带有效身份证件原件',
+        '首次申领社保卡免费，补领需缴纳工本费20元',
+        '社保卡制作周期约为30个工作日',
+        '领取社保卡时请携带本人身份证原件'
+      ]
+    },
+    'm-003-1': {
+      id: 'm-003-1',
+      name: '登记申请书',
+      formTitle: '不动产登记申请书',
+      issuingAuthority: '自然资源和规划局不动产登记中心',
+      formNumber: 'BD-2024-101',
+      fields: [
+        { name: '申请事项', type: 'select', required: true, width: 'full', options: ['首次登记', '转移登记', '变更登记', '注销登记', '抵押登记'], example: '首次登记' },
+        { name: '申请人姓名/名称', type: 'text', required: true, width: 'full', example: '王五' },
+        { name: '证件类型', type: 'select', required: true, width: 'half', options: ['身份证', '营业执照', '组织机构代码证', '护照'], example: '身份证' },
+        { name: '证件号码', type: 'text', required: true, width: 'half', example: '110101197512258888' },
+        { name: '联系电话', type: 'text', required: true, width: 'half', example: '136****9999' },
+        { name: '代理人姓名', type: 'text', required: false, width: 'half', example: '' },
+        { name: '不动产坐落', type: 'textarea', required: true, width: 'full', example: '北京市朝阳区建国路88号院5号楼3单元1802室' },
+        { name: '不动产类型', type: 'select', required: true, width: 'half', options: ['住宅', '商业', '办公', '工业', '其他'], example: '住宅' },
+        { name: '建筑面积(㎡)', type: 'number', required: true, width: 'half', example: '89.56' },
+        { name: '申请人签名', type: 'signature', required: true, width: 'full', example: '（手写签名区域）' }
+      ],
+      notices: [
+        '申请人应当对申请材料的真实性负责',
+        '共有不动产的，应当由共有人共同申请登记',
+        '不动产登记机构应当自受理登记申请之日起30个工作日内办结',
+        '申请材料齐全、符合法定形式的，应当予以受理'
+      ]
+    },
+    'm-004-1': {
+      id: 'm-004-1',
+      name: '公司设立登记申请书',
+      formTitle: '公司设立登记申请书',
+      issuingAuthority: '市场监督管理局',
+      formNumber: 'GS-2024-201',
+      fields: [
+        { name: '公司名称', type: 'text', required: true, width: 'full', example: '北京某某科技有限公司' },
+        { name: '统一社会信用代码', type: 'text', required: false, width: 'full', example: '（系统自动生成）' },
+        { name: '公司类型', type: 'select', required: true, width: 'half', options: ['有限责任公司', '股份有限公司', '一人有限责任公司'], example: '有限责任公司' },
+        { name: '注册资本(万元)', type: 'number', required: true, width: 'half', example: '500' },
+        { name: '法定代表人', type: 'text', required: true, width: 'half', example: '赵六' },
+        { name: '联系电话', type: 'text', required: true, width: 'half', example: '137****7777' },
+        { name: '经营范围', type: 'textarea', required: true, width: 'full', example: '技术开发、技术咨询、技术服务；计算机系统服务；软件开发；销售计算机、软件及辅助设备。（依法须经批准的项目，经相关部门批准后方可开展经营活动）' },
+        { name: '公司住所', type: 'textarea', required: true, width: 'full', example: '北京市昌平区某某产业园A座1001室' },
+        { name: '营业期限', type: 'select', required: true, width: 'half', options: ['长期', '10年', '20年', '30年'], example: '长期' },
+        { name: '法定代表人签名', type: 'signature', required: true, width: 'full', example: '（手写签名区域）' }
+      ],
+      notices: [
+        '设立有限责任公司，应当由全体股东指定的代表或者共同委托的代理人向公司登记机关申请设立登记',
+        '申请材料齐全、符合法定形式的，公司登记机关应当当场予以登记',
+        '公司营业执照签发日期为公司成立日期',
+        '公司应当如实向登记机关提交材料，并对材料真实性负责'
+      ]
+    },
+    'm-004-2': {
+      id: 'm-004-2',
+      name: '公司章程',
+      formTitle: '有限责任公司章程',
+      issuingAuthority: '（公司自行制定）',
+      formNumber: 'GS-2024-202',
+      fields: [
+        { name: '公司名称', type: 'text', required: true, width: 'full', example: '北京某某科技有限公司' },
+        { name: '公司住所', type: 'textarea', required: true, width: 'full', example: '北京市昌平区某某产业园A座1001室' },
+        { name: '公司经营范围', type: 'textarea', required: true, width: 'full', example: '技术开发、技术咨询、技术服务；计算机系统服务；软件开发。' },
+        { name: '公司注册资本', type: 'text', required: true, width: 'half', example: '人民币500万元整' },
+        { name: '股东人数', type: 'number', required: true, width: 'half', example: '3' },
+        { name: '股东姓名或名称', type: 'textarea', required: true, width: 'full', example: '1. 赵六（出资200万元，占比40%）\\n2. 孙七（出资200万元，占比40%）\\n3. 周八（出资100万元，占比20%）' },
+        { name: '公司机构及其产生办法', type: 'textarea', required: true, width: 'full', example: '公司设股东会，由全体股东组成。股东会是公司的权力机构，依照本法行使职权。公司设董事会，成员为3人，由股东会选举产生。' },
+        { name: '法定代表人', type: 'text', required: true, width: 'full', example: '公司董事长赵六为公司法定代表人' },
+        { name: '全体股东签名', type: 'signature', required: true, width: 'full', example: '（全体股东签名区域）' }
+      ],
+      notices: [
+        '公司章程是公司组织和活动的基本准则，对公司、股东、董事、监事、高级管理人员具有约束力',
+        '设立公司必须依法制定公司章程',
+        '公司章程修改须经股东会代表三分之二以上表决权的股东通过',
+        '建议由专业律师起草或审核公司章程'
+      ]
+    }
+  },
+
+  selfServiceTerminals: (function() {
+    const terminals = [];
+    const terminalTypes = ['综合业务', '证照打印', '社保查询', '税务办理'];
+    for (let i = 1; i <= 6; i++) {
+      terminals.push({
+        id: `A${i}`,
+        name: `自助终端 A${i}`,
+        type: terminalTypes[(i - 1) % terminalTypes.length],
+        status: Math.random() > 0.3 ? 'available' : (Math.random() > 0.5 ? 'busy' : 'maintenance'),
+        currentUser: Math.random() > 0.3 ? null : { name: `用户${i}0${i}`, startTime: Date.now() - Math.floor(Math.random() * 300000) },
+        waitQueue: Math.floor(Math.random() * 4),
+        estimatedWait: Math.floor(Math.random() * 15) + 5
+      });
+    }
+    return terminals;
+  })(),
+
+  waitingAreas: (function() {
+    const areas = [];
+    const areaNames = ['A区等候区', 'B区等候区', 'C区等候区', 'D区等候区'];
+    for (let i = 0; i < 4; i++) {
+      const totalSeats = 30 + i * 10;
+      const occupiedSeats = Math.floor(totalSeats * (0.4 + Math.random() * 0.4));
+      areas.push({
+        id: `area-${String.fromCharCode(65 + i)}`,
+        name: areaNames[i],
+        totalSeats: totalSeats,
+        occupiedSeats: occupiedSeats,
+        availableSeats: totalSeats - occupiedSeats,
+        occupancyRate: Math.round((occupiedSeats / totalSeats) * 100),
+        facilities: [
+          { id: 1, name: '充电插座', available: Math.floor(Math.random() * 8) + 2 },
+          { id: 2, name: '饮用水', available: Math.random() > 0.1 ? true : false },
+          { id: 3, name: '阅览书报', available: Math.random() > 0.2 ? true : false }
+        ]
+      });
+    }
+    return areas;
+  })()
 };
 
 window.MockData = MockData;

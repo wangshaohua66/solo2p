@@ -6,7 +6,9 @@ class QueueSystem extends BaseComponent {
       myQueue: null,
       showCallModal: false,
       callInfo: null,
-      selectedWindowId: null
+      selectedWindowId: null,
+      hallLayout: { terminals: [], waitingAreas: [] },
+      hallLoading: true
     };
   }
 
@@ -40,6 +42,27 @@ class QueueSystem extends BaseComponent {
     });
 
     this.startPolling();
+    this.loadHallLayout();
+  }
+
+  async loadHallLayout() {
+    try {
+      const res = await ApiService.getHallLayout();
+      if (res.code === 200 && res.data) {
+        this.setState({
+          hallLayout: {
+            terminals: res.data.terminals || [],
+            waitingAreas: res.data.waitingAreas || []
+          },
+          hallLoading: false
+        });
+      } else {
+        this.setState({ hallLoading: false });
+      }
+    } catch (e) {
+      console.error('加载大厅布局失败:', e);
+      this.setState({ hallLoading: false });
+    }
   }
 
   startPolling() {
@@ -424,6 +447,225 @@ class QueueSystem extends BaseComponent {
           font-size: 12px;
           margin-bottom: 12px;
         }
+        .hall-layout-section {
+          background: #fff;
+          border-radius: 8px;
+          padding: 20px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+          margin-top: 24px;
+        }
+        .hall-layout-title {
+          font-size: 18px;
+          font-weight: 600;
+          color: #2c3e50;
+          margin-bottom: 16px;
+          padding-left: 12px;
+          border-left: 4px solid #16a085;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .hall-sub-title {
+          font-size: 14px;
+          font-weight: 600;
+          color: #34495e;
+          margin: 20px 0 12px 0;
+          padding-bottom: 8px;
+          border-bottom: 1px solid #ecf0f1;
+        }
+        .hall-sub-title:first-child { margin-top: 0; }
+        .terminals-grid {
+          display: grid;
+          grid-template-columns: repeat(6, 1fr);
+          gap: 12px;
+          margin-bottom: 24px;
+        }
+        @media (max-width: 900px) {
+          .terminals-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+        .terminal-card {
+          background: #fff;
+          border: 1px solid #e0e0e0;
+          border-radius: 10px;
+          padding: 14px 12px;
+          text-align: center;
+          transition: all 0.25s;
+          position: relative;
+          overflow: hidden;
+        }
+        .terminal-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+        }
+        .terminal-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 4px;
+        }
+        .terminal-card.status-available::before { background: #27ae60; }
+        .terminal-card.status-busy::before { background: #f39c12; }
+        .terminal-card.status-maintenance::before { background: #95a5a6; }
+        .terminal-card.status-available { border-color: #d5f5e3; }
+        .terminal-card.status-busy { border-color: #fdebd0; }
+        .terminal-card.status-maintenance { border-color: #e0e0e0; opacity: 0.75; }
+        .terminal-icon {
+          width: 42px;
+          height: 42px;
+          border-radius: 10px;
+          margin: 0 auto 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 20px;
+        }
+        .status-available .terminal-icon { background: #eafaf1; color: #27ae60; }
+        .status-busy .terminal-icon { background: #fef5e7; color: #f39c12; }
+        .status-maintenance .terminal-icon { background: #f4f6f7; color: #95a5a6; }
+        .terminal-id {
+          font-size: 16px;
+          font-weight: 700;
+          color: #2c3e50;
+          margin-bottom: 4px;
+        }
+        .terminal-type {
+          font-size: 12px;
+          color: #7f8c8d;
+          margin-bottom: 8px;
+        }
+        .terminal-status-badge {
+          display: inline-block;
+          font-size: 11px;
+          padding: 2px 10px;
+          border-radius: 10px;
+          margin-bottom: 6px;
+        }
+        .status-available .terminal-status-badge {
+          background: #eafaf1; color: #1e8449;
+        }
+        .status-busy .terminal-status-badge {
+          background: #fef5e7; color: #d35400;
+        }
+        .status-maintenance .terminal-status-badge {
+          background: #f4f6f7; color: #616161;
+        }
+        .terminal-queue-info {
+          font-size: 12px;
+          color: #7f8c8d;
+          margin-top: 6px;
+          padding-top: 6px;
+          border-top: 1px solid #f0f0f0;
+        }
+        .terminal-queue-info .queue-num {
+          font-weight: 700;
+          color: #f39c12;
+        }
+        .waiting-areas-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 16px;
+        }
+        @media (max-width: 640px) {
+          .waiting-areas-grid { grid-template-columns: 1fr; }
+        }
+        .waiting-area-card {
+          background: #fff;
+          border: 1px solid #e8e8e8;
+          border-radius: 12px;
+          padding: 18px;
+          transition: all 0.25s;
+        }
+        .waiting-area-card:hover {
+          box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+        }
+        .area-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 14px;
+        }
+        .area-name {
+          font-size: 15px;
+          font-weight: 600;
+          color: #2c3e50;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .area-name i { color: #3498db; }
+        .area-rate-badge {
+          padding: 3px 12px;
+          border-radius: 12px;
+          font-size: 12px;
+          font-weight: 600;
+        }
+        .area-rate-low { background: #eafaf1; color: #1e8449; }
+        .area-rate-medium { background: #fef9e7; color: #b7950b; }
+        .area-rate-high { background: #fadbd8; color: #c0392b; }
+        .area-seat-info {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 12px;
+        }
+        .area-seat-progress {
+          flex: 1;
+          height: 8px;
+          background: #ecf0f1;
+          border-radius: 4px;
+          overflow: hidden;
+        }
+        .area-seat-fill {
+          height: 100%;
+          border-radius: 4px;
+          transition: width 0.5s;
+        }
+        .area-seat-fill.rate-low { background: linear-gradient(90deg, #abebc6, #27ae60); }
+        .area-seat-fill.rate-medium { background: linear-gradient(90deg, #f9e79f, #f39c12); }
+        .area-seat-fill.rate-high { background: linear-gradient(90deg, #f5b7b1, #e74c3c); }
+        .area-seat-text {
+          font-size: 13px;
+          color: #7f8c8d;
+          min-width: 90px;
+          text-align: right;
+        }
+        .area-seat-text .num {
+          font-weight: 700;
+          color: #2c3e50;
+        }
+        .area-seats-grid {
+          display: grid;
+          grid-template-columns: repeat(10, 1fr);
+          gap: 3px;
+          margin-bottom: 12px;
+        }
+        .seat-dot {
+          width: 100%;
+          aspect-ratio: 1;
+          border-radius: 3px;
+        }
+        .seat-dot.occupied { background: #e57373; }
+        .seat-dot.empty { background: #a5d6a7; }
+        .area-facilities {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          padding-top: 10px;
+          border-top: 1px solid #f0f0f0;
+        }
+        .area-facility {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 4px 10px;
+          background: #ebf5fb;
+          border-radius: 12px;
+          font-size: 12px;
+          color: #2980b9;
+        }
+        .area-facility i { font-size: 12px; }
       </style>
     `;
   }
@@ -560,6 +802,120 @@ class QueueSystem extends BaseComponent {
     `;
   }
 
+  renderHallLayout() {
+    const { terminals, waitingAreas } = this.state.hallLayout;
+
+    if (this.state.hallLoading) {
+      return `
+        <div class="hall-layout-section">
+          <div class="hall-layout-title">
+            <i class="fa fa-map-o"></i> 大厅场景布局
+          </div>
+          <div class="loading">正在加载大厅数据...</div>
+        </div>
+      `;
+    }
+
+    const statusText = { available: '空闲', busy: '使用中', maintenance: '维护中' };
+    const typeIcon = {
+      '综合业务': 'fa-desktop',
+      '身份证业务': 'fa-id-card-o',
+      '社保业务': 'fa-address-card-o',
+      '证照打印': 'fa-print',
+      '不动产查询': 'fa-home'
+    };
+
+    const terminalsHtml = terminals && terminals.length > 0 ? `
+      <div class="hall-sub-title">自助服务终端 (共 ${terminals.length} 台)</div>
+      <div class="terminals-grid">
+        ${terminals.map(t => `
+          <div class="terminal-card status-${t.status}">
+            <div class="terminal-icon">
+              <i class="fa ${typeIcon[t.type] || 'fa-desktop'}"></i>
+            </div>
+            <div class="terminal-id">${this.escapeHtml(t.id)}</div>
+            <div class="terminal-type">${this.escapeHtml(t.name || t.type)}</div>
+            <span class="terminal-status-badge">${statusText[t.status] || t.status}</span>
+            <div class="terminal-queue-info">
+              ${t.status === 'maintenance'
+                ? '<i class="fa fa-wrench"></i> 维护中'
+                : `<span>排队等待 <span class="queue-num">${t.waitQueue || 0}</span> 人</span>`
+              }
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    ` : '';
+
+    const getRateClass = (rate) => {
+      if (rate < 50) return 'low';
+      if (rate < 80) return 'medium';
+      return 'high';
+    };
+
+    const renderSeats = (total, occupied) => {
+      let seats = '';
+      for (let i = 0; i < Math.min(total, 30); i++) {
+        seats += `<div class="seat-dot ${i < occupied ? 'occupied' : 'empty'}"></div>`;
+      }
+      return seats;
+    };
+
+    const areasHtml = waitingAreas && waitingAreas.length > 0 ? `
+      <div class="hall-sub-title">等候休息区 (共 ${waitingAreas.length} 个)</div>
+      <div class="waiting-areas-grid">
+        ${waitingAreas.map(area => {
+          const rate = area.occupancyRate || 0;
+          const rateClass = getRateClass(rate);
+          const total = area.totalSeats || 0;
+          const occupied = area.occupiedSeats || 0;
+          return `
+            <div class="waiting-area-card">
+              <div class="area-header">
+                <div class="area-name">
+                  <i class="fa fa-users"></i>
+                  ${this.escapeHtml(area.name)}
+                </div>
+                <span class="area-rate-badge area-rate-${rateClass}">${rate}%</span>
+              </div>
+              <div class="area-seat-info">
+                <div class="area-seat-progress">
+                  <div class="area-seat-fill rate-${rateClass}" style="width: ${rate}%"></div>
+                </div>
+                <div class="area-seat-text">
+                  <span class="num">${occupied}</span>/${total} 已坐
+                </div>
+              </div>
+              <div class="area-seats-grid">
+                ${renderSeats(total, occupied)}
+              </div>
+              ${area.facilities && area.facilities.length > 0 ? `
+                <div class="area-facilities">
+                  ${area.facilities.map(f => `
+                    <span class="area-facility">
+                      <i class="fa fa-plug"></i>
+                      ${this.escapeHtml(f.name)} ${f.available !== undefined ? `(剩${f.available})` : ''}
+                    </span>
+                  `).join('')}
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }).join('')}
+      </div>
+    ` : '';
+
+    return `
+      <div class="hall-layout-section">
+        <div class="hall-layout-title">
+          <i class="fa fa-map-o"></i> 大厅场景布局
+        </div>
+        ${terminalsHtml}
+        ${areasHtml}
+      </div>
+    `;
+  }
+
   render() {
     const comprehensiveWindows = this.renderWindows(this.state.windows, 'comprehensive');
     const specializedWindows = this.renderWindows(this.state.windows, 'specialized');
@@ -591,6 +947,8 @@ class QueueSystem extends BaseComponent {
         <div class="section-title">窗口热力图</div>
         ${comprehensiveWindows}
         ${specializedWindows}
+
+        ${this.renderHallLayout()}
 
         ${this.renderCallModal()}
       </div>

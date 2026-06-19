@@ -838,3 +838,409 @@ body {
   font-size: 16px;
   opacity: 0.9;
 }
+
+.apt-notification {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  width: 380px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+  z-index: 9999;
+  overflow: hidden;
+  animation: apt-slide-in 0.35s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+@keyframes apt-slide-in {
+  from { opacity: 0; transform: translateX(400px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.apt-notif-header {
+  background: linear-gradient(135deg, #4CAF50, #2E7D32);
+  color: #fff;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  position: relative;
+}
+.apt-notif-icon i {
+  font-size: 36px;
+  opacity: 0.95;
+}
+.apt-success-text {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.apt-sub-text {
+  font-size: 13px;
+  opacity: 0.9;
+}
+.apt-close-btn {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 26px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  opacity: 0.8;
+}
+.apt-close-btn:hover { opacity: 1; }
+.apt-notif-body {
+  padding: 20px;
+}
+.apt-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 16px;
+}
+.apt-label {
+  font-size: 13px;
+  color: #999;
+}
+.apt-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: #263238;
+}
+.apt-highlight {
+  color: #1E88E5;
+}
+.apt-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 16px;
+  margin-bottom: 16px;
+}
+.apt-info-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.apt-cell-label {
+  font-size: 12px;
+  color: #999;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.apt-cell-label i { color: #1E88E5; }
+.apt-cell-value {
+  font-size: 14px;
+  color: #263238;
+  font-weight: 500;
+}
+.apt-queue-number {
+  color: #FF9800;
+  font-size: 18px;
+  font-weight: 700;
+}
+.apt-code-box {
+  background: linear-gradient(135deg, #F5F9FF, #E3F2FD);
+  border: 1px dashed #90CAF9;
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.apt-code-label {
+  font-size: 13px;
+  color: #1565C0;
+  font-weight: 500;
+}
+.apt-code-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0D47A1;
+  letter-spacing: 2px;
+  font-family: 'Courier New', monospace;
+}
+.apt-tips {
+  background: #FFF8E1;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #E65100;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.5;
+}
+.apt-tips i {
+  margin-top: 1px;
+  font-size: 14px;
+}
+.apt-notif-footer {
+  padding: 14px 20px;
+  background: #FAFAFA;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.apt-btn {
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.apt-btn-primary {
+  background: #1E88E5;
+  color: #fff;
+}
+.apt-btn-primary:hover { background: #1565C0; }
+.apt-btn-outline {
+  background: #fff;
+  color: #1E88E5;
+  border: 1px solid #90CAF9;
+}
+.apt-btn-outline:hover {
+  background: #E3F2FD;
+}
+
+#notification-container {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 9999;
+  pointer-events: none;
+}
+#notification-container > * {
+  pointer-events: auto;
+}
+
+.hall-layout-section {
+  background: #fff;
+  border-radius: var(--radius-md);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 20px;
+}
+.hall-layout-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hall-layout-title i { color: var(--primary-color); }
+
+.terminals-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+@media (max-width: 900px) {
+  .terminals-grid { grid-template-columns: repeat(3, 1fr); }
+}
+.terminal-card {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 14px 12px;
+  text-align: center;
+  transition: all 0.25s;
+  position: relative;
+  overflow: hidden;
+}
+.terminal-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+}
+.terminal-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+}
+.terminal-card.status-available::before { background: var(--success-green); }
+.terminal-card.status-busy::before { background: var(--accent-orange); }
+.terminal-card.status-maintenance::before { background: #9E9E9E; }
+
+.terminal-card.status-available { border-color: #C8E6C9; }
+.terminal-card.status-busy { border-color: #FFE0B2; }
+.terminal-card.status-maintenance { border-color: #E0E0E0; opacity: 0.75; }
+
+.terminal-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  margin: 0 auto 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+.status-available .terminal-icon { background: #E8F5E9; color: var(--success-green); }
+.status-busy .terminal-icon { background: #FFF3E0; color: var(--accent-orange); }
+.status-maintenance .terminal-icon { background: #F5F5F5; color: #9E9E9E; }
+
+.terminal-id {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.terminal-type {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.terminal-status-badge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 10px;
+  border-radius: 10px;
+  margin-bottom: 6px;
+}
+.status-available .terminal-status-badge {
+  background: #E8F5E9; color: #2E7D32;
+}
+.status-busy .terminal-status-badge {
+  background: #FFF3E0; color: #E65100;
+}
+.status-maintenance .terminal-status-badge {
+  background: #F5F5F5; color: #616161;
+}
+.terminal-queue-info {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #f0f0f0;
+}
+.terminal-queue-info .queue-num {
+  font-weight: 700;
+  color: var(--accent-orange);
+}
+
+.waiting-areas-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+@media (max-width: 640px) {
+  .waiting-areas-grid { grid-template-columns: 1fr; }
+}
+.waiting-area-card {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 12px;
+  padding: 18px;
+  transition: all 0.25s;
+}
+.waiting-area-card:hover {
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+}
+.area-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+.area-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.area-name i { color: var(--primary-color); }
+.area-rate-badge {
+  padding: 3px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.area-rate-low { background: #E8F5E9; color: #2E7D32; }
+.area-rate-medium { background: #FFF8E1; color: #F57F17; }
+.area-rate-high { background: #FFEBEE; color: #C62828; }
+
+.area-seat-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.area-seat-progress {
+  flex: 1;
+  height: 8px;
+  background: #F5F5F5;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.area-seat-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s;
+}
+.area-seat-fill.rate-low { background: linear-gradient(90deg, #81C784, #4CAF50); }
+.area-seat-fill.rate-medium { background: linear-gradient(90deg, #FFD54F, #FF9800); }
+.area-seat-fill.rate-high { background: linear-gradient(90deg, #E57373, #F44336); }
+
+.area-seat-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  min-width: 90px;
+  text-align: right;
+}
+.area-seat-text .num {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.area-seats-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 3px;
+  margin-bottom: 12px;
+}
+.seat-dot {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 3px;
+  background: #C8E6C9;
+}
+.seat-dot.occupied { background: #E57373; }
+.seat-dot.empty { background: #C8E6C9; }
+
+.area-facilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid #f0f0f0;
+}
+.area-facility {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: #F5F9FF;
+  border-radius: 12px;
+  font-size: 12px;
+  color: var(--primary-color);
+}
+.area-facility i { font-size: 12px; }

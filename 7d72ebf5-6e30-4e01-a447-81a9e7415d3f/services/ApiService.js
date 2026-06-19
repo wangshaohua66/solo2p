@@ -298,6 +298,23 @@ const ApiService = {
   async getAvailableDates(days = 7) {
     await this.delay(50);
     return this.response(200, DateUtils.getDateRange(days));
+  },
+
+  async getMaterialTemplate(materialId) {
+    await this.delay(100);
+    const template = MockData.materialTemplates[materialId];
+    if (!template) {
+      return this.response(404, null, '模板不存在');
+    }
+    return this.response(200, template);
+  },
+
+  async getHallLayout() {
+    await this.delay(80);
+    return this.response(200, {
+      terminals: MockData.selfServiceTerminals,
+      waitingAreas: MockData.waitingAreas
+    });
   }
 };
 

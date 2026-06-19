@@ -74,7 +74,7 @@ const App = {
     });
 
     this.eventBus.on('appointment:created', (data) => {
-      this.showNotification('预约成功', `您的预约码：${data.code}`, 'success');
+      this.showAppointmentNotification(data);
     });
 
     this.eventBus.on('satisfaction:submitted', () => {
@@ -508,6 +508,110 @@ const App = {
     setTimeout(() => {
       $notif.fadeOut(300, () => $notif.remove());
     }, 3000);
+  },
+
+  showAppointmentNotification(data) {
+    const id = 'apt-notif-' + Date.now();
+    const $container = $('#notification-container');
+
+    const windowName = data.windowName || '综合窗口 1-12';
+    const formattedDate = data.date ? DateUtils.format(new Date(data.date), 'YYYY年MM月DD日') : '';
+
+    const $notif = $(`
+      <div id="${id}" class="apt-notification animate-slide-up">
+        <div class="apt-notif-header">
+          <div class="apt-notif-icon">
+            <i class="fa fa-check-circle"></i>
+          </div>
+          <div class="apt-notif-title">
+            <div class="apt-success-text">预约成功！</div>
+            <div class="apt-sub-text">您的办理预约已确认</div>
+          </div>
+          <button class="apt-close-btn" onclick="document.getElementById('${id}').remove()">&times;</button>
+        </div>
+        <div class="apt-notif-body">
+          <div class="apt-info-row">
+            <span class="apt-label">事项名称</span>
+            <span class="apt-value apt-highlight">${this.escapeHtml(data.itemName || '政务服务事项')}</span>
+          </div>
+          <div class="apt-info-grid">
+            <div class="apt-info-cell">
+              <span class="apt-cell-label"><i class="fa fa-calendar"></i> 预约日期</span>
+              <span class="apt-cell-value">${formattedDate}</span>
+            </div>
+            <div class="apt-info-cell">
+              <span class="apt-cell-label"><i class="fa fa-clock-o"></i> 预约时段</span>
+              <span class="apt-cell-value">${this.escapeHtml(data.timeSlot || '--')}</span>
+            </div>
+            <div class="apt-info-cell">
+              <span class="apt-cell-label"><i class="fa fa-map-marker"></i> 办理地点</span>
+              <span class="apt-cell-value">${this.escapeHtml(windowName)}</span>
+            </div>
+            <div class="apt-info-cell">
+              <span class="apt-cell-label"><i class="fa fa-list-ol"></i> 预约排队号</span>
+              <span class="apt-cell-value apt-queue-number">${this.escapeHtml(data.queueNumber || 'A000')}</span>
+            </div>
+          </div>
+          <div class="apt-code-box">
+            <div class="apt-code-label">预约码</div>
+            <div class="apt-code-value">${this.escapeHtml(data.code || '--')}</div>
+          </div>
+          <div class="apt-tips">
+            <i class="fa fa-lightbulb-o"></i>
+            <span>请提前15分钟到达办理窗口，携带身份证和相关材料</span>
+          </div>
+        </div>
+        <div class="apt-notif-footer">
+          <button class="apt-btn apt-btn-outline" onclick="App.navigate('queue')">
+            <i class="fa fa-eye"></i> 查看排队
+          </button>
+          <button class="apt-btn apt-btn-primary" onclick="document.getElementById('${id}').remove()">
+            <i class="fa fa-check"></i> 知道了
+          </button>
+        </div>
+      </div>
+    `);
+
+    $container.append($notif);
+
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        const notification = new Notification('预约成功 - 政务服务中心', {
+          body: `您已成功预约${data.itemName || '政务服务事项'}，预约码：${data.code || '--'}，请准时前往办理。`,
+          icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cGF0aCBmaWxsPSIjMWE3M2U4IiBkPSJNMjU2IDhDMTE5IDggOCAxMTkgOCAyNTZzMTExIDI0OCAyNDggMjQ4IDI0OC0xMTEgMjQ4LTI0OFMzOTMgOCAyNTYgOHptMCA0NDJjLTEwNyAwLTE5NC04Ny0xOTQtMTk0UzE0OSA2MiAyNTYgNjJzMTk0IDg3IDE5NCAxOTQtODcgMTk0LTE5NCAxOTR6Ii8+PHBhdGggZmlsbD0iIzNhYWE1MyIgZD0iTTM3MCAyMTBjLTYtNi0xNS02LTIxIDBsLTEwNyAxMDctNDctNDdjLTYtNi0xNS02LTIxIDBsLTIxIDIxYy02IDYtNiAxNSAwIDIxbDU4IDU4YzMgMyA3IDQgMTAgNHM3LTEgMTAtNGwxMjgtMTI4YzYtNiA2LTE1IDAtMjFsLTIxLTIxeiIvPjwvc3ZnPg=='
+        });
+        setTimeout(() => notification.close(), 8000);
+      } catch (e) {
+        console.log('系统通知推送失败', e);
+      }
+    } else if ('Notification' in window && Notification.permission !== 'denied') {
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+          try {
+            new Notification('预约成功 - 政务服务中心', {
+              body: `您已成功预约${data.itemName || '政务服务事项'}，预约码：${data.code || '--'}`,
+            });
+          } catch (e) {}
+        }
+      });
+    }
+
+    setTimeout(() => {
+      const $el = $(`#${id}`);
+      if ($el.length) {
+        $el.fadeOut(400, () => $el.remove());
+      }
+    }, 15000);
+  },
+
+  escapeHtml(text) {
+    if (text === null || text === undefined) return '';
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   },
 
   playNotification() {
