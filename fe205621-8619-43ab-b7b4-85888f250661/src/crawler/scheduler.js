@@ -29,9 +29,12 @@ class CrawlScheduler {
       successCrawls: 0,
       failedCrawls: 0,
       todayNotifications: 0,
+      todayAlerts: 0,
       activeTasks: 0,
       startTime: null
     };
+
+    this.consecutiveFailures = new Map();
 
     this.browserQueue = new PQueue({
       concurrency: this.options.maxBrowsers,
@@ -233,6 +236,9 @@ class CrawlScheduler {
           await this._processAppointments(result);
           await this._logCrawlResult(crawlId, hospital, department, 'success', startTime, result);
 
+          const failKey = `${hospital.id}-${department}`;
+          this.consecutiveFailures.delete(failKey);
+
           this.stats.successCrawls++;
           logger.info(`[爬取完成] ${hospital.name} - ${result.appointments.length} 条号源 (${Date.now() - startTime}ms)`);
 
@@ -263,11 +269,31 @@ class CrawlScheduler {
     this.stats.failedCrawls++;
     await this._logCrawlResult(crawlId, hospital, department, 'failed', startTime, { error: lastError?.message });
 
-    logger.error(`[爬取失败] ${hospital.name} - 已达最大重试次数: ${lastError?.message}`);
+    const failKey = `${hospital.id}-${department}`;
+    const prevFailures = this.consecutiveFailures.get(failKey) || 0;
+    const newFailures = prevFailures + 1;
+    this.consecutiveFailures.set(failKey, newFailures);
+
+    logger.error(`[爬取失败] ${hospital.name} - 已达最大重试次数 (连续失败${newFailures}次): ${lastError?.message}`);
+
+    let screenshotPath = null;
+    try {
+      screenshotPath = await crawler.takeScreenshot(`fail-${hospital.id}-${department}-${Date.now()}.png`);
+    } catch (e) {
+      logger.debug(`截图失败: ${e.message}`);
+    }
 
     try {
-      await crawler.takeScreenshot(`fail-${hospital.id}-${department}-${Date.now()}.png`);
-    } catch (e) {}
+      await this._sendCrawlFailureAlert(hospital, department, {
+        retries: maxRetries,
+        consecutiveFailures: newFailures,
+        errorMessage: lastError?.message,
+        crawlId: crawlId,
+        screenshotPath: screenshotPath
+      });
+    } catch (e) {
+      logger.error(`发送爬取失败告警异常: ${e.message}`);
+    }
 
     return { success: false, error: lastError?.message, hospitalId: hospital.id };
   }
@@ -329,6 +355,62 @@ class CrawlScheduler {
       });
     } catch (err) {
       logger.debug(`记录爬取日志失败: ${err.message}`);
+    }
+  }
+
+  async _sendCrawlFailureAlert(hospital, department, failInfo) {
+    if (!this.notifierService) {
+      logger.warn('通知服务未初始化，无法发送告警');
+      return null;
+    }
+
+    const failKey = `${hospital.id}-${department}`;
+    const deptName = hospital.departments[department]?.name || department;
+
+    let alertLevel = 'warning';
+    if (failInfo.consecutiveFailures >= 3) {
+      alertLevel = 'critical';
+    }
+
+    const alertData = {
+      level: alertLevel,
+      title: `${hospital.name}号源爬取失败`,
+      message: `${hospital.name}(${hospital.shortName})的${deptName}号源爬取连续失败${failInfo.consecutiveFailures}次，请及时检查！`,
+      timestamp: new Date().toLocaleString('zh-CN'),
+      details: {
+        '医院ID': hospital.id,
+        '医院名称': hospital.name,
+        '科室代码': department,
+        '科室名称': deptName,
+        '重试次数': `${failInfo.retries}次`,
+        '连续失败': `${failInfo.consecutiveFailures}次`,
+        '错误信息': failInfo.errorMessage || '未知错误',
+        '爬取ID': failInfo.crawlId,
+        '验证码类型': hospital.captchaType,
+        '刷新间隔': `${hospital.refreshInterval}秒`
+      }
+    };
+
+    if (failInfo.screenshotPath) {
+      alertData.details['截图路径'] = failInfo.screenshotPath;
+    }
+
+    try {
+      const result = await this.notifierService.alertAdmin(alertData, {
+        channels: ['email', 'wechat']
+      });
+
+      this.stats.todayAlerts++;
+
+      logger.warn(
+        `[告警已发送] ${hospital.name} - ${deptName} ` +
+        `(连续失败${failInfo.consecutiveFailures}次, 级别: ${alertLevel}, 成功: ${result.successCount}/${result.totalChannels})`
+      );
+
+      return result;
+    } catch (err) {
+      logger.error(`发送爬取失败告警失败: ${err.message}`);
+      return null;
     }
   }
 

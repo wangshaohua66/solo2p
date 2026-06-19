@@ -343,6 +343,244 @@ class NotifierService {
       successRate
     };
   }
+
+  async alertAdmin(alertData, options = {}) {
+    await this.init();
+
+    const channels = options.channels || ['email', 'wechat'];
+    const results = [];
+    const alertId = uuidv4();
+
+    const adminContact = {
+      name: process.env.ADMIN_NAME || '系统管理员',
+      email: process.env.ADMIN_EMAIL || 'admin@example.com',
+      phone: process.env.ADMIN_PHONE || '13800000000',
+      id: 'admin-001'
+    };
+
+    logger.warn(`发送管理员告警: ${alertData.title || alertData.message}`);
+
+    for (const channel of channels) {
+      try {
+        let result;
+        switch (channel) {
+          case 'email':
+            result = await this._sendAdminAlertEmail(adminContact, alertData, alertId);
+            break;
+          case 'wechat':
+            result = await this._sendAdminAlertWechat(adminContact, alertData, alertId);
+            break;
+          case 'sms':
+            result = await this._sendAdminAlertSms(adminContact, alertData, alertId);
+            break;
+          default:
+            result = { channel, success: false, error: '不支持的告警渠道' };
+        }
+        results.push(result);
+      } catch (err) {
+        logger.error(`${channel}告警通知失败: ${err.message}`);
+        results.push({ channel, success: false, error: err.message });
+      }
+    }
+
+    const successCount = results.filter(r => r.success).length;
+
+    return {
+      alertId,
+      success: successCount > 0,
+      channels: results,
+      successCount,
+      totalChannels: channels.length
+    };
+  }
+
+  async _sendAdminAlertEmail(admin, alertData, alertId) {
+    const subject = `【系统告警】${alertData.title || '医疗号源监控系统异常'}`;
+    const html = this._buildAlertEmailTemplate(admin, alertData);
+    const text = this._buildAlertEmailText(admin, alertData);
+
+    if (!this.channels.email.transporter) {
+      logger.warn(`[模拟告警邮件] ${admin.name}: ${subject}`);
+      return { channel: 'email', success: true, simulated: true };
+    }
+
+    try {
+      const info = await this.channels.email.transporter.sendMail({
+        from: `"医疗号源监控[告警]" <${process.env.EMAIL_USER || 'noreply@example.com'}>`,
+        to: admin.email,
+        subject: subject,
+        text: text,
+        html: html
+      });
+      logger.warn(`告警邮件已发送给管理员: ${info.messageId}`);
+      return { channel: 'email', success: true, messageId: info.messageId };
+    } catch (err) {
+      logger.error(`告警邮件发送失败: ${err.message}`);
+      return { channel: 'email', success: false, error: err.message };
+    }
+  }
+
+  _buildAlertEmailTemplate(admin, alertData) {
+    const timestamp = alertData.timestamp || new Date().toLocaleString('zh-CN');
+    const level = alertData.level || 'warning';
+    const levelColors = {
+      critical: '#e74c3c',
+      warning: '#f39c12',
+      info: '#3498db'
+    };
+    const levelNames = {
+      critical: '🔴 严重',
+      warning: '🟡 警告',
+      info: '🔵 信息'
+    };
+    const bgColor = levelColors[level] || levelColors.warning;
+    const levelName = levelNames[level] || levelNames.warning;
+
+    let detailsHtml = '';
+    if (alertData.details) {
+      detailsHtml = Object.entries(alertData.details).map(([k, v]) => `
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 8px; color: #666; width: 140px; vertical-align: top;">${k}</td>
+          <td style="padding: 8px; font-weight: bold; word-break: break-all;">${v}</td>
+        </tr>
+      `).join('');
+    }
+
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, ${bgColor} 0%, #c0392b 100%); padding: 20px; color: white; border-radius: 8px 8px 0 0;">
+          <h2 style="margin: 0;">⚠️ 系统告警通知</h2>
+        </div>
+        <div style="padding: 20px; background: #f9f9f9;">
+          <p>尊敬的 <strong>${admin.name}</strong>：</p>
+          <p>医疗号源监控系统检测到异常，请及时关注：</p>
+          
+          <div style="background: white; border-radius: 8px; padding: 20px; margin: 15px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid ${bgColor};">
+            <h3 style="color: #333; margin-top: 0;">📌 告警信息</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 8px; color: #666; width: 140px;">告警级别</td>
+                <td style="padding: 8px; font-weight: bold; color: ${bgColor};">${levelName}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 8px; color: #666;">告警标题</td>
+                <td style="padding: 8px; font-weight: bold;">${alertData.title || '未命名告警'}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 8px; color: #666;">告警内容</td>
+                <td style="padding: 8px;">${alertData.message || '无详细描述'}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 8px; color: #666;">发生时间</td>
+                <td style="padding: 8px;">${timestamp}</td>
+              </tr>
+              ${detailsHtml}
+            </table>
+          </div>
+
+          <p style="color: #999; font-size: 12px; margin-top: 20px;">
+            ⚠️ 请管理员及时处理此告警。本邮件由系统自动发送，请勿直接回复。
+          </p>
+        </div>
+      </div>
+    `;
+  }
+
+  _buildAlertEmailText(admin, alertData) {
+    const timestamp = alertData.timestamp || new Date().toLocaleString('zh-CN');
+    let detailsText = '';
+    if (alertData.details) {
+      detailsText = '\n【告警详情】\n' + Object.entries(alertData.details)
+        .map(([k, v]) => `${k}: ${v}`).join('\n');
+    }
+
+    return `
+系统告警通知
+
+尊敬的${admin.name}：
+
+医疗号源监控系统检测到异常！
+
+【告警信息】
+级别: ${alertData.level || 'warning'}
+标题: ${alertData.title || '未命名告警'}
+内容: ${alertData.message || '无详细描述'}
+时间: ${timestamp}
+${detailsText}
+
+请管理员及时处理此告警。
+
+—— 医疗号源监控系统
+    `.trim();
+  }
+
+  async _sendAdminAlertWechat(admin, alertData, alertId) {
+    const webhook = process.env.ADMIN_WECHAT_WEBHOOK || this.channels.wechat.webhook;
+    const timestamp = alertData.timestamp || new Date().toLocaleString('zh-CN');
+    const levelEmoji = {
+      critical: '🔴',
+      warning: '🟡',
+      info: '🔵'
+    };
+
+    const message = {
+      msgtype: 'markdown',
+      markdown: {
+        content: `
+### ${levelEmoji[alertData.level] || '⚠️'} 系统告警通知
+
+**告警级别**: \`${alertData.level || 'warning'}\`
+**告警标题**: ${alertData.title || '未命名告警'}
+**告警内容**: ${alertData.message || '无详细描述'}
+**发生时间**: ${timestamp}
+
+${alertData.details ? '---\n' + Object.entries(alertData.details)
+  .map(([k, v]) => `**${k}**: ${v}`).join('\n') : ''}
+
+> 请管理员及时处理此告警！
+        `.trim()
+      }
+    };
+
+    if (!webhook) {
+      logger.warn(`[模拟企业微信告警] ${alertData.title}`);
+      return { channel: 'wechat', success: true, simulated: true };
+    }
+
+    try {
+      const response = await axios.post(webhook, message, { timeout: 5000 });
+      if (response.data?.errcode === 0) {
+        return { channel: 'wechat', success: true };
+      }
+      return { channel: 'wechat', success: false, error: response.data?.errmsg || '发送失败' };
+    } catch (err) {
+      return { channel: 'wechat', success: false, error: err.message };
+    }
+  }
+
+  async _sendAdminAlertSms(admin, alertData, alertId) {
+    const message = `【系统告警】${alertData.title || '医疗号源监控异常'}: ${alertData.message || '请及时查看'}`;
+
+    if (!this.channels.sms.provider || !process.env.SMS_API_URL) {
+      logger.warn(`[模拟短信告警] ${admin.phone}: ${message}`);
+      return { channel: 'sms', success: true, simulated: true };
+    }
+
+    try {
+      const response = await axios.post(process.env.SMS_API_URL, {
+        phone: admin.phone,
+        message: message,
+        templateId: process.env.SMS_ALERT_TEMPLATE_ID || 'SMS_ALERT_001'
+      }, { timeout: 5000 });
+
+      if (response.data?.success) {
+        return { channel: 'sms', success: true };
+      }
+      return { channel: 'sms', success: false, error: response.data?.message || '发送失败' };
+    } catch (err) {
+      return { channel: 'sms', success: false, error: err.message };
+    }
+  }
 }
 
 let notifierInstance = null;

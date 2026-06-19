@@ -5,7 +5,10 @@ const boxen = require('boxen');
 const ora = require('ora');
 const cliProgress = require('cli-progress');
 const dayjs = require('dayjs');
-const { HOSPITALS, getHospitalById, getHospitalsByDept } = require('../config/hospitals');
+const { HOSPITALS, getHospitalById, getHospitalsByDept,
+  updateHospitalConfig, updateHospitalDepartment,
+  addHospitalDepartment, removeHospitalDepartment,
+  updateSystemConfig } = require('../config/hospitals');
 const { getScheduler } = require('./crawler/scheduler');
 const { getPatientService } = require('./model/patient');
 const { getAppointmentService } = require('./model/appointment');
@@ -194,13 +197,19 @@ class CLIManager {
       {
         type: 'list',
         name: 'action',
-        message: '患者管理：',
+        message: '患者管理与监控配置：',
         choices: [
           { name: '📋  查看患者列表', value: 'list' },
           { name: '➕  添加患者', value: 'add' },
           { name: '✏️   修改患者信息', value: 'edit' },
           { name: '🗑  停用患者', value: 'delete' },
-          { name: '🔙  返回主菜单', value: 'back' }
+          new inquirer.Separator('── 监控配置 ──'),
+          { name: '⚙️   修改医院监控配置', value: 'monitor_config' },
+          { name: '🏥  管理医院监控科室', value: 'dept_config' },
+          { name: '🔐  修改医院账号信息', value: 'account_config' },
+          { name: '�   系统全局配置', value: 'system_config' },
+          new inquirer.Separator(),
+          { name: '�  返回主菜单', value: 'back' }
         ]
       }
     ]);
@@ -217,6 +226,18 @@ class CLIManager {
         break;
       case 'delete':
         await this._deletePatient();
+        break;
+      case 'monitor_config':
+        await this._editHospitalMonitorConfig();
+        break;
+      case 'dept_config':
+        await this._editHospitalDeptConfig();
+        break;
+      case 'account_config':
+        await this._editHospitalAccountConfig();
+        break;
+      case 'system_config':
+        await this._editSystemConfig();
         break;
       case 'back':
         return;
@@ -454,6 +475,404 @@ class CLIManager {
       }
     }
 
+    await this._pressEnter();
+  }
+
+  async _editHospitalMonitorConfig() {
+    const choices = HOSPITALS.map(h => ({
+      name: `${h.name} (刷新:${h.refreshInterval}s 优先级:${'★'.repeat(h.priority)})`,
+      value: h.id
+    }));
+
+    const { hospitalId } = await inquirer.prompt([
+      { type: 'list', name: 'hospitalId', message: '选择要修改配置的医院：', choices }
+    ]);
+
+    const hospital = getHospitalById(hospitalId);
+
+    const captchaLabels = { image: '图形验证码', slider: '滑块验证', none: '无验证' };
+
+    console.log('\n' + chalk.cyan.bold('当前配置：'));
+    console.log(`  刷新间隔: ${chalk.yellow(hospital.refreshInterval + '秒')}`);
+    console.log(`  优先级: ${chalk.magenta('★'.repeat(hospital.priority) + '☆'.repeat(3 - hospital.priority))}`);
+    console.log(`  验证码类型: ${chalk.green(captchaLabels[hospital.captchaType])}`);
+    console.log(`  最大重试: ${chalk.blue(hospital.maxRetries + '次')}`);
+    console.log(`  限流频率: ${chalk.gray(hospital.rateLimit + '次/分钟')}`);
+    console.log(`  放号时间: ${chalk.cyan(hospital.releaseSchedule.time)} (提前${hospital.releaseSchedule.daysAhead}天)`);
+    console.log();
+
+    const { field } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'field',
+        message: '选择要修改的配置项：',
+        choices: [
+          { name: '刷新间隔（秒）', value: 'refreshInterval' },
+          { name: '优先级（1-3）', value: 'priority' },
+          { name: '验证码类型', value: 'captchaType' },
+          { name: '最大重试次数', value: 'maxRetries' },
+          { name: '限流频率（次/分钟）', value: 'rateLimit' },
+          { name: '放号时间', value: 'releaseTime' },
+          { name: '提前放号天数', value: 'daysAhead' },
+          { name: '取消', value: 'cancel' }
+        ]
+      }
+    ]);
+
+    if (field === 'cancel') {
+      return;
+    }
+
+    let newValue;
+
+    if (field === 'captchaType') {
+      const result = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'captchaType',
+          message: '验证码类型：',
+          choices: [
+            { name: '图形验证码', value: 'image' },
+            { name: '滑块验证', value: 'slider' },
+            { name: '无验证', value: 'none' }
+          ],
+          default: hospital.captchaType
+        }
+      ]);
+      newValue = result.captchaType;
+    } else if (field === 'releaseTime') {
+      const result = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'time',
+          message: '放号时间（格式 HH:mm，如 08:00）：',
+          default: hospital.releaseSchedule.time,
+          validate: v => /^([01]\d|2[0-3]):[0-5]\d$/.test(v) || '请输入正确的时间格式 HH:mm'
+        }
+      ]);
+      updateHospitalConfig(hospitalId, { releaseSchedule: { time: result.time } });
+      console.log(chalk.green('\n✓ 放号时间已更新为: ' + result.time));
+      await this._pressEnter();
+      return;
+    } else if (field === 'daysAhead') {
+      const result = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'daysAhead',
+          message: '提前放号天数：',
+          default: String(hospital.releaseSchedule.daysAhead),
+          validate: v => {
+            const n = parseInt(v);
+            return (!isNaN(n) && n >= 1 && n <= 30) || '请输入1-30之间的数字';
+          }
+        }
+      ]);
+      updateHospitalConfig(hospitalId, { releaseSchedule: { daysAhead: parseInt(result.daysAhead) } });
+      console.log(chalk.green('\n✓ 提前放号天数已更新为: ' + result.daysAhead));
+      await this._pressEnter();
+      return;
+    } else if (field === 'priority') {
+      const result = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'priority',
+          message: '优先级（1-3，数字越大越优先）：',
+          default: String(hospital.priority),
+          validate: v => {
+            const n = parseInt(v);
+            return (!isNaN(n) && n >= 1 && n <= 3) || '请输入1-3之间的数字';
+          }
+        }
+      ]);
+      newValue = parseInt(result.priority);
+    } else {
+      const labels = {
+        refreshInterval: '刷新间隔（秒）',
+        maxRetries: '最大重试次数',
+        rateLimit: '限流频率（次/分钟）'
+      };
+      const defaults = {
+        refreshInterval: String(hospital.refreshInterval),
+        maxRetries: String(hospital.maxRetries),
+        rateLimit: String(hospital.rateLimit)
+      };
+      const result = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'value',
+          message: labels[field] + '：',
+          default: defaults[field],
+          validate: v => {
+            const n = parseInt(v);
+            return (!isNaN(n) && n > 0) || '请输入大于0的数字';
+          }
+        }
+      ]);
+      newValue = parseInt(result.value);
+    }
+
+    updateHospitalConfig(hospitalId, { [field]: newValue });
+    console.log(chalk.green('\n✓ 配置更新成功！'));
+
+    await this._pressEnter();
+  }
+
+  async _editHospitalDeptConfig() {
+    const hospitalChoices = HOSPITALS.map(h => ({
+      name: `${h.name} (${Object.keys(h.departments).length}个科室)`,
+      value: h.id
+    }));
+
+    const { hospitalId } = await inquirer.prompt([
+      { type: 'list', name: 'hospitalId', message: '选择医院：', choices: hospitalChoices }
+    ]);
+
+    const hospital = getHospitalById(hospitalId);
+
+    const { action } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'action',
+        message: `${hospital.name}科室管理：`,
+        choices: [
+          { name: '📋  查看科室列表', value: 'list' },
+          { name: '✏️   修改科室配置（热门标记、名称、代码）', value: 'edit' },
+          { name: '➕  添加监控科室', value: 'add' },
+          { name: '🗑  移除监控科室', value: 'remove' },
+          { name: '🔙  返回', value: 'back' }
+        ]
+      }
+    ]);
+
+    if (action === 'back') return;
+
+    if (action === 'list') {
+      console.log('\n' + chalk.cyan.bold(`${hospital.name}科室列表：`) + '\n');
+      Object.entries(hospital.departments).forEach(([key, dept], idx) => {
+        console.log(`${chalk.yellow((idx + 1) + '.')} ${chalk.bold(dept.name)} ` +
+          `[${key}]  代码: ${chalk.gray(dept.code)}  ` +
+          `${dept.hot ? chalk.red('🔥 热门') : chalk.gray('普通')}`);
+      });
+      console.log();
+      await this._pressEnter();
+      return;
+    }
+
+    if (action === 'add') {
+      const answers = await inquirer.prompt([
+        { type: 'input', name: 'key', message: '科室英文标识（如 cardiology）：', validate: v => v.length > 0 || '必填' },
+        { type: 'input', name: 'name', message: '科室中文名称：', validate: v => v.length > 0 || '必填' },
+        { type: 'input', name: 'code', message: '科室代码：', validate: v => v.length > 0 || '必填' },
+        { type: 'confirm', name: 'hot', message: '是否标记为热门科室？', default: false }
+      ]);
+
+      try {
+        addHospitalDepartment(hospitalId, answers.key, {
+          name: answers.name,
+          code: answers.code,
+          hot: answers.hot
+        });
+        console.log(chalk.green('\n✓ 科室添加成功: ' + answers.name));
+      } catch (err) {
+        console.log(chalk.red('\n✗ 添加失败: ' + err.message));
+      }
+      await this._pressEnter();
+      return;
+    }
+
+    const deptChoices = Object.entries(hospital.departments).map(([key, dept]) => ({
+      name: `${dept.name} ${dept.hot ? '🔥' : ''}`,
+      value: key
+    }));
+
+    if (action === 'remove') {
+      const { deptKey } = await inquirer.prompt([
+        { type: 'list', name: 'deptKey', message: '选择要移除的科室：', choices: deptChoices }
+      ]);
+
+      const { confirm } = await inquirer.prompt([
+        { type: 'confirm', name: 'confirm', message: `确认移除科室 ${hospital.departments[deptKey].name}？`, default: false }
+      ]);
+
+      if (confirm) {
+        try {
+          removeHospitalDepartment(hospitalId, deptKey);
+          console.log(chalk.green('\n✓ 科室已移除'));
+        } catch (err) {
+          console.log(chalk.red('\n✗ 移除失败: ' + err.message));
+        }
+      }
+      await this._pressEnter();
+      return;
+    }
+
+    if (action === 'edit') {
+      const { deptKey } = await inquirer.prompt([
+        { type: 'list', name: 'deptKey', message: '选择要修改的科室：', choices: deptChoices }
+      ]);
+
+      const dept = hospital.departments[deptKey];
+
+      const { field } = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'field',
+          message: '选择要修改的字段：',
+          choices: [
+            { name: '科室名称', value: 'name' },
+            { name: '科室代码', value: 'code' },
+            { name: '热门标记', value: 'hot' },
+            { name: '取消', value: 'cancel' }
+          ]
+        }
+      ]);
+
+      if (field === 'cancel') return;
+
+      if (field === 'hot') {
+        const { hot } = await inquirer.prompt([
+          { type: 'confirm', name: 'hot', message: '是否标记为热门科室？', default: dept.hot }
+        ]);
+        updateHospitalDepartment(hospitalId, deptKey, { hot });
+      } else {
+        const labels = { name: '科室名称', code: '科室代码' };
+        const { value } = await inquirer.prompt([
+          { type: 'input', name: 'value', message: labels[field] + '：', default: dept[field], validate: v => v.length > 0 || '必填' }
+        ]);
+        updateHospitalDepartment(hospitalId, deptKey, { [field]: value });
+      }
+
+      console.log(chalk.green('\n✓ 科室配置更新成功'));
+      await this._pressEnter();
+      return;
+    }
+  }
+
+  async _editHospitalAccountConfig() {
+    const choices = HOSPITALS.map(h => {
+      const accountType = h.account.username ? '用户名/密码' : '手机号/SMS';
+      return {
+        name: `${h.name} (${accountType})`,
+        value: h.id
+      };
+    });
+
+    const { hospitalId } = await inquirer.prompt([
+      { type: 'list', name: 'hospitalId', message: '选择医院：', choices }
+    ]);
+
+    const hospital = getHospitalById(hospitalId);
+    const account = hospital.account;
+
+    console.log('\n' + chalk.cyan.bold(`${hospital.name} 当前账号配置：`));
+    if (account.username) {
+      console.log(`  登录方式: ${chalk.yellow('用户名/密码')}`);
+      console.log(`  用户名: ${chalk.green(account.username)}`);
+      console.log(`  密码: ${chalk.gray('*'.repeat(account.password?.length || 0))}`);
+    }
+    if (account.phone) {
+      console.log(`  登录方式: ${chalk.yellow('手机号/SMS')}`);
+      console.log(`  手机号: ${chalk.green(account.phone)}`);
+    }
+    console.log();
+
+    if (account.username) {
+      const answers = await inquirer.prompt([
+        { type: 'input', name: 'username', message: '用户名：', default: account.username },
+        { type: 'input', name: 'password', message: '密码：', default: account.password }
+      ]);
+      updateHospitalConfig(hospitalId, { account: answers });
+    } else {
+      const answers = await inquirer.prompt([
+        { type: 'input', name: 'phone', message: '手机号：', default: account.phone }
+      ]);
+      updateHospitalConfig(hospitalId, { account: answers });
+    }
+
+    console.log(chalk.green('\n✓ 账号配置更新成功'));
+
+    const { reset } = await inquirer.prompt([
+      { type: 'confirm', name: 'reset', message: '是否需要重置当前浏览器会话？配置更改后需要重新登录。', default: true }
+    ]);
+
+    if (reset && this.scheduler) {
+      const crawler = this.scheduler.crawlers.get(hospitalId);
+      if (crawler) {
+        try {
+          await crawler.close();
+          this.scheduler.crawlers.delete(hospitalId);
+          console.log(chalk.green('浏览器会话已重置，下次爬取将使用新账号登录'));
+        } catch (e) {}
+      }
+    }
+
+    await this._pressEnter();
+  }
+
+  async _editSystemConfig() {
+    const { SYSTEM_CONFIG } = require('../config/hospitals');
+
+    console.log('\n' + chalk.cyan.bold('当前系统全局配置：'));
+    console.log(`  最大浏览器实例: ${chalk.yellow(SYSTEM_CONFIG.maxBrowsers + '个')}`);
+    console.log(`  无头模式: ${SYSTEM_CONFIG.headless ? chalk.green('开启') : chalk.gray('关闭')}`);
+    console.log(`  页面超时: ${chalk.blue(SYSTEM_CONFIG.pageTimeout + 'ms')}`);
+    console.log(`  最大重试次数: ${chalk.magenta(SYSTEM_CONFIG.maxRetries + '次')}`);
+    console.log(`  数据保留天数: ${chalk.gray(SYSTEM_CONFIG.dataRetentionDays + '天')}`);
+    console.log();
+
+    const { field } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'field',
+        message: '选择要修改的全局配置：',
+        choices: [
+          { name: '最大浏览器实例数', value: 'maxBrowsers' },
+          { name: '无头模式（headless）', value: 'headless' },
+          { name: '页面加载超时时间（毫秒）', value: 'pageTimeout' },
+          { name: '最大重试次数', value: 'maxRetries' },
+          { name: '数据保留天数', value: 'dataRetentionDays' },
+          { name: '取消', value: 'cancel' }
+        ]
+      }
+    ]);
+
+    if (field === 'cancel') return;
+
+    if (field === 'headless') {
+      const { value } = await inquirer.prompt([
+        { type: 'confirm', name: 'value', message: '是否启用无头模式？（不显示浏览器窗口）', default: SYSTEM_CONFIG.headless }
+      ]);
+      updateSystemConfig({ headless: value });
+    } else {
+      const labels = {
+        maxBrowsers: '最大浏览器实例数（1-10）',
+        pageTimeout: '页面超时时间（毫秒，如30000）',
+        maxRetries: '最大重试次数（1-10）',
+        dataRetentionDays: '数据保留天数（1-365）'
+      };
+      const ranges = {
+        maxBrowsers: [1, 10],
+        pageTimeout: [5000, 120000],
+        maxRetries: [1, 10],
+        dataRetentionDays: [1, 365]
+      };
+      const { value } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'value',
+          message: labels[field] + '：',
+          default: String(SYSTEM_CONFIG[field]),
+          validate: v => {
+            const n = parseInt(v);
+            const [min, max] = ranges[field];
+            return (!isNaN(n) && n >= min && n <= max) || `请输入${min}-${max}之间的数字`;
+          }
+        }
+      ]);
+      updateSystemConfig({ [field]: parseInt(value) });
+    }
+
+    console.log(chalk.green('\n✓ 系统配置更新成功！（新建的浏览器实例会使用新配置）'));
     await this._pressEnter();
   }
 

@@ -507,11 +507,125 @@ const SYSTEM_CONFIG = {
   screenshotDir: path.join(__dirname, '..', 'data', 'screenshots')
 };
 
+function getHospitalById(id) {
+  return HOSPITALS.find(h => h.id === id);
+}
+
+function getHospitalsByDept(deptKey) {
+  return HOSPITALS.filter(h => h.departments[deptKey]);
+}
+
+function updateHospitalConfig(hospitalId, updates) {
+  const hospital = HOSPITALS.find(h => h.id === hospitalId);
+  if (!hospital) {
+    throw new Error(`未找到医院: ${hospitalId}`);
+  }
+
+  const validFields = [
+    'name', 'shortName', 'baseUrl', 'loginUrl', 'appointmentUrl',
+    'captchaType', 'refreshInterval', 'priority', 'maxRetries', 'rateLimit',
+    'departments', 'selectors', 'releaseSchedule', 'account'
+  ];
+
+  for (const key of Object.keys(updates)) {
+    if (validFields.includes(key)) {
+      if (key === 'departments') {
+        hospital.departments = { ...hospital.departments, ...updates.departments };
+      } else if (key === 'selectors') {
+        hospital.selectors = { ...hospital.selectors, ...updates.selectors };
+      } else if (key === 'releaseSchedule') {
+        hospital.releaseSchedule = { ...hospital.releaseSchedule, ...updates.releaseSchedule };
+      } else if (key === 'account') {
+        hospital.account = { ...hospital.account, ...updates.account };
+      } else {
+        hospital[key] = updates[key];
+      }
+    }
+  }
+
+  return hospital;
+}
+
+function updateHospitalDepartment(hospitalId, deptKey, deptUpdates) {
+  const hospital = getHospitalById(hospitalId);
+  if (!hospital) {
+    throw new Error(`未找到医院: ${hospitalId}`);
+  }
+
+  if (!hospital.departments[deptKey]) {
+    throw new Error(`医院${hospital.name}没有科室: ${deptKey}`);
+  }
+
+  hospital.departments[deptKey] = {
+    ...hospital.departments[deptKey],
+    ...deptUpdates
+  };
+
+  return hospital.departments[deptKey];
+}
+
+function removeHospitalDepartment(hospitalId, deptKey) {
+  const hospital = getHospitalById(hospitalId);
+  if (!hospital) {
+    throw new Error(`未找到医院: ${hospitalId}`);
+  }
+
+  if (!hospital.departments[deptKey]) {
+    throw new Error(`医院${hospital.name}没有科室: ${deptKey}`);
+  }
+
+  delete hospital.departments[deptKey];
+  return true;
+}
+
+function addHospitalDepartment(hospitalId, deptKey, deptConfig) {
+  const hospital = getHospitalById(hospitalId);
+  if (!hospital) {
+    throw new Error(`未找到医院: ${hospitalId}`);
+  }
+
+  if (hospital.departments[deptKey]) {
+    throw new Error(`科室已存在: ${deptKey}`);
+  }
+
+  if (!deptConfig.name || !deptConfig.code) {
+    throw new Error('科室配置缺少必填字段: name, code');
+  }
+
+  hospital.departments[deptKey] = {
+    name: deptConfig.name,
+    code: deptConfig.code,
+    hot: deptConfig.hot || false
+  };
+
+  return hospital.departments[deptKey];
+}
+
+function updateSystemConfig(updates) {
+  const validFields = [
+    'maxBrowsers', 'headless', 'pageTimeout', 'scriptTimeout',
+    'implicitWait', 'maxRetries', 'retryDelay', 'dataRetentionDays'
+  ];
+
+  for (const key of Object.keys(updates)) {
+    if (validFields.includes(key)) {
+      SYSTEM_CONFIG[key] = updates[key];
+    }
+  }
+
+  return SYSTEM_CONFIG;
+}
+
 module.exports = {
   HOSPITALS,
   EXPERT_LEVELS,
   NOTIFICATION_CHANNELS,
   SYSTEM_CONFIG,
-  getHospitalById: (id) => HOSPITALS.find(h => h.id === id),
-  getHospitalsByDept: (deptKey) => HOSPITALS.filter(h => h.departments[deptKey])
+  getHospitalById,
+  getHospitalsByDept,
+  updateHospitalConfig,
+  updateHospitalDepartment,
+  removeHospitalDepartment,
+  addHospitalDepartment,
+  updateSystemConfig
 };
