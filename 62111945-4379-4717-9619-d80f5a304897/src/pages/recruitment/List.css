@@ -1,0 +1,23 @@
+.recruitment-list-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.filter-card {
+  border-radius: 8px;
+}
+
+.table-card {
+  border-radius: 8px;
+}
+
+.table-card :global(.ant-card-head) {
+  border-bottom: 1px solid #f0f0f0;
+}
+
+@media (max-width: 768px) {
+  .filter-card :global(.ant-card-body) {
+    padding: 16px;
+  }
+}

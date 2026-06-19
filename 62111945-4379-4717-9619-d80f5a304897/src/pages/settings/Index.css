@@ -1,0 +1,144 @@
+.settings-page {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-header {
+  border-radius: 8px;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.avatar-section {
+  position: relative;
+}
+
+.user-avatar {
+  background: linear-gradient(135deg, #1677ff, #69b1ff);
+}
+
+.upload-btn {
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.user-info .username {
+  font-size: 20px;
+  font-weight: 600;
+  color: #262626;
+  margin: 0 0 4px 0;
+}
+
+.user-info .user-role {
+  color: #8c8c8c;
+  margin: 0;
+  font-size: 13px;
+}
+
+.settings-content {
+  border-radius: 8px;
+}
+
+.settings-content :global(.ant-tabs-nav) {
+  margin-bottom: 24px;
+}
+
+.notification-settings {
+  max-width: 700px;
+}
+
+.notification-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 20px;
+}
+
+.channel-legend {
+  display: flex;
+  gap: 24px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #666;
+  min-width: 44px;
+  justify-content: center;
+}
+
+.notification-type {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  transition: all 0.2s;
+}
+
+.notification-type:hover {
+  border-color: #d9d9d9;
+  background: #fafafa;
+}
+
+.type-info h4 {
+  font-size: 15px;
+  font-weight: 500;
+  color: #262626;
+  margin: 0 0 4px 0;
+}
+
+.type-info p {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin: 0;
+}
+
+.channel-switches {
+  display: flex;
+  gap: 24px;
+}
+
+.switch-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 44px;
+  font-size: 12px;
+  color: #666;
+}
+
+@media (max-width: 768px) {
+  .user-profile {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .notification-type {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .channel-switches {
+    width: 100%;
+    justify-content: space-around;
+  }
+
+  .notification-header {
+    justify-content: center;
+  }
+}

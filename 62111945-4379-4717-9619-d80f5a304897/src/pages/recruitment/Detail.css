@@ -1,0 +1,171 @@
+.recruitment-detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.detail-header .info-card {
+  border-radius: 8px;
+}
+
+.info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 600;
+  color: #262626;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  color: #595959;
+  font-size: 14px;
+}
+
+.meta span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.detail-content {
+  border-radius: 8px;
+}
+
+.description {
+  padding: 16px 0;
+}
+
+.description h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 20px 0 12px;
+  color: #262626;
+}
+
+.description p,
+.description li {
+  color: #595959;
+  line-height: 1.8;
+}
+
+.description ul {
+  padding-left: 20px;
+}
+
+.booth-map-section {
+  padding: 16px 0;
+}
+
+.area-filter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.legend {
+  display: flex;
+  gap: 20px;
+}
+
+.legend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #666;
+}
+
+.legend em {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid #d9d9d9;
+}
+
+.booth-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 12px;
+}
+
+.booth-item {
+  border: 2px solid #f0f0f0;
+  border-radius: 6px;
+  padding: 12px 8px;
+  text-align: center;
+  background: #fafafa;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.booth-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.booth-number {
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
+  margin-bottom: 4px;
+}
+
+.booth-name {
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.enterprise-item {
+  padding: 12px 0 !important;
+}
+
+.qr-code-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+}
+
+@media (max-width: 768px) {
+  .info-header {
+    flex-direction: column;
+  }
+
+  .title {
+    font-size: 18px;
+  }
+
+  .meta {
+    gap: 12px;
+    font-size: 13px;
+  }
+
+  .booth-grid {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 8px;
+  }
+
+  .area-filter {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

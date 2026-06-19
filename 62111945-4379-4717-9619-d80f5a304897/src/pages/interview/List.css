@@ -1,0 +1,13 @@
+.interview-list-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.filter-card {
+  border-radius: 8px;
+}
+
+.table-card {
+  border-radius: 8px;
+}

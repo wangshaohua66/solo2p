@@ -1,0 +1,138 @@
+.resume-list-page {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.header-card {
+  border-radius: 8px;
+}
+
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.title-icon {
+  color: #1677ff;
+  font-size: 18px;
+}
+
+.resume-count {
+  color: #8c8c8c;
+  font-size: 14px;
+  font-weight: normal;
+}
+
+.privacy-tip {
+  padding: 12px 16px;
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 6px;
+  margin-bottom: 20px;
+}
+
+.resume-item {
+  padding: 20px !important;
+  border: 1px solid #f0f0f0 !important;
+  border-radius: 8px !important;
+  margin-bottom: 16px !important;
+  background: #fff;
+  display: block !important;
+}
+
+.resume-item:last-child {
+  margin-bottom: 0 !important;
+}
+
+.resume-main {
+  width: 100%;
+}
+
+.resume-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.resume-title-section {
+  flex: 1;
+}
+
+.resume-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #262626;
+  margin: 0 0 8px 0;
+  cursor: pointer;
+}
+
+.resume-title:hover {
+  color: #1677ff;
+}
+
+.resume-basic {
+  display: flex;
+  gap: 8px;
+  color: #595959;
+  font-size: 13px;
+}
+
+.resume-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.resume-skills {
+  margin-bottom: 12px;
+}
+
+.resume-expect {
+  display: flex;
+  gap: 24px;
+  font-size: 13px;
+  color: #595959;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  background: #fafafa;
+  border-radius: 6px;
+}
+
+.resume-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.update-time {
+  font-size: 12px;
+  color: #bfbfbf;
+}
+
+@media (max-width: 768px) {
+  .resume-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .resume-basic {
+    flex-wrap: wrap;
+  }
+
+  .resume-expect {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .resume-footer {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}

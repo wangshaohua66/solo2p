@@ -1,0 +1,258 @@
+.resume-detail-page {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.resume-container {
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.resume-card {
+  border: none;
+}
+
+.resume-card :global(.ant-card-body) {
+  padding: 32px;
+}
+
+.resume-header-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+.resume-avatar-section {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.resume-basic-info {
+  flex: 1;
+}
+
+.resume-name {
+  font-size: 26px;
+  font-weight: 600;
+  color: #262626;
+  margin: 0 0 8px 0;
+}
+
+.resume-title-tag {
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #8c8c8c;
+  font-size: 14px;
+}
+
+.resume-contact {
+  display: flex;
+  gap: 20px;
+  color: #595959;
+  font-size: 13px;
+}
+
+.resume-contact span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.resume-expect-section {
+  display: flex;
+  gap: 32px;
+}
+
+.expect-item {
+  text-align: center;
+}
+
+.expect-label {
+  display: block;
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-bottom: 4px;
+}
+
+.expect-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.expect-value.salary {
+  color: #ff4d4f;
+}
+
+.section {
+  margin-bottom: 28px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #262626;
+  margin: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e6f4ff;
+}
+
+.section-icon {
+  color: #1677ff;
+}
+
+.skills-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.skill-tag {
+  font-size: 13px !important;
+  padding: 4px 12px !important;
+}
+
+.experience-timeline {
+  padding-left: 8px;
+}
+
+.experience-item {
+  padding-bottom: 4px;
+}
+
+.experience-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.company-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.time-range {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.position {
+  font-size: 13px;
+  color: #595959;
+  margin-bottom: 8px;
+}
+
+.description {
+  color: #595959;
+  line-height: 1.7;
+  font-size: 13px;
+  margin: 0;
+}
+
+.side-section {
+  margin-bottom: 24px;
+  padding: 16px;
+  background: #fafafa;
+  border-radius: 8px;
+}
+
+.side-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
+  margin: 0 0 12px 0;
+}
+
+.info-list {
+  width: 100%;
+}
+
+.info-list :global(.ant-descriptions-item-label) {
+  color: #8c8c8c;
+  width: 70px;
+}
+
+.edu-item {
+  margin-bottom: 12px;
+}
+
+.edu-item:last-child {
+  margin-bottom: 0;
+}
+
+.edu-school {
+  font-size: 14px;
+  font-weight: 500;
+  color: #262626;
+  margin-bottom: 2px;
+}
+
+.edu-major {
+  font-size: 12px;
+  color: #595959;
+  margin-bottom: 2px;
+}
+
+.edu-time {
+  font-size: 11px;
+  color: #bfbfbf;
+}
+
+.intent-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.intent-label {
+  color: #8c8c8c;
+}
+
+.intent-value {
+  color: #262626;
+}
+
+@media (max-width: 768px) {
+  .resume-card :global(.ant-card-body) {
+    padding: 20px;
+  }
+
+  .resume-header-section {
+    flex-direction: column;
+  }
+
+  .resume-expect-section {
+    width: 100%;
+    justify-content: space-around;
+  }
+
+  .resume-name {
+    font-size: 22px;
+  }
+
+  .experience-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}

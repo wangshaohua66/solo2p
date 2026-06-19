@@ -1,0 +1,174 @@
+.applications-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.filter-card {
+  border-radius: 8px;
+}
+
+.table-card {
+  border-radius: 8px;
+}
+
+.job-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #262626;
+  cursor: pointer;
+  margin-bottom: 4px;
+}
+
+.job-title:hover {
+  color: #1677ff;
+}
+
+.company-name {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.match-score {
+  display: flex;
+  justify-content: center;
+}
+
+.score-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.stats-summary {
+  display: flex;
+  gap: 24px;
+  font-size: 13px;
+  color: #666;
+  justify-content: flex-end;
+}
+
+.stats-summary strong {
+  color: #262626;
+  font-size: 16px;
+  margin: 0 4px;
+}
+
+.stats-summary .orange {
+  color: #fa8c16;
+}
+
+.stats-summary .green {
+  color: #52c41a;
+}
+
+.app-detail .detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.app-detail .detail-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.detail-company {
+  color: #8c8c8c;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.detail-section {
+  margin-bottom: 20px;
+}
+
+.detail-section h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+}
+
+.detail-row {
+  display: flex;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.detail-row .label {
+  width: 80px;
+  color: #8c8c8c;
+}
+
+.detail-row .value {
+  flex: 1;
+  color: #262626;
+}
+
+.progress-steps {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+}
+
+.progress-steps::before {
+  content: '';
+  position: absolute;
+  top: 16px;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  background: #f0f0f0;
+  z-index: 0;
+}
+
+.step {
+  flex: 1;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.step-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #f0f0f0;
+  color: #bfbfbf;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.step.completed .step-icon {
+  background: #52c41a;
+  color: #fff;
+}
+
+.step-text {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.step.completed .step-text {
+  color: #262626;
+}
+
+@media (max-width: 768px) {
+  .stats-summary {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+}
