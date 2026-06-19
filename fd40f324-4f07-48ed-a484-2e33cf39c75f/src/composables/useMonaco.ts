@@ -16,6 +16,8 @@ export function useMonaco(containerRef: Ref<HTMLElement | null>) {
   const contentHandlers: Array<(code: string) => void> = []
   const positionHandlers: Array<(pos: EditorPosition) => void> = []
   const lineDoubleClickHandlers: Array<(line: number) => void> = []
+  const selectionChangeHandlers: Array<(sel: { hasSelection: boolean; text: string; startLine: number; endLine: number }) => void> = []
+  const contextMenuHandlers: Array<(e: { x: number; y: number; lineNumber: number; column: number }) => void> = []
 
   let disposeFns: Array<() => void> = []
 
@@ -124,9 +126,35 @@ export function useMonaco(containerRef: Ref<HTMLElement | null>) {
         const line = e.target.position?.lineNumber
         if (line) lineDoubleClickHandlers.forEach(cb => cb(line))
       }
+      if (e.event.rightButton) {
+        const pos = e.target.position
+        if (pos) {
+          contextMenuHandlers.forEach(cb => cb({
+            x: e.event.posx,
+            y: e.event.posy,
+            lineNumber: pos.lineNumber,
+            column: pos.column
+          }))
+        }
+      }
     })
 
-    disposeFns = [onContent.dispose, onPos.dispose, onMouse.dispose]
+    const onSel = editor.value.onDidChangeCursorSelection((e) => {
+      const sel = e.selection
+      const hasSelection = sel.startLineNumber !== sel.endLineNumber || sel.startColumn !== sel.endColumn
+      let text = ''
+      if (hasSelection && model.value) {
+        text = model.value.getValueInRange(sel)
+      }
+      selectionChangeHandlers.forEach(cb => cb({
+        hasSelection,
+        text,
+        startLine: sel.startLineNumber,
+        endLine: sel.endLineNumber
+      }))
+    })
+
+    disposeFns = [onContent.dispose, onPos.dispose, onMouse.dispose, onSel.dispose]
 
     isReady.value = true
     loadingTime.value = Math.round(performance.now() - start)
@@ -287,6 +315,98 @@ export function useMonaco(containerRef: Ref<HTMLElement | null>) {
     }
   }
 
+  function onSelectionChange(cb: (sel: { hasSelection: boolean; text: string; startLine: number; endLine: number }) => void): () => void {
+    selectionChangeHandlers.push(cb)
+    return () => {
+      const idx = selectionChangeHandlers.indexOf(cb)
+      if (idx >= 0) selectionChangeHandlers.splice(idx, 1)
+    }
+  }
+
+  function onContextMenu(cb: (e: { x: number; y: number; lineNumber: number; column: number }) => void): () => void {
+    contextMenuHandlers.push(cb)
+    return () => {
+      const idx = contextMenuHandlers.indexOf(cb)
+      if (idx >= 0) contextMenuHandlers.splice(idx, 1)
+    }
+  }
+
+  function openFind() {
+    editor.value?.getAction('actions.find')?.run()
+  }
+
+  function closeFind() {
+    editor.value?.trigger('codestage', 'closeFindWidget', null)
+  }
+
+  function openReplace() {
+    editor.value?.trigger('codestage', 'editor.action.startFindReplaceAction', null)
+  }
+
+  function findNext() {
+    editor.value?.getAction('editor.action.nextSelectionMatchFindAction')?.run()
+    editor.value?.trigger('codestage', 'editor.action.nextMatchFindAction', null)
+  }
+
+  function findPrev() {
+    editor.value?.trigger('codestage', 'editor.action.previousMatchFindAction', null)
+  }
+
+  function replaceAll(findValue: string, replaceValue: string) {
+    if (!model.value || !findValue) return
+    const fullText = model.value.getValue()
+    const newText = fullText.split(findValue).join(replaceValue)
+    model.value.applyEdits([{
+      range: model.value.getFullModelRange(),
+      text: newText,
+      forceMoveMarkers: true
+    }])
+  }
+
+  function replaceCurrent(findValue: string, replaceValue: string) {
+    if (!editor.value || !findValue) return
+    const sel = editor.value.getSelection()
+    if (!sel) return
+    const selectedText = model.value?.getValueInRange(sel) || ''
+    if (selectedText === findValue) {
+      model.value?.applyEdits([{
+        range: sel,
+        text: replaceValue,
+        forceMoveMarkers: true
+      }])
+    }
+    findNext()
+  }
+
+  function insertSnippet(code: string) {
+    if (!editor.value) return
+    const sel = editor.value.getSelection()
+    if (sel) {
+      editor.value.executeEdits('codestage-insert', [{
+        range: sel,
+        text: code,
+        forceMoveMarkers: true
+      }])
+    } else {
+      const pos = editor.value.getPosition()
+      if (pos) {
+        editor.value.executeEdits('codestage-insert', [{
+          range: new monaco.Range(pos.lineNumber, pos.column, pos.lineNumber, pos.column),
+          text: code,
+          forceMoveMarkers: true
+        }])
+      }
+    }
+    focus()
+  }
+
+  function getSelectedText(): string {
+    if (!editor.value || !model.value) return ''
+    const sel = editor.value.getSelection()
+    if (!sel) return ''
+    return model.value.getValueInRange(sel)
+  }
+
   function triggerFormat() {
     editor.value?.getAction('editor.action.formatDocument')?.run()
   }
@@ -301,6 +421,8 @@ export function useMonaco(containerRef: Ref<HTMLElement | null>) {
     contentHandlers.length = 0
     positionHandlers.length = 0
     lineDoubleClickHandlers.length = 0
+    selectionChangeHandlers.length = 0
+    contextMenuHandlers.length = 0
     if (model.value) model.value.dispose()
     if (editor.value) editor.value.dispose()
     model.value = null
@@ -331,6 +453,17 @@ export function useMonaco(containerRef: Ref<HTMLElement | null>) {
     onContentChange,
     onPositionChange,
     onLineDoubleClick,
+    onSelectionChange,
+    onContextMenu,
+    openFind,
+    closeFind,
+    openReplace,
+    findNext,
+    findPrev,
+    replaceAll,
+    replaceCurrent,
+    insertSnippet,
+    getSelectedText,
     triggerFormat,
     layout
   }

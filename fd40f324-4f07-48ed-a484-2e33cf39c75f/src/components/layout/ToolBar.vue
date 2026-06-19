@@ -8,7 +8,8 @@ import {
   FilePlus, FolderOpen, Moon, Sun, Contrast,
   Maximize2, Minimize2, ZoomIn, ZoomOut,
   PlayCircle, Download, PanelLeftClose, PanelLeftOpen,
-  PanelRightOpen, PanelRightClose, Settings, Layers
+  PanelRightOpen, PanelRightClose, Settings, Layers,
+  Search, Replace, Code2
 } from 'lucide-vue-next'
 
 const themeStore = useThemeStore()
@@ -18,6 +19,18 @@ const showThemeMenu = ref(false)
 const showFileMenu = ref(false)
 const showZoomMenu = ref(false)
 const isRunning = ref(false)
+
+function triggerFind() {
+  window.dispatchEvent(new CustomEvent('codestage:editor-find'))
+}
+
+function triggerReplace() {
+  window.dispatchEvent(new CustomEvent('codestage:editor-replace'))
+}
+
+function openSnippetPicker() {
+  window.dispatchEvent(new CustomEvent('codestage:editor-insert-snippet'))
+}
 
 const presentationActive = computed(() => themeStore.presentationMode)
 const currentTheme = computed(() => themeStore.currentTheme)
@@ -169,6 +182,28 @@ mockApi('/api/config', { version: '1.0.0', env: 'demo' })
     </div>
 
     <div class="flex items-center gap-1.5 flex-1 justify-center">
+      <button
+        class="btn-icon"
+        title="查找 (Ctrl+F)"
+        @click="triggerFind"
+      >
+        <Search class="w-4 h-4" />
+      </button>
+      <button
+        class="btn-icon"
+        title="替换 (Ctrl+H)"
+        @click="triggerReplace"
+      >
+        <Replace class="w-4 h-4" />
+      </button>
+      <button
+        class="btn-icon"
+        title="插入代码片段 (Ctrl+I)"
+        @click="openSnippetPicker"
+      >
+        <Code2 class="w-4 h-4" />
+      </button>
+      <div class="w-px h-5 mx-1" style="background: var(--border-color);" />
       <button
         class="flex items-center gap-1.5 px-4 py-1.5 rounded-md font-medium text-sm transition-all"
         :class="isRunning ? 'opacity-60' : ''"

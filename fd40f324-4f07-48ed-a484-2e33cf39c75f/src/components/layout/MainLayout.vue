@@ -5,6 +5,8 @@ import { useEditorStore } from '@/stores/editor'
 import { useStepRunner } from '@/composables/useStepRunner'
 import { usePresentation } from '@/composables/usePresentation'
 import { useShortcuts } from '@/composables/useShortcuts'
+import { useGsap } from '@/composables/useGsap'
+import { useResponsive } from '@/composables/useResponsive'
 import { InjectKeys, type RunnerContext } from '@/types'
 
 import ToolBar from '@/components/layout/ToolBar.vue'
@@ -22,10 +24,13 @@ import OutputConsole from '@/components/output/OutputConsole.vue'
 
 const themeStore = useThemeStore()
 const editorStore = useEditorStore()
+const gsapApi = useGsap()
+const responsive = useResponsive()
 
 const appRef = ref<HTMLElement | null>(null)
 const editorRef = ref<InstanceType<typeof CodeEditor> | null>(null)
 const editorContainerRef = ref<HTMLElement | null>(null)
+const contentRef = ref<HTMLElement | null>(null)
 
 const runner = useStepRunner()
 usePresentation(appRef)
@@ -35,6 +40,7 @@ const sidebarOpen = computed(() => themeStore.sidebarOpen)
 const sidebarWidth = computed(() => themeStore.sidebarWidth)
 const consoleOpen = computed(() => themeStore.consoleOpen)
 const isPresentation = computed(() => themeStore.presentationMode)
+const isCompact = computed(() => responsive.isMobile.value || responsive.isTablet.value)
 
 onMounted(() => {
   themeStore.applyThemeClass()
@@ -57,12 +63,59 @@ onMounted(() => {
   shortcuts.register('Ctrl+-', () => { themeStore.decreaseFontSize() }, { preventDefault: true })
   shortcuts.register('Ctrl+Shift+Z', () => {}, { preventDefault: true })
 
+  shortcuts.register('Ctrl+F', () => {
+    window.dispatchEvent(new CustomEvent('codestage:editor-find'))
+  }, { preventDefault: true })
+  shortcuts.register('Ctrl+H', () => {
+    window.dispatchEvent(new CustomEvent('codestage:editor-replace'))
+  }, { preventDefault: true })
+  shortcuts.register('Ctrl+I', () => {
+    window.dispatchEvent(new CustomEvent('codestage:editor-insert-snippet'))
+  }, { preventDefault: true })
+
+  shortcuts.register('Space', () => {
+    if (themeStore.presentationMode) {
+      runner.stepOver()
+    }
+  }, { preventDefault: true })
+  shortcuts.register('ArrowRight', () => {
+    if (themeStore.presentationMode) runner.stepOver()
+  })
+  shortcuts.register('ArrowLeft', () => {
+    if (themeStore.presentationMode) runner.reset()
+  })
+  shortcuts.register('PageDown', () => {
+    if (themeStore.presentationMode) runner.stepOver()
+  }, { preventDefault: true })
+  shortcuts.register('PageUp', () => {
+    if (themeStore.presentationMode) runner.reset()
+  }, { preventDefault: true })
+
   runner.onHighlight((line) => {
     editorRef.value?.highlightLine(line)
   })
   runner.onClear(() => {
     editorRef.value?.clearHighlight()
   })
+
+  nextTick(() => {
+    if (contentRef.value) {
+      gsapApi.fadeInUp(contentRef.value, { duration: 0.4 })
+    }
+  })
+})
+
+watch(() => themeStore.presentationMode, (active) => {
+  if (active) {
+    nextTick(() => {
+      if (appRef.value) {
+        gsapApi.gsap.fromTo(appRef.value,
+          { opacity: 0.85, scale: 0.98 },
+          { opacity: 1, scale: 1, duration: 0.4, ease: 'power2.out' }
+        )
+      }
+    })
+  }
 })
 
 watch(() => themeStore.currentTheme, () => {
@@ -92,13 +145,13 @@ provide(InjectKeys.RunnerContext, runnerCtx)
   <div
     ref="appRef"
     class="w-full h-full flex flex-col"
-    :class="{ 'presentation-mode': isPresentation }"
+    :class="{ 'presentation-mode': isPresentation, 'compact-mode': isCompact }"
   >
     <div style="height: var(--toolbar-height); flex-shrink: 0;">
       <ToolBar />
     </div>
 
-    <div class="flex-1 flex overflow-hidden min-h-0">
+    <div ref="contentRef" class="flex-1 flex overflow-hidden min-h-0">
       <Transition name="sidebar">
         <div v-show="sidebarOpen" class="h-full flex-shrink-0 hide-in-presentation">
           <ResizableSidebar

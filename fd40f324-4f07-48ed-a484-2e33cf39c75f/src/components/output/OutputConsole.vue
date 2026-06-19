@@ -2,6 +2,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useOutputStore } from '@/stores/output'
 import { useEditorStore } from '@/stores/editor'
+import { useHighlight } from '@/composables/useHighlight'
 import type { LogLevel } from '@/types'
 import {
   Trash2, WrapText, Scroll, Filter,
@@ -14,6 +15,7 @@ defineProps<{
 
 const outputStore = useOutputStore()
 const editorStore = useEditorStore()
+const { highlight } = useHighlight()
 const scrollRef = ref<HTMLElement | null>(null)
 const levels: Array<{ id: LogLevel | 'all'; label: string; icon: any }> = [
   { id: 'all', label: '全部', icon: Filter },
@@ -35,8 +37,20 @@ const counts = computed(() => {
   }
 })
 
-function formatArgs(args: any[]): string {
-  return outputStore.formatArgs(args)
+function formatArgsHtml(args: any[]): string {
+  const text = outputStore.formatArgs(args)
+  if (text.startsWith('{') || text.startsWith('[') || text.includes('function') || text.includes('=>')) {
+    try {
+      return highlight(text, 'javascript')
+    } catch {
+      return escapeHtml(text)
+    }
+  }
+  return escapeHtml(text)
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
 function formatTime(ts: number): string {
@@ -182,11 +196,10 @@ onMounted(() => { doAutoScroll() })
             {{ formatTime(log.timestamp) }}
           </span>
           <span
-            class="flex-1 min-w-0"
+            class="flex-1 min-w-0 hljs"
             :style="{ color: levelStyle(log.level).color }"
-          >
-            {{ formatArgs(log.args) }}
-          </span>
+            v-html="formatArgsHtml(log.args)"
+          />
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { useOutputStore } from '@/stores/output'
 import { useEditorStore } from '@/stores/editor'
+import { useTsCompiler } from '@/composables/useTsCompiler'
 import type { ExecutionResult, ExecutionOptions, LogLevel } from '@/types'
 import { createId } from '@/utils'
 
@@ -27,6 +28,7 @@ function serializeArgs(args: any[]): any[] {
 export function useExecution() {
   const outputStore = useOutputStore()
   const editorStore = useEditorStore()
+  const tsCompiler = useTsCompiler()
 
   let iframeEl: HTMLIFrameElement | null = null
   const mockedApis = new Map<string, any>()
@@ -44,6 +46,8 @@ export function useExecution() {
     options: ExecutionOptions = {}
   ): Promise<ExecutionResult> {
     const fileId = editorStore.activeFileId || ''
+    const activeFile = editorStore.activeFile
+    const language = activeFile?.language || 'javascript'
     const { timeout = 5000, captureConsole = true } = options
     const collectedLogs: Array<{ level: LogLevel; args: any[]; stack?: string }> = []
     const startTime = performance.now()
@@ -51,6 +55,36 @@ export function useExecution() {
     let success = true
     let returnValue: any = undefined
     let error: ExecutionResult['error'] = undefined
+
+    let execCode = code
+    if (tsCompiler.isTypeScript(language)) {
+      try {
+        const compiled = tsCompiler.transpile(code, 'codestage.ts')
+        if (compiled.diagnostics.length > 0) {
+          const errMsg = tsCompiler.formatDiagnostics(compiled.diagnostics)
+          if (errMsg) {
+            outputStore.addLog('error', [`TypeScript 编译错误:\n${errMsg}`], fileId)
+            return {
+              success: false,
+              returnValue: undefined,
+              error: { name: 'TSError', message: errMsg, stack: undefined },
+              logs: [],
+              duration: Math.round(performance.now() - startTime)
+            }
+          }
+        }
+        execCode = compiled.output
+      } catch (e: any) {
+        outputStore.addLog('error', [`TypeScript 转译失败: ${e?.message || String(e)}`], fileId)
+        return {
+          success: false,
+          returnValue: undefined,
+          error: { name: 'TSError', message: e?.message || String(e), stack: e?.stack },
+          logs: [],
+          duration: Math.round(performance.now() - startTime)
+        }
+      }
+    }
 
     try {
       const levels: LogLevel[] = ['log', 'warn', 'error', 'info', 'debug']
@@ -97,7 +131,7 @@ export function useExecution() {
 
       const execPromise = (async () => {
         const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor
-        const fn = new AsyncFunction(`${code}`)
+        const fn = new AsyncFunction(`${execCode}`)
         return await fn.call({})
       })()
 
@@ -164,7 +198,8 @@ export function useExecution() {
     mockApi,
     clearMocks,
     clearLogs,
-    dispose
+    dispose,
+    tsCompiler
   }
 }
 
