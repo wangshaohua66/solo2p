@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using MiningGovApi.Background;
 using MiningGovApi.Data;
 using MiningGovApi.Middleware;
 using MiningGovApi.Services;
@@ -54,6 +55,14 @@ builder.Services.AddScoped<IProductionService, ProductionService>();
 builder.Services.AddScoped<ISafetyService, SafetyService>();
 builder.Services.AddScoped<ITradeService, TradeService>();
 builder.Services.AddScoped<IReportService, ReportService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IExportService, ExportService>();
+
+builder.Services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
+builder.Services.AddHostedService<QueuedHostedService>();
+builder.Services.AddHostedService<ApprovalReminderHostedService>();
+builder.Services.AddHostedService<AlertEscalationHostedService>();
+builder.Services.AddHostedService<FeeReminderHostedService>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
