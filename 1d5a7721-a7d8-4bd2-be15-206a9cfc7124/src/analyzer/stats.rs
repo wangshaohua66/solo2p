@@ -408,6 +408,63 @@ impl Default for TrafficAnalyzer {
     }
 }
 
+pub fn default_sectors() -> Vec<SectorDefinition> {
+    vec![
+        SectorDefinition {
+            id: "SECTOR01".to_string(),
+            name: "华北扇区".to_string(),
+            min_lat: 38.0,
+            max_lat: 43.0,
+            min_lon: 113.0,
+            max_lon: 120.0,
+            min_alt: 0.0,
+            max_alt: 15000.0,
+        },
+        SectorDefinition {
+            id: "SECTOR02".to_string(),
+            name: "华东扇区".to_string(),
+            min_lat: 30.0,
+            max_lat: 38.0,
+            min_lon: 115.0,
+            max_lon: 123.0,
+            min_alt: 0.0,
+            max_alt: 15000.0,
+        },
+        SectorDefinition {
+            id: "SECTOR03".to_string(),
+            name: "华南扇区".to_string(),
+            min_lat: 20.0,
+            max_lat: 30.0,
+            min_lon: 108.0,
+            max_lon: 118.0,
+            min_alt: 0.0,
+            max_alt: 15000.0,
+        },
+    ]
+}
+
+pub fn find_sector_by_id(sectors: &[SectorDefinition], id: &str) -> Option<SectorDefinition> {
+    sectors.iter().find(|s| s.id == id).cloned()
+}
+
+pub fn find_sectors_by_range(
+    sectors: &[SectorDefinition],
+    start: usize,
+    end: usize,
+) -> Vec<SectorDefinition> {
+    sectors
+        .iter()
+        .filter(|s| {
+            if let Ok(num) = s.id.trim_start_matches("SECTOR").parse::<usize>() {
+                num >= start && num <= end
+            } else {
+                false
+            }
+        })
+        .cloned()
+        .collect()
+}
+
 pub fn format_stats_report(stats: &TrafficStats) -> String {
     let mut report = String::new();
 

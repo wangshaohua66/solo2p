@@ -367,6 +367,7 @@ impl<'a> BatchReader<'a> {
     }
 }
 
+#[deprecated(since = "1.1.0", note = "使用 async_read_file_stream 进行流式读取，避免大文件内存溢出")]
 pub async fn async_read_file(path: &Path) -> AtcResult<Vec<u8>> {
     use tokio::io::AsyncReadExt;
 
@@ -380,6 +381,102 @@ pub async fn async_read_file(path: &Path) -> AtcResult<Vec<u8>> {
         .map_err(|e| AtcError::IoError(e))?;
 
     Ok(contents)
+}
+
+const DEFAULT_CHUNK_SIZE: usize = 64 * 1024;
+
+pub struct AsyncStreamReader {
+    reader: tokio::io::BufReader<tokio::fs::File>,
+    chunk_size: usize,
+    bytes_read: u64,
+    total_bytes: u64,
+}
+
+impl AsyncStreamReader {
+    pub fn new(file: tokio::fs::File, chunk_size: usize, total_bytes: u64) -> Self {
+        let reader = tokio::io::BufReader::with_capacity(
+            chunk_size.max(4096),
+            file,
+        );
+        Self {
+            reader,
+            chunk_size,
+            bytes_read: 0,
+            total_bytes,
+        }
+    }
+
+    pub fn bytes_read(&self) -> u64 {
+        self.bytes_read
+    }
+
+    pub fn total_bytes(&self) -> u64 {
+        self.total_bytes
+    }
+
+    pub fn is_finished(&self) -> bool {
+        self.total_bytes > 0 && self.bytes_read >= self.total_bytes
+    }
+
+    pub async fn read_chunk(&mut self) -> AtcResult<Option<Vec<u8>>> {
+        use tokio::io::AsyncReadExt;
+
+        let mut buffer = vec![0u8; self.chunk_size];
+        let n = self.reader.read(&mut buffer).await.map_err(AtcError::IoError)?;
+
+        if n == 0 {
+            return Ok(None);
+        }
+
+        buffer.truncate(n);
+        self.bytes_read += n as u64;
+        Ok(Some(buffer))
+    }
+
+    pub async fn read_all_chunks(&mut self) -> AtcResult<Vec<Vec<u8>>> {
+        let mut chunks = Vec::new();
+        while let Some(chunk) = self.read_chunk().await? {
+            chunks.push(chunk);
+        }
+        Ok(chunks)
+    }
+}
+
+pub async fn async_read_file_stream(
+    path: &Path,
+    chunk_size: Option<usize>,
+) -> AtcResult<AsyncStreamReader> {
+    let chunk_size = chunk_size.unwrap_or(DEFAULT_CHUNK_SIZE);
+    let file = tokio::fs::File::open(path)
+        .await
+        .map_err(AtcError::IoError)?;
+    let total_bytes = tokio::fs::metadata(path)
+        .await
+        .map(|m| m.len())
+        .unwrap_or(0);
+    Ok(AsyncStreamReader::new(file, chunk_size, total_bytes))
+}
+
+pub async fn async_read_file_chunks<F>(
+    path: &Path,
+    chunk_size: Option<usize>,
+    mut handler: F,
+) -> AtcResult<u64>
+where
+    F: FnMut(&[u8]) -> AtcResult<bool>,
+{
+    let mut reader = async_read_file_stream(path, chunk_size).await?;
+    let mut total_read = 0u64;
+
+    while let Some(chunk) = reader.read_chunk().await? {
+        total_read += chunk.len() as u64;
+        let should_continue = handler(&chunk)?;
+        if !should_continue {
+            break;
+        }
+    }
+
+    Ok(total_read)
 }
 
 pub async fn async_write_file(path: &Path, data: &[u8]) -> AtcResult<()> {
@@ -425,5 +522,124 @@ impl ProgressExt for ProgressBar {
     fn increment_with_rate(&self, delta: u64, rate: f64) {
         self.inc(delta);
         self.set_message(format!("{:.0} 条/秒", rate));
+    }
+}
+
+#[cfg(test)]
+mod stream_tests {
+    use super::*;
+    use std::io::Write as StdWrite;
+
+    #[tokio::test]
+    async fn test_async_stream_reader_small_file() {
+        let data: Vec<u8> = (0..1024).map(|i| (i % 256) as u8).collect();
+        let mut tmp = tempfile::NamedTempFile::new().unwrap();
+        tmp.write_all(&data).unwrap();
+        tmp.flush().unwrap();
+
+        let path = tmp.path().to_path_buf();
+        let mut reader = async_read_file_stream(&path, Some(256)).await.unwrap();
+
+        let mut all_data = Vec::new();
+        let mut chunk_count = 0;
+        while let Some(chunk) = reader.read_chunk().await.unwrap() {
+            all_data.extend_from_slice(&chunk);
+            chunk_count += 1;
+        }
+
+        assert_eq!(all_data, data);
+        assert!(chunk_count >= 4);
+        assert_eq!(reader.bytes_read(), 1024);
+        assert!(reader.is_finished());
+    }
+
+    #[tokio::test]
+    async fn test_async_stream_reader_large_file() {
+        let chunk_data: Vec<u8> = (0..4096).map(|i| (i % 256) as u8).collect();
+        let total_size = chunk_data.len() * 256;
+        let mut tmp = tempfile::NamedTempFile::new().unwrap();
+        for _ in 0..256 {
+            tmp.write_all(&chunk_data).unwrap();
+        }
+        tmp.flush().unwrap();
+
+        let path = tmp.path().to_path_buf();
+        let chunk_size = 64 * 1024;
+        let mut reader = async_read_file_stream(&path, Some(chunk_size)).await.unwrap();
+
+        assert_eq!(reader.total_bytes(), total_size as u64);
+
+        let mut total_read = 0u64;
+        let mut max_chunk_size = 0usize;
+        while let Some(chunk) = reader.read_chunk().await.unwrap() {
+            total_read += chunk.len() as u64;
+            max_chunk_size = max_chunk_size.max(chunk.len());
+        }
+
+        assert_eq!(total_read, total_size as u64);
+        assert!(max_chunk_size <= chunk_size);
+    }
+
+    #[tokio::test]
+    async fn test_async_read_file_chunks_callback() {
+        let data: Vec<u8> = (0..2048).map(|i| (i % 256) as u8).collect();
+        let mut tmp = tempfile::NamedTempFile::new().unwrap();
+        tmp.write_all(&data).unwrap();
+        tmp.flush().unwrap();
+
+        let path = tmp.path().to_path_buf();
+        let mut collected = Vec::new();
+        let total_read = async_read_file_chunks(&path, Some(512), |chunk| {
+            collected.extend_from_slice(chunk);
+            Ok(true)
+        })
+        .await
+        .unwrap();
+
+        assert_eq!(collected, data);
+        assert_eq!(total_read, 2048);
+    }
+
+    #[tokio::test]
+    async fn test_async_read_file_chunks_early_stop() {
+        let data = vec![0xABu8; 4096];
+        let mut tmp = tempfile::NamedTempFile::new().unwrap();
+        tmp.write_all(&data).unwrap();
+        tmp.flush().unwrap();
+
+        let path = tmp.path().to_path_buf();
+        let mut chunk_count = 0;
+        let total_read = async_read_file_chunks(&path, Some(1024), |_chunk| {
+            chunk_count += 1;
+            Ok(chunk_count < 2)
+        })
+        .await
+        .unwrap();
+
+        assert_eq!(chunk_count, 2);
+        assert!(total_read <= 2048);
+        assert!(total_read > 0);
+    }
+
+    #[tokio::test]
+    async fn test_stream_reader_does_not_load_all_into_memory() {
+        let chunk_data: Vec<u8> = (0..1024).map(|i| (i % 256) as u8).collect();
+        let mut tmp = tempfile::NamedTempFile::new().unwrap();
+        for _ in 0..1024 {
+            tmp.write_all(&chunk_data).unwrap();
+        }
+        tmp.flush().unwrap();
+
+        let path = tmp.path().to_path_buf();
+        let small_chunk = 4096;
+        let mut reader = async_read_file_stream(&path, Some(small_chunk)).await.unwrap();
+
+        let mut total = 0u64;
+        while let Some(chunk) = reader.read_chunk().await.unwrap() {
+            assert!(chunk.len() <= small_chunk);
+            total += chunk.len() as u64;
+        }
+
+        assert_eq!(total, 1024 * 1024);
     }
 }

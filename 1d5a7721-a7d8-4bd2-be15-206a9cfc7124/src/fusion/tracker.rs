@@ -336,6 +336,91 @@ impl MultiRadarTracker {
         Ok(results)
     }
 
+    pub fn query_by_sector(
+        &self,
+        sector: &crate::analyzer::SectorDefinition,
+        time_start: Option<DateTime<Utc>>,
+        time_end: Option<DateTime<Utc>>,
+    ) -> Vec<FusedTrack> {
+        let tracks = self.tracks.read();
+        let mut results = Vec::new();
+
+        for (icao, buffer) in tracks.iter() {
+            let mut filtered_points: Vec<TrackPoint> = buffer
+                .points
+                .iter()
+                .filter(|p| {
+                    let in_time = (time_start.is_none() || p.timestamp >= time_start.unwrap())
+                        && (time_end.is_none() || p.timestamp <= time_end.unwrap());
+
+                    if !in_time {
+                        return false;
+                    }
+
+                    let lat = p.position.latitude;
+                    let lon = p.position.longitude;
+                    let alt = p.position.altitude;
+
+                    lat >= sector.min_lat
+                        && lat < sector.max_lat
+                        && lon >= sector.min_lon
+                        && lon < sector.max_lon
+                        && alt >= sector.min_alt
+                        && alt < sector.max_alt
+                })
+                .cloned()
+                .collect();
+
+            if filtered_points.is_empty() {
+                continue;
+            }
+
+            filtered_points.sort_by_key(|p| p.timestamp);
+
+            let contributing_radars: HashSet<String> =
+                filtered_points.iter().map(|p| p.radar_id.clone()).collect();
+
+            let callsign = filtered_points
+                .iter()
+                .find(|p| p.callsign.is_some())
+                .and_then(|p| p.callsign.clone());
+
+            let last_update = filtered_points
+                .last()
+                .map(|p| p.timestamp)
+                .unwrap_or_else(Utc::now);
+
+            results.push(FusedTrack {
+                icao_address: *icao,
+                callsign,
+                points: filtered_points,
+                last_update,
+                contributing_radars: contributing_radars.into_iter().collect(),
+            });
+        }
+
+        results.sort_by(|a, b| b.last_update.cmp(&a.last_update));
+        results
+    }
+
+    pub fn query_by_sectors(
+        &self,
+        sectors: &[crate::analyzer::SectorDefinition],
+        time_start: Option<DateTime<Utc>>,
+        time_end: Option<DateTime<Utc>>,
+    ) -> Vec<FusedTrack> {
+        let mut results = Vec::new();
+        for sector in sectors {
+            let mut sector_results = self.query_by_sector(sector, time_start, time_end);
+            results.append(&mut sector_results);
+        }
+
+        let mut seen: HashSet<IcaoAddress> = HashSet::new();
+        results.retain(|t| seen.insert(t.icao_address));
+        results.sort_by(|a, b| b.last_update.cmp(&a.last_update));
+        results
+    }
+
     pub fn clean_expired(&self) -> usize {
         let mut tracks = self.tracks.write();
         let now = Utc::now();
@@ -514,5 +599,67 @@ mod tests {
         assert_eq!(aligned.len(), 2);
         assert_eq!(aligned[0].len(), 2);
         assert_eq!(aligned[1].len(), 1);
+    }
+
+    #[test]
+    fn test_query_by_sector() {
+        let config = AppConfig::default();
+        let tracker = MultiRadarTracker::new(&config);
+
+        tracker.add_point(create_test_point([1, 2, 3], 40.0, 116.0, 10000.0, "RADAR01", 0));
+        tracker.add_point(create_test_point([4, 5, 6], 32.0, 120.0, 10000.0, "RADAR02", 0));
+        tracker.add_point(create_test_point([7, 8, 9], 25.0, 113.0, 10000.0, "RADAR03", 0));
+
+        let sector = crate::analyzer::SectorDefinition {
+            id: "SECTOR01".to_string(),
+            name: "华北扇区".to_string(),
+            min_lat: 38.0,
+            max_lat: 43.0,
+            min_lon: 113.0,
+            max_lon: 120.0,
+            min_alt: 0.0,
+            max_alt: 15000.0,
+        };
+
+        let results = tracker.query_by_sector(&sector, None, None);
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].icao_address, IcaoAddress::new([1, 2, 3]));
+    }
+
+    #[test]
+    fn test_query_by_sector_with_time_range() {
+        let config = AppConfig::default();
+        let tracker = MultiRadarTracker::new(&config);
+
+        let base = Utc.with_ymd_and_hms(2025, 1, 1, 12, 0, 0).unwrap();
+        tracker.add_point(create_test_point([1, 2, 3], 40.0, 116.0, 10000.0, "RADAR01", 0));
+        tracker.add_point(create_test_point([1, 2, 3], 40.0, 116.0, 10000.0, "RADAR01", 5000));
+
+        let sector = crate::analyzer::SectorDefinition {
+            id: "SECTOR01".to_string(),
+            name: "华北扇区".to_string(),
+            min_lat: 38.0,
+            max_lat: 43.0,
+            min_lon: 113.0,
+            max_lon: 120.0,
+            min_alt: 0.0,
+            max_alt: 15000.0,
+        };
+
+        let results = tracker.query_by_sector(&sector, Some(base), Some(base + Duration::seconds(3)));
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].points.len(), 1);
+    }
+
+    #[test]
+    fn test_query_by_sectors_range() {
+        let sectors = crate::analyzer::default_sectors();
+        assert_eq!(sectors.len(), 3);
+
+        let found = crate::analyzer::find_sector_by_id(&sectors, "SECTOR02");
+        assert!(found.is_some());
+
+        let range = crate::analyzer::find_sectors_by_range(&sectors, 1, 2);
+        assert_eq!(range.len(), 2);
     }
 }

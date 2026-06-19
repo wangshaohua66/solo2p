@@ -1,10 +1,12 @@
 pub mod alert;
 pub mod analyzer;
+pub mod benchmarks;
 pub mod config;
 pub mod decoder;
 pub mod error;
 pub mod fusion;
 pub mod io;
+pub mod manpage;
 pub mod types;
 
 use clap::{Arg, ArgAction, Command};
@@ -71,6 +73,7 @@ fn build_cli() -> Command {
         .subcommand(build_alert_command())
         .subcommand(build_stats_command())
         .subcommand(build_query_command())
+        .subcommand(build_man_command())
 }
 
 fn build_decode_command() -> Command {
@@ -320,7 +323,9 @@ fn build_query_command() -> Command {
              支持正则匹配与ICAO地址模糊查询.\n\n\
              示例:\n\
              atc-analyzer query -i fused_tracks.json --callsign '^CA.*'\n\
-             atc-analyzer query -i fused_tracks.json --icao 'A000[0-9A-F]{2}'",
+             atc-analyzer query -i fused_tracks.json --icao 'A000[0-9A-F]{2}'\n\
+             atc-analyzer query -i fused_tracks.json --sector SECTOR01\n\
+             atc-analyzer query -i fused_tracks.json --sector-range 1-3",
         )
         .arg(
             Arg::new("input")
@@ -376,7 +381,43 @@ fn build_query_command() -> Command {
             Arg::new("sector")
                 .long("sector")
                 .value_name("ID")
-                .help("扇区编号"),
+                .help("扇区编号 (精确匹配, 如: SECTOR01)"),
+        )
+        .arg(
+            Arg::new("sector-range")
+                .long("sector-range")
+                .value_name("START-END")
+                .help("扇区编号范围 (如: 1-3 匹配 SECTOR01至SECTOR03)"),
+        )
+}
+
+fn build_man_command() -> Command {
+    Command::new("man")
+        .about("生成Unix风格man手册")
+        .long_about(
+            "生成 atc-analyzer 的 Unix man 手册页 (groff/troff 格式).\n\
+             可直接输出到终端或写入文件, 也可用 man 命令查看.\n\n\
+             示例:\n\
+             atc-analyzer man --section 1\n\
+             atc-analyzer man -o atc-analyzer.1\n\
+             atc-analyzer man | man -l -",
+        )
+        .arg(
+            Arg::new("output")
+                .short('o')
+                .long("output")
+                .value_name("FILE")
+                .help("输出文件路径, 省略则输出到标准输出")
+                .value_parser(clap::value_parser!(PathBuf)),
+        )
+        .arg(
+            Arg::new("section")
+                .short('s')
+                .long("section")
+                .value_name("NUM")
+                .help("man 手册章节号")
+                .value_parser(clap::value_parser!(u8))
+                .default_value("1"),
         )
 }
 
@@ -728,7 +769,8 @@ async fn run_query(matches: &clap::ArgMatches, config: Arc<AppConfig>, _quiet: b
     let time_end_str = matches.get_one::<String>("time-end");
     let callsign_pattern = matches.get_one::<String>("callsign");
     let icao_pattern = matches.get_one::<String>("icao");
-    let _sector_id = matches.get_one::<String>("sector");
+    let sector_id = matches.get_one::<String>("sector");
+    let sector_range = matches.get_one::<String>("sector-range");
 
     validate_file_exists(input_path, "输入文件")?;
 
@@ -753,14 +795,56 @@ async fn run_query(matches: &clap::ArgMatches, config: Arc<AppConfig>, _quiet: b
         }
     }
 
-    info!("执行查询...");
+    let has_sector_filter = sector_id.is_some() || sector_range.is_some();
 
-    let results = tracker.query_tracks(
-        time_start,
-        time_end,
-        callsign_pattern.map(|s| s.as_str()),
-        icao_pattern.map(|s| s.as_str()),
-    )?;
+    let results = if has_sector_filter {
+        let sectors = analyzer::default_sectors();
+
+        let target_sectors: Vec<analyzer::SectorDefinition> = if let Some(range) = sector_range {
+            let parts: Vec<&str> = range.split('-').collect();
+            if parts.len() != 2 {
+                return Err(AtcError::ValidationError(format!(
+                    "扇区范围格式错误, 应为 START-END, 当前: {}",
+                    range
+                )));
+            }
+            let start: usize = parts[0]
+                .parse()
+                .map_err(|_| AtcError::ValidationError(format!("扇区范围起始值无效: {}", parts[0])))?;
+            let end: usize = parts[1]
+                .parse()
+                .map_err(|_| AtcError::ValidationError(format!("扇区范围结束值无效: {}", parts[1])))?;
+            if start > end {
+                return Err(AtcError::ValidationError(format!(
+                    "扇区范围起始值必须小于等于结束值: {}-{}",
+                    start, end
+                )));
+            }
+            analyzer::find_sectors_by_range(&sectors, start, end)
+        } else if let Some(id) = sector_id {
+            analyzer::find_sector_by_id(&sectors, id)
+                .map(|s| vec![s])
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+
+        if target_sectors.is_empty() {
+            info!("未找到匹配的扇区定义");
+            Vec::new()
+        } else {
+            info!("使用 {} 个扇区进行筛选...", target_sectors.len());
+            tracker.query_by_sectors(&target_sectors, time_start, time_end)
+        }
+    } else {
+        info!("执行查询...");
+        tracker.query_tracks(
+            time_start,
+            time_end,
+            callsign_pattern.map(|s| s.as_str()),
+            icao_pattern.map(|s| s.as_str()),
+        )?
+    };
 
     info!("查询到 {} 条匹配轨迹", results.len());
 
@@ -772,6 +856,15 @@ async fn run_query(matches: &clap::ArgMatches, config: Arc<AppConfig>, _quiet: b
     }
 
     writer.flush()?;
+
+    Ok(())
+}
+
+async fn run_man(matches: &clap::ArgMatches, _config: Arc<AppConfig>, _quiet: bool) -> AtcResult<()> {
+    let output_path = matches.get_one::<PathBuf>("output");
+    let section = *matches.get_one::<u8>("section").unwrap();
+
+    manpage::write_man_page(output_path.map(|p| p.as_path()), section)?;
 
     Ok(())
 }
@@ -797,6 +890,7 @@ async fn main() -> AtcResult<()> {
         Some(("alert", sub_matches)) => run_alert(sub_matches, config.clone(), quiet).await,
         Some(("stats", sub_matches)) => run_stats(sub_matches, config.clone(), quiet).await,
         Some(("query", sub_matches)) => run_query(sub_matches, config.clone(), quiet).await,
+        Some(("man", sub_matches)) => run_man(sub_matches, config.clone(), quiet).await,
         Some((name, _)) => Err(AtcError::Other(format!("未知子命令: {}", name))),
         None => Err(AtcError::Other("未指定子命令".to_string())),
     };

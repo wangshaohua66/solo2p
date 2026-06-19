@@ -1,0 +1,14 @@
+/Users/paul/WorkSpace/TestSoloCoder/1d5a7721-a7d8-4bd2-be15-206a9cfc7124/target/release/deps/thiserror-e8f627581e89aa23.d: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-2.0.18/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-2.0.18/src/aserror.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-2.0.18/src/display.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-2.0.18/src/var.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-2.0.18/src/private.rs /Users/paul/WorkSpace/TestSoloCoder/1d5a7721-a7d8-4bd2-be15-206a9cfc7124/target/release/build/thiserror-9dc77f8bfc18e209/out/private.rs
+
+/Users/paul/WorkSpace/TestSoloCoder/1d5a7721-a7d8-4bd2-be15-206a9cfc7124/target/release/deps/libthiserror-e8f627581e89aa23.rlib: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-2.0.18/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-2.0.18/src/aserror.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-2.0.18/src/display.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-2.0.18/src/var.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-2.0.18/src/private.rs /Users/paul/WorkSpace/TestSoloCoder/1d5a7721-a7d8-4bd2-be15-206a9cfc7124/target/release/build/thiserror-9dc77f8bfc18e209/out/private.rs
+
+/Users/paul/WorkSpace/TestSoloCoder/1d5a7721-a7d8-4bd2-be15-206a9cfc7124/target/release/deps/libthiserror-e8f627581e89aa23.rmeta: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-2.0.18/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-2.0.18/src/aserror.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-2.0.18/src/display.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-2.0.18/src/var.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-2.0.18/src/private.rs /Users/paul/WorkSpace/TestSoloCoder/1d5a7721-a7d8-4bd2-be15-206a9cfc7124/target/release/build/thiserror-9dc77f8bfc18e209/out/private.rs
+
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-2.0.18/src/lib.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-2.0.18/src/aserror.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-2.0.18/src/display.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-2.0.18/src/var.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-2.0.18/src/private.rs:
+/Users/paul/WorkSpace/TestSoloCoder/1d5a7721-a7d8-4bd2-be15-206a9cfc7124/target/release/build/thiserror-9dc77f8bfc18e209/out/private.rs:
+
+# env-dep:OUT_DIR=/Users/paul/WorkSpace/TestSoloCoder/1d5a7721-a7d8-4bd2-be15-206a9cfc7124/target/release/build/thiserror-9dc77f8bfc18e209/out
