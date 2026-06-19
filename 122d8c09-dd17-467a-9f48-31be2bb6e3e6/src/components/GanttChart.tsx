@@ -1,5 +1,5 @@
-import React, { memo, useMemo, useRef, useEffect } from 'react';
-import type { TaskNode, TimelineGranularity } from '@/types';
+import React, { memo, useMemo, useRef, useEffect, useState } from 'react';
+import type { TaskNode, TimelineGranularity, Baseline } from '@/types';
 import { useGanttStore } from '@/store/useGanttStore';
 import { TaskBar } from './TaskBar';
 import { DependencyLayer } from './DependencyLayer';
@@ -95,11 +95,18 @@ export const GanttChart = memo(function GanttChart({ rowHeight }: GanttChartProp
   const viewEnd = useGanttStore(s => s.timeline.viewEnd);
   const setSelectedTask = useGanttStore(s => s.setSelectedTask);
   const tasks = useGanttStore(s => s.tasks);
+  const baselines = useGanttStore(s => s.baselines);
+  const activeBaselineId = useGanttStore(s => s.activeBaselineId);
+  const draggingDepFrom = useGanttStore(s => s.ui.draggingDepFrom);
+  const setDraggingDepFrom = useGanttStore(s => s.setDraggingDepFrom);
   const scrollX = useGanttStore(s => s.timeline.scrollX);
+  const scrollY = useGanttStore(s => s.timeline.scrollY);
   const setTimelineScroll = useGanttStore(s => s.setTimelineScroll);
+  const wheelZoomTimeline = useGanttStore(s => s.wheelZoomTimeline);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [depDragMouse, setDepDragMouse] = useState<{ x: number; y: number } | null>(null);
 
   const rows = useMemo(() => getTaskTree(), [getTaskTree, tasks]);
 
@@ -122,21 +129,93 @@ export const GanttChart = memo(function GanttChart({ rowHeight }: GanttChartProp
   const todayPx = dateToPixel(todayMs());
   const todayVisible = todayPx >= 0 && todayPx <= totalWidth;
 
+  const activeBaseline: Baseline | undefined = useMemo(() => {
+    return baselines.find(b => b.id === activeBaselineId);
+  }, [baselines, activeBaselineId]);
+
+  const baselineOverlays = useMemo(() => {
+    if (!activeBaseline) return [];
+    return activeBaseline.tasks.map(bt => {
+      const task = tasks[bt.taskId];
+      const top = taskTopMap.get(bt.taskId);
+      if (top === undefined) return null;
+      const blLeft = dateToPixel(bt.startDate);
+      const blWidth = Math.max(8, dateToPixel(bt.endDate) - dateToPixel(bt.startDate));
+      let diffDays = 0;
+      if (task) {
+        diffDays = Math.round((task.startDate - bt.startDate) / DAY_MS);
+      }
+      return {
+        taskId: bt.taskId,
+        top,
+        left: blLeft,
+        width: blWidth,
+        diffDays,
+        hasTask: !!task,
+        isDelayed: diffDays > 0,
+        isEarly: diffDays < 0,
+      };
+    }).filter(Boolean) as Array<{
+      taskId: string; top: number; left: number; width: number;
+      diffDays: number; hasTask: boolean; isDelayed: boolean; isEarly: boolean;
+    }>;
+  }, [activeBaseline, tasks, taskTopMap, dateToPixel]);
+
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     el.scrollLeft = scrollX;
-  }, [scrollX]);
+    el.scrollTop = scrollY;
+  }, [scrollX, scrollY]);
+
+  useEffect(() => {
+    if (!draggingDepFrom) {
+      setDepDragMouse(null);
+      return;
+    }
+    function handleMove(e: PointerEvent) {
+      const scrollEl = scrollRef.current;
+      if (!scrollEl) return;
+      const rect = scrollEl.getBoundingClientRect();
+      setDepDragMouse({
+        x: e.clientX - rect.left + scrollEl.scrollLeft,
+        y: e.clientY - rect.top + scrollEl.scrollTop,
+      });
+    }
+    function handleUp() {
+      setDraggingDepFrom(null);
+    }
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', handleUp);
+    return () => {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+    };
+  }, [draggingDepFrom, setDraggingDepFrom]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     setTimelineScroll(e.currentTarget.scrollLeft, e.currentTarget.scrollTop);
   };
 
   const handleWheel = (e: React.WheelEvent) => {
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-    }
+    e.preventDefault();
+    const offsetX = e.nativeEvent.offsetX;
+    wheelZoomTimeline(e.deltaY, offsetX);
   };
+
+  const depDragLine = useMemo(() => {
+    if (!draggingDepFrom || !depDragMouse) return null;
+    const fromTask = tasks[draggingDepFrom];
+    if (!fromTask) return null;
+    const top = getTaskTop(draggingDepFrom);
+    const fromX = dateToPixel(fromTask.endDate);
+    const fromY = top + rowHeight / 2;
+    const toX = depDragMouse.x;
+    const toY = depDragMouse.y;
+    const midX = (fromX + toX) / 2;
+    const path = `M ${fromX} ${fromY} C ${midX} ${fromY}, ${midX} ${toY}, ${toX} ${toY}`;
+    return { path };
+  }, [draggingDepFrom, depDragMouse, tasks, getTaskTop, dateToPixel, rowHeight]);
 
   return (
     <div
@@ -214,6 +293,60 @@ export const GanttChart = memo(function GanttChart({ rowHeight }: GanttChartProp
             ))}
           </div>
 
+          {activeBaseline && baselineOverlays.map(b => (
+            <div key={`bl-${b.taskId}`}>
+              <div
+                className={`absolute pointer-events-none z-[3] rounded-sm border-2 border-dashed ${
+                  b.isDelayed
+                    ? 'border-rose-400/70 bg-rose-500/10'
+                    : b.isEarly
+                      ? 'border-sky-400/70 bg-sky-500/10'
+                      : 'border-emerald-400/70 bg-emerald-500/10'
+                }`}
+                style={{
+                  left: b.left,
+                  top: b.top + 2,
+                  width: b.width,
+                  height: rowHeight - 4,
+                }}
+              >
+                <div className={`absolute -top-4 left-0 text-[9px] font-bold whitespace-nowrap px-1 rounded ${
+                  b.isDelayed
+                    ? 'bg-rose-500/80 text-white'
+                    : b.isEarly
+                      ? 'bg-sky-500/80 text-white'
+                      : 'bg-emerald-500/80 text-white'
+                }`}>
+                  基线 {b.diffDays === 0 ? '✓ 如期' : b.isDelayed ? `延期 ${b.diffDays}d` : `提前 ${-b.diffDays}d`}
+                </div>
+              </div>
+              {b.hasTask && b.diffDays !== 0 && (
+                <svg
+                  className="absolute inset-0 pointer-events-none z-[4]"
+                  width={totalWidth}
+                  height={totalHeight}
+                >
+                  <defs>
+                    <marker id="baseline-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                      <path d="M 0 0 L 10 5 L 0 10 z" fill={b.isDelayed ? '#F43F5E' : '#0EA5E9'} />
+                    </marker>
+                  </defs>
+                  <line
+                    x1={dateToPixel(tasks[b.taskId].startDate)}
+                    y1={b.top + rowHeight / 2 - 8}
+                    x2={b.left}
+                    y2={b.top + rowHeight / 2 - 8}
+                    stroke={b.isDelayed ? '#F43F5E' : '#0EA5E9'}
+                    strokeWidth={1.5}
+                    strokeDasharray="4 3"
+                    markerEnd="url(#baseline-arrow)"
+                    opacity={0.8}
+                  />
+                </svg>
+              )}
+            </div>
+          ))}
+
           {todayVisible && (
             <div
               className="absolute top-0 z-10 pointer-events-none"
@@ -246,6 +379,54 @@ export const GanttChart = memo(function GanttChart({ rowHeight }: GanttChartProp
             totalWidth={totalWidth}
             totalHeight={totalHeight}
           />
+
+          {depDragLine && (
+            <svg
+              className="absolute inset-0 pointer-events-none z-[50]"
+              width={totalWidth}
+              height={totalHeight}
+            >
+              <defs>
+                <marker id="dep-drag-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#F59E0B" />
+                </marker>
+              </defs>
+              <path
+                d={depDragLine.path}
+                fill="none"
+                stroke="#F59E0B"
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                strokeDasharray="6 4"
+                markerEnd="url(#dep-drag-arrow)"
+                opacity={0.95}
+              >
+                <animate attributeName="stroke-dashoffset" from="20" to="0" dur="0.6s" repeatCount="indefinite" />
+              </path>
+              {depDragMouse && (
+                <circle
+                  cx={depDragMouse.x}
+                  cy={depDragMouse.y}
+                  r={7}
+                  fill="#F59E0B"
+                  fillOpacity={0.25}
+                  stroke="#F59E0B"
+                  strokeWidth={2}
+                />
+              )}
+            </svg>
+          )}
+
+          {draggingDepFrom && (
+            <div
+              className={`fixed top-20 left-1/2 -translate-x-1/2 z-[200] px-3 py-1.5 rounded-lg shadow-lg text-xs font-semibold flex items-center gap-1.5 ${
+                theme === 'dark' ? 'bg-amber-500/90 text-slate-900' : 'bg-amber-400/95 text-slate-900'
+              } animate-[pulse_1.2s_ease-in-out_infinite]`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-900 animate-ping" />
+              拖拽到目标任务上建立 FS 依赖 · ESC 取消
+            </div>
+          )}
         </div>
       </div>
     </div>

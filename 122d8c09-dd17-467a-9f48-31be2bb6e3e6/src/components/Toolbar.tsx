@@ -1,7 +1,7 @@
 import React, { memo, useState, useRef } from 'react';
 import {
   Sun, Moon, ZoomIn, ZoomOut, Target, ListEnd, LayoutGrid,
-  Download, Upload, Save, Trash2, Calendar, ChevronDown, Plus, X,
+  Download, Upload, Save, Trash2, Calendar, ChevronDown, Plus, X, Menu, Users,
 } from 'lucide-react';
 import type { TimelineGranularity, Theme } from '@/types';
 import { useGanttStore } from '@/store/useGanttStore';
@@ -13,7 +13,12 @@ const GRAN_OPTIONS: Array<{ value: TimelineGranularity; label: string }> = [
   { value: 'quarter', label: '季' },
 ];
 
-export const Toolbar = memo(function Toolbar() {
+interface ToolbarProps {
+  onMobileOpenTaskTree?: () => void;
+  onTabletOpenResource?: () => void;
+}
+
+export const Toolbar = memo(function Toolbar({ onMobileOpenTaskTree, onTabletOpenResource }: ToolbarProps) {
   const theme = useGanttStore(s => s.ui.theme);
   const granularity = useGanttStore(s => s.timeline.granularity);
   const toggleTheme = useGanttStore(s => s.toggleTheme);
@@ -34,6 +39,7 @@ export const Toolbar = memo(function Toolbar() {
   const setCriticalPathIds = useGanttStore(s => (ids: string[]) => {
     useGanttStore.setState(state => ({ ui: { ...state.ui, criticalPathIds: ids } }));
   });
+  const wheelZoomTimeline = useGanttStore(s => s.wheelZoomTimeline);
 
   const [showBaselineMenu, setShowBaselineMenu] = useState(false);
   const [baselineName, setBaselineName] = useState('');
@@ -92,7 +98,17 @@ export const Toolbar = memo(function Toolbar() {
           : 'bg-white/80 border-slate-200'
       }`}
     >
-      <div className="flex items-center gap-2 mr-3">
+      <button
+        className={`lg:hidden p-1.5 rounded-md ${
+          theme === 'dark' ? 'hover:bg-slate-800 text-slate-300' : 'hover:bg-slate-100 text-slate-700'
+        }`}
+        onClick={onMobileOpenTaskTree}
+        title="任务树"
+      >
+        <Menu size={18} />
+      </button>
+
+      <div className="flex items-center gap-2 mr-3 ml-1">
         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
           <Calendar size={16} className="text-white" />
         </div>
@@ -108,12 +124,22 @@ export const Toolbar = memo(function Toolbar() {
 
       <div className={`h-6 w-px mx-1 ${theme === 'dark' ? 'bg-slate-800' : 'bg-slate-200'}`} />
 
-      <button className={`${btnBase} ${showTaskTree ? btnActive : ''}`} onClick={() => setShowTaskTree(!showTaskTree)} title="任务树">
+      <button
+        className={`md:hidden p-1.5 rounded-md ${
+          theme === 'dark' ? 'hover:bg-slate-800 text-slate-300' : 'hover:bg-slate-100 text-slate-700'
+        }`}
+        onClick={onTabletOpenResource}
+        title="资源"
+      >
+        <Users size={16} />
+      </button>
+
+      <button className={`${btnBase} ${showTaskTree ? btnActive : ''} max-lg:hidden`} onClick={() => setShowTaskTree(!showTaskTree)} title="任务树">
         <ListEnd size={15} />
         <span className="hidden lg:inline text-xs">任务树</span>
       </button>
 
-      <button className={`${btnBase} ${showResourcePanel ? btnActive : ''}`} onClick={() => setShowResourcePanel(!showResourcePanel)} title="资源面板">
+      <button className={`${btnBase} ${showResourcePanel ? btnActive : ''} max-lg:hidden`} onClick={() => setShowResourcePanel(!showResourcePanel)} title="资源面板">
         <LayoutGrid size={15} />
         <span className="hidden lg:inline text-xs">资源</span>
       </button>

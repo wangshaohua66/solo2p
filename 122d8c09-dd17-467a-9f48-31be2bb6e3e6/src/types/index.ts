@@ -92,6 +92,8 @@ export interface UIState {
   selectedTaskId: string | null;
   highlightedDependencyIds: string[];
   criticalPathIds: string[];
+  draggingDepFrom: string | null;
+  detailTaskId: string | null;
 }
 
 export type TaskRow = {

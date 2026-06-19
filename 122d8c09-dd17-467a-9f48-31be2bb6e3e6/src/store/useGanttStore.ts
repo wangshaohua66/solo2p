@@ -25,8 +25,10 @@ export interface GanttState {
   addTask: (task: TaskNode) => void;
   updateTask: (id: string, patch: Partial<TaskNode>) => void;
   deleteTask: (id: string) => void;
+  duplicateTask: (id: string, offsetDays?: number) => void;
   moveTask: (id: string, newStartDate: number, cascade?: boolean) => void;
   reorderTask: (id: string, newParentId: string | null, newOrder: number) => void;
+  reorderTreeRow: (sourceId: string, targetId: string, position: 'before' | 'after') => void;
   toggleTaskCollapsed: (id: string) => void;
   addDependency: (dep: Omit<Dependency, 'id'>) => void;
   removeDependency: (id: string) => void;
@@ -37,10 +39,13 @@ export interface GanttState {
   setTimelineGranularity: (g: TimelineGranularity) => void;
   setTimelineScroll: (x: number, y: number) => void;
   setTimelineView: (start: number, end: number) => void;
+  wheelZoomTimeline: (deltaY: number, anchorX?: number) => void;
   setSelectedTask: (id: string | null) => void;
   setShowResourcePanel: (show: boolean) => void;
   setShowTaskTree: (show: boolean) => void;
   scrollToToday: () => void;
+  setDraggingDepFrom: (id: string | null) => void;
+  setDetailTaskId: (id: string | null) => void;
   importData: (data: string | Partial<GanttState>) => void;
   exportData: () => string;
   hydrate: (data: Partial<GanttState>) => void;
@@ -73,6 +78,8 @@ export const useGanttStore = create<GanttState>((set, get) => ({
     selectedTaskId: null,
     highlightedDependencyIds: [],
     criticalPathIds: [],
+    draggingDepFrom: null,
+    detailTaskId: null,
   },
 
   addTask: (task) => {
@@ -106,7 +113,39 @@ export const useGanttStore = create<GanttState>((set, get) => ({
         tasks: newTasks,
         taskOrder: state.taskOrder.filter(t => t !== id),
         dependencies: state.dependencies.filter(d => d.fromTaskId !== id && d.toTaskId !== id),
-        ui: state.ui.selectedTaskId === id ? { ...state.ui, selectedTaskId: null } : state.ui,
+        ui: state.ui.selectedTaskId === id ? { ...state.ui, selectedTaskId: null, detailTaskId: state.ui.detailTaskId === id ? null : state.ui.detailTaskId } : state.ui,
+      };
+    });
+  },
+
+  duplicateTask: (id, offsetDays = 1) => {
+    set(state => {
+      const src = state.tasks[id];
+      if (!src) return state;
+      const DAY = 24 * 60 * 60 * 1000;
+      const newId = uid(src.level === 1 ? 'p' : src.level === 2 ? 's' : 't');
+      const copy: TaskNode = {
+        ...src,
+        id: newId,
+        name: `${src.name} (副本)`,
+        startDate: src.startDate + offsetDays * DAY,
+        endDate: src.endDate + offsetDays * DAY,
+        progress: 0,
+        status: 'not-started',
+        order: src.order + 0.5,
+      };
+      const newTasks = { ...state.tasks, [newId]: copy };
+      let newTaskOrder = state.taskOrder;
+      if (!src.parentId && !newTaskOrder.includes(newId)) {
+        const idx = newTaskOrder.indexOf(id);
+        newTaskOrder = idx >= 0
+          ? [...newTaskOrder.slice(0, idx + 1), newId, ...newTaskOrder.slice(idx + 1)]
+          : [...newTaskOrder, newId];
+      }
+      return {
+        tasks: newTasks,
+        taskOrder: newTaskOrder,
+        ui: { ...state.ui, selectedTaskId: newId },
       };
     });
   },
@@ -146,6 +185,44 @@ export const useGanttStore = create<GanttState>((set, get) => ({
           [id]: { ...task, parentId: newParentId, order: newOrder },
         },
       };
+    });
+  },
+
+  reorderTreeRow: (sourceId, targetId, position) => {
+    set(state => {
+      const src = state.tasks[sourceId];
+      const tgt = state.tasks[targetId];
+      if (!src || !tgt || src.id === tgt.id) return state;
+      const sameParent = src.parentId === tgt.parentId;
+      const DAY = 24 * 60 * 60 * 1000;
+      const siblings = Object.values(state.tasks)
+        .filter(t => t.parentId === tgt.parentId && t.id !== sourceId)
+        .sort((a, b) => a.order - b.order);
+      const tgtIdx = siblings.findIndex(s => s.id === tgt.id);
+      const insertIdx = position === 'before' ? tgtIdx : tgtIdx + 1;
+      let newOrder = 0;
+      if (siblings.length === 0) newOrder = 0;
+      else if (insertIdx <= 0) newOrder = (siblings[0]?.order ?? 0) - 1;
+      else if (insertIdx >= siblings.length) newOrder = (siblings[siblings.length - 1]?.order ?? siblings.length) + 1;
+      else {
+        const before = siblings[insertIdx - 1].order;
+        const after = siblings[insertIdx].order;
+        newOrder = (before + after) / 2;
+      }
+      const newTasks = { ...state.tasks };
+      newTasks[sourceId] = { ...src, parentId: tgt.parentId, order: newOrder };
+      let newTaskOrder = state.taskOrder;
+      if (!sameParent) {
+        const wasRoot = !src.parentId;
+        const nowRoot = !tgt.parentId;
+        if (wasRoot) newTaskOrder = newTaskOrder.filter(t => t !== sourceId);
+        if (nowRoot && !newTaskOrder.includes(sourceId)) {
+          const targetRootIdx = newTaskOrder.indexOf(tgt.id);
+          const insert = targetRootIdx >= 0 ? (position === 'before' ? targetRootIdx : targetRootIdx + 1) : newTaskOrder.length;
+          newTaskOrder = [...newTaskOrder.slice(0, insert), sourceId, ...newTaskOrder.slice(insert)];
+        }
+      }
+      return { tasks: newTasks, taskOrder: newTaskOrder };
     });
   },
 
@@ -213,6 +290,28 @@ export const useGanttStore = create<GanttState>((set, get) => ({
     set(state => ({ timeline: { ...state.timeline, viewStart: start, viewEnd: end } }));
   },
 
+  wheelZoomTimeline: (deltaY, anchorX) => {
+    const ORDER: TimelineGranularity[] = ['day', 'week', 'month', 'quarter'];
+    set(state => {
+      const idx = ORDER.indexOf(state.timeline.granularity);
+      if (deltaY < 0 && idx > 0) {
+        return { timeline: { ...state.timeline, granularity: ORDER[idx - 1] } };
+      }
+      if (deltaY > 0 && idx < ORDER.length - 1) {
+        return { timeline: { ...state.timeline, granularity: ORDER[idx + 1] } };
+      }
+      const DAY = 24 * 60 * 60 * 1000;
+      const factor = deltaY > 0 ? 1.1 : 0.9;
+      const range = state.timeline.viewEnd - state.timeline.viewStart;
+      const newRange = Math.max(7 * DAY, Math.min(365 * DAY, range * factor));
+      const ratio = anchorX != null ? anchorX / 800 : 0.5;
+      const anchor = state.timeline.viewStart + range * Math.max(0, Math.min(1, ratio));
+      const newStart = Math.round(anchor - (newRange * ratio));
+      const newEnd = newStart + newRange;
+      return { timeline: { ...state.timeline, viewStart: newStart, viewEnd: newEnd } };
+    });
+  },
+
   setSelectedTask: (id) => {
     set(state => ({ ui: { ...state.ui, selectedTaskId: id } }));
   },
@@ -223,6 +322,14 @@ export const useGanttStore = create<GanttState>((set, get) => ({
 
   setShowTaskTree: (show) => {
     set(state => ({ ui: { ...state.ui, showTaskTree: show } }));
+  },
+
+  setDraggingDepFrom: (id) => {
+    set(state => ({ ui: { ...state.ui, draggingDepFrom: id } }));
+  },
+
+  setDetailTaskId: (id) => {
+    set(state => ({ ui: { ...state.ui, detailTaskId: id } }));
   },
 
   scrollToToday: () => {
