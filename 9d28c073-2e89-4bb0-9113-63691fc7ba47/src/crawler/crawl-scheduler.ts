@@ -388,9 +388,8 @@ export class CrawlScheduler extends EventEmitter {
     parser: PolicyParser,
     listHtml: string,
     startTime: number
-  ): Promise<void> {
+  ): Promise<boolean> {
     const session = this.currentSession!;
-;
 
     const listItems = detector.extractListItems(listHtml);
     logger.getLogger(site.id).info(`Fetched list page: ${listItems.length} items`);
@@ -415,6 +414,8 @@ export class CrawlScheduler extends EventEmitter {
     }
 
     const itemsToCrawl = listChanges.added.slice(0, 10);
+
+    let detailCaptchaUnresolved = false;
 
     for (const item of itemsToCrawl) {
       if (this.isPaused) {
@@ -485,6 +486,7 @@ export class CrawlScheduler extends EventEmitter {
             continue;
           }
 
+          detailCaptchaUnresolved = true;
           const capStatus = session.siteStatuses.get(site.id)!;
           capStatus.status = 'captcha';
           capStatus.consecutiveFailures++;
@@ -499,6 +501,20 @@ export class CrawlScheduler extends EventEmitter {
           `Failed to fetch detail ${item.url}: ${(err as Error).message}`
         );
       }
+    }
+
+    if (detailCaptchaUnresolved) {
+      const capResult: CrawlResult = {
+        siteId: site.id,
+        success: false,
+        status: 'captcha',
+        message: 'Captcha unresolved during detail page crawl',
+        policyList: listItems,
+        duration: Date.now() - startTime
+      };
+      this.emit('siteComplete', site.id, capResult);
+      session.completedSites++;
+      return false;
     }
 
     const siteStatus = session.siteStatuses.get(site.id)!;
@@ -517,6 +533,7 @@ export class CrawlScheduler extends EventEmitter {
 
     this.emit('siteComplete', site.id, result);
     session.completedSites++;
+    return true;
   }
 
   private async handleCaptchaIntervention(
