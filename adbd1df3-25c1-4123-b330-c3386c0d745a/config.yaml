@@ -1,0 +1,128 @@
+system:
+  name: "Invoice Automation System"
+  version: "1.0.0"
+  max_concurrent_tasks: 5
+  single_invoice_timeout: 45
+  memory_limit_mb: 500
+
+u8_system:
+  username: "finance_shared"
+  password: "********"
+  login_url: "http://u8.example.com/login"
+  expense_module_path: "财务会计>报销管理>费用报销"
+  session_timeout: 1800
+  window_title: "用友U8+ - 企业应用平台"
+  window_offset_x: 0
+  window_offset_y: 0
+
+ocr:
+  tesseract_cmd: "/usr/local/bin/tesseract"
+  language: "chi_sim+eng"
+  psm: 6
+  oem: 3
+  min_confidence: 70
+  fields:
+    - name: "invoice_code"
+      pattern: "发票代码[:：]?\\s*(\\d{10,12})"
+      required: true
+    - name: "invoice_number"
+      pattern: "发票号码[:：]?\\s*(\\d{8,10})"
+      required: true
+    - name: "tax_id"
+      pattern: "纳税人识别号[:：]?\\s*([0-9A-Z]{15,20})"
+      required: true
+    - name: "amount"
+      pattern: "(?:价税合计|金额)[:：]?\\s*[¥￥]?\\s*([\\d,]+\\.\\d{2})"
+      required: true
+    - name: "invoice_date"
+      pattern: "开票日期[:：]?\\s*(\\d{4}[-年/]\\d{1,2}[-月/]\\d{1,2})"
+      required: true
+    - name: "seller"
+      pattern: "销售方名称[:：]?\\s*([^\\n\\r]+)"
+      required: false
+
+image_preprocessing:
+  max_rotation_angle: 15
+  contrast_factor: 1.5
+  brightness_factor: 1.0
+  sharpen_factor: 1.2
+  deskew: true
+  grayscale: true
+  threshold: 180
+
+captcha:
+  tesseract_language: "eng"
+  psm: 8
+  oem: 3
+  max_retry: 3
+  manual_fallback: true
+  template_path: "./templates/captcha/"
+
+opencv:
+  template_matching_threshold: 0.85
+  search_region:
+    top: 0
+    left: 0
+    width: 1920
+    height: 1080
+  template_paths:
+    login_button: "./templates/login_button.png"
+    expense_module: "./templates/expense_module.png"
+    invoice_code_field: "./templates/invoice_code_field.png"
+    invoice_number_field: "./templates/invoice_number_field.png"
+    tax_id_field: "./templates/tax_id_field.png"
+    amount_field: "./templates/amount_field.png"
+    date_field: "./templates/date_field.png"
+    seller_field: "./templates/seller_field.png"
+    submit_button: "./templates/submit_button.png"
+    save_button: "./templates/save_button.png"
+
+retry:
+  max_attempts: 3
+  base_delay: 2.0
+  max_delay: 30.0
+  backoff_factor: 2.0
+  jitter: 0.1
+  retry_on:
+    - "TimeoutError"
+    - "ConnectionError"
+    - "ElementNotFoundException"
+    - "OCRError"
+    - "CaptchaError"
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s | %(levelname)-8s | %(processName)-12s | %(operation)s | %(status)s | %(duration).3fs | %(message)s"
+  date_format: "%Y-%m-%d %H:%M:%S"
+  file_path: "./logs/invoice_automation.log"
+  max_file_size_mb: 50
+  backup_count: 10
+  console_output: true
+
+dingtalk:
+  webhook_url: "https://oapi.dingtalk.com/robot/send?access_token=your_token_here"
+  secret: "your_secret_here"
+  at_mobiles: []
+  at_all: false
+  notify_on:
+    - "error"
+    - "batch_complete"
+
+state_tracking:
+  file_path: "./state/invoice_state.json"
+  save_interval: 10
+  states:
+    - "pending"
+    - "preprocessing"
+    - "ocr"
+    - "captcha"
+    - "login"
+    - "filling"
+    - "verifying"
+    - "completed"
+    - "failed"
+
+performance:
+  target_ocr_accuracy: 0.92
+  target_fill_accuracy: 0.99
+  monitor_interval: 60
