@@ -1,0 +1,286 @@
+app:
+  name: drugvigil
+  environment: production
+  data_dir: ./data
+  dry_run: false
+  verbose: false
+
+database:
+  path: ./data/boltdb/drugvigil.db
+
+log:
+  level: info
+  file_path: ./data/logs/drugvigil.log
+  max_size: 100
+  max_backups: 10
+  max_age: 30
+
+pool:
+  max_instances: 4
+  min_instances: 1
+  health_check_interval: 30s
+  instance_timeout: 3m
+  max_memory_mb: 500
+  task_queue_size: 100
+  idle_timeout: 5m
+  restart_on_crash: true
+
+schedule:
+  cron_expr: "0 */15 * * * *"
+  full_scan_interval: 24h
+
+drugs:
+  - name: "XX布洛芬缓释胶囊"
+    generic_name: "Ibuprofen"
+    aliases: ["布洛芬", "芬必得", "Advil", "Motrin"]
+    atc_code: "M01AE01"
+    monitor_level: "high"
+  - name: "XX阿莫西林胶囊"
+    generic_name: "Amoxicillin"
+    aliases: ["阿莫西林", "阿莫仙", "Amoxil"]
+    atc_code: "J01CA04"
+    monitor_level: "medium"
+  - name: "XX氯吡格雷片"
+    generic_name: "Clopidogrel"
+    aliases: ["氯吡格雷", "波立维", "Plavix"]
+    atc_code: "B01AC04"
+    monitor_level: "high"
+  - name: "XX二甲双胍片"
+    generic_name: "Metformin"
+    aliases: ["二甲双胍", "格华止", "Glucophage"]
+    atc_code: "A10BA02"
+    monitor_level: "medium"
+  - name: "XX阿托伐他汀钙片"
+    generic_name: "Atorvastatin"
+    aliases: ["阿托伐他汀", "立普妥", "Lipitor"]
+    atc_code: "C10AA05"
+    monitor_level: "high"
+  - name: "XX奥美拉唑肠溶胶囊"
+    generic_name: "Omeprazole"
+    aliases: ["奥美拉唑", "洛赛克", "Prilosec"]
+    atc_code: "A02BC01"
+    monitor_level: "low"
+
+sites:
+  - name: "国家药监局NMPA"
+    code: "nmpa"
+    enabled: true
+    url: "https://www.nmpa.gov.cn/xxgk/fgwj/gzwj/gzwjylq/index.html"
+    strategy: "pagination"
+    language: "zh"
+    pagination:
+      type: "url_param"
+      page_param: "page"
+      start_page: 1
+      max_page: 50
+    selectors:
+      row_selector: ".list li"
+      drug_name_selector: ".drug-name"
+      title_selector: "a"
+      date_selector: ".date"
+      severity_selector: ".severity"
+      report_id_selector: ".report-id"
+      content_selector: ".summary"
+      detail_link_selector: "a"
+    timeout: 3m
+    max_retry: 5
+    retry_backoff: 2s
+    rate_limit_delay: 500ms
+    max_pages_per_crawl: 50
+
+  - name: "美国FDA MedWatch"
+    code: "fda"
+    enabled: true
+    url: "https://www.fda.gov/safety/medwatch"
+    strategy: "form"
+    language: "en"
+    form:
+      search_url: "https://www.fda.gov/safety/medwatch-fda-safety-information-and-adverse-event-reporting-program"
+      fields:
+        "#search-input": "drug safety"
+      submit_selector: "#search-button"
+      wait_for_selector: ".search-results"
+      wait_load_time: 3s
+      is_dynamic: true
+      scroll_to_load: true
+    selectors:
+      row_selector: ".search-result-item"
+      drug_name_selector: ".drug-name"
+      title_selector: "h3 a"
+      date_selector: ".date"
+      severity_selector: ".alert-badge"
+      report_id_selector: ".report-id"
+      content_selector: ".description"
+      detail_link_selector: "h3 a"
+    timeout: 3m
+    max_retry: 5
+    retry_backoff: 2s
+    rate_limit_delay: 800ms
+    max_pages_per_crawl: 30
+
+  - name: "欧盟EMA安全通报"
+    code: "ema"
+    enabled: true
+    url: "https://www.ema.europa.eu/en/medicines/human/safety-signals"
+    strategy: "dynamic"
+    language: "en"
+    selectors:
+      row_selector: "table tbody tr"
+      drug_name_selector: "td:nth-child(1)"
+      title_selector: "td:nth-child(2)"
+      date_selector: "td:nth-child(3)"
+      severity_selector: ".signal-type"
+      report_id_selector: ".signal-id"
+      content_selector: ".expanded-content"
+      detail_link_selector: "td:nth-child(2) a"
+    timeout: 3m
+    max_retry: 5
+    retry_backoff: 2s
+    rate_limit_delay: 1s
+    max_pages_per_crawl: 20
+
+  - name: "日本PMDA安全信息"
+    code: "pmda"
+    enabled: true
+    url: "https://www.pmda.go.jp/english/safety/information-for-medical-professionals/index.html"
+    strategy: "pdf"
+    language: "ja"
+    pdf:
+      link_selector: ".pdf-list a"
+      text_extraction: true
+      patterns:
+        - "副作用"
+        - "重大な副作用"
+        - "使用上の注意"
+    selectors:
+      row_selector: ".news-item"
+      drug_name_selector: ".drug"
+      title_selector: ".title"
+      date_selector: ".date"
+      severity_selector: ".severity"
+      report_id_selector: ".doc-id"
+      content_selector: ".summary"
+      detail_link_selector: "a"
+    timeout: 3m
+    max_retry: 5
+    retry_backoff: 3s
+    rate_limit_delay: 1.5s
+    max_pages_per_crawl: 10
+
+  - name: "澳大利亚TGA安全警报"
+    code: "tga"
+    enabled: true
+    url: "https://www.tga.gov.au/safety/alerts"
+    strategy: "auth"
+    language: "en"
+    auth:
+      required: true
+      login_url: "https://www.tga.gov.au/user/login"
+      username: "your-email@company.com"
+      password: "your-password"
+      username_selector: "#edit-name"
+      password_selector: "#edit-pass"
+      submit_selector: "#edit-submit"
+      check_selector: ".user-logged-in"
+      session_timeout: 24h
+    pagination:
+      type: "click"
+      next_selector: ".pager-next a"
+      disabled_class: "disabled"
+      start_page: 1
+      max_page: 30
+    selectors:
+      row_selector: ".alert-list-item"
+      drug_name_selector: ".drug-name"
+      title_selector: ".alert-title a"
+      date_selector: ".alert-date"
+      severity_selector: ".alert-severity"
+      report_id_selector: ".alert-id"
+      content_selector: ".alert-summary"
+      detail_link_selector: ".alert-title a"
+    timeout: 3m
+    max_retry: 5
+    retry_backoff: 2s
+    rate_limit_delay: 500ms
+    max_pages_per_crawl: 30
+
+  - name: "WHO药品通讯"
+    code: "who"
+    enabled: true
+    url: "https://www.who.int/medicines/publications/drugsafety/en/"
+    strategy: "multilingual"
+    language: "en"
+    selectors:
+      row_selector: ".publication-item"
+      drug_name_selector: ".drug"
+      title_selector: "h4 a"
+      date_selector: ".date"
+      severity_selector: ".urgency"
+      report_id_selector: ".doc-id"
+      content_selector: ".summary"
+      detail_link_selector: "h4 a"
+      language_switcher: ".language-switcher"
+    timeout: 3m
+    max_retry: 5
+    retry_backoff: 2s
+    rate_limit_delay: 500ms
+    max_pages_per_crawl: 20
+
+notify:
+  wechat:
+    webhook_url: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=your-webhook-key"
+    secret: "your-sign-secret"
+    user_ids:
+      - "user_id_1"
+      - "user_id_2"
+    mobile_list:
+      - "13800138000"
+    rate_limit: 1s
+
+  phone:
+    webhook_url: "https://your-phone-api.com/call"
+    api_key: "your-api-key"
+
+  levels:
+    - level: "critical"
+      at_all: true
+      at_users: []
+      call_phone: true
+      max_per_hour: 10
+      keywords:
+        - "死亡"
+        - "过敏性休克"
+        - "严重肝损伤"
+        - "心肌梗死"
+        - "death"
+        - "anaphylactic shock"
+    - level: "serious"
+      at_all: false
+      at_users:
+        - "manager_id"
+        - "supervisor_id"
+      call_phone: false
+      max_per_hour: 20
+      keywords:
+        - "严重"
+        - "肝功能异常"
+        - "肾功能损害"
+        - "serious"
+        - "severe"
+    - level: "moderate"
+      at_all: false
+      at_users: []
+      call_phone: false
+      max_per_hour: 50
+      keywords:
+        - "中度"
+        - "moderate"
+    - level: "mild"
+      at_all: false
+      at_users: []
+      call_phone: false
+      max_per_hour: 100
+      keywords:
+        - "轻度"
+        - "一般"
+        - "mild"
