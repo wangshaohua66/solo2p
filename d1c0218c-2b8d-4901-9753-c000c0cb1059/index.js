@@ -13,11 +13,13 @@ const {
   PLATFORM_NAMES,
   ORDER_STATUS,
   LOGISTICS_STATUS,
+  inventoryConfig,
   getDateRange
 } = require('./config');
 const { getStorage } = require('./storage');
 const { getOrderFetcher } = require('./orderFetcher');
-const { getLogisticsTracker } = require('./logisticsTracker');
+const { getLogisticsTracker, searchTrackingByOrderId } = require('./logisticsTracker');
+const { getInventoryManager, INVENTORY_OPERATIONS } = require('./inventorySync');
 const { getScheduler, TASK_TYPES } = require('./scheduler');
 const { getAuthManager } = require('./authManager');
 const { globalAlertManager } = require('./retryHandler');
@@ -43,7 +45,7 @@ const LOGISTICS_LABELS = {
 function printBanner() {
   console.log(chalk.magenta.bold(`
 ╔═══════════════════════════════════════════════════╗
-║     跨境电商多平台订单自动化采集系统 v1.0.0        ║
+║     跨境电商多平台订单自动化采集系统 v1.1.0        ║
 ║  Cross-border E-commerce Order Collector System   ║
 ╚═══════════════════════════════════════════════════╝
   `));
@@ -55,7 +57,9 @@ function ensureDataDirs() {
   const dirs = [
     path.join(__dirname, 'data'),
     path.join(__dirname, 'logs'),
-    path.join(__dirname, 'exports')
+    path.join(__dirname, 'exports'),
+    path.join(__dirname, inventoryConfig.lockDir),
+    path.join(__dirname, 'data/captchas')
   ];
   for (const dir of dirs) {
     if (!fs.existsSync(dir)) {
@@ -141,6 +145,243 @@ async function cmdTrack(options) {
     }
   } catch (err) {
     console.error(chalk.red(`物流追踪失败: ${err.message}`));
+    process.exit(1);
+  }
+}
+
+async function cmdTrackingDetail(options) {
+  const orderIdOrNo = options.order || options.orderId;
+  if (!orderIdOrNo) {
+    console.log(chalk.red('错误: 请指定 --order <订单ID或平台订单号>'));
+    process.exit(1);
+  }
+
+  const storage = await getStorage();
+  let order = null;
+
+  if (/^\d+$/.test(String(orderIdOrNo))) {
+    order = await storage._get('SELECT * FROM orders WHERE id = ?', [parseInt(orderIdOrNo)]);
+  }
+  if (!order) {
+    order = await storage._get('SELECT * FROM orders WHERE platform_order_id = ? OR order_no = ?', [orderIdOrNo, orderIdOrNo]);
+  }
+
+  if (!order) {
+    console.log(chalk.red(`未找到订单: ${orderIdOrNo}`));
+    process.exit(1);
+  }
+
+  let result;
+  if (options.forceRefresh) {
+    console.log(chalk.cyan(`强制刷新物流信息: ${order.platform_order_id}`));
+    result = await searchTrackingByOrderId(order.id);
+  } else {
+    const tracker = getLogisticsTracker();
+    result = await tracker.getOrderTrackingReport(order.id);
+  }
+
+  if (!result || !result.tracking) {
+    console.log(chalk.yellow('该订单暂无物流信息'));
+    return;
+  }
+
+  const t = result.tracking;
+  console.log(chalk.cyan.bold('\n========== 物流详情 =========='));
+  console.log(`订单号: ${order.platform_order_id} (${PLATFORM_NAMES[order.platform]})`);
+  console.log(`物流单号: ${chalk.bold(t.tracking_no || '-')}`);
+  console.log(`承运商: ${t.carrier || '-'}`);
+  console.log(`状态: ${LOGISTICS_LABELS[t.status] || t.status}`);
+  console.log(`发货时间: ${t.shipped_date || '-'}`);
+  if (t.actual_delivery_date) console.log(`签收时间: ${chalk.green(t.actual_delivery_date)}`);
+  if (t.current_location) console.log(`当前位置: ${t.current_location}`);
+  if (t.is_delayed) console.log(chalk.red(`⚠ 延误: ${t.delay_reason || '超过预计时效'}`));
+
+  const traces = result.traces || (result.events || []).map(e => ({
+    tracking_time: e.tracking_time,
+    location: e.location,
+    status: e.status,
+    description: e.description
+  }));
+
+  if (traces.length > 0) {
+    console.log(chalk.cyan.bold('\n--- 物流轨迹 ---'));
+    const tw = [20, 18, 12, 40];
+    console.log(chalk.gray(formatTableRow(['时间', '地点', '状态', '描述'], tw)));
+    for (const tr of traces) {
+      const statusLabel = LOGISTICS_LABELS[tr.status] || tr.status;
+      console.log(formatTableRow([
+        tr.tracking_time ? dayjs(tr.tracking_time).format('YYYY-MM-DD HH:mm') : '-',
+        (tr.location || '-').substring(0, 16),
+        statusLabel.replace(/<[^>]+>/g, ''),
+        (tr.description || '-').substring(0, 38)
+      ], tw));
+    }
+  }
+  console.log('');
+}
+
+async function cmdInventory(options) {
+  const inventory = getInventoryManager();
+  const action = options.action || 'list';
+
+  try {
+    switch (action) {
+      case 'list':
+      case 'query': {
+        const filters = {};
+        if (options.platform) filters.platform = options.platform;
+        if (options.sku) filters.sku = options.sku;
+        if (options.low) filters.onlyLowStock = true;
+        if (options.out) filters.onlyOutOfStock = true;
+        if (options.limit) filters.limit = parseInt(options.limit);
+
+        const list = await inventory.getAllInventory(filters);
+        console.log(chalk.cyan.bold(`\n========== 库存列表 (${list.length}条) ==========`));
+
+        if (list.length === 0) {
+          console.log(chalk.yellow('  暂无库存数据'));
+          break;
+        }
+
+        const iw = [22, 10, 10, 10, 12, 18];
+        console.log(chalk.gray(formatTableRow(['SKU', '平台', '可用', '保留', '总计', '同步状态/时间'], iw)));
+        for (const inv of list) {
+          const availColor = inv.available_quantity <= 0
+            ? chalk.red
+            : (inv.available_quantity <= inventoryConfig.lowStockThreshold ? chalk.yellow : chalk.green);
+          const statusLabel = inv.sync_status === 'synced' ? chalk.green('已同步')
+            : inv.sync_status === 'failed' ? chalk.red('失败')
+            : inv.sync_status === 'pending' ? chalk.yellow('待同步') : chalk.gray(inv.sync_status || '-');
+          console.log(formatTableRow([
+            (inv.sku || '-').substring(0, 20),
+            PLATFORM_NAMES[inv.platform] || inv.platform,
+            availColor(inv.available_quantity || 0),
+            inv.reserved_quantity || 0,
+            inv.total_quantity || 0,
+            `${statusLabel} ${inv.last_sync_at ? dayjs(inv.last_sync_at).format('MM-DD HH:mm') : ''}`
+          ], iw));
+        }
+        break;
+      }
+
+      case 'deduct': {
+        if (!options.sku || !options.qty) {
+          console.log(chalk.red('错误: 扣减需要 --sku 和 --qty 参数'));
+          process.exit(1);
+        }
+        const result = await inventory.deductInventory(options.sku, parseInt(options.qty), {
+          platform: options.platform || 'global',
+          reason: options.reason || 'manual_deduct',
+          note: options.note
+        });
+        console.log(chalk.green(`✓ 扣减成功: ${result.sku}, 扣减 ${options.qty}, 剩余 ${result.after}`));
+        break;
+      }
+
+      case 'rollback': {
+        if (!options.sku || !options.qty) {
+          console.log(chalk.red('错误: 回滚需要 --sku 和 --qty 参数'));
+          process.exit(1);
+        }
+        const result = await inventory.rollbackInventory(options.sku, parseInt(options.qty), {
+          platform: options.platform || 'global',
+          reason: options.reason || 'manual_rollback'
+        });
+        console.log(chalk.green(`✓ 回滚成功: ${result.sku}, 回滚 ${result.rolledBack}, 当前 ${result.after}`));
+        break;
+      }
+
+      case 'restock': {
+        if (!options.sku || !options.qty) {
+          console.log(chalk.red('错误: 补货需要 --sku 和 --qty 参数'));
+          process.exit(1);
+        }
+        const result = await inventory.restockInventory(options.sku, parseInt(options.qty), {
+          platform: options.platform || 'global',
+          supplier: options.supplier,
+          reason: options.reason || 'manual_restock'
+        });
+        console.log(chalk.green(`✓ 补货成功: ${result.sku}, 增加 ${options.qty}, 可用 ${result.after}`));
+        break;
+      }
+
+      case 'adjust': {
+        if (!options.sku || options.qty == null) {
+          console.log(chalk.red('错误: 调整需要 --sku 和 --qty (新数量) 参数'));
+          process.exit(1);
+        }
+        const result = await inventory.adjustInventory(options.sku, parseInt(options.qty), {
+          platform: options.platform || 'global',
+          note: options.note,
+          reason: options.reason || 'manual_adjust'
+        });
+        console.log(chalk.green(`✓ 调整成功: ${result.sku}, ${result.before} → ${result.after} (Δ ${result.delta})`));
+        break;
+      }
+
+      case 'sync': {
+        const platform = options.platform || null;
+        console.log(chalk.cyan(platform ? `正在同步 ${PLATFORM_NAMES[platform]} 库存...` : '正在同步所有平台库存...'));
+        const result = platform
+          ? await inventory.syncPlatformInventory(platform)
+          : await inventory.syncAllPlatforms();
+        console.log(chalk.green('✓ 库存同步完成'));
+        console.log(JSON.stringify(result, null, 2));
+        break;
+      }
+
+      case 'low': {
+        const list = await inventory.getLowStockItems(options.platform || null, parseInt(options.threshold) || inventoryConfig.lowStockThreshold);
+        console.log(chalk.yellow.bold(`\n========== 低库存预警 (${list.length}条) ==========`));
+        if (list.length === 0) {
+          console.log(chalk.green('  暂无低库存商品'));
+          break;
+        }
+        const iw = [22, 10, 10, 20];
+        console.log(chalk.gray(formatTableRow(['SKU', '平台', '可用', '同步时间'], iw)));
+        for (const inv of list) {
+          console.log(formatTableRow([
+            (inv.sku || '-').substring(0, 20),
+            PLATFORM_NAMES[inv.platform] || inv.platform,
+            chalk.red(inv.available_quantity || 0),
+            inv.last_sync_at ? dayjs(inv.last_sync_at).format('YYYY-MM-DD HH:mm') : '-'
+          ], iw));
+        }
+        break;
+      }
+
+      case 'logs': {
+        const logs = await inventory.getInventoryLogs({
+          sku: options.sku,
+          platform: options.platform,
+          operation: options.operation,
+          startDate: options.startDate
+        }, parseInt(options.limit) || 50);
+        console.log(chalk.cyan.bold(`\n========== 库存操作日志 (${logs.length}条) ==========`));
+        const lw = [20, 10, 10, 8, 10, 10, 30];
+        console.log(chalk.gray(formatTableRow(['时间', 'SKU', '平台', '操作', '数量', '状态', '备注/原因'], lw)));
+        for (const log of logs) {
+          const statusColor = log.status === 'success' ? chalk.green : chalk.red;
+          console.log(formatTableRow([
+            dayjs(log.created_at).format('MM-DD HH:mm'),
+            (log.sku || '-').substring(0, 8),
+            PLATFORM_NAMES[log.platform] || log.platform,
+            log.operation,
+            log.quantity,
+            statusColor(log.status),
+            ((log.reason || log.note || log.error || '').substring(0, 28))
+          ], lw));
+        }
+        break;
+      }
+
+      default:
+        console.log(chalk.red(`未知库存操作: ${action}`));
+        console.log('可用操作: list/query, deduct, rollback, restock, adjust, sync, low, logs');
+        process.exit(1);
+    }
+  } catch (err) {
+    console.error(chalk.red(`库存操作失败: ${err.message}`));
     process.exit(1);
   }
 }
@@ -331,12 +572,14 @@ async function cmdDaemon(options) {
     platforms: options.platform ? options.platform.split(',') : PLATFORMS,
     fetchInterval: parseInt(options.fetchInterval) || 60,
     logisticsInterval: parseInt(options.logisticsInterval) || 30,
+    inventoryInterval: parseInt(options.inventoryInterval) || 30,
     days: parseInt(options.days) || 7,
     concurrency: parseInt(options.concurrency) || 3,
     simulate: options.simulate || false,
     runOnStart: options.runOnStart !== 'false',
     trackLogistics: options.noLogistics !== true,
     dailyReport: options.noReport !== true,
+    syncInventory: options.noInventory !== true,
     reportHour: parseInt(options.reportHour) || 9,
     reportMinute: parseInt(options.reportMinute) || 0
   };
@@ -399,6 +642,25 @@ async function cmdStatus() {
     console.log(`  订单总数: ${chalk.green(totalOrders?.count || 0)}`);
     console.log(`  今日新增: ${chalk.cyan(todayOrders?.count || 0)}`);
     console.log(`  物流记录: ${chalk.cyan(totalLogistics?.count || 0)}`);
+
+    try {
+      const totalInventory = await storage._get('SELECT COUNT(*) as count FROM inventory');
+      const lowStock = await storage._get(
+        'SELECT COUNT(*) as count FROM inventory WHERE available_quantity <= ?',
+        [inventoryConfig.lowStockThreshold]
+      );
+      const outOfStock = await storage._get(
+        'SELECT COUNT(*) as count FROM inventory WHERE available_quantity <= ?',
+        [inventoryConfig.outOfStockThreshold]
+      );
+      console.log(`  SKU数: ${chalk.cyan(totalInventory?.count || 0)}`);
+      if ((lowStock?.count || 0) > 0) {
+        console.log(`  低库存SKU: ${chalk.yellow(lowStock?.count || 0)}`);
+      }
+      if ((outOfStock?.count || 0) > 0) {
+        console.log(`  缺货SKU: ${chalk.red(outOfStock?.count || 0)}`);
+      }
+    } catch (_) { /* skip */ }
 
     if (byPlatform.length > 0) {
       console.log('\n  分平台统计:');
@@ -493,6 +755,8 @@ async function cmdTrigger(options) {
     'orders': TASK_TYPES.FETCH_ORDERS,
     'logistics': TASK_TYPES.TRACK_LOGISTICS,
     'track': TASK_TYPES.TRACK_LOGISTICS,
+    'inventory': TASK_TYPES.SYNC_INVENTORY,
+    'sync': TASK_TYPES.SYNC_INVENTORY,
     'report': TASK_TYPES.DAILY_REPORT
   };
 
@@ -500,7 +764,7 @@ async function cmdTrigger(options) {
   const taskType = taskMap[taskName.toLowerCase()];
 
   if (!taskType) {
-    console.log(chalk.red(`无效任务类型: ${taskName}, 可选: fetch, logistics, report`));
+    console.log(chalk.red(`无效任务类型: ${taskName}, 可选: fetch, logistics, inventory, report`));
     process.exit(1);
   }
 
@@ -515,6 +779,7 @@ async function cmdTrigger(options) {
     fn: () => {
       if (taskType === TASK_TYPES.FETCH_ORDERS) return scheduler._runFetchOrdersTask(runOpts);
       if (taskType === TASK_TYPES.TRACK_LOGISTICS) return scheduler._runTrackLogisticsTask(runOpts);
+      if (taskType === TASK_TYPES.SYNC_INVENTORY) return scheduler._runSyncInventoryTask(runOpts);
       if (taskType === TASK_TYPES.DAILY_REPORT) return scheduler._runDailyReportTask(runOpts);
     },
     timeoutMs: 60 * 60 * 1000,
@@ -650,12 +915,14 @@ async function interactiveMode() {
       choices: [
         { name: '1. 立即采集订单数据', value: 'fetch' },
         { name: '2. 执行物流追踪', value: 'track' },
-        { name: '3. 查询订单', value: 'query' },
-        { name: '4. 生成统计报表', value: 'report' },
-        { name: '5. 查看系统状态', value: 'status' },
-        { name: '6. 启动定时调度(守护模式)', value: 'daemon' },
-        { name: '7. 手动登录平台', value: 'login' },
-        { name: '8. 退出登录', value: 'logout' },
+        { name: '3. 查询物流详情/轨迹', value: 'tracking_detail' },
+        { name: '4. 查询订单', value: 'query' },
+        { name: '5. 生成统计报表', value: 'report' },
+        { name: '6. 库存管理', value: 'inventory' },
+        { name: '7. 查看系统状态', value: 'status' },
+        { name: '8. 启动定时调度(守护模式)', value: 'daemon' },
+        { name: '9. 手动登录平台', value: 'login' },
+        { name: '10. 退出登录', value: 'logout' },
         { name: '0. 退出程序', value: 'exit' }
       ]
     }]);
@@ -701,6 +968,14 @@ async function handleInteractiveAction(action) {
     case 'track': {
       const tracker = getLogisticsTracker();
       await tracker.trackAllPlatforms({});
+      break;
+    }
+    case 'tracking_detail': {
+      const ans = await inquirer.prompt([
+        { type: 'input', name: 'order', message: '请输入订单ID或平台订单号:' },
+        { type: 'confirm', name: 'forceRefresh', message: '是否强制刷新物流信息?', default: false }
+      ]);
+      if (ans.order) await cmdTrackingDetail({ order: ans.order, forceRefresh: ans.forceRefresh });
       break;
     }
     case 'query': {
@@ -766,11 +1041,13 @@ async function handleInteractiveAction(action) {
       const ans = await inquirer.prompt([
         { type: 'input', name: 'fetchInterval', message: '订单采集间隔(分钟):', default: '60' },
         { type: 'input', name: 'logisticsInterval', message: '物流追踪间隔(分钟):', default: '30' },
+        { type: 'input', name: 'inventoryInterval', message: '库存同步间隔(分钟):', default: '30' },
         { type: 'confirm', name: 'simulate', message: '模拟数据模式(无真实账号)?', default: true }
       ]);
       await cmdDaemon({
         fetchInterval: ans.fetchInterval,
         logisticsInterval: ans.logisticsInterval,
+        inventoryInterval: ans.inventoryInterval,
         simulate: ans.simulate
       });
       break;
@@ -811,6 +1088,59 @@ async function handleInteractiveAction(action) {
       await cmdLogout({ platform: ans.platform || undefined });
       break;
     }
+    case 'inventory': {
+      const actionAns = await inquirer.prompt([{
+        type: 'list',
+        name: 'subAction',
+        message: '库存管理操作:',
+        choices: [
+          { name: '1. 查看库存列表', value: 'list' },
+          { name: '2. 低库存预警', value: 'low' },
+          { name: '3. 扣减库存', value: 'deduct' },
+          { name: '4. 回滚库存(取消订单)', value: 'rollback' },
+          { name: '5. 补货入库', value: 'restock' },
+          { name: '6. 调整库存数量', value: 'adjust' },
+          { name: '7. 同步平台库存', value: 'sync' },
+          { name: '8. 查看操作日志', value: 'logs' },
+          { name: '0. 返回主菜单', value: 'back' }
+        ]
+      }]);
+
+      if (actionAns.subAction === 'back') break;
+
+      if (['list', 'low', 'logs', 'sync'].includes(actionAns.subAction)) {
+        const opts = { action: actionAns.subAction };
+        if (actionAns.subAction === 'logs') opts.limit = 50;
+        if (actionAns.subAction === 'list') {
+          const p = await inquirer.prompt([
+            { type: 'list', name: 'platform', message: '平台:', choices: [{ name: '全部', value: '' }, ...PLATFORMS.map(p => ({ name: PLATFORM_NAMES[p], value: p }))] }
+          ]);
+          if (p.platform) opts.platform = p.platform;
+        }
+        if (actionAns.subAction === 'sync') {
+          const p = await inquirer.prompt([
+            { type: 'list', name: 'platform', message: '同步平台:', choices: [{ name: '全部平台', value: '' }, ...PLATFORMS.map(p => ({ name: PLATFORM_NAMES[p], value: p }))] }
+          ]);
+          if (p.platform) opts.platform = p.platform;
+        }
+        await cmdInventory(opts);
+      } else {
+        const fields = await inquirer.prompt([
+          { type: 'input', name: 'sku', message: 'SKU编号:' },
+          { type: 'input', name: 'qty', message: actionAns.subAction === 'adjust' ? '新的库存数量:' : '数量:' },
+          { type: 'list', name: 'platform', message: '平台:', choices: [{ name: '全局(global)', value: 'global' }, ...PLATFORMS.map(p => ({ name: PLATFORM_NAMES[p], value: p }))] },
+          { type: 'input', name: 'note', message: '备注(可选):', default: '' }
+        ]);
+        await cmdInventory({
+          action: actionAns.subAction,
+          sku: fields.sku,
+          qty: fields.qty,
+          platform: fields.platform,
+          note: fields.note || undefined
+        });
+      }
+      break;
+    }
   }
 }
 
@@ -818,7 +1148,7 @@ function setupProgram() {
   program
     .name('order-collector')
     .description('跨境电商多平台订单自动化采集系统')
-    .version('1.0.0')
+    .version('1.1.0')
     .hook('preAction', () => {
       ensureDataDirs();
     });
@@ -840,6 +1170,31 @@ function setupProgram() {
     .option('--check-delay', '检测延误订单')
     .option('-d, --days <number>', '检测最近N天的订单', '30')
     .action(cmdTrack);
+
+  program
+    .command('tracking')
+    .description('查询单个订单的物流详情与轨迹')
+    .requiredOption('-o, --order <id>', '订单ID或平台订单号')
+    .option('-f, --force-refresh', '强制重新查询物流API')
+    .action(cmdTrackingDetail);
+
+  program
+    .command('inventory')
+    .description('库存管理 (list/deduct/rollback/restock/adjust/sync/low/logs)')
+    .option('-a, --action <action>', '操作类型: list(默认), deduct, rollback, restock, adjust, sync, low, logs', 'list')
+    .option('--sku <sku>', 'SKU编号')
+    .option('--qty <number>', '数量(扣减/回滚/补货/调整)')
+    .option('-p, --platform <platform>', '平台或 global')
+    .option('--low', '仅显示低库存')
+    .option('--out', '仅显示缺货')
+    .option('--limit <number>', '返回条数上限')
+    .option('--reason <text>', '操作原因')
+    .option('--note <text>', '备注')
+    .option('--supplier <name>', '供应商(补货)')
+    .option('--threshold <number>', '低库存阈值(low操作)')
+    .option('--operation <type>', '按操作类型筛选(logs)')
+    .option('--start-date <YYYY-MM-DD>', '开始日期(logs)')
+    .action(cmdInventory);
 
   program
     .command('query')
@@ -870,11 +1225,13 @@ function setupProgram() {
     .option('-p, --platform <platforms>', '指定平台,逗号分隔')
     .option('-f, --fetch-interval <minutes>', '订单采集周期(分钟)', '60')
     .option('-g, --logistics-interval <minutes>', '物流追踪周期(分钟)', '30')
+    .option('-i, --inventory-interval <minutes>', '库存同步周期(分钟)', '30')
     .option('-d, --days <number>', '每次采集天数范围', '7')
     .option('-c, --concurrency <number>', '最大并发平台数', '3')
     .option('-s, --simulate', '模拟数据模式')
     .option('--run-on-start <true/false>', '启动时立即执行一次', 'true')
     .option('--no-logistics', '禁用物流追踪')
+    .option('--no-inventory', '禁用库存同步')
     .option('--no-report', '禁用每日报表')
     .option('--report-hour <number>', '每日报表小时(0-23)', '9')
     .option('--report-minute <number>', '每日报表分钟', '0')
@@ -956,6 +1313,8 @@ if (require.main === module) {
 module.exports = {
   cmdFetch,
   cmdTrack,
+  cmdTrackingDetail,
+  cmdInventory,
   cmdQuery,
   cmdReport,
   cmdDaemon,

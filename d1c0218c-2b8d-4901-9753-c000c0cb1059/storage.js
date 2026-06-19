@@ -63,6 +63,56 @@ class Storage {
         )
       `),
       this._run(`
+        CREATE TABLE IF NOT EXISTS logistics_traces (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          logistics_id INTEGER NOT NULL,
+          tracking_time TEXT NOT NULL,
+          location TEXT,
+          status TEXT NOT NULL,
+          description TEXT,
+          raw_data TEXT,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY(logistics_id) REFERENCES logistics(id) ON DELETE CASCADE
+        )
+      `),
+      this._run(`
+        CREATE TABLE IF NOT EXISTS inventory (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          sku TEXT NOT NULL,
+          platform TEXT NOT NULL,
+          available_quantity INTEGER NOT NULL DEFAULT 0,
+          reserved_quantity INTEGER NOT NULL DEFAULT 0,
+          total_quantity INTEGER NOT NULL DEFAULT 0,
+          remote_quantity INTEGER,
+          sync_status TEXT DEFAULT 'pending',
+          sync_error TEXT,
+          last_sync_at TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE(sku, platform)
+        )
+      `),
+      this._run(`
+        CREATE TABLE IF NOT EXISTS inventory_logs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          sku TEXT NOT NULL,
+          platform TEXT NOT NULL,
+          operation TEXT NOT NULL,
+          quantity INTEGER NOT NULL DEFAULT 0,
+          status TEXT NOT NULL,
+          before_available INTEGER,
+          after_available INTEGER,
+          order_id INTEGER,
+          platform_order_id TEXT,
+          reason TEXT,
+          note TEXT,
+          supplier TEXT,
+          purchase_order_id TEXT,
+          error TEXT,
+          created_at TEXT NOT NULL
+        )
+      `),
+      this._run(`
         CREATE TABLE IF NOT EXISTS order_items (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           order_id INTEGER NOT NULL,
@@ -133,6 +183,13 @@ class Storage {
       this._run('CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id)'),
       this._run('CREATE INDEX IF NOT EXISTS idx_logistics_order_id ON logistics(order_id)'),
       this._run('CREATE INDEX IF NOT EXISTS idx_logistics_status ON logistics(status)'),
+      this._run('CREATE INDEX IF NOT EXISTS idx_logistics_traces_logistics_id ON logistics_traces(logistics_id)'),
+      this._run('CREATE INDEX IF NOT EXISTS idx_logistics_traces_tracking_time ON logistics_traces(tracking_time)'),
+      this._run('CREATE INDEX IF NOT EXISTS idx_inventory_sku_platform ON inventory(sku, platform)'),
+      this._run('CREATE INDEX IF NOT EXISTS idx_inventory_available ON inventory(available_quantity)'),
+      this._run('CREATE INDEX IF NOT EXISTS idx_inventory_logs_sku ON inventory_logs(sku)'),
+      this._run('CREATE INDEX IF NOT EXISTS idx_inventory_logs_platform ON inventory_logs(platform)'),
+      this._run('CREATE INDEX IF NOT EXISTS idx_inventory_logs_operation ON inventory_logs(operation)'),
       this._run('CREATE INDEX IF NOT EXISTS idx_fetch_logs_platform_date ON fetch_logs(platform, fetch_date)')
     ]);
   }
@@ -520,6 +577,50 @@ class Storage {
       ORDER BY id DESC
       LIMIT ${parseInt(limit)}
     `, params);
+  }
+
+  async upsertLogisticsTraces(logisticsId, traces = []) {
+    if (!logisticsId || !traces || traces.length === 0) return { inserted: 0 };
+    const now = dayjs().format('YYYY-MM-DD HH:mm:ss');
+
+    const existingTimes = new Set(
+      (await this._all(
+        'SELECT tracking_time FROM logistics_traces WHERE logistics_id = ?',
+        [logisticsId]
+      )).map(r => r.tracking_time)
+    );
+
+    let inserted = 0;
+    for (const trace of traces) {
+      const trackingTime = trace.tracking_time || trace.time || trace.date;
+      if (!trackingTime) continue;
+      if (existingTimes.has(trackingTime)) continue;
+
+      await this._run(`
+        INSERT INTO logistics_traces (
+          logistics_id, tracking_time, location, status, description, raw_data, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [
+        logisticsId,
+        trackingTime,
+        trace.location || trace.city || null,
+        trace.status || trace.state || LOGISTICS_STATUS.TRANSIT,
+        trace.description || trace.desc || null,
+        trace.raw_data ? JSON.stringify(trace.raw_data) : null,
+        now
+      ]);
+      inserted++;
+    }
+
+    return { inserted };
+  }
+
+  async getLogisticsTraces(logisticsId) {
+    return this._all(`
+      SELECT * FROM logistics_traces
+      WHERE logistics_id = ?
+      ORDER BY tracking_time DESC, id DESC
+    `, [logisticsId]);
   }
 
   close() {

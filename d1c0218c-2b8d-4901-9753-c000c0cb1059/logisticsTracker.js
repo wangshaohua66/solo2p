@@ -1,516 +1,627 @@
-const { By, until } = require('selenium-webdriver');
 const dayjs = require('dayjs');
 const chalk = require('chalk');
-const cliProgress = require('cli-progress');
+const axios = require('axios');
+
 const {
   PLATFORMS,
   PLATFORM_NAMES,
   LOGISTICS_STATUS,
-  getPlatformUrl,
-  ORDER_STATUS,
-  alertConfig,
-  fetchConfig
+  LOGISTICS_STATUS_NAMES,
+  logisticsApiConfig,
+  retryConfig
 } = require('./config');
 const { getStorage } = require('./storage');
-const { getAuthManager } = require('./authManager');
-const { createRetryHandler, globalAlertManager } = require('./retryHandler');
+const { RetryManager, globalAlertManager } = require('./retryHandler');
 
-class BaseLogisticsAdapter {
-  constructor(platform) {
-    this.platform = platform;
-    this.platformName = PLATFORM_NAMES[platform];
-  }
+const LOGISTICS_DELAY_DAYS = 15;
 
-  async navigateToLogisticsPage(driver) {
-    const url = getPlatformUrl(this.platform, 'logistics');
-    await driver.get(url);
-    await driver.sleep(3000);
-  }
-
-  async searchTrackingByOrderId(driver, orderId) {
-    return null;
-  }
-
-  async extractTrackingInfo(driver) {
-    return null;
-  }
-
-  _parseTrackingNo(text) {
-    if (!text) return '';
-    const patterns = [
-      /\b1Z[A-Z0-9]{16}\b/i,
-      /\bTBA\d{12,}\b/i,
-      /\b[A-Z]{2}\d{9}[A-Z]{2}\b/i,
-      /\b\d{10,14}\b/,
-      /\b[A-Z0-9]{8,20}\b/
-    ];
-
-    for (const pattern of patterns) {
-      const match = text.match(pattern);
-      if (match) return match[0];
-    }
-    return '';
-  }
-
-  _parseCarrier(text) {
-    if (!text) return '';
-    const carriers = {
-      'ups': 'UPS',
-      'fedex': 'FedEx',
-      'dhl': 'DHL',
-      'usps': 'USPS',
-      'china post': 'China Post',
-      'yunexpress': 'YunExpress',
-      'yanwen': 'Yanwen',
-      'sunyou': 'Sunyou',
-      '4px': '4PX',
-      'cainiao': 'Cainiao',
-      'sf': 'SF Express',
-      'ems': 'EMS',
-      'amazon logistics': 'Amazon Logistics',
-      'tba': 'Amazon Logistics',
-      'ebay': 'eBay Delivery',
-      'shopee': 'Shopee Logistics',
-      'lazada': 'Lazada Logistics',
-      'aliexpress': 'AliExpress Shipping',
-      'wish': 'Wish Post'
-    };
-
-    const lower = String(text).toLowerCase();
-    for (const [key, name] of Object.entries(carriers)) {
-      if (lower.includes(key)) return name;
-    }
-    return '';
-  }
-
-  _normalizeStatus(rawStatus) {
-    if (!rawStatus) return LOGISTICS_STATUS.PENDING;
-    const s = String(rawStatus).toLowerCase();
-
-    if (s.includes('exception') || s.includes('异常') || s.includes('fail') || s.includes('失败') || s.includes('held') || s.includes('扣留') || s.includes('custom') || s.includes('海关')) {
-      return LOGISTICS_STATUS.EXCEPTION;
-    }
-    if (s.includes('return') || s.includes('退回') || s.includes('refund') || s.includes('退件')) {
-      return LOGISTICS_STATUS.RETURNED;
-    }
-    if (s.includes('delivered') || s.includes('签收') || s.includes('送达') || s.includes('已投') || s.includes('妥投')) {
-      return LOGISTICS_STATUS.DELIVERED;
-    }
-    if (s.includes('transit') || s.includes('运输') || s.includes('shipping') || s.includes('发') || s.includes('in transit') || s.includes('途中') || s.includes('clearance') || s.includes('清关') || s.includes('飞行') || s.includes('到达')) {
-      return LOGISTICS_STATUS.TRANSIT;
-    }
-    if (s.includes('pending') || s.includes('待') || s.includes('未发') || s.includes('pre-transit') || s.includes('准备')) {
-      return LOGISTICS_STATUS.PENDING;
-    }
-
-    return LOGISTICS_STATUS.PENDING;
-  }
-
-  _isDelayed(shippedDate, thresholdHours = alertConfig.logisticsDelayThresholdHours) {
-    if (!shippedDate) return false;
-    const shipped = dayjs(shippedDate);
-    if (!shipped.isValid()) return false;
-    const diffHours = dayjs().diff(shipped, 'hour');
-    return diffHours > thresholdHours;
-  }
-}
-
-class AmazonLogisticsAdapter extends BaseLogisticsAdapter {
-  constructor() { super('amazon'); }
-
-  async extractTrackingInfo(driver) {
-    try {
-      const elements = await driver.findElements(By.css('[class*="tracking"], [class*="carrier-status"], [id*="tracking"]'));
-      let allText = '';
-      for (const el of elements) {
-        try { allText += await el.getText() + '\n'; } catch (e) {}
-      }
-
-      const trackingNo = this._parseTrackingNo(allText);
-      const carrier = this._parseCarrier(allText);
-
-      return {
-        tracking_no: trackingNo || `TBA${Date.now()}${Math.floor(Math.random() * 1000)}`,
-        carrier: carrier || 'Amazon Logistics',
-        status: trackingNo ? LOGISTICS_STATUS.TRANSIT : LOGISTICS_STATUS.PENDING,
-        shipped_date: dayjs().subtract(Math.floor(Math.random() * 10), 'day').format('YYYY-MM-DD HH:mm:ss'),
-        estimated_delivery_date: dayjs().add(Math.floor(Math.random() * 5), 'day').format('YYYY-MM-DD'),
-        actual_delivery_date: null,
-        current_location: '',
-        is_delayed: false,
-        delay_reason: null,
-        raw_tracking_data: { source: allText.substring(0, 500) }
-      };
-    } catch (err) {
-      return null;
-    }
-  }
-}
-
-class EbayLogisticsAdapter extends BaseLogisticsAdapter {
-  constructor() { super('ebay'); }
-
-  async extractTrackingInfo(driver) {
-    try {
-      const elements = await driver.findElements(By.css('[class*="tracking-id"], [class*="Tracking"], [data-testid*="tracking"]'));
-      let allText = '';
-      for (const el of elements) {
-        try { allText += await el.getText() + '\n'; } catch (e) {}
-      }
-
-      const trackingNo = this._parseTrackingNo(allText);
-      return {
-        tracking_no: trackingNo || `EB${Date.now()}${String(Math.floor(Math.random() * 9999)).padStart(4, '0')}`,
-        carrier: this._parseCarrier(allText) || 'eBay Delivery',
-        status: trackingNo ? LOGISTICS_STATUS.TRANSIT : LOGISTICS_STATUS.PENDING,
-        shipped_date: dayjs().subtract(Math.floor(Math.random() * 8), 'day').format('YYYY-MM-DD HH:mm:ss'),
-        estimated_delivery_date: dayjs().add(Math.floor(Math.random() * 7), 'day').format('YYYY-MM-DD'),
-        actual_delivery_date: Math.random() > 0.7 ? dayjs().format('YYYY-MM-DD HH:mm:ss') : null,
-        current_location: '',
-        is_delayed: Math.random() > 0.85,
-        delay_reason: Math.random() > 0.85 ? 'Weather delay' : null,
-        raw_tracking_data: { source: allText.substring(0, 500) }
-      };
-    } catch (err) {
-      return null;
-    }
-  }
-}
-
-class WishLogisticsAdapter extends BaseLogisticsAdapter {
-  constructor() { super('wish'); }
-
-  async extractTrackingInfo(driver) {
-    try {
-      return {
-        tracking_no: `WP${Date.now()}${String(Math.floor(Math.random() * 99999)).padStart(5, '0')}`,
-        carrier: 'Wish Post',
-        status: [LOGISTICS_STATUS.PENDING, LOGISTICS_STATUS.TRANSIT, LOGISTICS_STATUS.DELIVERED][Math.floor(Math.random() * 3)],
-        shipped_date: dayjs().subtract(Math.floor(Math.random() * 15), 'day').format('YYYY-MM-DD HH:mm:ss'),
-        estimated_delivery_date: dayjs().add(Math.floor(Math.random() * 10), 'day').format('YYYY-MM-DD'),
-        actual_delivery_date: null,
-        current_location: '',
-        is_delayed: Math.random() > 0.8,
-        delay_reason: Math.random() > 0.8 ? 'Customs clearance' : null,
-        raw_tracking_data: {}
-      };
-    } catch (err) {
-      return null;
-    }
-  }
-}
-
-class ShopeeLogisticsAdapter extends BaseLogisticsAdapter {
-  constructor() { super('shopee'); }
-
-  async extractTrackingInfo(driver) {
-    try {
-      return {
-        tracking_no: `SP${Date.now()}${String(Math.floor(Math.random() * 999999)).padStart(6, '0')}`,
-        carrier: 'Shopee Logistics',
-        status: [LOGISTICS_STATUS.PENDING, LOGISTICS_STATUS.TRANSIT, LOGISTICS_STATUS.DELIVERED, LOGISTICS_STATUS.EXCEPTION][Math.floor(Math.random() * 4)],
-        shipped_date: dayjs().subtract(Math.floor(Math.random() * 12), 'day').format('YYYY-MM-DD HH:mm:ss'),
-        estimated_delivery_date: dayjs().add(Math.floor(Math.random() * 6), 'day').format('YYYY-MM-DD'),
-        actual_delivery_date: Math.random() > 0.6 ? dayjs().subtract(Math.floor(Math.random() * 2), 'day').format('YYYY-MM-DD HH:mm:ss') : null,
-        current_location: '',
-        is_delayed: Math.random() > 0.88,
-        delay_reason: null,
-        raw_tracking_data: {}
-      };
-    } catch (err) {
-      return null;
-    }
-  }
-}
-
-class LazadaLogisticsAdapter extends BaseLogisticsAdapter {
-  constructor() { super('lazada'); }
-
-  async extractTrackingInfo(driver) {
-    try {
-      return {
-        tracking_no: `LZ${Date.now()}${String(Math.floor(Math.random() * 99999)).padStart(5, '0')}`,
-        carrier: 'Lazada Logistics',
-        status: [LOGISTICS_STATUS.PENDING, LOGISTICS_STATUS.TRANSIT, LOGISTICS_STATUS.DELIVERED][Math.floor(Math.random() * 3)],
-        shipped_date: dayjs().subtract(Math.floor(Math.random() * 10), 'day').format('YYYY-MM-DD HH:mm:ss'),
-        estimated_delivery_date: dayjs().add(Math.floor(Math.random() * 5), 'day').format('YYYY-MM-DD'),
-        actual_delivery_date: Math.random() > 0.5 ? dayjs().subtract(Math.floor(Math.random() * 3), 'day').format('YYYY-MM-DD HH:mm:ss') : null,
-        current_location: '',
-        is_delayed: Math.random() > 0.82,
-        delay_reason: null,
-        raw_tracking_data: {}
-      };
-    } catch (err) {
-      return null;
-    }
-  }
-}
-
-class AliExpressLogisticsAdapter extends BaseLogisticsAdapter {
-  constructor() { super('aliexpress'); }
-
-  async extractTrackingInfo(driver) {
-    try {
-      return {
-        tracking_no: `AE${Date.now()}${String(Math.floor(Math.random() * 999999)).padStart(6, '0')}`,
-        carrier: ['Cainiao', 'Yanwen', 'Sunyou', '4PX'][Math.floor(Math.random() * 4)],
-        status: [LOGISTICS_STATUS.PENDING, LOGISTICS_STATUS.TRANSIT, LOGISTICS_STATUS.DELIVERED, LOGISTICS_STATUS.EXCEPTION, LOGISTICS_STATUS.RETURNED][Math.floor(Math.random() * 5)],
-        shipped_date: dayjs().subtract(Math.floor(Math.random() * 20), 'day').format('YYYY-MM-DD HH:mm:ss'),
-        estimated_delivery_date: dayjs().add(Math.floor(Math.random() * 15), 'day').format('YYYY-MM-DD'),
-        actual_delivery_date: Math.random() > 0.55 ? dayjs().subtract(Math.floor(Math.random() * 5), 'day').format('YYYY-MM-DD HH:mm:ss') : null,
-        current_location: '',
-        is_delayed: Math.random() > 0.75,
-        delay_reason: Math.random() > 0.75 ? 'Long transit time' : null,
-        raw_tracking_data: {}
-      };
-    } catch (err) {
-      return null;
-    }
-  }
-}
-
-const LOGISTICS_ADAPTER_MAP = {
-  amazon: AmazonLogisticsAdapter,
-  ebay: EbayLogisticsAdapter,
-  wish: WishLogisticsAdapter,
-  shopee: ShopeeLogisticsAdapter,
-  lazada: LazadaLogisticsAdapter,
-  aliexpress: AliExpressLogisticsAdapter
+const CARRIER_MAP = {
+  'fedex': 'FedEx', 'FEDEX': 'FedEx', 'Fedex': 'FedEx',
+  'ups': 'UPS', 'UPS': 'UPS',
+  'usps': 'USPS', 'USPS': 'USPS', 'Usps': 'USPS',
+  'dhl': 'DHL', 'DHL': 'DHL',
+  '17track': '17Track', '17TRACK': '17Track',
+  '4px': '4PX', 'cainiao': 'Cainiao',
+  'yanwen': 'Yanwen', 'sunyou': 'Sunyou',
+  'china post': 'China Post', 'chinapost': 'China Post',
+  'china ems': 'China EMS', 'ems': 'EMS', 'EMS': 'EMS',
+  'aliexpress': 'AliExpress Shipping',
+  'shopee': 'Shopee Logistics',
+  'lazada': 'Lazada Logistics',
+  'amazon': 'Amazon Logistics', 'tba': 'Amazon Logistics',
+  'ebay': 'eBay Global Shipping',
+  'wish': 'Wish Logistics',
+  'yunexpress': 'YunExpress'
 };
 
-function getLogisticsAdapter(platform) {
-  const Ctor = LOGISTICS_ADAPTER_MAP[platform];
-  if (!Ctor) throw new Error(`未实现的物流适配器: ${platform}`);
-  return new Ctor();
+function normalizeCarrier(name) {
+  if (!name) return name;
+  const lower = name.toLowerCase().trim();
+
+  for (const [key, display] of Object.entries(CARRIER_MAP)) {
+    if (lower.includes(key.toLowerCase())) return display;
+  }
+  return name;
+}
+
+function detectCarrier(trackingNo) {
+  if (!trackingNo) return null;
+  const t = trackingNo.trim();
+
+  if (/^1Z[a-zA-Z0-9]{16}$/.test(t)) return 'UPS';
+  if (/^TBA\d{10,}$/i.test(t)) return 'Amazon Logistics';
+  if (/^\d{12}$/.test(t) && t.startsWith('9')) return 'FedEx';
+  if (/^\d{22}$/.test(t)) return 'USPS';
+  if (/^[A-Z]{2}\d{9}[A-Z]{2}$/i.test(t)) return 'China Post / EMS';
+  if (/^[A-Za-z]{1,2}\d{10,}$/i.test(t)) return 'Yanwen / Sunyou';
+  if (/^YT\d{13}$/.test(t)) return 'YunExpress';
+  if (/^LP\d{10,}$/.test(t)) return 'AliExpress / Cainiao';
+
+  return null;
+}
+
+function normalizeStatus(rawStatus, description) {
+  if (!rawStatus && !description) return LOGISTICS_STATUS.PENDING;
+
+  const text = `${rawStatus || ''} ${description || ''}`.toLowerCase();
+
+  if (/delivered|签收|妥投|已送达|派送成功/.test(text)) return LOGISTICS_STATUS.DELIVERED;
+  if (/in transit|运输中|途中|已发出|departed|outbound|left/.test(text)) return LOGISTICS_STATUS.TRANSIT;
+  if (/out for delivery|派送中|投递中|派件|attempted/.test(text)) return LOGISTICS_STATUS.OUT_FOR_DELIVERY;
+  if (/customs|清关|海关|import|export/.test(text)) return LOGISTICS_STATUS.CUSTOMS;
+  if (/exception|失败|异常|delay|延误|lost|丢失|damaged|损坏|refused|拒收|returned|退回/.test(text)) return LOGISTICS_STATUS.EXCEPTION;
+  if (/picked up|pickup|已揽收|揽件|collected|received|已发货|shipped/.test(text)) return LOGISTICS_STATUS.SHIPPED;
+  if (/arrived|到达|sorted|分拣|processing|处理中/.test(text)) return LOGISTICS_STATUS.TRANSIT;
+  if (/pending|待处理|待揽收|not found|no info|查询不到/.test(text)) return LOGISTICS_STATUS.PENDING;
+
+  return LOGISTICS_STATUS.TRANSIT;
+}
+
+function normalizeTime(rawTime, fallbackNow = true) {
+  if (!rawTime) return fallbackNow ? dayjs().format('YYYY-MM-DD HH:mm:ss') : null;
+
+  let d;
+  if (typeof rawTime === 'number') {
+    d = rawTime > 1e12 ? dayjs(rawTime) : dayjs(rawTime * 1000);
+  } else if (typeof rawTime === 'string') {
+    d = dayjs(rawTime);
+    if (!d.isValid()) {
+      d = dayjs(rawTime.replace('T', ' ').replace(/[Z+-]\d{2}:?\d{2}$/, ''));
+    }
+  } else {
+    d = dayjs(rawTime);
+  }
+
+  return d.isValid() ? d.format('YYYY-MM-DD HH:mm:ss') : (fallbackNow ? dayjs().format('YYYY-MM-DD HH:mm:ss') : null);
+}
+
+function extractTrackingInfo(rawTrackingData, carrier = null) {
+  const events = [];
+
+  if (!rawTrackingData) return { events, status: LOGISTICS_STATUS.PENDING };
+
+  if (Array.isArray(rawTrackingData)) {
+    for (const item of rawTrackingData) {
+      const evt = _extractSingleEvent(item);
+      if (evt) events.push(evt);
+    }
+  } else if (rawTrackingData.traces || rawTrackingData.events || rawTrackingData.data) {
+    const list = rawTrackingData.traces || rawTrackingData.events || rawTrackingData.data;
+    if (Array.isArray(list)) {
+      for (const item of list) {
+        const evt = _extractSingleEvent(item);
+        if (evt) events.push(evt);
+      }
+    }
+  } else if (rawTrackingData.result) {
+    if (Array.isArray(rawTrackingData.result)) {
+      for (const item of rawTrackingData.result) {
+        const evt = _extractSingleEvent(item);
+        if (evt) events.push(evt);
+      }
+    } else if (rawTrackingData.result.traces || rawTrackingData.result.events) {
+      const list = rawTrackingData.result.traces || rawTrackingData.result.events;
+      if (Array.isArray(list)) {
+        for (const item of list) {
+          const evt = _extractSingleEvent(item);
+          if (evt) events.push(evt);
+        }
+      }
+    }
+  } else {
+    const evt = _extractSingleEvent(rawTrackingData);
+    if (evt) events.push(evt);
+  }
+
+  const sortedEvents = events
+    .filter(e => e && e.tracking_time)
+    .sort((a, b) => dayjs(b.tracking_time).valueOf() - dayjs(a.tracking_time).valueOf());
+
+  const latestEvent = sortedEvents[0] || null;
+  const finalStatus = latestEvent ? latestEvent.status : (rawTrackingData.status || LOGISTICS_STATUS.PENDING);
+
+  return {
+    events: sortedEvents,
+    status: normalizeStatus(finalStatus, latestEvent?.description),
+    latest: latestEvent,
+    carrier: carrier || (rawTrackingData.carrier ? normalizeCarrier(rawTrackingData.carrier) : null),
+    isDelivered: sortedEvents.some(e => e.status === LOGISTICS_STATUS.DELIVERED),
+    hasException: sortedEvents.some(e => e.status === LOGISTICS_STATUS.EXCEPTION)
+  };
+}
+
+function _extractSingleEvent(item) {
+  if (!item) return null;
+
+  const time = normalizeTime(
+    item.tracking_time || item.time || item.date || item.occurred_at || item.timestamp || item.created_at || item.createdAt,
+    false
+  );
+  if (!time) return null;
+
+  const location = item.location || item.city || item.address || item.country || item.site ||
+    (typeof item.checkpoint_destination === 'string' ? item.checkpoint_destination : null);
+
+  const rawStatus = item.status || item.state || item.status_text || item.event || item.code;
+  const description = item.description || item.desc || item.message || item.info || item.substatus || item.details;
+
+  const status = normalizeStatus(rawStatus, description);
+
+  return {
+    tracking_time: time,
+    location: location ? String(location).trim() : null,
+    status,
+    description: description ? String(description).trim() : (rawStatus ? String(rawStatus).trim() : null),
+    raw_data: item
+  };
+}
+
+async function searchTrackingByOrderId(orderId) {
+  const storage = await getStorage();
+  const order = await storage._get('SELECT * FROM orders WHERE id = ?', [orderId]);
+  if (!order) {
+    return { success: false, error: `订单不存在: ${orderId}` };
+  }
+
+  const logisticsRow = await storage._get('SELECT * FROM logistics WHERE order_id = ?', [orderId]);
+  const trackingNo = logisticsRow?.tracking_no || order.tracking_no;
+
+  if (!trackingNo) {
+    return { success: false, error: `订单 ${order.platform_order_id} 暂无物流单号` };
+  }
+
+  const carrier = logisticsRow?.carrier || detectCarrier(trackingNo) || order.platform;
+  const carrierNormalized = normalizeCarrier(carrier);
+
+  let apiResult = null;
+  let useApi = null;
+
+  if (logisticsApiConfig.aftershipApiKey) {
+    try {
+      apiResult = await _queryAfterShip(trackingNo, carrierNormalized);
+      useApi = 'aftership';
+    } catch (err) {
+      if (logisticsApiConfig.track17ApiKey) {
+        try {
+          apiResult = await _queryTrack17(trackingNo, carrierNormalized);
+          useApi = '17track';
+        } catch (err2) {
+          apiResult = null;
+        }
+      }
+    }
+  } else if (logisticsApiConfig.track17ApiKey) {
+    try {
+      apiResult = await _queryTrack17(trackingNo, carrierNormalized);
+      useApi = '17track';
+    } catch (err) {
+      apiResult = null;
+    }
+  }
+
+  if (!apiResult && logisticsApiConfig.useMockIfApiFail) {
+    apiResult = _mockTrackingResponse(trackingNo, carrierNormalized, order);
+    useApi = 'mock';
+  }
+
+  if (!apiResult) {
+    return {
+      success: false,
+      error: '物流查询失败: 无可用 API 且未启用 Mock',
+      order_id: orderId,
+      tracking_no: trackingNo
+    };
+  }
+
+  const parsed = extractTrackingInfo(apiResult, carrierNormalized);
+  parsed.sourceApi = useApi;
+
+  if (parsed.events.length === 0 && logisticsRow?.raw_tracking_data) {
+    try {
+      const oldParsed = extractTrackingInfo(
+        typeof logisticsRow.raw_tracking_data === 'string'
+          ? JSON.parse(logisticsRow.raw_tracking_data)
+          : logisticsRow.raw_tracking_data,
+        carrierNormalized
+      );
+      if (oldParsed.events.length > parsed.events.length) {
+        parsed.events = oldParsed.events;
+        parsed.latest = oldParsed.latest;
+        parsed.status = oldParsed.status;
+      }
+    } catch (_) { /* ignore parse error */ }
+  }
+
+  let logisticsId = logisticsRow?.id;
+  if (logisticsId) {
+    await storage.upsertLogistics(logisticsId, {
+      tracking_no: trackingNo,
+      carrier: carrierNormalized,
+      status: parsed.status,
+      current_location: parsed.latest?.location || null,
+      actual_delivery_date: parsed.events.find(e => e.status === LOGISTICS_STATUS.DELIVERED)?.tracking_time || null,
+      is_delayed: _detectDelayed(parsed, order, logisticsRow),
+      raw_tracking_data: apiResult
+    });
+    await storage.upsertLogisticsTraces(logisticsId, parsed.events);
+  } else {
+    const upsertResult = await storage.upsertLogistics(orderId, {
+      tracking_no: trackingNo,
+      carrier: carrierNormalized,
+      status: parsed.status,
+      shipped_date: parsed.events.find(e =>
+        [LOGISTICS_STATUS.SHIPPED, LOGISTICS_STATUS.TRANSIT].includes(e.status)
+      )?.tracking_time || order.order_date,
+      current_location: parsed.latest?.location || null,
+      actual_delivery_date: parsed.events.find(e => e.status === LOGISTICS_STATUS.DELIVERED)?.tracking_time || null,
+      is_delayed: _detectDelayed(parsed, order, null),
+      raw_tracking_data: apiResult
+    });
+    logisticsId = upsertResult.id;
+    if (logisticsId) await storage.upsertLogisticsTraces(logisticsId, parsed.events);
+  }
+
+  if (parsed.hasException) {
+    await globalAlertManager.alertSystemError(
+      new Error(`物流异常: ${trackingNo} (订单 ${order.platform_order_id})`),
+      {
+        type: 'logistics_exception',
+        order_id: orderId,
+        tracking_no: trackingNo,
+        carrier: carrierNormalized,
+        events: parsed.events.slice(0, 5)
+      }
+    );
+  }
+
+  return {
+    success: true,
+    order_id: orderId,
+    platform_order_id: order.platform_order_id,
+    tracking_no: trackingNo,
+    carrier: carrierNormalized,
+    status: parsed.status,
+    status_name: LOGISTICS_STATUS_NAMES[parsed.status],
+    source_api: useApi,
+    latest: parsed.latest,
+    events_count: parsed.events.length,
+    events: parsed.events,
+    is_delivered: parsed.isDelivered,
+    has_exception: parsed.hasException
+  };
+}
+
+async function _queryAfterShip(trackingNo, carrier) {
+  const slug = _carrierToAfterShipSlug(carrier);
+
+  let url = `${logisticsApiConfig.aftershipUrl}/${slug}/${encodeURIComponent(trackingNo)}`;
+  if (!slug) {
+    url = `${logisticsApiConfig.aftershipUrl}/:${encodeURIComponent(trackingNo)}`;
+  }
+
+  const resp = await axios.get(url, {
+    headers: {
+      'as-api-key': logisticsApiConfig.aftershipApiKey,
+      'Content-Type': 'application/json'
+    },
+    timeout: logisticsApiConfig.requestTimeoutMs
+  });
+
+  if (!resp.data || !resp.data.data || !resp.data.data.tracking) {
+    throw new Error('AfterShip 返回空数据');
+  }
+
+  const t = resp.data.data.tracking;
+  return {
+    carrier: t.slug || t.carrier || carrier,
+    status: t.tag || t.status,
+    events: (t.checkpoints || []).map(cp => ({
+      tracking_time: cp.checkpoint_time || cp.created_at || cp.time,
+      location: cp.city || cp.location || cp.country_name,
+      status: cp.tag || cp.status,
+      description: cp.message || cp.description,
+      raw_data: cp
+    }))
+  };
+}
+
+async function _queryTrack17(trackingNo, carrier) {
+  const carrierCode = _carrierToTrack17Code(carrier);
+
+  const body = [
+    {
+      number: trackingNo,
+      carrier: carrierCode || '',
+      auto_detection: !carrierCode
+    }
+  ];
+
+  const resp = await axios.post(logisticsApiConfig.track17Url, body, {
+    headers: {
+      '17token': logisticsApiConfig.track17ApiKey,
+      'Content-Type': 'application/json'
+    },
+    timeout: logisticsApiConfig.requestTimeoutMs
+  });
+
+  const accepted = resp.data?.accepted || [];
+  const rejected = resp.data?.rejected || [];
+  if (accepted.length === 0 && rejected.length > 0) {
+    throw new Error(`17Track 拒绝: ${JSON.stringify(rejected[0])}`);
+  }
+
+  const item = accepted[0] || resp.data?.data?.track?.[0];
+  if (!item) {
+    throw new Error('17Track 返回空结果');
+  }
+
+  return {
+    carrier: item.carrier || carrier,
+    status: item.status || item.final_status,
+    events: (item.traces || item.events || []).map(ev => ({
+      tracking_time: ev.event_time || ev.occurred_at || ev.date,
+      location: ev.event_location || ev.location || ev.site,
+      status: ev.event_code || ev.status,
+      description: ev.event_desc || ev.description || ev.message,
+      raw_data: ev
+    }))
+  };
+}
+
+function _carrierToAfterShipSlug(carrier) {
+  const map = {
+    'UPS': 'ups',
+    'FedEx': 'fedex',
+    'USPS': 'usps',
+    'DHL': 'dhl',
+    'China Post / EMS': 'china-post',
+    'EMS': 'ems',
+    'Amazon Logistics': 'amazon',
+    'Yanwen / Sunyou': 'yanwen',
+    'YunExpress': 'yunexpress',
+    'AliExpress / Cainiao': 'cainiao'
+  };
+  return map[carrier] || map[normalizeCarrier(carrier)] || null;
+}
+
+function _carrierToTrack17Code(carrier) {
+  const map = {
+    'UPS': 'ups',
+    'FedEx': 'fedex',
+    'USPS': 'usps',
+    'DHL': 'dhl',
+    'China Post / EMS': 'chinapost',
+    'EMS': 'ems',
+    'Yanwen / Sunyou': 'yanwen',
+    'YunExpress': 'yunexpress',
+    'AliExpress / Cainiao': 'cainiao'
+  };
+  return map[carrier] || map[normalizeCarrier(carrier)] || null;
+}
+
+function _mockTrackingResponse(trackingNo, carrier, order) {
+  const events = [];
+  const now = dayjs();
+  const orderDate = order?.order_date ? dayjs(order.order_date) : now.subtract(7, 'day');
+
+  events.push({
+    tracking_time: orderDate.format('YYYY-MM-DD HH:mm:ss'),
+    location: 'Origin Warehouse',
+    status: LOGISTICS_STATUS.SHIPPED,
+    description: 'Parcel picked up by carrier'
+  });
+
+  const transit1 = orderDate.add(1, 'day');
+  events.push({
+    tracking_time: transit1.format('YYYY-MM-DD HH:mm:ss'),
+    location: 'Departure Hub',
+    status: LOGISTICS_STATUS.TRANSIT,
+    description: 'Parcel in transit to destination country'
+  });
+
+  const daysDiff = Math.min(10, Math.max(1, now.diff(orderDate, 'day')));
+  for (let i = 2; i < daysDiff; i++) {
+    const t = orderDate.add(i, 'day');
+    if (t.isAfter(now)) break;
+    events.push({
+      tracking_time: t.format('YYYY-MM-DD HH:mm:ss'),
+      location: i >= 5 ? 'Destination Country' : 'Transit Hub',
+      status: LOGISTICS_STATUS.TRANSIT,
+      description: 'Parcel arrived at sorting facility'
+    });
+  }
+
+  if (daysDiff >= 7) {
+    events.push({
+      tracking_time: orderDate.add(daysDiff, 'day').format('YYYY-MM-DD HH:mm:ss'),
+      location: 'Local Delivery Center',
+      status: LOGISTICS_STATUS.OUT_FOR_DELIVERY,
+      description: 'Out for delivery'
+    });
+
+    if (daysDiff >= 10) {
+      events.push({
+        tracking_time: orderDate.add(10, 'day').format('YYYY-MM-DD HH:mm:ss'),
+        location: 'Destination',
+        status: LOGISTICS_STATUS.DELIVERED,
+        description: 'Delivered to recipient'
+      });
+    }
+  }
+
+  return {
+    carrier,
+    tracking_no: trackingNo,
+    _mock: true,
+    events
+  };
+}
+
+function _detectDelayed(parsed, order, logisticsRow) {
+  if (parsed.isDelivered) return false;
+
+  const latestEventTime = parsed.latest?.tracking_time ? dayjs(parsed.latest.tracking_time) : null;
+  const shippedTime = logisticsRow?.shipped_date ? dayjs(logisticsRow.shipped_date) : (order.order_date ? dayjs(order.order_date) : null);
+
+  if (!shippedTime) return false;
+
+  const daysSinceShipped = dayjs().diff(shippedTime, 'day');
+  if (daysSinceShipped > LOGISTICS_DELAY_DAYS) return true;
+
+  if (latestEventTime) {
+    const daysSinceLatest = dayjs().diff(latestEventTime, 'day');
+    if (daysSinceLatest >= 5 && daysSinceShipped >= 5) return true;
+  }
+
+  return false;
 }
 
 class LogisticsTracker {
   constructor() {
-    this.authManager = getAuthManager();
+    this.retryManager = new RetryManager();
   }
 
-  async trackPlatformOrders(platform, filters = {}) {
-    const storage = await getStorage();
-    const adapter = getLogisticsAdapter(platform);
-    const platformName = PLATFORM_NAMES[platform];
+  async trackOrder(orderId, options = {}) {
+    const { forceRefresh = false, useBrowserFallback = false } = options;
 
-    console.log(chalk.cyan(`\n[${platformName}] 开始追踪物流状态...`));
-
-    const pendingOrders = await storage.queryOrders({
-      platform,
-      status: [ORDER_STATUS.PENDING_SHIPMENT, ORDER_STATUS.SHIPPED],
-      ...filters
-    });
-
-    if (pendingOrders.length === 0) {
-      console.log(chalk.yellow(`[${platformName}] 无待追踪物流的订单`));
-      return { platform, tracked: 0, delayed: 0, updated: 0 };
-    }
-
-    console.log(chalk.cyan(`[${platformName}] 待追踪订单数: ${pendingOrders.length}`));
-
-    const retryHandler = createRetryHandler();
-    let driver = null;
-    try {
-      const auth = await this.authManager.ensureLogin(platform);
-      driver = auth.driver;
-      await adapter.navigateToLogisticsPage(driver);
-    } catch (err) {
-      console.log(chalk.yellow(`[${platformName}] 登录跳过，使用离线模式追踪: ${err.message}`));
-    }
-
-    const delayedOrders = [];
-    let updatedCount = 0;
-
-    const progressBar = new cliProgress.SingleBar({
-      format: `[${platformName}] 物流追踪: [{bar}] {percentage}% | {value}/{total}`,
-      barCompleteChar: '\u2588',
-      barIncompleteChar: '\u2591',
-      hideCursor: true
-    });
-    progressBar.start(pendingOrders.length, 0);
-
-    for (let i = 0; i < pendingOrders.length; i++) {
-      const order = pendingOrders[i];
-
-      try {
-        let trackingInfo;
-
-        if (driver) {
-          try {
-            trackingInfo = await retryHandler.execute(
-              () => adapter.extractTrackingInfo(driver, order),
-              { description: `${platformName} 物流提取 ${order.platform_order_id}` }
-            );
-          } catch (extractErr) {
-            trackingInfo = this._generateMockTracking(platform, adapter, order);
-          }
-        } else {
-          trackingInfo = this._generateMockTracking(platform, adapter, order);
-        }
-
-        if (trackingInfo) {
-          if (order.status === ORDER_STATUS.SHIPPED && trackingInfo.status === LOGISTICS_STATUS.DELIVERED) {
-            trackingInfo.actual_delivery_date = trackingInfo.actual_delivery_date || dayjs().format('YYYY-MM-DD HH:mm:ss');
-          }
-
-          if (adapter._isDelayed(trackingInfo.shipped_date) &&
-              trackingInfo.status !== LOGISTICS_STATUS.DELIVERED) {
-            trackingInfo.is_delayed = 1;
-            delayedOrders.push(order);
-          }
-
-          const result = await storage.upsertLogistics(order.id, trackingInfo);
-          if (result.updated || result.inserted) updatedCount++;
-        }
-      } catch (err) {
-        console.log(chalk.red(`\n[${platformName}] 订单 ${order.platform_order_id} 追踪失败: ${err.message}`));
-      }
-
-      progressBar.update(i + 1);
-    }
-
-    progressBar.stop();
-
-    if (delayedOrders.length > 0) {
-      console.log(chalk.yellow(`[${platformName}] 发现 ${delayedOrders.length} 笔物流延误订单`));
-      await globalAlertManager.alertLogisticsDelay(platform, delayedOrders);
-    }
-
-    console.log(chalk.green(`[${platformName}] 物流追踪完成: 更新 ${updatedCount} 条，延误 ${delayedOrders.length} 条`));
-
-    return {
-      platform,
-      tracked: pendingOrders.length,
-      updated: updatedCount,
-      delayed: delayedOrders.length,
-      delayedOrders
-    };
+    return this.retryManager.retry(
+      () => searchTrackingByOrderId(orderId),
+      { operation: `logistics_track_order_${orderId}` }
+    );
   }
 
-  _generateMockTracking(platform, adapter, order) {
-    const statuses = Object.values(LOGISTICS_STATUS);
-    const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
-    const shippedDaysAgo = Math.floor(Math.random() * 15);
-    const shippedDate = dayjs(order.order_date).add(1 + Math.floor(Math.random() * 3), 'day');
+  async trackOrdersBatch(orderIds, { concurrency = 2 } = {}) {
+    const pLimit = require('p-limit');
+    const limit = pLimit(concurrency);
+    const results = [];
 
-    return {
-      tracking_no: `${platform.toUpperCase().slice(0, 3)}${Date.now()}${String(Math.floor(Math.random() * 99999)).padStart(5, '0')}`,
-      carrier: `${PLATFORM_NAMES[platform]} Logistics`,
-      status: randomStatus,
-      shipped_date: shippedDate.format('YYYY-MM-DD HH:mm:ss'),
-      estimated_delivery_date: shippedDate.add(5 + Math.floor(Math.random() * 20), 'day').format('YYYY-MM-DD'),
-      actual_delivery_date: randomStatus === LOGISTICS_STATUS.DELIVERED
-        ? shippedDate.add(7 + Math.floor(Math.random() * 15), 'day').format('YYYY-MM-DD HH:mm:ss')
-        : null,
-      current_location: '',
-      is_delayed: adapter._isDelayed(shippedDate.format('YYYY-MM-DD HH:mm:ss')) && randomStatus !== LOGISTICS_STATUS.DELIVERED ? 1 : 0,
-      delay_reason: Math.random() > 0.85 ? ['Customs', 'Weather', 'Address issue'][Math.floor(Math.random() * 3)] : null,
-      raw_tracking_data: { mock: true }
-    };
-  }
-
-  async trackAllPlatforms(filters = {}) {
-    const platforms = filters.platform ? [filters.platform] : PLATFORMS;
-    delete filters.platform;
-
-    const pLimit = (await import('p-limit')).default;
-    const limit = pLimit(3);
-
-    const results = await Promise.all(
-      platforms.map(p =>
-        limit(() =>
-          this.trackPlatformOrders(p, filters)
-            .then(r => ({ platform: p, success: true, ...r }))
-            .catch(err => ({ platform: p, success: false, error: err.message }))
-        )
+    const tasks = orderIds.map(id =>
+      limit(() =>
+        this.trackOrder(id)
+          .then(r => ({ order_id: id, ...r }))
+          .catch(err => ({ order_id: id, success: false, error: err.message }))
       )
     );
 
-    const summary = {
-      total: platforms.length,
-      success: 0,
-      failed: 0,
-      totalTracked: 0,
-      totalUpdated: 0,
-      totalDelayed: 0,
-      details: results
-    };
-
-    results.forEach(r => {
-      if (r.success) {
-        summary.success++;
-        summary.totalTracked += r.tracked || 0;
-        summary.totalUpdated += r.updated || 0;
-        summary.totalDelayed += r.delayed || 0;
-      } else {
-        summary.failed++;
-      }
-    });
-
-    console.log(`\n${chalk.magenta.bold('========== 物流追踪汇总 ==========')}`);
-    console.log(`追踪订单: ${summary.totalTracked}`);
-    console.log(`更新状态: ${summary.totalUpdated}`);
-    console.log(chalk.yellow(`延误订单: ${summary.totalDelayed}`));
-
-    return summary;
+    return Promise.all(tasks);
   }
 
-  async detectDelayedOrders(filters = {}) {
+  async trackPendingShipments(filters = {}) {
     const storage = await getStorage();
-    const delayThreshold = alertConfig.logisticsDelayThresholdHours;
+    const conditions = [
+      '(o.status = ? OR o.status = ?)',
+      '(l.status IS NULL OR l.status = ? OR l.status = ? OR l.status = ? OR l.is_delayed = 1)'
+    ];
+    const params = [
+      ORDER_STATUS.SHIPPED, ORDER_STATUS.PENDING_SHIPMENT,
+      LOGISTICS_STATUS.PENDING, LOGISTICS_STATUS.SHIPPED, LOGISTICS_STATUS.TRANSIT
+    ];
 
-    const orders = await storage.queryOrders(filters);
-    const delayed = [];
-
-    for (const order of orders) {
-      if (order.logistics_status === LOGISTICS_STATUS.DELIVERED) continue;
-      if (order.status === ORDER_STATUS.CANCELLED || order.status === ORDER_STATUS.RETURNED) continue;
-
-      const logisticsRows = await storage._all(
-        'SELECT * FROM logistics WHERE order_id = ?',
-        [order.id]
-      );
-
-      for (const logistics of logisticsRows) {
-        if (logistics.shipped_date) {
-          const diffHours = dayjs().diff(dayjs(logistics.shipped_date), 'hour');
-          if (diffHours > delayThreshold && logistics.status !== LOGISTICS_STATUS.DELIVERED) {
-            delayed.push({
-              ...order,
-              tracking_no: logistics.tracking_no,
-              shipped_date: logistics.shipped_date,
-              carrier: logistics.carrier,
-              logistics_status: logistics.status,
-              delay_hours: diffHours
-            });
-          }
-        }
-      }
+    if (filters.platform) {
+      conditions.push('o.platform = ?');
+      params.push(filters.platform);
+    }
+    if (filters.startDate) {
+      conditions.push('o.order_date >= ?');
+      params.push(filters.startDate);
+    }
+    if (filters.endDate) {
+      conditions.push('o.order_date <= ?');
+      params.push(filters.endDate + ' 23:59:59');
     }
 
-    return delayed;
+    const pendingOrders = await storage._all(`
+      SELECT DISTINCT o.id, o.platform, o.platform_order_id, o.order_date
+      FROM orders o
+      LEFT JOIN logistics l ON l.order_id = o.id
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY o.order_date DESC
+      LIMIT 1000
+    `, params);
+
+    console.log(chalk.cyan(`[物流追踪] 待追踪订单数: ${pendingOrders.length}`));
+
+    return this.trackOrdersBatch(pendingOrders.map(o => o.id));
+  }
+
+  async getOrderTrackingReport(orderId) {
+    const storage = await getStorage();
+
+    const logistics = await storage._get('SELECT * FROM logistics WHERE order_id = ?', [orderId]);
+    const traces = logistics
+      ? await storage.getLogisticsTraces(logistics.id)
+      : [];
+    const order = await storage._get('SELECT * FROM orders WHERE id = ?', [orderId]);
+
+    return {
+      order: order ? {
+        id: order.id,
+        platform: order.platform,
+        platform_order_id: order.platform_order_id,
+        order_date: order.order_date,
+        status: order.status
+      } : null,
+      tracking: logistics ? {
+        tracking_no: logistics.tracking_no,
+        carrier: logistics.carrier,
+        status: logistics.status,
+        status_name: LOGISTICS_STATUS_NAMES[logistics.status],
+        shipped_date: logistics.shipped_date,
+        estimated_delivery_date: logistics.estimated_delivery_date,
+        actual_delivery_date: logistics.actual_delivery_date,
+        current_location: logistics.current_location,
+        is_delayed: !!logistics.is_delayed,
+        delay_reason: logistics.delay_reason
+      } : null,
+      traces: traces.map(t => ({
+        tracking_time: t.tracking_time,
+        location: t.location,
+        status: t.status,
+        status_name: LOGISTICS_STATUS_NAMES[t.status] || t.status,
+        description: t.description
+      }))
+    };
   }
 }
 
-let logisticsTrackerInstance = null;
+const { ORDER_STATUS } = require('./config');
+
+let trackerInstance = null;
 
 function getLogisticsTracker() {
-  if (!logisticsTrackerInstance) {
-    logisticsTrackerInstance = new LogisticsTracker();
+  if (!trackerInstance) {
+    trackerInstance = new LogisticsTracker();
   }
-  return logisticsTrackerInstance;
+  return trackerInstance;
 }
 
 module.exports = {
-  BaseLogisticsAdapter,
-  AmazonLogisticsAdapter,
-  EbayLogisticsAdapter,
-  WishLogisticsAdapter,
-  ShopeeLogisticsAdapter,
-  LazadaLogisticsAdapter,
-  AliExpressLogisticsAdapter,
   LogisticsTracker,
-  getLogisticsAdapter,
+  searchTrackingByOrderId,
+  extractTrackingInfo,
+  normalizeCarrier,
+  detectCarrier,
+  normalizeStatus,
+  normalizeTime,
   getLogisticsTracker
 };

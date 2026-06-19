@@ -165,14 +165,54 @@ const chromeConfig = {
   disableDevShmUsage: true,
   windowSize: '1920,1080',
   userDataDir: path.join(__dirname, 'data', 'chrome_profile'),
-  disableImages: true,
+  disableImages: false,
   disableJavascript: false,
+  binary: process.env.CHROME_BINARY || undefined,
   additionalArgs: [
     '--disable-gpu',
     '--disable-extensions',
     '--disable-popup-blocking',
     '--ignore-certificate-errors'
   ]
+};
+
+const ocrConfig = {
+  engine: process.env.OCR_ENGINE || 'tesseract',
+  tesseractLang: process.env.OCR_LANG || 'eng',
+  tesseractPath: process.env.TESSERACT_PATH || '',
+  ocrSpaceApiKey: process.env.OCR_SPACE_API_KEY || '',
+  ocrSpaceUrl: 'https://api.ocr.space/parse/image',
+  maxOcrRetries: 3,
+  screenshotDir: path.join(__dirname, 'data', 'captchas')
+};
+
+const inventoryConfig = {
+  lockDir: path.join(__dirname, 'data', 'locks'),
+  lockTimeoutMs: 30000,
+  lockStaleMs: 60000,
+  syncIntervalMinutes: 30,
+  lowStockThreshold: 10,
+  outOfStockThreshold: 0,
+  autoDeductOnShipment: true,
+  autoRollbackOnCancellation: true,
+  safeInventoryBuffer: 2,
+  platforms: {
+    amazon: { enabled: true, priority: 1 },
+    ebay: { enabled: true, priority: 2 },
+    wish: { enabled: true, priority: 3 },
+    shopee: { enabled: true, priority: 4 },
+    lazada: { enabled: true, priority: 5 },
+    aliexpress: { enabled: true, priority: 6 }
+  }
+};
+
+const logisticsApiConfig = {
+  track17ApiKey: process.env.TRACK17_API_KEY || '',
+  track17Url: 'https://api.17track.net/track/v2.2/gettrackinfo',
+  aftershipApiKey: process.env.AFTERSHIP_API_KEY || '',
+  aftershipUrl: 'https://api.aftership.com/v4/trackings',
+  useMockIfApiFail: true,
+  requestTimeoutMs: 10000
 };
 
 function getPlatformUrl(platform, type) {
@@ -225,6 +265,9 @@ module.exports = {
   cookieConfig,
   logConfig,
   chromeConfig,
+  ocrConfig,
+  inventoryConfig,
+  logisticsApiConfig,
   getPlatformUrl,
   getCredentials,
   getDateRange,

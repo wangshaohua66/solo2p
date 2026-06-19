@@ -5,16 +5,19 @@ const {
   PLATFORMS,
   PLATFORM_NAMES,
   scheduleConfig,
+  inventoryConfig,
   getDateRange
 } = require('./config');
 const { getOrderFetcher } = require('./orderFetcher');
 const { getLogisticsTracker } = require('./logisticsTracker');
+const { getInventoryManager } = require('./inventorySync');
 const { getStorage } = require('./storage');
 const { globalAlertManager } = require('./retryHandler');
 
 const TASK_TYPES = {
   FETCH_ORDERS: 'fetch_orders',
   TRACK_LOGISTICS: 'track_logistics',
+  SYNC_INVENTORY: 'sync_inventory',
   DAILY_REPORT: 'daily_report'
 };
 
@@ -189,6 +192,47 @@ class TaskScheduler {
     }
   }
 
+  async _runSyncInventoryTask(options = {}) {
+    const { platforms = PLATFORMS, cleanupLocks = true } = options;
+
+    console.log(chalk.magenta(`\n[调度器] 执行库存同步任务 @ ${dayjs().format('YYYY-MM-DD HH:mm:ss')}`));
+
+    const inventory = getInventoryManager();
+
+    try {
+      if (cleanupLocks) {
+        const cleaned = await inventory.cleanupStaleLocks();
+        if (cleaned > 0) {
+          console.log(chalk.gray(`[库存同步] 清理了 ${cleaned} 个过期锁文件`));
+        }
+      }
+
+      const results = {};
+      for (const platform of platforms) {
+        try {
+          results[platform] = await inventory.syncPlatformInventory(platform);
+        } catch (err) {
+          results[platform] = { success: false, error: err.message };
+          console.log(chalk.red(`[库存同步] ${PLATFORM_NAMES[platform]} 失败: ${err.message}`));
+        }
+      }
+
+      const lowStock = await inventory.getLowStockItems();
+      if (lowStock.length > 0) {
+        console.log(chalk.yellow(`[库存同步] 低库存预警: ${lowStock.length} 个 SKU`));
+        for (const inv of lowStock.slice(0, 5)) {
+          console.log(chalk.yellow(`  - ${inv.sku} (${PLATFORM_NAMES[inv.platform] || inv.platform}): ${inv.available_quantity}`));
+        }
+      }
+
+      return { results, low_stock_count: lowStock.length };
+    } catch (err) {
+      console.log(chalk.red(`[调度器] 库存同步任务异常: ${err.message}`));
+      await globalAlertManager.alertSystemError(err, { task: 'sync_inventory' });
+      throw err;
+    }
+  }
+
   scheduleFetchOrders(options = {}) {
     const interval = options.intervalMinutes || this.fetchIntervalMinutes;
     const cronExpr = this._buildCronExpression(interval);
@@ -275,6 +319,31 @@ class TaskScheduler {
     return job;
   }
 
+  scheduleSyncInventory(options = {}) {
+    const interval = options.intervalMinutes || inventoryConfig.syncIntervalMinutes;
+    const cronExpr = this._buildCronExpression(interval);
+    const jobKey = TASK_TYPES.SYNC_INVENTORY;
+
+    if (this.jobs.has(jobKey)) {
+      this.jobs.get(jobKey).cancel();
+    }
+
+    const job = schedule.scheduleJob(cronExpr, () => {
+      console.log(chalk.blue('\n[定时触发] 库存同步任务'));
+      this._enqueueTask({
+        fn: () => this._runSyncInventoryTask(options),
+        timeoutMs: 20 * 60 * 1000,
+        type: TASK_TYPES.SYNC_INVENTORY
+      }).catch(err => {
+        console.error(chalk.red(`[调度器] 库存同步失败: ${err.message}`));
+      });
+    });
+
+    this.jobs.set(jobKey, job);
+    console.log(chalk.green(`[调度器] 库存同步任务已配置: 每 ${interval} 分钟执行`));
+    return job;
+  }
+
   start(options = {}) {
     if (this.running) {
       console.log(chalk.yellow('[调度器] 已经在运行中'));
@@ -305,6 +374,13 @@ class TaskScheduler {
       this.scheduleDailyReport({
         hour: options.reportHour || 9,
         minute: options.reportMinute || 0
+      });
+    }
+
+    if (options.syncInventory !== false) {
+      this.scheduleSyncInventory({
+        intervalMinutes: options.inventoryInterval || inventoryConfig.syncIntervalMinutes,
+        platforms: options.platforms || PLATFORMS
       });
     }
 
@@ -344,6 +420,7 @@ class TaskScheduler {
     const tasks = {
       [TASK_TYPES.FETCH_ORDERS]: () => this._runFetchOrdersTask(options),
       [TASK_TYPES.TRACK_LOGISTICS]: () => this._runTrackLogisticsTask(options),
+      [TASK_TYPES.SYNC_INVENTORY]: () => this._runSyncInventoryTask(options),
       [TASK_TYPES.DAILY_REPORT]: () => this._runDailyReportTask(options)
     };
 
@@ -397,6 +474,7 @@ class TaskScheduler {
         const typeLabel = {
           [TASK_TYPES.FETCH_ORDERS]: '订单采集',
           [TASK_TYPES.TRACK_LOGISTICS]: '物流追踪',
+          [TASK_TYPES.SYNC_INVENTORY]: '库存同步',
           [TASK_TYPES.DAILY_REPORT]: '每日报表'
         }[t.type] || t.type;
         console.log(`  - ${typeLabel}: ${t.nextRun || '无计划'}`);
