@@ -1,5 +1,6 @@
 import React, { memo, useMemo, useRef, useEffect, useState } from 'react';
-import type { TaskNode, TimelineGranularity, Baseline } from '@/types';
+import type { TaskNode, TimelineGranularity, Baseline, DependencyType } from '@/types';
+import { DEPENDENCY_TYPE_META } from '@/types';
 import { useGanttStore } from '@/store/useGanttStore';
 import { TaskBar } from './TaskBar';
 import { DependencyLayer } from './DependencyLayer';
@@ -87,6 +88,29 @@ function buildTimeHeaders(viewStart: number, viewEnd: number, granularity: Timel
   return { major, minor, dateToPixel, pixelToDate, totalWidth, dayWidth };
 }
 
+function getDepEndpointsByType(
+  fromTask: TaskNode,
+  to: { x: number; y: number },
+  type: DependencyType,
+  dateToPixel: (d: number) => number,
+  fromTop: number,
+  rowHeight: number
+): { fx: number; fy: number; tx: number; ty: number } {
+  const fl = dateToPixel(fromTask.startDate);
+  const fr = dateToPixel(fromTask.endDate);
+  const cy = fromTop + rowHeight / 2;
+  switch (type) {
+    case 'FS':
+      return { fx: fr, fy: cy, tx: to.x, ty: to.y };
+    case 'SS':
+      return { fx: fl, fy: cy, tx: to.x, ty: to.y };
+    case 'FF':
+      return { fx: fr, fy: cy, tx: to.x, ty: to.y };
+    case 'SF':
+      return { fx: fl, fy: cy, tx: to.x, ty: to.y };
+  }
+}
+
 export const GanttChart = memo(function GanttChart({ rowHeight }: GanttChartProps) {
   const theme = useGanttStore(s => s.ui.theme);
   const getTaskTree = useGanttStore(s => s.getTaskTree);
@@ -98,7 +122,9 @@ export const GanttChart = memo(function GanttChart({ rowHeight }: GanttChartProp
   const baselines = useGanttStore(s => s.baselines);
   const activeBaselineId = useGanttStore(s => s.activeBaselineId);
   const draggingDepFrom = useGanttStore(s => s.ui.draggingDepFrom);
+  const draggingDepType = useGanttStore(s => s.ui.draggingDepType);
   const setDraggingDepFrom = useGanttStore(s => s.setDraggingDepFrom);
+  const setDraggingDepType = useGanttStore(s => s.setDraggingDepType);
   const scrollX = useGanttStore(s => s.timeline.scrollX);
   const scrollY = useGanttStore(s => s.timeline.scrollY);
   const setTimelineScroll = useGanttStore(s => s.setTimelineScroll);
@@ -182,16 +208,42 @@ export const GanttChart = memo(function GanttChart({ rowHeight }: GanttChartProp
         y: e.clientY - rect.top + scrollEl.scrollTop,
       });
     }
-    function handleUp() {
-      setDraggingDepFrom(null);
-    }
     window.addEventListener('pointermove', handleMove);
-    window.addEventListener('pointerup', handleUp);
-    return () => {
-      window.removeEventListener('pointermove', handleMove);
-      window.removeEventListener('pointerup', handleUp);
-    };
-  }, [draggingDepFrom, setDraggingDepFrom]);
+    return () => window.removeEventListener('pointermove', handleMove);
+  }, [draggingDepFrom]);
+
+  useEffect(() => {
+    if (!draggingDepFrom) return;
+    const TYPE_ORDER: DependencyType[] = ['FS', 'SS', 'FF', 'SF'];
+    function onKey(e: KeyboardEvent) {
+      const k = e.key.toLowerCase();
+      let next: DependencyType | null = null;
+      if (e.key === '1' || k === 'f') next = 'FS';
+      else if (e.key === '2' || k === 's') next = 'SS';
+      else if (e.key === '3' || k === 'e') next = 'FF';
+      else if (e.key === '4' || k === 'u') next = 'SF';
+      else if (e.key === 'Tab') {
+        e.preventDefault();
+        const idx = TYPE_ORDER.indexOf(draggingDepType);
+        const dir = e.shiftKey ? -1 : 1;
+        next = TYPE_ORDER[(idx + dir + 4) % 4];
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        const idx = TYPE_ORDER.indexOf(draggingDepType);
+        next = TYPE_ORDER[(idx + 1) % 4];
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        const idx = TYPE_ORDER.indexOf(draggingDepType);
+        next = TYPE_ORDER[(idx + 3) % 4];
+      } else if (e.key === 'Escape') {
+        setDraggingDepFrom(null);
+        return;
+      }
+      if (next && next !== draggingDepType) {
+        setDraggingDepType(next);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [draggingDepFrom, draggingDepType, setDraggingDepType, setDraggingDepFrom]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     setTimelineScroll(e.currentTarget.scrollLeft, e.currentTarget.scrollTop);
@@ -208,14 +260,28 @@ export const GanttChart = memo(function GanttChart({ rowHeight }: GanttChartProp
     const fromTask = tasks[draggingDepFrom];
     if (!fromTask) return null;
     const top = getTaskTop(draggingDepFrom);
-    const fromX = dateToPixel(fromTask.endDate);
-    const fromY = top + rowHeight / 2;
-    const toX = depDragMouse.x;
-    const toY = depDragMouse.y;
-    const midX = (fromX + toX) / 2;
-    const path = `M ${fromX} ${fromY} C ${midX} ${fromY}, ${midX} ${toY}, ${toX} ${toY}`;
-    return { path };
-  }, [draggingDepFrom, depDragMouse, tasks, getTaskTop, dateToPixel, rowHeight]);
+    const { fx, fy, tx, ty } = getDepEndpointsByType(
+      fromTask,
+      { x: depDragMouse.x, y: depDragMouse.y },
+      draggingDepType,
+      dateToPixel,
+      top,
+      rowHeight
+    );
+    const midX = (fx + tx) / 2;
+    const path = `M ${fx} ${fy} C ${midX} ${fy}, ${midX} ${ty}, ${tx} ${ty}`;
+    const labelX = midX;
+    const labelY = Math.min(fy, ty) - 14;
+    return { path, labelX, labelY, fx, fy };
+  }, [draggingDepFrom, depDragMouse, tasks, getTaskTop, draggingDepType, dateToPixel, rowHeight]);
+
+  const depMeta = DEPENDENCY_TYPE_META[draggingDepType];
+  const typeColor: Record<DependencyType, string> = {
+    FS: '#3B82F6',
+    SS: '#10B981',
+    FF: '#8B5CF6',
+    SF: '#F59E0B',
+  };
 
   return (
     <div
@@ -327,7 +393,7 @@ export const GanttChart = memo(function GanttChart({ rowHeight }: GanttChartProp
                   height={totalHeight}
                 >
                   <defs>
-                    <marker id="baseline-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                    <marker id={`bl-arrow-${b.taskId}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
                       <path d="M 0 0 L 10 5 L 0 10 z" fill={b.isDelayed ? '#F43F5E' : '#0EA5E9'} />
                     </marker>
                   </defs>
@@ -339,7 +405,7 @@ export const GanttChart = memo(function GanttChart({ rowHeight }: GanttChartProp
                     stroke={b.isDelayed ? '#F43F5E' : '#0EA5E9'}
                     strokeWidth={1.5}
                     strokeDasharray="4 3"
-                    markerEnd="url(#baseline-arrow)"
+                    markerEnd={`url(#bl-arrow-${b.taskId})`}
                     opacity={0.8}
                   />
                 </svg>
@@ -388,13 +454,13 @@ export const GanttChart = memo(function GanttChart({ rowHeight }: GanttChartProp
             >
               <defs>
                 <marker id="dep-drag-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#F59E0B" />
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill={typeColor[draggingDepType]} />
                 </marker>
               </defs>
               <path
                 d={depDragLine.path}
                 fill="none"
-                stroke="#F59E0B"
+                stroke={typeColor[draggingDepType]}
                 strokeWidth={2.5}
                 strokeLinecap="round"
                 strokeDasharray="6 4"
@@ -403,29 +469,122 @@ export const GanttChart = memo(function GanttChart({ rowHeight }: GanttChartProp
               >
                 <animate attributeName="stroke-dashoffset" from="20" to="0" dur="0.6s" repeatCount="indefinite" />
               </path>
+              <circle
+                cx={depDragLine.fx}
+                cy={depDragLine.fy}
+                r={6}
+                fill={typeColor[draggingDepType]}
+                fillOpacity={0.2}
+                stroke={typeColor[draggingDepType]}
+                strokeWidth={2}
+              />
               {depDragMouse && (
                 <circle
                   cx={depDragMouse.x}
                   cy={depDragMouse.y}
-                  r={7}
-                  fill="#F59E0B"
-                  fillOpacity={0.25}
-                  stroke="#F59E0B"
+                  r={8}
+                  fill={typeColor[draggingDepType]}
+                  fillOpacity={0.2}
+                  stroke={typeColor[draggingDepType]}
                   strokeWidth={2}
                 />
               )}
+              <g transform={`translate(${depDragLine.labelX}, ${depDragLine.labelY})`}>
+                <rect
+                  x={-30}
+                  y={-10}
+                  width={60}
+                  height={18}
+                  rx={9}
+                  fill={typeColor[draggingDepType]}
+                  opacity={0.92}
+                />
+                <text
+                  x={0}
+                  y={3}
+                  textAnchor="middle"
+                  fontSize={10}
+                  fontWeight={700}
+                  fill="#FFFFFF"
+                  fontFamily="JetBrains Mono, ui-monospace, monospace"
+                >
+                  {depMeta.label}
+                </text>
+              </g>
             </svg>
           )}
 
           {draggingDepFrom && (
-            <div
-              className={`fixed top-20 left-1/2 -translate-x-1/2 z-[200] px-3 py-1.5 rounded-lg shadow-lg text-xs font-semibold flex items-center gap-1.5 ${
-                theme === 'dark' ? 'bg-amber-500/90 text-slate-900' : 'bg-amber-400/95 text-slate-900'
-              } animate-[pulse_1.2s_ease-in-out_infinite]`}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-900 animate-ping" />
-              拖拽到目标任务上建立 FS 依赖 · ESC 取消
-            </div>
+            <>
+              <div
+                className={`fixed top-16 left-1/2 -translate-x-1/2 z-[200] shadow-2xl rounded-xl border-2 overflow-hidden ${
+                  theme === 'dark'
+                    ? 'bg-slate-800/95 border-slate-700'
+                    : 'bg-white/95 border-slate-200'
+                } backdrop-blur animate-[fadeIn_150ms_ease-out]`}
+              >
+                <div className={`px-4 py-2 flex items-center gap-2 border-b ${
+                  theme === 'dark' ? 'border-slate-700' : 'border-slate-200'
+                }`}>
+                  <span
+                    className={`px-2 py-0.5 rounded font-mono font-bold text-xs text-white`}
+                    style={{ backgroundColor: typeColor[draggingDepType] }}
+                  >
+                    {depMeta.label}
+                  </span>
+                  <span className={`text-sm font-semibold ${theme === 'dark' ? 'text-slate-100' : 'text-slate-800'}`}>
+                    {depMeta.desc}
+                  </span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                </div>
+                <div className={`grid grid-cols-4 gap-0.5 p-2`}>
+                  {(['FS', 'SS', 'FF', 'SF'] as const).map(t => {
+                    const m = DEPENDENCY_TYPE_META[t];
+                    const active = t === draggingDepType;
+                    return (
+                      <button
+                        key={t}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDraggingDepType(t);
+                        }}
+                        className={`flex flex-col items-center px-2 py-1.5 rounded-lg transition-all ${
+                          active
+                            ? 'text-white scale-[1.02] shadow-md'
+                            : theme === 'dark'
+                              ? 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
+                              : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+                        }`}
+                        style={active ? { backgroundColor: typeColor[t] } : undefined}
+                      >
+                        <span className="font-mono font-bold text-sm">{m.label}</span>
+                        <span className={`text-[9px] mt-0.5 ${active ? 'opacity-90' : ''}`}>
+                          {m.hotkey}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className={`px-3 py-1.5 text-[10px] border-t flex items-center justify-between ${
+                  theme === 'dark'
+                    ? 'bg-slate-900/50 border-slate-700 text-slate-500'
+                    : 'bg-slate-50 border-slate-200 text-slate-400'
+                }`}>
+                  <span>⌨ 1-4 / F S E U / Tab 切换类型</span>
+                  <span>ESC 取消</span>
+                </div>
+              </div>
+              <style>{`
+                @keyframes fadeIn {
+                  from { opacity: 0; transform: translate(-50%, -6px); }
+                  to { opacity: 1; transform: translate(-50%, 0); }
+                }
+                @keyframes contextIn {
+                  from { opacity: 0; transform: scale(0.96) translateY(-4px); }
+                  to { opacity: 1; transform: scale(1) translateY(0); }
+                }
+              `}</style>
+            </>
           )}
         </div>
       </div>

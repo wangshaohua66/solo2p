@@ -2,6 +2,13 @@ export type TaskStatus = 'not-started' | 'in-progress' | 'completed' | 'delayed'
 
 export type DependencyType = 'FS' | 'SS' | 'FF' | 'SF';
 
+export const DEPENDENCY_TYPE_META: Record<DependencyType, { label: string; desc: string; hotkey: string; idx: number }> = {
+  FS: { label: 'FS', desc: '完成到开始 (Finish→Start)', hotkey: '1 / F', idx: 0 },
+  SS: { label: 'SS', desc: '开始到开始 (Start→Start)', hotkey: '2 / S', idx: 1 },
+  FF: { label: 'FF', desc: '完成到完成 (Finish→Finish)', hotkey: '3 / E', idx: 2 },
+  SF: { label: 'SF', desc: '开始到完成 (Start→Finish)', hotkey: '4 / U', idx: 3 },
+};
+
 export type TimelineGranularity = 'day' | 'week' | 'month' | 'quarter';
 
 export type ResourcePool = 'product' | 'design' | 'development' | 'testing';
@@ -93,6 +100,7 @@ export interface UIState {
   highlightedDependencyIds: string[];
   criticalPathIds: string[];
   draggingDepFrom: string | null;
+  draggingDepType: DependencyType;
   detailTaskId: string | null;
 }
 

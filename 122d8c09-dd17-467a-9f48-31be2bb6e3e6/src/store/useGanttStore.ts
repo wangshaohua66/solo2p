@@ -8,6 +8,7 @@ import type {
   Theme,
   TimelineState,
   UIState,
+  DependencyType,
 } from '@/types';
 import { DependencyGraph } from '@/core/DependencyGraph';
 import { snapToDay } from '@/utils/dateUtils';
@@ -45,6 +46,7 @@ export interface GanttState {
   setShowTaskTree: (show: boolean) => void;
   scrollToToday: () => void;
   setDraggingDepFrom: (id: string | null) => void;
+  setDraggingDepType: (type: DependencyType) => void;
   setDetailTaskId: (id: string | null) => void;
   importData: (data: string | Partial<GanttState>) => void;
   exportData: () => string;
@@ -79,6 +81,7 @@ export const useGanttStore = create<GanttState>((set, get) => ({
     highlightedDependencyIds: [],
     criticalPathIds: [],
     draggingDepFrom: null,
+    draggingDepType: 'FS',
     detailTaskId: null,
   },
 
@@ -325,7 +328,17 @@ export const useGanttStore = create<GanttState>((set, get) => ({
   },
 
   setDraggingDepFrom: (id) => {
-    set(state => ({ ui: { ...state.ui, draggingDepFrom: id } }));
+    set(state => ({
+      ui: {
+        ...state.ui,
+        draggingDepFrom: id,
+        draggingDepType: id ? state.ui.draggingDepType : 'FS',
+      },
+    }));
+  },
+
+  setDraggingDepType: (type) => {
+    set(state => ({ ui: { ...state.ui, draggingDepType: type } }));
   },
 
   setDetailTaskId: (id) => {
