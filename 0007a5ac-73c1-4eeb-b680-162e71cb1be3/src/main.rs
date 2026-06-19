@@ -6,6 +6,7 @@ mod storage;
 mod lookup;
 mod report;
 mod utils;
+mod monitor;
 
 use clap::Parser;
 use anyhow::{Result, Context};
@@ -358,16 +359,49 @@ fn results_to_csv(results: &[TunnelDetectionResult]) -> String {
 }
 
 async fn cmd_monitor(
-    _config: &Config,
-    _directory: Option<PathBuf>,
-    _alert_script: Option<PathBuf>,
-    _daemon: bool,
-    _interval: u64,
-    _alert_threshold: u8,
+    config: &Config,
+    directory: Option<PathBuf>,
+    alert_script: Option<PathBuf>,
+    daemon: bool,
+    interval: u64,
+    alert_threshold: u8,
 ) -> Result<()> {
-    print_warning("监控模式需要完整实现，当前为演示版本");
-    print_info("实时监控功能将持续监控指定目录并检测可疑行为");
-    Ok(())
+    utils::validator::validate_positive_number(interval as u64, "检查间隔")?;
+
+    let watch_dir = directory
+        .clone()
+        .unwrap_or_else(|| config.monitoring.watch_directory.clone());
+
+    if !watch_dir.exists() {
+        if !monitor::confirm_high_risk_operation(
+            &format!("监控目录不存在: {}\n是否创建该目录并启动监控?", watch_dir.display())
+        )? {
+            return Ok(());
+        }
+    }
+
+    if daemon {
+        print_info("守护进程模式，将持续运行监控...");
+    }
+
+    let actual_alert_script = alert_script
+        .or_else(|| config.monitoring.alert_script.clone());
+
+    if actual_alert_script.is_none() {
+        print_warning("未配置告警脚本，将只打印告警信息到控制台");
+    }
+
+    let check_interval = if interval > 0 { interval } else { config.monitoring.check_interval_seconds };
+
+    let mut dns_monitor = monitor::DnsMonitor::new(
+        config.clone(),
+        watch_dir.clone(),
+        actual_alert_script,
+        check_interval,
+        alert_threshold,
+    )?;
+
+    dns_monitor.run().await
 }
 
 async fn cmd_report(
@@ -628,53 +662,159 @@ async fn cmd_intel(
     source: Option<cli::IntelSource>,
     stats: bool,
 ) -> Result<()> {
+    use analyzer::reputation::IntelSource as RepIntelSource;
+
     let aggregator = ThreatIntelAggregator::new(config.threat_intel.clone(), None);
 
     if stats {
         let sources = aggregator.get_sources();
-        print_info(&format!("已配置的情报源: {} 个", sources.len()));
+        let cache_stats = aggregator.cache_stats();
+
+        print_info("威胁情报统计信息:");
+        println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        println!("  已配置情报源:   {} 个", sources.len());
         for s in &sources {
-            println!("  - {}", s.display_name());
+            println!("    - {}", s.display_name());
         }
         if sources.is_empty() {
             print_warning("未配置任何威胁情报API密钥，请使用 config 命令设置");
         }
+        println!();
+        println!("  缓存容量:       {} / {} 条", cache_stats.cache_size, cache_stats.cache_capacity);
+        println!("  总请求数:       {}", cache_stats.total_requests);
+        println!("  缓存命中:       {} 次", cache_stats.cache_hits);
+        println!("  缓存未命中:     {} 次", cache_stats.cache_misses);
+        println!("  缓存命中率:     {:.2}%", cache_stats.cache_hit_rate);
+        println!("  API调用总数:    {} 次", cache_stats.api_calls_total);
+        println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+        if cache_stats.cache_hit_rate < 80.0 && cache_stats.total_requests > 10 {
+            print_warning(&format!(
+                "缓存命中率低于目标值80%（当前: {:.2}%），建议增加缓存TTL或优化查询模式",
+                cache_stats.cache_hit_rate
+            ));
+        }
         return Ok(());
     }
 
+    let filter_source = match source {
+        Some(cli::IntelSource::Virustotal) => Some(RepIntelSource::VirusTotal),
+        Some(cli::IntelSource::Alienvault) => Some(RepIntelSource::AlienVault),
+        Some(cli::IntelSource::Threatbook) => Some(RepIntelSource::ThreatBook),
+        _ => None,
+    };
+
     if let Some(d) = domain {
         validator::validate_domain(&d)?;
-        print_info(&format!("正在查询 {} 的威胁情报...", d));
 
-        let result = aggregator.lookup_domain(&d).await?;
-
-        if result.is_malicious {
-            print_error(&format!("域名 {} 被标记为恶意（风险评分: {}）", d, result.risk_score));
+        if let Some(src) = filter_source {
+            print_info(&format!(
+                "正在通过 [{}] 查询 {} 的威胁情报...",
+                src.display_name(), d
+            ));
+            let info = aggregator.lookup_domain_from_source(&d, src).await?;
+            let status = if info.malicious {
+                print_error(&format!("域名 {} 在 {} 中被标记为恶意", d, src.display_name()));
+                "恶意 ⚠️"
+            } else {
+                print_success(&format!("域名 {} 在 {} 中未检测到威胁", d, src.display_name()));
+                "正常 ✓"
+            };
+            println!("  来源:   {}", info.source);
+            println!("  状态:   {}", status);
+            println!("  详情:   {}", info.details.as_deref().unwrap_or("无详情"));
         } else {
-            print_success(&format!("域名 {} 未检测到威胁（风险评分: {}）", d, result.risk_score));
-        }
+            print_info(&format!("正在查询 {} 的威胁情报...", d));
+            let result = aggregator.lookup_domain(&d).await?;
 
-        for src in &result.sources {
-            let status = if src.malicious { "恶意" } else { "正常" };
-            println!("  [{}] {} - {}", src.source, status, src.details.as_deref().unwrap_or("无详情"));
+            if result.is_malicious {
+                print_error(&format!("域名 {} 被标记为恶意（风险评分: {}）", d, result.risk_score));
+            } else {
+                print_success(&format!("域名 {} 未检测到威胁（风险评分: {}）", d, result.risk_score));
+            }
+
+            for src in &result.sources {
+                let status = if src.malicious { "恶意 ⚠️" } else { "正常 ✓" };
+                let src_display = RepIntelSource::from_name(&src.source)
+                    .map(|s| s.display_name().to_string())
+                    .unwrap_or_else(|| src.source.clone());
+                println!("  [{}] {} - {}", src_display, status, src.details.as_deref().unwrap_or("无详情"));
+            }
+
+            println!("  更新时间: {}", result.last_updated.format("%Y-%m-%d %H:%M:%S"));
         }
 
         return Ok(());
     }
 
     if refresh {
-        print_info("刷新威胁情报缓存...");
-        print_success("威胁情报缓存刷新完成（模拟）");
+        if !monitor::confirm_high_risk_operation(
+            "刷新所有缓存的威胁情报将调用外部API，可能产生额外费用或触发速率限制。\n是否继续?"
+        )? {
+            return Ok(());
+        }
+
+        print_info("正在刷新所有威胁情报缓存...");
+        let pb = indicatif::ProgressBar::new_spinner();
+        pb.set_style(indicatif::ProgressStyle::default_spinner()
+            .template("{spinner:.green} {msg}").unwrap());
+        pb.set_message("正在从API获取最新情报...");
+
+        let refreshed = aggregator.refresh_all().await?;
+
+        pb.finish_and_clear();
+
+        if refreshed > 0 {
+            print_success(&format!("威胁情报缓存刷新完成，已更新 {} 个域名的情报", refreshed));
+        } else {
+            print_warning("缓存为空，没有可刷新的情报。可使用 --domain 先查询一些域名。");
+        }
         return Ok(());
     }
 
     if list {
-        print_info("缓存的威胁情报列表（当前为空）");
-        return Ok(());
-    }
+        let only_malicious = false;
+        let cached = aggregator.list_cached_intel(filter_source, only_malicious).await;
 
-    if source.is_some() {
-        print_info("指定情报源查询功能待实现");
+        if let Some(src) = filter_source {
+            print_info(&format!("缓存中来自 [{}] 的威胁情报列表:", src.display_name()));
+        } else {
+            print_info("缓存中的所有威胁情报列表:");
+        }
+
+        if cached.is_empty() {
+            println!("  (缓存为空，暂无记录)");
+        } else {
+            use prettytable::{Table, Row, Cell, Attr, color};
+
+            let mut table = Table::new();
+            table.add_row(Row::new(vec![
+                Cell::new("域名").with_style(Attr::Bold),
+                Cell::new("恶意").with_style(Attr::Bold),
+                Cell::new("风险分").with_style(Attr::Bold),
+                Cell::new("来源数").with_style(Attr::Bold),
+                Cell::new("更新时间").with_style(Attr::Bold),
+            ]));
+
+            for r in &cached {
+                let mal_cell = if r.is_malicious {
+                    Cell::new("是⚠️").with_style(Attr::ForegroundColor(color::RED))
+                } else {
+                    Cell::new("否")
+                };
+                table.add_row(Row::new(vec![
+                    Cell::new(&r.domain),
+                    mal_cell,
+                    Cell::new(&format!("{}", r.risk_score)),
+                    Cell::new(&format!("{}", r.sources.len())),
+                    Cell::new(&r.last_updated.format("%Y-%m-%d %H:%M").to_string()),
+                ]));
+            }
+
+            table.printstd();
+            println!();
+            println!("  共 {} 条记录", cached.len());
+        }
         return Ok(());
     }
 
@@ -961,7 +1101,12 @@ fn cmd_config(
 
     if init {
         if Config::config_path().exists() {
-            print_warning("配置文件已存在，将被覆盖");
+            if !monitor::confirm_delete(
+                "检测到已有配置文件，初始化将覆盖所有配置内容",
+                1,
+            )? {
+                return Ok(());
+            }
         }
         config.save()?;
         print_success(&format!("配置文件已初始化: {}", Config::config_path().display()));
@@ -995,12 +1140,30 @@ fn cmd_config(
                 new_config.threat_intel.threatbook_api_key = Some(value.to_string());
             }
             "txt_entropy_threshold" => {
+                if !monitor::confirm_high_risk_operation(&format!(
+                    "修改 DNS 隧道检测核心参数 TXT 熵值阈值，将影响所有检测结果。\n原值: {}, 新值: {}",
+                    new_config.detection.txt_entropy_threshold, value
+                ))? {
+                    return Ok(());
+                }
                 new_config.detection.txt_entropy_threshold = value.parse()?;
             }
             "query_frequency_threshold" => {
+                if !monitor::confirm_high_risk_operation(&format!(
+                    "修改 DNS 隧道检测核心参数查询频率阈值，将影响所有检测结果。\n原值: {}, 新值: {}",
+                    new_config.detection.query_frequency_threshold, value
+                ))? {
+                    return Ok(());
+                }
                 new_config.detection.query_frequency_threshold = value.parse()?;
             }
             "log_retention_days" => {
+                if !monitor::confirm_high_risk_operation(&format!(
+                    "修改日志保留天数，较短的保留期将导致历史数据被自动清理。\n当前: {} 天, 新值: {} 天",
+                    new_config.storage.log_retention_days, value
+                ))? {
+                    return Ok(());
+                }
                 new_config.storage.log_retention_days = value.parse()?;
             }
             _ => {
@@ -1027,6 +1190,12 @@ fn cmd_config(
     }
 
     if let Some(domain) = remove_whitelist {
+        if !monitor::confirm_delete(
+            &format!("移除白名单域名: {}，该域名将重新纳入风险检测", domain),
+            1,
+        )? {
+            return Ok(());
+        }
         let mut new_config = config.clone();
         let original_len = new_config.whitelist.len();
         new_config.whitelist.retain(|d| !d.eq_ignore_ascii_case(&domain));

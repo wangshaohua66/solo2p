@@ -128,7 +128,7 @@ impl ReportGenerator {
             None
         };
 
-        let trend_data = Self::generate_trend_data(db);
+        let trend_data = Self::generate_trend_with_range(db, time_range);
 
         Ok(SecurityReport {
             title: "DNS安全监测报告".to_string(),
@@ -209,20 +209,60 @@ impl ReportGenerator {
             .collect()
     }
 
-    fn generate_trend_data(_db: &DnsDatabase) -> Vec<TrendDataPoint> {
-        let mut data = Vec::new();
-        let now = Utc::now();
+    fn generate_trend_data(db: &DnsDatabase) -> Vec<TrendDataPoint> {
+        let raw_data = db.get_daily_trend(7).unwrap_or_default();
+        raw_data
+            .into_iter()
+            .map(|(date, queries, alerts)| TrendDataPoint {
+                date,
+                total_queries: queries,
+                alerts,
+            })
+            .collect()
+    }
 
-        for i in (0..7).rev() {
-            let date = now - chrono::Duration::days(i);
-            data.push(TrendDataPoint {
-                date: date.format("%Y-%m-%d").to_string(),
-                total_queries: 0,
-                alerts: 0,
-            });
-        }
+    pub fn generate_trend_with_range(
+        db: &DnsDatabase,
+        time_range: &str,
+    ) -> Vec<TrendDataPoint> {
+        let time_range_lower = time_range.to_lowercase();
+        let is_hourly = time_range_lower.ends_with('h')
+            || time_range_lower.contains("hour")
+            || (time_range_lower.ends_with('d')
+                && time_range_lower.trim_end_matches('d').parse::<u32>().unwrap_or(0) <= 1);
 
-        data
+        let points = if is_hourly {
+            let hours = if time_range_lower.ends_with('h') {
+                time_range_lower.trim_end_matches('h')
+                    .parse::<u32>()
+                    .unwrap_or(24)
+            } else {
+                24
+            };
+            db.get_hourly_trend(hours).unwrap_or_default()
+        } else {
+            let days = if time_range_lower.ends_with('d') {
+                time_range_lower.trim_end_matches('d')
+                    .parse::<u32>()
+                    .unwrap_or(7)
+            } else if time_range_lower.ends_with('m') {
+                30
+            } else if time_range_lower.ends_with('y') {
+                365
+            } else {
+                7
+            };
+            db.get_daily_trend(days.min(365)).unwrap_or_default()
+        };
+
+        points
+            .into_iter()
+            .map(|(date, queries, alerts)| TrendDataPoint {
+                date,
+                total_queries: queries,
+                alerts,
+            })
+            .collect()
     }
 
     pub fn render_markdown(&self, report: &SecurityReport) -> String {

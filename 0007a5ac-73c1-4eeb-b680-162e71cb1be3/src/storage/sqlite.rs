@@ -528,6 +528,104 @@ impl DnsDatabase {
             None => (None, None),
         })
     }
+
+    pub fn get_daily_trend(
+        &self,
+        days: u32,
+    ) -> Result<Vec<(String, u64, u64)>> {
+        use rusqlite::params;
+        let conn = self.conn.lock().unwrap();
+        let cutoff = Utc::now() - chrono::Duration::days(days as i64);
+        let cutoff_ts = cutoff.timestamp();
+
+        let sql = "
+            SELECT
+                date(timestamp, 'unixepoch', 'localtime') as day,
+                COUNT(*) as total_queries,
+                SUM(CASE WHEN query_type IN ('TXT') OR query_domain LIKE '%.%.%.%.com'
+                    OR query_domain LIKE '%.%.%.%.net' OR query_domain LIKE '%.%.%.%.org'
+                    OR length(query_domain) > 60 THEN 1 ELSE 0 END) as alerts
+            FROM dns_logs
+            WHERE timestamp >= ?
+            GROUP BY day
+            ORDER BY day ASC
+        ";
+
+        let mut stmt = conn.prepare(sql)?;
+        let rows = stmt.query_map(params![cutoff_ts], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, i64>(1)? as u64,
+                row.get::<_, i64>(2)? as u64,
+            ))
+        })?;
+
+        let mut results: Vec<(String, u64, u64)> = Vec::new();
+        for row in rows {
+            results.push(row?);
+        }
+
+        if results.is_empty() {
+            let now = Utc::now();
+            for i in (0..days).rev() {
+                let date = now - chrono::Duration::days(i as i64);
+                results.push((date.format("%Y-%m-%d").to_string(), 0, 0));
+            }
+        } else if results.len() < days as usize {
+            let existing_days: std::collections::HashSet<String> = results
+                .iter()
+                .map(|(d, _, _)| d.clone())
+                .collect();
+            let now = Utc::now();
+            for i in (0..days).rev() {
+                let date = now - chrono::Duration::days(i as i64);
+                let date_str = date.format("%Y-%m-%d").to_string();
+                if !existing_days.contains(&date_str) {
+                    results.push((date_str, 0, 0));
+                }
+            }
+            results.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+
+        Ok(results)
+    }
+
+    pub fn get_hourly_trend(
+        &self,
+        hours: u32,
+    ) -> Result<Vec<(String, u64, u64)>> {
+        use rusqlite::params;
+        let conn = self.conn.lock().unwrap();
+        let cutoff = Utc::now() - chrono::Duration::hours(hours as i64);
+        let cutoff_ts = cutoff.timestamp();
+
+        let sql = "
+            SELECT
+                strftime('%Y-%m-%d %H:00', timestamp, 'unixepoch', 'localtime') as hour,
+                COUNT(*) as total_queries,
+                SUM(CASE WHEN query_type IN ('TXT') OR length(query_domain) > 60 THEN 1 ELSE 0 END) as alerts
+            FROM dns_logs
+            WHERE timestamp >= ?
+            GROUP BY hour
+            ORDER BY hour ASC
+        ";
+
+        let mut stmt = conn.prepare(sql)?;
+        let rows = stmt.query_map(params![cutoff_ts], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, i64>(1)? as u64,
+                row.get::<_, i64>(2)? as u64,
+            ))
+        })?;
+
+        let mut results: Vec<(String, u64, u64)> = Vec::new();
+        for row in rows {
+            results.push(row?);
+        }
+
+        Ok(results)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
