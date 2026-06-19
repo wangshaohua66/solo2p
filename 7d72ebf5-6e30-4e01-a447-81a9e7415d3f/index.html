@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="区级政务服务中心智能导办系统">
+    <title>政务服务中心智能导办系统</title>
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="main.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg fixed-top" id="navbar">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="javascript:void(0)">
+                <i class="fa fa-university"></i>
+                <span>政务服务中心智能导办系统</span>
+            </a>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav mr-auto" id="nav-items">
+                </ul>
+                <div class="navbar-user">
+                    <span id="user-role-label">请选择角色</span>
+                    <div class="user-avatar">
+                        <i class="fa fa-user"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main id="app-container">
+        <div id="role-select-page" class="role-select-container">
+            <div class="role-select-card animate-fade-in">
+                <div class="role-select-title">
+                    <h1>欢迎使用政务服务中心智能导办系统</h1>
+                    <p>请选择您的身份进入系统</p>
+                </div>
+                <div class="role-grid">
+                    <div class="role-card" onclick="App.selectRole('citizen')">
+                        <div class="role-icon">
+                            <i class="fa fa-user"></i>
+                        </div>
+                        <h3>办事群众</h3>
+                        <p>智能导办、在线预约、实时排队、进度查询、自助服务、满意度评价</p>
+                    </div>
+                    <div class="role-card" onclick="App.selectRole('staff')">
+                        <div class="role-icon">
+                            <i class="fa fa-user-circle"></i>
+                        </div>
+                        <h3>窗口工作人员</h3>
+                        <p>叫号管理、办理完成、今日办理量统计、等待人数查看</p>
+                    </div>
+                    <div class="role-card" onclick="App.selectRole('admin')">
+                        <div class="role-icon">
+                            <i class="fa fa-tachometer"></i>
+                        </div>
+                        <h3>系统管理员</h3>
+                        <p>数据看板、人流量统计、窗口负载监控、满意度分析、办理时效统计</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="main-content" class="page-container" style="display: none;">
+        </div>
+    </main>
+
+    <div class="bottom-nav" id="bottom-nav">
+        <div class="bottom-nav-item active" data-page="home" onclick="App.navigate('home')">
+            <i class="fa fa-home"></i>
+            <span>首页</span>
+        </div>
+        <div class="bottom-nav-item" data-page="guide" onclick="App.navigate('guide')">
+            <i class="fa fa-compass"></i>
+            <span>导办</span>
+        </div>
+        <div class="bottom-nav-item" data-page="queue" onclick="App.navigate('queue')">
+            <i class="fa fa-list-ol"></i>
+            <span>排队</span>
+        </div>
+        <div class="bottom-nav-item" data-page="progress" onclick="App.navigate('progress')">
+            <i class="fa fa-clock-o"></i>
+            <span>进度</span>
+        </div>
+        <div class="bottom-nav-item" data-page="selfservice" onclick="App.navigate('selfservice')">
+            <i class="fa fa-desktop"></i>
+            <span>自助</span>
+        </div>
+    </div>
+
+    <div id="call-toast" style="display: none;">
+    </div>
+
+    <div id="notification-container">
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+
+    <script src="utils/EventBus.js"></script>
+    <script src="utils/StateManager.js"></script>
+    <script src="utils/DateUtils.js"></script>
+    <script src="utils/FormValidator.js"></script>
+    <script src="utils/Storage.js"></script>
+
+    <script src="services/MockData.js"></script>
+    <script src="services/ApiService.js"></script>
+    <script src="services/QueueService.js"></script>
+
+    <script src="components/BaseComponent.js"></script>
+    <script src="components/SmartGuide.js"></script>
+    <script src="components/BusinessQuery.js"></script>
+    <script src="components/QueueSystem.js"></script>
+    <script src="components/SelfService.js"></script>
+    <script src="components/Satisfaction.js"></script>
+    <script src="components/WindowManage.js"></script>
+    <script src="components/DataDashboard.js"></script>
+
+    <script src="app.js"></script>
+</body>
+</html>
