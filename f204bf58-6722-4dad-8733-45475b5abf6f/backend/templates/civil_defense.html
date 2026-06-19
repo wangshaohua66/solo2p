@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>民事答辩状</title>
+    <style>
+        body {
+            font-family: "SimSun", "宋体", serif;
+            font-size: 16px;
+            line-height: 1.8;
+            color: #1a1a1a;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 40px 60px;
+        }
+        h1 { text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 30px; letter-spacing: 8px; }
+        .section-title { font-weight: bold; margin: 20px 0 10px 0; font-size: 17px; }
+        .party-item { margin: 8px 0; text-indent: 2em; }
+        .party-label { font-weight: bold; }
+        .indent { text-indent: 2em; }
+        .signature { margin-top: 60px; text-align: right; padding-right: 60px; }
+        .date-line { margin-top: 20px; text-align: right; padding-right: 80px; }
+        .reply-point {
+            margin: 12px 0 12px 2em;
+            padding: 8px 12px;
+            background: #f8f9fa;
+            border-left: 3px solid #ccc;
+        }
+        .point-title { font-weight: bold; color: #c0392b; }
+    </style>
+</head>
+<body>
+
+<h1>民事答辩状</h1>
+
+<div class="section-title">答辩人（被告）：</div>
+{% for p in defendant %}
+<div class="party-item">
+    <span class="party-label">{{ p.name }}</span>
+    {% if p.id_no %}（{{ p.id_type_display }}：{{ p.id_no }}）{% endif %}
+    {% if p.gender %}，{{ p.gender_display }}{% endif %}
+    {% if p.address %}，住址：{{ p.address }}{% endif %}
+    {% if p.phone %}，联系电话：{{ p.phone }}{% endif %}
+</div>
+{% endfor %}
+
+<div class="section-title">被答辩人（原告）：</div>
+{% for p in plaintiff %}
+<div class="party-item">
+    <span class="party-label">{{ p.name }}</span>
+    {% if p.address %}，住址：{{ p.address }}{% endif %}
+    {% if p.phone %}，联系电话：{{ p.phone }}{% endif %}
+</div>
+{% endfor %}
+
+<div class="section-title">答辩请求：</div>
+<p class="indent">答辩人就被答辩人诉答辩人{{ cause }}纠纷一案，现依法提出如下答辩意见：</p>
+
+<p class="indent" style="font-weight:bold;margin-top:16px">一、请求人民法院依法驳回被答辩人的全部诉讼请求。</p>
+<p class="indent" style="font-weight:bold">二、本案全部诉讼费用由被答辩人承担。</p>
+
+<div class="section-title">事实与理由：</div>
+
+<div class="reply-point">
+    <div class="point-title">一、关于被答辩人主张的诉讼主体资格问题</div>
+    <p class="indent" style="margin:6px 0;text-indent:2em">{{ reply_body_1 or '答辩人认为被答辩人并非本案适格原告，其主张的权利与答辩人不存在直接利害关系，具体理由如下：[详细说明]' }}</p>
+</div>
+
+<div class="reply-point">
+    <div class="point-title">二、关于被答辩人主张的案件事实部分</div>
+    <p class="indent" style="margin:6px 0;text-indent:2em">{{ reply_body_2 or '被答辩人陈述的事实与客观情况严重不符。实际情况为：[详细陈述真实情况并附证据]' }}</p>
+</div>
+
+<div class="reply-point">
+    <div class="point-title">三、关于被答辩人主张的法律适用问题</div>
+    <p class="indent" style="margin:6px 0;text-indent:2em">{{ reply_body_3 or '即便假设被答辩人主张的事实成立，其引用的法律条款也不适用于本案。根据《民法典》相关规定，答辩人不应承担责任。' }}</p>
+</div>
+
+<p class="indent">综上所述，被答辩人的诉讼请求缺乏事实和法律依据，请求人民法院依法予以驳回，维护答辩人的合法权益。</p>
+
+<div class="section-title">此致</div>
+<p class="indent" style="text-indent:2em;font-weight:bold;margin-top:4px">{{ court }}</p>
+
+<div class="signature">
+    <div style="font-weight:bold">答辩人：{{ signer }}</div>
+</div>
+<div class="date-line">{{ sign_date }}</div>
+
+</body>
+</html>

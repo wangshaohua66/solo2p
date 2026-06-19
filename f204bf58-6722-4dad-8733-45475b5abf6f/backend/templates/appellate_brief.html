@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>民事上诉状</title>
+    <style>
+        body {
+            font-family: "SimSun", "宋体", serif;
+            font-size: 16px;
+            line-height: 1.8;
+            color: #1a1a1a;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 40px 60px;
+        }
+        h1 { text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 30px; letter-spacing: 8px; }
+        .section-title { font-weight: bold; margin: 20px 0 10px 0; font-size: 17px; }
+        .party-item { margin: 8px 0; text-indent: 2em; }
+        .party-label { font-weight: bold; }
+        .indent { text-indent: 2em; }
+        .original-case {
+            margin: 10px 0 20px;
+            padding: 10px 14px;
+            background: #f8f9fa;
+            border-left: 3px solid #6c757d;
+        }
+        .ground {
+            margin: 12px 0 12px 1em;
+            padding: 10px 14px;
+            background: #fff8f0;
+            border-left: 4px solid #e07b00;
+        }
+        .ground-title { font-weight: bold; color: #b45309; }
+        .signature { margin-top: 60px; text-align: right; padding-right: 60px; }
+        .date-line { margin-top: 20px; text-align: right; padding-right: 80px; }
+    </style>
+</head>
+<body>
+
+<h1>民事上诉状</h1>
+
+<div class="section-title">上诉人（原审{{ appellant_position }}）：</div>
+{% for p in appellant %}
+<div class="party-item">
+    <span class="party-label">{{ p.name }}</span>
+    {% if p.id_no %}（{{ p.id_type_display }}：{{ p.id_no }}）{% endif %}
+    {% if p.address %}，住址：{{ p.address }}{% endif %}
+    {% if p.phone %}，联系电话：{{ p.phone }}{% endif %}
+</div>
+{% endfor %}
+
+<div class="section-title">被上诉人（原审{{ respondent_position }}）：</div>
+{% for p in respondent %}
+<div class="party-item">
+    <span class="party-label">{{ p.name }}</span>
+    {% if p.address %}，住址：{{ p.address }}{% endif %}
+    {% if p.phone %}，联系电话：{{ p.phone }}{% endif %}
+</div>
+{% endfor %}
+
+<div class="original-case">
+    <b>原审案号：</b>{{ original_case_no or '（2024）XX民初 号' }}<br>
+    <b>原审法院：</b>{{ original_court or 'XX人民法院' }}<br>
+    <b>上诉人因不服</b>一审判决/裁定，现依法提起上诉。
+</div>
+
+<div class="section-title">上诉请求：</div>
+<p class="indent"><b>一、</b>请求依法撤销{{ original_court }}作出的{{ original_case_no or '（2024）XX民初 号' }}民事判决书第{{ which_judge or '[第几项]' }}项判决；</p>
+<p class="indent"><b>二、</b>请求依法改判为：{{ relief_request or '[具体改判请求]' }}；</p>
+<p class="indent"><b>三、</b>请求判令本案一、二审全部诉讼费用由被上诉人承担。</p>
+
+<div class="section-title">上诉理由：</div>
+
+<div class="ground">
+    <div class="ground-title">一、 原审判决认定事实错误</div>
+    <p class="indent">{{ fact_error or '原审判决对以下关键事实认定错误：[详细说明哪部分事实认定错误，错在何处，正确的事实是什么，并举证说明]' }}</p>
+</div>
+
+<div class="ground">
+    <div class="ground-title">二、 原审判决适用法律错误</div>
+    <p class="indent">{{ law_error or '原审判决适用法律不当，具体体现在：[说明哪部分法律适用错误，为什么错，应当适用什么法律]' }}</p>
+</div>
+
+<div class="ground">
+    <div class="ground-title">三、 原审判决程序违法</div>
+    <p class="indent">{{ procedure_error or '原审法院在审理过程中存在以下程序违法情形，可能影响公正判决：[详细说明程序问题]' }}</p>
+</div>
+
+<div class="ground">
+    <div class="ground-title">四、 原审判决结果明显不当</div>
+    <p class="indent">{{ result_error or '原审判决结果畸重/畸轻，明显违反公平原则。具体为：[详细说明]' }}</p>
+</div>
+
+<p class="indent">综上所述，原审判决认定事实错误、适用法律不当、程序违法，恳请贵院依法查明事实，支持上诉人的全部上诉请求。</p>
+
+<div class="section-title">此致</div>
+<p class="indent" style="text-indent:2em;font-weight:bold;margin-top:4px">{{ appellate_court or 'XX中级人民法院' }}</p>
+
+<div class="signature">
+    <div style="font-weight:bold">上诉人：{{ signer }}</div>
+</div>
+<div class="date-line">{{ sign_date }}</div>
+
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>法律意见书</title>
+    <style>
+        body {
+            font-family: "SimSun", "宋体", serif;
+            font-size: 15px;
+            line-height: 1.85;
+            color: #1a1a1a;
+            max-width: 820px;
+            margin: 40px auto;
+            padding: 40px 60px;
+            background: #fff;
+        }
+        .letterhead {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #2c3e50;
+            margin-bottom: 30px;
+        }
+        .firm-name { font-size: 28px; font-weight: bold; letter-spacing: 6px; color: #2c3e50; }
+        .firm-en { font-size: 12px; color: #666; margin-top: 4px; letter-spacing: 1px; }
+        .firm-contact { color: #777; margin-top: 8px; font-size: 12px; }
+        .doc-title {
+            text-align: center;
+            font-size: 22px;
+            font-weight: bold;
+            margin: 20px 0;
+            letter-spacing: 4px;
+        }
+        .doc-no {
+            text-align: right;
+            color: #555;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+        .recipient { margin: 10px 0 20px; font-weight: bold; }
+        .section-title {
+            font-weight: bold;
+            margin: 22px 0 10px 0;
+            font-size: 16px;
+            padding: 6px 12px;
+            background: #f0f4f8;
+            border-radius: 4px;
+        }
+        .subsection-title {
+            font-weight: bold;
+            margin: 14px 0 6px 1em;
+            color: #2c3e50;
+        }
+        .indent { text-indent: 2em; }
+        .article {
+            background: #f9fafb;
+            padding: 8px 14px;
+            margin: 8px 2em;
+            border-left: 3px solid #4299e1;
+            color: #555;
+            font-size: 14px;
+        }
+        .conclusion-box {
+            margin-top: 30px;
+            padding: 16px 20px;
+            background: #fff7ed;
+            border: 1px solid #fbd38d;
+            border-radius: 6px;
+        }
+        .warning { color: #c53030; font-weight: bold; }
+        .signature-area { margin-top: 60px; }
+        .firm-sign { text-align: right; padding-right: 40px; font-weight: bold; }
+        .lawyer-sign { text-align: right; padding-right: 40px; margin-top: 4px; color: #555; }
+        .date-line { text-align: right; padding-right: 40px; margin-top: 16px; }
+    </style>
+</head>
+<body>
+
+<div class="letterhead">
+    <div class="firm-name">{{ law_firm or 'XX 律师事务所' }}</div>
+    <div class="firm-en">{{ law_firm_en or 'XX LAW FIRM' }}</div>
+    <div class="firm-contact">
+        地址：{{ firm_address or '[事务所地址]' }}　
+        邮编：{{ firm_zip or '100000' }}　
+        电话：{{ firm_phone or '010-XXXXXXXX' }}
+    </div>
+</div>
+
+<div class="doc-no">
+    法律意见书编号：{{ doc_no or '（2024）XX意字第 号' }}
+</div>
+
+<div class="doc-title">法 律 意 见 书</div>
+
+<div class="recipient">致：{{ client_name or '[委托人名称]' }}</div>
+
+<p class="indent">{{ law_firm or 'XX律师事务所' }}（以下简称"本所"）接受贵司/您的委托，指派本律师担任专项法律顾问，就{{ subject_matter or '[咨询事项]' }}相关问题，依据我国现行法律法规及司法解释，结合委托方提供的事实材料，出具本法律意见书。</p>
+
+<div class="section-title">一、 委托事项与审查范围</div>
+<div class="subsection-title">（一）委托事项</div>
+<p class="indent">{{ engagement_scope or '[详细说明委托事项，如：对目标公司进行股权收购的法律风险尽职调查并出具意见]' }}</p>
+
+<div class="subsection-title">（二）审查范围</div>
+<p class="indent">本所律师依据委托，对以下文件材料进行了审慎审查：</p>
+<div class="article">
+    1. 委托方提供的合同、协议、章程等法律文件<br>
+    2. 相关主管机关公开查询的登记信息<br>
+    3. 各方当事人提供的证明材料及书面陈述<br>
+    4. 与本案相关的法律法规、司法解释及裁判规则
+</div>
+
+<div class="section-title">二、 事实背景</div>
+<p class="indent">{{ factual_background or '[详细陈述本案事实背景，包括交易结构、时间线、关键人物等]' }}</p>
+
+<div class="section-title">三、 法律依据</div>
+<div class="article">
+    1. 《中华人民共和国民法典》合同编、物权编相关条款<br>
+    2. 《中华人民共和国公司法》及相关司法解释<br>
+    3. 《中华人民共和国民事诉讼法》相关规定<br>
+    4. 最高人民法院发布的相关指导案例、裁判规则
+</div>
+
+<div class="section-title">四、 法律分析与意见</div>
+
+<div class="subsection-title">（一）关于合同效力问题</div>
+<p class="indent">{{ analysis_1 or '经审查，本案主合同系各方当事人真实意思表示，内容不违反法律法规强制性规定，合法有效，对各方均具有法律约束力。' }}</p>
+
+<div class="subsection-title">（二）关于主体资格与权限问题</div>
+<p class="indent">{{ analysis_2 or '合同签署方均具有相应的民事权利能力和民事行为能力，签署程序符合内部章程规定，权限合法有效。' }}</p>
+
+<div class="subsection-title">（三）关于法律风险提示</div>
+<p class="indent">{{ analysis_3 or '本所律师提示委托方关注以下潜在法律风险：' }}</p>
+<p class="indent"><span class="warning">【风险一】</span>{{ risk_1 or '[详细说明风险点]' }}</p>
+<p class="indent"><span class="warning">【风险二】</span>{{ risk_2 or '[详细说明风险点]' }}</p>
+<p class="indent"><span class="warning">【风险三】</span>{{ risk_3 or '[详细说明风险点]' }}</p>
+
+<div class="section-title">五、 操作建议</div>
+<p class="indent">综合以上分析，本所律师建议委托方采取以下措施：</p>
+<div class="article">
+    1. {{ suggestion_1 or '[具体操作建议一，如：尽快签署补充协议完善相关条款]' }}<br>
+    2. {{ suggestion_2 or '[具体操作建议二，如：办理相关登记备案手续]' }}<br>
+    3. {{ suggestion_3 or '[具体操作建议三，如：留存完整书面证据以备争议解决]' }}<br>
+    4. 如遇重大争议，建议及时委托律师介入处理
+</div>
+
+<div class="conclusion-box">
+    <div class="subsection-title" style="margin:0 0 10px 0;color:#92400e">六、 声明事项</div>
+    <p class="indent" style="margin:4px 0;font-size:13px;color:#78350f">本法律意见书仅基于委托方提供的材料出具，仅供委托方参考使用，不得用作任何其他目的。未经本所书面同意，不得向任何第三方披露或引用。</p>
+    <p class="indent" style="margin:8px 0 0 0;font-size:13px;color:#78350f">如需进一步咨询或法律帮助，请随时与承办律师联系。</p>
+</div>
+
+<div class="signature-area">
+    <div class="firm-sign">（{{ law_firm or 'XX律师事务所' }}盖章）</div>
+    <div class="lawyer-sign">承办律师：{{ lawyer_name or '[律师姓名]' }}</div>
+    <div class="lawyer-sign">联系方式：{{ lawyer_phone or '[联系电话]' }}</div>
+    <div class="date-line">{{ sign_date or '二〇二四年 月 日' }}</div>
+</div>
+
+</body>
+</html>

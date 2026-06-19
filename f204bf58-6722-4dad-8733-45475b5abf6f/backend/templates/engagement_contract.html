@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>委托代理合同</title>
+    <style>
+        body {
+            font-family: "SimSun", "宋体", serif;
+            font-size: 15px;
+            line-height: 1.9;
+            color: #1a1a1a;
+            max-width: 820px;
+            margin: 40px auto;
+            padding: 50px 60px;
+        }
+        .contract-title {
+            text-align: center;
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            letter-spacing: 4px;
+        }
+        .contract-no { text-align: center; color: #666; font-size: 13px; margin-bottom: 24px; }
+        .parties { margin-bottom: 20px; }
+        .party-block { margin: 8px 0; }
+        .party-label { font-weight: bold; }
+        .clause {
+            margin: 14px 0;
+        }
+        .clause-title { font-weight: bold; display: inline-block; margin: 8px 0 4px; }
+        .indent { text-indent: 2em; }
+        .sub-clause { margin: 6px 0 6px 2em; }
+        .sign-area {
+            margin-top: 60px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .sign-block {
+            width: 45%;
+        }
+        .sign-line { margin-top: 50px; border-bottom: 1px solid #000; }
+        .sign-label { margin-top: 6px; color: #555; font-size: 13px; }
+        .stamp-space { margin: 40px 0; text-align: right; color: #888; font-size: 13px; }
+        .annex {
+            margin-top: 40px;
+            padding: 16px 20px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #555;
+        }
+        .highlight-box {
+            background: #fffbeb;
+            padding: 10px 14px;
+            border-left: 3px solid #f59e0b;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="contract-title">委 托 代 理 合 同</div>
+<div class="contract-no">合同编号：{{ contract_no or '（2024）XX代字第 号' }}　　签订地点：{{ sign_place or '北京市朝阳区' }}</div>
+
+<div class="parties">
+    <div class="party-block">
+        <span class="party-label">甲方（委托人）：</span>{{ client_a_name or '[甲方名称]' }}<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        统一社会信用代码/身份证号：{{ client_a_id or '[证件号]' }}<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        法定代表人/联系人：{{ client_a_contact or '[联系人]' }}<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        联系电话：{{ client_a_phone or '[电话]' }}<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        通讯地址：{{ client_a_address or '[地址]' }}
+    </div>
+    <div class="party-block" style="margin-top:14px">
+        <span class="party-label">乙方（受托人）：</span>{{ law_firm or 'XX律师事务所' }}<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        统一社会信用代码：{{ firm_credit_code or '[统一社会信用代码]' }}<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        负责人：{{ firm_leader or '[主任姓名]' }}<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        承办律师：{{ lawyer_name or '[律师姓名]' }}（执业证号：{{ lawyer_license or '[执业证号]' }}）<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        联系电话：{{ lawyer_phone or '[电话]' }}<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        通讯地址：{{ firm_address or '[事务所地址]' }}
+    </div>
+</div>
+
+<p class="indent">根据《中华人民共和国民法典》、《中华人民共和国律师法》及相关法律法规的规定，甲、乙双方经平等协商，就甲方委托乙方代理其与{{ opposing_party or '[对方当事人名称]' }}之间{{ case_type or '[案件类型，如合同纠纷]' }}一案（以下简称"本案"），达成如下协议，以资共同遵守：</p>
+
+<div class="clause">
+    <span class="clause-title">第一条　委托事项</span>
+    <div class="sub-clause">1.1 乙方接受甲方委托，指派{{ lawyer_name or '[承办律师姓名]' }}律师作为甲方在本案中的{{ stage or '[阶段，如第一审]' }}诉讼代理人。</div>
+    <div class="sub-clause">1.2 代理权限为（请勾选）：</div>
+    <div class="sub-clause" style="margin-left:4em">
+        □ 一般授权：代为起诉、应诉；代为申请回避；代为陈述、举证、质证和辩论；代为申请调查令等。<br>
+        ■ 特别授权：除一般授权外，还包括代为承认、变更、放弃诉讼请求，进行和解，提起反诉或上诉，代为申请执行，代为签收、领取法律文书及案款等。
+    </div>
+</div>
+
+<div class="clause">
+    <span class="clause-title">第二条　律师费及支付方式</span>
+    <div class="sub-clause">2.1 根据乙方收费标准并经双方协商，甲方同意按以下第<b>{{ billing_mode or '2' }}</b>种方式支付律师费：</div>
+    <div class="sub-clause" style="margin-left:2em">
+        （一）计时收费：律师小时费率为¥{{ hourly_rate or '800' }}元/小时，预计不超过{{ est_hours or '100' }}小时，预估总金额人民币¥{{ estimate_fee or '80,000' }}元整。<br>
+        （二）固定收费：本案律师费合计人民币<b>¥{{ fixed_fee or '50,000' }}元整</b>（大写：{{ fixed_fee_cn or '人民币伍万元整' }}）。<br>
+        （三）半风险代理：基础律师费¥{{ base_fee or '10,000' }}元+胜诉/回款金额{{ risk_ratio or '15' }}%的风险代理费。<br>
+        （四）全风险代理：胜诉/回款金额{{ full_risk_ratio or '30' }}%作为风险代理费。
+    </div>
+    <div class="sub-clause">2.2 支付方式及期限：{{ payment_schedule or '签约后3个工作日内支付50%，一审开庭前支付剩余50%。' }}</div>
+    <div class="sub-clause">2.3 其他费用（诉讼费、保全费、评估鉴定费、差旅费等）由甲方另行承担，实报实销。</div>
+</div>
+
+<div class="highlight-box">
+    <b>【特别提示】</b>如甲方未按约定支付律师费，乙方有权单方中止代理工作或解除合同，已收取的律师费不予退还，且甲方应按未付金额的每日万分之五支付违约金。
+</div>
+
+<div class="clause">
+    <span class="clause-title">第三条　双方的权利义务</span>
+    <div class="sub-clause">3.1 甲方应当如实陈述案情，及时、完整地提供与本案有关的证据材料，并承担因提供虚假材料或隐瞒事实所产生的一切法律责任。</div>
+    <div class="sub-clause">3.2 乙方应当勤勉尽责，恪守律师职业道德和执业纪律，依法维护甲方的合法权益，保守甲方的商业秘密及个人隐私。</div>
+    <div class="sub-clause">3.3 乙方应当根据案件进展及时向甲方通报代理工作情况。</div>
+</div>
+
+<div class="clause">
+    <span class="clause-title">第四条　合同的解除与违约责任</span>
+    <div class="sub-clause">4.1 任何一方违反本合同约定，应承担相应的违约责任。</div>
+    <div class="sub-clause">4.2 因甲方原因导致合同解除的，已付律师费不予退还；未支付的部分甲方仍应支付。</div>
+    <div class="sub-clause">4.3 因乙方原因导致合同解除的，乙方应按比例退还已收取的律师费。</div>
+</div>
+
+<div class="clause">
+    <span class="clause-title">第五条　争议解决</span>
+    <p class="indent">因本合同产生的任何争议，双方应友好协商解决；协商不成的，任何一方均有权向乙方所在地有管辖权的人民法院提起诉讼。</p>
+</div>
+
+<div class="clause">
+    <span class="clause-title">第六条　其他约定</span>
+    <p class="indent">6.1 本合同一式两份，甲乙双方各执一份，具有同等法律效力。</p>
+    <p class="indent">6.2 本合同自双方签字盖章之日起生效，至本案代理事项完毕（判决/调解/和解/撤诉/执行终结）之日止。</p>
+    <p class="indent">6.3 其他约定事项：{{ other_terms or '无' }}</p>
+</div>
+
+<div class="stamp-space">（以下为签署页，无正文）</div>
+
+<div class="sign-area">
+    <div class="sign-block">
+        <div class="party-label">甲方（盖章/签字）：</div>
+        <div class="sign-line"></div>
+        <div class="sign-label">法定代表人/授权代表：　　　　　</div>
+        <div class="sign-label" style="margin-top:30px">签订日期：&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;年&nbsp;&nbsp;&nbsp;&nbsp;月&nbsp;&nbsp;&nbsp;&nbsp;日</div>
+    </div>
+    <div class="sign-block">
+        <div class="party-label">乙方（律师事务所盖章）：</div>
+        <div class="sign-line"></div>
+        <div class="sign-label">承办律师签字：　　　　　　　　</div>
+        <div class="sign-label" style="margin-top:30px">签订日期：&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;年&nbsp;&nbsp;&nbsp;&nbsp;月&nbsp;&nbsp;&nbsp;&nbsp;日</div>
+    </div>
+</div>
+
+<div class="annex">
+    <b>附件清单：</b><br>
+    1. 甲方主体资格证明材料复印件；<br>
+    2. 授权委托书；<br>
+    3. 案件材料清单及相关证据复印件；<br>
+    4. 乙方律师执业证复印件；<br>
+    5. 费用明细清单。
+</div>
+
+</body>
+</html>

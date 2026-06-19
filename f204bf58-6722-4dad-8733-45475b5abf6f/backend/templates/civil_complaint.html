@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>民事起诉状</title>
+    <style>
+        body {
+            font-family: "SimSun", "宋体", serif;
+            font-size: 16px;
+            line-height: 1.8;
+            color: #1a1a1a;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 40px 60px;
+        }
+        h1 {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 30px;
+            letter-spacing: 8px;
+        }
+        .section-title {
+            font-weight: bold;
+            margin: 20px 0 10px 0;
+            font-size: 17px;
+        }
+        .parties {
+            margin: 10px 0 20px 0;
+        }
+        .party-item {
+            margin: 8px 0;
+            text-indent: 2em;
+        }
+        .party-label {
+            font-weight: bold;
+        }
+        .indent {
+            text-indent: 2em;
+        }
+        .claim-list {
+            margin: 10px 0 10px 3em;
+        }
+        .claim-list li {
+            margin: 6px 0;
+        }
+        .signature {
+            margin-top: 60px;
+            text-align: right;
+            padding-right: 60px;
+        }
+        .date-line {
+            margin-top: 20px;
+            text-align: right;
+            padding-right: 80px;
+        }
+        .footer-note {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px dashed #ccc;
+            color: #666;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>民事起诉状</h1>
+
+<div class="section-title">原告：</div>
+{% for p in plaintiff %}
+<div class="party-item">
+    <span class="party-label">{{ p.name }}</span>
+    {% if p.id_no %}（{{ p.id_type_display }}：{{ p.id_no }}）{% endif %}
+    {% if p.gender %}，{{ p.gender_display }}{% endif %}
+    {% if p.birth %}，{{ p.birth }}出生{% endif %}
+    {% if p.ethnicity %}，{{ p.ethnicity }}族{% endif %}
+    {% if p.address %}，住址：{{ p.address }}{% endif %}
+    {% if p.phone %}，联系电话：{{ p.phone }}{% endif %}
+    {% if p.company %}，法定代表人：{{ p.company_representative }}{% endif %}
+</div>
+{% empty %}
+<div class="party-item" style="color:#999">[原告信息待填写]</div>
+{% endfor %}
+
+<div class="section-title">被告：</div>
+{% for p in defendant %}
+<div class="party-item">
+    <span class="party-label">{{ p.name }}</span>
+    {% if p.id_no %}（{{ p.id_type_display }}：{{ p.id_no }}）{% endif %}
+    {% if p.address %}，住址：{{ p.address }}{% endif %}
+    {% if p.phone %}，联系电话：{{ p.phone }}{% endif %}
+    {% if p.company %}，法定代表人：{{ p.company_representative }}{% endif %}
+</div>
+{% empty %}
+<div class="party-item" style="color:#999">[被告信息待填写]</div>
+{% endfor %}
+
+{% if third_party %}
+<div class="section-title">第三人：</div>
+{% for p in third_party %}
+<div class="party-item">
+    <span class="party-label">{{ p.name }}</span>
+    {% if p.address %}，住址：{{ p.address }}{% endif %}
+    {% if p.phone %}，联系电话：{{ p.phone }}{% endif %}
+</div>
+{% endfor %}
+{% endif %}
+
+<div class="section-title">诉讼请求：</div>
+<ol class="claim-list">
+    <li>请求判令被告立即向原告支付人民币{{ amount }}元（大写：{% if amount %}¥{{ amount }}元整{% else %}[金额待填]{% endif %}）</li>
+    <li>请求判令被告向原告支付利息（以{{ amount }}元为基数，自{{ interest_start }}起按{{ interest_rate }}计算至实际清偿之日止）</li>
+    <li>请求判令被告承担本案全部诉讼费用。</li>
+    {% if extra_claims %}
+    {% for c in extra_claims %}<li>{{ c }}</li>{% endfor %}
+    {% endif %}
+</ol>
+
+<div class="section-title">事实与理由：</div>
+<p class="indent">原告与被告系{{ relationship }}关系。{{ case_facts }}</p>
+
+<p class="indent">综上所述，被告的行为严重侵犯了原告的合法权益，给原告造成了重大经济损失。为维护原告合法权益，根据《中华人民共和国民法典》及相关法律法规规定，特向贵院提起诉讼，请求法院依法支持原告的全部诉讼请求。</p>
+
+<div class="section-title">此致</div>
+<p class="indent" style="text-indent:2em;font-weight:bold;margin-top:4px">{{ court }}</p>
+
+<div class="signature">
+    <div style="font-weight:bold">具状人：{{ signer }}</div>
+</div>
+<div class="date-line">{{ sign_date }}</div>
+
+<div class="footer-note">
+    <p style="margin:4px 0">附：</p>
+    <p style="margin:4px 0;text-indent:2em">1. 本诉状副本 贰 份</p>
+    <p style="margin:4px 0;text-indent:2em">2. 证据材料  套</p>
+    <p style="margin:4px 0;text-indent:2em">3. 当事人身份证明材料</p>
+</div>
+
+</body>
+</html>

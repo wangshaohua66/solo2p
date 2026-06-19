@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>证据清单</title>
+    <style>
+        body {
+            font-family: "SimSun", "宋体", serif;
+            font-size: 15px;
+            line-height: 1.8;
+            color: #1a1a1a;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 40px 60px;
+        }
+        h1 { text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 8px; letter-spacing: 8px; }
+        .subtitle { text-align: center; color: #555; margin-bottom: 24px; }
+        .case-info {
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 24px;
+            margin-bottom: 20px; padding: 12px 16px; background: #f0f4f8; border-radius: 4px;
+        }
+        .case-info span b { color: #2d3748; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #999; padding: 8px 10px; text-align: center; vertical-align: middle; }
+        th { background: #ebf8ff; color: #2c5282; font-weight: bold; }
+        td.left { text-align: left; padding-left: 14px; }
+        .group-header td {
+            background: #fef5e7; text-align: left; font-weight: bold;
+            color: #92400e; padding: 8px 14px;
+        }
+        .submit-info { display: flex; justify-content: space-between; margin-top: 50px; }
+        .page-count {
+            text-align: center; margin-top: 20px; padding: 10px;
+            background: #fffaf0; color: #7c2d12; border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>证　据　清　单</h1>
+<div class="subtitle">（{{ submitter_role or '原告' }}提交）</div>
+
+<div class="case-info">
+    <span><b>案由：</b>{{ cause or '[案由名称]' }}</span>
+    <span><b>案号：</b>{{ case_no or '（2024）XX民初 号' }}</span>
+    <span><b>受理法院：</b>{{ court or '[XX人民法院]' }}</span>
+    <span><b>提交人：</b>{{ submitter or '[提交人姓名]' }}</span>
+    <span><b>主办律师：</b>{{ lawyer or '[律师姓名]' }}</span>
+    <span><b>提交日期：</b>{{ submit_date or '2024年 月 日' }}</span>
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th style="width:60px">序号</th>
+            <th style="width:200px">证据名称</th>
+            <th style="width:100px">证据类型</th>
+            <th style="width:80px">份数</th>
+            <th style="width:80px">页数</th>
+            <th>证据来源</th>
+            <th>证明对象与内容</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr class="group-header"><td colspan="7">第一组　主体资格证据</td></tr>
+        <tr>
+            <td>1</td><td class="left">原告主体资格证明材料</td><td>书证</td><td>1</td><td>2</td><td>原告提供</td>
+            <td class="left">证明原告系本案适格诉讼主体</td>
+        </tr>
+        <tr>
+            <td>2</td><td class="left">被告主体资格证明材料</td><td>书证</td><td>1</td><td>2</td><td>公开查询</td>
+            <td class="left">证明被告的基本工商/身份信息</td>
+        </tr>
+
+        <tr class="group-header"><td colspan="7">第二组　合同及履约证据</td></tr>
+        <tr>
+            <td>3</td><td class="left">《XX合同》及补充协议</td><td>书证</td><td>1</td><td>8</td><td>原告提供</td>
+            <td class="left">证明原被告之间存在合法有效的合同关系及双方具体权利义务</td>
+        </tr>
+        <tr>
+            <td>4</td><td class="left">付款凭证/银行流水</td><td>书证</td><td>1</td><td>6</td><td>银行出具</td>
+            <td class="left">证明原告已按约定履行合同义务，支付相应款项</td>
+        </tr>
+        <tr>
+            <td>5</td><td class="left">交付确认单/对账单</td><td>书证</td><td>1</td><td>3</td><td>双方确认</td>
+            <td class="left">证明合同实际履行情况及双方对账确认金额</td>
+        </tr>
+
+        <tr class="group-header"><td colspan="7">第三组　违约与损失证据</td></tr>
+        <tr>
+            <td>6</td><td class="left">催告函及送达凭证</td><td>书证</td><td>1</td><td>4</td><td>原告提供</td>
+            <td class="left">证明原告已催告被告履行义务，被告收到后仍未履行</td>
+        </tr>
+        <tr>
+            <td>7</td><td class="left">损失计算明细及凭证</td><td>书证</td><td>1</td><td>10</td><td>原告提供</td>
+            <td class="left">证明因被告违约给原告造成的具体经济损失金额</td>
+        </tr>
+        <tr>
+            <td>8</td><td class="left">微信/短信聊天记录截图</td><td>电子数据</td><td>1</td><td>12</td><td>原告提供</td>
+            <td class="left">证明双方沟通过程及被告认可违约事实</td>
+        </tr>
+
+        <tr class="group-header"><td colspan="7">第四组　其他证据材料</td></tr>
+        <tr>
+            <td>9</td><td class="left">证人证言</td><td>证人证言</td><td>1</td><td>3</td><td>证人出具</td>
+            <td class="left">证明案件关键事实</td>
+        </tr>
+    </tbody>
+</table>
+
+<div class="page-count">
+    <b>合计：</b>证据 {{ total_items or 9 }} 份，材料共 {{ total_pages or 50 }} 页
+</div>
+
+<div class="submit-info">
+    <div>
+        <div>提交人（签字盖章）：</div>
+        <div style="margin-top:50px;border-bottom:1px solid #333;width:200px"></div>
+    </div>
+    <div>
+        <div>提交日期：</div>
+        <div style="margin-top:50px;text-align:right">　　　年　　月　　日</div>
+    </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>律师函</title>
+    <style>
+        body {
+            font-family: "SimSun", "宋体", serif;
+            font-size: 16px;
+            line-height: 1.9;
+            color: #1a1a1a;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 40px 60px;
+            border: 1px solid #ddd;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            background: #fff;
+        }
+        .header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 2px double #c53030;
+            margin-bottom: 20px;
+        }
+        .firm-name { font-size: 30px; font-weight: bold; color: #c53030; letter-spacing: 10px; }
+        .firm-en { font-size: 12px; color: #666; margin-top: 4px; letter-spacing: 1px; }
+        .doc-meta { margin-top: 14px; color: #555; font-size: 13px; }
+        .doc-title {
+            text-align: center;
+            font-size: 28px;
+            font-weight: bold;
+            margin: 20px 0 30px;
+            letter-spacing: 16px;
+            color: #c53030;
+        }
+        .doc-no {
+            text-align: right;
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 16px;
+        }
+        .recipient { margin: 16px 0; font-size: 16px; }
+        .greeting { margin: 10px 0 18px; font-weight: bold; }
+        .section-title {
+            font-weight: bold;
+            margin: 20px 0 10px;
+            font-size: 16px;
+        }
+        .indent { text-indent: 2em; }
+        .warning-box {
+            background: #fff5f5;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border: 1px solid #feb2b2;
+            border-radius: 4px;
+        }
+        .demand-item {
+            margin: 10px 0 10px 2em;
+            padding-left: 10px;
+            border-left: 3px solid #c53030;
+        }
+        .final-warning {
+            margin-top: 30px;
+            padding: 14px 18px;
+            background: #fffaf0;
+            border: 1px dashed #dd6b20;
+            color: #7b341e;
+            font-weight: 500;
+        }
+        .signature-area { margin-top: 60px; }
+        .firm-sign { text-align: right; padding-right: 40px; font-weight: bold; font-size: 16px; }
+        .lawyer-line { text-align: right; padding-right: 40px; margin-top: 6px; }
+        .date-line { text-align: right; padding-right: 40px; margin-top: 20px; }
+        .footer-note { margin-top: 40px; padding-top: 20px; border-top: 1px dashed #ccc; font-size: 12px; color: #888; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="firm-name">{{ law_firm or 'XX 律 师 事 务 所' }}</div>
+    <div class="firm-en">{{ law_firm_en or 'XX LAW FIRM' }}</div>
+    <div class="doc-meta">
+        地址：{{ firm_address or '[事务所地址]' }}　|　
+        电话：{{ firm_phone or '010-XXXXXXXX' }}　|　
+        邮编：{{ firm_zip or '100000' }}
+    </div>
+</div>
+
+<div class="doc-no">
+    律师函编号：{{ doc_no or '（2024）XX律函字第 号' }}
+</div>
+
+<div class="doc-title">律 师 函</div>
+
+<div class="recipient">致：{{ recipient or '[收件人/单位名称]' }}</div>
+<div class="greeting">{{ greeting or '敬启者：' }}</div>
+
+<p class="indent">{{ law_firm or 'XX律师事务所' }}（以下简称"本所"）接受{{ client_name or '[委托人名称]' }}（以下简称"委托人"）的委托，指派本律师就贵方{{ subject or '[委托事项，如：逾期支付合同款项 / 侵犯知识产权]' }}一事，郑重致函贵方：</p>
+
+<div class="section-title">一、 基本事实</div>
+<p class="indent">根据委托人提供的材料及陈述，本所律师确认以下事实：</p>
+<p class="indent">{{ fact_para_1 or '[事实段落一，详细陈述案件事实，包括合同签订情况、履约情况、违约情况等]' }}</p>
+<p class="indent">{{ fact_para_2 or '[事实段落二，补充说明相关情况]' }}</p>
+
+<div class="section-title">二、 法律分析</div>
+<p class="indent">依据《中华人民共和国民法典》第五百零九条、第五百七十七条、第五百八十四条等相关条款：</p>
+<div class="warning-box">
+    当事人应当按照约定全面履行自己的义务。当事人一方不履行合同义务或者履行合同义务不符合约定的，应当承担继续履行、采取补救措施或者赔偿损失等违约责任。
+</div>
+
+<p class="indent">本所律师认为：{{ legal_analysis or '[具体法律分析意见，明确对方违约事实及应承担的法律责任]' }}</p>
+
+<div class="section-title">三、 本律师正式要求贵方</div>
+
+<div class="demand-item">
+    <b>【第一项要求】</b> 请贵方在收到本律师函之日起<b style="color:#c53030">{{ days_required or '3' }}个工作日内</b>，{{ demand_1 or '[明确要求一，如：一次性支付拖欠款项人民币 XX 元]' }}；
+</div>
+<div class="demand-item">
+    <b>【第二项要求】</b> {{ demand_2 or '[明确要求二，如：立即停止侵权行为并消除影响]' }}；
+</div>
+<div class="demand-item">
+    <b>【第三项要求】</b> {{ demand_3 or '[明确要求三，如：书面回函并就后续解决方案进行沟通]' }}；
+</div>
+
+<div class="final-warning">
+    若贵方未在上述期限内履行相应义务，本所将依法代理委托人采取包括但不限于提起诉讼、申请财产保全、公开披露等一切必要的法律措施，追究贵方的全部法律责任。届时，贵方除须承担相应的本金、利息及违约金外，还将承担诉讼费、律师费、保全费等维权成本，且商业信誉亦将受到不利影响。请贵方慎重权衡，积极配合，避免诉累！
+</div>
+
+<p class="indent">特此函告，望慎重对待，尽快处理。</p>
+
+<div class="signature-area">
+    <div class="firm-sign">{{ law_firm or 'XX律师事务所' }}</div>
+    <div class="lawyer-line">承办律师：<b>{{ lawyer_name or '[律师姓名]' }}</b></div>
+    <div class="lawyer-line">联系电话：{{ lawyer_phone or '[律师电话]' }}</div>
+    <div class="lawyer-line">电子邮箱：{{ lawyer_email or '[律师邮箱]' }}</div>
+    <div class="date-line">{{ sign_date or '二〇二四年 月 日' }}</div>
+</div>
+
+<div class="footer-note">
+    <p style="margin:4px 0">附件：</p>
+    <p style="margin:4px 0;text-indent:2em">1. 委托合同复印件</p>
+    <p style="margin:4px 0;text-indent:2em">2. 相关合同及证据材料</p>
+    <p style="margin:4px 0;text-indent:2em">3. 律师执业证复印件</p>
+</div>
+
+</body>
+</html>

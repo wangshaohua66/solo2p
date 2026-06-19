@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>刑事辩护词</title>
+    <style>
+        body {
+            font-family: "SimSun", "宋体", serif;
+            font-size: 16px;
+            line-height: 1.9;
+            color: #1a1a1a;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 40px 60px;
+        }
+        h1 { text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 30px; letter-spacing: 8px; }
+        .header { text-align: center; margin-bottom: 30px; color: #333; }
+        .section-title {
+            font-weight: bold;
+            margin: 24px 0 10px 0;
+            font-size: 17px;
+            border-left: 4px solid #2c3e50;
+            padding-left: 10px;
+        }
+        .indent { text-indent: 2em; }
+        .quote {
+            background: #fdf5e6;
+            padding: 10px 16px;
+            margin: 10px 2em;
+            border-left: 3px solid #d4a017;
+            font-style: italic;
+            color: #555;
+        }
+        .conclusion {
+            margin-top: 40px;
+            padding: 16px 20px;
+            background: #f0f4f8;
+            border-radius: 6px;
+        }
+        .signature { margin-top: 50px; text-align: right; padding-right: 60px; }
+        .lawyer-sign { margin-top: 8px; color: #2c3e50; font-size: 14px; }
+        .date-line { margin-top: 20px; text-align: right; padding-right: 80px; }
+    </style>
+</head>
+<body>
+
+<h1>刑事辩护词</h1>
+
+<div class="header">
+    <div>尊敬的审判长、审判员：</div>
+</div>
+
+<p class="indent">根据《中华人民共和国刑事诉讼法》及《中华人民共和国律师法》的相关规定，{{ law_firm }}接受本案被告人{{ defendant_name }}（以下简称"被告人"）及其家属的委托，并征得被告人本人同意，指派本律师担任被告人{{ defendant_name }}涉嫌{{ charge }}一案的第一审辩护人。开庭前，辩护人依法查阅了本案全部卷宗材料，多次会见了被告人，并对相关事实和证据进行了必要的核查。现结合本案庭审情况，发表如下辩护意见：</p>
+
+<div class="section-title">一、关于本案事实认定的辩护意见</div>
+<p class="indent">{{ fact_defense or '辩护人认为，公诉机关指控被告人构成{{ charge }}罪的事实不清、证据不足。具体分析如下：' }}</p>
+<div class="quote">
+    依据《刑事诉讼法》第五十五条：对一切案件的判处都要重证据，重调查研究，不轻信口供。只有被告人供述，没有其他证据的，不能认定被告人有罪和处以刑罚。
+</div>
+
+<p class="indent" style="margin-top:14px">1. 关于主观方面：{{ subject_defense or '现有证据不能证明被告人具有实施犯罪的主观故意。' }}</p>
+<p class="indent">2. 关于客观方面：{{ objective_defense or '被告人实施的行为与公诉机关指控的犯罪构成要件不相符。' }}</p>
+<p class="indent">3. 关于因果关系：{{ causation_defense or '现有证据不能形成完整的证据链证明被告人行为与损害结果之间存在直接因果关系。' }}</p>
+
+<div class="section-title">二、关于被告人具有法定、酌定从轻、减轻处罚情节的辩护意见</div>
+
+<p class="indent"><b>（一）被告人具有自首情节，依法可以从轻、减轻处罚。</b></p>
+<p class="indent">被告人{{ surrender_fact or '于案发后主动到公安机关投案，并如实供述自己的涉案事实，系自首。' }}根据《刑法》第六十七条之规定，可以对其从轻或者减轻处罚。</p>
+
+<p class="indent" style="margin-top:14px"><b>（二）被告人系初犯、偶犯，主观恶性较小，可酌情从轻处罚。</b></p>
+<p class="indent">被告人此前无任何违法犯罪前科，一贯表现良好。本次涉案系初犯、偶犯，其主观恶性相对较小。</p>
+
+<p class="indent" style="margin-top:14px"><b>（三）被告人自愿认罪认罚，依法可从宽处理。</b></p>
+<p class="indent">被告人在审查起诉阶段已自愿签署《认罪认罚具结书》，当庭亦认罪认罚，态度诚恳。根据《刑事诉讼法》第十五条之规定，可依法对其从宽处罚。</p>
+
+<p class="indent" style="margin-top:14px"><b>（四）被告人已积极赔偿被害人/被害单位损失，并取得书面谅解。</b></p>
+<p class="indent">{{ compensation or '案发后，被告人及其家属积极与被害人沟通，全额赔偿经济损失，被害人已出具书面谅解书，表示不再追究被告人的责任。' }}</p>
+
+<div class="section-title">三、量刑建议</div>
+<div class="conclusion">
+    <p class="indent" style="margin:4px 0">综上所述，辩护人认为：</p>
+    <p class="indent" style="margin:8px 0">1. 公诉机关指控的部分事实不清、证据不足；</p>
+    <p class="indent" style="margin:8px 0">2. 被告人具有自首、认罪认罚、积极赔偿、获得谅解等多项法定、酌定从轻、减轻情节；</p>
+    <p class="indent" style="margin:8px 0">3. 请求人民法院综合考量全案情况，对被告人从轻、减轻处罚，并建议适用缓刑。</p>
+</div>
+
+<p class="indent" style="margin-top:30px">以上辩护意见，恳请合议庭予以充分考虑并采纳。</p>
+
+<div class="signature">
+    <div style="font-weight:bold">辩护人：{{ lawyer_name }}</div>
+    <div class="lawyer-sign">{{ law_firm or '某律师事务所' }}</div>
+    <div class="lawyer-sign">律师执业证号：{{ lawyer_license or '[执业证号]' }}</div>
+</div>
+<div class="date-line">{{ sign_date }}</div>
+
+</body>
+</html>
