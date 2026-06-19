@@ -121,7 +121,7 @@ def validate_numeric_value(value: Any, min_val: Optional[float] = None, max_val:
 
 
 def validate_algorithm_name(algorithm: str) -> bool:
-    valid_algorithms = {'random_forest', 'gradient_boosting', 'xgboost', 'lstm'}
+    valid_algorithms = {'random_forest', 'gradient_boosting', 'lstm'}
     return algorithm in valid_algorithms
 
 

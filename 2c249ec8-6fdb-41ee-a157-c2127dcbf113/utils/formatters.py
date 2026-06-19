@@ -1,10 +1,21 @@
 import os
 import sys
+import io
+import base64
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
 import pandas as pd
 import numpy as np
+
+try:
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from matplotlib import font_manager
+    MATPLOTLIB_AVAILABLE = True
+except ImportError:
+    MATPLOTLIB_AVAILABLE = False
 
 try:
     from colorama import init, Fore, Style
@@ -210,6 +221,66 @@ def save_prediction_to_file(result: Dict[str, Any], file_path: str, fmt: str = '
         return False
 
 
+def _generate_prediction_chart_base64(predictions: List[Dict[str, Any]]) -> Optional[str]:
+    if not MATPLOTLIB_AVAILABLE or not predictions:
+        return None
+
+    try:
+        timestamps = []
+        powers = []
+        lower_bounds = []
+        upper_bounds = []
+
+        for pred in predictions:
+            ts = pred.get('timestamp', '')
+            if isinstance(ts, str) and len(ts) > 10:
+                ts_short = ts[5:16]
+            else:
+                ts_short = str(ts)
+            timestamps.append(ts_short)
+            powers.append(pred.get('power', 0))
+            lower_bounds.append(pred.get('lower_bound', 0))
+            upper_bounds.append(pred.get('upper_bound', 0))
+
+        fig, ax = plt.subplots(figsize=(12, 5))
+
+        x = range(len(timestamps))
+        ax.plot(x, powers, color='#007acc', linewidth=2, label='预测功率', zorder=3)
+
+        has_ci = any(lb != 0 or ub != 0 for lb, ub in zip(lower_bounds, upper_bounds))
+        if has_ci:
+            ax.fill_between(x, lower_bounds, upper_bounds,
+                             color='#007acc', alpha=0.2, label='90% 置信区间')
+
+        ax.set_xlabel('时间', fontsize=11)
+        ax.set_ylabel('功率 (MW)', fontsize=11)
+        ax.set_title('发电功率预测曲线', fontsize=13, fontweight='bold')
+        ax.legend(loc='upper right', fontsize=10)
+        ax.grid(True, linestyle='--', alpha=0.5)
+
+        if len(timestamps) > 24:
+            step = max(1, len(timestamps) // 12)
+            ax.set_xticks(list(x)[::step])
+            ax.set_xticklabels([timestamps[i] for i in list(x)[::step]],
+                                rotation=45, ha='right', fontsize=8)
+        else:
+            ax.set_xticks(list(x))
+            ax.set_xticklabels(timestamps, rotation=45, ha='right', fontsize=8)
+
+        plt.tight_layout()
+
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', dpi=120, bbox_inches='tight')
+        plt.close(fig)
+        buf.seek(0)
+
+        img_base64 = base64.b64encode(buf.read()).decode('utf-8')
+        return f"data:image/png;base64,{img_base64}"
+
+    except Exception:
+        return None
+
+
 def generate_html_report(results: Dict[str, Any], output_path: str) -> bool:
     try:
         os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else '.', exist_ok=True)
@@ -228,6 +299,16 @@ def _generate_html_content(results: Dict[str, Any]) -> str:
     station_id = results.get('station_id', 'N/A')
     predictions = results.get('predictions', [])
     metrics = results.get('metrics', {})
+    
+    chart_img_tag = ''
+    chart_base64 = _generate_prediction_chart_base64(predictions)
+    if chart_base64:
+        chart_img_tag = f'''
+        <h2>预测曲线图</h2>
+        <div class="chart-container">
+            <img src="{chart_base64}" alt="预测曲线图" style="width: 100%; border-radius: 8px; border: 1px solid #ddd;">
+        </div>
+'''
     
     html = f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -286,7 +367,7 @@ def _generate_html_content(results: Dict[str, Any]) -> str:
     
     html += f"""
         </div>
-        
+        {chart_img_tag}
         <h2>预测数据</h2>
         <table>
             <thead>

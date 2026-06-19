@@ -224,7 +224,7 @@ class PowerPredictor:
         name_map = {
             'RandomForestRegressor': 'random_forest',
             'GradientBoostingRegressor': 'gradient_boosting',
-            'XGBRegressor': 'xgboost',
+            'LSTMRegressor': 'lstm',
         }
         return name_map.get(model_name, model_name)
 

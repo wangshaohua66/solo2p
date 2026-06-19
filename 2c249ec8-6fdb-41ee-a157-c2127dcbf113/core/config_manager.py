@@ -119,10 +119,12 @@ class ConfigManager:
                         'max_depth': 5,
                         'random_state': 42
                     },
-                    'xgboost': {
-                        'n_estimators': 100,
-                        'learning_rate': 0.1,
-                        'max_depth': 6,
+                    'lstm': {
+                        'hidden_size': 50,
+                        'num_layers': 2,
+                        'learning_rate': 0.001,
+                        'epochs': 200,
+                        'sequence_length': 24,
                         'random_state': 42
                     }
                 },

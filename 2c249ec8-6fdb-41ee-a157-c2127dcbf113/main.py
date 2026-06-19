@@ -17,7 +17,8 @@ from core.evaluator import ModelEvaluator
 from utils.formatters import (
     print_success, print_error, print_warning, print_info, print_header,
     format_table, format_metrics, format_data_quality_report,
-    format_prediction_result, save_prediction_to_file, generate_html_report
+    format_prediction_result, save_prediction_to_file, generate_html_report,
+    format_progress
 )
 from utils.validators import validate_algorithm_name, validate_file_path
 
@@ -54,7 +55,7 @@ def get_parser():
     train_parser = subparsers.add_parser('train', help='训练模型')
     train_parser.add_argument('--input', '-i', type=str, required=True, help='训练数据文件路径')
     train_parser.add_argument('--algorithm', '-a', type=str, default=None,
-                               choices=['random_forest', 'gradient_boosting', 'xgboost'],
+                               choices=['random_forest', 'gradient_boosting', 'lstm'],
                                help='算法类型')
     train_parser.add_argument('--output', '-o', type=str, default=None, help='模型输出路径')
     train_parser.add_argument('--station', '-s', type=str, default='default', help='电站ID')
@@ -105,6 +106,15 @@ def get_parser():
     batch_parser.add_argument('--horizon', type=int, default=None, help='预测时间窗口（小时）')
     batch_parser.add_argument('--train', action='store_true', help='批量训练模型')
 
+    compare_parser = subparsers.add_parser('compare', help='多模型对比评估')
+    compare_parser.add_argument('--models', '-m', type=str, nargs='+', required=True,
+                                 help='要对比的模型文件路径列表')
+    compare_parser.add_argument('--test-data', '-t', type=str, required=True, help='测试数据文件')
+    compare_parser.add_argument('--output', '-o', type=str, default=None, help='对比报告输出路径')
+    compare_parser.add_argument('--format', '-fmt', type=str, default='html',
+                                 choices=['html', 'json'],
+                                 help='报告格式')
+
     return parser
 
 
@@ -117,6 +127,7 @@ def main():
         return 1
 
     config_manager = ConfigManager(args.config)
+    reloaded = config_manager.reload_if_changed()
     config = config_manager.get_config()
 
     if args.verbose:
@@ -126,6 +137,9 @@ def main():
 
     verbose = config.get('logging', {}).get('verbose', False)
     quiet = config.get('logging', {}).get('quiet', False)
+
+    if reloaded and verbose and not quiet:
+        print_info("配置文件已检测到变更并重新加载")
 
     try:
         if args.command == 'import':
@@ -142,6 +156,8 @@ def main():
             return cmd_config(args, config_manager, config, verbose, quiet)
         elif args.command == 'batch':
             return cmd_batch(args, config, verbose, quiet)
+        elif args.command == 'compare':
+            return cmd_compare(args, config, verbose, quiet)
         else:
             print_error(f"未知命令: {args.command}")
             return 1
@@ -314,6 +330,10 @@ def cmd_predict(args, config, verbose, quiet):
     horizon = args.horizon or config.get('prediction', {}).get('horizon_hours', 24)
     include_confidence = not args.no_confidence
 
+    if not (1 <= horizon <= 72):
+        print_error(f"预测时间窗口超出范围: {horizon}小时，必须在 1-72 小时之间")
+        return 1
+
     if verbose and not quiet:
         print_info(f"正在预测未来 {horizon} 小时的功率...")
 
@@ -464,6 +484,15 @@ def cmd_report(args, config, verbose, quiet):
                 print_info("按日期聚合:")
                 print(agg_df.head(10).to_string())
                 print()
+        elif args.aggregate_by == 'hour' and 'timestamp' in df.columns:
+            df['hour'] = pd.to_datetime(df['timestamp']).dt.hour
+            agg_df = df.groupby('hour').agg({'power': ['mean', 'max', 'min', 'count']})
+            agg_df.columns = ['mean_power', 'max_power', 'min_power', 'count']
+            agg_df = agg_df.reset_index()
+            if not quiet:
+                print_info("按小时聚合 (0-23):")
+                print(agg_df.to_string())
+                print()
 
     os.makedirs(os.path.dirname(args.output) if os.path.dirname(args.output) else '.', exist_ok=True)
 
@@ -590,8 +619,14 @@ def cmd_batch(args, config, verbose, quiet):
     for i, filepath in enumerate(files, 1):
         station_id = os.path.splitext(os.path.basename(filepath))[0]
 
+        if not quiet:
+            progress_line = format_progress(i, len(files), prefix='批量处理')
+            sys.stdout.write('\r' + progress_line)
+            sys.stdout.flush()
+            print()
+
         try:
-            if not quiet:
+            if not quiet and verbose:
                 print_info(f"[{i}/{len(files)}] 处理 {station_id}...")
 
             importer = DataImporter(config)
@@ -653,6 +688,116 @@ def cmd_batch(args, config, verbose, quiet):
         print_info(f"  成功: {sum(1 for r in results if r['status'] == 'success')}")
         print_info(f"  跳过: {sum(1 for r in results if r['status'] == 'skipped')}")
         print_info(f"  失败: {sum(1 for r in results if r['status'] == 'error')}")
+
+    return 0
+
+
+def cmd_compare(args, config, verbose, quiet):
+    if not quiet:
+        print_header("多模型对比评估")
+
+    importer = DataImporter(config)
+    test_df = importer.import_data(args.test_data)
+    X_test, y_test = importer.prepare_features(test_df)
+
+    if not quiet:
+        print_info(f"测试数据: {len(test_df)} 条记录")
+        print_info(f"模型数量: {len(args.models)}")
+        print()
+
+    results = {}
+    trainer = ModelTrainer(config)
+
+    for i, model_path in enumerate(args.models, 1):
+        model_name = os.path.splitext(os.path.basename(model_path))[0]
+
+        if not quiet:
+            print_info(f"[{i}/{len(args.models)}] 评估 {model_name}...")
+
+        valid, msg = validate_file_path(model_path, must_exist=True)
+        if not valid:
+            print_warning(f"  跳过无效模型: {msg}")
+            continue
+
+        if not trainer.load_model(model_path):
+            print_warning(f"  跳过无法加载的模型: {model_path}")
+            continue
+
+        try:
+            y_pred = trainer.model.predict(X_test)
+            evaluator = ModelEvaluator(config)
+            metrics = evaluator.calculate_metrics(y_test.values, y_pred)
+            results[model_name] = metrics
+
+            if not quiet:
+                print_success(f"  评估完成")
+        except Exception as e:
+            print_error(f"  评估失败: {e}")
+
+    if not results:
+        print_error("没有可用于对比的有效模型")
+        return 1
+
+    evaluator = ModelEvaluator(config)
+
+    if args.output:
+        base, ext = os.path.splitext(args.output)
+        csv_path = base + '.csv'
+    else:
+        csv_path = None
+
+    report = evaluator.generate_comparison_report(results, output_path=csv_path)
+
+    if not quiet:
+        print()
+        print_success("模型对比评估完成")
+        print_info(f"最优模型: {report['best_model']}")
+        print_info(f"最差模型: {report['worst_model']}")
+        print()
+        print_info("对比详情:")
+        headers = ['模型', 'MAE', 'RMSE', 'MAPE(%)', '综合得分', '排名']
+        rows = []
+        for idx, item in enumerate(report['comparison'], 1):
+            rows.append([
+                item.get('model', 'N/A'),
+                f"{item.get('mae', 0):.4f}",
+                f"{item.get('rmse', 0):.4f}",
+                f"{item.get('mape', 0):.4f}",
+                f"{item.get('score', 0):.4f}",
+                str(idx),
+            ])
+        print(format_table(rows, headers))
+        print()
+
+    if args.output:
+        os.makedirs(os.path.dirname(args.output) if os.path.dirname(args.output) else '.', exist_ok=True)
+        if args.format == 'json':
+            with open(args.output, 'w', encoding='utf-8') as f:
+                json.dump(report, f, indent=2, ensure_ascii=False)
+        elif args.format == 'html':
+            html_predictions = []
+            for item in report['comparison']:
+                html_predictions.append({
+                    'timestamp': item.get('model', 'N/A'),
+                    'power': float(item.get('score', 0)),
+                    'lower_bound': float(item.get('mae', 0)),
+                    'upper_bound': float(item.get('rmse', 0)),
+                })
+            html_metrics = {
+                'mae': report['comparison'][0].get('mae', 0) if report['comparison'] else 0,
+                'rmse': report['comparison'][0].get('rmse', 0) if report['comparison'] else 0,
+            }
+            html_result = {
+                'station_id': 'model_comparison',
+                'predictions': html_predictions,
+                'metrics': html_metrics,
+            }
+            generate_html_report(html_result, args.output)
+
+        if not quiet:
+            print_success(f"对比报告已保存到: {args.output}")
+            if csv_path and csv_path != args.output:
+                print_success(f"对比明细已保存到: {csv_path}")
 
     return 0
 
