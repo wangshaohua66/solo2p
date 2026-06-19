@@ -1,19 +1,15 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 
-export type Breakpoint = 'mobile' | 'tablet' | 'desktop' | 'wide'
+export type Breakpoint = 'notebook' | 'projector'
 
 interface BreakpointConfig {
-  mobile: number
-  tablet: number
-  desktop: number
-  wide: number
+  notebook: number
+  projector: number
 }
 
 const DEFAULT_CONFIG: BreakpointConfig = {
-  mobile: 640,
-  tablet: 768,
-  desktop: 1366,
-  wide: 1920
+  notebook: 1366,
+  projector: 1920
 }
 
 export function useResponsive(config: Partial<BreakpointConfig> = {}) {
@@ -22,24 +18,25 @@ export function useResponsive(config: Partial<BreakpointConfig> = {}) {
   const height = ref(typeof window !== 'undefined' ? window.innerHeight : 1080)
 
   const breakpoint = computed<Breakpoint>(() => {
-    if (width.value < cfg.mobile) return 'mobile'
-    if (width.value < cfg.tablet) return 'mobile'
-    if (width.value < cfg.desktop) return 'tablet'
-    if (width.value < cfg.wide) return 'desktop'
-    return 'wide'
+    if (width.value >= cfg.projector) return 'projector'
+    return 'notebook'
   })
 
-  const isMobile = computed(() => breakpoint.value === 'mobile')
-  const isTablet = computed(() => breakpoint.value === 'tablet')
-  const isDesktop = computed(() => breakpoint.value === 'desktop' || breakpoint.value === 'wide')
-  const isWide = computed(() => breakpoint.value === 'wide')
+  const isNotebook = computed(() => breakpoint.value === 'notebook')
+  const isProjector = computed(() => breakpoint.value === 'projector')
+  const isBelowProjector = computed(() => width.value < cfg.projector)
+  const isAboveNotebook = computed(() => width.value >= cfg.notebook)
 
-  const sidebarCollapsible = computed(() => isMobile.value || isTablet.value)
-  const showCompactToolbar = computed(() => isMobile.value)
+  const sidebarCollapsible = computed(() => isNotebook.value)
+  const showCompactToolbar = computed(() => isNotebook.value && width.value < 1024)
+
   const editorFontSize = computed(() => {
-    if (isMobile.value) return 12
-    if (isTablet.value) return 13
-    if (isDesktop.value) return 14
+    if (isProjector.value) return 16
+    return 14
+  })
+
+  const containerPadding = computed(() => {
+    if (isProjector.value) return 24
     return 16
   })
 
@@ -67,13 +64,14 @@ export function useResponsive(config: Partial<BreakpointConfig> = {}) {
     width,
     height,
     breakpoint,
-    isMobile,
-    isTablet,
-    isDesktop,
-    isWide,
+    isNotebook,
+    isProjector,
+    isBelowProjector,
+    isAboveNotebook,
     sidebarCollapsible,
     showCompactToolbar,
-    editorFontSize
+    editorFontSize,
+    containerPadding
   }
 }
 

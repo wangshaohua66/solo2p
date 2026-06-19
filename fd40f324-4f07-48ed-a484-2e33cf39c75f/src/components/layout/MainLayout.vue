@@ -12,7 +12,6 @@ import { InjectKeys, type RunnerContext } from '@/types'
 import ToolBar from '@/components/layout/ToolBar.vue'
 import StatusBar from '@/components/layout/StatusBar.vue'
 import ResizableSidebar from '@/components/layout/ResizableSidebar.vue'
-import ResizablePanel from '@/components/layout/ResizablePanel.vue'
 
 import EditorTabs from '@/components/editor/EditorTabs.vue'
 import CodeEditor from '@/components/editor/CodeEditor.vue'
@@ -37,10 +36,8 @@ usePresentation(appRef)
 const shortcuts = useShortcuts()
 
 const sidebarOpen = computed(() => themeStore.sidebarOpen)
-const sidebarWidth = computed(() => themeStore.sidebarWidth)
-const consoleOpen = computed(() => themeStore.consoleOpen)
 const isPresentation = computed(() => themeStore.presentationMode)
-const isCompact = computed(() => responsive.isMobile.value || responsive.isTablet.value)
+const isCompact = computed(() => responsive.isNotebook.value)
 
 onMounted(() => {
   themeStore.applyThemeClass()
@@ -154,11 +151,7 @@ provide(InjectKeys.RunnerContext, runnerCtx)
     <div ref="contentRef" class="flex-1 flex overflow-hidden min-h-0">
       <Transition name="sidebar">
         <div v-show="sidebarOpen" class="h-full flex-shrink-0 hide-in-presentation">
-          <ResizableSidebar
-            :initial-width="sidebarWidth"
-            :persist-key="'sidebar'"
-            @resized="themeStore.setSidebarWidth($event)"
-          >
+          <ResizableSidebar>
             <template #default>
               <SnippetPanel />
             </template>
@@ -166,7 +159,7 @@ provide(InjectKeys.RunnerContext, runnerCtx)
         </div>
       </Transition>
 
-      <div class="flex-1 flex flex-col overflow-hidden min-w-0">
+      <div class="flex flex-col overflow-hidden min-w-0" style="width: 70%;">
         <div style="height: var(--tabbar-height); flex-shrink: 0;">
           <EditorTabs />
         </div>
@@ -188,31 +181,25 @@ provide(InjectKeys.RunnerContext, runnerCtx)
         </div>
       </div>
 
-      <div class="h-full flex hide-in-presentation">
-        <ResizablePanel
-          v-model="consoleOpen"
-          direction="horizontal"
-          :initial-size="420"
-          :min-size="300"
-        >
-          <template #header>
-            <div class="flex items-center gap-2 flex-1">
-              <div class="text-xs font-medium" style="color: var(--text-primary);">
-                同步 / 输出
-              </div>
+      <div class="h-full hide-in-presentation overflow-hidden" style="width: 30%; flex-shrink: 0;">
+        <div class="flex flex-col h-full" style="border-left: 1px solid var(--border-color);">
+          <div class="flex items-center gap-2 px-3 h-9 flex-shrink-0" style="border-bottom: 1px solid var(--border-color); background: var(--bg-secondary);">
+            <div class="text-xs font-medium" style="color: var(--text-primary);">
+              同步 / 输出
             </div>
-          </template>
-          <template #default>
-            <div class="flex flex-col h-full">
-              <div class="max-h-[40%] overflow-hidden" style="border-color: var(--border-color); border-bottom: 1px solid;">
-                <SyncBoard />
-              </div>
-              <div class="flex-1 overflow-hidden min-h-0">
-                <OutputConsole />
-              </div>
+            <div class="ml-auto text-[10px] px-1.5 py-0.5 rounded" style="background: var(--bg-tertiary); color: var(--text-secondary);">
+              30%
             </div>
-          </template>
-        </ResizablePanel>
+          </div>
+          <div class="flex flex-col flex-1 overflow-hidden min-h-0">
+            <div class="overflow-hidden" style="height: 40%; border-bottom: 1px solid var(--border-color);">
+              <SyncBoard />
+            </div>
+            <div class="flex-1 overflow-hidden min-h-0">
+              <OutputConsole />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 

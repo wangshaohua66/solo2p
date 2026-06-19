@@ -122,9 +122,17 @@ export function useMonaco(containerRef: Ref<HTMLElement | null>) {
     })
 
     const onMouse = editor.value.onMouseDown((e) => {
-      if (e.event.detail === 2 && e.target.type === monaco.editor.MouseTargetType.GUTTER_LINE_NUMBERS) {
-        const line = e.target.position?.lineNumber
-        if (line) lineDoubleClickHandlers.forEach(cb => cb(line))
+      if (e.event.detail === 2) {
+        const targetType = e.target.type
+        const isGutter = targetType === monaco.editor.MouseTargetType.GUTTER_LINE_NUMBERS ||
+                        targetType === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN ||
+                        targetType === monaco.editor.MouseTargetType.GUTTER_LINE_DECORATIONS ||
+                        targetType === monaco.editor.MouseTargetType.CONTENT_TEXT ||
+                        targetType === monaco.editor.MouseTargetType.CONTENT_EMPTY
+        if (isGutter) {
+          const line = e.target.position?.lineNumber
+          if (line) lineDoubleClickHandlers.forEach(cb => cb(line))
+        }
       }
       if (e.event.rightButton) {
         const pos = e.target.position
@@ -158,6 +166,18 @@ export function useMonaco(containerRef: Ref<HTMLElement | null>) {
 
     isReady.value = true
     loadingTime.value = Math.round(performance.now() - start)
+
+    const lineCount = model.value?.getLineCount() || 0
+    if (lineCount >= 2000 && loadingTime.value > 800) {
+      console.warn(
+        `[CodeStage] 性能警告: ${lineCount} 行代码加载耗时 ${loadingTime.value}ms，超过 800ms 阈值。`,
+        '建议：1) 启用 Monaco 按需语言加载；2) 关闭 minimap；3) 减少初始装饰器数量。'
+      )
+    } else if (lineCount >= 1000) {
+      console.info(
+        `[CodeStage] 性能提示: ${lineCount} 行代码加载耗时 ${loadingTime.value}ms。`
+      )
+    }
   }
 
   function getMonacoThemeName(theme: string): string {
