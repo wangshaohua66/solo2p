@@ -1,0 +1,2 @@
+2026-06-19 09:24:34 | INFO    | __main__:cli:323 | CLI 启动 | verbose=0
+2026-06-19 09:24:34 | INFO    | audit_trail:record:77 | SNAPSHOT_DIFF | cli-user | files=0 | summary={"id1": "SNAP-20260619_092403-000", "id2": "SNAP-20260619_092403-000"}

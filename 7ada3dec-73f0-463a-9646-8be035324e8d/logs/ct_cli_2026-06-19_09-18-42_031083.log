@@ -1,0 +1,3 @@
+2026-06-19 09:18:42 | INFO    | __main__:cli:323 | CLI 启动 | verbose=1
+2026-06-19 09:18:42 | INFO    | audit_trail:record:77 | INGEST | cli-user | files=1 | summary={"rows": 569, "format": "csv", "center": "C08"}
+2026-06-19 09:18:42 | INFO    | __main__:ingest:370 | 导入完成 | 源 1 | 合并 569 行

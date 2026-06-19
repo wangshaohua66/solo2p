@@ -1,0 +1,11 @@
+{
+  "snapshot_id": "SNAP-20260619_092403-000",
+  "version": "2024.1.0.000",
+  "created_at": "2026-06-19T09:24:03",
+  "row_count": 204,
+  "domain": "ALL",
+  "file_path": "snapshots/SNAP-20260619_092403-000",
+  "checksum": "41ceeffebe6f9c0ff3e59c3a62bf0e193a1d17b1d9eec013ee1a817bd682131f",
+  "operator": "cli-user",
+  "description": "test snapshot"
+}

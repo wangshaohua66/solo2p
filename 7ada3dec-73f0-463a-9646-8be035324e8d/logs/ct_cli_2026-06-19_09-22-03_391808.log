@@ -1,0 +1,6 @@
+2026-06-19 09:22:03 | INFO    | __main__:cli:323 | CLI 启动 | verbose=0
+2026-06-19 09:22:03 | INFO    | audit_trail:record:77 | INGEST | cli-user | files=1 | summary={"rows": 204}
+2026-06-19 09:22:03 | INFO    | audit_trail:record:77 | TRANSFORM | cli-user | files=1 | summary={"domains": ["LB", "DM"]}
+2026-06-19 09:22:03 | INFO    | audit_trail:record:77 | VALIDATE | cli-user | files=0 | summary={"findings": 19}
+2026-06-19 09:22:03 | INFO    | audit_trail:record:77 | CONSISTENCY | cli-user | files=0 | summary={"issues": 12}
+2026-06-19 09:22:03 | INFO    | audit_trail:record:77 | QUERY_GENERATE | cli-user | files=0 | summary={"created": 4}

@@ -1,0 +1,279 @@
+# =============================================================================
+# 临床试验数据管理 CLI 配置文件
+# Clinical Trial Data Management CLI Configuration
+# =============================================================================
+# 本文件定义 SDTM 标准域映射、单位换算、CDISC 控制术语、合规校验规则
+# 与跨中心一致性分析参数。所有模块通过此配置驱动，便于规则版本化管理。
+# =============================================================================
+
+# 规则版本号，用于稽查轨迹记录
+rule_version: "2024.1.0"
+
+# 中心注册表：辖区内 8 家三甲医院及其数据上报格式
+centers:
+  - {id: "C01", name: "市中心医院",   format: xml}
+  - {id: "C02", name: "第一人民医院", format: xml}
+  - {id: "C03", name: "肿瘤医院",     format: xml}
+  - {id: "C04", name: "第二人民医院", format: excel}
+  - {id: "C05", name: "中医院",       format: excel}
+  - {id: "C06", name: "红十字会医院", format: excel}
+  - {id: "C07", name: "附属医院",     format: excel}
+  - {id: "C08", name: "专科医院",     format: csv}
+
+# -----------------------------------------------------------------------------
+# CDISC SDTM 标准域定义
+# -----------------------------------------------------------------------------
+sdtm:
+  domains:
+    DM: {label: "人口学 Demographics",        keys: [STUDYID, USUBJID]}
+    VS: {label: "生命体征 Vital Signs",         keys: [STUDYID, USUBJID, VISITNUM, VSTESTCD]}
+    LB: {label: "实验室检查 Laboratory",       keys: [STUDYID, USUBJID, VISITNUM, LBTESTCD]}
+    AE: {label: "不良事件 Adverse Events",     keys: [STUDYID, USUBJID, AESEQ]}
+    EX: {label: "试验用药 Exposure",           keys: [STUDYID, USUBJID, EXSEQ]}
+    MH: {label: "既往病史 Medical History",    keys: [STUDYID, USUBJID, MHTERM]}
+    CM: {label: "合并用药 Concomitant Meds",  keys: [STUDYID, USUBJID, CMSEQ]}
+    DS: {label: "处置事件 Disposition",        keys: [STUDYID, USUBJID, DSSEQ]}
+    SV: {label: "访视 Subject Visits",          keys: [STUDYID, USUBJID, VISITNUM]}
+    TU: {label: "肿瘤评估 Tumor",               keys: [STUDYID, USUBJID, TULNKID]}
+
+  # 原始变量名 -> SDTM 目标域/变量映射（aliases 支持中英文别名匹配）
+  mappings:
+    - {aliases: ["STUDYID", "研究编号", "项目编号"],    domain: DM, target: STUDYID, type: string}
+    - {aliases: ["SUBJID", "受试者编号", "患者编号", "SUBJECT"], domain: DM, target: USUBJID, type: string}
+    - {aliases: ["SITEID", "中心编号", "分中心"],        domain: DM, target: SITEID, type: string}
+    - {aliases: ["SEX", "性别", "GENDER"],             domain: DM, target: SEX, type: string}
+    - {aliases: ["AGE", "年龄"],                       domain: DM, target: AGE, type: number}
+    - {aliases: ["AGEU", "年龄单位"],                  domain: DM, target: AGEU, type: string}
+    - {aliases: ["RACE", "种族"],                      domain: DM, target: RACE, type: string}
+    - {aliases: ["ARM", "分组", "TREATMENT"],          domain: DM, target: ARM, type: string}
+    - {aliases: ["COUNTRY", "国家"],                   domain: DM, target: COUNTRY, type: string}
+    - {aliases: ["RFICDTC", "知情同意日期", "ICF_DATE"], domain: DM, target: RFICDTC, type: date}
+
+    - {aliases: ["VISITNUM", "访视序号"],              domain: SV, target: VISITNUM, type: number}
+    - {aliases: ["VISIT", "访视名称"],                 domain: SV, target: VISIT, type: string}
+    - {aliases: ["SVSTDTC", "访视日期", "VISIT_DATE"], domain: SV, target: SVSTDTC, type: date}
+
+    - {aliases: ["VSTESTCD", "体征代码"],             domain: VS, target: VSTESTCD, type: string}
+    - {aliases: ["VSTEST", "体征名称"],               domain: VS, target: VSTEST, type: string}
+    - {aliases: ["VSORRES", "体征结果", "VS_RESULT"], domain: VS, target: VSORRES, type: string}
+    - {aliases: ["VSORRESU", "体征单位", "VS_UNIT"],  domain: VS, target: VSORRESU, type: string}
+    - {aliases: ["VSSTRESN", "体征标准结果"],          domain: VS, target: VSSTRESN, type: number}
+
+    - {aliases: ["LBTESTCD", "检验代码", "LAB_CODE"], domain: LB, target: LBTESTCD, type: string}
+    - {aliases: ["LBTEST", "检验名称"],               domain: LB, target: LBTEST, type: string}
+    - {aliases: ["LBORRES", "检验结果", "LAB_VALUE"], domain: LB, target: LBORRES, type: string}
+    - {aliases: ["LBORRESU", "检验单位", "LAB_UNIT"], domain: LB, target: LBORRESU, type: string}
+    - {aliases: ["LBSTRESN", "检验标准结果"],          domain: LB, target: LBSTRESN, type: number}
+    - {aliases: ["LBNRIND", "参考范围指示"],           domain: LB, target: LBNRIND, type: string}
+    - {aliases: ["LBDTC", "检验日期", "LAB_DATE"],    domain: LB, target: LBDTC, type: date}
+
+    - {aliases: ["AETERM", "不良事件名称", "AE_TERM"], domain: AE, target: AETERM, type: string}
+    - {aliases: ["AESEV", "严重程度", "AE_SEVERITY"], domain: AE, target: AESEV, type: string}
+    - {aliases: ["AESER", "严重不良事件", "AE_SERIOUS"], domain: AE, target: AESER, type: string}
+    - {aliases: ["AESTDTC", "开始日期", "AE_START"], domain: AE, target: AESTDTC, type: date}
+    - {aliases: ["AEENDTC", "结束日期", "AE_END"],    domain: AE, target: AEENDTC, type: date}
+
+    - {aliases: ["EXTRT", "试验药物", "DRUG_NAME"],   domain: EX, target: EXTRT, type: string}
+    - {aliases: ["EXDOSE", "剂量", "DOSE"],           domain: EX, target: EXDOSE, type: number}
+    - {aliases: ["EXDOSU", "剂量单位", "DOSE_UNIT"], domain: EX, target: EXDOSU, type: string}
+    - {aliases: ["EXSTDTC", "用药开始", "EX_START"],  domain: EX, target: EXSTDTC, type: date}
+    - {aliases: ["EXENDTC", "用药结束", "EX_END"],    domain: EX, target: EXENDTC, type: date}
+
+    - {aliases: ["CMTRT", "合并药物", "CM_DRUG"],     domain: CM, target: CMTRT, type: string}
+    - {aliases: ["CMDOSE", "合并剂量", "CM_DOSE"],    domain: CM, target: CMDOSE, type: number}
+    - {aliases: ["CMSTDTC", "合并开始", "CM_START"],  domain: CM, target: CMSTDTC, type: date}
+
+    - {aliases: ["DSDECOD", "处置术语", "DS_TERM"],   domain: DS, target: DSDECOD, type: string}
+    - {aliases: ["DSSTDTC", "处置日期", "DS_DATE"],   domain: DS, target: DSSTDTC, type: date}
+
+# -----------------------------------------------------------------------------
+# 单位换算规则：将各中心不同单位归一化至标准单位
+# 转换公式: standard = (value + offset) * factor
+# -----------------------------------------------------------------------------
+units:
+  default_targets:
+    GLUC: "mmol/L"
+    CREAT: "umol/L"
+    BUN: "mmol/L"
+    UA: "umol/L"
+    ALT: "U/L"
+    AST: "U/L"
+    ALP: "U/L"
+    BILIT: "umol/L"
+    ALB: "g/L"
+    HGB: "g/L"
+    WBC: "10^9/L"
+    RBC: "10^12/L"
+    PLT: "10^9/L"
+    SODIUM: "mmol/L"
+    POTASSIUM: "mmol/L"
+    CHLORIDE: "mmol/L"
+    CALCIUM: "mmol/L"
+    LDL: "mmol/L"
+    HDL: "mmol/L"
+    CHOL: "mmol/L"
+    TG: "mmol/L"
+    TEMPERATURE: "C"
+    HEIGHT: "cm"
+    WEIGHT: "kg"
+    BP: "mmHg"
+    HR: "bpm"
+
+  conversions:
+    # 葡萄糖 mg/dL -> mmol/L
+    - {test: GLUC, from: "mg/dL", to: "mmol/L", factor: 0.0555, offset: 0.0}
+    - {test: GLUC, from: "mmol/L", to: "mmol/L", factor: 1.0, offset: 0.0}
+    # 肌酐 mg/dL -> umol/L
+    - {test: CREAT, from: "mg/dL", to: "umol/L", factor: 88.4, offset: 0.0}
+    - {test: CREAT, from: "umol/L", to: "umol/L", factor: 1.0, offset: 0.0}
+    # 尿素 mg/dL -> mmol/L
+    - {test: BUN, from: "mg/dL", to: "mmol/L", factor: 0.357, offset: 0.0}
+    # 尿酸 mg/dL -> umol/L
+    - {test: UA, from: "mg/dL", to: "umol/L", factor: 59.48, offset: 0.0}
+    # 胆红素 mg/dL -> umol/L
+    - {test: BILIT, from: "mg/dL", to: "umol/L", factor: 17.1, offset: 0.0}
+    # 血红蛋白 g/dL -> g/L
+    - {test: HGB, from: "g/dL", to: "g/L", factor: 10.0, offset: 0.0}
+    # 总胆固醇 mg/dL -> mmol/L
+    - {test: CHOL, from: "mg/dL", to: "mmol/L", factor: 0.0259, offset: 0.0}
+    - {test: LDL, from: "mg/dL", to: "mmol/L", factor: 0.0259, offset: 0.0}
+    - {test: HDL, from: "mg/dL", to: "mmol/L", factor: 0.0259, offset: 0.0}
+    - {test: TG, from: "mg/dL", to: "mmol/L", factor: 0.0113, offset: 0.0}
+    # 白蛋白 g/dL -> g/L
+    - {test: ALB, from: "g/dL", to: "g/L", factor: 10.0, offset: 0.0}
+    # 钙 mg/dL -> mmol/L
+    - {test: CALCIUM, from: "mg/dL", to: "mmol/L", factor: 0.25, offset: 0.0}
+    # 体温 华氏 -> 摄氏
+    - {test: TEMPERATURE, from: "F", to: "C", factor: 1.0, offset: -32.0, then_divide: 1.8}
+    # 身高 m -> cm
+    - {test: HEIGHT, from: "m", to: "cm", factor: 100.0, offset: 0.0}
+    # 体重 lb -> kg
+    - {test: WEIGHT, from: "lb", to: "kg", factor: 0.4536, offset: 0.0}
+    # 血压 kPa -> mmHg
+    - {test: BP, from: "kPa", to: "mmHg", factor: 7.5006, offset: 0.0}
+
+# -----------------------------------------------------------------------------
+# CDISC 控制术语：缺失值与枚举字段
+# -----------------------------------------------------------------------------
+missing_values:
+  # 文本型缺失值归一化至 CDISC 标准缺失术语
+  terms:
+    "":        "未采集"
+    "ND":      "未做"
+    "NA":      "不适用"
+    "UNK":     "未知"
+    "N/A":     "不适用"
+    "未做":     "未做"
+    "缺失":     "未采集"
+    "无":       "不适用"
+    "未知":     "未知"
+    "-":       "未采集"
+    "null":    "未采集"
+  code: "MS"  # 缺失值编码前缀
+
+controlled_terms:
+  SEX: ["M", "F", "U"]
+  AGEU: ["YEARS"]
+  RACE: ["ASIAN", "WHITE", "BLACK OR AFRICAN AMERICAN", "AMERICAN INDIAN OR ALASKA NATIVE", "MULTIPLE", "UNKNOWN"]
+  AESER: ["Y", "N"]
+  AESEV: ["MILD", "MODERATE", "SEVERE"]
+  LBNRIND: ["LOW", "NORMAL", "HIGH", "ABNORMAL", "UNKNOWN"]
+  EXDOSU: ["mg", "mg/m2", "mg/kg", "ug", "mL"]
+  COUNTRY: ["CHN", "USA", "JPN", "KOR", "GBR"]
+  COUNTRY_DEFAULT: "CHN"
+
+# -----------------------------------------------------------------------------
+# SDTM 合规校验规则（30 条）
+# type 取值: required | enum | range | format | date_order | unique_key |
+#            conditional_required | reference_range | visit_sequence
+# severity: ERROR | WARNING | INFO
+# -----------------------------------------------------------------------------
+validation_rules:
+  - {id: VAL001, name: "标识符必填",          domain: ALL, type: required,              severity: ERROR,   params: {fields: [STUDYID, USUBJID]}, message: "标识符 {field} 为空 (记录 {usubjid})"}
+  - {id: VAL002, name: "性别枚举合法",        domain: DM,  type: enum,                  severity: ERROR,   params: {field: SEX, values: [M, F, U]}, message: "性别 {value} 不在枚举内 (记录 {usubjid})"}
+  - {id: VAL003, name: "年龄范围合理",        domain: DM,  type: range,                 severity: ERROR,   params: {field: AGE, min: 0, max: 120}, message: "年龄 {value} 超出合理区间 (记录 {usubjid})"}
+  - {id: VAL004, name: "年龄单位为年",        domain: DM,  type: enum,                  severity: WARNING, params: {field: AGEU, values: [YEARS]}, message: "年龄单位 {value} 非标准 (记录 {usubjid})"}
+  - {id: VAL005, name: "知情同意日期格式",    domain: DM,  type: format,                severity: ERROR,   params: {field: RFICDTC, kind: date}, message: "知情同意日期 {value} 格式非法 (记录 {usubjid})"}
+  - {id: VAL006, name: "死亡日期晚于知情",   domain: DM,  type: date_order,            severity: ERROR,   params: {start: RFICDTC, end: DTHDTC}, message: "死亡日期早于知情同意日期 (记录 {usubjid})"}
+  - {id: VAL007, name: "受试者唯一性",        domain: DM,  type: unique_key,            severity: ERROR,   params: {fields: [STUDYID, SITEID, USUBJID]}, message: "受试者 {usubjid} 在中心 {siteid} 内重复"}
+  - {id: VAL008, name: "体征结果范围合理",    domain: VS,  type: range,                 severity: ERROR,   params: {field: VSSTRESN, min: 0, max: 400}, message: "体征结果 {value} 超出合理区间 (记录 {usubjid})"}
+  - {id: VAL009, name: "体征单位条件必填",    domain: VS,  type: conditional_required,  severity: ERROR,   params: {field: VSORRESU, cond_field: VSSTRESN}, message: "体征结果存在但单位缺失 (记录 {usubjid})"}
+  - {id: VAL010, name: "访视序号非负",        domain: VS,  type: range,                 severity: ERROR,   params: {field: VISITNUM, min: 0, max: 999}, message: "访视序号 {value} 非法 (记录 {usubjid})"}
+  - {id: VAL011, name: "体征日期格式",        domain: VS,  type: format,                severity: ERROR,   params: {field: VSDTC, kind: date}, message: "体征日期 {value} 格式非法 (记录 {usubjid})"}
+  - {id: VAL012, name: "检验结果参考范围",    domain: LB,  type: reference_range,       severity: WARNING, params: {test_field: LBTESTCD, value_field: LBSTRESN, unit_field: LBSTRESU}, message: "{test} 值 {value}{unit} 超参考范围 (记录 {usubjid})"}
+  - {id: VAL013, name: "检验单位条件必填",    domain: LB,  type: conditional_required,  severity: ERROR,   params: {field: LBORRESU, cond_field: LBSTRESN}, message: "检验结果存在但单位缺失 (记录 {usubjid})"}
+  - {id: VAL014, name: "检验单位已归一化",    domain: LB,  type: format,                severity: WARNING, params: {field: LBSTRESU, kind: normalized_unit}, message: "检验单位 {value} 未归一化 (记录 {usubjid})"}
+  - {id: VAL015, name: "AE 结束晚于开始",     domain: AE,  type: date_order,            severity: ERROR,   params: {start: AESTDTC, end: AEENDTC}, message: "AE 结束日期早于开始日期 (记录 {usubjid})"}
+  - {id: VAL016, name: "AE 严重程度枚举",    domain: AE,  type: enum,                  severity: ERROR,   params: {field: AESEV, values: [MILD, MODERATE, SEVERE]}, message: "AE 严重程度 {value} 非法 (记录 {usubjid})"}
+  - {id: VAL017, name: "严重不良事件枚举",    domain: AE,  type: enum,                  severity: ERROR,   params: {field: AESER, values: [Y, N]}, message: "SAE 标志 {value} 非法 (记录 {usubjid})"}
+  - {id: VAL018, name: "AE 名称必填",        domain: AE,  type: required,              severity: ERROR,   params: {fields: [AETERM]}, message: "AE 名称 {field} 为空 (记录 {usubjid})"}
+  - {id: VAL019, name: "用药剂量为正",        domain: EX,  type: range,                 severity: ERROR,   params: {field: EXDOSE, min: 0, max: 10000}, message: "用药剂量 {value} 非法 (记录 {usubjid})"}
+  - {id: VAL020, name: "用药结束晚于开始",    domain: EX,  type: date_order,            severity: ERROR,   params: {start: EXSTDTC, end: EXENDTC}, message: "用药结束日期早于开始日期 (记录 {usubjid})"}
+  - {id: VAL021, name: "剂量单位枚举",        domain: EX,  type: enum,                  severity: WARNING, params: {field: EXDOSU, values: [mg, mg/m2, mg/kg, ug, mL]}, message: "剂量单位 {value} 非标准 (记录 {usubjid})"}
+  - {id: VAL022, name: "合并用药日期格式",    domain: CM,  type: format,                severity: ERROR,   params: {field: CMSTDTC, kind: date}, message: "合并用药日期 {value} 格式非法 (记录 {usubjid})"}
+  - {id: VAL023, name: "合并剂量为正",        domain: CM,  type: range,                 severity: ERROR,   params: {field: CMDOSE, min: 0, max: 10000}, message: "合并剂量 {value} 非法 (记录 {usubjid})"}
+  - {id: VAL024, name: "访视序号单调递增",   domain: SV,  type: visit_sequence,         severity: ERROR,   params: {subject: USUBJID, visit: VISITNUM, date: SVSTDTC}, message: "访视序号非单调递增 (记录 {usubjid})"}
+  - {id: VAL025, name: "访视日期在研究窗内",  domain: SV,  type: date_order,            severity: WARNING, params: {start: RFICDTC, end: SVSTDTC}, message: "访视日期早于知情同意日期 (记录 {usubjid})"}
+  - {id: VAL026, name: "中心编号已注册",      domain: DM,  type: enum,                  severity: ERROR,   params: {field: SITEID, values: [C01, C02, C03, C04, C05, C06, C07, C08]}, message: "中心编号 {value} 未注册 (记录 {usubjid})"}
+  - {id: VAL027, name: "分组枚举合法",        domain: DM,  type: enum,                  severity: WARNING, params: {field: ARM, values: ["A", "B", "C", "D", "PLACEBO", "NOT ASSIGNED"]}, message: "分组 {value} 非标准 (记录 {usubjid})"}
+  - {id: VAL028, name: "国家代码合法",        domain: DM,  type: enum,                  severity: WARNING, params: {field: COUNTRY, values: [CHN, USA, JPN, KOR, GBR]}, message: "国家代码 {value} 非法 (记录 {usubjid})"}
+  - {id: VAL029, name: "参考范围指示枚举",    domain: LB,  type: enum,                  severity: WARNING, params: {field: LBNRIND, values: [LOW, NORMAL, HIGH, ABNORMAL, UNKNOWN]}, message: "参考范围指示 {value} 非法 (记录 {usubjid})"}
+  - {id: VAL030, name: "数据采集前已知情",    domain: ALL, type: date_order,            severity: ERROR,   params: {start: RFICDTC, end: SVSTDTC}, message: "数据采集日期早于知情同意日期 (记录 {usubjid})"}
+
+# -----------------------------------------------------------------------------
+# 跨中心一致性分析参数
+# -----------------------------------------------------------------------------
+consistency:
+  # 实验室检验项参考范围（标准单位下），用于单位归一化后比对与离群检测
+  lab_tests:
+    - {code: GLUC,     unit: "mmol/L",  ref_low: 3.9,  ref_high: 6.1,  zscore_threshold: 3.0}
+    - {code: CREAT,    unit: "umol/L",  ref_low: 44,   ref_high: 133,  zscore_threshold: 3.0}
+    - {code: ALT,      unit: "U/L",     ref_low: 5,    ref_high: 40,   zscore_threshold: 3.0}
+    - {code: AST,      unit: "U/L",     ref_low: 8,    ref_high: 40,   zscore_threshold: 3.0}
+    - {code: HGB,      unit: "g/L",     ref_low: 120,  ref_high: 160,  zscore_threshold: 3.5}
+    - {code: WBC,      unit: "10^9/L",  ref_low: 3.5,  ref_high: 9.5,  zscore_threshold: 3.0}
+    - {code: PLT,      unit: "10^9/L",  ref_low: 125,  ref_high: 350,  zscore_threshold: 3.0}
+    - {code: SODIUM,   unit: "mmol/L",  ref_low: 135,  ref_high: 145,  zscore_threshold: 3.0}
+    - {code: POTASSIUM,unit: "mmol/L",  ref_low: 3.5,  ref_high: 5.5,  zscore_threshold: 3.0}
+    - {code: CHOL,     unit: "mmol/L",  ref_low: 3.0,  ref_high: 5.7,  zscore_threshold: 3.0}
+  # 离群值检测方法: zscore | iqr
+  outlier_method: zscore
+  # 中心间均值偏倚阈值（倍标准差），超过则标记中心偏倚
+  center_bias_sd: 2.0
+  # 同一访视记录允许的最大变异系数
+  cv_threshold: 0.30
+
+# -----------------------------------------------------------------------------
+# 稽查轨迹与快照配置
+# -----------------------------------------------------------------------------
+audit:
+  enabled: true
+  # 日志文件路径（相对工作目录或绝对路径）
+  log_file: "logs/audit_{date}.log"
+  # 稽查报告输出目录
+  report_dir: "audit_reports"
+  # 哈希算法
+  hash_algo: "sha256"
+
+snapshot:
+  # 快照存储目录
+  dir: "snapshots"
+  # 快照保留数量
+  keep: 20
+
+# -----------------------------------------------------------------------------
+# 日志配置（loguru）
+# -----------------------------------------------------------------------------
+logging:
+  level: "INFO"
+  log_dir: "logs"
+  rotation: "10 MB"
+  retention: "30 days"
+  compression: "zip"
+  # 按模块过滤：模块名 -> 级别
+  module_levels:
+    ingestor: "INFO"
+    transformer: "INFO"
+    validator: "INFO"
+    query_mgr: "INFO"
+    audit_trail: "INFO"
