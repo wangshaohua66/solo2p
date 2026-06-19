@@ -1,0 +1,339 @@
+// 胶片暗金 — 全局样式与 Element Plus 暗色主题覆盖
+@use './variables.scss' as *;
+
+:root {
+  // 背景层次
+  --c-bg-base: #{$bg-base};
+  --c-bg-surface: #{$bg-surface};
+  --c-bg-elevated: #{$bg-elevated};
+  --c-bg-card: #{$bg-card};
+  --c-bg-hover: #{$bg-hover};
+
+  // 品牌色
+  --c-gold: #{$gold};
+  --c-gold-bright: #{$gold-bright};
+  --c-gold-deep: #{$gold-deep};
+  --c-gold-soft: #{$gold-soft};
+  --c-crimson: #{$crimson};
+  --c-crimson-soft: #{$crimson-soft};
+
+  // 文本
+  --c-text-primary: #{$text-primary};
+  --c-text-secondary: #{$text-secondary};
+  --c-text-tertiary: #{$text-tertiary};
+
+  // 功能
+  --c-success: #{$success};
+  --c-warning: #{$warning};
+  --c-danger: #{$danger};
+  --c-info: #{$info};
+
+  // 边框
+  --c-border: #{$border};
+  --c-border-strong: #{$border-strong};
+
+  // 字体
+  --font-display: 'Cinzel', 'Noto Serif SC', 'Songti SC', serif;
+  --font-body: 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+  --font-num: 'Oswald', 'Noto Sans SC', sans-serif;
+
+  // Element Plus 主题变量覆盖（暗色）
+  --el-color-primary: #{$gold};
+  --el-color-primary-light-3: #{$gold-deep};
+  --el-color-primary-light-5: #b8881f;
+  --el-color-primary-light-7: rgba(232, 181, 71, 0.4);
+  --el-color-primary-light-8: rgba(232, 181, 71, 0.25);
+  --el-color-primary-light-9: rgba(232, 181, 71, 0.12);
+  --el-color-primary-dark-2: #{$gold-bright};
+  --el-color-success: #{$success};
+  --el-color-warning: #{$warning};
+  --el-color-danger: #{$crimson};
+  --el-color-error: #{$danger};
+  --el-color-info: #{$text-secondary};
+
+  --el-bg-color: #{$bg-elevated};
+  --el-bg-color-page: #{$bg-base};
+  --el-bg-color-overlay: #{$bg-elevated};
+  --el-text-color-primary: #{$text-primary};
+  --el-text-color-regular: #{$text-secondary};
+  --el-text-color-secondary: #{$text-tertiary};
+  --el-text-color-placeholder: #6b6f7e;
+  --el-border-color: #{$border};
+  --el-border-color-light: #{$border};
+  --el-border-color-lighter: #{$border};
+  --el-border-color-extra-light: rgba(255, 255, 255, 0.04);
+  --el-border-color-dark: rgba(232, 181, 71, 0.2);
+  --el-fill-color: rgba(255, 255, 255, 0.03);
+  --el-fill-color-light: rgba(255, 255, 255, 0.04);
+  --el-fill-color-lighter: rgba(255, 255, 255, 0.02);
+  --el-fill-color-blank: transparent;
+  --el-mask-color: rgba(11, 11, 18, 0.8);
+  --el-disabled-bg-color: rgba(255, 255, 255, 0.03);
+
+  // 圆角
+  --el-border-radius-base: 8px;
+  --el-border-radius-small: 6px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--c-bg-base);
+  color: var(--c-text-primary);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+// 全局胶片颗粒背景层
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+// 放映机暖光氛围
+body::after {
+  content: '';
+  position: fixed;
+  top: -20%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1200px;
+  height: 600px;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(232, 181, 71, 0.06) 0%, transparent 60%);
+}
+
+#app {
+  position: relative;
+  z-index: 1;
+}
+
+a {
+  color: var(--c-gold);
+  text-decoration: none;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(232, 181, 71, 0.22);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(232, 181, 71, 0.42);
+}
+
+// ====== 通用工具类 ======
+.gold-text {
+  @include gold-text;
+}
+
+.num {
+  font-family: var(--font-num);
+  font-feature-settings: 'tnum';
+}
+
+.display {
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
+}
+
+// ====== Element Plus 组件暗金定制 ======
+.el-card {
+  background: linear-gradient(180deg, #1a1a26 0%, #12121c 100%);
+  border: 1px solid var(--c-border) !important;
+  border-radius: $radius !important;
+  box-shadow: $shadow-card, $shadow-inset;
+  color: var(--c-text-primary);
+  position: relative;
+  overflow: hidden;
+  &.is-never-shadow {
+    box-shadow: none;
+  }
+  .el-card__header {
+    border-bottom: 1px solid var(--c-border);
+    padding: 16px 20px;
+  }
+  .el-card__body {
+    padding: 20px;
+  }
+}
+
+.el-button {
+  font-weight: 500;
+  border-radius: 8px;
+  transition: all 0.25s ease;
+}
+
+.el-button--primary {
+  background: $grad-gold !important;
+  border: none !important;
+  color: #1a1305 !important;
+  font-weight: 600;
+  box-shadow: 0 4px 14px rgba(232, 181, 71, 0.28);
+  &:hover {
+    box-shadow: 0 6px 22px rgba(232, 181, 71, 0.45);
+    transform: translateY(-1px);
+  }
+}
+
+.el-button--default {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid var(--c-border) !important;
+  color: var(--c-text-primary) !important;
+  &:hover {
+    border-color: $gold-line !important;
+    color: $gold !important;
+    background: $gold-soft !important;
+  }
+}
+
+.el-button--danger {
+  background: $grad-crimson !important;
+  border: none !important;
+  color: #fff !important;
+}
+
+.el-table {
+  background: transparent;
+  color: var(--c-text-primary);
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: rgba(232, 181, 71, 0.05);
+  --el-table-border-color: var(--c-border);
+  --el-table-header-text-color: var(--c-text-secondary);
+  --el-table-text-color: var(--c-text-primary);
+  --el-table-row-hover-bg-color: rgba(232, 181, 71, 0.05);
+  th.el-table__cell {
+    background: rgba(232, 181, 71, 0.05) !important;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+}
+
+.el-input__wrapper,
+.el-textarea__inner,
+.el-select__wrapper {
+  background-color: rgba(0, 0, 0, 0.25) !important;
+  box-shadow: 0 0 0 1px var(--c-border) inset !important;
+  border-radius: 8px !important;
+  &:hover {
+    box-shadow: 0 0 0 1px $gold-line inset !important;
+  }
+  &.is-focus {
+    box-shadow: 0 0 0 1px $gold inset !important;
+  }
+}
+
+.el-input__inner {
+  color: var(--c-text-primary) !important;
+}
+
+.el-tag {
+  border-radius: 6px;
+  border: none;
+  font-weight: 500;
+}
+
+.el-menu {
+  border-right: none !important;
+}
+
+.el-dialog {
+  background: $grad-surface !important;
+  border: 1px solid var(--c-border-strong);
+  border-radius: $radius-lg !important;
+  box-shadow: $shadow-card;
+}
+
+.el-pagination {
+  --el-pagination-bg-color: rgba(255, 255, 255, 0.04);
+  --el-pagination-button-color: var(--c-text-secondary);
+  --el-pagination-hover-color: #{$gold};
+}
+
+.el-tabs__item {
+  color: var(--c-text-secondary);
+  &.is-active {
+    color: $gold !important;
+  }
+}
+.el-tabs__active-bar {
+  background: $grad-gold !important;
+}
+.el-tabs__nav-wrap::after {
+  background-color: var(--c-border) !important;
+}
+
+.el-badge__content {
+  border: none;
+}
+
+.el-divider {
+  border-color: var(--c-border);
+}
+
+.el-empty__description p {
+  color: var(--c-text-tertiary);
+}
+
+// 动效
+@keyframes pulse-gold {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(232, 181, 71, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(232, 181, 71, 0);
+  }
+}
+
+@keyframes beam-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-up {
+  animation: fade-up 0.5s ease both;
+}

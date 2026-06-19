@@ -1,0 +1,111 @@
+// 胶片暗金 Cinematic Noir — 设计令牌（SCSS 变量与混入）
+// 此文件通过 vite additionalData 注入所有 SCSS 模块，仅放置 $ 变量与 mixin，避免重复输出
+
+// ---- 金色光谱 ----
+$gold: #e8b547;
+$gold-bright: #f0c75e;
+$gold-deep: #b8881f;
+$gold-soft: rgba(232, 181, 71, 0.12);
+$gold-line: rgba(232, 181, 71, 0.22);
+
+// ---- 绛红 ----
+$crimson: #c8364f;
+$crimson-bright: #e0445e;
+$crimson-soft: rgba(200, 54, 79, 0.16);
+
+// ---- 背景层次 ----
+$bg-base: #0b0b12;
+$bg-surface: #12121c;
+$bg-elevated: #1a1a26;
+$bg-card: #16161f;
+$bg-hover: #1f1f2c;
+
+// ---- 文本 ----
+$text-primary: #f5f5f7;
+$text-secondary: #a0a3b1;
+$text-tertiary: #6b6f7e;
+
+// ---- 功能色 ----
+$success: #4ade80;
+$warning: #fbbf24;
+$danger: #ef4444;
+$info: #60a5fa;
+
+// ---- 边框 ----
+$border: rgba(255, 255, 255, 0.07);
+$border-strong: rgba(232, 181, 71, 0.28);
+
+// ---- 圆角 ----
+$radius-sm: 6px;
+$radius: 10px;
+$radius-lg: 16px;
+
+// ---- 阴影 ----
+$shadow-card: 0 8px 30px rgba(0, 0, 0, 0.45);
+$shadow-gold: 0 0 24px rgba(232, 181, 71, 0.18);
+$shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+
+// ---- 渐变 ----
+$grad-gold: linear-gradient(135deg, #f0c75e 0%, #e8b547 45%, #b8881f 100%);
+$grad-crimson: linear-gradient(135deg, #e0445e 0%, #c8364f 100%);
+$grad-surface: linear-gradient(180deg, #1a1a26 0%, #12121c 100%);
+
+// ---- 混入 ----
+@mixin gold-text {
+  background: $grad-gold;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+@mixin film-grain {
+  position: relative;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mix-blend-mode: overlay;
+  }
+}
+
+@mixin gold-top-line {
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 12%;
+    right: 12%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, $gold, transparent);
+    opacity: 0.6;
+  }
+}
+
+@mixin card-base {
+  background: $grad-surface;
+  border: 1px solid $border;
+  border-radius: $radius;
+  box-shadow: $shadow-card, $shadow-inset;
+  position: relative;
+}
+
+@mixin scrollbar-dark {
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(232, 181, 71, 0.25);
+    border-radius: 4px;
+    &:hover {
+      background: rgba(232, 181, 71, 0.45);
+    }
+  }
+}
