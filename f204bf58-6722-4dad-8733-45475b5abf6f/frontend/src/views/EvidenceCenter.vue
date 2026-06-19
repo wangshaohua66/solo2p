@@ -106,6 +106,12 @@
                     <el-button size="small" link>更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
                     <template #dropdown>
                       <el-dropdown-menu>
+                        <el-dropdown-item command="ocr">
+                          <el-icon><Reading /></el-icon>{{ ev.has_ocr ? '重新OCR识别' : 'OCR文字识别' }}
+                        </el-dropdown-item>
+                        <el-dropdown-item command="watermark">
+                          <el-icon><Stamp /></el-icon>{{ ev.has_watermark ? '重新添加水印' : '添加水印标注' }}
+                        </el-dropdown-item>
                         <el-dropdown-item command="borrow" v-if="['in_store', 'returned'].includes(ev.storage_status)">
                           <el-icon><Download /></el-icon>借出登记
                         </el-dropdown-item>
@@ -155,9 +161,11 @@
         <el-table-column label="上传人" width="100">
           <template #default="{ row }">{{ row.uploaded_by_info?.full_name }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
             <el-button size="small" type="primary" link @click="openPreview(row)">预览</el-button>
+            <el-button size="small" type="primary" link @click="handleAction('ocr', row)" :loading="ocrLoading === row.id">OCR识别</el-button>
+            <el-button size="small" link @click="handleAction('watermark', row)">加水印</el-button>
             <el-button size="small" link @click="handleAction('borrow', row)" v-if="['in_store', 'returned'].includes(row.storage_status)">借出</el-button>
             <el-button size="small" link @click="handleAction('return', row)" v-if="row.storage_status === 'borrowed'">归还</el-button>
             <el-button size="small" type="danger" link @click="handleAction('lost', row)" v-if="row.storage_status !== 'lost'">遗失</el-button>
@@ -300,6 +308,32 @@
         <el-button type="primary" style="margin-top:12px" @click="handleScanCode">识别</el-button>
       </div>
     </el-dialog>
+
+    <el-dialog v-model="showWatermarkDialog" title="添加水印标注" width="440px">
+      <el-form :model="watermarkForm" label-width="90px">
+        <el-form-item label="水印文字">
+          <el-input v-model="watermarkForm.text" maxlength="50" />
+        </el-form-item>
+        <el-form-item label="透明度">
+          <el-slider v-model="watermarkForm.opacity" :min="0.1" :max="0.8" :step="0.05" />
+        </el-form-item>
+        <el-form-item label="位置">
+          <el-radio-group v-model="watermarkForm.position">
+            <el-radio value="diagonal">斜角铺底</el-radio>
+            <el-radio value="center">居中</el-radio>
+            <el-radio value="bottom_right">右下角</el-radio>
+            <el-radio value="repeat">平铺</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="文件类型" v-if="current">
+          <el-tag>{{ current.file_name }}</el-tag>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showWatermarkDialog = false">取消</el-button>
+        <el-button type="primary" :loading="watermarkLoading" @click="doAddWatermark">确认添加</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -308,11 +342,11 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import {
   Upload, Search, Picture, Grid, Document, ArrowDown, Edit, Warning,
   Download, Star, Cpu, UploadFilled, CircleCheck, Collection,
-  Folder, Reading, Film, PictureFilled, Files
+  Folder, Reading, Film, PictureFilled, Files, Stamp
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useEvidenceStore } from '@/stores/evidence'
-import { userApi, caseApi } from '@/api/modules'
+import { userApi, caseApi, evidenceApi } from '@/api/modules'
 import type { Evidence } from '@/types'
 import dayjs from 'dayjs'
 
@@ -322,8 +356,17 @@ const showDetail = ref(false)
 const showUpload = ref(false)
 const showBorrow = ref(false)
 const showScan = ref(false)
+const showWatermarkDialog = ref(false)
+const ocrLoading = ref<any>(null)
+const watermarkLoading = ref(false)
 const uploading = ref(false)
 const viewMode = ref<'masonry' | 'table'>('masonry')
+
+const watermarkForm = reactive({
+  text: '机密 - 仅限办案使用',
+  opacity: 0.3,
+  position: 'diagonal'
+})
 
 const search = ref('')
 const filterCase = ref<number | null>(null)
@@ -473,6 +516,42 @@ function handleAction(cmd: string, ev: Evidence) {
         ElMessage.success('已标记遗失，预警已触发')
         await loadEvidences()
       }).catch(() => {})
+  } else if (cmd === 'ocr') {
+    doOcrRecognize(ev)
+  } else if (cmd === 'watermark') {
+    current.value = ev
+    showWatermarkDialog.value = true
+  }
+}
+
+async function doOcrRecognize(ev: Evidence) {
+  ocrLoading.value = ev.id
+  try {
+    const res: any = await evidenceApi.ocrRecognize(ev.id)
+    ev.ocr_content = res.data?.ocr_content || ''
+    ev.has_ocr = true
+    ElMessage.success('OCR识别完成，已保存识别结果')
+  } catch (e: any) {
+    ElMessage.error(e.message || '识别失败')
+  } finally {
+    ocrLoading.value = null
+  }
+}
+
+async function doAddWatermark() {
+  if (!current.value) return
+  watermarkLoading.value = true
+  try {
+    const res: any = await evidenceApi.addWatermark(current.value.id, watermarkForm)
+    const ev: any = current.value
+    ev.has_watermark = true
+    ev.watermark_info = res.data?.watermark_info || watermarkForm
+    ElMessage.success('水印添加成功')
+    showWatermarkDialog.value = false
+  } catch (e: any) {
+    ElMessage.error(e.message || '添加水印失败')
+  } finally {
+    watermarkLoading.value = false
   }
 }
 

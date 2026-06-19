@@ -96,7 +96,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { Document, Calendar, Tickets, Money } from '@element-plus/icons-vue'
-import { caseApi, trialApi } from '@/api/modules'
+import { caseApi, trialApi, settlementApi } from '@/api/modules'
 import dayjs from 'dayjs'
 
 const stat = reactive({ active: 0, trials: 0, docs: 0, unpaid: 0 })
@@ -115,21 +115,26 @@ function viewTrial(t: any) { window.alert('庭审详情：' + t.case_info?.case_
 onMounted(async () => {
   loading.value = true
   try {
-    const [cases, trialsRes] = await Promise.all([
+    const [cases, trialsRes, settlementsRes] = await Promise.all([
       caseApi.list({ page_size: 10 }) as Promise<any>,
-      trialApi.list({ upcoming: true, page_size: 20 }) as Promise<any>
+      trialApi.list({ upcoming: true, page_size: 20 }) as Promise<any>,
+      settlementApi.list({ page_size: 50 }) as Promise<any>,
     ])
     recentCases.value = cases.data?.results || []
     trials.value = trialsRes.data?.results || []
     stat.active = recentCases.value.filter((c: any) => !['closed', 'closing'].includes(c.status)).length
     stat.trials = trials.value.length
-    stat.docs = Math.floor(Math.random() * 30) + 8
-    stat.unpaid = 28500
-    billing.value = [
-      { period: '2024-01', description: '一审律师费 (半风险代理)', amount: 50000, paid: true },
-      { period: '2024-02', description: '证据公证费', amount: 2500, paid: true },
-      { period: '2024-03', description: '二审律师费 (固定收费)', amount: 28500, paid: false },
-    ]
+    const settlements = settlementsRes.data?.results || []
+    stat.docs = settlements.length
+    stat.unpaid = settlements.reduce((s: number, sm: any) => s + (sm.unpaid_amount || 0), 0)
+    billing.value = settlements.map((sm: any) => ({
+      period: dayjs(sm.created_at || sm.issue_date).format('YYYY-MM'),
+      description: `${sm.settlement_no} - ${sm.case_info?.case_name || sm.client_info?.client_name || '律师费结算'}`,
+      amount: sm.settlement_amount || 0,
+      paid: (sm.paid_amount || 0) >= (sm.settlement_amount || 0) && (sm.settlement_amount || 0) > 0,
+      unpaid_amount: sm.unpaid_amount || 0,
+      paid_amount: sm.paid_amount || 0,
+    }))
   } finally { loading.value = false }
 })
 </script>

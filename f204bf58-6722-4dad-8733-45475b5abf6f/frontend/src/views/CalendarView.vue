@@ -44,20 +44,27 @@
             :class="{
               'other-month': day.otherMonth,
               'is-today': day.isToday,
-              'selected': selectedDate && day.date === selectedDate
+              'selected': selectedDate && day.date === selectedDate,
+              'drag-over': dragOverDate === day.date
             }"
             @click="selectDay(day)"
+            @dragover.prevent="onMonthDragOver($event, day)"
+            @dragleave="onMonthDragLeave(day)"
+            @drop.prevent="onMonthDrop($event, day)"
           >
             <div class="day-number">{{ day.num }}</div>
             <div class="day-events">
               <div
-                v-for="ev in day.events"
-                :key="ev.id"
-                class="event-item"
-                :class="{ conflict: ev.has_conflict }"
-                :style="{ background: ev.color }"
-                @click.stop="openTrial(ev)"
-              >
+            v-for="ev in day.events"
+            :key="ev.id"
+            class="event-item"
+            :class="{ conflict: ev.has_conflict, dragging: draggingTrial?.id === ev.id }"
+            :style="{ background: ev.color }"
+            draggable="true"
+            @dragstart="onDragStart($event, ev)"
+            @dragend="onDragEnd"
+            @click.stop="openTrial(ev)"
+          >
                 <span class="ev-time">{{ ev.startStr }}</span>
                 <span class="ev-title">{{ ev.title }}</span>
               </div>
@@ -78,13 +85,20 @@
                 <div class="num">{{ day.num }}</div>
               </div>
               <div class="day-time-slots">
-                <div v-for="h in 24" :key="h" class="slot" @click="slotClick(day, h - 1)">
+                <div v-for="h in 24" :key="h" class="slot"
+                  @click="slotClick(day, h - 1)"
+                  @dragover.prevent
+                  @drop.prevent="onWeekDrop($event, day, h - 1)"
+                >
                   <div
                     v-for="ev in getSlotEvents(day, h - 1)"
                     :key="ev.id"
                     class="event-block"
-                    :class="{ conflict: ev.has_conflict }"
+                    :class="{ conflict: ev.has_conflict, dragging: draggingTrial?.id === ev.id }"
                     :style="getEventStyle(ev)"
+                    draggable="true"
+                    @dragstart="onDragStart($event, ev)"
+                    @dragend="onDragEnd"
                     @click.stop="openTrial(ev)"
                   >
                     <div class="eb-time">{{ ev.startStr }}</div>
@@ -257,6 +271,9 @@ const currentTrial = ref<any>(null)
 const conflictResult = ref<any>(null)
 const startTime = ref('')
 const endTime = ref('')
+const draggingTrial = ref<any>(null)
+const dragOverDate = ref<string>('')
+const dragSaving = ref(false)
 
 const defaultTrialForm = () => ({
   case: null as number | null,
@@ -507,6 +524,85 @@ async function deleteTrial(t: any) {
   await loadCalendar()
 }
 
+function onDragStart(e: DragEvent, ev: any) {
+  draggingTrial.value = ev
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(ev.id))
+  }
+}
+function onDragEnd() {
+  draggingTrial.value = null
+  dragOverDate.value = ''
+}
+function onMonthDragOver(e: DragEvent, day: any) {
+  dragOverDate.value = day.date
+}
+function onMonthDragLeave(day: any) {
+  if (dragOverDate.value === day.date) dragOverDate.value = ''
+}
+async function onMonthDrop(e: DragEvent, day: any) {
+  dragOverDate.value = ''
+  const ev = draggingTrial.value
+  if (!ev) return
+  const oldStart = dayjs(ev.start)
+  const oldEnd = dayjs(ev.end || ev.start)
+  const durationMin = Math.max(30, oldEnd.diff(oldStart, 'minute'))
+  const newDate = dayjs(day.date)
+  const newStart = newDate.hour(oldStart.hour()).minute(oldStart.minute()).second(0)
+  const newEnd = newStart.add(durationMin, 'minute')
+  await applyTrialDrag(ev, newStart, newEnd)
+}
+async function onWeekDrop(e: DragEvent, day: any, hour: number) {
+  const ev = draggingTrial.value
+  if (!ev) return
+  const oldStart = dayjs(ev.start)
+  const oldEnd = dayjs(ev.end || ev.start)
+  const durationMin = Math.max(30, oldEnd.diff(oldStart, 'minute'))
+  const newStart = dayjs(day.date).hour(hour).minute(0).second(0)
+  const newEnd = newStart.add(durationMin, 'minute')
+  await applyTrialDrag(ev, newStart, newEnd)
+}
+async function applyTrialDrag(ev: any, newStart: Dayjs, newEnd: Dayjs) {
+  if (dragSaving.value) return
+  dragSaving.value = true
+  try {
+    const trialId = ev.id || ev.extendedProps?.id
+    if (!trialId) { ElMessage.warning('无法识别该庭审'); return }
+    const payload = {
+      case: ev.extendedProps?.case_id,
+      trial_type: ev.extendedProps?.trial_type || 'first_instance',
+      presiding_lawyer: ev.extendedProps?.presiding_lawyer?.id,
+      start_time: newStart.format('YYYY-MM-DDTHH:mm:ss'),
+      end_time: newEnd.format('YYYY-MM-DDTHH:mm:ss'),
+      location: ev.extendedProps?.location,
+      courtroom: ev.extendedProps?.courtroom,
+      result: ev.extendedProps?.result || 'pending',
+    }
+    const conflict = await trialStore.checkConflict({
+      presiding_lawyer: payload.presiding_lawyer,
+      start_time: payload.start_time,
+      end_time: payload.end_time,
+      exclude_trial_id: trialId,
+    })
+    if ((conflict as any)?.data?.has_conflict) {
+      await ElMessageBox.alert(
+        `⚠️ 检测到时间冲突：${(conflict as any).data.conflicts?.[0]?.case_name || '其他庭审'}，是否仍要调整？`,
+        '冲突提示',
+        { type: 'warning', confirmButtonText: '仍要调整', cancelButtonText: '取消', showCancelButton: true } as any
+      ).catch(() => { throw new Error('cancel') })
+    }
+    await trialStore.updateTrial(trialId, payload)
+    ElMessage.success(`已调整至 ${newStart.format('YYYY-MM-DD HH:mm')}`)
+    await loadCalendar()
+  } catch (e: any) {
+    if (e?.message !== 'cancel') ElMessage.error(e?.message || '调整失败')
+  } finally {
+    dragSaving.value = false
+    draggingTrial.value = null
+  }
+}
+
 watch([startTime, endTime, () => trialForm.presiding_lawyer], () => { conflictResult.value = null })
 
 onMounted(async () => {
@@ -579,6 +675,11 @@ onMounted(async () => {
         display: inline-block;
       }
       &.selected { background: #ebf8ff; }
+      &.drag-over {
+        background: #ebf8ff !important;
+        outline: 2px dashed #4299e1;
+        outline-offset: -2px;
+      }
       .day-number { font-size: 13px; color: #4a5568; font-weight: 500; margin-bottom: 4px; }
       .day-events {
         display: flex;
@@ -592,12 +693,14 @@ onMounted(async () => {
           display: flex;
           gap: 4px;
           overflow: hidden;
-          cursor: pointer;
+          cursor: move;
           white-space: nowrap;
+          user-select: none;
           &.conflict {
             background: #e53e3e !important;
             animation: pulse-danger 1.5s infinite;
           }
+          &.dragging { opacity: 0.4; }
           .ev-time { flex-shrink: 0; }
           .ev-title { overflow: hidden; text-overflow: ellipsis; }
         }
@@ -670,12 +773,14 @@ onMounted(async () => {
       border-radius: 4px;
       font-size: 11px;
       overflow: hidden;
-      cursor: pointer;
+      cursor: move;
       z-index: 5;
+      user-select: none;
       .eb-time { font-weight: 600; color: #2d3748; }
       .eb-title { color: #2d3748; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .eb-loc { color: #718096; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       &.conflict { background: #fed7d7 !important; border-color: #e53e3e !important; animation: pulse-danger 1.5s infinite; }
+      &.dragging { opacity: 0.4; }
     }
   }
   .pagination {

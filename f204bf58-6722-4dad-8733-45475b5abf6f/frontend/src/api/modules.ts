@@ -65,7 +65,11 @@ export const evidenceApi = {
   alerts: (params?: any): Promise<ApiResponse<any[]>> => service.get('/cases/evidences/alerts/', { params }),
   batchUpload: (formData: FormData): Promise<ApiResponse<any>> => service.post('/cases/evidences/batch_upload/', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
-  })
+  }),
+  ocrRecognize: (id: number, data?: { lang?: string }): Promise<ApiResponse<any>> =>
+    service.post(`/cases/evidences/${id}/ocr_recognize/`, data || {}),
+  addWatermark: (id: number, data?: { text?: string; opacity?: number; position?: string }): Promise<ApiResponse<any>> =>
+    service.post(`/cases/evidences/${id}/add_watermark/`, data || {})
 }
 
 export const clientApi = {
@@ -157,4 +161,15 @@ export const docApi = {
   shareToClient: (id: number, data?: { email?: string }): Promise<ApiResponse<any>> =>
     service.post(`/documents/generated/${id}/share_to_client/`, data),
   markFinal: (id: number): Promise<ApiResponse<any>> => service.post(`/documents/generated/${id}/mark_final/`)
+}
+
+export const notificationApi = {
+  list: (params?: any): Promise<ApiResponse<PageResult<any>>> => service.get('/notifications/', { params }),
+  detail: (id: number): Promise<ApiResponse<any>> => service.get(`/notifications/${id}/`),
+  unread: (): Promise<ApiResponse<{ unread_count: number; recent: any[] }>> => service.get('/notifications/unread/'),
+  markRead: (id: number): Promise<ApiResponse<any>> => service.post(`/notifications/${id}/mark_read/`),
+  markAllRead: (): Promise<ApiResponse<any>> => service.post('/notifications/mark_all_read/'),
+  pushLimitation: (): Promise<ApiResponse<any>> => service.post('/notifications/push_limitation/'),
+  testPush: (channels?: string[]): Promise<ApiResponse<any>> =>
+    service.post('/notifications/test_push/', { channels: channels || ['in_app'] })
 }

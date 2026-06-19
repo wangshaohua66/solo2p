@@ -88,19 +88,68 @@
       </main>
     </div>
 
-    <el-drawer v-model="showAlerts" title="预警提醒" size="380px">
-      <div class="alerts-list">
-        <el-empty v-if="alerts.length === 0" description="暂无预警" />
-        <div v-for="a in alerts" :key="a.id" class="alert-item">
-          <div class="alert-level" :class="a.level">
-            <el-icon><Warning /></el-icon>
-          </div>
-          <div class="alert-body">
-            <p class="alert-msg">{{ a.message }}</p>
-            <p class="alert-time">{{ formatTime(a.created_at) }}</p>
+    <el-drawer v-model="showAlerts" size="400px">
+      <template #header>
+        <div style="display:flex;justify-content:space-between;align-items:center;width:100%">
+          <span style="font-size:16px;font-weight:600">🔔 消息中心 <el-tag size="small" type="danger" effect="plain" v-if="unreadNotifCount > 0">{{ unreadNotifCount }}条未读</el-tag></span>
+          <div style="display:flex;gap:8px">
+            <el-button size="small" @click="loadNotifications">刷新</el-button>
+            <el-button size="small" type="primary" :disabled="unreadNotifCount === 0" @click="markAllRead">全部已读</el-button>
           </div>
         </div>
-      </div>
+      </template>
+      <el-tabs v-model="activeTab">
+        <el-tab-pane label="全部" name="all">
+          <div class="alerts-list">
+            <el-empty v-if="notifications.length === 0" description="暂无消息" />
+            <div v-for="n in notifications" :key="n.id" class="alert-item" :class="{ unread: !n.read_at }" @click="handleNotifClick(n)">
+              <div class="alert-level" :class="n.level">
+                <el-icon v-if="n.level === 'critical' || n.level === 'urgent'"><Warning /></el-icon>
+                <el-icon v-else-if="n.category === 'trial_reminder'"><Calendar /></el-icon>
+                <el-icon v-else-if="n.category === 'billing_reminder'"><Money /></el-icon>
+                <el-icon v-else><Bell /></el-icon>
+              </div>
+              <div class="alert-body">
+                <p class="alert-title">{{ n.title }}</p>
+                <p class="alert-msg">{{ n.content }}</p>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+                  <span class="alert-time">{{ formatTime(n.created_at) }}</span>
+                  <span v-if="n.category_display" class="cat-tag">{{ n.category_display }}</span>
+                </div>
+              </div>
+              <div class="unread-dot" v-if="!n.read_at"></div>
+            </div>
+          </div>
+        </el-tab-pane>
+        <el-tab-pane label="时效预警" name="limitation_warning">
+          <div class="alerts-list">
+            <el-empty v-if="notifByCategory.limitation_warning.length === 0" description="暂无时效预警" />
+            <div v-for="n in notifByCategory.limitation_warning" :key="n.id" class="alert-item" :class="{ unread: !n.read_at }" @click="handleNotifClick(n)">
+              <div class="alert-level" :class="n.level"><el-icon><Warning /></el-icon></div>
+              <div class="alert-body">
+                <p class="alert-title">{{ n.title }}</p>
+                <p class="alert-msg">{{ n.content }}</p>
+                <span class="alert-time">{{ formatTime(n.created_at) }}</span>
+              </div>
+              <div class="unread-dot" v-if="!n.read_at"></div>
+            </div>
+          </div>
+        </el-tab-pane>
+        <el-tab-pane label="庭审提醒" name="trial_reminder">
+          <div class="alerts-list">
+            <el-empty v-if="notifByCategory.trial_reminder.length === 0" description="暂无庭审提醒" />
+            <div v-for="n in notifByCategory.trial_reminder" :key="n.id" class="alert-item" :class="{ unread: !n.read_at }" @click="handleNotifClick(n)">
+              <div class="alert-level info"><el-icon><Calendar /></el-icon></div>
+              <div class="alert-body">
+                <p class="alert-title">{{ n.title }}</p>
+                <p class="alert-msg">{{ n.content }}</p>
+                <span class="alert-time">{{ formatTime(n.created_at) }}</span>
+              </div>
+              <div class="unread-dot" v-if="!n.read_at"></div>
+            </div>
+          </div>
+        </el-tab-pane>
+      </el-tabs>
     </el-drawer>
 
     <el-dialog v-model="showPwdDialog" title="修改密码" width="420px">
@@ -127,23 +176,25 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
-  OfficeBuilding, Fold, Expand, Bell, Link, Warning, User, Key, SwitchButton
+  OfficeBuilding, Fold, Expand, Bell, Link, Warning, User, Key, SwitchButton, Calendar, Money
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { useCaseStore } from '@/stores/case'
-import { useEvidenceStore } from '@/stores/evidence'
+import { notificationApi } from '@/api/modules'
 import dayjs from 'dayjs'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const caseStore = useCaseStore()
-const evidenceStore = useEvidenceStore()
 
 const isCollapsed = ref(false)
 const showAlerts = ref(false)
 const showPwdDialog = ref(false)
+const activeTab = ref('all')
+const notifications = ref<any[]>([])
+const unreadNotifCount = ref(0)
 const pwdFormRef = ref<FormInstance>()
 const pwdForm = ref({ old_password: '', new_password: '', confirm_password: '' })
 const pwdRules: FormRules = {
@@ -170,8 +221,12 @@ const menuList = computed(() => [
 ])
 
 const warningCount = computed(() => caseStore.warningList.filter((w: any) => (w.days_left ?? 31) <= 30).length)
-const alertCount = computed(() => evidenceStore.alerts.filter(a => !a.is_read).length)
-const alerts = computed(() => evidenceStore.alerts)
+const alertCount = computed(() => unreadNotifCount.value + warningCount.value)
+const notifByCategory = computed(() => ({
+  limitation_warning: notifications.value.filter((n: any) => n.category === 'limitation_warning'),
+  trial_reminder: notifications.value.filter((n: any) => n.category === 'trial_reminder'),
+  evidence_alert: notifications.value.filter((n: any) => n.category === 'evidence_alert'),
+}))
 
 function hasRole(roles: string[]) {
   return roles.includes(userStore.user?.role || '')
@@ -179,6 +234,36 @@ function hasRole(roles: string[]) {
 
 function formatTime(t: string) {
   return dayjs(t).format('YYYY-MM-DD HH:mm')
+}
+
+async function loadNotifications() {
+  try {
+    const [listRes, unreadRes] = await Promise.all([
+      notificationApi.list({ page_size: 50 }) as Promise<any>,
+      notificationApi.unread(),
+    ])
+    notifications.value = listRes.data?.results || []
+    unreadNotifCount.value = (unreadRes as any).data?.unread_count || 0
+  } catch (e) {}
+}
+
+async function handleNotifClick(n: any) {
+  if (!n.read_at) {
+    try { await notificationApi.markRead(n.id); n.read_at = new Date().toISOString(); unreadNotifCount.value = Math.max(0, unreadNotifCount.value - 1) } catch {}
+  }
+  if (n.related_case_id) {
+    router.push(`/cases/${n.related_case_id}`)
+    showAlerts.value = false
+  }
+}
+
+async function markAllRead() {
+  try {
+    await notificationApi.markAllRead()
+    notifications.value.forEach((n: any) => { n.read_at = n.read_at || new Date().toISOString() })
+    unreadNotifCount.value = 0
+    ElMessage.success('已全部标记为已读')
+  } catch (e) {}
 }
 
 function handleUserCommand(cmd: string) {
@@ -213,7 +298,7 @@ onMounted(async () => {
   try {
     await Promise.all([
       caseStore.fetchWarnings(),
-      evidenceStore.fetchAlerts({ is_read: 'false' })
+      loadNotifications(),
     ])
   } catch (e) {}
 })
@@ -350,8 +435,15 @@ onMounted(async () => {
   .alert-item {
     display: flex;
     gap: 12px;
-    padding: 14px 0;
+    padding: 14px 12px;
     border-bottom: 1px solid #edf2f7;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.15s;
+    border-radius: 6px;
+    margin: 4px 0;
+    &:hover { background: #f7fafc; }
+    &.unread { background: #f0f9ff; }
     .alert-level {
       width: 36px;
       height: 36px;
@@ -363,13 +455,31 @@ onMounted(async () => {
       color: #fff;
       &.info { background: #3182ce; }
       &.warning { background: #d69e2e; }
-      &.danger { background: #e53e3e; }
-      &.critical { background: #c53030; animation: pulse-danger 1.5s infinite; }
+      &.urgent { background: #dd6b20; }
+      &.danger, &.critical { background: #c53030; animation: pulse-danger 1.5s infinite; }
     }
     .alert-body {
       flex: 1;
-      .alert-msg { font-size: 13px; color: #2d3748; margin-bottom: 4px; }
+      min-width: 0;
+      .alert-title { font-size: 14px; color: #1a365d; font-weight: 600; margin: 0 0 4px 0; }
+      .alert-msg { font-size: 13px; color: #2d3748; margin: 0 0 4px 0; line-height: 1.5; }
       .alert-time { font-size: 12px; color: #a0aec0; }
+      .cat-tag {
+        font-size: 11px;
+        background: #edf2f7;
+        color: #4a5568;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+    }
+    .unread-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #e53e3e;
+      flex-shrink: 0;
+      align-self: flex-start;
+      margin-top: 6px;
     }
   }
 }
