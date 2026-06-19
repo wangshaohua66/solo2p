@@ -17,6 +17,7 @@ class VipSpider(BaseJournalSpider):
         super().__init__(*args, **kwargs)
 
     def start_requests(self) -> Iterator[scrapy.Request]:
+        yield from self.generate_retry_requests()
         if self.target_issns:
             for issn in self.target_issns:
                 if self.should_skip_issn(issn):
@@ -102,14 +103,16 @@ class VipSpider(BaseJournalSpider):
                 )
 
     def parse_journal_detail(self, response, **kwargs):
+        journal_name = self.safe_extract(
+            response, '//h1[contains(@class,"title") or contains(@class,"journal-name")]/text() | '
+                     '//div[@class="journal-title"]/h1/text()'
+        ) or self._extract(response, '期刊名称') or ''
+        self._notify_progress(journal_name, response.meta.get('issn', ''), response.url)
         self.report_progress()
         issn_print = response.meta.get('issn', '') or self._extract(response, 'ISSN')
 
         data = {
-            'journal_name_cn': self.safe_extract(
-                response, '//h1[contains(@class,"title") or contains(@class,"journal-name")]/text() | '
-                         '//div[@class="journal-title"]/h1/text()'
-            ) or self._extract(response, '期刊名称'),
+            'journal_name_cn': journal_name,
             'journal_name_en': self._extract(response, '英文名') or self._extract(response, '英文名称'),
             'issn_print': issn_print,
             'cn_number': self._extract(response, 'CN') or self._extract(response, '国内刊号'),

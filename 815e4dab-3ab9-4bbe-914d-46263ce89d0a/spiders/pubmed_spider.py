@@ -23,6 +23,7 @@ class PubMedSpider(BaseJournalSpider):
         self._last_request_time = 0
 
     def start_requests(self) -> Iterator[scrapy.Request]:
+        yield from self.generate_retry_requests()
         base_params = {'db': 'nlmcatalog', 'retmode': 'json'}
         if self.api_key:
             base_params['api_key'] = self.api_key
@@ -125,6 +126,8 @@ class PubMedSpider(BaseJournalSpider):
             issn = record.get('issn') or issn_base
             if issn and self.should_skip_issn(issn):
                 continue
+            journal_name = record.get('title', '')
+            self._notify_progress(journal_name, issn, response.url)
             self.report_progress()
 
             data = {

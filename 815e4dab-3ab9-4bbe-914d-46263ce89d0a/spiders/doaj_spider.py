@@ -17,6 +17,7 @@ class DoajSpider(BaseJournalSpider):
         super().__init__(*args, **kwargs)
 
     def start_requests(self) -> Iterator[scrapy.Request]:
+        yield from self.generate_retry_requests()
         if self.target_issns:
             for issn in self.target_issns:
                 if self.should_skip_issn(issn):
@@ -79,6 +80,8 @@ class DoajSpider(BaseJournalSpider):
             if issn and self.should_skip_issn(issn):
                 continue
 
+            journal_name = bibjson.get('title', '')
+            self._notify_progress(journal_name, issn, response.url)
             self.report_progress()
 
             subjects = []

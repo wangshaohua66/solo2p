@@ -17,6 +17,7 @@ class CnkiSpider(BaseJournalSpider):
         super().__init__(*args, **kwargs)
 
     def start_requests(self) -> Iterator[scrapy.Request]:
+        yield from self.generate_retry_requests()
         if self.target_issns:
             for issn in self.target_issns:
                 if self.should_skip_issn(issn):
@@ -89,6 +90,12 @@ class CnkiSpider(BaseJournalSpider):
                 )
 
     def parse_journal_detail(self, response, **kwargs):
+        journal_name = self.safe_extract(
+            response, '//h1[contains(@class,"title")]/text() | '
+                     '//div[@class="journal-title"]/h1/text() | '
+                     '//div[@id="divNaviTitle"]//h1/text()'
+        )
+        self._notify_progress(journal_name, response.meta.get('issn', ''), response.url)
         self.report_progress()
         issn_print = response.meta.get('issn', '') or self.safe_extract(
             response, '//span[contains(text(),"ISSN")]/following-sibling::text() | '

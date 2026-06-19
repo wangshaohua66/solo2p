@@ -18,6 +18,7 @@ class ScopusSpider(BaseJournalSpider):
         self.api_key = self.config.get_auth_config('scopus').get('api_key', '')
 
     def start_requests(self) -> Iterator[scrapy.Request]:
+        yield from self.generate_retry_requests()
         headers = {}
         if self.api_key:
             headers['X-ELS-APIKey'] = self.api_key
@@ -96,8 +97,12 @@ class ScopusSpider(BaseJournalSpider):
                     yield item
 
     def parse_journal_detail(self, response, **kwargs):
-        self.report_progress()
         api_data = response.meta.get('api_data', {})
+        journal_name = api_data.get('dc:title') or api_data.get('title') or self.safe_extract(
+            response, '//h1[contains(@class,"title")]/text() | //h2[contains(@class,"journal-name")]/text()'
+        ) or ''
+        self._notify_progress(journal_name, response.meta.get('issn', ''), response.url)
+        self.report_progress()
         issn_print = response.meta.get('issn', '') or self._extract(response, 'ISSN') or api_data.get('prism:issn')
 
         data = {
@@ -151,6 +156,7 @@ class ScopusSpider(BaseJournalSpider):
         if not title and not issn:
             return None
 
+        self._notify_progress(title or '', issn, source_url)
         self.report_progress()
         subject_areas = []
         sa = entry.get('subject-area')

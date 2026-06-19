@@ -8,6 +8,11 @@ crawl:
   user_agent_rotation: true
   proxy_enabled: false
   cookie_pool_enabled: false
+  cookie_validation_interval: 1800
+  cookie_max_failures: 5
+  cookie_max_age_hours: 72
+  cookie_meta_file: output/cookie_meta.json
+  cookie_selection_strategy: round_robin
   max_memory_mb: 1024
   daily_time_limit_hours: 8
   retry_http_codes: [408, 429, 500, 502, 503, 504, 522, 524]
@@ -17,6 +22,10 @@ crawl:
 incremental:
   enabled: true
   update_frequency: weekly
+  update_frequency_seconds: null
+  update_frequency_minutes: null
+  update_frequency_hours: null
+  update_frequency_days: null
   force_full_crawl: false
   check_field_changes: true
 

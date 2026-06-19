@@ -18,6 +18,7 @@ class MicrosoftAcademicSpider(BaseJournalSpider):
         self.api_key = self.config.get_auth_config('microsoft_academic').get('api_key', '')
 
     def start_requests(self) -> Iterator[scrapy.Request]:
+        yield from self.generate_retry_requests()
         headers = {}
         if self.api_key:
             headers['Ocp-Apim-Subscription-Key'] = self.api_key
@@ -104,6 +105,8 @@ class MicrosoftAcademicSpider(BaseJournalSpider):
             if issn and self.should_skip_issn(issn):
                 continue
 
+            journal_name = entity.get('JN') or entity.get('JJ') or entity.get('DN') or entity.get('Ti') or ''
+            self._notify_progress(journal_name, issn, response.url)
             self.report_progress()
 
             fields = []

@@ -18,6 +18,7 @@ class WanfangSpider(BaseJournalSpider):
         super().__init__(*args, **kwargs)
 
     def start_requests(self) -> Iterator[scrapy.Request]:
+        yield from self.generate_retry_requests()
         if self.target_issns:
             for issn in self.target_issns:
                 if self.should_skip_issn(issn):
@@ -91,12 +92,14 @@ class WanfangSpider(BaseJournalSpider):
                 )
 
     def parse_journal_detail(self, response, **kwargs):
-        self.report_progress()
         preview = response.meta.get('preview_data', {})
+        journal_name = self._extract_from_detail(response, '刊名') or preview.get('title') or preview.get('name') or ''
+        self._notify_progress(journal_name, response.meta.get('issn', ''), response.url)
+        self.report_progress()
         issn_print = response.meta.get('issn', '') or self._extract_from_detail(response, 'ISSN')
 
         data = {
-            'journal_name_cn': self._extract_from_detail(response, '刊名') or preview.get('title') or preview.get('name'),
+            'journal_name_cn': journal_name,
             'journal_name_en': self._extract_from_detail(response, '英文名'),
             'issn_print': issn_print,
             'cn_number': self._extract_from_detail(response, 'CN'),

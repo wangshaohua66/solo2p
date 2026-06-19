@@ -18,6 +18,7 @@ class WebOfScienceSpider(BaseJournalSpider):
         super().__init__(*args, **kwargs)
 
     def start_requests(self) -> Iterator[scrapy.Request]:
+        yield from self.generate_retry_requests()
         yield scrapy.Request(
             url=self.MASTER_JOURNAL_URL,
             callback=self.parse_home_page,
@@ -98,13 +99,15 @@ class WebOfScienceSpider(BaseJournalSpider):
                     yield item
 
     def parse_journal_detail(self, response, **kwargs):
-        self.report_progress()
         api_data = response.meta.get('api_data', {})
+        journal_name = api_data.get('journalName') or self._extract_detail(response, 'Journal Name') or self._extract_detail(response, '期刊名称') or ''
+        self._notify_progress(journal_name, response.meta.get('issn', ''), response.url)
+        self.report_progress()
         issn_print = response.meta.get('issn', '') or self._extract_detail(response, 'ISSN')
 
         data = {
-            'journal_name_cn': self._extract_detail(response, '期刊名称') or api_data.get('journalName'),
-            'journal_name_en': api_data.get('journalName') or self._extract_detail(response, 'Journal Name'),
+            'journal_name_cn': self._extract_detail(response, '期刊名称') or journal_name,
+            'journal_name_en': journal_name or self._extract_detail(response, 'Journal Name'),
             'issn_print': issn_print,
             'issn_online': self._extract_detail(response, 'Online ISSN') or api_data.get('onlineIssn'),
             'eissn': api_data.get('eissn'),
@@ -144,12 +147,14 @@ class WebOfScienceSpider(BaseJournalSpider):
 
     def _build_from_api(self, journal: dict, source_url: str):
         issn = journal.get('issn') or journal.get('printIssn', '')
-        if not journal.get('journalName') and not issn:
+        journal_name = journal.get('journalName', '')
+        if not journal_name and not issn:
             return None
 
+        self._notify_progress(journal_name, issn, source_url)
         self.report_progress()
         data = {
-            'journal_name_en': journal.get('journalName', ''),
+            'journal_name_en': journal_name,
             'issn_print': issn,
             'issn_online': journal.get('onlineIssn'),
             'publisher': journal.get('publisher'),

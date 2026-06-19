@@ -20,6 +20,7 @@ class GoogleScholarSpider(BaseJournalSpider):
         self._last_request_time = 0
 
     def start_requests(self) -> Iterator[scrapy.Request]:
+        yield from self.generate_retry_requests()
         if self.target_issns:
             for issn in self.target_issns:
                 if self.should_skip_issn(issn):
@@ -85,8 +86,9 @@ class GoogleScholarSpider(BaseJournalSpider):
             source_names = self._extract_source(venue_text)
             journal_name = self._extract_journal_name(venue_text)
 
+            journal_title = title or journal_name
             data = {
-                'journal_name_en': title or journal_name,
+                'journal_name_en': journal_title,
                 'journal_name_cn': '',
                 'issn_print': issn,
                 'publisher': self._extract_publisher(venue_text),
@@ -98,6 +100,7 @@ class GoogleScholarSpider(BaseJournalSpider):
                 'impact_factor_current': self._extract_metric(entry, 'impact factor'),
             }
 
+            self._notify_progress(journal_title or '', issn, response.url)
             self.report_progress()
             item = self.build_item(data, source_url=response.url)
 

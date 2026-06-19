@@ -18,6 +18,7 @@ class CrossrefSpider(BaseJournalSpider):
         self.api_rate_delay = 0.12
 
     def start_requests(self) -> Iterator[scrapy.Request]:
+        yield from self.generate_retry_requests()
         headers = {
             'User-Agent': 'JournalCrawler/1.0 (mailto:contact@example.com)',
             'Accept': 'application/json',
@@ -148,6 +149,11 @@ class CrossrefSpider(BaseJournalSpider):
         if issn_print and self.should_skip_issn(issn_print):
             return
 
+        titles = item.get('title', []) or []
+        if isinstance(titles, str):
+            titles = [titles]
+        journal_name = titles[0] if titles else ''
+        self._notify_progress(journal_name, issn_print, source_url)
         self.report_progress()
 
         titles = item.get('title', []) or []

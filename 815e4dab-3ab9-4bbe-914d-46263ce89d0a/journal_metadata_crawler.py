@@ -77,6 +77,8 @@ class JournalMetadataCrawler:
         self.progress_stats: Dict[str, Dict] = {s: {'success': 0, 'fail': 0, 'total': 0} for s in self.target_sources}
         self._progress_lock = threading.Lock()
         self._monitor_thread: Optional[threading.Thread] = None
+        self._current_journals: Dict[str, Dict[str, str]] = {s: {} for s in self.target_sources}
+        self._failed_queue: List[Dict] = []
 
         configure_logging(install_root_handler=False)
 
@@ -164,6 +166,7 @@ class JournalMetadataCrawler:
                         total_success = sum(s['success'] for s in self.progress_stats.values())
                         total_fail = sum(s['fail'] for s in self.progress_stats.values())
                         total_all = sum(s['total'] for s in self.progress_stats.values())
+                        current_info = dict(self._current_journals)
 
                     elapsed = time.time() - self.start_time
                     rate = total_all / elapsed if elapsed > 0 else 0
@@ -171,7 +174,7 @@ class JournalMetadataCrawler:
                     total_prev = total_all
 
                     if not self.args.quiet:
-                        self._print_progress(total_success, total_fail, total_all, elapsed, rate)
+                        self._print_progress(total_success, total_fail, total_all, elapsed, rate, current_info)
 
                     if rate > 0 and new_items > 0:
                         if not self.args.quiet:
@@ -185,8 +188,8 @@ class JournalMetadataCrawler:
         self._monitor_thread = threading.Thread(target=monitor, daemon=True)
         self._monitor_thread.start()
 
-    def _print_progress(self, success: int, fail: int, total: int, elapsed: float, rate: float):
-        bar_width = 40
+    def _print_progress(self, success: int, fail: int, total: int, elapsed: float, rate: float, current_info: Dict[str, Dict] = None):
+        bar_width = 30
         target_issns = len(self.config.get_target_issns())
         expected_total = max(target_issns * len(self.target_sources), total * 2) if target_issns > 0 else max(1000, total * 2)
         progress = min(total / expected_total, 1.0)
@@ -196,15 +199,55 @@ class JournalMetadataCrawler:
         hrs, rem = divmod(int(elapsed), 3600)
         mins, secs = divmod(rem, 60)
 
-        sys.stdout.write(
-            f'\r[{bar}] {progress*100:5.1f}% | '
-            f'OK:{success:>6} FAIL:{fail:>5} TOTAL:{total:>6} | '
+        current_journal_text = ''
+        if current_info:
+            active_entries = []
+            for source, info in current_info.items():
+                name = info.get('journal_name', '') or info.get('issn', '')
+                if name:
+                    active_entries.append(f'{source}:{name[:10]}')
+            if active_entries:
+                current_journal_text = ' | ' + ', '.join(active_entries[:3])
+                if len(active_entries) > 3:
+                    current_journal_text += f'...(+{len(active_entries)-3})'
+
+        try:
+            term_width = os.get_terminal_size().columns
+        except (OSError, AttributeError):
+            term_width = 120
+
+        base_line = (
+            f'[{bar}] {progress*100:5.1f}% | '
+            f'OK:{success:>5} F:{fail:>4} T:{total:>5} | '
             f'{rate:.1f}/s | '
             f'[{hrs:02d}:{mins:02d}:{secs:02d}]'
         )
+
+        if current_journal_text:
+            available = max(10, term_width - len(base_line) - len(current_journal_text) - 2)
+            if len(current_journal_text) > available:
+                current_journal_text = current_journal_text[:max(1, available-3)] + '...'
+            output_line = base_line + current_journal_text
+        else:
+            output_line = base_line
+
+        if len(output_line) > term_width - 1:
+            output_line = output_line[:term_width - 1]
+
+        sys.stdout.write(f'\r{output_line}')
         sys.stdout.flush()
         if progress >= 1.0:
             sys.stdout.write('\n')
+
+    def update_current_journal(self, source: str, journal_name: str = '', issn: str = '', url: str = ''):
+        with self._progress_lock:
+            if source in self._current_journals:
+                self._current_journals[source] = {
+                    'journal_name': journal_name or '',
+                    'issn': issn or '',
+                    'url': url or '',
+                    'updated_at': time.time(),
+                }
 
     def update_stats(self, source: str, success: int = 0, fail: int = 0, total: int = 0):
         with self._progress_lock:
@@ -212,6 +255,53 @@ class JournalMetadataCrawler:
                 self.progress_stats[source]['success'] += success
                 self.progress_stats[source]['fail'] += fail
                 self.progress_stats[source]['total'] += total
+
+    def _load_failed_queue(self) -> Dict[str, List[Dict]]:
+        state_path = self.config.get('storage.resume_db_path', 'output/crawl_state.db')
+        failed_by_source: Dict[str, List[Dict]] = {s: [] for s in self.target_sources}
+        if not state_path:
+            return failed_by_source
+        try:
+            import sqlite3
+            import json
+            import os
+            if not os.path.exists(state_path):
+                return failed_by_source
+            conn = sqlite3.connect(state_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='failed_requests'")
+            if cursor.fetchone():
+                max_retry = self.config.get('crawl.max_retry_times', 3)
+                for source in self.target_sources:
+                    cursor.execute(
+                        'SELECT id, url, reason, meta, retry_count FROM failed_requests '
+                        'WHERE source = ? AND retry_count < ? ORDER BY id ASC LIMIT 500',
+                        (source, max_retry)
+                    )
+                    for row in cursor.fetchall():
+                        try:
+                            meta = json.loads(row[3]) if row[3] else {}
+                        except (json.JSONDecodeError, TypeError):
+                            meta = {}
+                        failed_by_source[source].append({
+                            'id': row[0],
+                            'url': row[1],
+                            'reason': row[2],
+                            'meta': meta,
+                            'retry_count': row[4] or 0,
+                        })
+            conn.close()
+            total = sum(len(v) for v in failed_by_source.values())
+            if total > 0:
+                self.logger.info(f'Loaded {total} failed requests for retry from database')
+                for src, items in failed_by_source.items():
+                    if items:
+                        self.logger.info(f'  {src}: {len(items)} pending requests')
+            else:
+                self.logger.info('No failed requests found in database')
+        except Exception as e:
+            self.logger.warning(f'Failed to load failed queue: {e}')
+        return failed_by_source
 
     def run(self):
         self.logger.info('=' * 60)
@@ -227,7 +317,10 @@ class JournalMetadataCrawler:
 
         CrawlLogger().log_crawl_start('ALL_SOURCES', len(self.target_sources))
 
+        failed_queue = self._load_failed_queue()
+
         settings = self._build_scrapy_settings()
+        settings.set('MAIN_CRAWLER_REF', self, priority='settings')
         process = CrawlerProcess(settings, install_root_handler=False)
 
         incremental = self.config.get('incremental.enabled', True)
@@ -252,6 +345,9 @@ class JournalMetadataCrawler:
                 config=self.config,
                 target_issns=target_issns,
                 incremental=incremental,
+                failed_requests=failed_queue.get(source, []),
+                progress_callback=self.update_current_journal,
+                stats_callback=self.update_stats,
             )
 
         self._start_progress_monitor()
