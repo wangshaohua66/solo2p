@@ -7,6 +7,7 @@ const {
   PLATFORM_NAMES,
   LOGISTICS_STATUS,
   LOGISTICS_STATUS_NAMES,
+  ORDER_STATUS,
   logisticsApiConfig,
   retryConfig
 } = require('./config');
@@ -602,9 +603,128 @@ class LogisticsTracker {
       }))
     };
   }
-}
 
-const { ORDER_STATUS } = require('./config');
+  async trackAllPlatforms(options = {}) {
+    const {
+      platform: singlePlatform = null,
+      platforms: platformList = null,
+      concurrency = 2,
+      checkDelay = false
+    } = options;
+
+    const platformsToTrack = singlePlatform
+      ? [singlePlatform]
+      : (platformList || PLATFORMS);
+
+    const validPlatforms = platformsToTrack.filter(p => PLATFORMS.includes(p));
+    if (validPlatforms.length === 0) {
+      console.log(chalk.yellow('[物流追踪] 没有有效的平台需要追踪'));
+      return { total: 0, success: 0, failed: 0, details: [] };
+    }
+
+    console.log(chalk.cyan(`[物流追踪] 开始追踪 ${validPlatforms.length} 个平台: ${validPlatforms.map(p => PLATFORM_NAMES[p]).join(', ')}`));
+
+    const details = [];
+    let totalSuccess = 0;
+    let totalFailed = 0;
+
+    for (const platform of validPlatforms) {
+      try {
+        console.log(chalk.gray(`  → 追踪 ${PLATFORM_NAMES[platform]}...`));
+        const result = await this.trackPendingShipments({
+          platform,
+          startDate: options.startDate,
+          endDate: options.endDate
+        });
+
+        const success = Array.isArray(result) ? result.filter(r => r.success).length : 0;
+        const failed = Array.isArray(result) ? result.length - success : 0;
+
+        totalSuccess += success;
+        totalFailed += failed;
+
+        details.push({
+          platform,
+          success: true,
+          ordersTracked: Array.isArray(result) ? result.length : 0,
+          successCount: success,
+          failedCount: failed,
+          result
+        });
+
+        console.log(chalk.green(`  ✓ ${PLATFORM_NAMES[platform]}: 追踪 ${success} 成功, ${failed} 失败`));
+      } catch (err) {
+        totalFailed++;
+        details.push({
+          platform,
+          success: false,
+          error: err.message
+        });
+        console.log(chalk.red(`  ✗ ${PLATFORM_NAMES[platform]}: ${err.message}`));
+      }
+    }
+
+    const summary = {
+      total: validPlatforms.length,
+      success: validPlatforms.length - details.filter(d => !d.success).length,
+      failed: details.filter(d => !d.success).length,
+      ordersTracked: details.reduce((s, d) => s + (d.ordersTracked || 0), 0),
+      ordersSuccess: totalSuccess,
+      ordersFailed: totalFailed,
+      details
+    };
+
+    console.log(chalk.green(`[物流追踪] 完成: ${summary.success}/${summary.total} 平台成功, ${summary.ordersSuccess}/${summary.ordersTracked + summary.ordersFailed} 订单成功`));
+
+    return summary;
+  }
+
+  async detectDelayedOrders(options = {}) {
+    const {
+      platform = null,
+      startDate = null,
+      delayThresholdHours = 72
+    } = options;
+
+    const storage = await getStorage();
+    const conditions = [
+      'l.is_delayed = 1 OR (l.status = ? AND julianday(\'now\') - julianday(l.shipped_date) > ?)',
+      'o.status IN (?, ?)'
+    ];
+    const params = [
+      LOGISTICS_STATUS.TRANSIT,
+      delayThresholdHours / 24,
+      ORDER_STATUS.SHIPPED,
+      ORDER_STATUS.PENDING_SHIPMENT
+    ];
+
+    if (platform) {
+      conditions.push('o.platform = ?');
+      params.push(platform);
+    }
+    if (startDate) {
+      conditions.push('o.order_date >= ?');
+      params.push(startDate);
+    }
+
+    const rows = await storage._all(`
+      SELECT
+        o.id, o.platform, o.platform_order_id, o.order_date, o.status,
+        l.tracking_no, l.carrier, l.status AS logistics_status, l.shipped_date,
+        l.current_location, l.is_delayed, l.delay_reason,
+        (julianday('now') - julianday(COALESCE(l.shipped_date, o.order_date))) * 24 AS delay_hours
+      FROM orders o
+      JOIN logistics l ON l.order_id = o.id
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY delay_hours DESC
+      LIMIT 1000
+    `, params);
+
+    console.log(chalk.cyan(`[物流追踪] 发现 ${rows.length} 笔延误订单`));
+
+    return rows;
+  }
+}
 
 let trackerInstance = null;
 

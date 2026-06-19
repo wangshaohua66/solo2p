@@ -22,10 +22,24 @@ const ORDER_STATUS = {
 
 const LOGISTICS_STATUS = {
   PENDING: 'pending',
+  SHIPPED: 'shipped',
   TRANSIT: 'transit',
+  OUT_FOR_DELIVERY: 'out_for_delivery',
+  CUSTOMS: 'customs',
   DELIVERED: 'delivered',
   EXCEPTION: 'exception',
   RETURNED: 'returned'
+};
+
+const LOGISTICS_STATUS_NAMES = {
+  [LOGISTICS_STATUS.PENDING]: '待发货',
+  [LOGISTICS_STATUS.SHIPPED]: '已发货',
+  [LOGISTICS_STATUS.TRANSIT]: '运输中',
+  [LOGISTICS_STATUS.OUT_FOR_DELIVERY]: '派送中',
+  [LOGISTICS_STATUS.CUSTOMS]: '清关中',
+  [LOGISTICS_STATUS.DELIVERED]: '已签收',
+  [LOGISTICS_STATUS.EXCEPTION]: '异常',
+  [LOGISTICS_STATUS.RETURNED]: '退回'
 };
 
 const platformUrls = {
@@ -255,6 +269,7 @@ module.exports = {
   PLATFORM_NAMES,
   ORDER_STATUS,
   LOGISTICS_STATUS,
+  LOGISTICS_STATUS_NAMES,
   platformUrls,
   platformCredentials,
   scheduleConfig,
