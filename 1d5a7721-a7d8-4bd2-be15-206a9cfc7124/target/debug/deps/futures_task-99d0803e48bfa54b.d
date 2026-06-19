@@ -1,0 +1,11 @@
+/Users/paul/WorkSpace/TestSoloCoder/1d5a7721-a7d8-4bd2-be15-206a9cfc7124/target/debug/deps/futures_task-99d0803e48bfa54b.d: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/futures-task-0.3.32/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/futures-task-0.3.32/src/spawn.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/futures-task-0.3.32/src/arc_wake.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/futures-task-0.3.32/src/waker.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/futures-task-0.3.32/src/waker_ref.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/futures-task-0.3.32/src/future_obj.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/futures-task-0.3.32/src/noop_waker.rs
+
+/Users/paul/WorkSpace/TestSoloCoder/1d5a7721-a7d8-4bd2-be15-206a9cfc7124/target/debug/deps/libfutures_task-99d0803e48bfa54b.rmeta: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/futures-task-0.3.32/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/futures-task-0.3.32/src/spawn.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/futures-task-0.3.32/src/arc_wake.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/futures-task-0.3.32/src/waker.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/futures-task-0.3.32/src/waker_ref.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/futures-task-0.3.32/src/future_obj.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/futures-task-0.3.32/src/noop_waker.rs
+
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/futures-task-0.3.32/src/lib.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/futures-task-0.3.32/src/spawn.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/futures-task-0.3.32/src/arc_wake.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/futures-task-0.3.32/src/waker.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/futures-task-0.3.32/src/waker_ref.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/futures-task-0.3.32/src/future_obj.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/futures-task-0.3.32/src/noop_waker.rs:

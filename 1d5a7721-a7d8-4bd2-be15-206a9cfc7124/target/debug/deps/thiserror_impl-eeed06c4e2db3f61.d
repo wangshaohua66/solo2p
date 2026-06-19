@@ -1,0 +1,17 @@
+/Users/paul/WorkSpace/TestSoloCoder/1d5a7721-a7d8-4bd2-be15-206a9cfc7124/target/debug/deps/thiserror_impl-eeed06c4e2db3f61.d: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/ast.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/attr.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/expand.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/fallback.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/fmt.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/generics.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/prop.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/scan_expr.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/unraw.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/valid.rs
+
+/Users/paul/WorkSpace/TestSoloCoder/1d5a7721-a7d8-4bd2-be15-206a9cfc7124/target/debug/deps/libthiserror_impl-eeed06c4e2db3f61.dylib: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/ast.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/attr.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/expand.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/fallback.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/fmt.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/generics.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/prop.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/scan_expr.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/unraw.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/valid.rs
+
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/lib.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/ast.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/attr.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/expand.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/fallback.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/fmt.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/generics.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/prop.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/scan_expr.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/unraw.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/thiserror-impl-2.0.18/src/valid.rs:
+
+# env-dep:CARGO_PKG_VERSION_PATCH=18

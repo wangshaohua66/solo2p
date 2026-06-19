@@ -1,0 +1,15 @@
+/Users/paul/WorkSpace/TestSoloCoder/1d5a7721-a7d8-4bd2-be15-206a9cfc7124/target/debug/deps/csv-5304bed7a8b9994a.d: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/byte_record.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/cookbook.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/debug.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/deserializer.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/error.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/reader.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/serializer.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/string_record.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/tutorial.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/writer.rs
+
+/Users/paul/WorkSpace/TestSoloCoder/1d5a7721-a7d8-4bd2-be15-206a9cfc7124/target/debug/deps/libcsv-5304bed7a8b9994a.rmeta: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/byte_record.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/cookbook.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/debug.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/deserializer.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/error.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/reader.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/serializer.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/string_record.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/tutorial.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/writer.rs
+
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/lib.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/byte_record.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/cookbook.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/debug.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/deserializer.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/error.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/reader.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/serializer.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/string_record.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/tutorial.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/csv-1.4.0/src/writer.rs:

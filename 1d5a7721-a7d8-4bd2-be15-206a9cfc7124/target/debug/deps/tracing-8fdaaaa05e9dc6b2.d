@@ -1,0 +1,12 @@
+/Users/paul/WorkSpace/TestSoloCoder/1d5a7721-a7d8-4bd2-be15-206a9cfc7124/target/debug/deps/tracing-8fdaaaa05e9dc6b2.d: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/tracing-0.1.44/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/tracing-0.1.44/src/macros.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/tracing-0.1.44/src/dispatcher.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/tracing-0.1.44/src/field.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/tracing-0.1.44/src/instrument.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/tracing-0.1.44/src/level_filters.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/tracing-0.1.44/src/span.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/tracing-0.1.44/src/subscriber.rs
+
+/Users/paul/WorkSpace/TestSoloCoder/1d5a7721-a7d8-4bd2-be15-206a9cfc7124/target/debug/deps/libtracing-8fdaaaa05e9dc6b2.rmeta: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/tracing-0.1.44/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/tracing-0.1.44/src/macros.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/tracing-0.1.44/src/dispatcher.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/tracing-0.1.44/src/field.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/tracing-0.1.44/src/instrument.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/tracing-0.1.44/src/level_filters.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/tracing-0.1.44/src/span.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/tracing-0.1.44/src/subscriber.rs
+
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/tracing-0.1.44/src/lib.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/tracing-0.1.44/src/macros.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/tracing-0.1.44/src/dispatcher.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/tracing-0.1.44/src/field.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/tracing-0.1.44/src/instrument.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/tracing-0.1.44/src/level_filters.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/tracing-0.1.44/src/span.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/tracing-0.1.44/src/subscriber.rs:
