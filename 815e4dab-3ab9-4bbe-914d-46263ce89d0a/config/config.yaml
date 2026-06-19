@@ -1,0 +1,172 @@
+crawl:
+  concurrent_requests: 3
+  download_delay: 1.0
+  random_delay_range: [0.5, 2.0]
+  max_retry_times: 3
+  retry_intervals: [3, 10, 30]
+  timeout: 30
+  user_agent_rotation: true
+  proxy_enabled: false
+  cookie_pool_enabled: false
+  max_memory_mb: 1024
+  daily_time_limit_hours: 8
+  retry_http_codes: [408, 429, 500, 502, 503, 504, 522, 524]
+  custom_user_agents: []
+  user_agent_file: ""
+
+incremental:
+  enabled: true
+  update_frequency: weekly
+  force_full_crawl: false
+  check_field_changes: true
+
+storage:
+  default_format: sqlite
+  output_dir: output
+  sqlite_db_path: output/journal_metadata.db
+  csv_filename: journal_metadata_{timestamp}.csv
+  json_filename: journal_metadata_{timestamp}.json
+  resume_db_path: output/crawl_state.db
+  cookie_file: config/cookies.yaml
+
+logging:
+  log_dir: logs
+  log_level: INFO
+  verbose: false
+  quiet: false
+  retention_days: 90
+
+sources:
+  cnki:
+    enabled: true
+    priority: 1
+    weight: 0.95
+    ip_auth_required: true
+  wanfang:
+    enabled: true
+    priority: 2
+    weight: 0.90
+    ip_auth_required: true
+  vip:
+    enabled: true
+    priority: 3
+    weight: 0.85
+    ip_auth_required: false
+  webofscience:
+    enabled: true
+    priority: 4
+    weight: 0.98
+    login_required: true
+  scopus:
+    enabled: true
+    priority: 5
+    weight: 0.97
+    login_required: true
+  pubmed:
+    enabled: true
+    priority: 6
+    weight: 0.92
+    login_required: false
+  doaj:
+    enabled: true
+    priority: 7
+    weight: 0.88
+    login_required: false
+  crossref:
+    enabled: true
+    priority: 8
+    weight: 0.90
+    login_required: false
+  google_scholar:
+    enabled: true
+    priority: 9
+    weight: 0.80
+    anti_crawl: true
+  baidu_scholar:
+    enabled: true
+    priority: 10
+    weight: 0.75
+    anti_crawl: false
+  microsoft_academic:
+    enabled: true
+    priority: 11
+    weight: 0.78
+    login_required: false
+  cnki_journal_nav:
+    enabled: true
+    priority: 12
+    weight: 0.92
+    ip_auth_required: true
+
+target_journals:
+  - issn: "1001-2362"
+    name: "计算机学报"
+  - issn: "0254-4164"
+    name: "软件学报"
+  - issn: "1000-9825"
+    name: "计算机研究与发展"
+  - issn: "0372-2112"
+    name: "电子学报"
+  - issn: "1000-3428"
+    name: "计算机工程"
+  - issn: "1009-3044"
+    name: "电脑知识与技术"
+  - issn: "1673-629X"
+    name: "计算机技术与发展"
+  - issn: "1006-2475"
+    name: "计算机与现代化"
+  - issn: "1002-137X"
+    name: "计算机科学"
+  - issn: "1003-6059"
+    name: "模式识别与人工智能"
+
+auth:
+  cnki:
+    username: ""
+    password: ""
+    ip_range: ""
+  wanfang:
+    username: ""
+    password: ""
+    ip_range: ""
+  webofscience:
+    username: ""
+    password: ""
+    api_key: ""
+  scopus:
+    username: ""
+    password: ""
+    api_key: ""
+    inst_token: ""
+  pubmed:
+    api_key: ""
+  microsoft_academic:
+    api_key: ""
+
+proxies:
+  proxy_sources:
+    - type: file
+      path: config/proxies.txt
+    - type: api
+      url: ""
+      refresh_interval: 300
+  proxy_list: []
+  check_interval: 300
+  max_failures: 5
+
+validation:
+  issn_check: true
+  impact_factor_range: [0, 200]
+  required_fields:
+    - journal_name_cn
+    - issn_print
+    - data_source
+
+deduplication:
+  primary_key: issn_print
+  secondary_keys:
+    - issn_online
+    - cn_number
+    - eissn
+  merge_strategy: weighted_latest
+  conflict_resolution: highest_weight

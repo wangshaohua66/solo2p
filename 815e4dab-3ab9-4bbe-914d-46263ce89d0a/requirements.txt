@@ -1,0 +1,8 @@
+Scrapy>=2.11.0
+Requests>=2.31.0
+lxml>=5.0.0
+parsel>=1.8.0
+itemadapter>=0.10.0
+PyYAML>=6.0.1
+user-agent>=0.1.10
+python-dateutil>=2.8.2
