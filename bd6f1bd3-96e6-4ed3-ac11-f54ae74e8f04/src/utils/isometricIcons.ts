@@ -268,5 +268,10 @@ export const isometricIcons: Record<string, string[]> = {
   '💼 ': isoBox,
   '🍳': isoRound,
   '🧥': isoTall,
-  '🛋️ ': isoSofa
+  '🛋️ ': isoSofa,
+  '🔵': isoRound,
+  '👗': isoCabinet,
+  'glass-cabinet': isoCabinet,
+  'ball': isoRound,
+  'round-table': isoRound
 }
