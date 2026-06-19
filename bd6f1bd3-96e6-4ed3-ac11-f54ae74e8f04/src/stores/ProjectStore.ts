@@ -1,9 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { ProjectState, Floor, Wall, Furniture, Dimension, Room, Point } from '@/types'
-import { generateId, snapToGrid, lineLength, calculatePolygonArea, checkCollision } from '@/utils/geometry'
+import { generateId, snapToGrid, lineLength, calculatePolygonArea, checkCollision, findNearestWall, splitWallAtPoint, snapToNearestWall } from '@/utils/geometry'
 
 const MAX_HISTORY = 50
+const DEFAULT_DOOR_WIDTH = 900
+const DEFAULT_WINDOW_WIDTH = 1200
 
 function createInitialState(): ProjectState {
   const firstFloorId = generateId()
@@ -43,9 +45,23 @@ export const useProjectStore = defineStore('project', () => {
   const isDrawing = ref(false)
   const tempWall = ref<Wall | null>(null)
   const wallStartPoint = ref<Point | null>(null)
+  const showFloorReference = ref(true)
 
   const currentFloor = computed((): Floor | undefined => {
     return state.value.floors.find(f => f.id === state.value.currentFloorId)
+  })
+
+  const currentFloorIndex = computed((): number => {
+    return state.value.floors.findIndex(f => f.id === state.value.currentFloorId)
+  })
+
+  const adjacentFloors = computed((): Floor[] => {
+    if (!showFloorReference.value) return []
+    const idx = currentFloorIndex.value
+    const result: Floor[] = []
+    if (idx > 0) result.push(state.value.floors[idx - 1])
+    if (idx < state.value.floors.length - 1) result.push(state.value.floors[idx + 1])
+    return result
   })
 
   const allFurniture = computed((): Furniture[] => {
@@ -142,6 +158,10 @@ export const useProjectStore = defineStore('project', () => {
 
   function toggleDimensions() {
     state.value.showDimensions = !state.value.showDimensions
+  }
+
+  function toggleFloorReference() {
+    showFloorReference.value = !showFloorReference.value
   }
 
   function setGridSize(size: number) {
@@ -250,19 +270,76 @@ export const useProjectStore = defineStore('project', () => {
     wallStartPoint.value = null
   }
 
+  function placeDoorOrWindow(point: Point, type: 'door' | 'window'): boolean {
+    if (!currentFloor.value) return false
+    
+    const width = type === 'door' ? DEFAULT_DOOR_WIDTH : DEFAULT_WINDOW_WIDTH
+    const nearest = findNearestWall(point, currentFloor.value.walls, 100 / state.value.zoom)
+    
+    if (!nearest) return false
+    
+    saveHistory()
+    
+    const { wall, t } = nearest
+    const splitWalls = splitWallAtPoint(wall, t, width)
+    
+    if (splitWalls.length === 1) return false
+    
+    const wallIndex = currentFloor.value.walls.findIndex(w => w.id === wall.id)
+    
+    if (wallIndex === -1) return false
+    
+    currentFloor.value.walls.splice(wallIndex, 1, ...splitWalls)
+    
+    const wallData = splitWalls[0]
+    if (type === 'door') {
+      wallData.hasDoor = true
+      wallData.doorPosition = t * 0.5
+      wallData.doorWidth = width
+    } else {
+      wallData.hasWindow = true
+      wallData.windowPosition = t * 0.5
+      wallData.windowWidth = width
+    }
+    
+    updateDimensions()
+    detectRooms()
+    return true
+  }
+
   function addFurniture(catalogItem: any, position: Point) {
     saveHistory()
     
-    const snapped = state.value.snapEnabled 
-      ? snapToGrid(position, state.value.snapPrecision) 
-      : position
+    let finalPos = position
+    const tempFurniture: Furniture = {
+      id: 'temp',
+      type: catalogItem.id,
+      name: catalogItem.name,
+      category: catalogItem.category,
+      position: position,
+      rotation: 0,
+      scale: { x: 1, y: 1 },
+      width: catalogItem.width,
+      height: catalogItem.height,
+      color: catalogItem.color,
+      icon: catalogItem.icon
+    }
+    
+    if (state.value.snapEnabled && currentFloor.value) {
+      const wallSnap = snapToNearestWall(tempFurniture, currentFloor.value.walls, 200)
+      if (wallSnap) {
+        finalPos = wallSnap.position
+      } else {
+        finalPos = snapToGrid(position, state.value.snapPrecision)
+      }
+    }
     
     const furniture: Furniture = {
       id: generateId(),
       type: catalogItem.id,
       name: catalogItem.name,
       category: catalogItem.category,
-      position: snapped,
+      position: finalPos,
       rotation: 0,
       scale: { x: 1, y: 1 },
       width: catalogItem.width,
@@ -274,6 +351,24 @@ export const useProjectStore = defineStore('project', () => {
     currentFloor.value?.furniture.push(furniture)
     detectCollisions()
     return furniture
+  }
+
+  function updateFurnitureWithWallSnap(id: string, newPosition: Point, updates: Partial<Furniture> = {}) {
+    const furniture = currentFloor.value?.furniture.find(f => f.id === id)
+    if (!furniture) return
+    
+    let finalPos = newPosition
+    
+    if (state.value.snapEnabled && currentFloor.value) {
+      const tempFurniture = { ...furniture, position: newPosition, ...updates } as Furniture
+      const wallSnap = snapToNearestWall(tempFurniture, currentFloor.value.walls, 150)
+      if (wallSnap) {
+        finalPos = wallSnap.position
+      }
+    }
+    
+    Object.assign(furniture, { position: finalPos, ...updates })
+    detectCollisions()
   }
 
   function updateFurniture(id: string, updates: Partial<Furniture>) {
@@ -537,7 +632,10 @@ export const useProjectStore = defineStore('project', () => {
     isDrawing,
     tempWall,
     wallStartPoint,
+    showFloorReference,
     currentFloor,
+    currentFloorIndex,
+    adjacentFloors,
     allFurniture,
     allWalls,
     allRooms,
@@ -555,6 +653,7 @@ export const useProjectStore = defineStore('project', () => {
     toggleGrid,
     toggleSnap,
     toggleDimensions,
+    toggleFloorReference,
     setGridSize,
     selectElement,
     clearSelection,
@@ -562,8 +661,10 @@ export const useProjectStore = defineStore('project', () => {
     updateWallDrawing,
     finishWallDrawing,
     cancelWallDrawing,
+    placeDoorOrWindow,
     addFurniture,
     updateFurniture,
+    updateFurnitureWithWallSnap,
     deleteSelected,
     duplicateSelected,
     updateDimensions,

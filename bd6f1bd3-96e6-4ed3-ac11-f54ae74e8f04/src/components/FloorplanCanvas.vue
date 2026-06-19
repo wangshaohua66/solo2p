@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useProjectStore } from '@/stores/ProjectStore'
-import type { Point, Wall, Furniture, Room } from '@/types'
-import { pointNearLine, distance, snapToGrid } from '@/utils/geometry'
+import type { Point, Wall, Furniture, Room, Floor } from '@/types'
+import { pointNearLine, distance, snapToGrid, findNearestWall, getWallDirection, snapToNearestWall, projectPointToLine } from '@/utils/geometry'
+import { isometricIcons } from '@/utils/isometricIcons'
 
 const store = useProjectStore()
 const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -16,7 +17,7 @@ let panStartPos = ref<Point | null>(null)
 let spacePressed = ref(false)
 let lastFrameTime = 0
 let frameCount = 0
-let fps = 0
+let hoveredWall = ref<{ wall: Wall; projection: Point; t: number } | null>(null)
 
 const worldToScreen = (point: Point): Point => {
   return {
@@ -71,6 +72,54 @@ const renderGrid = () => {
   ctx.stroke()
 }
 
+const renderFloorReference = (floor: Floor, alpha: number = 0.15) => {
+  if (!ctx) return
+  
+  ctx.save()
+  ctx.globalAlpha = alpha
+  
+  floor.walls.forEach(wall => {
+    const start = worldToScreen(wall.start)
+    const end = worldToScreen(wall.end)
+    const thickness = wall.thickness * store.state.zoom
+    
+    ctx.strokeStyle = floor.order < (store.currentFloorIndex ?? 0) ? '#2196F3' : '#FF5722'
+    ctx.lineWidth = thickness
+    ctx.lineCap = 'round'
+    ctx.setLineDash([8, 8])
+    
+    ctx.beginPath()
+    ctx.moveTo(start.x, start.y)
+    ctx.lineTo(end.x, end.y)
+    ctx.stroke()
+    ctx.setLineDash([])
+  })
+  
+  floor.rooms.forEach(room => {
+    const walls = room.walls
+      .map(id => floor.walls.find(w => w.id === id))
+      .filter(Boolean) as Wall[]
+    
+    if (walls.length < 3) return
+    
+    ctx.fillStyle = floor.order < (store.currentFloorIndex ?? 0) ? 'rgba(33, 150, 243, 0.1)' : 'rgba(255, 87, 34, 0.1)'
+    ctx.beginPath()
+    
+    const firstPoint = worldToScreen(walls[0].start)
+    ctx.moveTo(firstPoint.x, firstPoint.y)
+    
+    for (let i = 1; i < walls.length; i++) {
+      const point = worldToScreen(walls[i].start)
+      ctx.lineTo(point.x, point.y)
+    }
+    
+    ctx.closePath()
+    ctx.fill()
+  })
+  
+  ctx.restore()
+}
+
 const renderRoom = (room: Room) => {
   if (!ctx) return
   
@@ -95,15 +144,15 @@ const renderRoom = (room: Room) => {
   ctx.fill()
 }
 
-const renderWall = (wall: Wall, isSelected: boolean) => {
+const renderWall = (wall: Wall, isSelected: boolean, isHovered: boolean = false) => {
   if (!ctx) return
   
   const start = worldToScreen(wall.start)
   const end = worldToScreen(wall.end)
   const thickness = wall.thickness * store.state.zoom
   
-  ctx.strokeStyle = isSelected ? '#4A90D9' : wall.color
-  ctx.lineWidth = thickness
+  ctx.strokeStyle = isSelected ? '#4A90D9' : (isHovered ? '#FF9800' : wall.color)
+  ctx.lineWidth = thickness + (isHovered ? 4 : 0)
   ctx.lineCap = 'round'
   
   if (wall.type === 'arc' && wall.arcCenter && wall.arcRadius !== undefined && wall.startAngle !== undefined && wall.endAngle !== undefined) {
@@ -120,6 +169,14 @@ const renderWall = (wall: Wall, isSelected: boolean) => {
     ctx.stroke()
   }
   
+  if (wall.hasDoor && wall.doorWidth && wall.doorPosition !== undefined) {
+    renderDoorOpening(wall)
+  }
+  
+  if (wall.hasWindow && wall.windowWidth && wall.windowPosition !== undefined) {
+    renderWindowOpening(wall)
+  }
+  
   if (isSelected) {
     ctx.fillStyle = '#4A90D9'
     const handleSize = 8
@@ -130,6 +187,196 @@ const renderWall = (wall: Wall, isSelected: boolean) => {
     ctx.arc(end.x, end.y, handleSize, 0, Math.PI * 2)
     ctx.fill()
   }
+}
+
+const renderDoorOpening = (wall: Wall) => {
+  if (!ctx || wall.type !== 'straight') return
+  
+  const totalLen = distance(wall.start, wall.end)
+  const centerDist = totalLen * (wall.doorPosition ?? 0.5)
+  const halfWidth = (wall.doorWidth ?? 900) / 2
+  const dir = getWallDirection(wall)
+  
+  const doorStart = {
+    x: wall.start.x + dir.dx * (centerDist - halfWidth),
+    y: wall.start.y + dir.dy * (centerDist - halfWidth)
+  }
+  const doorCenter = {
+    x: wall.start.x + dir.dx * centerDist,
+    y: wall.start.y + dir.dy * centerDist
+  }
+  
+  const sDoorStart = worldToScreen(doorStart)
+  const sDoorCenter = worldToScreen(doorCenter)
+  
+  const thickness = wall.thickness * store.state.zoom * 1.2
+  
+  ctx.strokeStyle = '#FFFFFF'
+  ctx.lineWidth = thickness
+  ctx.lineCap = 'butt'
+  ctx.beginPath()
+  ctx.moveTo(sDoorStart.x, sDoorStart.y)
+  const sDoorEnd = worldToScreen({
+    x: wall.start.x + dir.dx * (centerDist + halfWidth),
+    y: wall.start.y + dir.dy * (centerDist + halfWidth)
+  })
+  ctx.lineTo(sDoorEnd.x, sDoorEnd.y)
+  ctx.stroke()
+  
+  const normalX = -dir.dy
+  const normalY = dir.dx
+  const arcEnd = {
+    x: doorCenter.x + normalX * (wall.doorWidth ?? 900),
+    y: doorCenter.y + normalY * (wall.doorWidth ?? 900)
+  }
+  const sArcStart = sDoorStart
+  const sArcEnd = worldToScreen(arcEnd)
+  const radius = (wall.doorWidth ?? 900) * store.state.zoom
+  
+  ctx.strokeStyle = '#4CAF50'
+  ctx.lineWidth = 2
+  ctx.setLineDash([])
+  ctx.beginPath()
+  ctx.arc(sDoorCenter.x, sDoorCenter.y, radius, Math.atan2(-dir.dy, -dir.dx), Math.atan2(normalY, normalX))
+  ctx.stroke()
+  
+  ctx.beginPath()
+  ctx.moveTo(sDoorCenter.x, sDoorCenter.y)
+  ctx.lineTo(sArcEnd.x, sArcEnd.y)
+  ctx.stroke()
+}
+
+const renderWindowOpening = (wall: Wall) => {
+  if (!ctx || wall.type !== 'straight') return
+  
+  const totalLen = distance(wall.start, wall.end)
+  const centerDist = totalLen * (wall.windowPosition ?? 0.5)
+  const halfWidth = (wall.windowWidth ?? 1200) / 2
+  const dir = getWallDirection(wall)
+  
+  const windowStart = {
+    x: wall.start.x + dir.dx * (centerDist - halfWidth),
+    y: wall.start.y + dir.dy * (centerDist - halfWidth)
+  }
+  const windowEnd = {
+    x: wall.start.x + dir.dx * (centerDist + halfWidth),
+    y: wall.start.y + dir.dy * (centerDist + halfWidth)
+  }
+  
+  const sStart = worldToScreen(windowStart)
+  const sEnd = worldToScreen(windowEnd)
+  
+  const thickness = wall.thickness * store.state.zoom * 1.2
+  
+  ctx.strokeStyle = '#FFFFFF'
+  ctx.lineWidth = thickness
+  ctx.lineCap = 'butt'
+  ctx.beginPath()
+  ctx.moveTo(sStart.x, sStart.y)
+  ctx.lineTo(sEnd.x, sEnd.y)
+  ctx.stroke()
+  
+  ctx.strokeStyle = '#2196F3'
+  ctx.lineWidth = 3
+  ctx.setLineDash([8, 4])
+  ctx.beginPath()
+  ctx.moveTo(sStart.x, sStart.y)
+  ctx.lineTo(sEnd.x, sEnd.y)
+  ctx.stroke()
+  ctx.setLineDash([])
+  
+  const normalX = -dir.dy
+  const normalY = dir.dx
+  const offset = wall.thickness * 1.5
+  const innerStart = {
+    x: windowStart.x + normalX * offset,
+    y: windowStart.y + normalY * offset
+  }
+  const innerEnd = {
+    x: windowEnd.x + normalX * offset,
+    y: windowEnd.y + normalY * offset
+  }
+  const outerStart = {
+    x: windowStart.x - normalX * offset,
+    y: windowStart.y - normalY * offset
+  }
+  const outerEnd = {
+    x: windowEnd.x - normalX * offset,
+    y: windowEnd.y - normalY * offset
+  }
+  
+  ctx.strokeStyle = '#2196F3'
+  ctx.lineWidth = 1
+  const siStart = worldToScreen(innerStart)
+  const siEnd = worldToScreen(innerEnd)
+  const soStart = worldToScreen(outerStart)
+  const soEnd = worldToScreen(outerEnd)
+  
+  ctx.beginPath()
+  ctx.moveTo(siStart.x, siStart.y)
+  ctx.lineTo(siEnd.x, siEnd.y)
+  ctx.moveTo(soStart.x, soStart.y)
+  ctx.lineTo(soEnd.x, soEnd.y)
+  ctx.stroke()
+}
+
+const renderIsometricIcon = (iconKey: string, cx: number, cy: number, size: number, color: string) => {
+  if (!ctx) return
+  
+  const paths = (isometricIcons as Record<string, string[]>)?.[iconKey]
+  if (!paths || paths.length === 0) {
+    ctx.fillStyle = '#666'
+    ctx.font = `${size * 0.8}px Arial`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('■', cx, cy)
+    return
+  }
+  
+  ctx.save()
+  ctx.translate(cx, cy)
+  const scale = size / 100
+  ctx.scale(scale, scale)
+  
+  const colors = shadeColor(color)
+  
+  paths.forEach((path, index) => {
+    if (!path) return
+    ctx.fillStyle = colors[index % colors.length]
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)'
+    ctx.lineWidth = 0.5
+    ctx.beginPath()
+    const commands = path.match(/[MLQCZ][^MLQCZ]*/gi) || []
+    commands.forEach(cmd => {
+      const type = cmd[0].toUpperCase()
+      const nums = cmd.slice(1).trim().split(/[\s,]+/).map(Number)
+      switch (type) {
+        case 'M': ctx.moveTo(nums[0] - 50, nums[1] - 50); break
+        case 'L': ctx.lineTo(nums[0] - 50, nums[1] - 50); break
+        case 'Q': ctx.quadraticCurveTo(nums[0] - 50, nums[1] - 50, nums[2] - 50, nums[3] - 50); break
+        case 'C': ctx.bezierCurveTo(nums[0] - 50, nums[1] - 50, nums[2] - 50, nums[3] - 50, nums[4] - 50, nums[5] - 50); break
+        case 'Z': ctx.closePath(); break
+      }
+    })
+    ctx.fill()
+    ctx.stroke()
+  })
+  
+  ctx.restore()
+}
+
+function shadeColor(hex: string): string[] {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  
+  const adjust = (c: number, amt: number) => Math.max(0, Math.min(255, Math.round(c + amt)))
+  
+  return [
+    `rgb(${adjust(r, 20)}, ${adjust(g, 20)}, ${adjust(b, 20)})`,
+    `rgb(${r}, ${g}, ${b})`,
+    `rgb(${adjust(r, -25)}, ${adjust(g, -25)}, ${adjust(b, -25)})`
+  ]
 }
 
 const renderFurniture = (furniture: Furniture, isSelected: boolean) => {
@@ -143,12 +390,12 @@ const renderFurniture = (furniture: Furniture, isSelected: boolean) => {
   ctx.translate(center.x, center.y)
   ctx.rotate(furniture.rotation)
   
-  ctx.fillStyle = furniture.color
-  ctx.strokeStyle = isSelected ? '#4A90D9' : (furniture.isColliding ? '#E57373' : '#666666')
-  ctx.lineWidth = isSelected ? 3 : 1
+  ctx.fillStyle = furniture.color + '30'
+  ctx.strokeStyle = isSelected ? '#4A90D9' : (furniture.isColliding ? '#E57373' : '#999999')
+  ctx.lineWidth = isSelected ? 3 : 1.5
   
   ctx.beginPath()
-  ctx.roundRect(-width / 2, -height / 2, width, height, 4)
+  ctx.roundRect(-width / 2, -height / 2, width, height, 4 * store.state.zoom)
   ctx.fill()
   ctx.stroke()
   
@@ -160,11 +407,8 @@ const renderFurniture = (furniture: Furniture, isSelected: boolean) => {
     ctx.setLineDash([])
   }
   
-  ctx.fillStyle = '#333333'
-  ctx.font = `${Math.min(width, height) * 0.6}px Arial`
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillText(furniture.icon, 0, 0)
+  const iconSize = Math.min(width, height) * 0.75
+  renderIsometricIcon(furniture.icon, 0, 0, iconSize, furniture.color)
   
   if (isSelected) {
     ctx.strokeStyle = '#4A90D9'
@@ -175,7 +419,7 @@ const renderFurniture = (furniture: Furniture, isSelected: boolean) => {
       { x: width / 2, y: -height / 2 },
       { x: width / 2, y: height / 2 },
       { x: -width / 2, y: height / 2 },
-      { x: 0, y: -height / 2 - 30 }
+      { x: 0, y: -height / 2 - 30 * store.state.zoom }
     ]
     
     handles.forEach((handle, i) => {
@@ -237,6 +481,30 @@ const renderTempWall = () => {
   ctx.fillText(`${len} mm`, midX, midY - 10)
 }
 
+const renderDoorWindowPreview = () => {
+  if (!ctx || !hoveredWall.value) return
+  if (store.state.selectedTool !== 'door' && store.state.selectedTool !== 'window') return
+  
+  const proj = worldToScreen(hoveredWall.value.projection)
+  const isDoor = store.state.selectedTool === 'door'
+  const width = (isDoor ? 900 : 1200) * store.state.zoom
+  
+  ctx.strokeStyle = isDoor ? '#4CAF50' : '#2196F3'
+  ctx.lineWidth = 2
+  ctx.fillStyle = isDoor ? 'rgba(76, 175, 80, 0.2)' : 'rgba(33, 150, 243, 0.2)'
+  
+  ctx.beginPath()
+  ctx.arc(proj.x, proj.y, width / 2, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.stroke()
+  
+  ctx.fillStyle = isDoor ? '#4CAF50' : '#2196F3'
+  ctx.font = 'bold 12px Arial'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(isDoor ? '🚪 门' : '🪟 窗', proj.x, proj.y - width / 2 - 15)
+}
+
 const renderDimensions = () => {
   if (!ctx || !store.state.showDimensions) return
   
@@ -257,6 +525,10 @@ const renderDimensions = () => {
     ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
     ctx.fillRect(pos.x - textWidth / 2, pos.y - textHeight / 2, textWidth, textHeight)
     
+    ctx.strokeStyle = dim.type === 'room-area' ? 'rgba(156, 39, 176, 0.3)' : 'rgba(76, 175, 80, 0.3)'
+    ctx.lineWidth = 1
+    ctx.strokeRect(pos.x - textWidth / 2, pos.y - textHeight / 2, textWidth, textHeight)
+    
     ctx.fillStyle = dim.type === 'room-area' ? '#9C27B0' : '#4CAF50'
     ctx.fillText(text, pos.x, pos.y)
   })
@@ -267,7 +539,6 @@ const render = (timestamp: number) => {
   
   frameCount++
   if (timestamp - lastFrameTime >= 1000) {
-    fps = Math.round(frameCount * 1000 / (timestamp - lastFrameTime))
     frameCount = 0
     lastFrameTime = timestamp
   }
@@ -279,14 +550,20 @@ const render = (timestamp: number) => {
   
   renderGrid()
   
+  store.adjacentFloors.forEach(floor => {
+    if (floor.visible) renderFloorReference(floor, 0.2)
+  })
+  
   store.allRooms.forEach(room => renderRoom(room))
   
   store.allWalls.forEach(wall => {
     const isSelected = store.state.selectedIds.includes(wall.id)
-    renderWall(wall, isSelected)
+    const isHovered = hoveredWall.value?.wall.id === wall.id
+    renderWall(wall, isSelected, isHovered)
   })
   
   renderTempWall()
+  renderDoorWindowPreview()
   
   store.allFurniture.forEach(furniture => {
     const isSelected = store.state.selectedIds.includes(furniture.id)
@@ -357,6 +634,12 @@ const onMouseDown = (e: MouseEvent) => {
     return
   }
   
+  if (store.state.selectedTool === 'door' || store.state.selectedTool === 'window') {
+    store.placeDoorOrWindow(worldPos, store.state.selectedTool)
+    hoveredWall.value = null
+    return
+  }
+  
   if (store.state.selectedTool === 'select') {
     const furniture = hitTestFurniture(worldPos)
     if (furniture) {
@@ -396,6 +679,16 @@ const onMouseMove = (e: MouseEvent) => {
   
   store.setMousePos(worldPos)
   
+  if (store.state.selectedTool === 'door' || store.state.selectedTool === 'window') {
+    const threshold = 50 / store.state.zoom
+    hoveredWall.value = findNearestWall(worldPos, store.allWalls, threshold)
+    if (canvasRef.value) {
+      canvasRef.value.style.cursor = hoveredWall.value ? 'crosshair' : 'not-allowed'
+    }
+  } else if (hoveredWall.value) {
+    hoveredWall.value = null
+  }
+  
   if (isPanning.value && panStartPos.value) {
     const dx = (screenPos.x - panStartPos.value.x) / store.state.zoom
     const dy = (screenPos.y - panStartPos.value.y) / store.state.zoom
@@ -408,16 +701,12 @@ const onMouseMove = (e: MouseEvent) => {
   }
   
   if (isDraggingFurniture.value && draggedFurnitureId.value && dragStartPos.value) {
-    let newPos = {
+    const newPos = {
       x: worldPos.x - dragStartPos.value.x,
       y: worldPos.y - dragStartPos.value.y
     }
     
-    if (store.state.snapEnabled) {
-      newPos = snapToGrid(newPos, store.state.snapPrecision)
-    }
-    
-    store.updateFurniture(draggedFurnitureId.value, { position: newPos })
+    store.updateFurnitureWithWallSnap(draggedFurnitureId.value, newPos)
     return
   }
   
@@ -492,6 +781,7 @@ const onKeyDown = (e: KeyboardEvent) => {
   if (e.code === 'Escape') {
     store.cancelWallDrawing()
     store.clearSelection()
+    hoveredWall.value = null
   }
 }
 

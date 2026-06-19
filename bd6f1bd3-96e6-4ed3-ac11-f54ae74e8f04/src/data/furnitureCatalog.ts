@@ -292,7 +292,195 @@ export const furnitureCatalog: FurnitureCatalogItem[] = [
   createItem('健身球', '健身房', '器材', 600, 600, colors.blue, '🔵'),
   createItem('镜子墙', '健身房', '装饰', 3000, 2000, colors.metal, '🪞'),
   createItem('储物柜', '健身房', '收纳', 1800, 1800, colors.gray, '🗄️'),
-  createItem('饮水机', '健身房', '电器', 400, 1200, colors.white, '💧')
+  createItem('饮水机', '健身房', '电器', 400, 1200, colors.white, '💧'),
+  
+  // 客厅 - 补充沙发
+  createItem('皮艺三人沙发', '客厅', '沙发', 2300, 950, colors.brown, '🛋️'),
+  createItem('布艺双人沙发', '客厅', '沙发', 1700, 950, colors.orange, '🛋️'),
+  createItem('北欧单人椅', '客厅', '沙发', 750, 800, colors.white, '🪑'),
+  createItem('U型组合沙发', '客厅', '沙发', 3600, 2000, colors.darkWood, '🛋️'),
+  createItem('折叠沙发床', '客厅', '沙发', 2000, 1100, colors.gray, '🛋️'),
+  createItem('新中式沙发', '客厅', '沙发', 2400, 900, colors.wood, '🛋️'),
+  createItem('儿童小沙发', '客厅', '沙发', 600, 500, colors.pink, '🛋️'),
+  
+  // 客厅 - 补充茶几
+  createItem('升降茶几', '客厅', '茶几', 1300, 700, colors.white, '🔲'),
+  createItem('岩板茶几', '客厅', '茶几', 1400, 800, colors.metal, '🔲'),
+  createItem('储物茶几', '客厅', '茶几', 1200, 650, colors.darkWood, '🗄️'),
+  createItem('实木长茶几', '客厅', '茶几', 1600, 700, colors.wood, '🔲'),
+  createItem('异形茶几', '客厅', '茶几', 1100, 900, colors.purple, '🔘'),
+  createItem('双层边几', '客厅', '茶几', 450, 450, colors.lightWood, '🔲'),
+  createItem('移动边几', '客厅', '茶几', 400, 500, colors.metal, '🔲'),
+  createItem('沙发背几', '客厅', '茶几', 1800, 350, colors.wood, '🔲'),
+  
+  // 客厅 - 补充电视柜
+  createItem('实木电视柜', '客厅', '电视柜', 2200, 500, colors.wood, '📺'),
+  createItem('北欧电视柜', '客厅', '电视柜', 2000, 450, colors.lightWood, '📺'),
+  createItem('轻奢电视柜', '客厅', '电视柜', 2400, 500, colors.metal, '📺'),
+  createItem('带抽屉电视柜', '客厅', '电视柜', 1800, 550, colors.darkWood, '🗄️'),
+  createItem('壁挂式电视柜', '客厅', '电视柜', 1600, 250, colors.white, '📺'),
+  
+  // 客厅 - 补充装饰
+  createItem('水晶吊灯', '客厅', '装饰', 600, 600, colors.yellow, '💡'),
+  createItem('吸顶灯', '客厅', '装饰', 800, 100, colors.white, '💡'),
+  createItem('大型绿植', '客厅', '装饰', 700, 700, colors.green, '🪴'),
+  createItem('组合挂画', '客厅', '装饰', 1200, 800, colors.white, '🖼️'),
+  createItem('玄关隔断柜', '客厅', '装饰', 1500, 1200, colors.wood, '🗄️'),
+  createItem('电视柜背景墙', '客厅', '装饰', 3600, 2400, colors.white, '🖼️'),
+  createItem('羊毛地毯', '客厅', '装饰', 2400, 1700, colors.brown, '🟥'),
+  createItem('竹百叶帘', '客厅', '装饰', 2500, 2000, colors.lightWood, '🪟'),
+  createItem('罗马杆窗帘', '客厅', '装饰', 3200, 2600, colors.purple, '🪟'),
+  
+  // 卧室 - 补充床
+  createItem('1.5m双人床', '卧室', '床', 2000, 1500, colors.white, '🛏️'),
+  createItem('1.8m布艺床', '卧室', '床', 2100, 1900, colors.gray, '🛏️'),
+  createItem('真皮软包床', '卧室', '床', 2100, 2000, colors.brown, '🛏️'),
+  createItem('北欧实木床', '卧室', '床', 2000, 1800, colors.lightWood, '🛏️'),
+  createItem('轻奢镀金床', '卧室', '床', 2100, 1900, colors.metal, '🛏️'),
+  createItem('抽屉储物床', '卧室', '床', 2100, 1800, colors.darkWood, '🛏️'),
+  createItem('气压杆高箱床', '卧室', '床', 2100, 1800, colors.white, '🛏️'),
+  
+  // 卧室 - 补充衣柜
+  createItem('五门衣柜', '卧室', '衣柜', 3000, 600, colors.lightWood, '🚪'),
+  createItem('六门衣柜', '卧室', '衣柜', 3600, 650, colors.darkWood, '🚪'),
+  createItem('实木衣柜', '卧室', '衣柜', 2400, 600, colors.wood, '🚪'),
+  createItem('烤漆衣柜', '卧室', '衣柜', 2000, 600, colors.white, '🚪'),
+  createItem('转角衣柜', '卧室', '衣柜', 2400, 1800, colors.wood, '🚪'),
+  
+  // 卧室 - 补充床头柜/梳妆台
+  createItem('岩板床头柜', '卧室', '床头柜', 500, 400, colors.metal, '🗄️'),
+  createItem('皮艺床头柜', '卧室', '床头柜', 550, 450, colors.brown, '🗄️'),
+  createItem('轻奢梳妆台', '卧室', '梳妆台', 1000, 500, colors.white, '🪞'),
+  createItem('实木梳妆台', '卧室', '梳妆台', 1100, 500, colors.wood, '🪞'),
+  createItem('卧室斗柜', '卧室', '床头柜', 1200, 450, colors.darkWood, '🗄️'),
+  
+  // 卧室 - 补充装饰
+  createItem('卧室吸顶灯', '卧室', '装饰', 500, 100, colors.white, '💡'),
+  createItem('床头壁灯', '卧室', '装饰', 200, 300, colors.yellow, '💡'),
+  createItem('卧室窗帘', '卧室', '装饰', 2800, 2500, colors.blue, '🪟'),
+  createItem('卧室床尾凳', '卧室', '装饰', 1500, 400, colors.brown, '🪑'),
+  createItem('卧室挂衣架', '卧室', '装饰', 600, 1700, colors.metal, '🧥'),
+  
+  // 厨房 - 补充橱柜
+  createItem('不锈钢橱柜', '厨房', '橱柜', 600, 850, colors.metal, '🗄️'),
+  createItem('晶钢门橱柜', '厨房', '橱柜', 600, 850, colors.white, '🗄️'),
+  createItem('模压门橱柜', '厨房', '橱柜', 600, 850, colors.lightWood, '🗄️'),
+  createItem('实木门板橱柜', '厨房', '橱柜', 600, 850, colors.wood, '🗄️'),
+  createItem('U型整体橱柜', '厨房', '橱柜', 3600, 2400, colors.darkWood, '🗄️'),
+  createItem('厨房中岛柜', '厨房', '橱柜', 1500, 900, colors.white, '🗄️'),
+  createItem('厨房操作台', '厨房', '橱柜', 1800, 800, colors.metal, '🔲'),
+  createItem('厨房调味拉篮', '厨房', '橱柜', 200, 500, colors.metal, '📦'),
+  
+  // 厨房 - 补充电器/餐桌椅
+  createItem('集成灶', '厨房', '电器', 900, 600, colors.black, '🔥'),
+  createItem('破壁机', '厨房', '电器', 200, 300, colors.white, '🍹'),
+  createItem('电饭煲', '厨房', '电器', 300, 250, colors.white, '🍳'),
+  createItem('空气炸锅', '厨房', '电器', 300, 300, colors.gray, '🔥'),
+  createItem('厨师机', '厨房', '电器', 250, 350, colors.red, '🍳'),
+  createItem('长餐桌', '厨房', '餐桌椅', 2000, 1000, colors.darkWood, '🪑'),
+  createItem('折叠餐椅', '厨房', '餐桌椅', 450, 500, colors.wood, '🪑'),
+  createItem('吧台椅', '厨房', '餐桌椅', 400, 400, colors.metal, '🪑'),
+  createItem('岛台吊灯', '厨房', '电器', 300, 300, colors.yellow, '💡'),
+  
+  // 卫生间 - 补充卫浴/收纳
+  createItem('壁挂马桶', '卫生间', '卫浴', 400, 550, colors.white, '🚽'),
+  createItem('蹲便器', '卫生间', '卫浴', 500, 400, colors.white, '🚽'),
+  createItem('妇洗器', '卫生间', '卫浴', 400, 600, colors.white, '🚽'),
+  createItem('整体浴室柜', '卫生间', '卫浴', 1200, 600, colors.wood, '🗄️'),
+  createItem('干湿分离隔断', '卫生间', '卫浴', 1500, 2000, colors.metal, '🪟'),
+  createItem('卫生间收纳柜', '卫生间', '收纳', 400, 1500, colors.white, '🗄️'),
+  createItem('卫生间边柜', '卫生间', '收纳', 300, 800, colors.metal, '📦'),
+  createItem('智能浴室镜', '卫生间', '装饰', 800, 1000, colors.metal, '🪞'),
+  createItem('电热毛巾架', '卫生间', '装饰', 600, 800, colors.metal, '🧺'),
+  createItem('淋浴花洒套装', '卫生间', '卫浴', 300, 300, colors.metal, '🚿'),
+  
+  // 书房 - 补充
+  createItem('实木大书桌', '书房', '书桌', 2000, 1000, colors.wood, '📚'),
+  createItem('北欧风书桌', '书房', '书桌', 1400, 700, colors.lightWood, '📚'),
+  createItem('儿童学习桌', '书房', '书桌', 1200, 700, colors.blue, '📚'),
+  createItem('带抽屉书桌', '书房', '书桌', 1600, 800, colors.darkWood, '🗄️'),
+  createItem('实木书柜', '书房', '书柜', 1800, 2200, colors.wood, '📚'),
+  createItem('带玻璃门书柜', '书房', '书柜', 1600, 2200, colors.metal, '📚'),
+  createItem('格子柜', '书房', '书柜', 1200, 1200, colors.white, '📚'),
+  createItem('老板椅', '书房', '座椅', 700, 750, colors.black, '🪑'),
+  createItem('会议椅', '书房', '座椅', 600, 600, colors.gray, '🪑'),
+  createItem('书房地毯', '书房', '装饰', 1800, 1200, colors.blue, '🟦'),
+  
+  // 餐厅 - 补充
+  createItem('10人餐桌', '餐厅', '餐桌', 2800, 1200, colors.darkWood, '🍽️'),
+  createItem('4人方桌', '餐厅', '餐桌', 900, 900, colors.lightWood, '🍽️'),
+  createItem('岩板餐桌', '餐厅', '餐桌', 1600, 900, colors.metal, '🍽️'),
+  createItem('伸缩餐桌', '餐厅', '餐桌', 1400, 850, colors.wood, '🍽️'),
+  createItem('实木餐椅', '餐厅', '餐椅', 450, 550, colors.wood, '🪑'),
+  createItem('金属餐椅', '餐厅', '餐椅', 450, 500, colors.metal, '🪑'),
+  createItem('实木餐边柜', '餐厅', '收纳', 1600, 900, colors.wood, '🗄️'),
+  createItem('餐厅酒柜', '餐厅', '收纳', 1800, 2000, colors.darkWood, '🍷'),
+  createItem('餐厅吊灯', '餐厅', '装饰', 1000, 200, colors.yellow, '💡'),
+  createItem('餐边镜', '餐厅', '装饰', 1000, 700, colors.metal, '🪞'),
+  
+  // 玄关 - 补充
+  createItem('隔断玄关柜', '玄关', '收纳', 1500, 2000, colors.wood, '🚪'),
+  createItem('超薄鞋柜', '玄关', '收纳', 1200, 300, colors.white, '👟'),
+  createItem('实木换鞋凳', '玄关', '收纳', 1000, 450, colors.wood, '🪑'),
+  createItem('玄关隔断屏风', '玄关', '装饰', 1500, 2200, colors.lightWood, '🖼️'),
+  createItem('感应玄关灯', '玄关', '装饰', 300, 300, colors.yellow, '💡'),
+  
+  // 阳台 - 补充
+  createItem('阳台吊柜', '阳台', '收纳', 1500, 700, colors.white, '🗄️'),
+  createItem('阳台洗衣池', '阳台', '卫浴', 1200, 600, colors.metal, '🚰'),
+  createItem('折叠晾衣架', '阳台', '收纳', 2500, 400, colors.metal, '🧺'),
+  createItem('阳台榻榻米', '阳台', '装饰', 2000, 1500, colors.lightWood, '🔲'),
+  createItem('阳台秋千椅', '阳台', '装饰', 1200, 1500, colors.brown, '🪑'),
+  createItem('阳台花箱', '阳台', '装饰', 600, 400, colors.wood, '🪴'),
+  createItem('阳台储物柜', '阳台', '收纳', 1800, 800, colors.darkWood, '🗄️'),
+  createItem('户外藤编椅', '阳台', '装饰', 700, 700, colors.brown, '🪑'),
+  
+  // 办公 - 补充
+  createItem('L型办公桌', '办公', '桌子', 2000, 1600, colors.gray, '💼'),
+  createItem('职员办公桌', '办公', '桌子', 1400, 700, colors.white, '💼'),
+  createItem('人体工学主管椅', '办公', '椅子', 700, 750, colors.brown, '🪑'),
+  createItem('折叠培训椅', '办公', '椅子', 500, 500, colors.gray, '🪑'),
+  createItem('凭证柜', '办公', '柜子', 900, 1800, colors.metal, '📁'),
+  createItem('地图柜', '办公', '柜子', 1200, 900, colors.gray, '📦'),
+  createItem('公司前台', '办公', '接待', 3000, 800, colors.white, '🏢'),
+  createItem('办公室沙发', '办公', '接待', 2200, 900, colors.black, '🛋️'),
+  createItem('办公会议白板', '办公', '设备', 2000, 1200, colors.white, '📋'),
+  createItem('投影仪幕布', '办公', '设备', 2400, 1500, colors.white, '📽️'),
+  createItem('办公茶水台', '办公', '柜子', 1800, 900, colors.wood, '☕'),
+  createItem('复印机柜', '办公', '柜子', 800, 700, colors.gray, '🖨️'),
+  
+  // 儿童房 - 补充
+  createItem('儿童公主床', '儿童房', '床', 1900, 1500, colors.pink, '🛏️'),
+  createItem('儿童汽车床', '儿童房', '床', 2000, 1000, colors.blue, '🛏️'),
+  createItem('儿童书柜', '儿童房', '衣柜', 1200, 1800, colors.green, '📚'),
+  createItem('儿童学习椅', '儿童房', '椅子', 450, 450, colors.yellow, '🪑'),
+  createItem('儿童玩具收纳柜', '儿童房', '收纳', 1600, 800, colors.pink, '🧸'),
+  createItem('儿童帐篷', '儿童房', '装饰', 1200, 1200, colors.blue, '🏠'),
+  createItem('儿童积木桌', '儿童房', '书桌', 1000, 600, colors.green, '📚'),
+  createItem('儿童摇摇马', '儿童房', '装饰', 600, 300, colors.brown, '🧸'),
+  
+  // 衣帽间 - 补充
+  createItem('衣帽间裤架', '衣帽间', '收纳', 800, 600, colors.metal, '👔'),
+  createItem('衣帽间首饰收纳盒', '衣帽间', '收纳', 400, 150, colors.darkWood, '💍'),
+  createItem('衣帽间展示柜', '衣帽间', '系统', 1500, 2200, colors.metal, '👗'),
+  createItem('衣帽间岛台收纳柜', '衣帽间', '收纳', 1800, 1000, colors.white, '🗄️'),
+  createItem('衣帽间换鞋凳', '衣帽间', '收纳', 1000, 450, colors.wood, '🪑'),
+  
+  // 影音室 - 补充
+  createItem('家庭影院沙发', '影音室', '沙发', 2800, 1200, colors.brown, '🎬'),
+  createItem('KTV点歌台', '影音室', '设备', 600, 500, colors.black, '🎛️'),
+  createItem('环绕音响', '影音室', '设备', 250, 400, colors.black, '🔊'),
+  createItem('影音室沙发椅', '影音室', '沙发', 900, 1100, colors.red, '🪑'),
+  
+  // 健身房 - 补充
+  createItem('划船机', '健身房', '器材', 2000, 600, colors.black, '🚴'),
+  createItem('综合训练架', '健身房', '器材', 1500, 1200, colors.metal, '🏋️'),
+  createItem('史密斯架', '健身房', '器材', 2200, 1500, colors.metal, '🏋️'),
+  createItem('哑铃凳', '健身房', '器材', 1200, 500, colors.black, '🏋️'),
+  createItem('壶铃组', '健身房', '器材', 500, 300, colors.metal, '💪'),
+  createItem('健身垫', '健身房', '器材', 1830, 610, colors.green, '🧘'),
+  createItem('动感单车房镜子', '健身房', '装饰', 2000, 1500, colors.metal, '🪞'),
+  createItem('健身房休息沙发', '健身房', '收纳', 1800, 800, colors.gray, '🛋️')
 ]
 
 export const categories = [
