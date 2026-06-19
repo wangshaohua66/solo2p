@@ -26,7 +26,8 @@ import {
 } from '@ant-design/icons'
 import type { TableProps, UploadProps } from 'antd'
 import { Job } from '@/types'
-import { mockGetJobList, mockPublishJob, mockBatchImportJobs } from '@/mock/job'
+import { mockGetJobList, mockPublishJob } from '@/mock/job'
+import { batchImportJobs, type BatchImportResult } from '@/api/job'
 import './Manage.css'
 
 const { TextArea } = Input
@@ -41,6 +42,10 @@ const JobManage = () => {
   const [modalVisible, setModalVisible] = useState(false)
   const [form] = Form.useForm()
   const [submitting, setSubmitting] = useState(false)
+
+  const [importModalVisible, setImportModalVisible] = useState(false)
+  const [importResult, setImportResult] = useState<BatchImportResult | null>(null)
+  const [importing, setImporting] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -114,27 +119,46 @@ const JobManage = () => {
 
   const uploadProps: UploadProps = {
     name: 'file',
+    accept: '.xlsx,.xls,.csv',
     showUploadList: false,
     beforeUpload: (file) => {
-      const isExcel = file.type === 'application/vnd.ms-excel' || 
-                     file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      if (!isExcel) {
-        message.error('只能上传Excel文件!')
+      const isValid = file.name.toLowerCase().endsWith('.xlsx') ||
+                      file.name.toLowerCase().endsWith('.xls') ||
+                      file.name.toLowerCase().endsWith('.csv')
+      if (!isValid) {
+        message.error('只能上传Excel(.xlsx/.xls)或CSV(.csv)文件!')
         return false
       }
-      handleBatchImport()
+      const isLt10M = file.size / 1024 / 1024 < 10
+      if (!isLt10M) {
+        message.error('文件大小不能超过10MB!')
+        return false
+      }
+      handleBatchImport(file)
       return false
     }
   }
 
-  const handleBatchImport = async () => {
-    setLoading(true)
+  const handleBatchImport = async (file: File) => {
+    setImporting(true)
+    setImportResult(null)
     try {
-      const result = await mockBatchImportJobs([{}, {}, {}, {}, {}])
-      message.success(`批量导入成功：成功${result.success}条，失败${result.failed}条`)
+      const result = await batchImportJobs(file)
+      setImportResult(result)
+      setImportModalVisible(true)
+
+      if (result.failedCount === 0) {
+        message.success(`批量导入成功：全部${result.successCount}条导入成功`)
+      } else if (result.successCount > 0) {
+        message.warning(`部分导入成功：成功${result.successCount}条，失败${result.failedCount}条`)
+      } else {
+        message.error(`批量导入失败：${result.failedCount}条全部失败`)
+      }
       loadData()
+    } catch (error: any) {
+      message.error(error.message || '批量导入失败，请稍后重试')
     } finally {
-      setLoading(false)
+      setImporting(false)
     }
   }
 
@@ -258,7 +282,9 @@ const JobManage = () => {
           <Col xs={24} sm={12} md={18} style={{ textAlign: 'right' }}>
             <Space>
               <Upload {...uploadProps}>
-                <Button icon={<UploadOutlined />}>批量导入</Button>
+                <Button icon={<UploadOutlined />} loading={importing}>
+                  批量导入
+                </Button>
               </Upload>
               <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
                 发布岗位
@@ -407,6 +433,81 @@ const JobManage = () => {
             <TextArea rows={4} placeholder="请输入任职要求" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title="批量导入结果"
+        open={importModalVisible}
+        onCancel={() => setImportModalVisible(false)}
+        footer={[
+          <Button key="close" type="primary" onClick={() => setImportModalVisible(false)}>
+            关闭
+          </Button>
+        ]}
+        width={700}
+      >
+        {importResult && (
+          <div>
+            <Row gutter={16} style={{ marginBottom: 16 }}>
+              <Col span={8}>
+                <Card size="small">
+                  <div style={{ fontSize: 24, fontWeight: 700, color: '#1677ff' }}>
+                    {importResult.total}
+                  </div>
+                  <div style={{ color: '#999' }}>总计</div>
+                </Card>
+              </Col>
+              <Col span={8}>
+                <Card size="small">
+                  <div style={{ fontSize: 24, fontWeight: 700, color: '#52c41a' }}>
+                    {importResult.successCount}
+                  </div>
+                  <div style={{ color: '#999' }}>成功</div>
+                </Card>
+              </Col>
+              <Col span={8}>
+                <Card size="small">
+                  <div style={{ fontSize: 24, fontWeight: 700, color: '#ff4d4f' }}>
+                    {importResult.failedCount}
+                  </div>
+                  <div style={{ color: '#999' }}>失败</div>
+                </Card>
+              </Col>
+            </Row>
+            {importResult.failedCount > 0 && (
+              <Table
+                size="small"
+                rowKey="row"
+                dataSource={importResult.errors}
+                pagination={{ pageSize: 10 }}
+                scroll={{ y: 300 }}
+                columns={[
+                  {
+                    title: '行号',
+                    dataIndex: 'row',
+                    key: 'row',
+                    width: 80,
+                    align: 'center'
+                  },
+                  {
+                    title: '岗位名称',
+                    dataIndex: 'positionName',
+                    key: 'positionName',
+                    width: 180
+                  },
+                  {
+                    title: '失败原因',
+                    dataIndex: 'reason',
+                    key: 'reason',
+                    render: (text: string) => (
+                      <span style={{ color: '#ff4d4f' }}>{text}</span>
+                    )
+                  }
+                ]}
+              />
+            )}
+          </div>
+        )}
       </Modal>
     </div>
   )

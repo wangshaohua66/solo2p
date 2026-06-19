@@ -2,13 +2,17 @@ package com.talentmarket.enterprise.controller;
 
 import com.talentmarket.common.result.PageResult;
 import com.talentmarket.common.result.Result;
+import com.talentmarket.enterprise.dto.BatchImportResult;
 import com.talentmarket.enterprise.entity.JobPosition;
 import com.talentmarket.enterprise.service.JobPositionService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/position")
 @RequiredArgsConstructor
@@ -91,5 +95,23 @@ public class JobPositionController {
                 expectedSalaryMin, expectedSalaryMax, preferredLocation,
                 yearsOfExperience, highestEducation);
         return Result.success(score);
+    }
+
+    @PostMapping("/batch-import")
+    public Result<BatchImportResult> batchImport(@RequestParam("file") MultipartFile file) {
+        log.info("收到岗位批量导入请求，文件名: {}, 大小: {} bytes",
+                file.getOriginalFilename(), file.getSize());
+
+        if (file.isEmpty()) {
+            return Result.fail("上传文件不能为空");
+        }
+
+        BatchImportResult result = jobPositionService.batchImport(file);
+
+        String summary = String.format("导入完成：共%d条，成功%d条，失败%d条",
+                result.getTotal(), result.getSuccessCount(), result.getFailedCount());
+        log.info(summary);
+
+        return Result.success(summary, result);
     }
 }
