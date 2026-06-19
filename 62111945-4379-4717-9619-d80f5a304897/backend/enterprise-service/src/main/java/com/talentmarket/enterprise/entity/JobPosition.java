@@ -44,6 +44,12 @@ public class JobPosition extends BaseEntity {
 
     private List<String> welfareTags;
 
+    private String benefits;
+
+    private String workAddress;
+
+    private String companyIntroduction;
+
     private String department;
 
     private String reportTo;

@@ -26,4 +26,8 @@ public interface JobPositionMapper extends BaseMapper<JobPosition> {
     List<JobPosition> selectRecommendPositions(@Param("city") String city,
                                                 @Param("skillTags") List<String> skillTags,
                                                 @Param("limit") Integer limit);
+
+    Integer countMatchedCandidates(@Param("city") String city,
+                                   @Param("education") String education,
+                                   @Param("experience") String experience);
 }

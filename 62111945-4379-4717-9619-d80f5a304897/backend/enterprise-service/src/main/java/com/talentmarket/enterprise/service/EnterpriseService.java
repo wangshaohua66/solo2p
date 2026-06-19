@@ -5,16 +5,20 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.talentmarket.common.exception.BusinessException;
 import com.talentmarket.common.result.ResultCode;
+import com.talentmarket.common.service.SmsNotificationService;
 import com.talentmarket.common.utils.RedisUtils;
 import com.talentmarket.enterprise.entity.Enterprise;
 import com.talentmarket.enterprise.mapper.EnterpriseMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -25,11 +29,13 @@ public class EnterpriseService {
     private final EnterpriseMapper enterpriseMapper;
     private final EnterpriseVerificationService verificationService;
     private final SensitiveWordService sensitiveWordService;
+    private final SmsNotificationService smsNotificationService;
     private final RedisUtils redisUtils;
     private final RedisTemplate<String, Object> redisTemplate;
 
     private static final String ENTERPRISE_CACHE_KEY = "enterprise:";
     private static final long CACHE_EXPIRE = 3600;
+    private static final String CENTER_ID = "enterprise-center-001";
 
     public Enterprise getById(Long id) {
         String cacheKey = ENTERPRISE_CACHE_KEY + id;
@@ -82,15 +88,14 @@ public class EnterpriseService {
         return enterprise;
     }
 
+    @Async
     public void asyncVerifyEnterprise(Long enterpriseId) {
-        new Thread(() -> {
-            try {
-                Thread.sleep(3000);
-                autoVerify(enterpriseId);
-            } catch (Exception e) {
-                log.error("企业资质自动审核异常", e);
-            }
-        }).start();
+        try {
+            Thread.sleep(3000);
+            autoVerify(enterpriseId);
+        } catch (Exception e) {
+            log.error("企业资质自动审核异常", e);
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -100,7 +105,7 @@ public class EnterpriseService {
             throw new BusinessException("企业不存在");
         }
 
-        if (enterprise.getAuthStatus() != 0) {
+        if (enterprise.getAuthStatus() != null && enterprise.getAuthStatus() != 0) {
             log.info("企业已审核，跳过自动审核，企业ID: {}", enterpriseId);
             return false;
         }
@@ -124,6 +129,10 @@ public class EnterpriseService {
 
         enterpriseMapper.updateById(update);
         evictCache(enterpriseId);
+
+        triggerVerifyNotifications(enterprise, verifyResult.isPassed(), verifyResult.getMessage());
+
+        broadcastVerifyResult(enterpriseId, verifyResult.isPassed(), verifyResult.getMessage());
 
         log.info("企业自动审核完成，企业: {}, 结果: {}, 原因: {}",
                 enterprise.getEnterpriseName(), verifyResult.isPassed() ? "通过" : "不通过", verifyResult.getMessage());
@@ -152,10 +161,65 @@ public class EnterpriseService {
         enterpriseMapper.updateById(update);
         evictCache(enterpriseId);
 
+        triggerVerifyNotifications(enterprise, passed, remark);
+
+        broadcastVerifyResult(enterpriseId, passed, remark);
+
         log.info("企业人工审核完成，企业: {}, 结果: {}, 操作人: {}",
                 enterprise.getEnterpriseName(), passed ? "通过" : "不通过", adminId);
 
         return true;
+    }
+
+    private void triggerVerifyNotifications(Enterprise enterprise, boolean passed, String message) {
+        try {
+            String contactPhone = extractContactPhone(enterprise);
+            if (contactPhone != null) {
+                String contactName = enterprise.getContactName() != null
+                        ? enterprise.getContactName() : enterprise.getLegalPerson();
+
+                smsNotificationService.sendEnterpriseVerifyNotification(
+                        contactPhone,
+                        contactName,
+                        enterprise.getEnterpriseName(),
+                        passed,
+                        passed ? null : message
+                );
+
+                log.info("已触发企业审核短信通知: {}, 结果: {}", maskPhone(contactPhone), passed ? "通过" : "未通过");
+            }
+        } catch (Exception e) {
+            log.warn("发送企业审核通知短信失败", e);
+        }
+    }
+
+    private void broadcastVerifyResult(Long enterpriseId, boolean passed, String message) {
+        try {
+            String syncChannel = "talent-market:data-sync";
+            Map<String, Object> event = new HashMap<>();
+            event.put("centerId", CENTER_ID);
+            event.put("enterpriseId", enterpriseId);
+            event.put("passed", passed);
+            event.put("message", message);
+            event.put("timestamp", LocalDateTime.now().toString());
+
+            String payload = cn.hutool.json.JSONUtil.toJsonStr(Map.of(
+                    "syncId", "verify-" + enterpriseId + "-" + System.currentTimeMillis(),
+                    "sourceCenterId", CENTER_ID,
+                    "syncType", "SINGLE",
+                    "dataType", "enterprise-verify",
+                    "dataId", String.valueOf(enterpriseId),
+                    "dataJson", cn.hutool.json.JSONUtil.toJsonStr(event),
+                    "operation", "UPDATE",
+                    "timestamp", LocalDateTime.now().toString(),
+                    "version", 1
+            ));
+
+            redisTemplate.convertAndSend(syncChannel, payload);
+            log.debug("已广播企业审核结果到跨中心频道: enterpriseId={}", enterpriseId);
+        } catch (Exception e) {
+            log.warn("广播企业审核结果失败", e);
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -178,6 +242,18 @@ public class EnterpriseService {
         }
         return enterprise.getVerified() != null && enterprise.getVerified() == 1
                 && enterprise.getAuthStatus() != null && enterprise.getAuthStatus() == 1;
+    }
+
+    private String extractContactPhone(Enterprise enterprise) {
+        if (enterprise.getContactPhone() != null && !enterprise.getContactPhone().isEmpty()) {
+            return enterprise.getContactPhone();
+        }
+        return null;
+    }
+
+    private String maskPhone(String phone) {
+        if (phone == null || phone.length() < 7) return "***";
+        return phone.substring(0, 3) + "****" + phone.substring(7);
     }
 
     private void evictCache(Long enterpriseId) {
