@@ -1,0 +1,23 @@
+[parsing]
+encoding = "utf-8"
+strict = false
+concurrency = 8
+
+[comparison]
+full_coverage = true
+equivalence = true
+equivalent_keyword_threshold = 0.5
+max_features_per_claim = 64
+
+[output]
+format = "text"
+color = true
+indent = 2
+
+[graph]
+damping = 0.85
+iterations = 100
+top_n = 10
+
+[log]
+level = "warn"

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<patent-document id="WO2021000001A1">
+  <bibliographic-data>
+    <publication-reference>
+      <document-id><doc-number>WO2021000001A1</doc-number><date>20210101</date></document-id>
+    </publication-reference>
+    <application-reference>
+      <document-id><doc-number>PCT/CN2020/000001</doc-number><date>20200101</date></document-id>
+    </application-reference>
+    <invention-title>A lever apparatus</invention-title>
+    <abstract>The invention relates to a lever apparatus.</abstract>
+    <parties>
+      <applicants><name>Shanghai Mech Lab</name></applicants>
+      <inventors><name>Li Si</name></inventors>
+    </parties>
+    <classifications-ipcr>
+      <classification-ipcr><text>G06F1/02</text></classification-ipcr>
+    </classifications-ipcr>
+  </bibliographic-data>
+  <claims>
+    <claim num="1"><claim-text>1. An apparatus comprising a base; comprising a lever pivotably connected to the base.</claim-text></claim>
+    <claim num="2"><claim-text>2. The apparatus of claim 1, wherein the lever is a metal rod.</claim-text></claim>
+  </claims>
+  <references-cited>
+    <citation>
+      <patcit dnum="US8000001B1"><document-id><doc-number>US8000001B1</doc-number></document-id></patcit>
+      <category>X</category>
+    </citation>
+    <citation>
+      <nplcit><text>Non-patent reference</text></nplcit>
+    </citation>
+  </references-cited>
+</patent-document>

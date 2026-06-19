@@ -1,0 +1,94 @@
+[
+  {
+    "id": "CN1000001A",
+    "title": "一种杠杆装置",
+    "abstract_text": "本发明公开了一种杠杆装置，包括底座和可转动连接的杠杆。",
+    "applicants": [
+      "北京机械研究所"
+    ],
+    "inventors": [
+      "张三"
+    ],
+    "filing_date": "2020-01-15",
+    "publication_date": "2021-07-20",
+    "classifications": [
+      "G06F1/00"
+    ],
+    "citations": [
+      {
+        "cited_id": "CN9000001A",
+        "cited_title": null,
+        "category": "X",
+        "is_non_patent": false
+      },
+      {
+        "cited_id": "US8000001B1",
+        "cited_title": null,
+        "category": "Y",
+        "is_non_patent": false
+      }
+    ],
+    "claims": [
+      {
+        "number": "1",
+        "text": "一种装置，包括底座；包括杠杆，所述杠杆可转动地连接于底座。",
+        "claim_type": "independent",
+        "depends_on": [],
+        "features": []
+      },
+      {
+        "number": "2",
+        "text": "如权利要求1所述的装置，其特征在于所述杠杆为金属杆。",
+        "claim_type": "dependent",
+        "depends_on": [
+          "1"
+        ],
+        "features": []
+      }
+    ],
+    "source_format": "CNIPA"
+  },
+  {
+    "id": "WO2021000001A1",
+    "title": "A lever apparatus",
+    "abstract_text": "The invention relates to a lever apparatus.",
+    "applicants": [
+      "Shanghai Mech Lab"
+    ],
+    "inventors": [
+      "Li Si"
+    ],
+    "filing_date": "2020-01-01",
+    "publication_date": "2021-01-01",
+    "classifications": [
+      "G06F1/02"
+    ],
+    "citations": [
+      {
+        "cited_id": "US8000001B1",
+        "cited_title": null,
+        "category": "X",
+        "is_non_patent": false
+      }
+    ],
+    "claims": [
+      {
+        "number": "1",
+        "text": "An apparatus comprising a base; comprising a lever pivotably connected to the base.",
+        "claim_type": "independent",
+        "depends_on": [],
+        "features": []
+      },
+      {
+        "number": "2",
+        "text": "The apparatus of claim 1, wherein the lever is a metal rod.",
+        "claim_type": "dependent",
+        "depends_on": [
+          "1"
+        ],
+        "features": []
+      }
+    ],
+    "source_format": "WIPO"
+  }
+]
