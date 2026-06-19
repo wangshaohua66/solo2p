@@ -99,74 +99,23 @@ impl WhoisLookup {
     }
 
     async fn query_whois(&self, domain: &str) -> Result<WhoisResult> {
-        let whois_server = Self::find_whois_server(domain)?;
+        let domain_owned = domain.to_string();
+        let timeout = Duration::from_secs(30);
 
-        let query = format!("{}\r\n", domain);
-        let addr = format!("{}:43", whois_server);
-
-        let result = tokio::time::timeout(
-            Duration::from_secs(30),
-            Self::whois_query(&addr, &query),
-        ).await;
-
-        let response = result
+        let response = tokio::time::timeout(
+            timeout,
+            tokio::task::spawn_blocking(move || {
+                let whois = whois_rust::Whois::default();
+                whois.lookup(&domain_owned)
+                    .map_err(|e| anyhow!("WHOIS查询失败: {}", e))
+            })
+        ).await
             .map_err(|e| anyhow!("WHOIS查询超时: {}", e))?
-            .map_err(|e| anyhow!("WHOIS查询失败: {}", e))?;
+            .map_err(|e| anyhow!("WHOIS任务执行失败: {}", e))??;
 
         let whois_result = Self::parse_whois_response(domain, &response)?;
 
         Ok(whois_result)
-    }
-
-    async fn whois_query(server: &str, query: &str) -> Result<String> {
-        use tokio::io::{AsyncReadExt, AsyncWriteExt};
-        use tokio::net::TcpStream;
-
-        let mut stream = TcpStream::connect(server)
-            .await
-            .with_context(|| format!("无法连接到WHOIS服务器: {}", server))?;
-
-        stream.write_all(query.as_bytes())
-            .await
-            .context("发送WHOIS查询失败")?;
-
-        let mut response = String::new();
-        stream.read_to_string(&mut response)
-            .await
-            .context("读取WHOIS响应失败")?;
-
-        Ok(response)
-    }
-
-    fn find_whois_server(domain: &str) -> Result<String> {
-        let tld = domain.split('.').last().unwrap_or("com");
-
-        let tld_servers = [
-            ("com", "whois.verisign-grs.com"),
-            ("net", "whois.verisign-grs.com"),
-            ("org", "whois.pir.org"),
-            ("cn", "whois.cnnic.cn"),
-            ("com.cn", "whois.cnnic.cn"),
-            ("net.cn", "whois.cnnic.cn"),
-            ("org.cn", "whois.cnnic.cn"),
-            ("io", "whois.nic.io"),
-            ("cc", "whois.nic.cc"),
-            ("info", "whois.afilias.net"),
-            ("biz", "whois.biz"),
-            ("tv", "whois.nic.tv"),
-            ("name", "whois.nic.name"),
-        ];
-
-        let best_match = tld_servers
-            .iter()
-            .filter(|(t, _)| domain.ends_with(t) && (domain.len() > t.len() + 1 || domain == *t))
-            .max_by_key(|(t, _)| t.len());
-
-        if let Some((_, server)) = best_match {
-            Ok(server.to_string())
-        } else {
-            Ok(format!("whois.nic.{}", tld))
-        }
     }
 
     fn parse_whois_response(domain: &str, response: &str) -> Result<WhoisResult> {

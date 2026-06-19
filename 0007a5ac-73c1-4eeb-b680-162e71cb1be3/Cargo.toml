@@ -19,6 +19,7 @@ serde_json = "1.0"
 serde_yaml = "0.9"
 toml = "0.8"
 trust-dns-resolver = "0.23"
+whois-rust = "1.5"
 indicatif = "0.17"
 chrono = { version = "0.4", features = ["serde"] }
 regex = "1.10"
