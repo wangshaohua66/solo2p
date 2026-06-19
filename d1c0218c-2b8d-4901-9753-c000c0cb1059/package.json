@@ -1,0 +1,30 @@
+{
+  "name": "cross-border-order-collector",
+  "version": "1.0.0",
+  "description": "跨境电商多平台订单自动化采集系统",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "fetch": "node index.js fetch",
+    "report": "node index.js report",
+    "query": "node index.js query"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "selenium-webdriver": "^4.15.0",
+    "webdriverio": "^8.20.0",
+    "sqlite3": "^5.1.6",
+    "node-schedule": "^2.1.1",
+    "axios": "^1.6.0",
+    "chalk": "^4.1.2",
+    "cli-progress": "^3.12.0",
+    "commander": "^11.1.0",
+    "inquirer": "^8.2.6",
+    "csv-writer": "^1.6.0",
+    "dayjs": "^1.11.10",
+    "tough-cookie": "^4.1.3",
+    "p-limit": "^3.1.0"
+  }
+}
