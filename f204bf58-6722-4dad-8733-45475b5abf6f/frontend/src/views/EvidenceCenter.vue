@@ -309,7 +309,7 @@
       </div>
     </el-dialog>
 
-    <el-dialog v-model="showWatermarkDialog" title="添加水印标注" width="440px">
+    <el-dialog v-model="showWatermarkDialog" title="添加水印标注" width="480px">
       <el-form :model="watermarkForm" label-width="90px">
         <el-form-item label="水印文字">
           <el-input v-model="watermarkForm.text" maxlength="50" />
@@ -317,12 +317,21 @@
         <el-form-item label="透明度">
           <el-slider v-model="watermarkForm.opacity" :min="0.1" :max="0.8" :step="0.05" />
         </el-form-item>
+        <el-form-item label="字号">
+          <el-input-number v-model="watermarkForm.font_size" :min="12" :max="120" />
+        </el-form-item>
+        <el-form-item label="颜色">
+          <el-color-picker v-model="watermarkForm.color" />
+        </el-form-item>
         <el-form-item label="位置">
           <el-radio-group v-model="watermarkForm.position">
             <el-radio value="diagonal">斜角铺底</el-radio>
+            <el-radio value="tile">平铺</el-radio>
             <el-radio value="center">居中</el-radio>
+            <el-radio value="top_left">左上角</el-radio>
+            <el-radio value="top_right">右上角</el-radio>
+            <el-radio value="bottom_left">左下角</el-radio>
             <el-radio value="bottom_right">右下角</el-radio>
-            <el-radio value="repeat">平铺</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="文件类型" v-if="current">
@@ -332,6 +341,38 @@
       <template #footer>
         <el-button @click="showWatermarkDialog = false">取消</el-button>
         <el-button type="primary" :loading="watermarkLoading" @click="doAddWatermark">确认添加</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="showOcrDialog" title="OCR识别设置" width="500px">
+      <el-alert
+        title="选择识别类型以获得更精准的识别结果"
+        type="info"
+        :closable="false"
+        style="margin-bottom: 16px"
+      />
+      <el-form label-width="100px">
+        <el-form-item label="识别类型">
+          <el-radio-group v-model="ocrForm.ocr_type">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <el-radio
+                v-for="t in ocrTypes"
+                :key="t.value"
+                :value="t.value"
+                style="margin-bottom: 12px"
+              >
+                <div style="line-height: 1.4">
+                  <div style="font-weight: 600">{{ t.label }}</div>
+                  <div style="font-size: 12px; color: #718096; font-weight: normal">{{ t.desc }}</div>
+                </div>
+              </el-radio>
+            </div>
+          </el-radio-group>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showOcrDialog = false">取消</el-button>
+        <el-button type="primary" :loading="ocrLoading" @click="doOcrRecognize">开始识别</el-button>
       </template>
     </el-dialog>
   </div>
@@ -357,15 +398,35 @@ const showUpload = ref(false)
 const showBorrow = ref(false)
 const showScan = ref(false)
 const showWatermarkDialog = ref(false)
+const showOcrDialog = ref(false)
 const ocrLoading = ref<any>(null)
 const watermarkLoading = ref(false)
 const uploading = ref(false)
 const viewMode = ref<'masonry' | 'table'>('masonry')
 
+const ocrTypes = [
+  { value: 'general', label: '通用文字识别', desc: '普通文档、合同、票据等' },
+  { value: 'accurate', label: '高精度文字识别', desc: '密集文字、低清晰度图片' },
+  { value: 'idcard_front', label: '身份证正面', desc: '姓名、性别、身份证号等' },
+  { value: 'idcard_back', label: '身份证反面', desc: '签发机关、有效期等' },
+  { value: 'driving_license', label: '驾驶证', desc: '准驾车型、有效期等' },
+  { value: 'vehicle_license', label: '行驶证', desc: '车辆信息、年检信息等' },
+  { value: 'bank_card', label: '银行卡', desc: '卡号、银行名称等' },
+  { value: 'business_license', label: '营业执照', desc: '统一社会信用代码、法人等' },
+  { value: 'passport', label: '护照', desc: '护照号、姓名、国籍等' },
+]
+
+const ocrForm = reactive({
+  ocr_type: 'general',
+  lang: 'chinese_english',
+})
+
 const watermarkForm = reactive({
   text: '机密 - 仅限办案使用',
   opacity: 0.3,
-  position: 'diagonal'
+  position: 'diagonal',
+  font_size: 36,
+  color: '#888888',
 })
 
 const search = ref('')
@@ -517,20 +578,26 @@ function handleAction(cmd: string, ev: Evidence) {
         await loadEvidences()
       }).catch(() => {})
   } else if (cmd === 'ocr') {
-    doOcrRecognize(ev)
+    current.value = ev
+    ocrForm.ocr_type = 'general'
+    showOcrDialog.value = true
   } else if (cmd === 'watermark') {
     current.value = ev
     showWatermarkDialog.value = true
   }
 }
 
-async function doOcrRecognize(ev: Evidence) {
-  ocrLoading.value = ev.id
+async function doOcrRecognize() {
+  if (!current.value) return
+  ocrLoading.value = current.value.id
+  showOcrDialog.value = false
   try {
-    const res: any = await evidenceApi.ocrRecognize(ev.id)
+    const res: any = await evidenceApi.ocrRecognize(current.value.id, ocrForm)
+    const ev: any = current.value
     ev.ocr_content = res.data?.ocr_content || ''
     ev.has_ocr = true
-    ElMessage.success('OCR识别完成，已保存识别结果')
+    ev.ocr_info = res.data?.ocr_info || {}
+    ElMessage.success(`OCR识别完成，共${res.data?.words_count || 0}行文字`)
   } catch (e: any) {
     ElMessage.error(e.message || '识别失败')
   } finally {

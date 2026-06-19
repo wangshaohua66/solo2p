@@ -1,18 +1,20 @@
 import logging
 from django.utils import timezone
 from .models import Notification
+from apps.common.services import send_sms as real_send_sms, send_app_push as real_send_app_push
 
 logger = logging.getLogger(__name__)
 
 
 def send_sms(phone: str, content: str) -> bool:
-    logger.info(f'[SMS Mock] 发送短信到 {phone}: {content[:60]}...')
-    return True
+    return real_send_sms(phone, content=content, template_type='notification')
 
 
 def send_app_push(user, content: str, extra: dict | None = None) -> bool:
-    logger.info(f'[APP Push Mock] 推送给 {user.username}: {content[:60]}...')
-    return True
+    title = None
+    if extra:
+        title = extra.get('push_title')
+    return real_send_app_push(user, content, title=title, extras=extra)
 
 
 def send_email(email: str, title: str, content: str) -> bool:

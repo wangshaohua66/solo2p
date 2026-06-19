@@ -9,3 +9,10 @@ python-dateutil==2.9.0.post0
 django-filter==25.1
 python-multipart==0.0.20
 sqlparse==0.5.3
+aliyun-python-sdk-core>=2.16.0
+aliyun-python-sdk-dysmsapi>=2.1.2
+baidu-aip>=4.16.13
+jpush>=3.3.9
+pypdf>=6.0.0
+reportlab>=4.0.0
+tencentcloud-sdk-python>=3.0.0

@@ -66,9 +66,12 @@ export const evidenceApi = {
   batchUpload: (formData: FormData): Promise<ApiResponse<any>> => service.post('/cases/evidences/batch_upload/', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
-  ocrRecognize: (id: number, data?: { lang?: string }): Promise<ApiResponse<any>> =>
+  ocrRecognize: (id: number, data?: { lang?: string; ocr_type?: string }): Promise<ApiResponse<any>> =>
     service.post(`/cases/evidences/${id}/ocr_recognize/`, data || {}),
-  addWatermark: (id: number, data?: { text?: string; opacity?: number; position?: string }): Promise<ApiResponse<any>> =>
+  addWatermark: (id: number, data?: {
+    text?: string; opacity?: number; position?: string;
+    font_size?: number; color?: string
+  }): Promise<ApiResponse<any>> =>
     service.post(`/cases/evidences/${id}/add_watermark/`, data || {})
 }
 

@@ -382,6 +382,7 @@ class Evidence(models.Model):
     thumbnail = models.ImageField(upload_to='evidence/thumbnails/', blank=True, verbose_name='缩略图')
     ocr_content = models.TextField(blank=True, verbose_name='OCR识别内容')
     has_ocr = models.BooleanField(default=False, verbose_name='已OCR识别')
+    ocr_info = models.JSONField(default=dict, blank=True, verbose_name='OCR识别信息')
     has_watermark = models.BooleanField(default=False, verbose_name='已加水印')
     watermark_info = models.JSONField(default=dict, blank=True, verbose_name='水印配置')
     is_encrypted = models.BooleanField(default=False, verbose_name='已加密')
@@ -437,6 +438,8 @@ class EvidenceFlow(models.Model):
         ('modify', '修改'),
         ('download', '下载'),
         ('view', '查看'),
+        ('ocr', 'OCR识别'),
+        ('watermark', '添加水印'),
     ]
 
     evidence = models.ForeignKey(Evidence, on_delete=models.CASCADE, related_name='flow_logs', verbose_name='证据')

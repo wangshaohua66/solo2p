@@ -123,3 +123,51 @@ SIMPLE_JWT = {
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 104857600
 FILE_UPLOAD_MAX_MEMORY_SIZE = 104857600
+
+import os
+ENV = os.environ.get
+
+SMS_CONFIG = {
+    'provider': ENV('SMS_PROVIDER', 'aliyun'),
+    'enabled': ENV('SMS_ENABLED', 'false').lower() == 'true',
+    'aliyun': {
+        'access_key_id': ENV('ALIYUN_ACCESS_KEY_ID', ''),
+        'access_key_secret': ENV('ALIYUN_ACCESS_KEY_SECRET', ''),
+        'sign_name': ENV('ALIYUN_SMS_SIGN_NAME', '精诚律师事务所'),
+        'templates': {
+            'verification': ENV('ALIYUN_SMS_TPL_VERIFY', 'SMS_123456789'),
+            'notification': ENV('ALIYUN_SMS_TPL_NOTIFY', 'SMS_123456790'),
+            'trial_reminder': ENV('ALIYUN_SMS_TPL_TRIAL', 'SMS_123456791'),
+            'limitation_warning': ENV('ALIYUN_SMS_TPL_LIMITATION', 'SMS_123456792'),
+        },
+    },
+}
+
+OCR_CONFIG = {
+    'provider': ENV('OCR_PROVIDER', 'baidu'),
+    'enabled': ENV('OCR_ENABLED', 'false').lower() == 'true',
+    'baidu': {
+        'app_id': ENV('BAIDU_OCR_APP_ID', ''),
+        'api_key': ENV('BAIDU_OCR_API_KEY', ''),
+        'secret_key': ENV('BAIDU_OCR_SECRET_KEY', ''),
+    },
+    'default_lang': ENV('OCR_DEFAULT_LANG', 'chinese_english'),
+}
+
+PUSH_CONFIG = {
+    'provider': ENV('PUSH_PROVIDER', 'jpush'),
+    'enabled': ENV('PUSH_ENABLED', 'false').lower() == 'true',
+    'jpush': {
+        'app_key': ENV('JPUSH_APP_KEY', ''),
+        'master_secret': ENV('JPUSH_MASTER_SECRET', ''),
+        'production': ENV('JPUSH_PRODUCTION', 'false').lower() == 'true',
+    },
+}
+
+WATERMARK_CONFIG = {
+    'default_text': ENV('WATERMARK_DEFAULT_TEXT', '机密 - {evidence_no} - 仅供本案使用'),
+    'default_opacity': float(ENV('WATERMARK_DEFAULT_OPACITY', '0.3')),
+    'default_position': ENV('WATERMARK_DEFAULT_POSITION', 'diagonal'),
+    'default_font_size': int(ENV('WATERMARK_FONT_SIZE', '36')),
+    'default_color': ENV('WATERMARK_COLOR', '#888888'),
+}

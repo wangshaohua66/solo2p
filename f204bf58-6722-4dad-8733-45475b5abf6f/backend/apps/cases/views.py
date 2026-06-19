@@ -17,6 +17,7 @@ from .serializers import (
     CaseStatsSerializer
 )
 from apps.users.models import User
+from apps.common.services import ocr_recognize as real_ocr_recognize, OCR_TYPES, add_watermark as real_add_watermark
 
 
 class CaseViewSet(viewsets.ModelViewSet):
@@ -511,80 +512,104 @@ class EvidenceViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def ocr_recognize(self, request, pk=None):
-        import logging
-        logger = logging.getLogger(__name__)
         evidence = self.get_object()
+        ocr_type = request.data.get('ocr_type', 'general')
         lang = request.data.get('lang', 'chinese_english')
-        logger.info(f'[OCR Mock] 识别证据 {evidence.id} [{evidence.evidence_name}], lang={lang}')
-        mock_content = (
-            f'[OCR识别结果]\n'
-            f'证据名称：{evidence.evidence_name}\n'
-            f'证据编号：{evidence.evidence_no}\n'
-            f'识别语言：简体中文+英文\n'
-            f'识别时间：{timezone.now().strftime("%Y-%m-%d %H:%M:%S")}\n'
-            f'---\n'
-            f'（以下为模拟OCR识别内容，生产环境可对接阿里云/腾讯云/百度云OCR API）\n'
-            f'合同编号：HT-{evidence.id:06d}\n'
-            f'甲方：XXX有限公司\n'
-            f'乙方：YYY有限公司\n'
-            f'签订日期：2024年01月15日\n'
-            f'合同金额：人民币500,000元整\n'
-            f'主要条款：双方就货物购销事宜达成协议，甲方于合同签订后10日支付预付款30%...\n'
-            f'签字盖章处：甲方公章（已盖） 乙方公章（已盖）\n'
-        )
-        evidence.ocr_content = mock_content
+
+        if not evidence.file:
+            return Response({
+                'code': 400,
+                'message': '证据文件不存在，无法识别',
+                'data': None,
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        result = real_ocr_recognize(evidence.file, ocr_type=ocr_type, lang=lang)
+
+        if not result.get('success'):
+            return Response({
+                'code': 500,
+                'message': result.get('error', 'OCR识别失败'),
+                'data': None,
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        evidence.ocr_content = result.get('content', '')
         evidence.has_ocr = True
-        evidence.save(update_fields=['ocr_content', 'has_ocr'])
+        evidence.ocr_info = {
+            'ocr_type': ocr_type,
+            'type_name': OCR_TYPES.get(ocr_type, ocr_type),
+            'lang': lang,
+            'words_count': result.get('words_count', 0),
+            'applied_at': timezone.now().isoformat(),
+        }
+        evidence.save(update_fields=['ocr_content', 'has_ocr', 'ocr_info'])
+
         EvidenceFlow.objects.create(
             evidence=evidence,
             action='ocr',
             operator=request.user,
-            remark=f'OCR识别完成，语言={lang}'
+            remark=f'OCR识别完成，类型={ocr_type}，共{result.get("words_count", 0)}行'
         )
+
         return Response({
             'code': 200,
             'message': 'OCR识别完成',
             'data': {
                 'id': evidence.id,
                 'ocr_content': evidence.ocr_content,
-                'has_ocr': True
+                'has_ocr': True,
+                'ocr_info': evidence.ocr_info,
+                'words_count': result.get('words_count', 0),
             }
         })
 
     @action(detail=True, methods=['post'])
     def add_watermark(self, request, pk=None):
-        import logging
-        logger = logging.getLogger(__name__)
         evidence = self.get_object()
         watermark_text = request.data.get('text', f'机密 - {evidence.evidence_no} - 仅供本案使用')
         opacity = float(request.data.get('opacity', 0.3))
         position = request.data.get('position', 'diagonal')
-        logger.info(
-            f'[Watermark Mock] 证据 {evidence.id} [{evidence.evidence_name}] '
-            f'添加水印 text="{watermark_text}" opacity={opacity} position={position}'
+        font_size = int(request.data.get('font_size', 36))
+        color = request.data.get('color', '#888888')
+
+        if not evidence.file:
+            return Response({
+                'code': 400,
+                'message': '证据文件不存在，无法添加水印',
+                'data': None,
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        file_path = evidence.file.path
+        result = real_add_watermark(
+            file_path, watermark_text,
+            opacity=opacity, position=position,
+            font_size=font_size, color=color
         )
+
+        if not result.get('success'):
+            return Response({
+                'code': 500,
+                'message': result.get('error', '水印添加失败'),
+                'data': None,
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         evidence.has_watermark = True
-        evidence.watermark_info = {
-            'text': watermark_text,
-            'opacity': opacity,
-            'position': position,
-            'applied_at': timezone.now().isoformat(),
-            'applied_by': request.user.username,
-        }
+        evidence.watermark_info = result
         evidence.save(update_fields=['has_watermark', 'watermark_info'])
+
         EvidenceFlow.objects.create(
             evidence=evidence,
             action='watermark',
             operator=request.user,
             remark=f'添加水印：{watermark_text}（{position}）'
         )
+
         return Response({
             'code': 200,
             'message': '水印添加成功',
             'data': {
                 'id': evidence.id,
                 'has_watermark': True,
-                'watermark_info': evidence.watermark_info
+                'watermark_info': evidence.watermark_info,
             }
         })
 
