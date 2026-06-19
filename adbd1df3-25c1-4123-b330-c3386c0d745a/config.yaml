@@ -19,11 +19,65 @@ u8_system:
   username: "finance_shared"
   password: "********"
   login_url: "http://u8.example.com/login"
+  expense_url: "http://u8.example.com/expense/add"
   expense_module_path: "财务会计>报销管理>费用报销"
   session_timeout: 1800
   window_title: "用友U8+ - 企业应用平台"
-  window_offset_x: 0
-  window_offset_y: 0
+
+selenium:
+  browser: "chrome"
+  headless: false
+  window_width: 1920
+  window_height: 1080
+  implicit_wait: 10
+  page_load_timeout: 30
+  script_timeout: 10
+  use_webdriver_manager: true
+  driver_path: ""
+  arguments:
+    - "--no-sandbox"
+    - "--disable-dev-shm-usage"
+    - "--disable-gpu"
+    - "--disable-blink-features=AutomationControlled"
+  experimental_options:
+    excludeSwitches:
+      - "enable-automation"
+    useAutomationExtension: false
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+element_selectors:
+  login:
+    username_input: "#username"
+    password_input: "#password"
+    captcha_input: "#captcha"
+    captcha_image: "#captcha-img"
+    login_button: "#btn-login"
+    error_message: ".login-error"
+    success_indicator: ".user-info"
+  navigation:
+    menu_finance: "#menu-finance"
+    menu_expense: "#menu-expense"
+    menu_expense_add: "#menu-expense-add"
+    tab_current: ".el-tabs__item.is-active"
+  expense_form:
+    invoice_code_input: "#invoice-code"
+    invoice_number_input: "#invoice-number"
+    tax_id_input: "#tax-id"
+    amount_input: "#amount"
+    date_input: "#invoice-date"
+    seller_input: "#seller-name"
+    save_button: "#btn-save"
+    submit_button: "#btn-submit"
+    new_button: "#btn-new"
+    success_toast: ".el-message--success"
+    error_dialog: ".el-dialog--error"
+    form_container: ".expense-form"
+    input_suffix: ""
+  verification:
+    invoice_code_value: "#invoice-code + .value-display"
+    amount_value: ".amount-display"
+    status_label: ".status-label"
+    form_validation: ".form-validation-result"
 
 ocr:
   tesseract_cmd: "/usr/local/bin/tesseract"

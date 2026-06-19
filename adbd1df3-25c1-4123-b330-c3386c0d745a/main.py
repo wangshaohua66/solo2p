@@ -31,12 +31,9 @@ except ImportError:
 from retry_handler import RetryConfig, RetryHandler, RetryStats
 from opencv_detector import (
     ImagePreprocessor,
-    TemplateMatcher,
-    ElementDetector,
-    ElementNotFoundException,
 )
 from invoice_captcha import CaptchaRecognizer, CaptchaSolver, CaptchaError
-from u8_automation import U8Automation, U8AutomationError
+from u8_automation import U8Automation, U8AutomationError, ElementNotFoundException
 from pdf_processor import PDFProcessor, PDFInvoiceExtractor, PDFProcessingError
 from memory_monitor import (
     MemoryMonitor,
@@ -914,13 +911,10 @@ class InvoiceAutomationSystem:
             self.memory_monitor,
         )
 
-        self.template_matcher = TemplateMatcher.from_yaml_config(self.config)
-        self.element_detector = ElementDetector(self.template_matcher)
-
         self.captcha_recognizer = CaptchaRecognizer.from_yaml_config(self.config)
         self.captcha_solver = CaptchaSolver(self.captcha_recognizer)
 
-        self.u8_automation = None
+        self.u8_automation: Optional[U8Automation] = None
 
         signal.signal(signal.SIGINT, self.processor.signal_handler)
         signal.signal(signal.SIGTERM, self.processor.signal_handler)
@@ -1007,19 +1001,15 @@ class InvoiceAutomationSystem:
         logger = logging.getLogger(__name__)
 
     def initialize_u8(self) -> None:
-        logger.info("Initializing U8 automation connection...", extra={
+        logger.info("Initializing U8 automation (Selenium WebDriver)...", extra={
             "operation": "u8_init",
             "status": "start",
             "duration": 0.0,
         })
 
         try:
-            opencv_config = self.config.get("opencv", {})
-            template_paths = opencv_config.get("template_paths", {})
-            self.template_matcher.load_templates(template_paths)
-
             self.u8_automation = U8Automation.from_yaml_config(
-                self.config, self.element_detector, self.captcha_solver
+                self.config, self.captcha_solver
             )
             self.u8_automation.initialize()
 
@@ -1237,6 +1227,8 @@ class InvoiceAutomationSystem:
     def cleanup(self) -> None:
         if self.memory_monitor is not None:
             self.memory_monitor.stop_monitoring()
+        if self.u8_automation is not None:
+            self.u8_automation.cleanup()
         self.state_manager.flush()
         logger.info("System cleanup completed", extra={
             "operation": "cleanup",
