@@ -7,6 +7,7 @@ import hmac
 import base64
 import signal
 import hashlib
+import logging
 import urllib.parse
 import argparse
 import traceback
@@ -37,6 +38,20 @@ from opencv_detector import (
 from invoice_captcha import CaptchaRecognizer, CaptchaSolver, CaptchaError
 from u8_automation import U8Automation, U8AutomationError
 from pdf_processor import PDFProcessor, PDFInvoiceExtractor, PDFProcessingError
+from memory_monitor import (
+    MemoryMonitor,
+    MemoryGuard,
+    MemoryExceededError,
+    MemoryLevel,
+)
+
+
+class _NullGuard:
+    def __enter__(self) -> "_NullGuard":
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        pass
 
 
 @dataclass
@@ -415,14 +430,44 @@ class DingTalkNotifier:
 
 
 class StateManager:
-    def __init__(self, config: Dict):
+    def __init__(self, config: Dict, memory_monitor: Optional[MemoryMonitor] = None):
         state_config = config.get("state_tracking", {})
         self.file_path = state_config.get("file_path", "./state/invoice_state.json")
         self.save_interval = state_config.get("save_interval", 10)
         self.valid_states = state_config.get("states", ["pending", "completed", "failed"])
         self._state: Dict[str, Dict] = {}
         self._change_count = 0
+        self._memory_monitor = memory_monitor
+        self._last_memory_check = 0.0
+        self._memory_check_cooldown = 5.0
         self._load_state()
+
+    def _check_memory(self) -> None:
+        if self._memory_monitor is None:
+            return
+
+        current_time = time.time()
+        if current_time - self._last_memory_check < self._memory_check_cooldown:
+            return
+
+        self._last_memory_check = current_time
+        ok, snapshot = self._memory_monitor.check_memory()
+
+        if not ok:
+            self._memory_monitor.try_cleanup()
+
+        if snapshot.level == MemoryLevel.WARNING:
+            logger.warning(
+                f"High memory during state operation: {snapshot.rss_mb:.1f}MB / "
+                f"{snapshot.limit_mb:.1f}MB ({snapshot.usage_ratio:.1%})",
+                extra={
+                    "operation": "state_memory_check",
+                    "status": "warning",
+                    "duration": 0.0,
+                    "rss_mb": snapshot.rss_mb,
+                    "usage_ratio": snapshot.usage_ratio,
+                },
+            )
 
     def _load_state(self) -> None:
         if os.path.exists(self.file_path):
@@ -484,6 +529,7 @@ class StateManager:
         return self._state.get(file_hash)
 
     def update_invoice(self, invoice: InvoiceData) -> None:
+        self._check_memory()
         invoice.updated_at = time.time()
         self._state[invoice.file_hash] = invoice.to_dict()
         self._save_state()
@@ -508,14 +554,58 @@ class InvoiceProcessor:
         state_manager: StateManager,
         notifier: DingTalkNotifier,
         pdf_processor: Optional[PDFProcessor] = None,
+        memory_monitor: Optional[MemoryMonitor] = None,
     ):
         self.config_manager = config_manager
         self.ocr_engine = ocr_engine
         self.state_manager = state_manager
         self.notifier = notifier
         self.pdf_processor = pdf_processor
+        self.memory_monitor = memory_monitor
         self._shutdown = False
         self.retry_config = RetryConfig.from_yaml_config(config_manager.get("retry", {}))
+
+        memory_config = config_manager.get("memory_monitoring", {})
+        self.enforce_memory_limit = memory_config.get("enforce_limit", True)
+        self.reject_on_critical = memory_config.get("reject_on_critical", True)
+
+    def _check_memory_before_operation(self, operation_name: str, required_mb: float = 0.0) -> bool:
+        if self.memory_monitor is None or not self.enforce_memory_limit:
+            return True
+
+        ok, snapshot = self.memory_monitor.check_memory()
+
+        if snapshot.level == MemoryLevel.CRITICAL and self.reject_on_critical:
+            logger.error(
+                f"Memory critical, rejecting {operation_name}: "
+                f"{snapshot.rss_mb:.1f}MB / {snapshot.limit_mb:.1f}MB ({snapshot.usage_ratio:.1%})",
+                extra={
+                    "operation": f"memory_guard_{operation_name}",
+                    "status": "rejected",
+                    "duration": 0.0,
+                    "rss_mb": snapshot.rss_mb,
+                    "usage_ratio": snapshot.usage_ratio,
+                },
+            )
+            self.notifier.notify_error(
+                f"内存超限，操作被拒绝: {operation_name}\n"
+                f"当前: {snapshot.rss_mb:.1f}MB / 限制: {snapshot.limit_mb:.1f}MB"
+            )
+            return False
+
+        if not self.memory_monitor.ensure_capacity(required_mb):
+            logger.error(
+                f"Memory capacity insufficient for {operation_name}",
+                extra={
+                    "operation": f"memory_guard_{operation_name}",
+                    "status": "insufficient",
+                    "duration": 0.0,
+                    "required_mb": required_mb,
+                },
+            )
+            return False
+
+        return True
 
     def signal_handler(self, signum, frame):
         logger.info(
@@ -603,13 +693,22 @@ class InvoiceProcessor:
             if self._shutdown:
                 raise KeyboardInterrupt("Shutdown requested")
 
+            if not self._check_memory_before_operation("invoice_processing", required_mb=50.0):
+                invoice.status = "failed"
+                invoice.error_message = "Memory limit exceeded, operation rejected"
+                invoice.processing_duration = time.time() - start_time
+                self.state_manager.update_invoice(invoice)
+                return invoice
+
             invoice.status = "preprocessing"
             self.state_manager.update_invoice(invoice)
 
             invoice.status = "ocr"
             self.state_manager.update_invoice(invoice)
 
-            ocr_result = self.ocr_engine.process_file(invoice.file_path, self.pdf_processor)
+            with MemoryGuard(self.memory_monitor, "ocr_processing") if self.memory_monitor else _NullGuard():
+                ocr_result = self.ocr_engine.process_file(invoice.file_path, self.pdf_processor)
+
             invoice.invoice_code = ocr_result.get("invoice_code")
             invoice.invoice_number = ocr_result.get("invoice_number")
             invoice.tax_id = ocr_result.get("tax_id")
@@ -629,6 +728,13 @@ class InvoiceProcessor:
             self.state_manager.update_invoice(invoice)
 
             if not dry_run and u8_automation is not None:
+                if not self._check_memory_before_operation("u8_filling", required_mb=20.0):
+                    invoice.status = "failed"
+                    invoice.error_message = "Memory limit exceeded before U8 filling"
+                    invoice.processing_duration = time.time() - start_time
+                    self.state_manager.update_invoice(invoice)
+                    return invoice
+
                 invoice.status = "filling"
                 self.state_manager.update_invoice(invoice)
 
@@ -646,6 +752,9 @@ class InvoiceProcessor:
             invoice.status = "completed"
             invoice.processing_duration = time.time() - start_time
             self.state_manager.update_invoice(invoice)
+
+            if self.memory_monitor is not None:
+                self.memory_monitor.try_cleanup()
 
             logger.info(
                 f"Successfully processed: {os.path.basename(invoice.file_path)}",
@@ -703,7 +812,13 @@ def process_invoice_worker(invoice_data: Dict, config_path: str, dry_run: bool) 
 
         preprocessor = ImagePreprocessor.from_yaml_config(config)
         ocr_engine = OCREngine(config, preprocessor)
-        state_manager = StateManager(config)
+
+        try:
+            memory_monitor = MemoryMonitor.from_yaml_config(config)
+        except ImportError:
+            memory_monitor = None
+
+        state_manager = StateManager(config, memory_monitor)
         notifier = DingTalkNotifier(config)
 
         try:
@@ -712,7 +827,12 @@ def process_invoice_worker(invoice_data: Dict, config_path: str, dry_run: bool) 
             pdf_processor = None
 
         processor = InvoiceProcessor(
-            config_manager, ocr_engine, state_manager, notifier, pdf_processor
+            config_manager,
+            ocr_engine,
+            state_manager,
+            notifier,
+            pdf_processor,
+            memory_monitor,
         )
         invoice = InvoiceData(**invoice_data)
 
@@ -734,9 +854,39 @@ class InvoiceAutomationSystem:
 
         self._setup_logging()
 
+        system_config = self.config.get("system", {})
+        self.memory_limit_mb = system_config.get("memory_limit_mb", 500)
+
+        try:
+            self.memory_monitor = MemoryMonitor.from_yaml_config(self.config)
+            self.memory_monitor.start_monitoring(
+                on_warning=self._on_memory_warning,
+                on_critical=self._on_memory_critical,
+            )
+            logger.info(
+                f"Memory monitor initialized: limit={self.memory_limit_mb}MB",
+                extra={
+                    "operation": "memory_monitor_init",
+                    "status": "success",
+                    "duration": 0.0,
+                    "limit_mb": self.memory_limit_mb,
+                },
+            )
+        except ImportError:
+            logger.warning(
+                "psutil not installed, memory monitoring will be disabled. "
+                "Install with: pip install psutil",
+                extra={
+                    "operation": "memory_monitor_init",
+                    "status": "disabled",
+                    "duration": 0.0,
+                },
+            )
+            self.memory_monitor = None
+
         self.preprocessor = ImagePreprocessor.from_yaml_config(self.config)
         self.ocr_engine = OCREngine(self.config, self.preprocessor)
-        self.state_manager = StateManager(self.config)
+        self.state_manager = StateManager(self.config, self.memory_monitor)
         self.notifier = DingTalkNotifier(self.config)
 
         try:
@@ -761,6 +911,7 @@ class InvoiceAutomationSystem:
             self.state_manager,
             self.notifier,
             self.pdf_processor,
+            self.memory_monitor,
         )
 
         self.template_matcher = TemplateMatcher.from_yaml_config(self.config)
@@ -776,6 +927,35 @@ class InvoiceAutomationSystem:
 
         self.stats = ProcessingStats()
         self.retry_stats = RetryStats()
+
+    def _on_memory_warning(self, snapshot) -> None:
+        logger.warning(
+            f"Memory warning callback: {snapshot.rss_mb:.1f}MB / {snapshot.limit_mb:.1f}MB",
+            extra={
+                "operation": "memory_warning_callback",
+                "status": "warning",
+                "duration": 0.0,
+                "rss_mb": snapshot.rss_mb,
+                "usage_ratio": snapshot.usage_ratio,
+            },
+        )
+
+    def _on_memory_critical(self, snapshot) -> None:
+        logger.error(
+            f"Memory critical callback: {snapshot.rss_mb:.1f}MB / {snapshot.limit_mb:.1f}MB",
+            extra={
+                "operation": "memory_critical_callback",
+                "status": "critical",
+                "duration": 0.0,
+                "rss_mb": snapshot.rss_mb,
+                "usage_ratio": snapshot.usage_ratio,
+            },
+        )
+        self.notifier.notify_error(
+            f"内存使用达到临界值!\n"
+            f"当前: {snapshot.rss_mb:.1f}MB / 限制: {snapshot.limit_mb:.1f}MB "
+            f"({snapshot.usage_ratio:.1%})"
+        )
 
     def _setup_logging(self) -> None:
         logging_config = self.config.get("logging", {})
@@ -1040,9 +1220,23 @@ class InvoiceAutomationSystem:
         print(f"填报准确率: {stats_dict['fill_accuracy']:.1%}")
         print(f"平均处理时间: {stats_dict['avg_processing_time']:.1f} 秒/张")
         print(f"预计剩余时间: {stats_dict['estimated_remaining_time']:.1f} 秒")
+        if self.memory_monitor is not None:
+            mem_stats = self.memory_monitor.get_stats()
+            current = mem_stats["current"]
+            print("-" * 60)
+            print("内存监控:")
+            print(f"  当前使用: {current['rss_mb']:.1f}MB / {self.memory_limit_mb}MB "
+                  f"({current['usage_ratio']:.1%})")
+            print(f"  峰值使用: {mem_stats['peak_rss_mb']:.1f}MB")
+            print(f"  内存等级: {current['level']}")
+            print(f"  警告次数: {mem_stats['warning_count']}")
+            print(f"  临界次数: {mem_stats['critical_count']}")
+            print(f"  GC次数: {mem_stats['gc_count']}")
         print("=" * 60 + "\n")
 
     def cleanup(self) -> None:
+        if self.memory_monitor is not None:
+            self.memory_monitor.stop_monitoring()
         self.state_manager.flush()
         logger.info("System cleanup completed", extra={
             "operation": "cleanup",

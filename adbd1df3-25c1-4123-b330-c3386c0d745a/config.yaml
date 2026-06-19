@@ -6,6 +6,15 @@ system:
   single_invoice_timeout: 45
   memory_limit_mb: 500
 
+memory_monitoring:
+  warning_threshold: 0.8
+  critical_threshold: 0.95
+  check_interval: 30.0
+  auto_gc: true
+  gc_threshold: 0.7
+  enforce_limit: true
+  reject_on_critical: true
+
 u8_system:
   username: "finance_shared"
   password: "********"

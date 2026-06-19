@@ -1,0 +1,2 @@
+2026-06-19 13:11:57 | INFO     | MainProcess  | memory_monitor_start | success | 0.000s | Memory monitoring started (interval=30.0s, limit=500MB)
+2026-06-19 13:11:57 | INFO     | MainProcess  | memory_monitor_init | success | 0.000s | Memory monitor initialized: limit=500MB
