@@ -3,8 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   Card,
   Button,
-  Row,
-  Col,
   Tag,
   Divider,
   Empty,
@@ -13,7 +11,9 @@ import {
   Space,
   Descriptions,
   Timeline,
-  Tooltip
+  Rate,
+  Progress,
+  List
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -23,7 +23,15 @@ import {
   EditOutlined,
   DownloadOutlined,
   StarOutlined,
-  SafetyCertificateOutlined
+  SafetyCertificateOutlined,
+  EnvironmentOutlined,
+  CalendarOutlined,
+  BankOutlined,
+  FileTextOutlined,
+  TrophyOutlined,
+  BulbOutlined,
+  AimOutlined,
+  PaperClipOutlined
 } from '@ant-design/icons'
 import { Resume } from '@/types'
 import { mockGetResumeDetail } from '@/mock/resume'
@@ -67,6 +75,8 @@ const ResumeDetail = () => {
     )
   }
 
+  const completeRate = 85
+
   return (
     <div className="resume-detail-page">
       <div className="page-header">
@@ -81,144 +91,286 @@ const ResumeDetail = () => {
         </Space>
       </div>
 
-      <div className="resume-container">
-        <Card className="resume-card">
-          <div className="resume-header-section">
-            <div className="resume-avatar-section">
-              <Avatar size={80} icon={<UserOutlined />} />
-              <div className="resume-basic-info">
-                <h2 className="resume-name">{resume.name}</h2>
-                <div className="resume-title-tag">
+      <div className="resume-layout">
+        <div className="resume-left-panel">
+          <Card className="profile-card" bordered={false}>
+            <div className="profile-header">
+              <Avatar size={100} icon={<UserOutlined />} className="profile-avatar" />
+              <div className="profile-info">
+                <h1 className="profile-name">{resume.name}</h1>
+                <div className="profile-title">
                   {resume.title}
-                  {resume.isDefault && <Tag color="gold">默认简历</Tag>}
+                  {resume.isDefault && <Tag color="gold" className="default-tag">默认简历</Tag>}
                 </div>
-                <div className="resume-contact">
-                  <span><PhoneOutlined /> {resume.phone}</span>
-                  <span><MailOutlined /> {resume.email}</span>
+                <div className="profile-contact-row">
+                  <span className="contact-item">
+                    <PhoneOutlined className="contact-icon" />
+                    {resume.phone}
+                  </span>
+                  <span className="contact-item">
+                    <MailOutlined className="contact-icon" />
+                    {resume.email}
+                  </span>
+                </div>
+                <div className="profile-contact-row">
+                  <span className="contact-item">
+                    <EnvironmentOutlined className="contact-icon" />
+                    北京市朝阳区
+                  </span>
+                  <span className="contact-item">
+                    <CalendarOutlined className="contact-icon" />
+                    {resume.experience}年经验
+                  </span>
                 </div>
               </div>
             </div>
-            <div className="resume-expect-section">
-              <div className="expect-item">
-                <span className="expect-label">期望职位</span>
-                <span className="expect-value">{resume.expectedPosition}</span>
+
+            <Divider className="profile-divider" />
+
+            <div className="complete-section">
+              <div className="complete-header">
+                <span className="complete-label">简历完整度</span>
+                <span className="complete-value">{completeRate}%</span>
               </div>
-              <div className="expect-item">
-                <span className="expect-label">期望薪资</span>
-                <span className="expect-value salary">{resume.expectedSalaryMin / 1000}K-{resume.expectedSalaryMax / 1000}K</span>
+              <Progress percent={completeRate} showInfo={false} strokeColor={{ '0%': '#1677ff', '100%': '#52c41a' }} />
+            </div>
+          </Card>
+
+          <Card className="section-card" bordered={false} title={
+            <span className="card-title">
+              <AimOutlined className="title-icon" />
+              求职意向
+            </span>
+          }>
+            <Descriptions column={2} size="small" className="intent-list">
+              <Descriptions.Item label="期望职位">{resume.expectedPosition}</Descriptions.Item>
+              <Descriptions.Item label="期望薪资">
+                <span className="salary-text">{resume.expectedSalaryMin / 1000}K-{resume.expectedSalaryMax / 1000}K</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="期望城市">北京</Descriptions.Item>
+              <Descriptions.Item label="工作性质">全职</Descriptions.Item>
+              <Descriptions.Item label="求职状态">在职-考虑机会</Descriptions.Item>
+              <Descriptions.Item label="到岗时间">随时到岗</Descriptions.Item>
+            </Descriptions>
+          </Card>
+
+          <Card className="section-card" bordered={false} title={
+            <span className="card-title">
+              <SafetyCertificateOutlined className="title-icon" />
+              技能特长
+            </span>
+          }>
+            <div className="skills-container">
+              {resume.skills.map((skill, idx) => (
+                <Tag key={idx} color="blue" className="skill-tag-large">{skill}</Tag>
+              ))}
+            </div>
+            <Divider className="skill-divider" />
+            <div className="skill-rating-list">
+              <div className="skill-rating-item">
+                <span className="skill-name">Java</span>
+                <Rate disabled defaultValue={4} className="skill-rate" />
+              </div>
+              <div className="skill-rating-item">
+                <span className="skill-name">Spring Boot</span>
+                <Rate disabled defaultValue={5} className="skill-rate" />
+              </div>
+              <div className="skill-rating-item">
+                <span className="skill-name">MySQL</span>
+                <Rate disabled defaultValue={4} className="skill-rate" />
+              </div>
+              <div className="skill-rating-item">
+                <span className="skill-name">Redis</span>
+                <Rate disabled defaultValue={3} className="skill-rate" />
               </div>
             </div>
-          </div>
+          </Card>
 
-          <Divider />
-
-          <Row gutter={40}>
-            <Col xs={24} md={16}>
-              <div className="section">
-                <h3 className="section-title">
-                  <SafetyCertificateOutlined className="section-icon" />
-                  个人优势
-                </h3>
-                <div className="skills-tags">
-                  {resume.skills.map((skill, idx) => (
-                    <Tag key={idx} color="blue" className="skill-tag">{skill}</Tag>
-                  ))}
-                </div>
-              </div>
-
-              <div className="section">
-                <h3 className="section-title">
-                  <StarOutlined className="section-icon" />
-                  工作经历
-                </h3>
-                <Timeline
-                  className="experience-timeline"
-                  items={resume.workExperience.map((exp) => ({
-                    color: 'blue',
-                    children: (
-                      <div className="experience-item">
-                        <div className="experience-header">
-                          <span className="company-name">{exp.company}</span>
-                          <span className="time-range">{exp.startTime} - {exp.endTime}</span>
-                        </div>
-                        <div className="position">{exp.position}</div>
-                        <p className="description">{exp.description}</p>
-                      </div>
-                    )
-                  }))}
-                />
-              </div>
-
-              <div className="section">
-                <h3 className="section-title">
-                  <StarOutlined className="section-icon" />
-                  项目经历
-                </h3>
-                <Timeline
-                  className="experience-timeline"
-                  items={resume.projectExperience.map((proj) => ({
-                    color: 'green',
-                    children: (
-                      <div className="experience-item">
-                        <div className="experience-header">
-                          <span className="company-name">{proj.name}</span>
-                          <span className="time-range">{proj.startTime} - {proj.endTime}</span>
-                        </div>
-                        <div className="position">{proj.role}</div>
-                        <p className="description">{proj.description}</p>
-                      </div>
-                    )
-                  }))}
-                />
-              </div>
-            </Col>
-
-            <Col xs={24} md={8}>
-              <div className="side-section">
-                <h4 className="side-title">基本信息</h4>
-                <Descriptions column={1} size="small" className="info-list">
-                  <Descriptions.Item label="性别">{resume.gender === 'male' ? '男' : '女'}</Descriptions.Item>
-                  <Descriptions.Item label="年龄">{resume.age}岁</Descriptions.Item>
-                  <Descriptions.Item label="工作年限">{resume.experience}年</Descriptions.Item>
-                  <Descriptions.Item label="最高学历">{resume.education}</Descriptions.Item>
-                  <Descriptions.Item label="现居住地">北京</Descriptions.Item>
-                  <Descriptions.Item label="求职状态">在职-考虑机会</Descriptions.Item>
-                </Descriptions>
-              </div>
-
-              <div className="side-section">
-                <h4 className="side-title">教育经历</h4>
-                {resume.educationExperience.map((edu, idx) => (
-                  <div key={idx} className="edu-item">
-                    <div className="edu-school">{edu.school}</div>
-                    <div className="edu-major">{edu.major} · {edu.degree}</div>
-                    <div className="edu-time">{edu.startTime} - {edu.endTime}</div>
+          <Card className="section-card" bordered={false} title={
+            <span className="card-title">
+              <BankOutlined className="title-icon" />
+              教育背景
+            </span>
+          }>
+            <div className="education-list">
+              {resume.educationExperience.map((edu, idx) => (
+                <div key={idx} className="education-item">
+                  <div className="education-left">
+                    <div className="education-school">{edu.school}</div>
+                    <div className="education-major">{edu.major} · {edu.degree}</div>
                   </div>
-                ))}
-              </div>
+                  <div className="education-right">
+                    <span className="education-time">{edu.startTime} - {edu.endTime}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
 
-              <div className="side-section">
-                <h4 className="side-title">求职意向</h4>
-                <div className="intent-item">
-                  <span className="intent-label">期望职位</span>
-                  <span className="intent-value">{resume.expectedPosition}</span>
-                </div>
-                <div className="intent-item">
-                  <span className="intent-label">期望薪资</span>
-                  <span className="intent-value">{resume.expectedSalaryMin / 1000}K-{resume.expectedSalaryMax / 1000}K</span>
-                </div>
-                <div className="intent-item">
-                  <span className="intent-label">工作性质</span>
-                  <span className="intent-value">全职</span>
-                </div>
-                <div className="intent-item">
-                  <span className="intent-label">期望城市</span>
-                  <span className="intent-value">北京</span>
+          <Card className="section-card" bordered={false} title={
+            <span className="card-title">
+              <PaperClipOutlined className="title-icon" />
+              简历附件
+            </span>
+          }>
+            <List
+              size="small"
+              dataSource={[
+                { name: '个人简历.pdf', size: '2.5MB', type: 'pdf' },
+                { name: '作品集.docx', size: '1.2MB', type: 'doc' },
+                { name: '学历证明.jpg', size: '800KB', type: 'image' }
+              ]}
+              renderItem={(item) => (
+                <List.Item
+                  actions={[
+                    <Button type="link" size="small" icon={<DownloadOutlined />}>
+                      下载
+                    </Button>
+                  ]}
+                >
+                  <List.Item.Meta
+                    avatar={<FileTextOutlined style={{ fontSize: 24, color: '#1677ff' }} />}
+                    title={item.name}
+                    description={item.size}
+                  />
+                </List.Item>
+              )}
+            />
+          </Card>
+        </div>
+
+        <div className="resume-right-panel">
+          <Card className="section-card" bordered={false} title={
+            <span className="card-title">
+              <StarOutlined className="title-icon" />
+              工作经历
+            </span>
+          }>
+            <Timeline
+              className="experience-timeline"
+              items={resume.workExperience.map((exp: any, idx: number) => ({
+                color: idx === 0 ? 'blue' : 'gray',
+                children: (
+                  <div className="experience-item">
+                    <div className="experience-header">
+                      <div className="experience-company">
+                        <span className="company-name">{exp.company}</span>
+                        {exp.industry && <Tag color="green" className="company-tag">{exp.industry}</Tag>}
+                      </div>
+                      <span className="time-range">
+                        <CalendarOutlined /> {exp.startTime} - {exp.endTime}
+                      </span>
+                    </div>
+                    <div className="experience-position">
+                      <span className="position-name">{exp.position}</span>
+                      {exp.salary && <span className="position-salary">{exp.salary}</span>}
+                    </div>
+                    <div className="experience-desc">
+                      <h5 className="desc-title">工作描述：</h5>
+                      <p className="desc-content">{exp.description}</p>
+                    </div>
+                    {exp.achievements && (
+                      <div className="experience-achievements">
+                        <h5 className="desc-title">主要业绩：</h5>
+                        <ul className="achievement-list">
+                          {exp.achievements.map((item: string, i: number) => (
+                            <li key={i}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )
+              }))}
+            />
+          </Card>
+
+          <Card className="section-card" bordered={false} title={
+            <span className="card-title">
+              <BulbOutlined className="title-icon" />
+              项目经验
+            </span>
+          }>
+            <Timeline
+              className="experience-timeline"
+              items={resume.projectExperience.map((proj: any, idx: number) => ({
+                color: idx === 0 ? 'green' : 'gray',
+                children: (
+                  <div className="project-item">
+                    <div className="project-header">
+                      <span className="project-name">{proj.name}</span>
+                      <span className="project-time">{proj.startTime} - {proj.endTime}</span>
+                    </div>
+                    {proj.role && (
+                      <div className="project-role">
+                        <Tag color="blue">{proj.role}</Tag>
+                        {proj.responsibility && <Tag color="purple">{proj.responsibility}</Tag>}
+                      </div>
+                    )}
+                    <div className="project-desc">
+                      <h5 className="desc-title">项目描述：</h5>
+                      <p className="desc-content">{proj.description}</p>
+                    </div>
+                    {proj.techStack && proj.techStack.length > 0 && (
+                      <div className="project-tech">
+                        <h5 className="desc-title">技术栈：</h5>
+                        <div className="tech-tags">
+                          {proj.techStack.map((tech: string, i: number) => (
+                            <Tag key={i}>{tech}</Tag>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {proj.achievements && proj.achievements.length > 0 && (
+                      <div className="project-achievements">
+                        <h5 className="desc-title">项目成果：</h5>
+                        <ul className="achievement-list">
+                          {proj.achievements.map((item: string, i: number) => (
+                            <li key={i}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )
+              }))}
+            />
+          </Card>
+
+          <Card className="section-card" bordered={false} title={
+            <span className="card-title">
+              <TrophyOutlined className="title-icon" />
+              荣誉证书
+            </span>
+          }>
+            <div className="certificate-list">
+              <div className="cert-item">
+                <div className="cert-icon">🏆</div>
+                <div className="cert-info">
+                  <div className="cert-name">软件设计师（中级）</div>
+                  <div className="cert-org">工业和信息化部</div>
+                  <div className="cert-time">2021年获得</div>
                 </div>
               </div>
-            </Col>
-          </Row>
-        </Card>
+              <div className="cert-item">
+                <div className="cert-icon">📜</div>
+                <div className="cert-info">
+                  <div className="cert-name">PMP项目管理专业人士认证</div>
+                  <div className="cert-org">PMI</div>
+                  <div className="cert-time">2022年获得</div>
+                </div>
+              </div>
+              <div className="cert-item">
+                <div className="cert-icon">🥇</div>
+                <div className="cert-info">
+                  <div className="cert-name">年度优秀员工</div>
+                  <div className="cert-org">某某科技有限公司</div>
+                  <div className="cert-time">2023年度</div>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
       </div>
     </div>
   )
