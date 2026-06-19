@@ -36,6 +36,7 @@ from opencv_detector import (
 )
 from invoice_captcha import CaptchaRecognizer, CaptchaSolver, CaptchaError
 from u8_automation import U8Automation, U8AutomationError
+from pdf_processor import PDFProcessor, PDFInvoiceExtractor, PDFProcessingError
 
 
 @dataclass
@@ -273,6 +274,42 @@ class OCREngine:
 
         return handler.execute(try_process)
 
+    def process_pdf(self, pdf_path: str, pdf_processor: PDFProcessor) -> Dict[str, Any]:
+        handler = RetryHandler(self.retry_config, "ocr_process_pdf")
+
+        def try_process():
+            pages = pdf_processor.get_all_pages_with_text(pdf_path)
+            all_text = []
+            total_confidence = 0.0
+            ocr_page_count = 0
+
+            for page in pages:
+                if page.text and len(page.text.strip()) > 50:
+                    all_text.append(page.text)
+                    total_confidence += 100.0
+                    ocr_page_count += 1
+                else:
+                    text, confidence = self.extract_text(page.image)
+                    all_text.append(text)
+                    total_confidence += confidence
+                    ocr_page_count += 1
+
+            full_text = "\n\n".join(all_text)
+            avg_confidence = total_confidence / ocr_page_count if ocr_page_count > 0 else 0.0
+            return self.parse_fields(full_text, avg_confidence)
+
+        return handler.execute(try_process)
+
+    def process_file(self, file_path: str, pdf_processor: Optional[PDFProcessor] = None) -> Dict[str, Any]:
+        ext = os.path.splitext(file_path)[1].lower()
+
+        if ext == ".pdf":
+            if pdf_processor is None:
+                raise ValueError("PDF processor is required for PDF files")
+            return self.process_pdf(file_path, pdf_processor)
+        else:
+            return self.process_image(file_path)
+
 
 class DingTalkNotifier:
     def __init__(self, config: Dict):
@@ -470,11 +507,13 @@ class InvoiceProcessor:
         ocr_engine: OCREngine,
         state_manager: StateManager,
         notifier: DingTalkNotifier,
+        pdf_processor: Optional[PDFProcessor] = None,
     ):
         self.config_manager = config_manager
         self.ocr_engine = ocr_engine
         self.state_manager = state_manager
         self.notifier = notifier
+        self.pdf_processor = pdf_processor
         self._shutdown = False
         self.retry_config = RetryConfig.from_yaml_config(config_manager.get("retry", {}))
 
@@ -570,7 +609,7 @@ class InvoiceProcessor:
             invoice.status = "ocr"
             self.state_manager.update_invoice(invoice)
 
-            ocr_result = self.ocr_engine.process_image(invoice.file_path)
+            ocr_result = self.ocr_engine.process_file(invoice.file_path, self.pdf_processor)
             invoice.invoice_code = ocr_result.get("invoice_code")
             invoice.invoice_number = ocr_result.get("invoice_number")
             invoice.tax_id = ocr_result.get("tax_id")
@@ -667,7 +706,14 @@ def process_invoice_worker(invoice_data: Dict, config_path: str, dry_run: bool) 
         state_manager = StateManager(config)
         notifier = DingTalkNotifier(config)
 
-        processor = InvoiceProcessor(config_manager, ocr_engine, state_manager, notifier)
+        try:
+            pdf_processor = PDFProcessor.from_yaml_config(config)
+        except ImportError:
+            pdf_processor = None
+
+        processor = InvoiceProcessor(
+            config_manager, ocr_engine, state_manager, notifier, pdf_processor
+        )
         invoice = InvoiceData(**invoice_data)
 
         result = processor.process_single_invoice(invoice, dry_run=dry_run)
@@ -692,8 +738,29 @@ class InvoiceAutomationSystem:
         self.ocr_engine = OCREngine(self.config, self.preprocessor)
         self.state_manager = StateManager(self.config)
         self.notifier = DingTalkNotifier(self.config)
+
+        try:
+            self.pdf_processor = PDFProcessor.from_yaml_config(self.config)
+            self.pdf_extractor = PDFInvoiceExtractor(self.pdf_processor)
+        except ImportError:
+            logger.warning(
+                "PyMuPDF not installed, PDF processing will be disabled. "
+                "Install with: pip install PyMuPDF",
+                extra={
+                    "operation": "pdf_init",
+                    "status": "disabled",
+                    "duration": 0.0,
+                },
+            )
+            self.pdf_processor = None
+            self.pdf_extractor = None
+
         self.processor = InvoiceProcessor(
-            self.config_manager, self.ocr_engine, self.state_manager, self.notifier
+            self.config_manager,
+            self.ocr_engine,
+            self.state_manager,
+            self.notifier,
+            self.pdf_processor,
         )
 
         self.template_matcher = TemplateMatcher.from_yaml_config(self.config)
@@ -829,8 +896,13 @@ class InvoiceAutomationSystem:
             return self.stats
 
         if max_workers is None:
-            max_workers = self.config.get("system", {}).get("max_concurrent_tasks", 5)
-        max_workers = min(max_workers, 10, len(invoices_to_process))
+            system_config = self.config_manager.get_config().get("system", {})
+            max_workers = system_config.get("max_concurrent_tasks", 5)
+            max_concurrent_limit = system_config.get("max_concurrent_limit", 10)
+        else:
+            max_concurrent_limit = 10
+
+        max_workers = max(1, min(int(max_workers), int(max_concurrent_limit), len(invoices_to_process)))
 
         if not dry_run and max_workers > 1:
             logger.warning(

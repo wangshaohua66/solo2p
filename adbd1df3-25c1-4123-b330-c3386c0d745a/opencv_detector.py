@@ -3,7 +3,7 @@ import time
 import logging
 import numpy as np
 from typing import Optional, Tuple, List, Dict, Any
-from PIL import Image
+from PIL import Image, ImageEnhance
 
 try:
     import cv2

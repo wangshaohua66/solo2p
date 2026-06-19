@@ -298,7 +298,7 @@ class U8Authenticator:
         screenshot = self.input.screenshot()
 
         try:
-            username_field = self.detector.detect(screenshot, "username_field", use_multiscale=True)
+            username_field = self.detector.detect(screenshot, "login_username_field", use_multiscale=True)
             self.input.click_center(username_field)
             self.input.clear_and_type(self.username)
         except ElementNotFoundException:
@@ -307,7 +307,7 @@ class U8Authenticator:
             self.input.clear_and_type(self.username)
 
         try:
-            password_field = self.detector.detect(screenshot, "password_field", use_multiscale=True)
+            password_field = self.detector.detect(screenshot, "login_password_field", use_multiscale=True)
             self.input.click_center(password_field)
             self.input.clear_and_type(self.password)
         except ElementNotFoundException:
@@ -316,16 +316,27 @@ class U8Authenticator:
 
         if self.captcha_solver:
             try:
-                captcha_field = self.detector.detect(screenshot, "captcha_field", use_multiscale=True)
-                captcha_img = self.input.screenshot(region=(
-                    captcha_field.position[0] + 200, captcha_field.position[1], 120, 40
-                ))
+                captcha_image_match = self.detector.detect(screenshot, "login_captcha_image", use_multiscale=True)
+                captcha_region = (
+                    captcha_image_match.position[0],
+                    captcha_image_match.position[1],
+                    captcha_image_match.size[0],
+                    captcha_image_match.size[1],
+                )
+                captcha_img = self.input.screenshot(region=captcha_region)
                 captcha_text = self.captcha_solver.solve(captcha_img)
 
-                self.input.click_center(captcha_field)
+                try:
+                    captcha_field = self.detector.detect(screenshot, "login_captcha_field", use_multiscale=True)
+                    self.input.click_center(captcha_field)
+                except ElementNotFoundException:
+                    self.input.click(
+                        captcha_image_match.position[0],
+                        captcha_image_match.position[1] + captcha_image_match.size[1] + 10,
+                    )
                 self.input.clear_and_type(captcha_text)
             except ElementNotFoundException:
-                logger.info("No captcha field detected, skipping captcha")
+                logger.info("No captcha image detected, skipping captcha")
             except CaptchaManualFallbackRequired:
                 logger.warning("Captcha requires manual input, please enter captcha code")
                 self._wait_for_manual_captcha()

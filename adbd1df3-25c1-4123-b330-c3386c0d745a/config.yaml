@@ -2,6 +2,7 @@ system:
   name: "Invoice Automation System"
   version: "1.0.0"
   max_concurrent_tasks: 5
+  max_concurrent_limit: 10
   single_invoice_timeout: 45
   memory_limit_mb: 500
 
@@ -50,6 +51,16 @@ image_preprocessing:
   grayscale: true
   threshold: 180
 
+pdf_processing:
+  dpi: 300
+  image_format: "PNG"
+  zoom_factor: 2.0
+  extract_text: true
+  max_pages: 10
+  prefer_text_layer: true
+  rotation: 0
+  color_mode: "rgb"
+
 captcha:
   tesseract_language: "eng"
   psm: 8
@@ -66,7 +77,12 @@ opencv:
     width: 1920
     height: 1080
   template_paths:
+    login_username_field: "./templates/login_username_field.png"
+    login_password_field: "./templates/login_password_field.png"
+    login_captcha_field: "./templates/login_captcha_field.png"
+    login_captcha_image: "./templates/login_captcha_image.png"
     login_button: "./templates/login_button.png"
+    login_error_hint: "./templates/login_error_hint.png"
     expense_module: "./templates/expense_module.png"
     invoice_code_field: "./templates/invoice_code_field.png"
     invoice_number_field: "./templates/invoice_number_field.png"
@@ -76,6 +92,9 @@ opencv:
     seller_field: "./templates/seller_field.png"
     submit_button: "./templates/submit_button.png"
     save_button: "./templates/save_button.png"
+    new_button: "./templates/new_button.png"
+    success_toast: "./templates/success_toast.png"
+    error_dialog: "./templates/error_dialog.png"
 
 retry:
   max_attempts: 3
