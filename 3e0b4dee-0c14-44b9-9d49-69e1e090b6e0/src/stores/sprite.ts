@@ -4,6 +4,7 @@ import type { SpriteSheet, SpriteFrame, CutMode } from '@/types';
 import { useProjectStore } from './project';
 import { gridCut, contourCut, batchRename } from '@/utils/packer';
 import { loadImage, genId } from '@/utils/id';
+import { deepClone } from '@/utils/diff';
 
 export const useSpriteStore = defineStore('sprite', () => {
   const projectStore = useProjectStore();
@@ -51,12 +52,18 @@ export const useSpriteStore = defineStore('sprite', () => {
   }
 
   async function runCut(sheet: SpriteSheet, customImg?: HTMLImageElement) {
+    const before = deepClone(sheet.frames);
     const img = customImg || await loadImage(sheet.imageDataUrl);
     if (sheet.cutMode === 'grid') {
       sheet.frames = gridCut(img, sheet.gridConfig.cols, sheet.gridConfig.rows, sheet.gridConfig.padding, sheet.id);
     } else {
       sheet.frames = contourCut(img, sheet.contourThreshold, 2, sheet.id);
     }
+    projectStore.pushHistory({
+      type: 'spritesheet-frames', targetId: sheet.id,
+      before, after: deepClone(sheet.frames),
+      label: `切割精灵表 ${sheet.name}`
+    });
   }
 
   function selectSheet(id: string | null) {
@@ -97,11 +104,25 @@ export const useSpriteStore = defineStore('sprite', () => {
     if (!sheet) return;
     const f = sheet.frames.find(x => x.id === fid);
     if (!f) return;
+    const before = deepClone(f);
     Object.assign(f, patch);
+    projectStore.pushHistory({
+      type: 'frame', targetId: fid,
+      before, after: deepClone(f),
+      label: `更新帧 ${f.name}`
+    });
     projectStore.persistCurrent();
   }
 
   function deleteSheet(id: string) {
+    const sheet = projectStore.spriteSheets.find(s => s.id === id);
+    if (sheet) {
+      projectStore.pushHistory({
+        type: 'spritesheet', targetId: id,
+        before: deepClone(sheet), after: null as any,
+        label: `删除精灵表 ${sheet.name}`
+      });
+    }
     projectStore.spriteSheets = projectStore.spriteSheets.filter(s => s.id !== id);
     if (selectedSheetId.value === id) selectSheet(null);
     projectStore.persistCurrent();
@@ -110,7 +131,13 @@ export const useSpriteStore = defineStore('sprite', () => {
   function renameFrames(sheetId: string, prefix: string) {
     const sheet = projectStore.spriteSheets.find(s => s.id === sheetId);
     if (!sheet) return;
+    const before = deepClone(sheet.frames);
     sheet.frames = batchRename(sheet.frames, prefix);
+    projectStore.pushHistory({
+      type: 'spritesheet-frames', targetId: sheetId,
+      before, after: deepClone(sheet.frames),
+      label: `批量改名 ${sheet.name}`
+    });
     projectStore.persistCurrent();
   }
 

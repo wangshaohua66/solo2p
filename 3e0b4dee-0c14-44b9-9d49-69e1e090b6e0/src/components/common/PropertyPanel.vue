@@ -107,6 +107,26 @@ function referencesForAudio() {
   if (!clip.value) return [];
   return projectStore.getReferencesOfAudio(clip.value.id);
 }
+
+const LAYER_PALETTE = [
+  'rgba(255, 107, 53, 0.35)',
+  'rgba(0, 212, 255, 0.35)',
+  'rgba(144, 238, 144, 0.35)',
+  'rgba(255, 193, 7, 0.35)',
+  'rgba(204, 153, 255, 0.35)',
+  'rgba(255, 105, 180, 0.35)',
+  'rgba(135, 206, 235, 0.35)',
+  'rgba(255, 218, 185, 0.35)',
+  'rgba(220, 220, 220, 0.35)',
+  'rgba(255, 99, 132, 0.35)',
+];
+function layerColor(idx: number): string {
+  return LAYER_PALETTE[idx % LAYER_PALETTE.length];
+}
+function layerColorSolid(idx: number): string {
+  return LAYER_PALETTE[idx % LAYER_PALETTE.length].replace('0.35', '0.85');
+}
+
 </script>
 
 <template>
@@ -299,15 +319,21 @@ function referencesForAudio() {
               @change="mapStore.updateMap(map.id, { tileHeight: Number(($event.target as HTMLInputElement).value) })" />
           </div>
           <div class="section-group-title" style="margin-top: 10px;">图层列表</div>
-          <div v-for="(l, i) in [...map.layers].sort((a,b)=>a.zIndex-b.zIndex)" :key="l.id" class="layer-row">
+          <div v-for="(l, i) in [...map.layers].sort((a,b)=>a.zIndex-b.zIndex)" :key="l.id"
+            class="layer-row"
+            :class="{ active: layer?.id === l.id }"
+            @click="mapStore.selectedLayerId = l.id"
+            :style="{ borderLeftColor: layerColorSolid(i) }">
+            <div class="layer-color" :style="{ background: layerColor(i), borderColor: layerColorSolid(i) }"></div>
             <button class="layer-vis" :class="{off: !l.visible}"
-              @click="mapStore.updateLayer(l.id, { visible: !l.visible })">
+              @click.stop="mapStore.updateLayer(l.id, { visible: !l.visible })">
               {{ l.visible ? '👁' : '🚫' }}
             </button>
             <input class="layer-name" :value="l.name"
+              @click.stop
               @change="mapStore.updateLayer(l.id, { name: ($event.target as HTMLInputElement).value })" />
-            <button :disabled="i === 0" @click="mapStore.moveLayer(map.id, l.id, 'up')" title="上移">↑</button>
-            <button :disabled="i === map.layers.length - 1" @click="mapStore.moveLayer(map.id, l.id, 'down')" title="下移">↓</button>
+            <button :disabled="i === 0" @click.stop="mapStore.moveLayer(map.id, l.id, 'up')" title="上移">↑</button>
+            <button :disabled="i === map.layers.length - 1" @click.stop="mapStore.moveLayer(map.id, l.id, 'down')" title="下移">↓</button>
           </div>
           <button class="btn-danger full" @click="mapStore.deleteMap(map.id)">🗑 删除地图</button>
         </div>
@@ -458,7 +484,20 @@ function referencesForAudio() {
 
 .layer-row {
   display: flex; align-items: center; gap: 4px;
-  margin-bottom: 4px;
+  margin-bottom: 4px; padding: 4px;
+  border-radius: 3px; cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: background 0.1s;
+}
+.layer-row:hover { background: rgba(255,255,255,0.03); }
+.layer-row.active {
+  background: rgba(255,107,53,0.08);
+  border-left-width: 3px;
+}
+.layer-color {
+  width: 14px; height: 14px; border-radius: 2px;
+  border: 1px solid rgba(255,255,255,0.2);
+  flex-shrink: 0;
 }
 .layer-vis {
   padding: 4px 6px; font-size: 11px;

@@ -19,16 +19,21 @@ export function diffSnapshots(
   const keys = new Set([...Object.keys(oldObj || {}), ...Object.keys(newObj || {})]);
   for (const k of keys) {
     const curPath = [...path, k];
+    const pathStr = curPath.join('.');
     const oldV = (oldObj || {})[k];
     const newV = (newObj || {})[k];
     if (oldV === undefined && newV !== undefined) {
-      diffs.push({ type: 'add', path: curPath, new: newV });
+      diffs.push({ type: 'add', path: curPath, pathStr, new: newV, after: newV });
     } else if (newV === undefined && oldV !== undefined) {
-      diffs.push({ type: 'remove', path: curPath, old: oldV });
+      diffs.push({ type: 'remove', path: curPath, pathStr, old: oldV, before: oldV });
     } else if (isObject(oldV) && isObject(newV)) {
       diffs.push(...diffSnapshots(oldV as Record<string, unknown>, newV as Record<string, unknown>, curPath));
     } else if (JSON.stringify(oldV) !== JSON.stringify(newV)) {
-      diffs.push({ type: 'update', path: curPath, old: oldV, new: newV });
+      diffs.push({
+        type: 'update', path: curPath, pathStr,
+        old: oldV, new: newV,
+        before: oldV, after: newV
+      });
     }
   }
   return diffs;

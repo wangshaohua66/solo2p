@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import type { Animation, AnimationTrack, AnimationKeyframe } from '@/types';
 import { useProjectStore } from './project';
 import { genId } from '@/utils/id';
+import { deepClone } from '@/utils/diff';
 
 export const useAnimationStore = defineStore('animation', () => {
   const projectStore = useProjectStore();
@@ -104,16 +105,31 @@ export const useAnimationStore = defineStore('animation', () => {
   function moveKeyframe(trackId: string, from: number, to: number) {
     const track = findTrack(trackId);
     if (!track) return;
+    const before = deepClone(track.keyframes);
     const [item] = track.keyframes.splice(from, 1);
     track.keyframes.splice(to, 0, item);
+    projectStore.pushHistory({
+      type: 'track-keyframes', targetId: trackId,
+      before, after: deepClone(track.keyframes),
+      label: `移动关键帧`
+    });
     projectStore.persistCurrent();
   }
 
   function removeKeyframe(trackId: string, kfId: string) {
     const track = findTrack(trackId);
     if (!track) return;
+    const before = deepClone(track.keyframes);
+    const kf = track.keyframes.find(k => k.id === kfId);
     track.keyframes = track.keyframes.filter(k => k.id !== kfId);
     if (selectedKeyframeId.value === kfId) selectedKeyframeId.value = null;
+    if (kf) {
+      projectStore.pushHistory({
+        type: 'keyframe', targetId: kfId,
+        before: kf, after: null as any,
+        label: `删除关键帧`
+      });
+    }
     projectStore.persistCurrent();
   }
 
@@ -121,17 +137,44 @@ export const useAnimationStore = defineStore('animation', () => {
     for (const a of projectStore.animations) {
       for (const t of a.tracks) {
         const k = t.keyframes.find(k => k.id === kfId);
-        if (k) { Object.assign(k, patch); projectStore.persistCurrent(); return; }
+        if (k) {
+          const before = deepClone(k);
+          Object.assign(k, patch);
+          projectStore.pushHistory({
+            type: 'keyframe', targetId: kfId,
+            before, after: deepClone(k),
+            label: `更新关键帧`
+          });
+          projectStore.persistCurrent();
+          return;
+        }
       }
     }
   }
 
   function updateAnim(animId: string, patch: Partial<Animation>) {
     const a = projectStore.animations.find(x => x.id === animId);
-    if (a) { Object.assign(a, patch); projectStore.persistCurrent(); }
+    if (a) {
+      const before = deepClone(a);
+      Object.assign(a, patch);
+      projectStore.pushHistory({
+        type: 'animation', targetId: animId,
+        before, after: deepClone(a),
+        label: `更新动画 ${a.name}`
+      });
+      projectStore.persistCurrent();
+    }
   }
 
   function deleteAnim(id: string) {
+    const a = projectStore.animations.find(x => x.id === id);
+    if (a) {
+      projectStore.pushHistory({
+        type: 'animation', targetId: id,
+        before: deepClone(a), after: null as any,
+        label: `删除动画 ${a.name}`
+      });
+    }
     projectStore.animations = projectStore.animations.filter(a => a.id !== id);
     if (selectedAnimId.value === id) {
       selectedAnimId.value = null;

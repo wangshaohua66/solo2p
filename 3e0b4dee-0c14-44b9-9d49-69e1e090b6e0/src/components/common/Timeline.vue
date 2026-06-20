@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, reactive, shallowRef } from 'vue';
 import { useAnimationStore } from '@/stores/animation';
 import { useProjectStore } from '@/stores/project';
 import { useSpriteStore } from '@/stores/sprite';
@@ -10,73 +10,89 @@ const projectStore = useProjectStore();
 const spriteStore = useSpriteStore();
 
 const sheetImgCache = new Map<string, HTMLImageElement>();
-const thumbCache = new Map<string, HTMLCanvasElement>();
+const thumbDataUrls = reactive<Map<string, string>>(new Map());
 const dragInfo = ref<{ trackId: string; from: number; to: number } | null>(null);
+const preloadBusy = shallowRef(false);
 
 const anim = computed(() => animStore.selectedAnim);
 const sortedTracks = computed(() =>
   anim.value ? [...anim.value.tracks].sort((a, b) => a.zIndex - b.zIndex) : []
 );
 
+const allKeyframeIds = computed(() => {
+  const ids = new Set<string>();
+  if (anim.value) {
+    for (const t of anim.value.tracks) {
+      for (const k of t.keyframes) ids.add(k.frameId);
+    }
+  }
+  return ids;
+});
+
 function sheetImg(sheetId: string): HTMLImageElement | undefined {
   return sheetImgCache.get(sheetId);
 }
 
-async function preload() {
+async function preloadSheets() {
   sheetImgCache.clear();
   for (const ss of projectStore.spriteSheets) {
     try { sheetImgCache.set(ss.id, await loadImage(ss.imageDataUrl)); } catch { /* noop */ }
   }
 }
-watch([() => projectStore.spriteSheets.length, () => anim.value?.id], preload);
-onMounted(preload);
 
-function frameThumb(frameId: string, size = 72): HTMLCanvasElement | null {
-  const key = `${frameId}_${size}`;
-  if (thumbCache.has(key)) return thumbCache.get(key)!;
+function buildThumbDataUrl(frameId: string, size = 44): string {
+  if (thumbDataUrls.has(frameId)) return thumbDataUrls.get(frameId)!;
   for (const ss of projectStore.spriteSheets) {
     const f = ss.frames.find(x => x.id === frameId);
     if (!f) continue;
     const img = sheetImg(ss.id);
-    if (!img) return null;
+    if (!img) return '';
     const scale = Math.min(size / f.width, size / f.height);
+    const w = Math.max(1, Math.round(f.width * scale));
+    const h = Math.max(1, Math.round(f.height * scale));
     const c = document.createElement('canvas');
-    c.width = Math.max(1, f.width * scale);
-    c.height = Math.max(1, f.height * scale);
+    c.width = w;
+    c.height = h;
     const ctx = c.getContext('2d')!;
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img, f.x, f.y, f.width, f.height, 0, 0, c.width, c.height);
-    thumbCache.set(key, c);
-    return c;
+    ctx.drawImage(img, f.x, f.y, f.width, f.height, 0, 0, w, h);
+    try {
+      const url = c.toDataURL('image/png');
+      thumbDataUrls.set(frameId, url);
+      return url;
+    } catch {
+      return '';
+    }
   }
-  return null;
+  return '';
 }
 
-function drawThumbs() {
-  const imgs = document.querySelectorAll<HTMLCanvasElement>('.thumb-target');
-  imgs.forEach(el => {
-    const fid = el.dataset.frame!;
-    const thumb = frameThumb(fid, 64);
-    if (!thumb) return;
-    const ctx = el.getContext('2d')!;
-    ctx.clearRect(0, 0, el.width, el.height);
-    const dpr = window.devicePixelRatio || 1;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    el.width = thumb.width * dpr;
-    el.height = thumb.height * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.drawImage(thumb, 0, 0);
-  });
+async function regenerateThumbs() {
+  if (preloadBusy.value) return;
+  preloadBusy.value = true;
+  await preloadSheets();
+  thumbDataUrls.clear();
+  for (const fid of allKeyframeIds.value) {
+    buildThumbDataUrl(fid);
+  }
+  preloadBusy.value = false;
 }
 
-watch(() => [animStore.selectedAnimId, projectStore.spriteSheets.length], () => {
-  thumbCache.clear();
-  setTimeout(drawThumbs, 50);
-}, { flush: 'post' });
+const thumbSeq = ref(0);
+const thumbReady = computed(() => thumbSeq.value > 0 && !preloadBusy.value);
 
-watch(() => animStore.isPlaying, () => {
-  setTimeout(drawThumbs, 10);
-});
+function getThumb(frameId: string): string {
+  return thumbDataUrls.get(frameId) || buildThumbDataUrl(frameId) || '';
+}
+
+watch([
+  () => projectStore.spriteSheets.length,
+  () => anim.value?.id,
+  () => allKeyframeIds.value.size
+], () => {
+  regenerateThumbs();
+  thumbSeq.value++;
+}, { immediate: true });
 
 function addTrack() {
   if (!anim.value) return;
@@ -91,6 +107,7 @@ function addKeyframeToTrack(trackId: string) {
     return;
   }
   animStore.addKeyframe(trackId, spriteStore.selectedFrame.id, Math.round(1000 / (anim.value?.frameRate || 24)));
+  buildThumbDataUrl(spriteStore.selectedFrame.id);
 }
 
 function selectKeyframe(trackId: string, kfId: string) {
@@ -103,6 +120,7 @@ function onTrackDrop(e: DragEvent, trackId: string, toIndex: number) {
   const fid = e.dataTransfer?.getData('frame-id');
   if (fid) {
     animStore.insertKeyframe(trackId, toIndex, fid, Math.round(1000 / (anim.value?.frameRate || 24)));
+    buildThumbDataUrl(fid);
     return;
   }
   const info = e.dataTransfer?.getData('kf');
@@ -138,7 +156,7 @@ function onTimelineClick(e: MouseEvent) {
 
 const pxPerMs = 0.15;
 
-onUnmounted(() => { sheetImgCache.clear(); thumbCache.clear(); });
+onUnmounted(() => { sheetImgCache.clear(); thumbDataUrls.clear(); });
 </script>
 
 <template>
@@ -195,7 +213,14 @@ onUnmounted(() => { sheetImgCache.clear(); thumbCache.clear(); });
                   @click.stop="selectKeyframe(t.id, k.id)"
                   @drop="(e: DragEvent) => { e.stopPropagation(); onTrackDrop(e, t.id, i); }"
                   @dragover.prevent>
-                  <canvas class="thumb-target" :data-frame="k.frameId" width="40" height="40"></canvas>
+                  <div class="thumb-wrap">
+                    <img v-if="getThumb(k.frameId)"
+                      class="thumb-img"
+                      :src="getThumb(k.frameId)"
+                      :alt="k.frameId"
+                      draggable="false" />
+                    <div v-else class="thumb-placeholder">▢</div>
+                  </div>
                   <div class="kf-meta">{{ (k.durationMs/1000).toFixed(2) }}s</div>
                   <div v-if="k.eventType !== 'none'" class="event-mark"
                     :title="`事件: ${k.eventType}${k.audioClipId ? ' +音效' : ''}`">
@@ -330,9 +355,25 @@ onUnmounted(() => { sheetImgCache.clear(); thumbCache.clear(); });
   content: ''; position: absolute; top: 0; left: 0; right: 0;
   height: 2px; background: var(--color-text-warning);
 }
-.thumb-target {
+.thumb-wrap {
   width: 100%; flex: 1; max-height: 42px;
-  object-fit: contain; image-rendering: pixelated;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  background: rgba(0,0,0,0.2);
+  border-radius: 2px;
+}
+.thumb-img {
+  width: auto; height: 100%; max-width: 100%;
+  image-rendering: pixelated;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.thumb-placeholder {
+  color: var(--color-text-muted);
+  font-size: 16px;
+  opacity: 0.5;
 }
 .kf-meta {
   font-size: 9px; color: var(--color-text-muted);

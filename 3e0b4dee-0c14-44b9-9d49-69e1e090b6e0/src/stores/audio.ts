@@ -4,6 +4,7 @@ import type { AudioClip } from '@/types';
 import { useProjectStore } from './project';
 import { genId } from '@/utils/id';
 import { decodeAudio, extractWaveform, AudioPlayer } from '@/utils/audio-helper';
+import { deepClone } from '@/utils/diff';
 
 export const useAudioStore = defineStore('audio', () => {
   const projectStore = useProjectStore();
@@ -56,7 +57,9 @@ export const useAudioStore = defineStore('audio', () => {
     } catch (e) {
       console.warn('音频解码失败', e);
     }
+    const before = null;
     projectStore.audioClips.push(clip);
+    projectStore.pushHistory({ type: 'audioclip', targetId: clip.id, before, after: deepClone(clip) });
     selectedClipId.value = clip.id;
     projectStore.persistCurrent();
     isDecoding.value = false; decodingProgress.value = 1;
@@ -77,11 +80,19 @@ export const useAudioStore = defineStore('audio', () => {
 
   function updateClip(id: string, patch: Partial<AudioClip>) {
     const c = projectStore.audioClips.find(a => a.id === id);
-    if (c) { Object.assign(c, patch); projectStore.persistCurrent(); }
+    if (!c) return;
+    const before = deepClone(c);
+    Object.assign(c, patch);
+    projectStore.pushHistory({ type: 'audioclip', targetId: id, before, after: deepClone(c) });
+    projectStore.persistCurrent();
   }
 
   function deleteClip(id: string) {
-    projectStore.audioClips = projectStore.audioClips.filter(a => a.id !== id);
+    const idx = projectStore.audioClips.findIndex(a => a.id === id);
+    if (idx < 0) return;
+    const before = deepClone(projectStore.audioClips[idx]);
+    projectStore.audioClips.splice(idx, 1);
+    projectStore.pushHistory({ type: 'audioclip', targetId: id, before, after: null });
     if (selectedClipId.value === id) selectedClipId.value = null;
     bufferMap.delete(id);
     projectStore.persistCurrent();

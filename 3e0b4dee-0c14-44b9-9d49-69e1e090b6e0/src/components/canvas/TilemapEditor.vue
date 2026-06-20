@@ -16,6 +16,10 @@ const hoverCell = ref<{ col: number; row: number } | null>(null);
 const isPainting = ref(false);
 const selectStart = ref<{ col: number; row: number } | null>(null);
 const selectEnd = ref<{ col: number; row: number } | null>(null);
+const selectionConfirmed = ref(false);
+const isMovingSelection = ref(false);
+const moveStart = ref<{ col: number; row: number } | null>(null);
+const moveOffset = ref<{ col: number; row: number }>({ col: 0, row: 0 });
 let resizeObs: ResizeObserver | null = null;
 let rafId = 0;
 
@@ -68,6 +72,16 @@ function resize() {
   render();
 }
 
+function getSelectionRect() {
+  if (!selectStart.value || !selectEnd.value) return null;
+  return {
+    c1: Math.min(selectStart.value.col, selectEnd.value.col),
+    c2: Math.max(selectStart.value.col, selectEnd.value.col),
+    r1: Math.min(selectStart.value.row, selectEnd.value.row),
+    r2: Math.max(selectStart.value.row, selectEnd.value.row)
+  };
+}
+
 function render() {
   const canvas = canvasRef.value;
   if (!canvas) return;
@@ -102,7 +116,7 @@ function render() {
 
   drawGrid(ctx, cols * tw, rows * th, tw, th, 'rgba(255,255,255,0.08)');
 
-  if (hoverCell.value && layer.value) {
+  if (hoverCell.value && layer.value && !selectionConfirmed.value) {
     const { col, row } = hoverCell.value;
     if (col >= 0 && col < cols && row >= 0 && row < rows) {
       drawRect(ctx, col * tw, row * th, tw, th, '#00d4ff', 2, []);
@@ -120,12 +134,23 @@ function render() {
   }
 
   if (selectStart.value && selectEnd.value) {
-    const x1 = Math.min(selectStart.value.col, selectEnd.value.col) * tw;
-    const y1 = Math.min(selectStart.value.row, selectEnd.value.row) * th;
-    const w = (Math.abs(selectEnd.value.col - selectStart.value.col) + 1) * tw;
-    const h = (Math.abs(selectEnd.value.row - selectStart.value.row) + 1) * th;
-    fillRect(ctx, x1, y1, w, h, 'rgba(0, 212, 255, 0.1)');
-    drawRect(ctx, x1, y1, w, h, '#00d4ff', 1, [6, 4]);
+    const sr = getSelectionRect()!;
+    let offX = 0, offY = 0;
+    if (isMovingSelection.value && moveOffset) {
+      offX = moveOffset.value.col * tw;
+      offY = moveOffset.value.row * th;
+    }
+    const x1 = sr.c1 * tw + offX;
+    const y1 = sr.r1 * th + offY;
+    const w = (sr.c2 - sr.c1 + 1) * tw;
+    const h = (sr.r2 - sr.r1 + 1) * th;
+    fillRect(ctx, x1, y1, w, h, isMovingSelection.value ? 'rgba(255,107,53,0.15)' : 'rgba(0, 212, 255, 0.1)');
+    drawRect(ctx, x1, y1, w, h, isMovingSelection.value ? '#ff6b35' : '#00d4ff', 2, [6, 4]);
+    if (selectionConfirmed.value && !isMovingSelection.value) {
+      ctx.fillStyle = '#fff';
+      ctx.font = '10px JetBrains Mono';
+      ctx.fillText(`${sr.c2 - sr.c1 + 1}×${sr.r2 - sr.r1 + 1}`, x1 + 4, y1 + 12);
+    }
   }
 
   if (mapStore.showCollision) {
@@ -162,6 +187,12 @@ function onWheel(e: WheelEvent) {
   rafId = requestAnimationFrame(render);
 }
 
+function isInsideSelection(col: number, row: number): boolean {
+  const sr = getSelectionRect();
+  if (!sr) return false;
+  return col >= sr.c1 && col <= sr.c2 && row >= sr.r1 && row <= sr.r2;
+}
+
 function onMouseDown(e: MouseEvent) {
   if (!map.value || !layer.value) return;
   if (e.button === 1 || e.button === 2 || e.shiftKey) {
@@ -182,9 +213,18 @@ function onMouseDown(e: MouseEvent) {
   }
   const cell = screenToCell(e.clientX, e.clientY);
   if (!cell) return;
+
   if (mapStore.tool === 'select') {
+    if (selectionConfirmed.value && selectStart.value && selectEnd.value && isInsideSelection(cell.col, cell.row)) {
+      isMovingSelection.value = true;
+      moveStart.value = { col: cell.col, row: cell.row };
+      moveOffset.value = { col: 0, row: 0 };
+      e.preventDefault();
+      return;
+    }
     selectStart.value = { col: cell.col, row: cell.row };
     selectEnd.value = { col: cell.col, row: cell.row };
+    selectionConfirmed.value = false;
   } else {
     applyTool(cell.col, cell.row);
     isPainting.value = true;
@@ -195,16 +235,63 @@ function onMouseMove(e: MouseEvent) {
   const cell = screenToCell(e.clientX, e.clientY);
   if (cell) hoverCell.value = { col: cell.col, row: cell.row };
   if (isPainting.value && cell) applyTool(cell.col, cell.row);
-  if (selectStart.value && cell) {
+  if (selectStart.value && cell && !isMovingSelection.value && !selectionConfirmed.value) {
     selectEnd.value = { col: cell.col, row: cell.row };
+    cancelAnimationFrame(rafId); rafId = requestAnimationFrame(render);
+  }
+  if (isMovingSelection.value && cell && moveStart.value) {
+    moveOffset.value = {
+      col: cell.col - moveStart.value.col,
+      row: cell.row - moveStart.value.row
+    };
     cancelAnimationFrame(rafId); rafId = requestAnimationFrame(render);
   }
 }
 
 function onMouseUp() {
   isPainting.value = false;
+  if (isMovingSelection.value && selectStart.value && selectEnd.value && layer.value) {
+    const sr = getSelectionRect()!;
+    const dc = moveOffset.value.col, dr = moveOffset.value.row;
+    if (dc !== 0 || dr !== 0) {
+      mapStore.moveSelection(layer.value.id, sr.c1, sr.r1, sr.c2, sr.r2, sr.c1 + dc, sr.r1 + dr);
+      selectStart.value = { col: sr.c1 + dc, row: sr.r1 + dr };
+      selectEnd.value = { col: sr.c2 + dc, row: sr.r2 + dr };
+    }
+    mapStore.copySelection(layer.value.id,
+      Math.min(selectStart.value.col, selectEnd.value.col),
+      Math.min(selectStart.value.row, selectEnd.value.row),
+      Math.max(selectStart.value.col, selectEnd.value.col),
+      Math.max(selectStart.value.row, selectEnd.value.row));
+    isMovingSelection.value = false;
+    moveStart.value = null;
+    moveOffset.value = { col: 0, row: 0 };
+    selectionConfirmed.value = true;
+  } else if (selectStart.value && selectEnd.value && mapStore.tool === 'select' && !selectionConfirmed.value) {
+    selectionConfirmed.value = true;
+    if (layer.value) {
+      mapStore.copySelection(layer.value.id,
+        Math.min(selectStart.value.col, selectEnd.value.col),
+        Math.min(selectStart.value.row, selectEnd.value.row),
+        Math.max(selectStart.value.col, selectEnd.value.col),
+        Math.max(selectStart.value.row, selectEnd.value.row));
+    }
+  }
+}
+
+function clearSelection() {
   selectStart.value = null;
   selectEnd.value = null;
+  selectionConfirmed.value = false;
+  isMovingSelection.value = false;
+  cancelAnimationFrame(rafId); rafId = requestAnimationFrame(render);
+}
+
+function pasteSelection() {
+  const cell = hoverCell.value;
+  if (!cell || !layer.value) return;
+  mapStore.pasteFromClipboard(layer.value.id, cell.col, cell.row);
+  cancelAnimationFrame(rafId); rafId = requestAnimationFrame(render);
 }
 
 function applyTool(col: number, row: number) {
@@ -234,7 +321,10 @@ function fitToScreen() {
   cancelAnimationFrame(rafId); rafId = requestAnimationFrame(render);
 }
 
-function setTool(t: 'brush' | 'fill' | 'eraser' | 'select') { mapStore.tool = t; }
+function setTool(t: 'brush' | 'fill' | 'eraser' | 'select') {
+  mapStore.tool = t;
+  clearSelection();
+}
 
 watch([() => map.value?.id, () => projectStore.spriteSheets.length], () => {
   preloadAll(); render();
@@ -261,6 +351,8 @@ defineExpose({ render, fitToScreen, preloadAll });
         <button :class="{ active: mapStore.tool === 'fill' }" @click="setTool('fill')" title="填充">🪣 填充</button>
         <button :class="{ active: mapStore.tool === 'eraser' }" @click="setTool('eraser')" title="橡皮">🧽 橡皮</button>
         <button :class="{ active: mapStore.tool === 'select' }" @click="setTool('select')" title="选区">🔲 选区</button>
+        <button v-if="mapStore.tool === 'select'" :disabled="!selectionConfirmed" @click="clearSelection" title="清除选区">✕ 清除</button>
+        <button v-if="mapStore.tool === 'select'" :disabled="!mapStore.hasClipboard() || !hoverCell" @click="pasteSelection" title="粘贴选区到当前位置">📋 粘贴</button>
       </div>
       <div class="spacer"></div>
       <div class="tool-group">
@@ -282,6 +374,7 @@ defineExpose({ render, fitToScreen, preloadAll });
       </div>
       <div v-else class="map-info">
         {{ map.cols }}×{{ map.rows }} 格 · 瓦片 {{ map.tileWidth }}×{{ map.tileHeight }}px · 缩放 {{ (mapStore.zoom*100).toFixed(0) }}%
+        <template v-if="selectionConfirmed"> · 已选{{ (getSelectionRect()?.c2! - getSelectionRect()?.c1! + 1) }}×{{ (getSelectionRect()?.r2! - getSelectionRect()?.r1! + 1) }}格，可拖拽移动</template>
       </div>
     </div>
   </div>

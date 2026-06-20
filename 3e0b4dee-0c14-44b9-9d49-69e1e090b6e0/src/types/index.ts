@@ -7,6 +7,10 @@ export interface Project {
   description: string;
   createdAt: number;
   updatedAt: number;
+  spriteSheetIds?: string[];
+  animationIds?: string[];
+  tilemapIds?: string[];
+  audioClipIds?: string[];
 }
 
 export type CutMode = 'grid' | 'contour';
@@ -123,8 +127,10 @@ export interface Snapshot {
   id: string;
   projectId: string;
   name: string;
+  label: string;
   timestamp: number;
   payload: SnapshotPayload;
+  resourceCount: number;
 }
 
 export interface SnapshotPayload {
@@ -145,8 +151,11 @@ export interface ResourceTreeNode {
 export interface DiffNode {
   type: 'add' | 'remove' | 'update';
   path: string[];
+  pathStr: string;
   old?: unknown;
   new?: unknown;
+  before?: unknown;
+  after?: unknown;
 }
 
 export type ToolType = 'brush' | 'fill' | 'eraser' | 'select';

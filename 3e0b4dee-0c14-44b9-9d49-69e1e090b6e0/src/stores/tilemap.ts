@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import type { Tilemap, TileLayer, TriggerZone, ToolType, ZoneType } from '@/types';
 import { useProjectStore } from './project';
 import { genId, clamp } from '@/utils/id';
+import { deepClone } from '@/utils/diff';
 
 function emptyCells(cols: number, rows: number): (string | null)[][] {
   const arr: (string | null)[][] = [];
@@ -24,6 +25,12 @@ export const useTilemapStore = defineStore('tilemap', () => {
   const zoom = ref(1);
   const panOffset = ref({ x: 0, y: 0 });
   const showCollision = ref(true);
+
+  const clipboard = ref<{
+    cells: (string | null)[][];
+    cols: number;
+    rows: number;
+  } | null>(null);
 
   const selectedMap = computed<Tilemap | null>(() =>
     projectStore.tilemaps.find(t => t.id === selectedMapId.value) || null
@@ -76,6 +83,8 @@ export const useTilemapStore = defineStore('tilemap', () => {
     const l = findLayer(layerId);
     if (!l) return;
     if (row < 0 || row >= l.cells.length || col < 0 || col >= l.cells[0].length) return;
+    const before = l.cells[row][col];
+    if (before === frameId) return;
     l.cells[row][col] = frameId;
     projectStore.persistCurrent();
   }
@@ -85,6 +94,7 @@ export const useTilemapStore = defineStore('tilemap', () => {
     if (!l) return;
     const target = l.cells[row]?.[col];
     if (target === frameId) return;
+    const beforeCells = deepClone(l.cells);
     const stack: [number, number][] = [[col, row]];
     const visited = new Set<string>();
     while (stack.length) {
@@ -97,14 +107,25 @@ export const useTilemapStore = defineStore('tilemap', () => {
       l.cells[r][c] = frameId;
       stack.push([c + 1, r], [c - 1, r], [c, r + 1], [c, r - 1]);
     }
+    projectStore.pushHistory({
+      type: 'tilemap-layer-cells', targetId: layerId,
+      before: beforeCells, after: deepClone(l.cells),
+      label: `填充 ${l.name}`
+    });
     projectStore.persistCurrent();
   }
 
   function clearLayer(layerId: string) {
     const l = findLayer(layerId);
     if (!l) return;
+    const beforeCells = deepClone(l.cells);
     const rows = l.cells.length, cols = l.cells[0].length;
     l.cells = emptyCells(cols, rows);
+    projectStore.pushHistory({
+      type: 'tilemap-layer-cells', targetId: layerId,
+      before: beforeCells, after: deepClone(l.cells),
+      label: `清空 ${l.name}`
+    });
     projectStore.persistCurrent();
   }
 
@@ -183,12 +204,97 @@ export const useTilemapStore = defineStore('tilemap', () => {
     projectStore.persistCurrent();
   }
 
+  function copySelection(
+    layerId: string,
+    startCol: number, startRow: number,
+    endCol: number, endRow: number
+  ) {
+    const l = findLayer(layerId);
+    if (!l) return;
+    const c1 = Math.min(startCol, endCol), c2 = Math.max(startCol, endCol);
+    const r1 = Math.min(startRow, endRow), r2 = Math.max(startRow, endRow);
+    const cols = c2 - c1 + 1, rows = r2 - r1 + 1;
+    const cells: (string | null)[][] = [];
+    for (let r = r1; r <= r2; r++) {
+      const row: (string | null)[] = [];
+      for (let c = c1; c <= c2; c++) {
+        row.push(l.cells[r]?.[c] ?? null);
+      }
+      cells.push(row);
+    }
+    clipboard.value = { cells, cols, rows };
+  }
+
+  function moveSelection(
+    layerId: string,
+    startCol: number, startRow: number,
+    endCol: number, endRow: number,
+    destCol: number, destRow: number
+  ) {
+    const l = findLayer(layerId);
+    if (!l) return;
+    const beforeCells = deepClone(l.cells);
+    const c1 = Math.min(startCol, endCol), c2 = Math.max(startCol, endCol);
+    const r1 = Math.min(startRow, endRow), r2 = Math.max(startRow, endRow);
+    const w = c2 - c1 + 1, h = r2 - r1 + 1;
+
+    const temp: (string | null)[][] = [];
+    for (let r = r1; r <= r2; r++) {
+      const row: (string | null)[] = [];
+      for (let c = c1; c <= c2; c++) {
+        row.push(l.cells[r]?.[c] ?? null);
+        l.cells[r][c] = null;
+      }
+      temp.push(row);
+    }
+
+    for (let dr = 0; dr < h; dr++) {
+      for (let dc = 0; dc < w; dc++) {
+        const tr = destRow + dr, tc = destCol + dc;
+        if (tr >= 0 && tr < l.cells.length && tc >= 0 && tc < l.cells[0].length) {
+          l.cells[tr][tc] = temp[dr][dc];
+        }
+      }
+    }
+
+    projectStore.pushHistory({
+      type: 'tilemap-layer-cells', targetId: layerId,
+      before: beforeCells, after: deepClone(l.cells),
+      label: `移动选区 ${l.name}`
+    });
+    projectStore.persistCurrent();
+  }
+
+  function pasteFromClipboard(layerId: string, destCol: number, destRow: number) {
+    const l = findLayer(layerId);
+    if (!l || !clipboard.value) return;
+    const beforeCells = deepClone(l.cells);
+    const { cells, cols, rows } = clipboard.value;
+    for (let dr = 0; dr < rows; dr++) {
+      for (let dc = 0; dc < cols; dc++) {
+        const tr = destRow + dr, tc = destCol + dc;
+        if (tr >= 0 && tr < l.cells.length && tc >= 0 && tc < l.cells[0].length) {
+          if (cells[dr]?.[dc] !== undefined) l.cells[tr][tc] = cells[dr][dc];
+        }
+      }
+    }
+    projectStore.pushHistory({
+      type: 'tilemap-layer-cells', targetId: layerId,
+      before: beforeCells, after: deepClone(l.cells),
+      label: `粘贴选区 ${l.name}`
+    });
+    projectStore.persistCurrent();
+  }
+
+  function hasClipboard(): boolean { return !!clipboard.value; }
+
   return {
     selectedMapId, selectedLayerId, selectedTileFrameId, selectedZoneId,
-    tool, zoom, panOffset, showCollision,
+    tool, zoom, panOffset, showCollision, clipboard,
     selectedMap, selectedLayer, availableTileFrames,
     createMap, paintCell, floodFill, clearLayer,
     updateLayer, addZone, updateZone, deleteZone,
-    updateMap, deleteMap, selectMap, moveLayer
+    updateMap, deleteMap, selectMap, moveLayer,
+    copySelection, moveSelection, pasteFromClipboard, hasClipboard
   };
 });
