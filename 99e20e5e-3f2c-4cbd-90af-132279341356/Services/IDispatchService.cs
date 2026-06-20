@@ -19,6 +19,8 @@ public interface IDispatchService
     Task<ApiResponse<bool>> UpdateStationAsync(long id, FireStationDto dto);
     Task<ApiResponse<FirefighterDto>> CreateFirefighterAsync(FirefighterDto dto);
     Task AutoDispatchForAlarmAsync(long alarmId);
+    Task<ApiResponse<bool>> UpdateRoadConditionAsync(long dispatchId, string roadCondition);
+    Task<ApiResponse<bool>> UpdateLiveVideoAsync(long dispatchId, string liveVideoUrl);
 }
 
 public interface IFireUnitService

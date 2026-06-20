@@ -17,15 +17,23 @@ public class AlarmService : IAlarmService
     private readonly IHubContext<FireAlarmHub> _hubContext;
     private readonly ILogger<AlarmService> _logger;
     private readonly IConfiguration _config;
+    private readonly INotificationService _notificationService;
+    private readonly IWorkOrderService _workOrderService;
+    private readonly IThirdPartyIntegrationService _thirdPartyService;
 
     public AlarmService(IUnitOfWork unitOfWork, IRedisCacheService cache,
-        IHubContext<FireAlarmHub> hubContext, ILogger<AlarmService> logger, IConfiguration config)
+        IHubContext<FireAlarmHub> hubContext, ILogger<AlarmService> logger, IConfiguration config,
+        INotificationService notificationService, IWorkOrderService workOrderService,
+        IThirdPartyIntegrationService thirdPartyService)
     {
         _unitOfWork = unitOfWork;
         _cache = cache;
         _hubContext = hubContext;
         _logger = logger;
         _config = config;
+        _notificationService = notificationService;
+        _workOrderService = workOrderService;
+        _thirdPartyService = thirdPartyService;
     }
 
     public async Task<ApiResponse<AlarmRecordDto>> GetByIdAsync(long id)
@@ -114,6 +122,87 @@ public class AlarmService : IAlarmService
         await _hubContext.Clients.All.SendAsync("NewAlarm", dto);
 
         _logger.LogInformation($"告警已创建: AlarmNo={alarm.AlarmNo}, DeviceId={deviceId}, Level={alarmLevel}");
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var unit = await _unitOfWork.FireUnits.GetByIdAsync(device.FireUnitId);
+                var location = $"{alarm.Floor} {alarm.Room} {alarm.Location}".Trim();
+                await _notificationService.SendAlarmNotificationsAsync(
+                    alarm.Id,
+                    GetAlarmTypeName(alarmType),
+                    unit?.Name ?? "未知单位",
+                    location,
+                    GetAlarmLevelName(alarmLevel));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "告警通知发送失败");
+            }
+        });
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                if (alarmType is AlarmType.DeviceFault or AlarmType.DeviceOffline
+                    or AlarmType.WaterPressureLow or AlarmType.WaterLevelLow
+                    or AlarmType.HydrantAbnormal)
+                {
+                    await _workOrderService.CreateMaintenanceWorkOrderFromAlarmAsync(alarm.Id);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "自动生成维修工单失败");
+            }
+        });
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _thirdPartyService.PushSupervisionDataAsync(new
+                {
+                    alarm.Id,
+                    alarm.AlarmNo,
+                    alarm.AlarmType,
+                    alarm.AlarmLevel,
+                    alarm.FireUnitId,
+                    alarm.DeviceId,
+                    alarm.Location,
+                    alarm.AlarmTime,
+                    Source = "FireIoTPlatform"
+                });
+
+                if (alarmLevel >= AlarmLevel.Critical)
+                {
+                    var unit = await _unitOfWork.FireUnits.GetByIdAsync(alarm.FireUnitId);
+                    await _thirdPartyService.SyncAlarmToCommandCenterAsync(new
+                    {
+                        alarm.Id,
+                        alarm.AlarmNo,
+                        AlarmType = GetAlarmTypeName(alarmType),
+                        AlarmLevel = GetAlarmLevelName(alarmLevel),
+                        UnitName = unit?.Name,
+                        unit?.Address,
+                        unit?.Latitude,
+                        unit?.Longitude,
+                        alarm.Location,
+                        alarm.Floor,
+                        alarm.Room,
+                        alarm.AlarmTime,
+                        alarm.Description,
+                        Source = "FireIoTPlatform"
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "第三方系统推送失败");
+            }
+        });
 
         return ApiResponse<AlarmRecordDto>.Success("告警创建成功", dto);
     }

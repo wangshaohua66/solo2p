@@ -47,6 +47,18 @@ public class DispatchController : ControllerBase
         return await _dispatchService.SubmitReportAsync(dto);
     }
 
+    [HttpPut("{id}/road-condition")]
+    public async Task<ApiResponse<bool>> UpdateRoadCondition(long id, [FromBody] string roadCondition)
+    {
+        return await _dispatchService.UpdateRoadConditionAsync(id, roadCondition);
+    }
+
+    [HttpPut("{id}/live-video")]
+    public async Task<ApiResponse<bool>> UpdateLiveVideo(long id, [FromBody] string liveVideoUrl)
+    {
+        return await _dispatchService.UpdateLiveVideoAsync(id, liveVideoUrl);
+    }
+
     [HttpGet("nearby")]
     public async Task<ApiResponse<List<NearbyStationDto>>> FindNearbyStations([FromQuery] decimal latitude,
         [FromQuery] decimal longitude, [FromQuery] int count = 3)

@@ -408,6 +408,45 @@ public class DispatchService : IDispatchService
             _logger.LogInformation($"自动调度成功: AlarmId={alarmId}, DispatchNo={dispatch.Data?.DispatchNo}");
     }
 
+    public async Task<ApiResponse<bool>> UpdateRoadConditionAsync(long dispatchId, string roadCondition)
+    {
+        var dispatch = await _unitOfWork.RescueDispatches.GetByIdAsync(dispatchId);
+        if (dispatch == null || dispatch.IsDeleted)
+            return ApiResponse<bool>.Error(404, "调度记录不存在");
+
+        if (dispatch.Status is DispatchStatus.Resolved or DispatchStatus.Returned)
+            return ApiResponse<bool>.Error(400, "调度已结束，无法更新路况");
+
+        dispatch.RoadCondition = roadCondition;
+        _unitOfWork.RescueDispatches.Update(dispatch);
+        await _unitOfWork.SaveChangesAsync();
+
+        var dto = await MapDispatchToDtoAsync(dispatch);
+        await _hubContext.Clients.Group($"station_{dispatch.FireStationId}").SendAsync("DispatchUpdated", dto);
+        await _hubContext.Clients.Group($"unit_{dispatch.FireUnitId}").SendAsync("DispatchUpdated", dto);
+
+        _logger.LogInformation($"救援路况更新: DispatchId={dispatchId}, RoadCondition={roadCondition}");
+        return ApiResponse<bool>.Success("路况更新成功", true);
+    }
+
+    public async Task<ApiResponse<bool>> UpdateLiveVideoAsync(long dispatchId, string liveVideoUrl)
+    {
+        var dispatch = await _unitOfWork.RescueDispatches.GetByIdAsync(dispatchId);
+        if (dispatch == null || dispatch.IsDeleted)
+            return ApiResponse<bool>.Error(404, "调度记录不存在");
+
+        dispatch.LiveVideoUrl = liveVideoUrl;
+        _unitOfWork.RescueDispatches.Update(dispatch);
+        await _unitOfWork.SaveChangesAsync();
+
+        var dto = await MapDispatchToDtoAsync(dispatch);
+        await _hubContext.Clients.Group($"station_{dispatch.FireStationId}").SendAsync("DispatchUpdated", dto);
+        await _hubContext.Clients.Group($"unit_{dispatch.FireUnitId}").SendAsync("DispatchUpdated", dto);
+
+        _logger.LogInformation($"现场视频更新: DispatchId={dispatchId}, LiveVideoUrl={liveVideoUrl}");
+        return ApiResponse<bool>.Success("视频地址更新成功", true);
+    }
+
     private async Task<RescueDispatchDto> MapDispatchToDtoAsync(RescueDispatch dispatch)
     {
         var unit = await _unitOfWork.FireUnits.GetByIdAsync(dispatch.FireUnitId);

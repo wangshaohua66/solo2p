@@ -15,14 +15,17 @@ public class DeviceService : IDeviceService
     private readonly IRedisCacheService _cache;
     private readonly IHubContext<FireAlarmHub> _hubContext;
     private readonly ILogger<DeviceService> _logger;
+    private readonly IDeviceDataShardingService _shardingService;
 
     public DeviceService(IUnitOfWork unitOfWork, IRedisCacheService cache,
-        IHubContext<FireAlarmHub> hubContext, ILogger<DeviceService> logger)
+        IHubContext<FireAlarmHub> hubContext, ILogger<DeviceService> logger,
+        IDeviceDataShardingService shardingService)
     {
         _unitOfWork = unitOfWork;
         _cache = cache;
         _hubContext = hubContext;
         _logger = logger;
+        _shardingService = shardingService;
     }
 
     public async Task<ApiResponse<DeviceDto>> GetByIdAsync(long id)
@@ -205,6 +208,18 @@ public class DeviceService : IDeviceService
         await _cache.SetDeviceHeartbeatAsync(device.Id, now);
 
         await _unitOfWork.SaveChangesAsync();
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _shardingService.InsertDeviceDataAsync(deviceData);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"写入设备数据分表失败: DeviceId={device.Id}");
+            }
+        });
 
         if (oldStatus != status)
         {

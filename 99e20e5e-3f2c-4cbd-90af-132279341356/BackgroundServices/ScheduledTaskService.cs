@@ -51,6 +51,24 @@ public class ScheduledTaskService : BackgroundService
                     _logger.LogInformation("执行第三方警情同步...");
                     await thirdPartyService.PullCommandCenterAlarmsAsync();
                 }
+
+                if (now.Day == 1 && now.Hour == 4 && now.Minute < 10)
+                {
+                    _logger.LogInformation("执行下月设备数据分表创建...");
+                    var shardingService = scope.ServiceProvider.GetRequiredService<IDeviceDataShardingService>();
+                    var nextMonth = now.AddMonths(1);
+                    await shardingService.EnsureTableExistsAsync(nextMonth);
+                    _logger.LogInformation($"下月分表创建完成: {shardingService.GetTableName(nextMonth)}");
+                }
+
+                if (now.Day == 1 && now.Hour == 5 && now.Minute < 10)
+                {
+                    _logger.LogInformation("执行历史数据清理...");
+                    var shardingService = scope.ServiceProvider.GetRequiredService<IDeviceDataShardingService>();
+                    var retentionMonths = 36;
+                    await shardingService.CleanupOldDataAsync(retentionMonths);
+                    _logger.LogInformation($"历史数据清理完成，保留最近{retentionMonths}个月");
+                }
             }
             catch (Exception ex)
             {

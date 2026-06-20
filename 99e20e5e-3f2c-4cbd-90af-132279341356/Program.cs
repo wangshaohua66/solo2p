@@ -141,6 +141,9 @@ builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IThirdPartyIntegrationService, ThirdPartyIntegrationService>();
+builder.Services.AddScoped<IWorkOrderService, WorkOrderService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IDeviceDataShardingService, DeviceDataShardingService>();
 
 builder.Services.AddHostedService<DeviceHeartbeatMonitorService>();
 builder.Services.AddHostedService<AlarmAggregationService>();
@@ -195,6 +198,19 @@ try
         else
         {
             Log.Warning("数据库连接失败，请检查配置");
+        }
+
+        try
+        {
+            var shardingService = scope.ServiceProvider.GetRequiredService<IDeviceDataShardingService>();
+            var now = DateTime.Now;
+            await shardingService.EnsureTableExistsAsync(now);
+            await shardingService.EnsureTableExistsAsync(now.AddMonths(1));
+            Log.Information("设备数据分表初始化完成");
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "设备数据分表初始化失败");
         }
     }
 
