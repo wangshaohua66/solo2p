@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tobacco.mapper.InspectionTaskMapper">
+
+    <resultMap id="BaseResultMap" type="com.tobacco.entity.InspectionTask">
+        <id column="id" property="id"/>
+        <result column="task_no" property="taskNo"/>
+        <result column="task_type" property="taskType"/>
+        <result column="retailer_id" property="retailerId"/>
+        <result column="retailer_name" property="retailerName"/>
+        <result column="county_id" property="countyId"/>
+        <result column="station_id" property="stationId"/>
+        <result column="risk_level" property="riskLevel"/>
+        <result column="credit_level" property="creditLevel"/>
+        <result column="inspector_id" property="inspectorId"/>
+        <result column="inspector_name" property="inspectorName"/>
+        <result column="plan_date" property="planDate"/>
+        <result column="actual_date" property="actualDate"/>
+        <result column="status" property="status"/>
+        <result column="result" property="result"/>
+        <result column="has_violation" property="hasViolation"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="deleted" property="deleted"/>
+    </resultMap>
+
+    <select id="selectByTaskNo" resultMap="BaseResultMap">
+        SELECT * FROM inspection_task WHERE task_no = #{taskNo} AND deleted = 0
+    </select>
+
+    <select id="selectByInspectorId" resultMap="BaseResultMap">
+        SELECT * FROM inspection_task
+        WHERE inspector_id = #{inspectorId} AND deleted = 0
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByRetailerId" resultMap="BaseResultMap">
+        SELECT * FROM inspection_task
+        WHERE retailer_id = #{retailerId} AND deleted = 0
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectPendingTasks" resultMap="BaseResultMap">
+        SELECT * FROM inspection_task
+        WHERE status IN (0, 1) AND deleted = 0
+        ORDER BY CASE risk_level
+            WHEN 'high' THEN 1
+            WHEN 'medium' THEN 2
+            WHEN 'low' THEN 3
+            ELSE 4
+        END, create_time ASC
+    </select>
+
+    <select id="selectPendingTasksByInspector" resultMap="BaseResultMap">
+        SELECT * FROM inspection_task
+        WHERE inspector_id = #{inspectorId}
+          AND status IN (0, 1)
+          AND deleted = 0
+        ORDER BY plan_date ASC
+    </select>
+
+    <select id="selectPageByCondition" resultMap="BaseResultMap">
+        SELECT * FROM inspection_task
+        WHERE deleted = 0
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        <if test="riskLevel != null and riskLevel != ''">
+            AND risk_level = #{riskLevel}
+        </if>
+        <if test="inspectorId != null">
+            AND inspector_id = #{inspectorId}
+        </if>
+        <if test="retailerId != null">
+            AND retailer_id = #{retailerId}
+        </if>
+        <if test="countyId != null">
+            AND county_id = #{countyId}
+        </if>
+        <if test="startDate != null and startDate != ''">
+            AND DATE(create_time) &gt;= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND DATE(create_time) &lt;= #{endDate}
+        </if>
+        ORDER BY CASE risk_level
+            WHEN 'high' THEN 1
+            WHEN 'medium' THEN 2
+            WHEN 'low' THEN 3
+            ELSE 4
+        END, create_time DESC
+    </select>
+</mapper>

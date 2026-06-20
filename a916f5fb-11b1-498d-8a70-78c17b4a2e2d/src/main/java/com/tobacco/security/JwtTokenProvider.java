@@ -51,7 +51,7 @@ public class JwtTokenProvider {
 
     private String generateToken(Map<String, Object> claims, Long expiration) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + expiration * 1000);
+        Date expiryDate = new Date(now.getTime() + expiration);
 
         return Jwts.builder()
                 .setClaims(claims)

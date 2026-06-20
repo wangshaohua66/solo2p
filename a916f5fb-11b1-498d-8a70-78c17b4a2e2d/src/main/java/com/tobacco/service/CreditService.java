@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -57,14 +58,16 @@ public class CreditService {
             return;
         }
 
-        int beforeScore = retailer.getCreditScore() != null ? retailer.getCreditScore() : baseScore;
+        int operatingYearsBonus = calculateOperatingYearsBonus(retailer);
+        int beforeScore = (retailer.getCreditScore() != null ? retailer.getCreditScore() : baseScore) + operatingYearsBonus;
         CreditLevel beforeLevel = CreditLevel.getByCode(retailer.getCreditLevel());
         if (beforeLevel == null) {
-            beforeLevel = CreditLevel.BBB;
+            beforeLevel = CreditLevel.B;
         }
 
         int deductPoints = violationType.getDeductPoints();
-        int afterScore = Math.max(minScore, beforeScore - deductPoints);
+        int afterScore = Math.max(minScore, beforeScore - deductPoints - operatingYearsBonus);
+        afterScore = Math.min(maxScore, afterScore);
         CreditLevel afterLevel = CreditLevel.getByScore(afterScore);
 
         retailer.setCreditScore(afterScore);
@@ -100,7 +103,48 @@ public class CreditService {
                 retailer.getRetailerName(), deductPoints, afterScore, afterLevel.getCode());
     }
 
-    private void triggerCreditDowngradeEffect(Retailer retailer, CreditLevel newLevel) {
+    private int calculateOperatingYearsBonus(Retailer retailer) {
+        if (retailer.getRegisterDate() == null) {
+            return 0;
+        }
+        long years = ChronoUnit.YEARS.between(retailer.getRegisterDate(), LocalDate.now());
+        if (years <= 0) return 0;
+        if (years <= 1) return 2;
+        if (years <= 3) return 4;
+        if (years <= 5) return 6;
+        if (years <= 10) return 8;
+        return 10;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void triggerCreditDowngradeEffect(Retailer retailer, CreditLevel newLevel) {
+        log.info("执行信用降级影响处理，零售户：{}，新等级：{}", retailer.getRetailerName(), newLevel.getCode());
+
+        switch (newLevel) {
+            case C, D -> {
+                retailer.setInspectionFrequency(retailer.getInspectionFrequency() != null ? retailer.getInspectionFrequency() + 2 : 3);
+                log.info("零售户 {} 信用降级至 {}，巡查频次增加至 {}", retailer.getRetailerName(), newLevel.getCode(), retailer.getInspectionFrequency());
+            }
+            case B -> {
+                retailer.setInspectionFrequency(retailer.getInspectionFrequency() != null ? retailer.getInspectionFrequency() + 1 : 2);
+                log.info("零售户 {} 信用降级至 {}，巡查频次增加至 {}", retailer.getRetailerName(), newLevel.getCode(), retailer.getInspectionFrequency());
+            }
+            default -> {
+            }
+        }
+
+        BigDecimal originalCoefficient = CreditLevel.A.getCoefficient();
+        BigDecimal newCoefficient = newLevel.getCoefficient();
+        BigDecimal reductionRatio = originalCoefficient.subtract(newCoefficient)
+                .divide(originalCoefficient, 4, RoundingMode.HALF_UP);
+        if (reductionRatio.compareTo(BigDecimal.ZERO) > 0) {
+            log.info("零售户 {} 信用降级至 {}，配额系数从 {} 降至 {}，缩减比例：{}%",
+                    retailer.getRetailerName(), newLevel.getCode(),
+                    originalCoefficient, newCoefficient,
+                    reductionRatio.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP));
+        }
+
+        retailerMapper.updateById(retailer);
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -113,7 +157,7 @@ public class CreditService {
         if (fulfillmentRate >= 0.95) {
             int beforeScore = retailer.getCreditScore() != null ? retailer.getCreditScore() : baseScore;
             CreditLevel beforeLevel = CreditLevel.getByCode(retailer.getCreditLevel());
-            if (beforeLevel == null) beforeLevel = CreditLevel.BBB;
+            if (beforeLevel == null) beforeLevel = CreditLevel.B;
 
             int bonusPoints = 2;
             int afterScore = Math.min(maxScore, beforeScore + bonusPoints);
@@ -167,7 +211,7 @@ public class CreditService {
             if (consecutivePeriods >= repairPeriods) {
                 int beforeScore = retailer.getCreditScore() != null ? retailer.getCreditScore() : baseScore;
                 CreditLevel beforeLevel = CreditLevel.getByCode(retailer.getCreditLevel());
-                if (beforeLevel == null) beforeLevel = CreditLevel.BBB;
+                if (beforeLevel == null) beforeLevel = CreditLevel.B;
 
                 if (beforeScore < baseScore) {
                     int repairPoints = 5;

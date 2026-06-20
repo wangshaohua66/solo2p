@@ -3,19 +3,32 @@ package com.tobacco.service;
 import com.tobacco.common.enums.RoleType;
 import com.tobacco.common.exception.BusinessException;
 import com.tobacco.common.result.ResultCode;
+import com.tobacco.common.util.SecurityUtil;
 import com.tobacco.dto.request.LoginRequest;
 import com.tobacco.dto.response.LoginResponse;
+import com.tobacco.entity.TokenBlacklist;
 import com.tobacco.entity.User;
+import com.tobacco.mapper.TokenBlacklistMapper;
 import com.tobacco.mapper.UserMapper;
 import com.tobacco.security.JwtTokenProvider;
+import io.jsonwebtoken.Claims;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Date;
 
 @Slf4j
 @Service
@@ -26,6 +39,14 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final TokenBlacklistMapper tokenBlacklistMapper;
+    private final SecurityUtil securityUtil;
+
+    @Value("${jwt.prefix}")
+    private String tokenPrefix;
+
+    @Value("${jwt.header}")
+    private String tokenHeader;
 
     public LoginResponse login(LoginRequest request) {
         try {
@@ -57,7 +78,7 @@ public class AuthService {
                     .accessToken(accessToken)
                     .refreshToken(refreshToken)
                     .tokenType("Bearer")
-                    .expiresIn(jwtTokenProvider.getExpiration())
+                    .expiresIn(jwtTokenProvider.getExpiration() / 1000)
                     .userInfo(LoginResponse.UserInfo.builder()
                             .id(user.getId())
                             .username(user.getUsername())
@@ -76,6 +97,10 @@ public class AuthService {
 
     public LoginResponse refreshToken(String refreshToken) {
         if (!jwtTokenProvider.validateRefreshToken(refreshToken)) {
+            throw new BusinessException(ResultCode.TOKEN_REFRESH_FAILED);
+        }
+
+        if (tokenBlacklistMapper.countByToken(refreshToken) > 0) {
             throw new BusinessException(ResultCode.TOKEN_REFRESH_FAILED);
         }
 
@@ -98,7 +123,7 @@ public class AuthService {
                 .accessToken(newAccessToken)
                 .refreshToken(newRefreshToken)
                 .tokenType("Bearer")
-                .expiresIn(jwtTokenProvider.getExpiration())
+                .expiresIn(jwtTokenProvider.getExpiration() / 1000)
                 .userInfo(LoginResponse.UserInfo.builder()
                         .id(user.getId())
                         .username(user.getUsername())
@@ -110,6 +135,50 @@ public class AuthService {
                 .build();
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public void logout() {
+        String token = getCurrentToken();
+        if (token == null) {
+            return;
+        }
+
+        addToBlacklist(token);
+
+        log.info("用户登出成功，token已加入黑名单");
+    }
+
+    private String getCurrentToken() {
+        ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attrs == null) {
+            return null;
+        }
+        HttpServletRequest request = attrs.getRequest();
+        String authHeader = request.getHeader(tokenHeader);
+        if (authHeader != null && authHeader.startsWith(tokenPrefix + " ")) {
+            return authHeader.substring(tokenPrefix.length() + 1);
+        }
+        return null;
+    }
+
+    private void addToBlacklist(String token) {
+        Claims claims = jwtTokenProvider.getClaimsFromToken(token);
+        if (claims == null) {
+            return;
+        }
+
+        Date expiration = claims.getExpiration();
+        LocalDateTime expireTime = expiration.toInstant()
+                .atZone(ZoneId.systemDefault())
+                .toLocalDateTime();
+
+        String username = (String) claims.get("username");
+        String type = (String) claims.get("type");
+
+        TokenBlacklist blacklist = new TokenBlacklist();
+        blacklist.setToken(token);
+        blacklist.setTokenType(type);
+        blacklist.setUsername(username);
+        blacklist.setExpireTime(expireTime);
+        tokenBlacklistMapper.insert(blacklist);
     }
 }

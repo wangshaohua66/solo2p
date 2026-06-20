@@ -55,6 +55,16 @@ public class DeliveryService {
     private static final double AVG_SPEED_KMH = 40.0;
     private static final double DELIVERY_TIME_PER_STOP_MIN = 15.0;
 
+    private LocalTime parseTime(String timeStr) {
+        return LocalTime.parse(timeStr, DateTimeFormatter.ofPattern("HH:mm"));
+    }
+
+    private double getTimeWindowHours() {
+        LocalTime start = parseTime(timeWindowStart);
+        LocalTime end = parseTime(timeWindowEnd);
+        return java.time.Duration.between(start, end).toMinutes() / 60.0;
+    }
+
     @Transactional(rollbackFor = Exception.class)
     public DeliveryPlan generateDeliveryPlan(String orderPeriod) {
         long startTime = System.currentTimeMillis();
@@ -81,6 +91,7 @@ public class DeliveryService {
 
         int vehicleIndex = 0;
         int totalVehiclesUsed = 0;
+        double timeWindowHours = getTimeWindowHours();
 
         for (int fleetId = 0; fleetId < fleetClusters.size(); fleetId++) {
             List<DeliveryPoint> fleetPoints = fleetClusters.get(fleetId);
@@ -91,51 +102,57 @@ public class DeliveryService {
             for (List<DeliveryPoint> routePoints : vehicleRoutes) {
                 if (routePoints.isEmpty()) continue;
 
-                vehicleIndex++;
-                totalVehiclesUsed++;
-                String routeNo = generateRouteNo();
+                List<List<DeliveryPoint>> splitRoutes = splitRouteByTimeWindow(routePoints, timeWindowHours);
 
-                GreedyResult greedyResult = greedyOptimizeRoute(routePoints);
+                for (List<DeliveryPoint> splitPoints : splitRoutes) {
+                    if (splitPoints.isEmpty()) continue;
 
-                DeliveryRoute route = new DeliveryRoute();
-                route.setPlanId(plan.getId());
-                route.setRouteNo(routeNo);
-                route.setFleetId((long) (fleetId + 1));
-                route.setVehicleNo("V" + String.format("%03d", vehicleIndex));
-                route.setDriverName("司机" + vehicleIndex);
-                route.setDeliveryCount(greedyResult.points.size());
-                route.setTotalLoad(greedyResult.totalLoad);
-                route.setLoadRate(BigDecimal.valueOf(greedyResult.totalLoad)
-                        .divide(BigDecimal.valueOf(maxLoad), 4, RoundingMode.HALF_UP)
-                        .multiply(BigDecimal.valueOf(100)));
-                route.setEstimatedDistance(BigDecimal.valueOf(greedyResult.totalDistance).setScale(2, RoundingMode.HALF_UP));
-                route.setEstimatedDuration(BigDecimal.valueOf(greedyResult.totalDuration).setScale(2, RoundingMode.HALF_UP));
-                route.setStartPoint("配送中心");
-                route.setEndPoint("配送中心");
-                route.setDeliverySequence(buildSequenceJson(greedyResult.points));
-                route.setStatus(0);
-                deliveryRouteMapper.insert(route);
+                    vehicleIndex++;
+                    totalVehiclesUsed++;
+                    String routeNo = generateRouteNo();
 
-                int seq = 1;
-                LocalDateTime currentTime = LocalDateTime.of(LocalDate.now().plusDays(1), LocalTime.of(8, 0));
-                for (DeliveryPoint point : greedyResult.points) {
-                    DeliveryDetail detail = new DeliveryDetail();
-                    detail.setRouteId(route.getId());
-                    detail.setPlanId(plan.getId());
-                    detail.setOrderId(point.getOrderId());
-                    detail.setOrderNo(point.getOrderNo());
-                    detail.setRetailerId(point.getRetailerId());
-                    detail.setRetailerName(point.getRetailerName());
-                    detail.setAddress(point.getAddress());
-                    detail.setLongitude(point.getLongitude());
-                    detail.setLatitude(point.getLatitude());
-                    detail.setQuantity(point.getQuantity());
-                    detail.setSequenceNumber(seq++);
-                    detail.setEstimatedArrivalTime(currentTime);
-                    detail.setStatus(0);
-                    deliveryDetailMapper.insert(detail);
+                    GreedyResult greedyResult = greedyOptimizeRoute(splitPoints);
 
-                    currentTime = currentTime.plusMinutes((long) DELIVERY_TIME_PER_STOP_MIN);
+                    DeliveryRoute route = new DeliveryRoute();
+                    route.setPlanId(plan.getId());
+                    route.setRouteNo(routeNo);
+                    route.setFleetId((long) (fleetId + 1));
+                    route.setVehicleNo("V" + String.format("%03d", vehicleIndex));
+                    route.setDriverName("司机" + vehicleIndex);
+                    route.setDeliveryCount(greedyResult.points.size());
+                    route.setTotalLoad(greedyResult.totalLoad);
+                    route.setLoadRate(BigDecimal.valueOf(greedyResult.totalLoad)
+                            .divide(BigDecimal.valueOf(maxLoad), 4, RoundingMode.HALF_UP)
+                            .multiply(BigDecimal.valueOf(100)));
+                    route.setEstimatedDistance(BigDecimal.valueOf(greedyResult.totalDistance).setScale(2, RoundingMode.HALF_UP));
+                    route.setEstimatedDuration(BigDecimal.valueOf(greedyResult.totalDuration).setScale(2, RoundingMode.HALF_UP));
+                    route.setStartPoint("配送中心");
+                    route.setEndPoint("配送中心");
+                    route.setDeliverySequence(buildSequenceJson(greedyResult.points));
+                    route.setStatus(0);
+                    deliveryRouteMapper.insert(route);
+
+                    int seq = 1;
+                    LocalDateTime currentTime = LocalDateTime.of(LocalDate.now().plusDays(1), parseTime(timeWindowStart));
+                    for (DeliveryPoint point : greedyResult.points) {
+                        DeliveryDetail detail = new DeliveryDetail();
+                        detail.setRouteId(route.getId());
+                        detail.setPlanId(plan.getId());
+                        detail.setOrderId(point.getOrderId());
+                        detail.setOrderNo(point.getOrderNo());
+                        detail.setRetailerId(point.getRetailerId());
+                        detail.setRetailerName(point.getRetailerName());
+                        detail.setAddress(point.getAddress());
+                        detail.setLongitude(point.getLongitude());
+                        detail.setLatitude(point.getLatitude());
+                        detail.setQuantity(point.getQuantity());
+                        detail.setSequenceNumber(seq++);
+                        detail.setEstimatedArrivalTime(currentTime);
+                        detail.setStatus(0);
+                        deliveryDetailMapper.insert(detail);
+
+                        currentTime = currentTime.plusMinutes((long) DELIVERY_TIME_PER_STOP_MIN);
+                    }
                 }
             }
         }
@@ -157,6 +174,66 @@ public class DeliveryService {
                 planNo, orders.size(), plan.getTotalQuantity(), totalVehiclesUsed, calcTimeSeconds);
 
         return plan;
+    }
+
+    private List<List<DeliveryPoint>> splitRouteByTimeWindow(List<DeliveryPoint> points, double timeWindowHours) {
+        List<List<DeliveryPoint>> result = new ArrayList<>();
+        if (points.isEmpty()) {
+            return result;
+        }
+
+        List<DeliveryPoint> remaining = new ArrayList<>(points);
+        while (!remaining.isEmpty()) {
+            List<DeliveryPoint> currentRoute = new ArrayList<>();
+            double currentDuration = 0.0;
+            BigDecimal currentLng = DISTRIBUTION_CENTER_LNG;
+            BigDecimal currentLat = DISTRIBUTION_CENTER_LAT;
+            int currentLoad = 0;
+
+            Iterator<DeliveryPoint> it = remaining.iterator();
+            while (it.hasNext()) {
+                DeliveryPoint point = it.next();
+
+                double distanceToNext = calculateDistance(currentLng, currentLat,
+                        point.getLongitude(), point.getLatitude());
+                double travelTimeHours = distanceToNext / AVG_SPEED_KMH;
+                double stopTimeHours = DELIVERY_TIME_PER_STOP_MIN / 60.0;
+                double addedHours = travelTimeHours + stopTimeHours;
+
+                double returnDistance = calculateDistance(point.getLongitude(), point.getLatitude(),
+                        DISTRIBUTION_CENTER_LNG, DISTRIBUTION_CENTER_LAT);
+                double returnTimeHours = returnDistance / AVG_SPEED_KMH;
+                double totalIfAdded = currentDuration + addedHours + returnTimeHours;
+
+                if (totalIfAdded <= timeWindowHours && currentLoad + point.getQuantity() <= maxLoad) {
+                    currentRoute.add(point);
+                    currentDuration += addedHours;
+                    currentLoad += point.getQuantity();
+                    currentLng = point.getLongitude();
+                    currentLat = point.getLatitude();
+                    it.remove();
+                } else if (currentRoute.isEmpty()) {
+                    currentRoute.add(point);
+                    it.remove();
+                    break;
+                } else {
+                    break;
+                }
+            }
+
+            if (!currentRoute.isEmpty()) {
+                result.add(currentRoute);
+            } else {
+                break;
+            }
+        }
+
+        if (!remaining.isEmpty()) {
+            log.warn("部分配送点超出时间窗，已拆分为额外路线，剩余点数：{}", remaining.size());
+            result.add(remaining);
+        }
+
+        return result;
     }
 
     private List<DeliveryPoint> buildDeliveryPoints(List<Order> orders) {

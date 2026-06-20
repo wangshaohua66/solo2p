@@ -40,6 +40,7 @@ public class OrderService {
     private final RetailerMapper retailerMapper;
     private final CigaretteMapper cigaretteMapper;
     private final LicenseMapper licenseMapper;
+    private final QuotaExceedRecordMapper quotaExceedRecordMapper;
 
     @Value("${quota.base-quota-per-tier}")
     private Integer baseQuotaPerTier;
@@ -58,7 +59,7 @@ public class OrderService {
         int tier = retailer.getTier() != null ? retailer.getTier() : 1;
         CreditLevel creditLevel = CreditLevel.getByCode(retailer.getCreditLevel());
         if (creditLevel == null) {
-            creditLevel = CreditLevel.BBB;
+            creditLevel = CreditLevel.B;
         }
 
         BigDecimal baseQuota = BigDecimal.valueOf(tier).multiply(BigDecimal.valueOf(baseQuotaPerTier));
@@ -73,6 +74,9 @@ public class OrderService {
         String orderPeriod = getCurrentOrderPeriod();
         Integer quotaUsed = orderMapper.sumQuantityByRetailerAndPeriod(retailerId, orderPeriod);
         if (quotaUsed == null) quotaUsed = 0;
+
+        Integer quotaExceededCount = quotaExceedRecordMapper.countByRetailerAndPeriod(retailerId, orderPeriod);
+        if (quotaExceededCount == null) quotaExceededCount = 0;
 
         int remaining = quotaLimit.intValue() - quotaUsed;
         if (remaining < 0) remaining = 0;
@@ -89,6 +93,7 @@ public class OrderService {
                 .quotaUsed(quotaUsed)
                 .quotaRemaining(remaining)
                 .orderPeriod(orderPeriod)
+                .quotaExceededCount(quotaExceededCount)
                 .build();
     }
 
@@ -157,6 +162,7 @@ public class OrderService {
                 .sum();
 
         if (totalQuantity > quota.getQuotaRemaining()) {
+            recordQuotaExceeded(retailer, quota, totalQuantity);
             throw new BusinessException(ResultCode.ORDER_QUOTA_EXCEEDED);
         }
 
@@ -208,6 +214,31 @@ public class OrderService {
         log.info("订单创建成功，订单号：{}，订货总量：{}条，总金额：{}元",
                 orderNo, totalQuantity, totalAmount);
         return order;
+    }
+
+    private void recordQuotaExceeded(Retailer retailer, QuotaResult quota, int requestQuantity) {
+        String orderPeriod = getCurrentOrderPeriod();
+        int exceedQuantity = requestQuantity - quota.getQuotaRemaining();
+
+        QuotaExceedRecord record = new QuotaExceedRecord();
+        record.setRecordNo("QER" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")) +
+                IdUtil.getSnowflakeNextIdStr().substring(0, 4));
+        record.setRetailerId(retailer.getId());
+        record.setRetailerName(retailer.getRetailerName());
+        record.setLicenseNo(retailer.getLicenseNo());
+        record.setOrderPeriod(orderPeriod);
+        record.setQuotaLimit(quota.getQuotaLimit());
+        record.setQuotaUsed(quota.getQuotaUsed());
+        record.setRequestQuantity(requestQuantity);
+        record.setExceedQuantity(exceedQuantity);
+        record.setCountyId(retailer.getCountyId());
+        record.setStationId(retailer.getStationId());
+        record.setRemark("订货量超出剩余配额，剩余配额：" + quota.getQuotaRemaining() + "，申请量：" + requestQuantity);
+        quotaExceedRecordMapper.insert(record);
+
+        log.warn("超配额订单被拦截，零售户：{}，配额限制：{}，已用：{}，申请：{}，超出：{}",
+                retailer.getRetailerName(), quota.getQuotaLimit(), quota.getQuotaUsed(),
+                requestQuantity, exceedQuantity);
     }
 
     public Order getOrderById(Long id) {

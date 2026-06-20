@@ -2,10 +2,12 @@ package com.tobacco.controller;
 
 import com.tobacco.common.result.PageResult;
 import com.tobacco.common.result.Result;
+import com.tobacco.common.util.SecurityUtil;
 import com.tobacco.dto.request.InspectionTaskQuery;
 import com.tobacco.dto.request.ViolationRecordQuery;
 import com.tobacco.dto.request.ViolationRecordRequest;
 import com.tobacco.entity.InspectionTask;
+import com.tobacco.entity.User;
 import com.tobacco.entity.ViolationRecord;
 import com.tobacco.service.InspectionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,6 +27,7 @@ import java.util.List;
 public class InspectionController {
 
     private final InspectionService inspectionService;
+    private final SecurityUtil securityUtil;
 
     @Operation(summary = "自动派发稽查任务", description = "按辖区网格和零售户风险等级自动派发日常巡查任务")
     @PostMapping("/tasks/auto-assign")
@@ -55,7 +58,10 @@ public class InspectionController {
     @PostMapping("/violations")
     @PreAuthorize("hasAnyRole('ROLE_INSPECTOR', 'ROLE_COUNTY_ADMIN')")
     public Result<ViolationRecord> recordViolation(@Valid @RequestBody ViolationRecordRequest request) {
-        return Result.success(inspectionService.recordViolation(request, null, null));
+        User currentUser = securityUtil.getCurrentUser();
+        Long inspectorId = currentUser != null ? currentUser.getId() : null;
+        String inspectorName = currentUser != null ? currentUser.getRealName() : null;
+        return Result.success(inspectionService.recordViolation(request, inspectorId, inspectorName));
     }
 
     @Operation(summary = "获取违规记录详情", description = "根据记录ID获取违规记录详细信息")

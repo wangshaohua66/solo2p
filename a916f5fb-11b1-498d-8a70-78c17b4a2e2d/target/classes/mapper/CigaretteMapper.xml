@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tobacco.mapper.CigaretteMapper">
+
+    <resultMap id="BaseResultMap" type="com.tobacco.entity.Cigarette">
+        <id column="id" property="id"/>
+        <result column="cigarette_code" property="cigaretteCode"/>
+        <result column="cigarette_name" property="cigaretteName"/>
+        <result column="brand" property="brand"/>
+        <result column="specification" property="specification"/>
+        <result column="price" property="price"/>
+        <result column="category" property="category"/>
+        <result column="tier" property="tier"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="deleted" property="deleted"/>
+    </resultMap>
+
+    <select id="selectByCode" resultMap="BaseResultMap">
+        SELECT * FROM cigarette WHERE cigarette_code = #{code} AND deleted = 0
+    </select>
+
+    <select id="selectPageByCondition" resultMap="BaseResultMap">
+        SELECT * FROM cigarette
+        WHERE deleted = 0
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        <if test="brand != null and brand != ''">
+            AND brand = #{brand}
+        </if>
+        <if test="category != null and category != ''">
+            AND category = #{category}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (cigarette_name LIKE CONCAT('%', #{keyword}, '%')
+                 OR cigarette_code LIKE CONCAT('%', #{keyword}, '%')
+                 OR brand LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        ORDER BY create_time DESC
+    </select>
+</mapper>

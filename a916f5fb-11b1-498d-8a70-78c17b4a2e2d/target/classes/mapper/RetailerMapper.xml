@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tobacco.mapper.RetailerMapper">
+
+    <resultMap id="BaseResultMap" type="com.tobacco.entity.Retailer">
+        <id column="id" property="id"/>
+        <result column="retailer_no" property="retailerNo"/>
+        <result column="retailer_name" property="retailerName"/>
+        <result column="id_card_no" property="idCardNo"/>
+        <result column="phone" property="phone"/>
+        <result column="register_date" property="registerDate"/>
+        <result column="business_type" property="businessType"/>
+        <result column="business_area" property="businessArea"/>
+        <result column="address" property="address"/>
+        <result column="county_id" property="countyId"/>
+        <result column="county" property="county"/>
+        <result column="region_type" property="regionType"/>
+        <result column="longitude" property="longitude"/>
+        <result column="latitude" property="latitude"/>
+        <result column="license_id" property="licenseId"/>
+        <result column="license_no" property="licenseNo"/>
+        <result column="tier" property="tier"/>
+        <result column="credit_score" property="creditScore"/>
+        <result column="credit_level" property="creditLevel"/>
+        <result column="risk_level" property="riskLevel"/>
+        <result column="inspection_frequency" property="inspectionFrequency"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="deleted" property="deleted"/>
+    </resultMap>
+
+    <select id="selectByRetailerNo" resultMap="BaseResultMap">
+        SELECT * FROM retailer WHERE retailer_no = #{retailerNo} AND deleted = 0
+    </select>
+
+    <select id="selectByLicenseNo" resultMap="BaseResultMap">
+        SELECT * FROM retailer WHERE license_no = #{licenseNo} AND deleted = 0
+    </select>
+
+    <select id="selectByStatus" resultMap="BaseResultMap">
+        SELECT * FROM retailer WHERE status = #{status} AND deleted = 0
+    </select>
+
+    <select id="selectNeedInspection" resultMap="BaseResultMap">
+        SELECT * FROM retailer
+        WHERE status = 1 AND deleted = 0
+        ORDER BY CASE risk_level
+            WHEN 'high' THEN 1
+            WHEN 'medium' THEN 2
+            WHEN 'low' THEN 3
+            ELSE 4
+        END, credit_score ASC
+    </select>
+
+    <select id="selectPageByCondition" resultMap="BaseResultMap">
+        SELECT * FROM retailer
+        WHERE deleted = 0
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        <if test="creditLevel != null and creditLevel != ''">
+            AND credit_level = #{creditLevel}
+        </if>
+        <if test="riskLevel != null and riskLevel != ''">
+            AND risk_level = #{riskLevel}
+        </if>
+        <if test="countyId != null">
+            AND county_id = #{countyId}
+        </if>
+        <if test="tier != null">
+            AND tier = #{tier}
+        </if>
+        <if test="businessType != null and businessType != ''">
+            AND business_type = #{businessType}
+        </if>
+        <if test="retailerName != null and retailerName != ''">
+            AND retailer_name LIKE CONCAT('%', #{retailerName}, '%')
+        </if>
+        ORDER BY create_time DESC
+    </select>
+</mapper>

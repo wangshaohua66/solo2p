@@ -475,3 +475,137 @@ INSERT INTO license (license_no, retailer_id, retailer_name, license_type, busin
 ('TC2024010100002', 2, '万家超市', '烟草专卖零售许可证', '超市', '卷烟、雪茄烟', '李四', '370101199002022345', '13800138002', '山东省', '济南市', '历下区', '济南市历下区文化路50号', 117.020000, 36.650000, 'NEW', 10, 20, '2019-06-15', '2024-06-14', 1, 1),
 ('TC2024010100003', 3, '好又多商店', '烟草专卖零售许可证', '便利店', '卷烟、雪茄烟', '王五', '370101199003033456', '13800138003', '山东省', '济南市', '市中区', '济南市市中区经七路200号', 116.980000, 36.660000, 'NEW', 10, 12, '2021-03-10', '2026-03-09', 2, 2),
 ('TC2024010100004', 4, '福临门烟酒', '烟草专卖零售许可证', '烟酒商店', '卷烟、雪茄烟', '赵六', '370101199004044567', '13800138004', '山东省', '济南市', '天桥区', '济南市天桥区堤口路80号', 116.950000, 36.680000, 'NEW', 10, 18, '2020-08-20', '2025-08-19', 3, 3);
+
+-- =====================================================
+-- 14. 用户表（代码使用表名user，兼容sys_user）
+-- =====================================================
+DROP TABLE IF EXISTS `user`;
+CREATE TABLE `user` (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    username VARCHAR(64) NOT NULL COMMENT '用户名',
+    password VARCHAR(255) NOT NULL COMMENT '密码（加密）',
+    real_name VARCHAR(64) NOT NULL COMMENT '真实姓名',
+    role VARCHAR(64) NOT NULL COMMENT '角色编码',
+    phone VARCHAR(20) COMMENT '联系电话',
+    email VARCHAR(128) COMMENT '邮箱',
+    county_id BIGINT COMMENT '县局ID',
+    station_id BIGINT COMMENT '管理所ID',
+    status TINYINT DEFAULT 1 COMMENT '状态：0禁用 1启用',
+    last_login_time DATETIME COMMENT '最后登录时间',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT DEFAULT 0 COMMENT '逻辑删除：0未删除 1已删除',
+    UNIQUE KEY uk_username (username),
+    INDEX idx_role (role),
+    INDEX idx_county_id (county_id),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统用户表';
+
+INSERT INTO `user` (username, password, real_name, role, phone, status) VALUES
+('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', '系统管理员', 'ROLE_CITY_ADMIN', '13800000000', 1),
+('county_admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', '县局管理员', 'ROLE_COUNTY_ADMIN', '13800000001', 1),
+('inspector1', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', '稽查员张三', 'ROLE_INSPECTOR', '13800000002', 1),
+('auditor1', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', '审核员李四', 'ROLE_AUDITOR', '13800000003', 1),
+('retailer1', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', '阳光便利店', 'ROLE_RETAILER', '13800000004', 1);
+
+-- =====================================================
+-- 15. 订单表（代码使用表名order，兼容tobacco_order）
+-- =====================================================
+DROP TABLE IF EXISTS `order`;
+CREATE TABLE `order` (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    order_no VARCHAR(64) NOT NULL COMMENT '订单编号',
+    order_period VARCHAR(32) NOT NULL COMMENT '订货周期',
+    retailer_id BIGINT NOT NULL COMMENT '零售户ID',
+    retailer_name VARCHAR(128) COMMENT '店铺名称',
+    license_no VARCHAR(64) COMMENT '许可证编号',
+    county_id BIGINT COMMENT '县局ID',
+    station_id BIGINT COMMENT '管理所ID',
+    tier INT COMMENT '档位',
+    credit_level VARCHAR(8) COMMENT '信用等级',
+    credit_coefficient DECIMAL(5,2) COMMENT '信用系数',
+    base_quota INT COMMENT '基础配额',
+    adjusted_quota INT COMMENT '调整后配额',
+    total_quantity INT COMMENT '总订货量（条）',
+    total_amount DECIMAL(12,2) COMMENT '总金额（元）',
+    order_date DATE COMMENT '订货日期',
+    delivery_date DATE COMMENT '配送日期',
+    status TINYINT DEFAULT 1 COMMENT '订单状态：0待审核 1已确认 2已配货 3配送中 4已完成 5已取消',
+    delivery_status TINYINT DEFAULT 0 COMMENT '配送状态：0未配送 1配送中 2已送达',
+    delivery_route_id BIGINT COMMENT '配送路线ID',
+    operator_id BIGINT COMMENT '操作人ID',
+    operator_name VARCHAR(64) COMMENT '操作人姓名',
+    remark VARCHAR(512) COMMENT '备注',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT DEFAULT 0 COMMENT '逻辑删除',
+    UNIQUE KEY uk_order_no (order_no),
+    INDEX idx_retailer_id (retailer_id),
+    INDEX idx_order_period (order_period),
+    INDEX idx_status (status),
+    INDEX idx_delivery_status (delivery_status),
+    INDEX idx_county_id (county_id),
+    INDEX idx_create_time (create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='卷烟订货订单表';
+
+-- =====================================================
+-- 16. Token黑名单表
+-- =====================================================
+DROP TABLE IF EXISTS token_blacklist;
+CREATE TABLE token_blacklist (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    token TEXT NOT NULL COMMENT '令牌',
+    token_type VARCHAR(16) COMMENT '令牌类型：ACCESS REFRESH',
+    username VARCHAR(64) COMMENT '用户名',
+    expire_time DATETIME COMMENT '过期时间',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX idx_token (token(255)),
+    INDEX idx_username (username),
+    INDEX idx_expire_time (expire_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='JWT令牌黑名单';
+
+-- =====================================================
+-- 17. 超配额异常记录表
+-- =====================================================
+DROP TABLE IF EXISTS quota_exceed_record;
+CREATE TABLE quota_exceed_record (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    record_no VARCHAR(64) NOT NULL COMMENT '记录编号',
+    retailer_id BIGINT COMMENT '零售户ID',
+    retailer_name VARCHAR(128) COMMENT '店铺名称',
+    license_no VARCHAR(64) COMMENT '许可证编号',
+    order_period VARCHAR(32) COMMENT '订货周期',
+    quota_limit INT COMMENT '配额上限（条）',
+    quota_used INT COMMENT '已用配额（条）',
+    request_quantity INT COMMENT '申请数量（条）',
+    exceed_quantity INT COMMENT '超额数量（条）',
+    county_id BIGINT COMMENT '县局ID',
+    station_id BIGINT COMMENT '管理所ID',
+    remark VARCHAR(512) COMMENT '备注',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    UNIQUE KEY uk_record_no (record_no),
+    INDEX idx_retailer_id (retailer_id),
+    INDEX idx_order_period (order_period),
+    INDEX idx_county_id (county_id),
+    INDEX idx_create_time (create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='超配额异常记录表';
+
+-- =====================================================
+-- 追加字段：retailer新增字段
+-- =====================================================
+ALTER TABLE retailer ADD COLUMN IF NOT EXISTS retailer_no VARCHAR(64) COMMENT '零售户编号' AFTER id;
+ALTER TABLE retailer ADD COLUMN IF NOT EXISTS business_area INT COMMENT '经营面积（平方米）' AFTER business_type;
+ALTER TABLE retailer ADD COLUMN IF NOT EXISTS risk_level VARCHAR(16) DEFAULT 'low' COMMENT '风险等级：high高 medium中 low低' AFTER credit_score;
+ALTER TABLE retailer ADD COLUMN IF NOT EXISTS inspection_frequency INT DEFAULT 1 COMMENT '巡查频次（次/周期）' AFTER risk_level;
+ALTER TABLE retailer ADD COLUMN IF NOT EXISTS region_type VARCHAR(32) COMMENT '区域类型：中心城区 县城 郊区 乡镇' AFTER county;
+
+-- =====================================================
+-- 追加字段：license新增字段
+-- =====================================================
+ALTER TABLE license ADD COLUMN IF NOT EXISTS business_area INT COMMENT '经营面积（平方米）' AFTER business_type;
+ALTER TABLE license ADD COLUMN IF NOT EXISTS region_type VARCHAR(32) COMMENT '区域类型：中心城区 县城 郊区 乡镇' AFTER county;
+ALTER TABLE license ADD COLUMN IF NOT EXISTS reviewer_id BIGINT COMMENT '审核人ID' AFTER final_review_opinion;
+ALTER TABLE license ADD COLUMN IF NOT EXISTS reviewer_name VARCHAR(64) COMMENT '审核人姓名' AFTER reviewer_id;
+ALTER TABLE license ADD COLUMN IF NOT EXISTS review_comment VARCHAR(512) COMMENT '审核意见' AFTER reviewer_name;
+ALTER TABLE license ADD COLUMN IF NOT EXISTS apply_date DATE COMMENT '申请日期' AFTER station_id;
+ALTER TABLE license ADD COLUMN IF NOT EXISTS approve_date DATE COMMENT '批准日期' AFTER apply_date;

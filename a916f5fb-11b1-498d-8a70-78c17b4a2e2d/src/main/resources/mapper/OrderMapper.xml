@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tobacco.mapper.OrderMapper">
+
+    <resultMap id="BaseResultMap" type="com.tobacco.entity.Order">
+        <id column="id" property="id"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="order_period" property="orderPeriod"/>
+        <result column="retailer_id" property="retailerId"/>
+        <result column="retailer_name" property="retailerName"/>
+        <result column="license_no" property="licenseNo"/>
+        <result column="county_id" property="countyId"/>
+        <result column="station_id" property="stationId"/>
+        <result column="tier" property="tier"/>
+        <result column="credit_level" property="creditLevel"/>
+        <result column="credit_coefficient" property="creditCoefficient"/>
+        <result column="base_quota" property="baseQuota"/>
+        <result column="adjusted_quota" property="adjustedQuota"/>
+        <result column="total_quantity" property="totalQuantity"/>
+        <result column="total_amount" property="totalAmount"/>
+        <result column="order_date" property="orderDate"/>
+        <result column="delivery_date" property="deliveryDate"/>
+        <result column="status" property="status"/>
+        <result column="delivery_status" property="deliveryStatus"/>
+        <result column="delivery_route_id" property="deliveryRouteId"/>
+        <result column="operator_id" property="operatorId"/>
+        <result column="operator_name" property="operatorName"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="deleted" property="deleted"/>
+    </resultMap>
+
+    <select id="selectByOrderNo" resultMap="BaseResultMap">
+        SELECT * FROM `order` WHERE order_no = #{orderNo} AND deleted = 0
+    </select>
+
+    <select id="selectByRetailerIdAndPeriod" resultMap="BaseResultMap">
+        SELECT * FROM `order`
+        WHERE retailer_id = #{retailerId}
+          AND order_period = #{orderPeriod}
+          AND deleted = 0
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectForDelivery" resultMap="BaseResultMap">
+        SELECT * FROM `order`
+        WHERE order_period = #{orderPeriod}
+          AND status = #{status}
+          AND delivery_status = #{deliveryStatus}
+          AND deleted = 0
+        ORDER BY create_time ASC
+    </select>
+
+    <select id="selectPageByCondition" resultMap="BaseResultMap">
+        SELECT * FROM `order`
+        WHERE deleted = 0
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        <if test="deliveryStatus != null">
+            AND delivery_status = #{deliveryStatus}
+        </if>
+        <if test="orderPeriod != null and orderPeriod != ''">
+            AND order_period = #{orderPeriod}
+        </if>
+        <if test="retailerId != null">
+            AND retailer_id = #{retailerId}
+        </if>
+        <if test="countyId != null">
+            AND county_id = #{countyId}
+        </if>
+        <if test="startDate != null and startDate != ''">
+            AND order_date &gt;= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND order_date &lt;= #{endDate}
+        </if>
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="countByRetailerAndPeriod" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM `order`
+        WHERE retailer_id = #{retailerId}
+          AND order_period = #{orderPeriod}
+          AND deleted = 0
+    </select>
+</mapper>

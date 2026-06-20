@@ -47,4 +47,7 @@ public class QuotaResult {
 
     @Schema(description = "订货周期")
     private String orderPeriod;
+
+    @Schema(description = "本期超配额尝试次数")
+    private Integer quotaExceededCount;
 }

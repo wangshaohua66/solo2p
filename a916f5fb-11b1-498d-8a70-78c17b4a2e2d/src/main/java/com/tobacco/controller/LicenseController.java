@@ -2,10 +2,12 @@ package com.tobacco.controller;
 
 import com.tobacco.common.result.PageResult;
 import com.tobacco.common.result.Result;
+import com.tobacco.common.util.SecurityUtil;
 import com.tobacco.dto.request.LicenseApplyRequest;
 import com.tobacco.dto.request.LicenseQuery;
 import com.tobacco.dto.request.LicenseReviewRequest;
 import com.tobacco.entity.License;
+import com.tobacco.entity.User;
 import com.tobacco.service.LicenseService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -24,6 +26,7 @@ import java.util.List;
 public class LicenseController {
 
     private final LicenseService licenseService;
+    private final SecurityUtil securityUtil;
 
     @Operation(summary = "提交许可证申请", description = "支持新办、延续、变更、停业、恢复营业、注销六种申请类型")
     @PostMapping("/apply")
@@ -36,7 +39,10 @@ public class LicenseController {
     @PostMapping("/review")
     @PreAuthorize("hasAnyRole('ROLE_AUDITOR', 'ROLE_COUNTY_ADMIN', 'ROLE_CITY_ADMIN')")
     public Result<License> reviewLicense(@Valid @RequestBody LicenseReviewRequest request) {
-        return Result.success(licenseService.reviewLicense(request, null, null));
+        User currentUser = securityUtil.getCurrentUser();
+        Long reviewerId = currentUser != null ? currentUser.getId() : null;
+        String reviewerName = currentUser != null ? currentUser.getRealName() : null;
+        return Result.success(licenseService.reviewLicense(request, reviewerId, reviewerName));
     }
 
     @Operation(summary = "获取许可证详情", description = "根据许可证ID获取详细信息")

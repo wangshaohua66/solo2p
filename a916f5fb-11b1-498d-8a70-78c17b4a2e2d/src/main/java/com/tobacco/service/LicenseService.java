@@ -4,13 +4,13 @@ import cn.hutool.core.util.IdUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.tobacco.common.enums.CreditLevel;
 import com.tobacco.common.enums.LicenseStatus;
 import com.tobacco.common.exception.BusinessException;
 import com.tobacco.common.result.ResultCode;
 import com.tobacco.dto.request.LicenseApplyRequest;
 import com.tobacco.dto.request.LicenseQuery;
 import com.tobacco.dto.request.LicenseReviewRequest;
-import com.tobacco.dto.request.PageQuery;
 import com.tobacco.common.result.PageResult;
 import com.tobacco.entity.License;
 import com.tobacco.entity.Retailer;
@@ -18,14 +18,18 @@ import com.tobacco.mapper.LicenseMapper;
 import com.tobacco.mapper.RetailerMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -39,6 +43,28 @@ public class LicenseService {
     private static final int LICENSE_VALID_YEARS = 5;
     private static final int EXPIRE_REMIND_DAYS = 30;
 
+    private static final Map<String, Integer> BUSINESS_TYPE_TIER_MAP = new HashMap<>();
+    private static final Map<String, Integer> AREA_TIER_MAP = new HashMap<>();
+    private static final Map<String, Integer> REGION_TIER_MAP = new HashMap<>();
+
+    static {
+        BUSINESS_TYPE_TIER_MAP.put("商场", 8);
+        BUSINESS_TYPE_TIER_MAP.put("超市", 6);
+        BUSINESS_TYPE_TIER_MAP.put("便利店", 4);
+        BUSINESS_TYPE_TIER_MAP.put("烟酒专卖店", 7);
+        BUSINESS_TYPE_TIER_MAP.put("食杂店", 3);
+        BUSINESS_TYPE_TIER_MAP.put("其他", 2);
+
+        AREA_TIER_MAP.put("SMALL", 0);
+        AREA_TIER_MAP.put("MEDIUM", 3);
+        AREA_TIER_MAP.put("LARGE", 6);
+
+        REGION_TIER_MAP.put("中心城区", 3);
+        REGION_TIER_MAP.put("郊区", 1);
+        REGION_TIER_MAP.put("县城", 2);
+        REGION_TIER_MAP.put("乡镇", 0);
+    }
+
     @Transactional(rollbackFor = Exception.class)
     public License applyLicense(LicenseApplyRequest request) {
         validateDistance(request.getBusinessType(), request.getLongitude(), request.getLatitude(), request.getCounty());
@@ -49,6 +75,7 @@ public class LicenseService {
         license.setLicenseNo(licenseNo);
         license.setRetailerName(request.getRetailerName());
         license.setBusinessType(request.getBusinessType());
+        license.setBusinessArea(request.getBusinessArea());
         license.setBusinessScope(request.getBusinessScope());
         license.setLegalPerson(request.getLegalPerson());
         license.setIdCardNo(request.getIdCardNo());
@@ -75,7 +102,7 @@ public class LicenseService {
             default -> throw new BusinessException("不支持的申请类型");
         }
 
-        license.setTier(1);
+        license.setTier(calculateTier(license));
         licenseMapper.insert(license);
 
         if ("NEW".equals(request.getApplicationType()) && request.getRetailerId() == null) {
@@ -183,13 +210,46 @@ public class LicenseService {
 
     private int calculateTier(License license) {
         int baseTier = 1;
+
         if (license.getOriginalLicenseId() != null) {
             License original = licenseMapper.selectById(license.getOriginalLicenseId());
             if (original != null && original.getTier() != null) {
                 baseTier = original.getTier();
             }
         }
-        return Math.min(baseTier, 30);
+
+        int businessTypeTier = BUSINESS_TYPE_TIER_MAP.getOrDefault(license.getBusinessType(), 2);
+
+        int areaTier = 0;
+        if (license.getBusinessArea() != null) {
+            double area = license.getBusinessArea().doubleValue();
+            if (area >= 100) {
+                areaTier = AREA_TIER_MAP.getOrDefault("LARGE", 6);
+            } else if (area >= 40) {
+                areaTier = AREA_TIER_MAP.getOrDefault("MEDIUM", 3);
+            } else {
+                areaTier = AREA_TIER_MAP.getOrDefault("SMALL", 0);
+            }
+        }
+
+        int regionTier = 0;
+        String county = license.getCounty();
+        if (county != null) {
+            if (county.contains("中心") || county.contains("市中")) {
+                regionTier = REGION_TIER_MAP.getOrDefault("中心城区", 3);
+            } else if (county.contains("郊")) {
+                regionTier = REGION_TIER_MAP.getOrDefault("郊区", 1);
+            } else if (county.contains("县")) {
+                regionTier = REGION_TIER_MAP.getOrDefault("县城", 2);
+            } else if (county.contains("乡") || county.contains("镇")) {
+                regionTier = REGION_TIER_MAP.getOrDefault("乡镇", 0);
+            } else {
+                regionTier = 1;
+            }
+        }
+
+        int totalTier = baseTier + businessTypeTier + areaTier + regionTier;
+        return Math.min(Math.max(totalTier, 1), 30);
     }
 
     private void validateDistance(String businessType, BigDecimal longitude, BigDecimal latitude, String county) {
@@ -234,9 +294,10 @@ public class LicenseService {
         retailer.setLongitude(license.getLongitude());
         retailer.setLatitude(license.getLatitude());
         retailer.setBusinessType(license.getBusinessType());
-        retailer.setTier(1);
-        retailer.setCreditLevel("BBB");
-        retailer.setCreditScore(75);
+        retailer.setBusinessArea(license.getBusinessArea());
+        retailer.setTier(license.getTier());
+        retailer.setCreditLevel(CreditLevel.B.getCode());
+        retailer.setCreditScore(60);
         retailer.setConsecutiveNoViolationPeriods(0);
         retailer.setRegisterDate(LocalDate.now());
         retailer.setCountyId(license.getCountyId());
@@ -253,6 +314,7 @@ public class LicenseService {
             retailer.setLicenseNo(license.getLicenseNo());
             retailer.setTier(license.getTier());
             retailer.setBusinessType(license.getBusinessType());
+            retailer.setBusinessArea(license.getBusinessArea());
             retailer.setAddress(license.getAddress());
             retailer.setLongitude(license.getLongitude());
             retailer.setLatitude(license.getLatitude());
@@ -303,6 +365,20 @@ public class LicenseService {
         LocalDate startDate = LocalDate.now();
         LocalDate endDate = LocalDate.now().plusDays(EXPIRE_REMIND_DAYS);
         return licenseMapper.selectExpiringLicenses(startDate, endDate, LicenseStatus.APPROVED.getCode());
+    }
+
+    @Scheduled(cron = "0 0 8 * * ?")
+    public void scheduledCheckExpiringLicenses() {
+        log.info("开始执行许可证到期提醒定时任务");
+        List<License> expiringLicenses = getExpiringLicenses();
+
+        for (License license : expiringLicenses) {
+            long daysLeft = ChronoUnit.DAYS.between(LocalDate.now(), license.getExpireDate());
+            log.info("许可证到期提醒：许可证号{}，零售户{}，剩余{}天到期，请及时办理延续手续",
+                    license.getLicenseNo(), license.getRetailerName(), daysLeft);
+        }
+
+        log.info("许可证到期提醒定时任务执行完成，共发现{}个即将到期的许可证", expiringLicenses.size());
     }
 
     public List<License> getLicenseListByRetailer(Long retailerId) {

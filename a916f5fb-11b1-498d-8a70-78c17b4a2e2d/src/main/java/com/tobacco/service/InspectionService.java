@@ -23,13 +23,16 @@ import com.tobacco.mapper.RetailerMapper;
 import com.tobacco.mapper.ViolationRecordMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Slf4j
@@ -44,42 +47,76 @@ public class InspectionService {
     @Lazy
     private final CreditService creditService;
 
+    @Value("${inspection.base-frequency:1}")
+    private Integer baseFrequency;
+
+    @Value("${inspection.risk-level-multiplier.high:3}")
+    private Integer highRiskMultiplier;
+
+    @Value("${inspection.risk-level-multiplier.medium:2}")
+    private Integer mediumRiskMultiplier;
+
+    @Value("${inspection.risk-level-multiplier.low:1}")
+    private Integer lowRiskMultiplier;
+
     public List<InspectionTask> autoAssignTasks(Long stationId, Long inspectorId, String inspectorName) {
         List<Retailer> retailers = getRetailersForInspection(stationId);
+        retailers.sort(Comparator.comparingInt(r -> getRiskPriority(calculateRiskLevel(r))));
+
         List<InspectionTask> tasks = new ArrayList<>();
 
         for (Retailer retailer : retailers) {
             String riskLevel = calculateRiskLevel(retailer);
+            int frequency = getInspectionFrequency(riskLevel);
 
-            InspectionTask task = new InspectionTask();
-            task.setTaskNo(generateTaskNo());
-            task.setTaskType("ROUTINE");
-            task.setRetailerId(retailer.getId());
-            task.setRetailerName(retailer.getRetailerName());
-            task.setLicenseNo(retailer.getLicenseNo());
-            task.setInspectorId(inspectorId);
-            task.setInspectorName(inspectorName);
-            task.setRiskLevel(riskLevel);
-            task.setGridId(retailer.getGridId());
-            task.setCountyId(retailer.getCountyId());
-            task.setStationId(stationId);
-            task.setPlanDate(LocalDateTime.now().plusDays(1));
-            task.setStatus(1);
-            task.setHasViolation(0);
+            for (int i = 0; i < frequency; i++) {
+                InspectionTask task = new InspectionTask();
+                task.setTaskNo(generateTaskNo());
+                task.setTaskType("ROUTINE");
+                task.setRetailerId(retailer.getId());
+                task.setRetailerName(retailer.getRetailerName());
+                task.setLicenseNo(retailer.getLicenseNo());
+                task.setInspectorId(inspectorId);
+                task.setInspectorName(inspectorName);
+                task.setRiskLevel(riskLevel);
+                task.setGridId(retailer.getGridId());
+                task.setCountyId(retailer.getCountyId());
+                task.setStationId(stationId);
+                task.setPlanDate(LocalDateTime.now().plusDays(i + 1L));
+                task.setStatus(1);
+                task.setHasViolation(0);
 
-            inspectionTaskMapper.insert(task);
-            tasks.add(task);
+                inspectionTaskMapper.insert(task);
+                tasks.add(task);
+            }
         }
 
         log.info("自动派发稽查任务完成，共派发 {} 条任务", tasks.size());
         return tasks;
     }
 
+    private int getRiskPriority(String riskLevel) {
+        return switch (riskLevel) {
+            case "high" -> 0;
+            case "medium" -> 1;
+            case "low" -> 2;
+            default -> 3;
+        };
+    }
+
+    private int getInspectionFrequency(String riskLevel) {
+        return switch (riskLevel) {
+            case "high" -> baseFrequency * highRiskMultiplier;
+            case "medium" -> baseFrequency * mediumRiskMultiplier;
+            case "low" -> baseFrequency * lowRiskMultiplier;
+            default -> baseFrequency;
+        };
+    }
+
     private List<Retailer> getRetailersForInspection(Long stationId) {
         LambdaQueryWrapper<Retailer> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Retailer::getStationId, stationId)
-                .eq(Retailer::getStatus, 1)
-                .last("LIMIT 20");
+                .eq(Retailer::getStatus, 1);
         return retailerMapper.selectList(wrapper);
     }
 
@@ -133,19 +170,64 @@ public class InspectionService {
 
         creditService.processViolation(record);
 
-        checkAndTriggerLicensePenalty(task.getRetailerId(), violationType);
+        checkAndTriggerLicensePenalty(task.getRetailerId(), violationType, record);
 
         log.info("违规记录已录入，记录号：{}，违规类型：{}", record.getRecordNo(), violationType.getName());
         return record;
     }
 
-    private void checkAndTriggerLicensePenalty(Long retailerId, ViolationType violationType) {
+    @Transactional(rollbackFor = Exception.class)
+    public void checkAndTriggerLicensePenalty(Long retailerId, ViolationType violationType, ViolationRecord violationRecord) {
         if ("high".equals(violationType.getSeverity())) {
             License license = licenseMapper.selectLatestByRetailerId(retailerId);
             if (license != null && LicenseStatus.APPROVED.getCode().equals(license.getStatus())) {
-                log.info("严重违规触发许可证停业流程，零售户ID：{}", retailerId);
+                log.info("严重违规触发许可证停业流程，零售户ID：{}，许可证号：{}", retailerId, license.getLicenseNo());
+
+                License suspendLicense = new License();
+                suspendLicense.setLicenseNo(generateSuspendLicenseNo());
+                suspendLicense.setRetailerId(license.getRetailerId());
+                suspendLicense.setRetailerName(license.getRetailerName());
+                suspendLicense.setBusinessType(license.getBusinessType());
+                suspendLicense.setBusinessArea(license.getBusinessArea());
+                suspendLicense.setLegalPerson(license.getLegalPerson());
+                suspendLicense.setIdCardNo(license.getIdCardNo());
+                suspendLicense.setPhone(license.getPhone());
+                suspendLicense.setProvince(license.getProvince());
+                suspendLicense.setCity(license.getCity());
+                suspendLicense.setCounty(license.getCounty());
+                suspendLicense.setAddress(license.getAddress());
+                suspendLicense.setLongitude(license.getLongitude());
+                suspendLicense.setLatitude(license.getLatitude());
+                suspendLicense.setApplicationType("SUSPEND");
+                suspendLicense.setCountyId(license.getCountyId());
+                suspendLicense.setStationId(license.getStationId());
+                suspendLicense.setOriginalLicenseId(license.getId());
+                suspendLicense.setStatus(LicenseStatus.SUSPENDED.getCode());
+                suspendLicense.setTier(license.getTier());
+                suspendLicense.setRemark("因" + violationType.getName() + "严重违规，自动触发停业处罚，关联违规记录：" + violationRecord.getRecordNo());
+                licenseMapper.insert(suspendLicense);
+
+                license.setStatus(LicenseStatus.SUSPENDED.getCode());
+                licenseMapper.updateById(license);
+
+                Retailer retailer = retailerMapper.selectById(retailerId);
+                if (retailer != null) {
+                    retailer.setStatus(0);
+                    retailerMapper.updateById(retailer);
+                }
+
+                if (violationRecord != null) {
+                    violationRecord.setHasTriggeredPenalty(1);
+                    violationRecordMapper.updateById(violationRecord);
+                }
+
+                log.info("许可证停业申请已创建，停业许可证号：{}", suspendLicense.getLicenseNo());
             }
         }
+    }
+
+    private String generateSuspendLicenseNo() {
+        return "TC-SP-" + LocalDate.now().toString().replace("-", "") + IdUtil.getSnowflakeNextIdStr().substring(0, 6);
     }
 
     public InspectionTask getTaskById(Long id) {

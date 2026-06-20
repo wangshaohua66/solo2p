@@ -56,6 +56,9 @@ public class Retailer implements Serializable {
     @TableField("business_type")
     private String businessType;
 
+    @TableField("business_area")
+    private BigDecimal businessArea;
+
     @TableField("tier")
     private Integer tier;
 
@@ -82,6 +85,9 @@ public class Retailer implements Serializable {
 
     @TableField("status")
     private Integer status;
+
+    @TableField("inspection_frequency")
+    private Integer inspectionFrequency;
 
     @TableField(value = "create_time", fill = FieldFill.INSERT)
     private LocalDateTime createTime;

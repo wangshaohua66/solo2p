@@ -3,6 +3,7 @@ package com.tobacco.security;
 import com.tobacco.common.result.Result;
 import com.tobacco.common.result.ResultCode;
 import com.tobacco.common.util.JsonUtil;
+import com.tobacco.mapper.TokenBlacklistMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -29,6 +30,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final UserDetailsService userDetailsService;
+    private final TokenBlacklistMapper tokenBlacklistMapper;
 
     @Value("${jwt.header}")
     private String tokenHeader;
@@ -47,6 +49,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             try {
                 if (jwtTokenProvider.validateToken(token)) {
+                    if (tokenBlacklistMapper.countByToken(token) > 0) {
+                        log.warn("令牌已在黑名单中: {}", token.substring(0, Math.min(20, token.length())));
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType("application/json;charset=UTF-8");
+                        response.getWriter().write(JsonUtil.toJsonString(Result.fail(ResultCode.TOKEN_INVALID)));
+                        return;
+                    }
+
                     String username = jwtTokenProvider.getUsernameFromToken(token);
                     String role = jwtTokenProvider.getRoleFromToken(token);
 

@@ -32,6 +32,9 @@ public class License implements Serializable {
     @TableField("business_type")
     private String businessType;
 
+    @TableField("business_area")
+    private BigDecimal businessArea;
+
     @TableField("business_scope")
     private String businessScope;
 

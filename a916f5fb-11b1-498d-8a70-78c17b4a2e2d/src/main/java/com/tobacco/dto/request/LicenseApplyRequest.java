@@ -26,6 +26,10 @@ public class LicenseApplyRequest {
     @Schema(description = "经营业态", example = "便利店")
     private String businessType;
 
+    @NotNull(message = "经营面积不能为空")
+    @Schema(description = "经营面积（平方米）", example = "50")
+    private BigDecimal businessArea;
+
     @NotBlank(message = "经营范围不能为空")
     @Schema(description = "经营范围", example = "卷烟、雪茄烟")
     private String businessScope;

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tobacco.mapper.QuotaExceedRecordMapper">
+
+    <resultMap id="BaseResultMap" type="com.tobacco.entity.QuotaExceedRecord">
+        <id column="id" property="id"/>
+        <result column="record_no" property="recordNo"/>
+        <result column="retailer_id" property="retailerId"/>
+        <result column="retailer_name" property="retailerName"/>
+        <result column="license_no" property="licenseNo"/>
+        <result column="order_period" property="orderPeriod"/>
+        <result column="quota_limit" property="quotaLimit"/>
+        <result column="quota_used" property="quotaUsed"/>
+        <result column="request_quantity" property="requestQuantity"/>
+        <result column="exceed_quantity" property="exceedQuantity"/>
+        <result column="county_id" property="countyId"/>
+        <result column="station_id" property="stationId"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <select id="countByRetailerAndPeriod" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM quota_exceed_record
+        WHERE retailer_id = #{retailerId}
+          AND order_period = #{orderPeriod}
+    </select>
+</mapper>

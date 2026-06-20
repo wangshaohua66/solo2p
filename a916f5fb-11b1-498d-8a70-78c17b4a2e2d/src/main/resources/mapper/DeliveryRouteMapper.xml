@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tobacco.mapper.DeliveryRouteMapper">
+
+    <resultMap id="BaseResultMap" type="com.tobacco.entity.DeliveryRoute">
+        <id column="id" property="id"/>
+        <result column="plan_id" property="planId"/>
+        <result column="route_no" property="routeNo"/>
+        <result column="fleet_id" property="fleetId"/>
+        <result column="vehicle_no" property="vehicleNo"/>
+        <result column="driver_name" property="driverName"/>
+        <result column="delivery_count" property="deliveryCount"/>
+        <result column="total_load" property="totalLoad"/>
+        <result column="load_rate" property="loadRate"/>
+        <result column="estimated_distance" property="estimatedDistance"/>
+        <result column="estimated_duration" property="estimatedDuration"/>
+        <result column="actual_distance" property="actualDistance"/>
+        <result column="actual_duration" property="actualDuration"/>
+        <result column="start_point" property="startPoint"/>
+        <result column="end_point" property="endPoint"/>
+        <result column="delivery_sequence" property="deliverySequence"/>
+        <result column="departure_time" property="departureTime"/>
+        <result column="arrival_time" property="arrivalTime"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="deleted" property="deleted"/>
+    </resultMap>
+
+    <select id="selectByPlanId" resultMap="BaseResultMap">
+        SELECT * FROM delivery_route
+        WHERE plan_id = #{planId} AND deleted = 0
+        ORDER BY fleet_id, id
+    </select>
+
+    <select id="selectByRouteNo" resultMap="BaseResultMap">
+        SELECT * FROM delivery_route WHERE route_no = #{routeNo} AND deleted = 0
+    </select>
+</mapper>
