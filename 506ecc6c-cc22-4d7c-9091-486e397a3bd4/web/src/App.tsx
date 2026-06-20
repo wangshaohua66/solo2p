@@ -12,6 +12,7 @@ import Works from './pages/Works';
 import Royalty from './pages/Royalty';
 import Monitor from './pages/Monitor';
 import Dashboard from './pages/Dashboard';
+import Copyright from './pages/Copyright';
 import ProtectedRoute from './components/ProtectedRoute';
 
 dayjs.locale('zh-cn');
@@ -116,6 +117,7 @@ function App() {
                 <Route element={<MainLayout />}>
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/works" element={<Works />} />
+                  <Route path="/copyright" element={<Copyright />} />
                   <Route path="/royalty" element={<Royalty />} />
                   <Route path="/monitor" element={<Monitor />} />
                   <Route path="/" element={<Navigate to="/dashboard" replace />} />

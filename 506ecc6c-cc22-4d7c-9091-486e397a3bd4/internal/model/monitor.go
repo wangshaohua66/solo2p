@@ -46,14 +46,15 @@ type RightsLetter struct {
 }
 
 type CrawlerTask struct {
-	ID         string    `json:"id"`
-	Platform   Platform  `json:"platform"`
-	WorkID     *string   `json:"work_id"`
-	TaskType   string    `json:"task_type"`
-	Status     string    `json:"status"`
-	RetryCount int       `json:"retry_count"`
-	ErrorMsg   string    `json:"error_msg"`
-	StartedAt  *time.Time `json:"started_at"`
-	FinishedAt *time.Time `json:"finished_at"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID          string    `json:"id"`
+	Platform    Platform  `json:"platform"`
+	WorkID      *string   `json:"work_id"`
+	TaskType    string    `json:"task_type"`
+	Status      string    `json:"status"`
+	RetryCount  int       `json:"retry_count"`
+	RecordCount int       `json:"record_count"`
+	ErrorMsg    string    `json:"error_msg"`
+	StartedAt   *time.Time `json:"started_at"`
+	FinishedAt  *time.Time `json:"finished_at"`
+	CreatedAt   time.Time `json:"created_at"`
 }

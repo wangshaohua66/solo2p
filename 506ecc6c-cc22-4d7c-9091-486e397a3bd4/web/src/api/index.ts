@@ -14,6 +14,132 @@ export const clearToken = () => {
   localStorage.removeItem(TOKEN_KEY);
 };
 
+export type WSMessageType = 'piracy_alert' | 'crawl_progress' | 'alert' | 'ping' | 'pong';
+
+export interface WSPiracyAlert {
+  piracy_id: string;
+  work_id: string;
+  work_title: string;
+  match_score: number;
+  suspect_url: string;
+  suspect_name: string;
+  platform: string;
+}
+
+export interface WSCrawlProgress {
+  task_id: string;
+  platform: string;
+  progress: number;
+  status: string;
+  error_msg?: string;
+}
+
+export interface WSAlert {
+  level: 'info' | 'warning' | 'error' | 'success';
+  title: string;
+  message: string;
+}
+
+export interface WSMessage {
+  type: WSMessageType;
+  payload: WSPiracyAlert | WSCrawlProgress | WSAlert | any;
+}
+
+type WSMessageHandler = (msg: WSMessage) => void;
+
+class WebSocketManager {
+  private ws: WebSocket | null = null;
+  private handlers: Set<WSMessageHandler> = new Set();
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 5;
+  private reconnectDelay = 1000;
+  private url: string = '';
+
+  connect(): WebSocket | null {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      return this.ws;
+    }
+
+    const token = getToken();
+    if (!token) {
+      return null;
+    }
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    this.url = `${protocol}//${host}/api/ws?token=${encodeURIComponent(token)}`;
+
+    try {
+      this.ws = new WebSocket(this.url);
+
+      this.ws.onopen = () => {
+        console.log('[WS] Connected');
+        this.reconnectAttempts = 0;
+      };
+
+      this.ws.onmessage = (event) => {
+        try {
+          const msg: WSMessage = JSON.parse(event.data);
+          if (msg.type === 'ping') {
+            this.ws?.send(JSON.stringify({ type: 'pong' }));
+            return;
+          }
+          this.handlers.forEach((handler) => handler(msg));
+        } catch (e) {
+          console.error('[WS] Parse error:', e);
+        }
+      };
+
+      this.ws.onerror = (error) => {
+        console.error('[WS] Error:', error);
+      };
+
+      this.ws.onclose = (event) => {
+        console.log('[WS] Disconnected:', event.code, event.reason);
+        this.ws = null;
+        if (this.reconnectAttempts < this.maxReconnectAttempts && event.code !== 1008) {
+          this.reconnectAttempts++;
+          const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
+          console.log(`[WS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+          setTimeout(() => this.connect(), delay);
+        }
+      };
+
+      return this.ws;
+    } catch (e) {
+      console.error('[WS] Connection failed:', e);
+      return null;
+    }
+  }
+
+  disconnect() {
+    if (this.ws) {
+      this.ws.close(1000, 'Client disconnecting');
+      this.ws = null;
+    }
+    this.reconnectAttempts = 0;
+  }
+
+  subscribe(handler: WSMessageHandler): () => void {
+    this.handlers.add(handler);
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      this.connect();
+    }
+    return () => {
+      this.handlers.delete(handler);
+      if (this.handlers.size === 0) {
+        this.disconnect();
+      }
+    };
+  }
+
+  get readyState(): number {
+    return this.ws?.readyState ?? WebSocket.CLOSED;
+  }
+}
+
+export const wsManager = new WebSocketManager();
+
 const api = axios.create({
   baseURL: '/api',
   timeout: 30000,
@@ -70,9 +196,16 @@ export const workAPI = {
     api.post(`/works/${id}/versions`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     } as AxiosRequestConfig),
+  compareVersions: (id: string, version_a: string, version_b: string) =>
+    api.post(`/works/${id}/versions/compare`, { version_a, version_b }),
   createAuthLink: (id: string, data: any) =>
     api.post(`/works/${id}/auth-chain`, data),
   validateCover: (id: string) => api.get(`/works/${id}/validate-cover`),
+};
+
+export const authLinkAPI = {
+  list: (params: ApiPagedParams & { brand?: string; work_id?: string; auth_type?: string; keyword?: string }) =>
+    api.get('/auth-links', { params }),
 };
 
 export const artistAPI = {

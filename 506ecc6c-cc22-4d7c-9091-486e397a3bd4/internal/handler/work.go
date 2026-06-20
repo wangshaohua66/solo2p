@@ -2,8 +2,10 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -54,8 +56,14 @@ func (h *WorkHandler) ListWorks(c echo.Context) error {
 	}
 	offset := (req.Page - 1) * req.PageSize
 
+	user := middleware.GetUserFromContext(c)
+	artistIDFilter := ""
+	if user != nil && user.Role == model.RoleArtist && user.ArtistID != nil {
+		artistIDFilter = *user.ArtistID
+	}
+
 	ctx := c.Request().Context()
-	cacheKey := "works:list:" + strconv.Itoa(int(req.Brand[0])) + ":" + string(req.Status) + ":" + string(req.Type) + ":" + req.Keyword + ":" + strconv.Itoa(req.Page) + ":" + strconv.Itoa(req.PageSize)
+	cacheKey := "works:list:" + strconv.Itoa(int(req.Brand[0])) + ":" + string(req.Status) + ":" + string(req.Type) + ":" + req.Keyword + ":" + artistIDFilter + ":" + strconv.Itoa(req.Page) + ":" + strconv.Itoa(req.PageSize)
 
 	type cachedResult struct {
 		Data  []*model.Work `json:"data"`
@@ -73,6 +81,21 @@ func (h *WorkHandler) ListWorks(c echo.Context) error {
 	}
 
 	works, total := h.repo.ListWorks(req.Brand, req.Status, req.Type, req.Keyword, offset, req.PageSize)
+
+	if artistIDFilter != "" {
+		filtered := make([]*model.Work, 0)
+		for _, w := range works {
+			for _, c := range w.Contributors {
+				if c.ArtistID == artistIDFilter {
+					filtered = append(filtered, w)
+					break
+				}
+			}
+		}
+		works = filtered
+		total = int64(len(filtered))
+	}
+
 	go func() {
 		_ = h.redis.Set(context.Background(), cacheKey, cachedResult{Data: works, Total: total}, 30*time.Second)
 	}()
@@ -402,6 +425,245 @@ func (h *WorkHandler) GetArtist(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, "artist not found")
 	}
 	return c.JSON(http.StatusOK, a)
+}
+
+type CompareVersionsRequest struct {
+	VersionA string `json:"version_a" validate:"required"`
+	VersionB string `json:"version_b" validate:"required"`
+}
+
+type VersionDiff struct {
+	Field    string      `json:"field"`
+	ValueA   interface{} `json:"value_a"`
+	ValueB   interface{} `json:"value_b"`
+	Changed  bool        `json:"changed"`
+}
+
+type CompareVersionsResponse struct {
+	VersionA *model.WorkVersion `json:"version_a"`
+	VersionB *model.WorkVersion `json:"version_b"`
+	Diffs    []VersionDiff       `json:"diffs"`
+}
+
+func (h *WorkHandler) CompareVersions(c echo.Context) error {
+	workID := c.Param("id")
+	if workID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "missing work id")
+	}
+
+	var req CompareVersionsRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid parameters")
+	}
+
+	w := h.repo.GetWork(workID)
+	if w == nil {
+		return echo.NewHTTPError(http.StatusNotFound, "work not found")
+	}
+
+	var va, vb *model.WorkVersion
+	for _, v := range w.Versions {
+		if v.ID == req.VersionA {
+			va = v
+		}
+		if v.ID == req.VersionB {
+			vb = v
+		}
+	}
+
+	if va == nil || vb == nil {
+		return echo.NewHTTPError(http.StatusNotFound, "one or both versions not found")
+	}
+
+	diffs := make([]VersionDiff, 0)
+
+	diffs = append(diffs, VersionDiff{
+		Field:   "版本号",
+		ValueA:  va.Version,
+		ValueB:  vb.Version,
+		Changed: va.Version != vb.Version,
+	})
+	diffs = append(diffs, VersionDiff{
+		Field:   "状态",
+		ValueA:  va.Status,
+		ValueB:  vb.Status,
+		Changed: va.Status != vb.Status,
+	})
+	diffs = append(diffs, VersionDiff{
+		Field:   "文件名",
+		ValueA:  va.FileName,
+		ValueB:  vb.FileName,
+		Changed: va.FileName != vb.FileName,
+	})
+	diffs = append(diffs, VersionDiff{
+		Field:   "文件大小 (KB)",
+		ValueA:  va.FileSize,
+		ValueB:  vb.FileSize,
+		Changed: va.FileSize != vb.FileSize,
+	})
+	diffs = append(diffs, VersionDiff{
+		Field:   "时长 (秒)",
+		ValueA:  va.Duration,
+		ValueB:  vb.Duration,
+		Changed: va.Duration != vb.Duration,
+	})
+	diffs = append(diffs, VersionDiff{
+		Field:   "比特率 (kbps)",
+		ValueA:  va.Bitrate,
+		ValueB:  vb.Bitrate,
+		Changed: va.Bitrate != vb.Bitrate,
+	})
+	diffs = append(diffs, VersionDiff{
+		Field:   "采样率 (Hz)",
+		ValueA:  va.SampleRate,
+		ValueB:  vb.SampleRate,
+		Changed: va.SampleRate != vb.SampleRate,
+	})
+	diffs = append(diffs, VersionDiff{
+		Field:   "上传人",
+		ValueA:  va.UploadedBy,
+		ValueB:  vb.UploadedBy,
+		Changed: va.UploadedBy != vb.UploadedBy,
+	})
+	diffs = append(diffs, VersionDiff{
+		Field:   "备注",
+		ValueA:  va.Note,
+		ValueB:  vb.Note,
+		Changed: va.Note != vb.Note,
+	})
+
+	h.auditLog(middleware.GetUserFromContext(c), "compare_versions", "work", workID,
+		fmt.Sprintf("对比版本 %s vs %s", va.Version, vb.Version))
+
+	return c.JSON(http.StatusOK, CompareVersionsResponse{
+		VersionA: va,
+		VersionB: vb,
+		Diffs:    diffs,
+	})
+}
+
+type ListAuthLinksRequest struct {
+	Brand     model.Brand    `query:"brand"`
+	WorkID    string         `query:"work_id"`
+	AuthType  model.AuthType `query:"auth_type"`
+	Keyword   string         `query:"keyword"`
+	Page      int            `query:"page"`
+	PageSize  int            `query:"page_size"`
+}
+
+func (h *WorkHandler) ListAuthLinks(c echo.Context) error {
+	req := ListAuthLinksRequest{
+		Page:     1,
+		PageSize: 20,
+	}
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid parameters")
+	}
+	if req.Page < 1 {
+		req.Page = 1
+	}
+	if req.PageSize < 1 || req.PageSize > 100 {
+		req.PageSize = 20
+	}
+
+	user := middleware.GetUserFromContext(c)
+	artistIDFilter := ""
+	if user != nil && user.Role == model.RoleArtist && user.ArtistID != nil {
+		artistIDFilter = *user.ArtistID
+	}
+
+	allWorks := h.repo.GetAllWorkIDs()
+	links := make([]*model.AuthLink, 0)
+	workMap := make(map[string]*model.Work)
+
+	for _, wid := range allWorks {
+		w := h.repo.GetWork(wid)
+		if w == nil {
+			continue
+		}
+
+		if artistIDFilter != "" {
+			hasAccess := false
+			for _, c := range w.Contributors {
+				if c.ArtistID == artistIDFilter {
+					hasAccess = true
+					break
+				}
+			}
+			if !hasAccess {
+				continue
+			}
+		}
+
+		if req.Brand != "" && w.Brand != req.Brand {
+			continue
+		}
+		if req.WorkID != "" && w.ID != req.WorkID {
+			continue
+		}
+		if req.Keyword != "" && !containsWork(w, req.Keyword) {
+			continue
+		}
+
+		workMap[w.ID] = w
+		for _, link := range w.AuthChain {
+			if req.AuthType != "" && link.AuthType != req.AuthType {
+				continue
+			}
+			links = append(links, link)
+		}
+	}
+
+	total := len(links)
+	start := (req.Page - 1) * req.PageSize
+	end := start + req.PageSize
+	if start >= total {
+		links = []*model.AuthLink{}
+	} else {
+		if end > total {
+			end = total
+		}
+		links = links[start:end]
+	}
+
+	type AuthLinkWithWork struct {
+		*model.AuthLink
+		WorkTitle string      `json:"work_title"`
+		WorkBrand model.Brand `json:"work_brand"`
+		WorkISRC  string      `json:"work_isrc"`
+	}
+	result := make([]AuthLinkWithWork, 0, len(links))
+	for _, l := range links {
+		w := workMap[l.WorkID]
+		title := ""
+		brand := model.Brand("")
+		isrc := ""
+		if w != nil {
+			title = w.Title
+			brand = w.Brand
+			isrc = w.ISRC
+		}
+		result = append(result, AuthLinkWithWork{
+			AuthLink:  l,
+			WorkTitle: title,
+			WorkBrand: brand,
+			WorkISRC:  isrc,
+		})
+	}
+
+	return c.JSON(http.StatusOK, PagedResponse{
+		Total:    int64(total),
+		Page:     req.Page,
+		PageSize: req.PageSize,
+		Data:     result,
+	})
+}
+
+func containsWork(w *model.Work, keyword string) bool {
+	kw := strings.ToLower(keyword)
+	return strings.Contains(strings.ToLower(w.Title), kw) ||
+		strings.Contains(strings.ToLower(w.ISRC), kw) ||
+		strings.Contains(strings.ToLower(w.ISWC), kw)
 }
 
 func (h *WorkHandler) invalidateWorkCache() {

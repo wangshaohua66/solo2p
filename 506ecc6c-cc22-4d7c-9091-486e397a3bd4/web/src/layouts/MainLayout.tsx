@@ -10,6 +10,7 @@ import {
   BellOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  CopyrightOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '@/store';
@@ -29,6 +30,7 @@ const MainLayout: React.FC = () => {
   const menuItems = [
     { key: '/dashboard', icon: <DashboardOutlined />, label: '数据看板' },
     { key: '/works', icon: <SoundOutlined />, label: '作品管理' },
+    { key: '/copyright', icon: <CopyrightOutlined />, label: '版权' },
     { key: '/royalty', icon: <DollarCircleOutlined />, label: '版税结算' },
     { key: '/monitor', icon: <AlertOutlined />, label: '盗版监控' },
   ];

@@ -59,7 +59,6 @@ func (h *AuthHandler) Login(c echo.Context) error {
 
 	now := time.Now()
 	user.LastLogin = &now
-	h.repo.SaveRule(nil)
 
 	token, err := middleware.GenerateToken(h.cfg, user)
 	if err != nil {
@@ -104,10 +103,31 @@ type AuditLogRequest struct {
 }
 
 func (h *AuthHandler) ListAuditLogs(c echo.Context) error {
-	_ = c
-	return c.JSON(http.StatusOK, map[string]interface{}{
-		"total": 0,
-		"data":  []model.AuditLog{},
+	req := AuditLogRequest{Page: 1, PageSize: 20}
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid parameters")
+	}
+	if req.Page < 1 {
+		req.Page = 1
+	}
+	if req.PageSize < 1 || req.PageSize > 200 {
+		req.PageSize = 20
+	}
+
+	user := ""
+	if req.UserID != "" {
+		u := h.repo.GetUser(req.UserID)
+		if u != nil {
+			user = u.Username
+		}
+	}
+
+	logs, total := h.repo.ListAuditLogs(req.Page, req.PageSize, user, req.Action)
+	return c.JSON(http.StatusOK, PagedResponse{
+		Total:    int64(total),
+		Page:     req.Page,
+		PageSize: req.PageSize,
+		Data:     logs,
 	})
 }
 

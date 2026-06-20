@@ -118,6 +118,21 @@ export const WorkTypeNames: Record<WorkType, string> = {
   ep: 'EP',
 };
 
+export const AuthTypeNames: Record<AuthType, string> = {
+  original: '原创作品',
+  adapt: '改编授权',
+  sample: '采样授权',
+  cover: '翻唱授权',
+  remix: '混音授权',
+};
+
+export const AuthStatusNames: Record<AuthStatus, string> = {
+  pending: '待审核',
+  approved: '已授权',
+  rejected: '已拒绝',
+  expired: '已过期',
+};
+
 export const RoleNames: Record<ContributorRole, string> = {
   lyricist: '作词',
   composer: '作曲',

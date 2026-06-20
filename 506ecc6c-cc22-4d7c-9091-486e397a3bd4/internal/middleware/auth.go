@@ -145,5 +145,22 @@ func CORS(origins string) echo.MiddlewareFunc {
 	}
 }
 
+func ValidateToken(tokenStr string, cfg *config.JWTConfig) (*Claims, error) {
+	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, echo.NewHTTPError(http.StatusUnauthorized, "invalid signing method")
+		}
+		return []byte(cfg.Secret), nil
+	})
+	if err != nil || !token.Valid {
+		return nil, echo.NewHTTPError(http.StatusUnauthorized, "invalid or expired token")
+	}
+	claims, ok := token.Claims.(*Claims)
+	if !ok {
+		return nil, echo.NewHTTPError(http.StatusUnauthorized, "invalid token claims")
+	}
+	return claims, nil
+}
+
 var ErrNotFound = errors.New("not found")
 var ErrInvalidParam = errors.New("invalid parameter")

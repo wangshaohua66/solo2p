@@ -533,21 +533,6 @@ const SettlementDetailView: React.FC<{ settlement: Settlement }> = ({ settlement
 
   const stackedBarOption = useMemo<EChartsOption>(() => {
     const roleList = Object.keys(roleBreakdown) as ContributorRole[];
-    const series = roleList.map((role) => {
-      const roleWorks: Record<string, number> = {};
-      (settlement.details || []).forEach((d) => {
-        if (d.contributor_role === role) {
-          roleWorks[d.work_title] = (roleWorks[d.work_title] || 0) + d.contributor_share;
-        }
-      });
-      const works = Object.keys(settlement.work_breakdown || {}).slice(0, 8).map((id) => {
-        const w = settlement.details?.find((d) => d.work_id === id);
-        return w?.work_title || id.slice(0, 8);
-      });
-      return works;
-    });
-    const _ = series;
-
     const works = Array.from(new Set((settlement.details || []).slice(0, 40).map((d) => d.work_title))).slice(0, 8);
 
     return {

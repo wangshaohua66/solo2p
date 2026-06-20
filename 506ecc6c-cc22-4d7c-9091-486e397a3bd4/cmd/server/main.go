@@ -20,6 +20,7 @@ import (
 	"github.com/labelops/backend/internal/model"
 	svc "github.com/labelops/backend/internal/service"
 	"github.com/labelops/backend/internal/store"
+	ws "github.com/labelops/backend/internal/ws"
 )
 
 func main() {
@@ -36,6 +37,9 @@ func main() {
 	redisStore := store.NewRedisStore(&cfg.Redis)
 	repo := store.GetDefaultRepo()
 
+	hub := ws.NewHub()
+	go hub.Run()
+
 	calcSvc := svc.NewCalcService(repo, redisStore)
 	crawlerSvc := svc.NewCrawlerService(repo, redisStore)
 	monitorSvc := svc.NewMonitorService(repo, redisStore)
@@ -44,6 +48,10 @@ func main() {
 	workHdl := hdl.NewWorkHandler(repo, redisStore)
 	royaltyHdl := hdl.NewRoyaltyHandler(repo, redisStore, calcSvc)
 	monitorHdl := hdl.NewMonitorHandler(repo, redisStore, crawlerSvc, monitorSvc)
+	wsHdl := hdl.NewWSHandler(hub, &cfg.JWT)
+
+	crawlerSvc.SetWSHandler(wsHdl)
+	monitorSvc.SetWSHandler(wsHdl)
 
 	e := echo.New()
 	e.HideBanner = true
@@ -53,6 +61,8 @@ func main() {
 	e.Use(middleware.RequestID())
 
 	api := e.Group("/api")
+
+	api.GET("/ws", wsHdl.HandleWebSocket)
 
 	authGroup := api.Group("/auth")
 	{
@@ -72,8 +82,15 @@ func main() {
 		workGroup.GET("/:id", workHdl.GetWork)
 		workGroup.PATCH("/:id/status", workHdl.UpdateWorkStatus, mw.RequireRoles(model.RoleAdmin, model.RoleUserProducer, model.RoleCopyright))
 		workGroup.POST("/:id/versions", workHdl.UploadVersion, mw.RequireRoles(model.RoleAdmin, model.RoleUserProducer))
+		workGroup.POST("/:id/versions/compare", workHdl.CompareVersions, mw.RequireRoles(model.RoleAdmin, model.RoleUserProducer, model.RoleCopyright))
 		workGroup.POST("/:id/auth-chain", workHdl.CreateAuthLink, mw.RequireRoles(model.RoleAdmin, model.RoleCopyright))
 		workGroup.GET("/:id/validate-cover", workHdl.ValidateCoverAuth)
+	}
+
+	authLinkGroup := api.Group("/auth-links")
+	authLinkGroup.Use(mw.JWTAuth(&cfg.JWT))
+	{
+		authLinkGroup.GET("", workHdl.ListAuthLinks)
 	}
 
 	artistGroup := api.Group("/artists")

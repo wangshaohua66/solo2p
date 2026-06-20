@@ -2,10 +2,12 @@ import React, { useEffect, useState, useMemo } from 'react';
 import {
   Card, Row, Col, Table, Tag, Button, Input, Select, Space, Modal, Drawer,
   Form, Upload, Timeline, Tree, Progress, App as AntdApp, Divider, Badge, Descriptions, List, Typography,
+  Statistic,
 } from 'antd';
 import {
   PlusOutlined, SearchOutlined, UploadOutlined, ReloadOutlined,
   FileTextOutlined, LinkOutlined, HistoryOutlined, PlayCircleOutlined,
+  DiffOutlined, CloseOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { ColumnsType, TableProps } from 'antd/es/table';
@@ -79,6 +81,12 @@ const Works: React.FC = () => {
   const [form] = Form.useForm();
   const [authForm] = Form.useForm();
 
+  const [versionA, setVersionA] = useState<string | null>(null);
+  const [versionB, setVersionB] = useState<string | null>(null);
+  const [compareModalOpen, setCompareModalOpen] = useState(false);
+  const [compareResult, setCompareResult] = useState<any>(null);
+  const [compareLoading, setCompareLoading] = useState(false);
+
   useEffect(() => {
     dispatch(fetchWorks());
     dispatch(fetchArtists(undefined));
@@ -87,7 +95,31 @@ const Works: React.FC = () => {
   const handleRowClick = async (record: Work) => {
     await dispatch(fetchWorkDetail(record.id));
     setDetailTab('info');
+    setVersionA(null);
+    setVersionB(null);
+    setCompareResult(null);
     setDrawerOpen(true);
+  };
+
+  const handleCompareVersions = async () => {
+    if (!versionA || !versionB || !currentWork) {
+      message.warning('请选择两个版本进行对比');
+      return;
+    }
+    if (versionA === versionB) {
+      message.warning('请选择两个不同的版本');
+      return;
+    }
+    setCompareLoading(true);
+    try {
+      const res = await workAPI.compareVersions(currentWork.id, versionA, versionB);
+      setCompareResult((res.data as any).data || res.data);
+      setCompareModalOpen(true);
+    } catch (e: any) {
+      message.error('版本对比失败');
+    } finally {
+      setCompareLoading(false);
+    }
   };
 
   const columns: ColumnsType<Work> = [
@@ -522,32 +554,99 @@ const Works: React.FC = () => {
             )}
 
             {detailTab === 'versions' && (
-              <Timeline
-                className="version-timeline"
-                mode="left"
-                items={(currentWork.versions || []).map((v) => ({
-                  color: statusColors[v.status],
-                  label: <Text type="secondary">{dayjs(v.created_at).format('YYYY-MM-DD HH:mm')}</Text>,
-                  children: (
-                    <div style={{ padding: '8px 12px', background: '#1A170E', borderRadius: 8, border: '1px solid #2A2312' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                        <Space>
-                          <span style={{ fontWeight: 600, fontSize: 15, color: '#FFD700' }}>版本 {v.version}</span>
-                          <Badge color={statusColors[v.status]} />
-                          <span style={{ fontSize: 12 }}>{WorkStatusNames[v.status]}</span>
-                        </Space>
-                        <Button type="link" icon={<PlayCircleOutlined />}>试听</Button>
+              <div>
+                <Card size="small" className="gold-card" style={{ marginBottom: 16 }}
+                  title={<Space><DiffOutlined style={{ color: '#D4AF37' }} /><span>版本对比</span></Space>}
+                  extra={
+                    <Space>
+                      <Tag color="red">A版</Tag>
+                      <Select
+                        placeholder="选择版本A"
+                        style={{ width: 180 }}
+                        value={versionA || undefined}
+                        onChange={(v) => setVersionA(v)}
+                      >
+                        {(currentWork.versions || []).map((v) => (
+                          <Select.Option key={v.id} value={v.id}>版本 {v.version} - {dayjs(v.created_at).format('MM-DD HH:mm')}</Select.Option>
+                        ))}
+                      </Select>
+                      <Tag color="blue">B版</Tag>
+                      <Select
+                        placeholder="选择版本B"
+                        style={{ width: 180 }}
+                        value={versionB || undefined}
+                        onChange={(v) => setVersionB(v)}
+                      >
+                        {(currentWork.versions || []).map((v) => (
+                          <Select.Option key={v.id} value={v.id}>版本 {v.version} - {dayjs(v.created_at).format('MM-DD HH:mm')}</Select.Option>
+                        ))}
+                      </Select>
+                      <Button
+                        type="primary"
+                        icon={<DiffOutlined />}
+                        loading={compareLoading}
+                        onClick={handleCompareVersions}
+                        disabled={!versionA || !versionB}
+                      >
+                        对比差异
+                      </Button>
+                      {(versionA || versionB) && (
+                        <Button icon={<CloseOutlined />} onClick={() => { setVersionA(null); setVersionB(null); }}>
+                          清空
+                        </Button>
+                      )}
+                    </Space>
+                  }
+                >
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    选择两个版本，点击"对比差异"查看元数据、音频属性的详细差异对比
+                  </Text>
+                </Card>
+                <Timeline
+                  className="version-timeline"
+                  mode="left"
+                  items={(currentWork.versions || []).map((v) => ({
+                    color: statusColors[v.status],
+                    label: <Text type="secondary">{dayjs(v.created_at).format('YYYY-MM-DD HH:mm')}</Text>,
+                    children: (
+                      <div style={{ padding: '8px 12px', background: '#1A170E', borderRadius: 8, border: '1px solid #2A2312' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <Space>
+                            <span style={{ fontWeight: 600, fontSize: 15, color: '#FFD700' }}>版本 {v.version}</span>
+                            <Badge color={statusColors[v.status]} />
+                            <span style={{ fontSize: 12 }}>{WorkStatusNames[v.status]}</span>
+                            {versionA === v.id && <Tag color="red">A版</Tag>}
+                            {versionB === v.id && <Tag color="blue">B版</Tag>}
+                          </Space>
+                          <Space>
+                            <Button
+                              size="small"
+                              type={versionA === v.id ? 'primary' : 'default'}
+                              onClick={() => setVersionA(v.id)}
+                            >
+                              设为A
+                            </Button>
+                            <Button
+                              size="small"
+                              type={versionB === v.id ? 'primary' : 'default'}
+                              onClick={() => setVersionB(v.id)}
+                            >
+                              设为B
+                            </Button>
+                            <Button type="link" icon={<PlayCircleOutlined />}>试听</Button>
+                          </Space>
+                        </div>
+                        <WaveformVisualizer seed={v.audio_fingerprint} />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 12, color: '#8B7A4A' }}>
+                          <span>{(v.file_size / 1024 / 1024).toFixed(1)} MB</span>
+                          <span>指纹: {v.audio_fingerprint.slice(0, 16)}...</span>
+                        </div>
+                        {v.note && <div style={{ marginTop: 6, padding: '6px 8px', background: '#231F12', borderRadius: 4, fontSize: 12 }}>📝 {v.note}</div>}
                       </div>
-                      <WaveformVisualizer seed={v.audio_fingerprint} />
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 12, color: '#8B7A4A' }}>
-                        <span>{(v.file_size / 1024 / 1024).toFixed(1)} MB</span>
-                        <span>指纹: {v.audio_fingerprint.slice(0, 16)}...</span>
-                      </div>
-                      {v.note && <div style={{ marginTop: 6, padding: '6px 8px', background: '#231F12', borderRadius: 4, fontSize: 12 }}>📝 {v.note}</div>}
-                    </div>
-                  ),
-                }))}
-              />
+                    ),
+                  }))}
+                />
+              </div>
             )}
 
             {detailTab === 'auth' && (
@@ -737,6 +836,125 @@ const Works: React.FC = () => {
             <Input.TextArea rows={2} />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title={
+          <Space>
+            <DiffOutlined style={{ color: '#D4AF37' }} />
+            <span className="gold-gradient-text" style={{ fontSize: 18, fontWeight: 700 }}>版本差异对比</span>
+          </Space>
+        }
+        open={compareModalOpen}
+        onCancel={() => setCompareModalOpen(false)}
+        width={960}
+        footer={[
+          <Button key="close" onClick={() => setCompareModalOpen(false)}>关闭</Button>,
+        ]}
+      >
+        {compareResult && (
+          <div>
+            <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+              <Col span={12}>
+                <Card size="small" style={{ border: '2px solid #ff4d4f', background: 'rgba(255,77,79,0.05)' }}>
+                  <Statistic
+                    title={<Space><Tag color="red">A版</Tag><span style={{ color: '#aaa' }}>版本号</span></Space>}
+                    value={compareResult.version_a?.version || '-'}
+                    valueStyle={{ color: '#ff4d4f' }}
+                    suffix={<span style={{ fontSize: 12, color: '#8B7A4A' }}>{dayjs(compareResult.version_a?.created_at).format('YYYY-MM-DD HH:mm')}</span>}
+                  />
+                </Card>
+              </Col>
+              <Col span={12}>
+                <Card size="small" style={{ border: '2px solid #1890ff', background: 'rgba(24,144,255,0.05)' }}>
+                  <Statistic
+                    title={<Space><Tag color="blue">B版</Tag><span style={{ color: '#aaa' }}>版本号</span></Space>}
+                    value={compareResult.version_b?.version || '-'}
+                    valueStyle={{ color: '#1890ff' }}
+                    suffix={<span style={{ fontSize: 12, color: '#8B7A4A' }}>{dayjs(compareResult.version_b?.created_at).format('YYYY-MM-DD HH:mm')}</span>}
+                  />
+                </Card>
+              </Col>
+            </Row>
+
+            <Divider orientation="left" style={{ borderColor: '#3B3218', color: '#D4AF37' }}>
+              <Space>
+                <DiffOutlined />
+                <span>差异详情</span>
+                <Tag color="gold">
+                  {(compareResult.diffs || []).filter((d: any) => d.changed).length} 处差异
+                </Tag>
+              </Space>
+            </Divider>
+
+            <Table
+              size="small"
+              dataSource={compareResult.diffs || []}
+              pagination={false}
+              rowKey="field"
+              columns={[
+                {
+                  title: '字段',
+                  dataIndex: 'field',
+                  key: 'field',
+                  width: 140,
+                  render: (v: string, record: any) => (
+                    <Space>
+                      {record.changed && <span style={{ color: '#D4AF37' }}>●</span>}
+                      <span style={{ color: record.changed ? '#FFD700' : '#8B7A4A', fontWeight: record.changed ? 600 : 400 }}>{v}</span>
+                    </Space>
+                  ),
+                },
+                {
+                  title: 'A版',
+                  dataIndex: 'value_a',
+                  key: 'value_a',
+                  width: 280,
+                  render: (v: any, record: any) => (
+                    <div style={{
+                      padding: '4px 8px',
+                      background: record.changed ? 'rgba(255,77,79,0.08)' : 'transparent',
+                      borderRadius: 4,
+                      border: record.changed ? '1px solid rgba(255,77,79,0.2)' : 'none',
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                    }}>
+                      {v === null || v === undefined ? '-' : String(v)}
+                    </div>
+                  ),
+                },
+                {
+                  title: 'B版',
+                  dataIndex: 'value_b',
+                  key: 'value_b',
+                  width: 280,
+                  render: (v: any, record: any) => (
+                    <div style={{
+                      padding: '4px 8px',
+                      background: record.changed ? 'rgba(24,144,255,0.08)' : 'transparent',
+                      borderRadius: 4,
+                      border: record.changed ? '1px solid rgba(24,144,255,0.2)' : 'none',
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                    }}>
+                      {v === null || v === undefined ? '-' : String(v)}
+                    </div>
+                  ),
+                },
+                {
+                  title: '状态',
+                  dataIndex: 'changed',
+                  key: 'changed',
+                  width: 100,
+                  render: (changed: boolean) => (
+                    changed ? <Tag color="red">已变更</Tag> : <Tag color="default">未变更</Tag>
+                  ),
+                },
+              ]}
+              scroll={{ y: 360 }}
+            />
+          </div>
+        )}
       </Modal>
     </div>
   );

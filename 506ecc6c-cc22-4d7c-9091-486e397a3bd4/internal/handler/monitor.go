@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/labelops/backend/internal/middleware"
 	"github.com/labelops/backend/internal/model"
 	"github.com/labelops/backend/internal/service"
 	"github.com/labelops/backend/internal/store"
@@ -47,7 +48,32 @@ func (h *MonitorHandler) ListPiracies(c echo.Context) error {
 	}
 	offset := (req.Page - 1) * req.PageSize
 
+	user := middleware.GetUserFromContext(c)
+	artistIDFilter := ""
+	if user != nil && user.Role == model.RoleArtist && user.ArtistID != nil {
+		artistIDFilter = *user.ArtistID
+	}
+
 	list, total := h.repo.ListPiracies(req.Status, req.WorkID, offset, req.PageSize)
+
+	if artistIDFilter != "" {
+		filtered := make([]*model.PiracyRecord, 0)
+		for _, p := range list {
+			w := h.repo.GetWork(p.WorkID)
+			if w == nil {
+				continue
+			}
+			for _, c := range w.Contributors {
+				if c.ArtistID == artistIDFilter {
+					filtered = append(filtered, p)
+					break
+				}
+			}
+		}
+		list = filtered
+		total = int64(len(filtered))
+	}
+
 	return c.JSON(http.StatusOK, PagedResponse{
 		Total:    total,
 		Page:     req.Page,

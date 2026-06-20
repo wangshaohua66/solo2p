@@ -3,6 +3,7 @@ package store
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -20,6 +21,7 @@ type MockRepo struct {
 	settlements map[string]*model.Settlement
 	piracies   map[string]*model.PiracyRecord
 	auditLogs  []*model.AuditLog
+	persistPath string
 }
 
 var defaultRepo *MockRepo
@@ -35,6 +37,7 @@ func GetDefaultRepo() *MockRepo {
 			platform:    make(map[string]*model.PlatformData),
 			settlements: make(map[string]*model.Settlement),
 			piracies:    make(map[string]*model.PiracyRecord),
+			persistPath: "data_persistence.jsonl",
 		}
 		defaultRepo.seedMockData()
 	})
@@ -597,6 +600,21 @@ func (r *MockRepo) SavePlatformData(pd *model.PlatformData) {
 	r.platform[key] = pd
 }
 
+func (r *MockRepo) PersistPlatformData(pd *model.PlatformData) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.persistPath == "" {
+		return
+	}
+	key := fmt.Sprintf("%s|%s|%s", pd.WorkID, pd.Platform, pd.DataDate)
+	data, _ := json.MarshalIndent(map[string]interface{}{
+		"_type": "platform_data",
+		"_key":  key,
+		"data":  pd,
+	}, "", "  ")
+	_ = appendToFile(r.persistPath, data)
+}
+
 func (r *MockRepo) ListRules(workID, artistID string) []*model.RoyaltyRule {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -707,11 +725,66 @@ func (r *MockRepo) SavePiracy(p *model.PiracyRecord) {
 	r.piracies[p.ID] = p
 }
 
+func (r *MockRepo) PersistPiracy(p *model.PiracyRecord) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.persistPath == "" {
+		return
+	}
+	data, _ := json.MarshalIndent(map[string]interface{}{
+		"_type": "piracy_record",
+		"_key":  p.ID,
+		"data":  p,
+	}, "", "  ")
+	_ = appendToFile(r.persistPath, data)
+}
+
 func (r *MockRepo) AddAuditLog(log *model.AuditLog) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	log.CreatedAt = time.Now()
 	r.auditLogs = append(r.auditLogs, log)
+}
+
+func (r *MockRepo) ListAuditLogs(page, pageSize int, username, action string) ([]*model.AuditLog, int) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	filtered := make([]*model.AuditLog, 0)
+	for _, log := range r.auditLogs {
+		if username != "" && log.Username != username {
+			continue
+		}
+		if action != "" && !contains(log.Action, action) {
+			continue
+		}
+		filtered = append(filtered, log)
+	}
+	total := len(filtered)
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	if page <= 0 {
+		page = 1
+	}
+	start := (page - 1) * pageSize
+	if start >= total {
+		return []*model.AuditLog{}, total
+	}
+	end := start + pageSize
+	if end > total {
+		end = total
+	}
+	return filtered[start:end], total
+}
+
+func appendToFile(path string, data []byte) error {
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = f.Write(append(data, '\n'))
+	return err
 }
 
 func contains(s, sub string) bool {

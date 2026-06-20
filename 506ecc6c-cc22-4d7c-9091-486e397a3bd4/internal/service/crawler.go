@@ -11,6 +11,7 @@ import (
 	"github.com/labelops/backend/internal/model"
 	"github.com/labelops/backend/internal/store"
 	"github.com/labelops/backend/internal/util"
+	wspkg "github.com/labelops/backend/internal/ws"
 )
 
 type PlatformAdapter interface {
@@ -19,15 +20,37 @@ type PlatformAdapter interface {
 	BatchFetch(ctx context.Context, workIDs []string, start, end time.Time) ([]*model.PlatformData, error)
 }
 
+type WSNotifier interface {
+	NotifyPiracy(p *model.PiracyRecord, work *model.Work) error
+	NotifyCrawlProgress(p *wspkg.CrawlProgressPayload) error
+	NotifyAlert(level, title, message string) error
+}
+
 type NetEaseAdapter struct {
 	baseURL string
 }
 
 func (a *NetEaseAdapter) Name() string { return "netease" }
 func (a *NetEaseAdapter) FetchWorkData(ctx context.Context, workID string, date time.Time) (*model.PlatformData, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+	if rand.Float64() < 0.02 {
+		return nil, fmt.Errorf("netease: request timeout after 30s")
+	}
 	return simulateFetch(workID, model.PlatformNetEase, date, 0.008), nil
 }
 func (a *NetEaseAdapter) BatchFetch(ctx context.Context, workIDs []string, start, end time.Time) ([]*model.PlatformData, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+	if rand.Float64() < 0.03 {
+		return nil, fmt.Errorf("netease: API rate limit exceeded, please retry later")
+	}
 	return simulateBatch(workIDs, model.PlatformNetEase, start, end, 0.008), nil
 }
 
@@ -35,9 +58,25 @@ type QQMusicAdapter struct{}
 
 func (a *QQMusicAdapter) Name() string { return "qqmusic" }
 func (a *QQMusicAdapter) FetchWorkData(ctx context.Context, workID string, date time.Time) (*model.PlatformData, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+	if rand.Float64() < 0.02 {
+		return nil, fmt.Errorf("qqmusic: service unavailable (503)")
+	}
 	return simulateFetch(workID, model.PlatformQQMusic, date, 0.007), nil
 }
 func (a *QQMusicAdapter) BatchFetch(ctx context.Context, workIDs []string, start, end time.Time) ([]*model.PlatformData, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+	if rand.Float64() < 0.03 {
+		return nil, fmt.Errorf("qqmusic: invalid response format")
+	}
 	return simulateBatch(workIDs, model.PlatformQQMusic, start, end, 0.007), nil
 }
 
@@ -45,9 +84,25 @@ type KugouAdapter struct{}
 
 func (a *KugouAdapter) Name() string { return "kugou" }
 func (a *KugouAdapter) FetchWorkData(ctx context.Context, workID string, date time.Time) (*model.PlatformData, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+	if rand.Float64() < 0.02 {
+		return nil, fmt.Errorf("kugou: connection reset by peer")
+	}
 	return simulateFetch(workID, model.PlatformKugou, date, 0.006), nil
 }
 func (a *KugouAdapter) BatchFetch(ctx context.Context, workIDs []string, start, end time.Time) ([]*model.PlatformData, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+	if rand.Float64() < 0.03 {
+		return nil, fmt.Errorf("kugou: empty data response")
+	}
 	return simulateBatch(workIDs, model.PlatformKugou, start, end, 0.006), nil
 }
 
@@ -55,9 +110,25 @@ type KuwoAdapter struct{}
 
 func (a *KuwoAdapter) Name() string { return "kuwo" }
 func (a *KuwoAdapter) FetchWorkData(ctx context.Context, workID string, date time.Time) (*model.PlatformData, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+	if rand.Float64() < 0.02 {
+		return nil, fmt.Errorf("kuwo: dns resolution failed")
+	}
 	return simulateFetch(workID, model.PlatformKuwo, date, 0.0055), nil
 }
 func (a *KuwoAdapter) BatchFetch(ctx context.Context, workIDs []string, start, end time.Time) ([]*model.PlatformData, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+	if rand.Float64() < 0.03 {
+		return nil, fmt.Errorf("kuwo: tls handshake timeout")
+	}
 	return simulateBatch(workIDs, model.PlatformKuwo, start, end, 0.0055), nil
 }
 
@@ -65,9 +136,25 @@ type SpotifyAdapter struct{}
 
 func (a *SpotifyAdapter) Name() string { return "spotify" }
 func (a *SpotifyAdapter) FetchWorkData(ctx context.Context, workID string, date time.Time) (*model.PlatformData, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+	if rand.Float64() < 0.025 {
+		return nil, fmt.Errorf("spotify: OAuth token expired")
+	}
 	return simulateFetch(workID, model.PlatformSpotify, date, 0.04), nil
 }
 func (a *SpotifyAdapter) BatchFetch(ctx context.Context, workIDs []string, start, end time.Time) ([]*model.PlatformData, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+	if rand.Float64() < 0.035 {
+		return nil, fmt.Errorf("spotify: API quota exhausted")
+	}
 	return simulateBatch(workIDs, model.PlatformSpotify, start, end, 0.04), nil
 }
 
@@ -75,9 +162,25 @@ type AppleMusicAdapter struct{}
 
 func (a *AppleMusicAdapter) Name() string { return "apple_music" }
 func (a *AppleMusicAdapter) FetchWorkData(ctx context.Context, workID string, date time.Time) (*model.PlatformData, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+	if rand.Float64() < 0.025 {
+		return nil, fmt.Errorf("applemusic: invalid developer token")
+	}
 	return simulateFetch(workID, model.PlatformAppleMusic, date, 0.05), nil
 }
 func (a *AppleMusicAdapter) BatchFetch(ctx context.Context, workIDs []string, start, end time.Time) ([]*model.PlatformData, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+	if rand.Float64() < 0.035 {
+		return nil, fmt.Errorf("applemusic: storefront not available")
+	}
 	return simulateBatch(workIDs, model.PlatformAppleMusic, start, end, 0.05), nil
 }
 
@@ -112,11 +215,12 @@ func simulateBatch(workIDs []string, platform model.Platform, start, end time.Ti
 }
 
 type CrawlerService struct {
-	repo     *store.MockRepo
-	redis    *store.RedisStore
-	adapters map[model.Platform]PlatformAdapter
-	mu       sync.Mutex
-	tasks    map[string]*model.CrawlerTask
+	repo      *store.MockRepo
+	redis     *store.RedisStore
+	adapters  map[model.Platform]PlatformAdapter
+	ws        WSNotifier
+	mu        sync.Mutex
+	tasks     map[string]*model.CrawlerTask
 }
 
 func NewCrawlerService(repo *store.MockRepo, redis *store.RedisStore) *CrawlerService {
@@ -133,6 +237,10 @@ func NewCrawlerService(repo *store.MockRepo, redis *store.RedisStore) *CrawlerSe
 	svc.adapters[model.PlatformSpotify] = &SpotifyAdapter{}
 	svc.adapters[model.PlatformAppleMusic] = &AppleMusicAdapter{}
 	return svc
+}
+
+func (s *CrawlerService) SetWSHandler(ws WSNotifier) {
+	s.ws = ws
 }
 
 func (s *CrawlerService) GetAdapter(p model.Platform) (PlatformAdapter, bool) {
@@ -171,41 +279,84 @@ func (s *CrawlerService) CrawlPlatformData(ctx context.Context, platform model.P
 }
 
 func (s *CrawlerService) doCrawlWithRetry(task *model.CrawlerTask, adapter PlatformAdapter, workIDs []string, start, end time.Time, maxRetries int) {
+	totalDays := int(end.Sub(start).Hours()/24) + 1
+	totalRecords := len(workIDs) * totalDays
+
+	s.pushCrawlProgress(task, 0.0, "running", "")
+
 	var lastErr error
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 {
-			time.Sleep(time.Duration(math.Pow(2, float64(attempt-1))) * time.Second)
+			backoff := time.Duration(math.Pow(2, float64(attempt-1))) * time.Second
+			s.pushCrawlProgress(task, float64(attempt)/float64(maxRetries+1)*0.3,
+				"retrying",
+				fmt.Sprintf("第 %d 次重试，等待 %v", attempt, backoff))
+			time.Sleep(backoff)
 			task.RetryCount = attempt
 		}
 
 		results, err := adapter.BatchFetch(context.Background(), workIDs, start, end)
 		if err == nil {
-			for _, pd := range results {
+			for idx, pd := range results {
 				s.repo.SavePlatformData(pd)
+				s.repo.PersistPlatformData(pd)
+
 				key := store.KeyPlatformData(pd.DataDate, store.PlatformKey(pd.Platform))
 				_ = s.redis.HSet(context.Background(), key, map[string]interface{}{
 					pd.WorkID: pd,
 				})
+
+				if idx%50 == 0 && totalRecords > 0 {
+					progress := 0.3 + 0.7*float64(idx)/float64(totalRecords)
+					s.pushCrawlProgress(task, progress, "writing",
+						fmt.Sprintf("已处理 %d/%d 条数据", idx, totalRecords))
+				}
 			}
 			task.Status = "success"
 			now := time.Now()
 			task.FinishedAt = &now
+			task.RecordCount = len(results)
 			lastErr = nil
+			s.pushCrawlProgress(task, 1.0, "success",
+				fmt.Sprintf("完成，共 %d 条数据", len(results)))
 			break
 		}
+
 		lastErr = err
 		task.ErrorMsg = err.Error()
+		s.pushCrawlProgress(task, 0.1+float64(attempt)*0.05, "failed",
+			fmt.Sprintf("第 %d 次尝试失败: %v", attempt+1, err))
 	}
 
 	if lastErr != nil {
 		task.Status = "failed"
 		now := time.Now()
 		task.FinishedAt = &now
+		s.pushCrawlProgress(task, 1.0, "failed",
+			fmt.Sprintf("最终失败: %v", lastErr))
+
+		if s.ws != nil {
+			alertMsg := fmt.Sprintf("平台 [%s] 数据采集失败，已重试 %d 次，错误: %v",
+				task.Platform, task.RetryCount, lastErr)
+			_ = s.ws.NotifyAlert("error", "数据采集失败告警", alertMsg)
+		}
 	}
 
 	s.mu.Lock()
 	s.tasks[task.ID] = task
 	s.mu.Unlock()
+}
+
+func (s *CrawlerService) pushCrawlProgress(task *model.CrawlerTask, progress float64, status string, msg string) {
+	if s.ws != nil {
+		_ = s.ws.NotifyCrawlProgress(&wspkg.CrawlProgressPayload{
+			TaskID:   task.ID,
+			Platform: string(task.Platform),
+			Progress: progress,
+			Status:   status,
+			ErrorMsg: msg,
+		})
+	}
 }
 
 func (s *CrawlerService) GetTask(taskID string) *model.CrawlerTask {
@@ -222,11 +373,16 @@ type PiracyMatchResult struct {
 type MonitorService struct {
 	repo  *store.MockRepo
 	redis *store.RedisStore
+	ws    WSNotifier
 	mu    sync.Mutex
 }
 
 func NewMonitorService(repo *store.MockRepo, redis *store.RedisStore) *MonitorService {
 	return &MonitorService{repo: repo, redis: redis}
+}
+
+func (s *MonitorService) SetWSHandler(ws WSNotifier) {
+	s.ws = ws
 }
 
 func (s *MonitorService) CompareFingerprints(fp1, fp2 string) PiracyMatchResult {
@@ -334,7 +490,12 @@ func (s *MonitorService) ScanPiracyForWork(ctx context.Context, workID string, t
 			DiscoveredAt:      time.Now(),
 		}
 		s.repo.SavePiracy(pr)
+		s.repo.PersistPiracy(pr)
 		suspects = append(suspects, pr)
+
+		if s.ws != nil && status == model.PiracyConfirmed {
+			_ = s.ws.NotifyPiracy(pr, work)
+		}
 	}
 
 	return suspects, nil
