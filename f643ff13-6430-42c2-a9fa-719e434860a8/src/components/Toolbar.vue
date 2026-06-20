@@ -68,6 +68,21 @@
           <span class="status-icon">💾</span>
           {{ transcriptStore.isSaving ? '保存中...' : '已保存' }}
         </span>
+        
+        <div class="collaboration-status" @click="toggleCollaborationPanel" title="协同状态">
+          <span class="collab-icon" :class="{ connected: transcriptStore.isCollaborating, connecting: transcriptStore.isConnecting }">
+            {{ transcriptStore.isCollaborating ? '🔗' : transcriptStore.isConnecting ? '⏳' : '🔌' }}
+          </span>
+          <span class="collab-text" v-if="transcriptStore.isCollaborating">
+            协同中 ({{ transcriptStore.connectedUsers?.length || 0 }}人)
+          </span>
+          <span class="collab-text" v-else-if="transcriptStore.isConnecting">
+            连接中...
+          </span>
+          <span class="collab-text" v-else>
+            未连接
+          </span>
+        </div>
       </div>
 
       <div class="view-tabs">
@@ -118,6 +133,80 @@
         </div>
       </div>
     </div>
+
+    <div v-if="showCollaborationPanel" class="modal-overlay" @click.self="showCollaborationPanel = false">
+      <div class="modal collaboration-modal">
+        <h3>多方协同</h3>
+        
+        <div class="collaboration-info">
+          <div class="info-row">
+            <span class="label">连接状态</span>
+            <span class="value" :class="transcriptStore.isCollaborating ? 'status-connected' : 'status-disconnected'">
+              {{ transcriptStore.isCollaborating ? '已连接' : '未连接' }}
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="label">当前案件</span>
+            <span class="value">{{ transcriptStore.currentCase?.caseName || '-' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">当前角色</span>
+            <span class="value">
+              <span class="role-dot" :style="{ backgroundColor: getRoleColor(transcriptStore.settings.currentRole) }"></span>
+              {{ getRoleLabel(transcriptStore.settings.currentRole) }}
+            </span>
+          </div>
+        </div>
+
+        <div v-if="transcriptStore.connectionError" class="error-message">
+          ⚠️ {{ transcriptStore.connectionError }}
+        </div>
+
+        <div class="collaboration-actions">
+          <button 
+            v-if="!transcriptStore.isCollaborating && !transcriptStore.isConnecting"
+            class="btn-confirm"
+            @click="startCollaboration"
+          >
+            🔗 开始协同
+          </button>
+          <button 
+            v-else-if="transcriptStore.isConnecting"
+            class="btn-confirm"
+            disabled
+          >
+            ⏳ 连接中...
+          </button>
+          <button 
+            v-else
+            class="btn-cancel danger"
+            @click="stopCollaboration"
+          >
+            🔌 断开连接
+          </button>
+        </div>
+
+        <div v-if="transcriptStore.isCollaborating" class="online-users">
+          <h4>在线用户 ({{ transcriptStore.connectedUsers?.length || 0 }})</h4>
+          <div class="user-list">
+            <div 
+              v-for="user in transcriptStore.connectedUsers" 
+              :key="user.id"
+              class="user-item"
+            >
+              <span class="user-avatar" :style="{ backgroundColor: getRoleColor(user.role) }">
+                {{ user.name?.charAt(0) || user.role.charAt(0).toUpperCase() }}
+              </span>
+              <div class="user-info">
+                <span class="user-name">{{ user.name }}</span>
+                <span class="user-role">{{ getRoleLabel(user.role) }}</span>
+              </div>
+              <span class="user-status online"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </header>
 </template>
 
@@ -134,6 +223,8 @@ const evidenceStore = useEvidenceStore()
 const showNewCaseModal = ref(false)
 const newCaseNumber = ref('')
 const newCaseName = ref('')
+const showCollaborationPanel = ref(false)
+const collabUserName = ref('')
 
 const selectedCaseId = computed({
   get: () => transcriptStore.settings.currentCaseId,
@@ -187,6 +278,50 @@ const toggleTheme = () => {
 const toggleProjection = () => {
   transcriptStore.updateSettings({ projectionMode: !transcriptStore.settings.projectionMode })
   document.documentElement.setAttribute('data-projection', transcriptStore.settings.projectionMode ? 'true' : 'false')
+}
+
+const toggleCollaborationPanel = () => {
+  showCollaborationPanel.value = !showCollaborationPanel.value
+  if (showCollaborationPanel.value && !collabUserName.value) {
+    collabUserName.value = `用户${transcriptStore.settings.currentRole}`
+  }
+}
+
+const getRoleLabel = (role: string): string => {
+  const roleMap: Record<string, string> = {
+    judge: '审判长',
+    clerk: '书记员',
+    prosecutor: '公诉人',
+    defender: '辩护人'
+  }
+  return roleMap[role] || role
+}
+
+const getRoleColor = (role: string): string => {
+  const colorMap: Record<string, string> = {
+    judge: '#e74c3c',
+    clerk: '#3498db',
+    prosecutor: '#f39c12',
+    defender: '#2ecc71'
+  }
+  return colorMap[role] || '#95a5a6'
+}
+
+const startCollaboration = async () => {
+  const name = collabUserName.value || `用户${transcriptStore.settings.currentRole}`
+  const success = await transcriptStore.initCollaboration(name)
+  if (success) {
+    evidenceStore.initCollaboration(
+      transcriptStore.settings.currentCaseId,
+      transcriptStore.settings.currentRole,
+      name
+    )
+  }
+}
+
+const stopCollaboration = () => {
+  transcriptStore.disconnectCollaboration()
+  evidenceStore.disconnectCollaboration()
 }
 </script>
 
@@ -433,6 +568,210 @@ const toggleProjection = () => {
   &.active {
     background: var(--primary-color);
     border-color: var(--primary-color);
+  }
+}
+
+.collaboration-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+
+  &:hover {
+    background: var(--hover-bg);
+  }
+
+  .collab-icon {
+    font-size: 14px;
+    opacity: 0.5;
+    transition: all 0.2s;
+
+    &.connected {
+      opacity: 1;
+      animation: pulse-green 2s infinite;
+    }
+
+    &.connecting {
+      opacity: 1;
+      animation: spin 1s linear infinite;
+    }
+  }
+
+  .collab-text {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  &:has(.connected) .collab-text {
+    color: var(--success-color, #2ecc71);
+  }
+}
+
+@keyframes pulse-green {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.collaboration-modal {
+  min-width: 380px;
+  max-width: 420px;
+}
+
+.collaboration-info {
+  background: var(--input-bg);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+
+    &:not(:last-child) {
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .label {
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .value {
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+
+      &.status-connected {
+        color: var(--success-color, #2ecc71);
+      }
+
+      &.status-disconnected {
+        color: var(--text-secondary);
+      }
+    }
+  }
+}
+
+.error-message {
+  background: rgba(231, 76, 60, 0.1);
+  color: var(--danger-color, #e74c3c);
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.collaboration-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+
+  button {
+    flex: 1;
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+
+  .btn-cancel.danger {
+    background: var(--danger-color, #e74c3c);
+    color: white;
+
+    &:hover {
+      background: var(--danger-hover, #c0392b);
+    }
+  }
+}
+
+.online-users {
+  h4 {
+    margin: 0 0 12px 0;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .user-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+
+  .user-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: var(--input-bg);
+    border-radius: 8px;
+    transition: all 0.2s;
+
+    &:hover {
+      background: var(--hover-bg);
+    }
+  }
+
+  .user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .user-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+
+    .user-name {
+      font-size: 13px;
+      color: var(--text-primary);
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .user-role {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+  }
+
+  .user-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+
+    &.online {
+      background: var(--success-color, #2ecc71);
+      box-shadow: 0 0 0 2px rgba(46, 204, 113, 0.2);
+    }
   }
 }
 

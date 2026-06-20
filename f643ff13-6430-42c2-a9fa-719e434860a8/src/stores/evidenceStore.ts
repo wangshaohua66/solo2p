@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
-import type { EvidenceItem, EvidenceType, EvidenceAnnotation, CollaborationAction } from '@/types'
+import type { EvidenceItem, EvidenceType, EvidenceAnnotation, CollaborationAction, Role } from '@/types'
 import { storage, generateId, debounce, fileToDataUrl, fileToBlobUrl } from '@/utils/storage'
 import { useCollaboration } from '@/composables/useCollaboration'
 
@@ -64,7 +64,7 @@ export const useEvidenceStore = defineStore('evidence', () => {
 
   const initCollaboration = async (
     caseId: string,
-    role?: string,
+    role?: Role,
     name?: string,
     wsUrl?: string
   ): Promise<boolean> => {

@@ -1,11 +1,16 @@
 import { WebSocketServer, WebSocket } from 'ws'
 import http from 'http'
+import { fileURLToPath } from 'url'
+import path from 'path'
 import type { 
   WebSocketMessage, 
   WebSocketMessageType, 
   CollaborationUser, 
   CollaborationAction 
 } from '../src/types'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const PORT = process.env.COLLABORATION_PORT || 8080
 
@@ -204,7 +209,9 @@ export const startCollaborationServer = (server?: http.Server): WebSocketServer 
   return wss
 }
 
-if (require.main === module) {
+const isMainModule = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]
+
+if (isMainModule) {
   startCollaborationServer()
 }
 

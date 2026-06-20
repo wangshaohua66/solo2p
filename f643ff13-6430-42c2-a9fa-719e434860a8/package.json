@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:collaboration": "node --loader ts-node/esm server/collaboration-server.ts",
+    "dev:collaboration": "node --experimental-specifier-resolution=node --loader ts-node/esm server/collaboration-server.ts",
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore"
