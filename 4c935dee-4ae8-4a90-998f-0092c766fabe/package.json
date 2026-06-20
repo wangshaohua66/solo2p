@@ -1,0 +1,28 @@
+{
+  "name": "secrets-certs-cli",
+  "version": "1.0.0",
+  "description": "Secret & certificate lifecycle management CLI for microservice operations (Vault + Kubernetes)",
+  "main": "cli.js",
+  "bin": {
+    "sc-cli": "./cli.js"
+  },
+  "scripts": {
+    "start": "node cli.js",
+    "test": "node test/smoke.test.js",
+    "scan": "node cli.js scan"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "yargs": "^17.7.2",
+    "node-vault": "^0.12.0",
+    "@kubernetes/client-node": "^0.20.0",
+    "node-forge": "^1.3.1",
+    "axios": "^1.6.8",
+    "chalk": "^4.1.2",
+    "ora": "^5.4.1",
+    "inquirer": "^8.2.5",
+    "cli-table3": "^0.6.4"
+  }
+}
