@@ -1,0 +1,39 @@
+{
+  "name": "news-copyright-monitor",
+  "version": "1.0.0",
+  "description": "新闻版权监控系统 - 自动化监控侵权转载",
+  "main": "index.js",
+  "type": "commonjs",
+  "bin": {
+    "copyright-monitor": "./index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "crawl": "node index.js --crawl",
+    "report": "node index.js --report",
+    "test": "node index.js --target test"
+  },
+  "dependencies": {
+    "puppeteer": "^21.11.0",
+    "cheerio": "^1.0.0-rc.12",
+    "sqlite3": "^5.1.7",
+    "node-schedule": "^2.1.1",
+    "string-similarity": "^4.0.4",
+    "similarity": "^1.2.1",
+    "p-limit": "^3.1.0",
+    "winston": "^3.11.0",
+    "chalk": "^4.1.2",
+    "cli-progress": "^3.12.0",
+    "cli-table3": "^0.6.3",
+    "commander": "^11.1.0",
+    "pdfkit": "^0.14.0",
+    "exceljs": "^4.4.0",
+    "dayjs": "^1.11.10",
+    "lodash": "^4.17.21",
+    "uuid": "^9.0.1",
+    "crypto-js": "^4.2.0"
+  }
+}

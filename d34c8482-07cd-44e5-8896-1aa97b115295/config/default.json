@@ -1,0 +1,74 @@
+{
+  "app": {
+    "name": "新闻版权监控系统",
+    "version": "1.0.0",
+    "dataDir": "./data",
+    "logsDir": "./logs",
+    "evidenceDir": "./evidence",
+    "reportsDir": "./reports",
+    "dbPath": "./data/copyright.db",
+    "checkpointPath": "./data/checkpoint.json"
+  },
+  "crawler": {
+    "concurrency": 5,
+    "requestTimeout": 30000,
+    "navigationTimeout": 45000,
+    "maxRetries": 3,
+    "retryDelayBase": 2000,
+    "maxRetriesDelay": 30000,
+    "maxArticlesPerSite": 200,
+    "userAgentRotation": true,
+    "randomDelayMin": 500,
+    "randomDelayMax": 2500,
+    "headless": true,
+    "ignoreHTTPSErrors": true,
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "proxy": null
+  },
+  "comparator": {
+    "titleSimilarityThreshold": 0.70,
+    "contentSimilarityThreshold": 0.60,
+    "eitherThreshold": true,
+    "fingerprintKgrams": 3,
+    "fingerprintWindowSize": 5,
+    "keywordTopN": 50,
+    "minArticleLength": 100,
+    "maxComparisonBatch": 100
+  },
+  "scheduler": {
+    "enabled": true,
+    "rounds": [
+      { "time": "0 0 2 * * *", "name": "凌晨巡检" },
+      { "time": "0 0 8 * * *", "name": "上午巡检" },
+      { "time": "0 0 14 * * *", "name": "下午巡检" }
+    ],
+    "priorityBatch": true,
+    "batchDelay": 60000,
+    "maxDurationHours": 4
+  },
+  "storage": {
+    "journalMode": "WAL",
+    "synchronous": "NORMAL",
+    "cacheSize": -64000,
+    "pageSize": 4096,
+    "busyTimeout": 30000
+  },
+  "evidence": {
+    "screenshotFormat": "png",
+    "screenshotQuality": 100,
+    "fullPage": true,
+    "saveHTML": true,
+    "hashAlgorithm": "SHA256",
+    "retentionDays": 365
+  },
+  "logging": {
+    "level": "info",
+    "maxFiles": "30d",
+    "maxSize": "100m",
+    "consoleLevel": "info",
+    "fileLevel": "debug"
+  }
+}
