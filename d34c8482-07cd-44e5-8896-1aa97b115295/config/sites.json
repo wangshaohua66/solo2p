@@ -245,6 +245,947 @@
           "infiniteScroll": false,
           "pageType": "paginated",
           "maxPages": 8
+        },
+        {
+          "id": "china",
+          "name": "中国网",
+          "domain": "china.com.cn",
+          "priority": 1,
+          "listUrl": "http://www.china.com.cn/news/",
+          "listSelectors": {
+            "newsList": ".news-list li, ul li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .title",
+            "content": "#artibody, .content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .laiyuan"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "pagePattern": "/index_{page}.html",
+          "maxPages": 10
+        },
+        {
+          "id": "chinadaily",
+          "name": "中国日报网",
+          "domain": "chinadaily.com.cn",
+          "priority": 1,
+          "listUrl": "https://www.chinadaily.com.cn/",
+          "listSelectors": {
+            "newsList": ".news-item, ul.list li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": "#Content, .article-content, article",
+            "time": ".info, .time, .pubtime",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 8
+        },
+        {
+          "id": "youth",
+          "name": "中国青年网",
+          "domain": "youth.cn",
+          "priority": 1,
+          "listUrl": "https://news.youth.cn/",
+          "listSelectors": {
+            "newsList": ".news-list li, ul li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, #content, article",
+            "time": ".time, .pubtime, .xxy1",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "pagePattern": "/index_{page}.htm",
+          "maxPages": 10
+        },
+        {
+          "id": "ce",
+          "name": "中国经济网",
+          "domain": "ce.cn",
+          "priority": 1,
+          "listUrl": "http://www.ce.cn/",
+          "listSelectors": {
+            "newsList": ".news-list li, ul.list li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": "#article_content, .article-content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 10
+        },
+        {
+          "id": "gmw",
+          "name": "光明网",
+          "domain": "gmw.cn",
+          "priority": 1,
+          "listUrl": "https://www.gmw.cn/",
+          "listSelectors": {
+            "newsList": ".news-item, ul.list li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, #contentMain, article",
+            "time": ".time, .pubtime, .info3",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 10
+        },
+        {
+          "id": "cnr",
+          "name": "央广网",
+          "domain": "cnr.cn",
+          "priority": 2,
+          "listUrl": "http://www.cnr.cn/",
+          "listSelectors": {
+            "newsList": ".news-list li, ul li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .TRS_Editor, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 8
+        },
+        {
+          "id": "chinanews",
+          "name": "中新网",
+          "domain": "chinanews.com",
+          "priority": 1,
+          "listUrl": "https://www.chinanews.com/",
+          "listSelectors": {
+            "newsList": ".news-item, ul.list li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, #cont_1_10, article",
+            "time": ".time, .pubtime, .left-t",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 10
+        },
+        {
+          "id": "huanqiu",
+          "name": "环球网",
+          "domain": "huanqiu.com",
+          "priority": 2,
+          "listUrl": "https://www.huanqiu.com/",
+          "listSelectors": {
+            "newsList": ".news-item, ul.list li, li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, article, .content-text",
+            "time": ".time, .pubtime, .metadata",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": true,
+          "pageType": "scroll"
+        },
+        {
+          "id": "cri",
+          "name": "国际在线",
+          "domain": "cri.cn",
+          "priority": 2,
+          "listUrl": "http://www.cri.cn/",
+          "listSelectors": {
+            "newsList": ".news-list li, ul li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .title",
+            "content": ".article-content, .content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 8
+        },
+        {
+          "id": "workercn",
+          "name": "中工网",
+          "domain": "workercn.cn",
+          "priority": 2,
+          "listUrl": "http://www.workercn.cn/",
+          "listSelectors": {
+            "newsList": ".news-list li, ul li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 8
+        },
+        {
+          "id": "81cn",
+          "name": "中国军网",
+          "domain": "81.cn",
+          "priority": 2,
+          "listUrl": "http://www.81.cn/",
+          "listSelectors": {
+            "newsList": ".news-list li, ul li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 8
+        },
+        {
+          "id": "legaldaily",
+          "name": "法治日报",
+          "domain": "legaldaily.com.cn",
+          "priority": 2,
+          "listUrl": "http://www.legaldaily.com.cn/",
+          "listSelectors": {
+            "newsList": ".news-list li, ul li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, #content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 8
+        },
+        {
+          "id": "rmzxb",
+          "name": "人民政协网",
+          "domain": "rmzxb.com.cn",
+          "priority": 3,
+          "listUrl": "http://www.rmzxb.com.cn/",
+          "listSelectors": {
+            "newsList": ".news-list li, ul li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 6
+        },
+        {
+          "id": "tibet",
+          "name": "中国西藏网",
+          "domain": "tibet.cn",
+          "priority": 3,
+          "listUrl": "http://www.tibet.cn/",
+          "listSelectors": {
+            "newsList": ".news-list li, ul li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 6
+        },
+        {
+          "id": "chinataiwan",
+          "name": "中国台湾网",
+          "domain": "chinataiwan.org",
+          "priority": 3,
+          "listUrl": "http://www.chinataiwan.org/",
+          "listSelectors": {
+            "newsList": ".news-list li, ul li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 6
+        },
+        {
+          "id": "cqn",
+          "name": "中国质量新闻网",
+          "domain": "cqn.com.cn",
+          "priority": 3,
+          "listUrl": "http://www.cqn.com.cn/",
+          "listSelectors": {
+            "newsList": ".news-list li, ul li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 6
+        },
+        {
+          "id": "chinaso",
+          "name": "中国搜索",
+          "domain": "chinaso.com",
+          "priority": 3,
+          "listUrl": "https://www.chinaso.com/",
+          "listSelectors": {
+            "newsList": ".news-item, ul li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 6
+        },
+        {
+          "id": "xfrb",
+          "name": "消费日报网",
+          "domain": "xfrb.com.cn",
+          "priority": 3,
+          "listUrl": "http://www.xfrb.com.cn/",
+          "listSelectors": {
+            "newsList": ".news-list li, ul li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 5
+        },
+        {
+          "id": "ceweekly",
+          "name": "中国发展网",
+          "domain": "ceweekly.cn",
+          "priority": 3,
+          "listUrl": "http://www.ceweekly.cn/",
+          "listSelectors": {
+            "newsList": ".news-list li, ul li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 5
+        },
+        {
+          "id": "guancha",
+          "name": "观察者网",
+          "domain": "guancha.cn",
+          "priority": 2,
+          "listUrl": "https://www.guancha.cn/",
+          "listSelectors": {
+            "newsList": ".news-list li, ul li, .module-list li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .content-txt, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "pagePattern": "/index_{page}.shtml",
+          "maxPages": 10
+        },
+        {
+          "id": "caixin",
+          "name": "财新网",
+          "domain": "caixin.com",
+          "priority": 2,
+          "listUrl": "https://www.caixin.com/",
+          "listSelectors": {
+            "newsList": ".news-list li, ul li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .main_text, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .from"
+          },
+          "requiresLogin": true,
+          "loginConfig": {
+            "loginUrl": "https://u.caixin.com/web/login",
+            "usernameSelector": "input[name='username']",
+            "passwordSelector": "input[name='password']",
+            "submitSelector": "button[type='submit']",
+            "checkSelector": ".user-info, .login-user",
+            "username": "",
+            "password": "",
+            "cookieMaxAgeHours": 48
+          },
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 8
+        },
+        {
+          "id": "infzm",
+          "name": "南方周末",
+          "domain": "infzm.com",
+          "priority": 2,
+          "listUrl": "https://www.infzm.com/",
+          "listSelectors": {
+            "newsList": ".news-list li, ul li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .from"
+          },
+          "requiresLogin": true,
+          "loginConfig": {
+            "loginUrl": "https://www.infzm.com/login",
+            "usernameSelector": "input[name='username']",
+            "passwordSelector": "input[name='password']",
+            "submitSelector": "button.login-btn",
+            "checkSelector": ".user-info, .avatar",
+            "username": "",
+            "password": "",
+            "cookieMaxAgeHours": 72
+          },
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 8
+        },
+        {
+          "id": "21jingji",
+          "name": "21世纪经济报道",
+          "domain": "21jingji.com",
+          "priority": 2,
+          "listUrl": "https://www.21jingji.com/",
+          "listSelectors": {
+            "newsList": ".news-list li, ul li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .article-detail, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "pagePattern": "/list_{page}.html",
+          "maxPages": 10
+        },
+        {
+          "id": "nbd",
+          "name": "每日经济新闻",
+          "domain": "nbd.com.cn",
+          "priority": 2,
+          "listUrl": "https://www.nbd.com.cn/",
+          "listSelectors": {
+            "newsList": ".news-list li, ul li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .article-body, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 10
+        },
+        {
+          "id": "thecover",
+          "name": "封面新闻",
+          "domain": "thecover.cn",
+          "priority": 3,
+          "listUrl": "https://www.thecover.cn/",
+          "listSelectors": {
+            "newsList": ".news-item, ul li, .list-item",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .article-detail, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": true,
+          "pageType": "scroll"
+        },
+        {
+          "id": "cqcb",
+          "name": "上游新闻",
+          "domain": "cqcb.com",
+          "priority": 3,
+          "listUrl": "https://www.cqcb.com/",
+          "listSelectors": {
+            "newsList": ".news-list li, ul li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "pagePattern": "/index_{page}.html",
+          "maxPages": 8
+        },
+        {
+          "id": "nddaily",
+          "name": "南方都市报",
+          "domain": "nddaily.com",
+          "priority": 3,
+          "listUrl": "https://www.nddaily.com/",
+          "listSelectors": {
+            "newsList": ".news-list li, ul li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .article-detail, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 8
+        },
+        {
+          "id": "ynet",
+          "name": "北青网",
+          "domain": "ynet.com",
+          "priority": 3,
+          "listUrl": "https://www.ynet.com/",
+          "listSelectors": {
+            "newsList": ".news-list li, ul li",
+            "title": "a",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "pagePattern": "/index_{page}.htm",
+          "maxPages": 8
+        },
+        {
+          "id": "huxiu",
+          "name": "虎嗅网",
+          "domain": "huxiu.com",
+          "priority": 3,
+          "listUrl": "https://www.huxiu.com/",
+          "listSelectors": {
+            "newsList": ".article-item, .list li, li",
+            "title": "a, .article-title",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .article-detail, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .author"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": true,
+          "pageType": "scroll"
+        },
+        {
+          "id": "tmtpost",
+          "name": "钛媒体",
+          "domain": "tmtpost.com",
+          "priority": 3,
+          "listUrl": "https://www.tmtpost.com/",
+          "listSelectors": {
+            "newsList": ".news-item, .article-item, li",
+            "title": "a, .title",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .post-content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .author"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 8
+        },
+        {
+          "id": "iyiou",
+          "name": "亿欧",
+          "domain": "iyiou.com",
+          "priority": 3,
+          "listUrl": "https://www.iyiou.com/",
+          "listSelectors": {
+            "newsList": ".news-item, .article-item, li",
+            "title": "a, .title",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .author"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 8
+        },
+        {
+          "id": "cyzone",
+          "name": "创业邦",
+          "domain": "cyzone.cn",
+          "priority": 3,
+          "listUrl": "https://www.cyzone.cn/",
+          "listSelectors": {
+            "newsList": ".article-item, .list-item, li",
+            "title": "a, .title",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .author"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": true,
+          "pageType": "scroll"
+        },
+        {
+          "id": "ifanr",
+          "name": "爱范儿",
+          "domain": "ifanr.com",
+          "priority": 3,
+          "listUrl": "https://www.ifanr.com/",
+          "listSelectors": {
+            "newsList": ".article-item, .post-item, li",
+            "title": "a, .title",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .entry-content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .author"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "pagePattern": "/page/{page}",
+          "maxPages": 8
+        },
+        {
+          "id": "leiphone",
+          "name": "雷锋网",
+          "domain": "leiphone.com",
+          "priority": 3,
+          "listUrl": "https://www.leiphone.com/",
+          "listSelectors": {
+            "newsList": ".news-item, .article-item, li",
+            "title": "a, .title",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .article_detail, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .author"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 8
+        },
+        {
+          "id": "geekpark",
+          "name": "极客公园",
+          "domain": "geekpark.net",
+          "priority": 3,
+          "listUrl": "https://www.geekpark.net/",
+          "listSelectors": {
+            "newsList": ".article-item, .card, li",
+            "title": "a, .title",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .author"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": true,
+          "pageType": "scroll"
+        },
+        {
+          "id": "pingwest",
+          "name": "品玩",
+          "domain": "pingwest.com",
+          "priority": 3,
+          "listUrl": "https://www.pingwest.com/",
+          "listSelectors": {
+            "newsList": ".article-item, .news-item, li",
+            "title": "a, .title",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .author"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 8
+        },
+        {
+          "id": "ikanchai",
+          "name": "砍柴网",
+          "domain": "ikanchai.com",
+          "priority": 3,
+          "listUrl": "https://www.ikanchai.com/",
+          "listSelectors": {
+            "newsList": ".article-item, .list li, li",
+            "title": "a, .title",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .author"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 6
+        },
+        {
+          "id": "redstarnews",
+          "name": "红星新闻",
+          "domain": "cdwb.com.cn",
+          "priority": 3,
+          "listUrl": "https://www.cdwb.com.cn/",
+          "listSelectors": {
+            "newsList": ".news-item, .article-item, li",
+            "title": "a, .title",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": true,
+          "pageType": "scroll"
+        },
+        {
+          "id": "jimunews",
+          "name": "极目新闻",
+          "domain": "cjmx.cn",
+          "priority": 3,
+          "listUrl": "https://www.cjmx.cn/",
+          "listSelectors": {
+            "newsList": ".news-item, .article-item, li",
+            "title": "a, .title",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 8
+        },
+        {
+          "id": "zhengguan",
+          "name": "正观新闻",
+          "domain": "zynews.cn",
+          "priority": 3,
+          "listUrl": "https://www.zynews.cn/",
+          "listSelectors": {
+            "newsList": ".news-item, .article-item, li",
+            "title": "a, .title",
+            "link": "a",
+            "time": ".time, .date"
+          },
+          "detailSelectors": {
+            "title": "h1, .article-title",
+            "content": ".article-content, .content, article",
+            "time": ".time, .pubtime, .info",
+            "source": ".source, .from"
+          },
+          "requiresLogin": false,
+          "infiniteScroll": false,
+          "pageType": "paginated",
+          "maxPages": 8
         }
       ]
     },

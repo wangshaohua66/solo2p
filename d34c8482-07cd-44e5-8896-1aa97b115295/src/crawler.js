@@ -22,12 +22,204 @@ class Crawler {
     this.requestCount = 0;
     this.logger = this._initLogger();
     this.concurrencyLimit = pLimit(this.options.concurrency);
+    this.sessionCache = new Map();
+    this.cookieDir = path.resolve(config.app.dataDir, 'cookies');
+    this._ensureCookieDir();
     this.stats = {
       totalRequests: 0,
       successRequests: 0,
       failedRequests: 0,
-      articlesFetched: 0
+      articlesFetched: 0,
+      loginAttempts: 0,
+      loginSuccess: 0
     };
+  }
+
+  _ensureCookieDir() {
+    if (!fs.existsSync(this.cookieDir)) {
+      fs.mkdirSync(this.cookieDir, { recursive: true });
+    }
+  }
+
+  _getCookieFilePath(siteId) {
+    return path.join(this.cookieDir, `${siteId}.cookies.json`);
+  }
+
+  _loadCookies(siteId) {
+    const cookieFile = this._getCookieFilePath(siteId);
+    if (!fs.existsSync(cookieFile)) return null;
+
+    try {
+      const data = JSON.parse(fs.readFileSync(cookieFile, 'utf-8'));
+      if (data.expiresAt && Date.now() > data.expiresAt) {
+        this.logger.info(`[登录态] ${siteId} cookie已过期，需要重新登录`);
+        return null;
+      }
+      this.logger.debug(`[登录态] ${siteId} cookie加载成功，共${data.cookies.length}条`);
+      return data.cookies;
+    } catch (err) {
+      this.logger.warn(`[登录态] ${siteId} cookie文件读取失败: ${err.message}`);
+      return null;
+    }
+  }
+
+  _saveCookies(siteId, cookies, maxAgeHours = 24) {
+    const cookieFile = this._getCookieFilePath(siteId);
+    const data = {
+      siteId,
+      savedAt: Date.now(),
+      expiresAt: Date.now() + maxAgeHours * 60 * 60 * 1000,
+      count: cookies.length,
+      cookies
+    };
+
+    try {
+      fs.writeFileSync(cookieFile, JSON.stringify(data, null, 2), 'utf-8');
+      this.logger.debug(`[登录态] ${siteId} cookie已保存，有效期${maxAgeHours}小时`);
+      return true;
+    } catch (err) {
+      this.logger.error(`[登录态] ${siteId} cookie保存失败: ${err.message}`);
+      return false;
+    }
+  }
+
+  async _checkLoginStatus(page, site) {
+    if (!site.loginConfig || !site.loginConfig.checkSelector) {
+      try {
+        const url = page.url();
+        const cookies = await page.cookies();
+        const hasSessionCookie = cookies.some((c) =>
+          /(session|token|auth|login|userid|uid|sid)/i.test(c.name) && c.value
+        );
+        return hasSessionCookie;
+      } catch {
+        return false;
+      }
+    }
+
+    try {
+      const checkSelector = site.loginConfig.checkSelector;
+      const element = await page.$(checkSelector);
+      return element !== null;
+    } catch {
+      return false;
+    }
+  }
+
+  async _performLogin(page, site) {
+    const loginConfig = site.loginConfig || {};
+    if (!loginConfig.loginUrl || !loginConfig.username || !loginConfig.password) {
+      this.logger.warn(`[登录态] ${site.name} 缺少登录配置，跳过登录`);
+      return false;
+    }
+
+    this.stats.loginAttempts++;
+    this.logger.info(`[登录态] 正在登录 ${site.name} ...`);
+
+    try {
+      await page.goto(loginConfig.loginUrl, {
+        waitUntil: 'networkidle2',
+        timeout: this.options.navigationTimeout
+      });
+
+      const usernameSelector = loginConfig.usernameSelector || 'input[type="text"], input[name="username"], input[name="account"]';
+      const passwordSelector = loginConfig.passwordSelector || 'input[type="password"], input[name="password"]';
+      const submitSelector = loginConfig.submitSelector || 'button[type="submit"], .login-btn, #login-btn';
+
+      await page.waitForSelector(usernameSelector, { timeout: 10000 }).catch(() => null);
+
+      await page.type(usernameSelector, loginConfig.username, { delay: 80 + Math.random() * 50 });
+      await new Promise((r) => setTimeout(r, 300 + Math.random() * 500));
+      await page.type(passwordSelector, loginConfig.password, { delay: 80 + Math.random() * 50 });
+      await new Promise((r) => setTimeout(r, 500 + Math.random() * 500));
+
+      if (loginConfig.captcha && loginConfig.captchaHandler) {
+        // 预留验证码处理钩子
+        this.logger.debug('[登录态] 验证码处理钩子待实现');
+      }
+
+      await page.click(submitSelector).catch(() => {});
+      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 15000 }).catch(() => {});
+
+      const isLoggedIn = await this._checkLoginStatus(page, site);
+
+      if (isLoggedIn) {
+        this.stats.loginSuccess++;
+        const cookies = await page.cookies();
+        const maxAgeHours = loginConfig.cookieMaxAgeHours || 24;
+        this._saveCookies(site.id, cookies, maxAgeHours);
+        this.sessionCache.set(site.id, {
+          cookies,
+          loginAt: Date.now(),
+          expiresAt: Date.now() + maxAgeHours * 60 * 60 * 1000
+        });
+        this.logger.info(`[登录态] ${site.name} 登录成功，获取${cookies.length}条cookie`);
+        return true;
+      } else {
+        this.logger.warn(`[登录态] ${site.name} 登录失败，请检查账号配置`);
+        return false;
+      }
+    } catch (err) {
+      this.logger.error(`[登录态] ${site.name} 登录异常: ${err.message}`);
+      return false;
+    }
+  }
+
+  async _ensureLoggedIn(site) {
+    if (!site.requiresLogin) return true;
+
+    const cached = this.sessionCache.get(site.id);
+    if (cached && cached.expiresAt > Date.now()) {
+      this.logger.debug(`[登录态] ${site.name} 使用缓存session`);
+      return true;
+    }
+
+    const savedCookies = this._loadCookies(site.id);
+    if (savedCookies && savedCookies.length > 0) {
+      this.sessionCache.set(site.id, {
+        cookies: savedCookies,
+        loginAt: null,
+        expiresAt: Date.now() + 60 * 60 * 1000
+      });
+      this.logger.debug(`[登录态] ${site.name} 使用本地cookie文件`);
+      return true;
+    }
+
+    const tempPage = await this._createPage();
+    try {
+      const success = await this._performLogin(tempPage, site);
+      return success;
+    } finally {
+      await tempPage.close().catch(() => {});
+    }
+  }
+
+  async _applySessionToPage(page, site) {
+    if (!site.requiresLogin) return;
+
+    const session = this.sessionCache.get(site.id);
+    if (!session || !session.cookies) return;
+
+    try {
+      await page.setCookie(...session.cookies);
+      this.logger.debug(`[登录态] ${site.name} cookie已注入页面`);
+    } catch (err) {
+      this.logger.warn(`[登录态] ${site.name} cookie注入失败: ${err.message}`);
+    }
+  }
+
+  async _refreshSessionIfNeeded(page, site) {
+    if (!site.requiresLogin) return true;
+
+    const session = this.sessionCache.get(site.id);
+    if (!session || !session.cookies) {
+      return this._ensureLoggedIn(site);
+    }
+
+    if (session.expiresAt > Date.now()) return true;
+
+    this.logger.info(`[登录态] ${site.name} session即将过期，尝试刷新`);
+    return this._performLogin(page, site);
   }
 
   _initLogger() {
@@ -309,11 +501,22 @@ class Crawler {
 
   async crawlSite(site, options = {}) {
     const { maxArticles = null, onProgress = null, checkpoint = null } = options;
-    const page = await this._createPage();
     const crawlId = uuidv4();
     const siteLogger = this.logger.child({ site: site.name, site_id: site.id });
 
     siteLogger.info(`开始抓取: ${chalk.yellow(site.name)}`);
+
+    if (site.requiresLogin) {
+      const loginReady = await this._ensureLoggedIn(site);
+      if (!loginReady) {
+        siteLogger.warn(chalk.yellow(`登录失败，将以未登录状态抓取，部分内容可能无法获取`));
+      }
+    }
+
+    const page = await this._createPage();
+    if (site.requiresLogin) {
+      await this._applySessionToPage(page, site);
+    }
     const siteStart = Date.now();
     const results = [];
     const articleLimit = maxArticles || this.options.maxArticlesPerSite;
@@ -373,6 +576,9 @@ class Crawler {
 
           try {
             const detailPage = await this._createPage();
+            if (site.requiresLogin) {
+              await this._applySessionToPage(detailPage, site);
+            }
             const result = await this._fetchArticleDetail(detailPage, link.url, site);
             await detailPage.close().catch(() => {});
 
