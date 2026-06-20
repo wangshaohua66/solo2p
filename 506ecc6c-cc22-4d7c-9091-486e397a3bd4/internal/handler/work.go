@@ -63,7 +63,13 @@ func (h *WorkHandler) ListWorks(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	cacheKey := "works:list:" + strconv.Itoa(int(req.Brand[0])) + ":" + string(req.Status) + ":" + string(req.Type) + ":" + req.Keyword + ":" + artistIDFilter + ":" + strconv.Itoa(req.Page) + ":" + strconv.Itoa(req.PageSize)
+	var brandKey string
+	if len(req.Brand) > 0 {
+		brandKey = strconv.Itoa(int(req.Brand[0]))
+	} else {
+		brandKey = "all"
+	}
+	cacheKey := "works:list:" + brandKey + ":" + string(req.Status) + ":" + string(req.Type) + ":" + req.Keyword + ":" + artistIDFilter + ":" + strconv.Itoa(req.Page) + ":" + strconv.Itoa(req.PageSize)
 
 	type cachedResult struct {
 		Data  []*model.Work `json:"data"`

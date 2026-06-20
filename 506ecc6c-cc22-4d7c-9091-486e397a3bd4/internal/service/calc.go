@@ -337,7 +337,7 @@ func (s *CalcService) DashboardSummary(ctx context.Context, startDate, endDate t
 		totalRev += pd.Revenue
 
 		for _, c := range work.Contributors {
-			artistRev[c.ArtistID] += pd.Revenue * 0.35
+			artistRev[c.ArtistID] += s.calcShareByRole(c.Role, pd.Revenue)
 			artistPlay[c.ArtistID] += pd.PlayCount
 		}
 	}

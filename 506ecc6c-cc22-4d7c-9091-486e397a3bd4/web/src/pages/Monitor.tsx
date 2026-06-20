@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Row, Col, Card, List, Tag, Button, Progress, Space, Typography, Drawer, Modal,
   Form, Select, App as AntdApp, Empty, Statistic, Descriptions, Divider, Tooltip, Badge,
@@ -12,8 +12,8 @@ import dayjs from 'dayjs';
 import ReactECharts from 'echarts-for-react';
 import type { EChartsOption } from 'echarts';
 import { useAppDispatch, useAppSelector } from '@/store';
-import { fetchPiracies, setPiracyFilter, setCurrentPiracy, updatePiracyStatus, setRightsLetter, pushNotification } from '@/store/appSlice';
-import { monitorAPI, workAPI, wsManager, WSPiracyAlert, WSCrawlProgress, WSAlert, WSMessage } from '@/api';
+import { fetchPiracies, setPiracyFilter, setCurrentPiracy, updatePiracyStatus, setRightsLetter } from '@/store/appSlice';
+import { monitorAPI, workAPI, wsManager, WSPiracyAlert, WSCrawlProgress, WSMessage } from '@/api';
 import { PiracyRecord, PiracyStatus, PiracyStatusNames, Work } from '@/types';
 
 const { Title, Text } = Typography;
@@ -50,12 +50,6 @@ const Monitor: React.FC = () => {
     const unsub = wsManager.subscribe((msg: WSMessage) => {
       switch (msg.type) {
         case 'piracy_alert': {
-          const p = msg.payload as WSPiracyAlert;
-          dispatch(pushNotification({
-            id: `piracy-${p.piracy_id}-${Date.now()}`,
-            type: 'error',
-            message: `[盗版告警] ${p.work_title} 在 ${p.platform} 发现疑似侵权: ${p.suspect_name} (匹配度 ${(p.match_score * 100).toFixed(1)}%)`,
-          }));
           dispatch(fetchPiracies());
           break;
         }
@@ -78,25 +72,9 @@ const Monitor: React.FC = () => {
               });
             }, 3000);
           }
-          if (cp.status === 'failed' && cp.error_msg) {
-            dispatch(pushNotification({
-              id: `crawl-err-${cp.platform}-${Date.now()}`,
-              type: 'warning',
-              message: `[采集失败] ${cp.platform}: ${cp.error_msg}`,
-            }));
-          }
           if (cp.status === 'success') {
             dispatch(fetchPiracies());
           }
-          break;
-        }
-        case 'alert': {
-          const a = msg.payload as WSAlert;
-          dispatch(pushNotification({
-            id: `alert-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            type: a.level,
-            message: `[${a.title}] ${a.message}`,
-          }));
           break;
         }
       }
@@ -621,14 +599,12 @@ const PiracyDetail: React.FC<{
           <div style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <Tag color="#52C41A">原始作品：《{piracy.work_title}》</Tag>
-              <PlayCircleOutlined style={{ fontSize: 20, color: '#52C41A', cursor: 'pointer' }} />
             </div>
             <WaveformVisualizer seed={seed1} />
           </div>
           <div style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <Tag color={cfg.color}>涉嫌侵权：{piracy.suspect_title}</Tag>
-              <PlayCircleOutlined style={{ fontSize: 20, color: cfg.color, cursor: 'pointer' }} />
             </div>
             <WaveformVisualizer seed={seed2} />
           </div>
@@ -702,8 +678,14 @@ const PiracyDetail: React.FC<{
   );
 };
 
-const WaveformVisualizer: React.FC<{ seed: string; height?: number }> = ({ seed, height = 80 }) => {
+const WaveformVisualizer: React.FC<{ seed: string; height?: number; src?: string }> = ({ seed, height = 80, src }) => {
   const bars = 120;
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const stopPlaybackRef = useRef<(() => void) | null>(null);
+  const rafRef = useRef<number | null>(null);
+
   const values = useMemo(() => {
     const arr: number[] = [];
     let s = 0;
@@ -717,32 +699,175 @@ const WaveformVisualizer: React.FC<{ seed: string; height?: number }> = ({ seed,
     return arr;
   }, [seed]);
 
+  const cleanup = useCallback(() => {
+    if (stopPlaybackRef.current) {
+      stopPlaybackRef.current();
+      stopPlaybackRef.current = null;
+    }
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    setIsPlaying(false);
+    setProgress(0);
+  }, []);
+
+  const startPlayback = async () => {
+    if (isPlaying) {
+      cleanup();
+      return;
+    }
+
+    let seedSum = 0;
+    for (const ch of seed) seedSum = (seedSum * 31 + ch.charCodeAt(0)) >>> 0;
+    const baseFreq = 110 + (seedSum % 880);
+    const duration = 4;
+    const sampleRate = 22050;
+    const totalSamples = duration * sampleRate;
+
+    try {
+      if (!audioCtxRef.current) {
+        const Ctx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
+        audioCtxRef.current = new Ctx({ sampleRate });
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+
+      const buffer = ctx.createBuffer(1, totalSamples, sampleRate);
+      const channel = buffer.getChannelData(0);
+
+      let s = seedSum;
+      for (let i = 0; i < totalSamples; i++) {
+        s = (s * 1103515245 + 12345) >>> 0;
+        const t = i / sampleRate;
+        const barIdx = Math.min(bars - 1, Math.floor((t / duration) * bars));
+        const env = Math.min(1, barIdx / 8) * Math.min(1, (bars - 1 - barIdx) / 8);
+        const toneEnv = Math.exp(-t * 1.2);
+        const freq = baseFreq + ((s % 1000) / 1000 - 0.5) * baseFreq * 0.08;
+        const sample =
+          Math.sin(2 * Math.PI * freq * t) * 0.35 +
+          Math.sin(2 * Math.PI * freq * 2 * t) * 0.18 +
+          Math.sin(2 * Math.PI * freq * 3 * t) * 0.08 +
+          (Math.random() - 0.5) * 0.04;
+        channel[i] = sample * toneEnv * (0.2 + env * 0.8) * values[barIdx];
+      }
+
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 0.02);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + duration - 0.05);
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 8000;
+
+      source.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+
+      const startTime = performance.now();
+      const updateProgress = () => {
+        const elapsed = (performance.now() - startTime) / 1000;
+        const p = Math.min(1, elapsed / duration);
+        setProgress(p);
+        if (p < 1) {
+          rafRef.current = requestAnimationFrame(updateProgress);
+        } else {
+          cleanup();
+        }
+      };
+
+      source.onended = cleanup;
+      stopPlaybackRef.current = () => {
+        try {
+          source.onended = null;
+          source.stop();
+          gain.disconnect();
+        } catch (_) { /* noop */ }
+      };
+
+      source.start(0);
+      setIsPlaying(true);
+      rafRef.current = requestAnimationFrame(updateProgress);
+    } catch (_) {
+      cleanup();
+    }
+  };
+
+  useEffect(() => {
+    return () => { cleanup(); };
+  }, [cleanup]);
+
+  const activeBar = Math.floor(progress * bars);
+
   return (
-    <div
-      style={{
-        height,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-around',
-        background: '#151208',
-        borderRadius: 8,
-        padding: '8px 4px',
-        gap: 1,
-        border: '1px solid #2A2312',
-      }}
-    >
-      {values.map((v, i) => (
-        <div
-          key={i}
-          style={{
-            flex: 1,
-            height: `${v * 100}%`,
-            background: `linear-gradient(180deg, rgba(212,175,55,${0.4 + v * 0.6}) 0%, #8B6914 100%)`,
-            borderRadius: 1,
-            minHeight: 2,
-          }}
-        />
-      ))}
+    <div style={{ position: 'relative' }}>
+      <button
+        onClick={startPlayback}
+        style={{
+          position: 'absolute',
+          left: '50%',
+          top: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 5,
+          background: isPlaying
+            ? 'rgba(255,77,79,0.9)'
+            : 'rgba(212,175,55,0.95)',
+          border: '2px solid rgba(255,255,255,0.5)',
+          borderRadius: '50%',
+          width: 44,
+          height: 44,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          color: '#1A170E',
+          fontSize: 20,
+          padding: 0,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+          transition: 'all 0.2s',
+        }}
+      >
+        {isPlaying
+          ? <svg width="14" height="14" viewBox="0 0 14 14"><rect x="3" y="2" width="3" height="10" fill="#fff" rx="1" /><rect x="8" y="2" width="3" height="10" fill="#fff" rx="1" /></svg>
+          : <PlayCircleOutlined style={{ fontSize: 22, color: '#1A170E' }} />
+        }
+      </button>
+
+      <div
+        style={{
+          height,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-around',
+          background: '#151208',
+          borderRadius: 8,
+          padding: '8px 4px',
+          gap: 1,
+          border: '1px solid #2A2312',
+        }}
+      >
+        {values.map((v, i) => (
+          <div
+            key={i}
+            style={{
+              flex: 1,
+              height: `${v * 100}%`,
+              background: i < activeBar
+                ? `linear-gradient(180deg, rgba(82,196,26,${0.6 + v * 0.4}) 0%, #389E0D 100%)`
+                : `linear-gradient(180deg, rgba(212,175,55,${0.4 + v * 0.6}) 0%, #8B6914 100%)`,
+              borderRadius: 1,
+              minHeight: 2,
+              transition: isPlaying ? 'background 0.1s' : 'none',
+            }}
+          />
+        ))}
+      </div>
     </div>
   );
 };

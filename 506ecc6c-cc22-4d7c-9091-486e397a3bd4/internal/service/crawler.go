@@ -649,7 +649,7 @@ const CEASE_DESIST_TEMPLATE = `【停止侵权函】
 
 特此函告。
 
-% s
+%s
 %s
 `
 
@@ -685,7 +685,7 @@ const LICENSE_OFFER_TEMPLATE = `【授权合作邀约函】
 
 期待与您的合作！
 
-% s
+%s
 版权运营部
 `
 
@@ -719,6 +719,6 @@ const STANDARD_NOTICE_TEMPLATE = `【版权侵权告知函】
 
 附件：作品著作权登记证书、授权委托书（见邮箱附件）
 
-% s
+%s
 版权法务部
 `
