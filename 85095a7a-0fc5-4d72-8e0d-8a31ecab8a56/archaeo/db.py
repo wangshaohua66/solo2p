@@ -31,7 +31,7 @@ logger = get_logger(__name__)
 
 T = TypeVar("T")
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 class Database:
@@ -82,6 +82,8 @@ class Database:
 
         if current_version < 2:
             self._migrate_v1_to_v2(conn)
+        if current_version < 3:
+            self._migrate_v2_to_v3(conn)
 
     def _migrate_v1_to_v2(self, conn: sqlite3.Connection) -> None:
         cols = conn.execute("PRAGMA table_info(budget_items)").fetchall()
@@ -110,6 +112,21 @@ class Database:
                 "CREATE INDEX IF NOT EXISTS idx_budget_expenditure_date ON budget_items(expenditure_date)"
             )
             logger.info("迁移 v1->v2: 添加 idx_budget_expenditure_date 索引")
+
+    def _migrate_v2_to_v3(self, conn: sqlite3.Connection) -> None:
+        cols = conn.execute("PRAGMA table_info(budget_items)").fetchall()
+        col_names = [col["name"] for col in cols]
+
+        if "year" not in col_names:
+            conn.execute("ALTER TABLE budget_items ADD COLUMN year INTEGER")
+            logger.info("迁移 v2->v3: budget_items 添加 year 列")
+
+        existing = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_budget_year'"
+        ).fetchone()
+        if not existing:
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_budget_year ON budget_items(year)")
+            logger.info("迁移 v2->v3: 添加 idx_budget_year 索引")
 
     def _ensure_schema_version(self, conn: sqlite3.Connection) -> None:
         cursor = conn.execute("PRAGMA user_version")
@@ -298,6 +315,7 @@ CREATE TABLE IF NOT EXISTS budget_items (
     category TEXT NOT NULL,
     budgeted REAL DEFAULT 0,
     actual REAL DEFAULT 0,
+    year INTEGER,
     quarter INTEGER,
     expenditure_date TEXT,
     notes TEXT DEFAULT '',
@@ -307,6 +325,7 @@ CREATE TABLE IF NOT EXISTS budget_items (
 );
 
 CREATE INDEX IF NOT EXISTS idx_budget_project_id ON budget_items(project_id);
+CREATE INDEX IF NOT EXISTS idx_budget_year ON budget_items(year);
 CREATE INDEX IF NOT EXISTS idx_budget_quarter ON budget_items(quarter);
 CREATE INDEX IF NOT EXISTS idx_budget_expenditure_date ON budget_items(expenditure_date);
 
@@ -1434,14 +1453,15 @@ def create_budget_item(item: BudgetItem) -> BudgetItem:
         cursor = conn.execute(
             """
             INSERT INTO budget_items 
-            (project_id, category, budgeted, actual, quarter, expenditure_date, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (project_id, category, budgeted, actual, year, quarter, expenditure_date, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 item.project_id,
                 item.category,
                 item.budgeted,
                 item.actual,
+                item.year,
                 item.quarter,
                 item.expenditure_date.isoformat() if item.expenditure_date else None,
                 item.notes,
@@ -1485,7 +1505,7 @@ def update_budget_item(item: BudgetItem) -> BudgetItem:
             """
             UPDATE budget_items SET 
                 project_id = ?, category = ?, budgeted = ?, actual = ?, 
-                quarter = ?, expenditure_date = ?, notes = ?,
+                year = ?, quarter = ?, expenditure_date = ?, notes = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             """,
@@ -1494,6 +1514,7 @@ def update_budget_item(item: BudgetItem) -> BudgetItem:
                 item.category,
                 item.budgeted,
                 item.actual,
+                item.year,
                 item.quarter,
                 item.expenditure_date.isoformat() if item.expenditure_date else None,
                 item.notes,

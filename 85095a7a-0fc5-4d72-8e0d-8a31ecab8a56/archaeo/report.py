@@ -363,52 +363,70 @@ def generate_budget_report(project_id: int, quarter: Optional[int] = None,
 
     budget_items = db.list_budget_items(project_id=project_id)
 
+    def _get_item_year(it: "BudgetItem") -> Optional[int]:
+        if it.expenditure_date is not None:
+            return it.expenditure_date.year
+        if it.year is not None:
+            return it.year
+        return None
+
+    def _get_item_quarter(it: "BudgetItem") -> Optional[int]:
+        if it.quarter is not None:
+            return it.quarter
+        if it.expenditure_date is not None:
+            return (it.expenditure_date.month - 1) // 3 + 1
+        return None
+
     def _filter_by_year(items: List["BudgetItem"]) -> List["BudgetItem"]:
         result = []
         for it in items:
-            if it.expenditure_date and it.expenditure_date.year != year:
+            item_year = _get_item_year(it)
+            if item_year is not None and item_year != year:
                 continue
             result.append(it)
         return result
 
     items_in_year = _filter_by_year(budget_items)
 
+    def _build_quarterly_breakdown(items: List["BudgetItem"]) -> Dict[int, Dict[str, Any]]:
+        breakdown: Dict[int, Dict[str, Any]] = {}
+        for q in range(1, 5):
+            breakdown[q] = {"budgeted": 0.0, "actual": 0.0, "count": 0}
+        for it in items:
+            q = _get_item_quarter(it)
+            if q is not None and 1 <= q <= 4:
+                breakdown[q]["budgeted"] += it.budgeted
+                breakdown[q]["actual"] += it.actual
+                breakdown[q]["count"] += 1
+        for q in range(1, 5):
+            breakdown[q]["budgeted"] = round(breakdown[q]["budgeted"], 2)
+            breakdown[q]["actual"] = round(breakdown[q]["actual"], 2)
+        return breakdown
+
+    def _count_unassigned(items: List["BudgetItem"]) -> Dict[str, int]:
+        no_year = 0
+        no_quarter = 0
+        for it in items:
+            if _get_item_year(it) is None:
+                no_year += 1
+            if _get_item_quarter(it) is None:
+                no_quarter += 1
+        return {"no_year": no_year, "no_quarter": no_quarter}
+
+    unassigned = _count_unassigned(items_in_year)
+
     if quarter and 1 <= quarter <= 4:
         filtered_items = []
-        unassigned_items = []
         for item in items_in_year:
-            item_q = None
-            if item.quarter is not None:
-                item_q = item.quarter
-            elif item.expenditure_date is not None:
-                item_q = (item.expenditure_date.month - 1) // 3 + 1
-
-            if item_q is None:
-                unassigned_items.append(item)
-            elif item_q == quarter:
+            item_q = _get_item_quarter(item)
+            if item_q == quarter:
                 filtered_items.append(item)
 
         total_budgeted = round(sum(it.budgeted for it in filtered_items), 2)
         total_actual = round(sum(it.actual for it in filtered_items), 2)
         execution_rate = (total_actual / total_budgeted * 100) if total_budgeted > 0 else 0.0
         deviation_items = [item for item in filtered_items if item.has_deviation]
-
-        quarterly_breakdown: Dict[int, Dict[str, float]] = {}
-        for q in range(1, 5):
-            q_items = []
-            for it in items_in_year:
-                iq = None
-                if it.quarter is not None:
-                    iq = it.quarter
-                elif it.expenditure_date is not None:
-                    iq = (it.expenditure_date.month - 1) // 3 + 1
-                if iq == q:
-                    q_items.append(it)
-            quarterly_breakdown[q] = {
-                "budgeted": round(sum(i.budgeted for i in q_items), 2),
-                "actual": round(sum(i.actual for i in q_items), 2),
-                "count": len(q_items),
-            }
+        quarterly_breakdown = _build_quarterly_breakdown(items_in_year)
 
         return {
             "project_name": project.name,
@@ -422,7 +440,8 @@ def generate_budget_report(project_id: int, quarter: Optional[int] = None,
             "deviation_count": len(deviation_items),
             "deviation_items": deviation_items,
             "budget_items": filtered_items,
-            "unassigned_count": len(unassigned_items),
+            "unassigned_count": unassigned["no_quarter"],
+            "year_unassigned_count": unassigned["no_year"],
             "quarterly_breakdown": quarterly_breakdown,
         }
 
@@ -430,33 +449,7 @@ def generate_budget_report(project_id: int, quarter: Optional[int] = None,
     total_budgeted = round(sum(it.budgeted for it in items_in_year), 2)
     total_actual = round(sum(it.actual for it in items_in_year), 2)
     execution_rate = (total_actual / total_budgeted * 100) if total_budgeted > 0 else 0.0
-
-    quarterly_breakdown: Dict[int, Dict[str, float]] = {}
-    for q in range(1, 5):
-        q_items = []
-        for it in items_in_year:
-            iq = None
-            if it.quarter is not None:
-                iq = it.quarter
-            elif it.expenditure_date is not None:
-                iq = (it.expenditure_date.month - 1) // 3 + 1
-            if iq == q:
-                q_items.append(it)
-        quarterly_breakdown[q] = {
-            "budgeted": round(sum(i.budgeted for i in q_items), 2),
-            "actual": round(sum(i.actual for i in q_items), 2),
-            "count": len(q_items),
-        }
-
-    unassigned_items = []
-    for it in items_in_year:
-        iq = None
-        if it.quarter is not None:
-            iq = it.quarter
-        elif it.expenditure_date is not None:
-            iq = (it.expenditure_date.month - 1) // 3 + 1
-        if iq is None:
-            unassigned_items.append(it)
+    quarterly_breakdown = _build_quarterly_breakdown(items_in_year)
 
     return {
         "project_name": project.name,
@@ -470,7 +463,8 @@ def generate_budget_report(project_id: int, quarter: Optional[int] = None,
         "deviation_count": len(deviation_items),
         "deviation_items": deviation_items,
         "budget_items": items_in_year,
-        "unassigned_count": len(unassigned_items),
+        "unassigned_count": unassigned["no_quarter"],
+        "year_unassigned_count": unassigned["no_year"],
         "quarterly_breakdown": quarterly_breakdown,
     }
 
@@ -512,10 +506,10 @@ def export_budget_excel(project_id: int, output_path: Path,
 
     ws["A1"] = f"{budget_data['project_name']} - 经费执行表 ({period_text})"
     ws["A1"].font = Font(bold=True, size=14)
-    ws.merge_cells("A1:H1")
+    ws.merge_cells("A1:I1")
     ws["A1"].alignment = center_align
 
-    headers = ["ID", "预算科目", "季度", "支出日期", "预算金额", "实际支出", "执行率", "偏差预警"]
+    headers = ["ID", "预算科目", "年份", "季度", "支出日期", "预算金额", "实际支出", "执行率", "偏差预警"]
     col_count = len(headers)
     for col, header in enumerate(headers, 1):
         cell = ws.cell(row=3, column=col, value=header)
@@ -525,19 +519,23 @@ def export_budget_excel(project_id: int, output_path: Path,
         cell.border = thin_border
 
     for row_idx, item in enumerate(budget_items, 4):
+        year_val = item.year if item.year else (
+            item.expenditure_date.year if item.expenditure_date else "-"
+        )
         q_str = f"Q{item.quarter}" if item.quarter else (
             f"Q{((item.expenditure_date.month - 1) // 3 + 1)}" if item.expenditure_date else "-"
         )
         date_str = item.expenditure_date.isoformat() if item.expenditure_date else "-"
         ws.cell(row=row_idx, column=1, value=item.id)
         ws.cell(row=row_idx, column=2, value=item.category)
-        ws.cell(row=row_idx, column=3, value=q_str)
-        ws.cell(row=row_idx, column=4, value=date_str)
-        ws.cell(row=row_idx, column=5, value=item.budgeted)
-        ws.cell(row=row_idx, column=6, value=item.actual)
-        rate_cell = ws.cell(row=row_idx, column=7, value=f"{item.execution_rate:.1f}%")
+        ws.cell(row=row_idx, column=3, value=year_val)
+        ws.cell(row=row_idx, column=4, value=q_str)
+        ws.cell(row=row_idx, column=5, value=date_str)
+        ws.cell(row=row_idx, column=6, value=item.budgeted)
+        ws.cell(row=row_idx, column=7, value=item.actual)
+        rate_cell = ws.cell(row=row_idx, column=8, value=f"{item.execution_rate:.1f}%")
 
-        deviation_cell = ws.cell(row=row_idx, column=8)
+        deviation_cell = ws.cell(row=row_idx, column=9)
         row_fill = None
         if item.has_deviation:
             deviation_cell.value = "⚠️ 偏差超20%"
@@ -555,22 +553,23 @@ def export_budget_excel(project_id: int, output_path: Path,
         ws.cell(row=row_idx, column=1).alignment = Alignment(horizontal="center", vertical="center")
         ws.cell(row=row_idx, column=3).alignment = Alignment(horizontal="center", vertical="center")
         ws.cell(row=row_idx, column=4).alignment = Alignment(horizontal="center", vertical="center")
-        ws.cell(row=row_idx, column=5).alignment = Alignment(horizontal="right", vertical="center")
+        ws.cell(row=row_idx, column=5).alignment = Alignment(horizontal="center", vertical="center")
         ws.cell(row=row_idx, column=6).alignment = Alignment(horizontal="right", vertical="center")
+        ws.cell(row=row_idx, column=7).alignment = Alignment(horizontal="right", vertical="center")
         rate_cell.alignment = Alignment(horizontal="center", vertical="center")
 
     summary_row = len(budget_items) + 5
     ws.cell(row=summary_row, column=1, value="合计").font = Font(bold=True)
-    ws.merge_cells(f"A{summary_row}:C{summary_row}")
-    ws.cell(row=summary_row, column=5, value=budget_data["total_budgeted"]).font = Font(bold=True)
-    ws.cell(row=summary_row, column=6, value=budget_data["total_actual"]).font = Font(bold=True)
-    rate_cell = ws.cell(row=summary_row, column=7, value=f"{budget_data['execution_rate']:.1f}%")
+    ws.merge_cells(f"A{summary_row}:D{summary_row}")
+    ws.cell(row=summary_row, column=6, value=budget_data["total_budgeted"]).font = Font(bold=True)
+    ws.cell(row=summary_row, column=7, value=budget_data["total_actual"]).font = Font(bold=True)
+    rate_cell = ws.cell(row=summary_row, column=8, value=f"{budget_data['execution_rate']:.1f}%")
     rate_cell.font = Font(bold=True)
     rate_cell.alignment = Alignment(horizontal="center")
 
     breakdown_start = summary_row + 3
     ws.cell(row=breakdown_start, column=1, value=f"{budget_data['year']}年各季度执行情况汇总").font = Font(bold=True, size=12)
-    ws.merge_cells(f"A{breakdown_start}:H{breakdown_start}")
+    ws.merge_cells(f"A{breakdown_start}:I{breakdown_start}")
     ws.cell(row=breakdown_start, column=1).alignment = center_align
 
     bh_row = breakdown_start + 1
@@ -615,21 +614,31 @@ def export_budget_excel(project_id: int, output_path: Path,
             if fill:
                 c.fill = fill
 
+    note_row = bh_row + 6
+    note_idx = 0
     if budget_data.get("unassigned_count", 0) > 0:
-        note_row = bh_row + 6
         ws.cell(row=note_row, column=1,
                 value=f"⚠️ 有 {budget_data['unassigned_count']} 条记录未指定季度/日期，不计入季度聚合")
         ws.cell(row=note_row, column=1).font = Font(color="C00000", italic=True)
-        ws.merge_cells(f"A{note_row}:H{note_row}")
+        ws.merge_cells(f"A{note_row}:I{note_row}")
+        note_idx += 1
+
+    if budget_data.get("year_unassigned_count", 0) > 0:
+        ws.cell(row=note_row + note_idx, column=1,
+                value=f"ℹ️ 有 {budget_data['year_unassigned_count']} 条记录未指定年份，默认计入目标年份")
+        ws.cell(row=note_row + note_idx, column=1).font = Font(color="7030A0", italic=True)
+        ws.merge_cells(f"A{note_row + note_idx}:I{note_row + note_idx}")
+        note_idx += 1
 
     ws.column_dimensions["A"].width = 8
     ws.column_dimensions["B"].width = 28
     ws.column_dimensions["C"].width = 8
-    ws.column_dimensions["D"].width = 13
-    ws.column_dimensions["E"].width = 15
+    ws.column_dimensions["D"].width = 8
+    ws.column_dimensions["E"].width = 13
     ws.column_dimensions["F"].width = 15
-    ws.column_dimensions["G"].width = 11
-    ws.column_dimensions["H"].width = 16
+    ws.column_dimensions["G"].width = 15
+    ws.column_dimensions["H"].width = 11
+    ws.column_dimensions["I"].width = 16
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(output_path)

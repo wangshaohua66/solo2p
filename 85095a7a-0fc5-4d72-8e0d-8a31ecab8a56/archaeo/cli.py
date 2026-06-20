@@ -1134,9 +1134,10 @@ def budget_add(
     category: str = typer.Option(..., "--category", "-c", help="预算科目"),
     budgeted: float = typer.Option(0.0, "--budget", "-b", help="预算金额"),
     actual: float = typer.Option(0.0, "--actual", "-a", help="实际支出"),
+    year: Optional[int] = typer.Option(None, "--year", "-y", help="所属年度"),
     quarter: Optional[int] = typer.Option(None, "--quarter", "-q", help="所属季度 (1-4)"),
     expenditure_date: Optional[str] = typer.Option(
-        None, "--date", "-d", help="支出日期 (YYYY-MM-DD)，未指定季度时自动推导"
+        None, "--date", "-d", help="支出日期 (YYYY-MM-DD)，未指定季度/年份时自动推导"
     ),
     notes: str = typer.Option("", "--notes", "-n", help="备注"),
 ):
@@ -1157,6 +1158,7 @@ def budget_add(
         category=category,
         budgeted=budgeted,
         actual=actual,
+        year=year,
         quarter=quarter,
         expenditure_date=exp_date,
         notes=notes,
@@ -1164,7 +1166,7 @@ def budget_add(
 
     try:
         created = db.create_budget_item(item)
-        quarter_info = f" (Q{created.quarter})" if created.quarter else ""
+        quarter_info = f" ({created.year or '-'}年Q{created.quarter})" if created.quarter else ""
         console.print(f"[green]✓ 预算科目 {created.category} 添加成功{quarter_info} (ID: {created.id})[/green]")
     except Exception as e:
         console.print(f"[red]添加失败：{e}[/red]")
@@ -1174,25 +1176,22 @@ def budget_add(
 @budget_app.command("list")
 def budget_list(
     project_id: int = typer.Option(..., "--project", "-p", help="项目ID"),
+    year: Optional[int] = typer.Option(None, "--year", "-y", help="按年度筛选"),
     quarter: Optional[int] = typer.Option(None, "--quarter", "-q", help="按季度筛选 (1-4)"),
 ):
     """列出项目预算执行情况"""
-    all_items = db.list_budget_items(project_id=project_id)
-    items = all_items
-    if quarter:
-        items = [it for it in all_items if it.quarter == quarter]
+    from .report import generate_budget_report
 
-    summary = db.get_project_budget_summary(project_id)
-    filtered_total = sum(it.actual for it in items)
-    filtered_budget = sum(it.budgeted for it in items)
-    filtered_rate = (filtered_total / filtered_budget * 100) if filtered_budget else 0.0
+    report_data = generate_budget_report(project_id, quarter=quarter, year=year)
+    items = report_data["budget_items"]
 
-    title = f"经费执行情况 (共{summary['item_count']}项)"
+    title = f"{report_data['year']}年经费执行情况 (共{report_data['item_count']}项)"
     if quarter:
-        title = f"Q{quarter}经费执行情况 (共{len(items)}项)"
+        title = f"{report_data['year']}年Q{quarter}经费执行情况 (共{report_data['item_count']}项)"
     table = Table(title=title, row_styles=["none", "dim"])
     table.add_column("ID", style="cyan", width=5)
     table.add_column("预算科目", style="white", width=18)
+    table.add_column("年份", style="dim", width=7, justify="center")
     table.add_column("季度", style="magenta", width=6, justify="center")
     table.add_column("预算金额", style="blue", width=14, justify="right")
     table.add_column("实际支出", style="green", width=14, justify="right")
@@ -1202,10 +1201,16 @@ def budget_list(
     for item in items:
         rate_color = "red" if item.has_deviation else "green"
         warn = "⚠️ 超20%" if item.has_deviation else "正常"
-        q_str = f"Q{item.quarter}" if item.quarter else "-"
+        y_str = str(item.year) if item.year else (
+            str(item.expenditure_date.year) if item.expenditure_date else "-"
+        )
+        q_str = f"Q{item.quarter}" if item.quarter else (
+            f"Q{((item.expenditure_date.month - 1) // 3 + 1)}" if item.expenditure_date else "-"
+        )
         table.add_row(
             str(item.id),
             item.category,
+            y_str,
             q_str,
             f"¥ {item.budgeted:,.2f}",
             f"¥ {item.actual:,.2f}",
@@ -1216,16 +1221,20 @@ def budget_list(
     console.print(table)
 
     summary_table = Table(show_header=False, border_style="blue")
-    summary_table.add_column("项目", style="cyan", width=15)
+    summary_table.add_column("项目", style="cyan", width=18)
     summary_table.add_column("值", style="white")
     if quarter:
-        summary_table.add_row(f"Q{quarter}预算", f"¥ {filtered_budget:,.2f}")
-        summary_table.add_row(f"Q{quarter}支出", f"¥ {filtered_total:,.2f}")
-        summary_table.add_row(f"Q{quarter}执行率", f"{filtered_rate:.1f}%")
+        summary_table.add_row(f"Q{quarter}预算", f"¥ {report_data['total_budgeted']:,.2f}")
+        summary_table.add_row(f"Q{quarter}支出", f"¥ {report_data['total_actual']:,.2f}")
+        summary_table.add_row(f"Q{quarter}执行率", f"{report_data['execution_rate']:.1f}%")
         summary_table.add_row("", "")
-    summary_table.add_row("年度总预算", f"¥ {summary['total_budgeted']:,.2f}")
-    summary_table.add_row("年度总支出", f"¥ {summary['total_actual']:,.2f}")
-    summary_table.add_row("年度执行率", f"{summary['execution_rate']:.1f}%")
+    summary_table.add_row("全年总预算", f"¥ {report_data['total_budgeted']:,.2f}")
+    summary_table.add_row("全年总支出", f"¥ {report_data['total_actual']:,.2f}")
+    summary_table.add_row("全年执行率", f"{report_data['execution_rate']:.1f}%")
+    if report_data.get("unassigned_count", 0) > 0:
+        summary_table.add_row("未指定季度记录", f"{report_data['unassigned_count']} 条")
+    if report_data.get("year_unassigned_count", 0) > 0:
+        summary_table.add_row("未指定年份记录", f"{report_data['year_unassigned_count']} 条 (默认计入)")
 
     panel_title = "经费汇总" if not quarter else f"Q{quarter}经费汇总"
     console.print(Panel(summary_table, title=panel_title, border_style="blue"))
@@ -1236,6 +1245,7 @@ def budget_update(
     item_id: int = typer.Argument(..., help="预算项ID"),
     budgeted: Optional[float] = typer.Option(None, "--budget", "-b", help="预算金额"),
     actual: Optional[float] = typer.Option(None, "--actual", "-a", help="实际支出"),
+    year: Optional[int] = typer.Option(None, "--year", "-y", help="所属年度"),
     quarter: Optional[int] = typer.Option(None, "--quarter", "-q", help="所属季度 (1-4)"),
     expenditure_date: Optional[str] = typer.Option(None, "--date", "-d", help="支出日期 (YYYY-MM-DD)"),
     notes: Optional[str] = typer.Option(None, "--notes", "-n", help="备注"),
@@ -1252,6 +1262,8 @@ def budget_update(
         item.budgeted = budgeted
     if actual is not None:
         item.actual = actual
+    if year is not None:
+        item.year = year
     if quarter is not None:
         item.quarter = quarter
     if expenditure_date is not None:
@@ -1267,7 +1279,7 @@ def budget_update(
         item.notes = notes
 
     updated = db.update_budget_item(item)
-    quarter_info = f" (Q{updated.quarter})" if updated.quarter else ""
+    quarter_info = f" ({updated.year or '-'}年Q{updated.quarter})" if updated.quarter else ""
     console.print(f"[green]✓ 预算项 {updated.category} 更新成功{quarter_info}[/green]")
 
 
