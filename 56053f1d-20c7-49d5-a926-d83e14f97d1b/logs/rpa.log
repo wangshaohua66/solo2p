@@ -1,0 +1,305 @@
+2026-06-20 12:52:36 | INFO     | rpa | case=- | stage=- | dur=- | 日志系统初始化完成 | level=INFO | dir=./logs | retention=90d
+2026-06-20 12:52:37 | INFO     | rpa.image_analyzer | case=- | stage=- | dur=- | 图像分析完成 | case=SMOKE_TEST img=accident_01.jpg part=door regions=1
+2026-06-20 12:52:37 | INFO     | rpa.damage_classifier | case=- | stage=- | dur=- | 损伤分类完成 | case=SMOKE_TEST 损伤数=1 工时=16.0h 配件=2500.00 工时费=1920.00 合计=4420.00
+2026-06-20 12:52:37 | WARNING  | rpa.robot_operator | case=- | stage=- | dur=- | PyAutoGUI 不可用, 进入 dry_run 模拟模式 (不会真实操作 GUI)
+2026-06-20 12:52:37 | INFO     | rpa.case_processor | case=- | stage=- | dur=- | 案件开始处理 | case=SMOKE_TEST dir=./data/watch/SMOKE_TEST
+2026-06-20 12:52:37 | INFO     | rpa.image_analyzer | case=SMOKE_TEST | stage=image_analysis | dur=- | 图像分析完成 | case=SMOKE_TEST img=accident_01.jpg part=door regions=1
+2026-06-20 12:52:37 | ERROR    | rpa | case=SMOKE_TEST | stage=image_analysis | dur=0.43s | 阶段异常 | stage=image_analysis dur=0.43s err=not enough values to unpack (expected 2, got 1)
+2026-06-20 12:52:38 | ERROR    | rpa.case_processor | case=- | stage=- | dur=- | 案件处理未知异常 | case=SMOKE_TEST err=not enough values to unpack (expected 2, got 1)
+Traceback (most recent call last):
+  File "/Users/paul/WorkSpace/TestSoloCoder/56053f1d-20c7-49d5-a926-d83e14f97d1b/case_processor.py", line 92, in process_case
+    regions, img_results = self._run_with_timeout(
+    ^^^^^^^^^^^^^^^^^^^^
+ValueError: not enough values to unpack (expected 2, got 1)
+2026-06-20 12:52:38 | WARNING  | rpa.exception_handler | case=- | stage=- | dur=- | 案件已转入人工队列 | case=SMOKE_TEST reason=not enough values to unpack (expected 2, got 1) path=./data/manual_queue/SMOKE_TEST_20260620_125238
+2026-06-20 12:53:24 | INFO     | rpa | case=- | stage=- | dur=- | 日志系统初始化完成 | level=INFO | dir=./logs | retention=90d
+2026-06-20 12:53:25 | INFO     | rpa.image_analyzer | case=- | stage=- | dur=- | 图像分析完成 | case=SMOKE_TEST img=accident_01.jpg part=door regions=1
+2026-06-20 12:53:25 | INFO     | rpa.damage_classifier | case=- | stage=- | dur=- | 损伤分类完成 | case=SMOKE_TEST 损伤数=1 工时=16.0h 配件=2500.00 工时费=1920.00 合计=4420.00
+2026-06-20 12:53:25 | WARNING  | rpa.robot_operator | case=- | stage=- | dur=- | PyAutoGUI 不可用, 进入 dry_run 模拟模式 (不会真实操作 GUI)
+2026-06-20 12:53:25 | INFO     | rpa.case_processor | case=- | stage=- | dur=- | 案件开始处理 | case=SMOKE_TEST dir=./data/watch/SMOKE_TEST
+2026-06-20 12:53:25 | INFO     | rpa.image_analyzer | case=SMOKE_TEST | stage=image_analysis | dur=- | 图像分析完成 | case=SMOKE_TEST img=accident_01.jpg part=door regions=1
+2026-06-20 12:53:25 | INFO     | rpa | case=SMOKE_TEST | stage=image_analysis | dur=0.36s | 阶段完成 | stage=image_analysis dur=0.36s
+2026-06-20 12:53:25 | INFO     | rpa.damage_classifier | case=SMOKE_TEST | stage=classification | dur=- | 损伤分类完成 | case=SMOKE_TEST 损伤数=1 工时=16.0h 配件=2500.00 工时费=1920.00 合计=4420.00
+2026-06-20 12:53:25 | INFO     | rpa | case=SMOKE_TEST | stage=classification | dur=0.00s | 阶段完成 | stage=classification dur=0.00s
+2026-06-20 12:53:25 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 开始登录理赔系统 | case=SMOKE_TEST
+2026-06-20 12:53:25 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (960,420) 用户名输入框
+2026-06-20 12:53:25 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 'rpa_account' 用户名
+2026-06-20 12:53:25 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (960,480) 密码输入框
+2026-06-20 12:53:25 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 'replace_with_encrypted_password' 密码
+2026-06-20 12:53:25 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (960,560) 登录按钮
+2026-06-20 12:53:27 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 理赔系统登录成功 | case=SMOKE_TEST
+2026-06-20 12:53:27 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 查询案件 | case=SMOKE_TEST
+2026-06-20 12:53:27 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (120,60) 案件查询菜单
+2026-06-20 12:53:28 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,200) 案件号输入框
+2026-06-20 12:53:28 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 'SMOKE_TEST' 案件号
+2026-06-20 12:53:28 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (850,200) 查询按钮
+2026-06-20 12:53:30 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,320) 查询结果第一行
+2026-06-20 12:53:31 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 录入定损信息 | case=SMOKE_TEST 字段数=15
+2026-06-20 12:53:31 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,180) 字段-case_no
+2026-06-20 12:53:31 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:53:31 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:53:31 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 'SMOKE_TEST' 字段值-case_no
+2026-06-20 12:53:31 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,220) 字段-license_plate
+2026-06-20 12:53:31 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:53:31 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:53:31 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '京A12345' 字段值-license_plate
+2026-06-20 12:53:31 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,260) 字段-vehicle_model
+2026-06-20 12:53:31 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:53:31 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:53:31 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '测试车型X' 字段值-vehicle_model
+2026-06-20 12:53:31 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,300) 字段-damage_part
+2026-06-20 12:53:32 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 backspace
+2026-06-20 12:53:32 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '车门' 字段值-damage_part
+2026-06-20 12:53:32 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 enter
+2026-06-20 12:53:32 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,340) 字段-damage_type
+2026-06-20 12:53:32 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 backspace
+2026-06-20 12:53:32 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '凹陷' 字段值-damage_type
+2026-06-20 12:53:32 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 enter
+2026-06-20 12:53:32 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,380) 字段-damage_severity
+2026-06-20 12:53:32 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 backspace
+2026-06-20 12:53:32 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '重度' 字段值-damage_severity
+2026-06-20 12:53:32 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 enter
+2026-06-20 12:53:32 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,420) 字段-damage_area_ratio
+2026-06-20 12:53:32 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:53:32 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:53:32 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '39.99%' 字段值-damage_area_ratio
+2026-06-20 12:53:32 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,460) 字段-labor_hours
+2026-06-20 12:53:32 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:53:32 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:53:32 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '16.00' 字段值-labor_hours
+2026-06-20 12:53:32 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,500) 字段-parts_cost
+2026-06-20 12:53:33 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:53:33 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:53:33 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '2500.00' 字段值-parts_cost
+2026-06-20 12:53:33 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,540) 字段-labor_cost
+2026-06-20 12:53:33 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:53:33 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:53:33 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '1920.00' 字段值-labor_cost
+2026-06-20 12:53:33 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,580) 字段-total_cost
+2026-06-20 12:53:33 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:53:33 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:53:33 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '4420.00' 字段值-total_cost
+2026-06-20 12:53:33 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,620) 字段-repair_shop
+2026-06-20 12:53:33 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:53:33 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:53:33 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '测试修理厂' 字段值-repair_shop
+2026-06-20 12:53:33 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,660) 字段-accident_date
+2026-06-20 12:53:33 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:53:33 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:53:33 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '2026-06-20' 字段值-accident_date
+2026-06-20 12:53:33 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,700) 字段-accident_location
+2026-06-20 12:53:34 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:53:34 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:53:34 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '测试路口' 字段值-accident_location
+2026-06-20 12:53:34 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,740) 字段-remark
+2026-06-20 12:53:34 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:53:34 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:53:34 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '共1处损伤,主损伤:车门凹陷(重度)' 字段值-remark
+2026-06-20 12:53:34 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 定损信息录入完成 | case=SMOKE_TEST
+2026-06-20 12:53:34 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 上传照片 | case=SMOKE_TEST 数量=1
+2026-06-20 12:53:34 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (1100,780) 上传按钮-1
+2026-06-20 12:53:35 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,400) 文件路径输入框
+2026-06-20 12:53:35 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 './data/watch/SMOKE_TEST/accident_01.jpg' 照片路径
+2026-06-20 12:53:35 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 enter
+2026-06-20 12:53:35 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (850,560) 确认上传
+2026-06-20 12:53:36 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 照片上传完成 | case=SMOKE_TEST
+2026-06-20 12:53:36 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 提交审核 | case=SMOKE_TEST
+2026-06-20 12:53:36 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (1200,1020) 提交审核按钮
+2026-06-20 12:53:38 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 提交审核完成 | case=SMOKE_TEST
+2026-06-20 12:53:38 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 理赔系统录入全流程完成 | case=SMOKE_TEST 耗时=13.21s
+2026-06-20 12:53:38 | INFO     | rpa | case=SMOKE_TEST | stage=system_entry | dur=13.21s | 阶段完成 | stage=system_entry dur=13.21s
+2026-06-20 12:53:38 | INFO     | rpa.case_processor | case=- | stage=- | dur=- | 案件处理成功 | case=SMOKE_TEST 损伤=1 费用=4420.00 总耗时=13.58s
+2026-06-20 12:53:51 | INFO     | rpa | case=- | stage=- | dur=- | 日志系统初始化完成 | level=INFO | dir=./logs | retention=90d
+2026-06-20 12:53:52 | INFO     | rpa.image_analyzer | case=- | stage=- | dur=- | 图像分析完成 | case=SMOKE_TEST img=accident_01.jpg part=door regions=1
+2026-06-20 12:53:52 | INFO     | rpa.damage_classifier | case=- | stage=- | dur=- | 损伤分类完成 | case=SMOKE_TEST 损伤数=1 工时=16.0h 配件=2500.00 工时费=1920.00 合计=4420.00
+2026-06-20 12:53:52 | WARNING  | rpa.robot_operator | case=- | stage=- | dur=- | PyAutoGUI 不可用, 进入 dry_run 模拟模式 (不会真实操作 GUI)
+2026-06-20 12:53:52 | INFO     | rpa.case_processor | case=- | stage=- | dur=- | 案件开始处理 | case=SMOKE_TEST dir=./data/watch/SMOKE_TEST
+2026-06-20 12:53:53 | INFO     | rpa.image_analyzer | case=SMOKE_TEST | stage=image_analysis | dur=- | 图像分析完成 | case=SMOKE_TEST img=accident_01.jpg part=door regions=1
+2026-06-20 12:53:53 | INFO     | rpa | case=SMOKE_TEST | stage=image_analysis | dur=0.38s | 阶段完成 | stage=image_analysis dur=0.38s
+2026-06-20 12:53:53 | INFO     | rpa.damage_classifier | case=SMOKE_TEST | stage=classification | dur=- | 损伤分类完成 | case=SMOKE_TEST 损伤数=1 工时=16.0h 配件=2500.00 工时费=1920.00 合计=4420.00
+2026-06-20 12:53:53 | INFO     | rpa | case=SMOKE_TEST | stage=classification | dur=0.00s | 阶段完成 | stage=classification dur=0.00s
+2026-06-20 12:53:53 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 开始登录理赔系统 | case=SMOKE_TEST
+2026-06-20 12:53:53 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (960,420) 用户名输入框
+2026-06-20 12:53:53 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 'rpa_account' 用户名
+2026-06-20 12:53:53 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (960,480) 密码输入框
+2026-06-20 12:53:53 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 'replace_with_encrypted_password' 密码
+2026-06-20 12:53:53 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (960,560) 登录按钮
+2026-06-20 12:53:55 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 理赔系统登录成功 | case=SMOKE_TEST
+2026-06-20 12:53:55 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 查询案件 | case=SMOKE_TEST
+2026-06-20 12:53:55 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (120,60) 案件查询菜单
+2026-06-20 12:53:56 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,200) 案件号输入框
+2026-06-20 12:53:56 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 'SMOKE_TEST' 案件号
+2026-06-20 12:53:56 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (850,200) 查询按钮
+2026-06-20 12:53:57 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,320) 查询结果第一行
+2026-06-20 12:53:58 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 录入定损信息 | case=SMOKE_TEST 字段数=15
+2026-06-20 12:53:58 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,180) 字段-case_no
+2026-06-20 12:53:59 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:53:59 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:53:59 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 'SMOKE_TEST' 字段值-case_no
+2026-06-20 12:53:59 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,220) 字段-license_plate
+2026-06-20 12:53:59 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:53:59 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:53:59 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '京A12345' 字段值-license_plate
+2026-06-20 12:53:59 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,260) 字段-vehicle_model
+2026-06-20 12:53:59 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:53:59 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:53:59 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '测试车型X' 字段值-vehicle_model
+2026-06-20 12:53:59 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,300) 字段-damage_part
+2026-06-20 12:53:59 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 backspace
+2026-06-20 12:53:59 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '车门' 字段值-damage_part
+2026-06-20 12:53:59 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 enter
+2026-06-20 12:53:59 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,340) 字段-damage_type
+2026-06-20 12:53:59 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 backspace
+2026-06-20 12:53:59 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '凹陷' 字段值-damage_type
+2026-06-20 12:53:59 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 enter
+2026-06-20 12:53:59 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,380) 字段-damage_severity
+2026-06-20 12:54:00 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 backspace
+2026-06-20 12:54:00 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '重度' 字段值-damage_severity
+2026-06-20 12:54:00 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 enter
+2026-06-20 12:54:00 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,420) 字段-damage_area_ratio
+2026-06-20 12:54:00 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:54:00 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:54:00 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '39.98%' 字段值-damage_area_ratio
+2026-06-20 12:54:00 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,460) 字段-labor_hours
+2026-06-20 12:54:00 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:54:00 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:54:00 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '16.00' 字段值-labor_hours
+2026-06-20 12:54:00 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,500) 字段-parts_cost
+2026-06-20 12:54:00 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:54:00 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:54:00 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '2500.00' 字段值-parts_cost
+2026-06-20 12:54:00 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,540) 字段-labor_cost
+2026-06-20 12:54:00 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:54:00 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:54:00 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '1920.00' 字段值-labor_cost
+2026-06-20 12:54:00 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,580) 字段-total_cost
+2026-06-20 12:54:01 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:54:01 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:54:01 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '4420.00' 字段值-total_cost
+2026-06-20 12:54:01 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,620) 字段-repair_shop
+2026-06-20 12:54:01 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:54:01 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:54:01 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '测试修理厂' 字段值-repair_shop
+2026-06-20 12:54:01 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,660) 字段-accident_date
+2026-06-20 12:54:01 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:54:01 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:54:01 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '2026-06-20' 字段值-accident_date
+2026-06-20 12:54:01 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,700) 字段-accident_location
+2026-06-20 12:54:01 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:54:01 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:54:01 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '测试路口' 字段值-accident_location
+2026-06-20 12:54:01 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,740) 字段-remark
+2026-06-20 12:54:01 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:54:01 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:54:01 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '共1处损伤,主损伤:车门凹陷(重度)' 字段值-remark
+2026-06-20 12:54:01 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 定损信息录入完成 | case=SMOKE_TEST
+2026-06-20 12:54:01 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 上传照片 | case=SMOKE_TEST 数量=1
+2026-06-20 12:54:01 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (1100,780) 上传按钮-1
+2026-06-20 12:54:02 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,400) 文件路径输入框
+2026-06-20 12:54:02 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 './data/watch/SMOKE_TEST/accident_01.jpg' 照片路径
+2026-06-20 12:54:02 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 enter
+2026-06-20 12:54:03 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (850,560) 确认上传
+2026-06-20 12:54:04 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 照片上传完成 | case=SMOKE_TEST
+2026-06-20 12:54:04 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 提交审核 | case=SMOKE_TEST
+2026-06-20 12:54:04 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (1200,1020) 提交审核按钮
+2026-06-20 12:54:06 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 提交审核完成 | case=SMOKE_TEST
+2026-06-20 12:54:06 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 理赔系统录入全流程完成 | case=SMOKE_TEST 耗时=13.19s
+2026-06-20 12:54:06 | INFO     | rpa | case=SMOKE_TEST | stage=system_entry | dur=13.19s | 阶段完成 | stage=system_entry dur=13.19s
+2026-06-20 12:54:06 | INFO     | rpa.case_processor | case=- | stage=- | dur=- | 案件处理成功 | case=SMOKE_TEST 损伤=1 费用=4420.00 总耗时=13.58s
+2026-06-20 12:56:36 | INFO     | rpa | case=- | stage=- | dur=- | 日志系统初始化完成 | level=INFO | dir=./logs | retention=90d
+2026-06-20 12:56:38 | INFO     | rpa.image_analyzer | case=- | stage=- | dur=- | 图像分析完成 | case=SMOKE_TEST img=accident_01.jpg part=door regions=1
+2026-06-20 12:56:38 | INFO     | rpa.damage_classifier | case=- | stage=- | dur=- | 损伤分类完成 | case=SMOKE_TEST 损伤数=1 工时=16.0h 配件=2500.00 工时费=1920.00 合计=4420.00
+2026-06-20 12:56:38 | WARNING  | rpa.robot_operator | case=- | stage=- | dur=- | PyAutoGUI 不可用, 进入 dry_run 模拟模式 (不会真实操作 GUI)
+2026-06-20 12:56:38 | INFO     | rpa.case_processor | case=- | stage=- | dur=- | 案件开始处理 | case=SMOKE_TEST dir=./data/watch/SMOKE_TEST
+2026-06-20 12:56:39 | INFO     | rpa.image_analyzer | case=SMOKE_TEST | stage=image_analysis | dur=- | 图像分析完成 | case=SMOKE_TEST img=accident_01.jpg part=door regions=1
+2026-06-20 12:56:39 | INFO     | rpa | case=SMOKE_TEST | stage=image_analysis | dur=0.42s | 阶段完成 | stage=image_analysis dur=0.42s
+2026-06-20 12:56:39 | INFO     | rpa.damage_classifier | case=SMOKE_TEST | stage=classification | dur=- | 损伤分类完成 | case=SMOKE_TEST 损伤数=1 工时=16.0h 配件=2500.00 工时费=1920.00 合计=4420.00
+2026-06-20 12:56:39 | INFO     | rpa | case=SMOKE_TEST | stage=classification | dur=0.00s | 阶段完成 | stage=classification dur=0.00s
+2026-06-20 12:56:39 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 开始登录理赔系统 | case=SMOKE_TEST
+2026-06-20 12:56:39 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (960,420) 用户名输入框
+2026-06-20 12:56:39 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 'rpa_account' 用户名
+2026-06-20 12:56:39 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (960,480) 密码输入框
+2026-06-20 12:56:39 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 'replace_with_encrypted_password' 密码
+2026-06-20 12:56:39 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (960,560) 登录按钮
+2026-06-20 12:56:41 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 理赔系统登录成功 | case=SMOKE_TEST
+2026-06-20 12:56:41 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 查询案件 | case=SMOKE_TEST
+2026-06-20 12:56:41 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (120,60) 案件查询菜单
+2026-06-20 12:56:42 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,200) 案件号输入框
+2026-06-20 12:56:42 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 'SMOKE_TEST' 案件号
+2026-06-20 12:56:42 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (850,200) 查询按钮
+2026-06-20 12:56:43 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,320) 查询结果第一行
+2026-06-20 12:56:44 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 录入定损信息 | case=SMOKE_TEST 字段数=15
+2026-06-20 12:56:44 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,180) 字段-case_no
+2026-06-20 12:56:45 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:56:45 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:56:45 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 'SMOKE_TEST' 字段值-case_no
+2026-06-20 12:56:45 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,220) 字段-license_plate
+2026-06-20 12:56:45 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:56:45 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:56:45 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '京A12345' 字段值-license_plate
+2026-06-20 12:56:45 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,260) 字段-vehicle_model
+2026-06-20 12:56:45 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:56:45 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:56:45 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '测试车型X' 字段值-vehicle_model
+2026-06-20 12:56:45 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,300) 字段-damage_part
+2026-06-20 12:56:45 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 backspace
+2026-06-20 12:56:45 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '车门' 字段值-damage_part
+2026-06-20 12:56:45 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 enter
+2026-06-20 12:56:45 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,340) 字段-damage_type
+2026-06-20 12:56:45 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 backspace
+2026-06-20 12:56:45 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '凹陷' 字段值-damage_type
+2026-06-20 12:56:45 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 enter
+2026-06-20 12:56:45 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,380) 字段-damage_severity
+2026-06-20 12:56:46 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 backspace
+2026-06-20 12:56:46 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '重度' 字段值-damage_severity
+2026-06-20 12:56:46 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 enter
+2026-06-20 12:56:46 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,420) 字段-damage_area_ratio
+2026-06-20 12:56:46 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:56:46 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:56:46 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '39.97%' 字段值-damage_area_ratio
+2026-06-20 12:56:46 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,460) 字段-labor_hours
+2026-06-20 12:56:46 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:56:46 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:56:46 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '16.00' 字段值-labor_hours
+2026-06-20 12:56:46 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,500) 字段-parts_cost
+2026-06-20 12:56:46 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:56:46 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:56:46 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '2500.00' 字段值-parts_cost
+2026-06-20 12:56:46 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,540) 字段-labor_cost
+2026-06-20 12:56:46 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:56:46 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:56:46 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '1920.00' 字段值-labor_cost
+2026-06-20 12:56:46 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,580) 字段-total_cost
+2026-06-20 12:56:47 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:56:47 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:56:47 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '4420.00' 字段值-total_cost
+2026-06-20 12:56:47 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,620) 字段-repair_shop
+2026-06-20 12:56:47 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:56:47 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:56:47 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '测试修理厂' 字段值-repair_shop
+2026-06-20 12:56:47 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,660) 字段-accident_date
+2026-06-20 12:56:47 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:56:47 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:56:47 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '2026-06-20' 字段值-accident_date
+2026-06-20 12:56:47 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,700) 字段-accident_location
+2026-06-20 12:56:47 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:56:47 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:56:47 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '测试路口' 字段值-accident_location
+2026-06-20 12:56:47 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,740) 字段-remark
+2026-06-20 12:56:47 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 command
+2026-06-20 12:56:47 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 a
+2026-06-20 12:56:47 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 '共1处损伤,主损伤:车门凹陷(重度)' 字段值-remark
+2026-06-20 12:56:47 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 定损信息录入完成 | case=SMOKE_TEST
+2026-06-20 12:56:47 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 上传照片 | case=SMOKE_TEST 数量=1
+2026-06-20 12:56:47 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (1100,780) 上传按钮-1
+2026-06-20 12:56:48 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (600,400) 文件路径输入框
+2026-06-20 12:56:48 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 输入 './data/watch/SMOKE_TEST/accident_01.jpg' 照片路径
+2026-06-20 12:56:48 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 按键 enter
+2026-06-20 12:56:49 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (850,560) 确认上传
+2026-06-20 12:56:50 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 照片上传完成 | case=SMOKE_TEST
+2026-06-20 12:56:50 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 提交审核 | case=SMOKE_TEST
+2026-06-20 12:56:50 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | [dry_run] 点击 (1200,1020) 提交审核按钮
+2026-06-20 12:56:52 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 提交审核完成 | case=SMOKE_TEST
+2026-06-20 12:56:52 | INFO     | rpa.robot_operator | case=SMOKE_TEST | stage=system_entry | dur=- | 理赔系统录入全流程完成 | case=SMOKE_TEST 耗时=13.24s
+2026-06-20 12:56:52 | INFO     | rpa | case=SMOKE_TEST | stage=system_entry | dur=13.24s | 阶段完成 | stage=system_entry dur=13.24s
+2026-06-20 12:56:52 | INFO     | rpa.case_processor | case=- | stage=- | dur=- | 案件处理成功 | case=SMOKE_TEST 损伤=1 费用=4420.00 总耗时=13.67s

@@ -1,0 +1,22 @@
+{
+  "case_no": "SMOKE_TEST",
+  "failure_time": "20260620_125238",
+  "reason": "not enough values to unpack (expected 2, got 1)",
+  "source_dir": "./data/watch/SMOKE_TEST",
+  "partial_result": {
+    "case_no": "SMOKE_TEST",
+    "status": "failed",
+    "image_analysis_ok": false,
+    "classification_ok": false,
+    "entry_ok": false,
+    "damage_count": 0,
+    "total_cost": 0.0,
+    "total_labor_hours": 0.0,
+    "durations": {},
+    "error": "not enough values to unpack (expected 2, got 1)",
+    "result_path": "",
+    "submitted_at": "",
+    "audit_status": ""
+  },
+  "status": "pending_manual"
+}

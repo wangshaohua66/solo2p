@@ -1,0 +1,301 @@
+# ==============================================================================
+# 车险理赔 RPA 自动化系统配置文件
+# 说明: 负责系统参数、损伤模板、理赔系统坐标、处理时段等全部配置
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 通用系统参数
+# ------------------------------------------------------------------------------
+system:
+  name: "车险理赔定损 RPA"
+  version: "1.0.0"
+  # 监控目录: 新案件照片包存放位置
+  watch_dir: "./data/watch"
+  # 处理完成后的输出目录 (定损结果、日志、截图)
+  output_dir: "./data/output"
+  # 失败案件转入的人工处理队列目录
+  manual_queue_dir: "./data/manual_queue"
+  # 关键步骤截图留存目录
+  screenshot_dir: "./data/screenshots"
+  # 损伤模板图像目录 (用于模板匹配的参考图)
+  template_dir: "./data/templates"
+  # 已完成案件状态记录文件
+  case_state_db: "./data/case_state.json"
+  # 支持的输入图像格式
+  supported_formats: ["jpg", "jpeg", "png", "bmp"]
+  # 并行处理案件数上限
+  max_parallel_cases: 3
+  # 单案件整体超时(秒), 性能约束 <= 120
+  case_total_timeout: 120
+  # 图像分析阶段超时(秒), 性能约束 <= 30
+  image_analysis_timeout: 30
+  # 系统录入阶段超时(秒), 性能约束 <= 60
+  system_entry_timeout: 60
+  # 系统异常自动恢复时间上限(秒), 性能约束 <= 30
+  recovery_timeout: 30
+  # 操作间默认停顿(秒), 用于 GUI 稳定
+  gui_action_delay: 0.5
+
+# ------------------------------------------------------------------------------
+# 图像预处理参数
+# ------------------------------------------------------------------------------
+image_preprocess:
+  # 统一处理分辨率 (长边)
+  target_long_side: 1280
+  # 统一色彩空间
+  color_space: "BGR"
+  # 去噪强度 (cv2.fastNlMeansDenoisingColored h 参数)
+  denoise_strength: 10
+  # CLAHE 对比度增强 clipLimit
+  clahe_clip_limit: 2.0
+  # CLAHE tileGridSize
+  clahe_tile_grid: [8, 8]
+  # 透视矫正: 是否启用边缘检测辅助矫正
+  perspective_correct: true
+  # Canny 边缘阈值
+  canny_threshold1: 50
+  canny_threshold2: 150
+
+# ------------------------------------------------------------------------------
+# 损伤部位识别配置 (12 个车身部位)
+# ------------------------------------------------------------------------------
+body_parts:
+  # 部位名称 -> 该部位在标准车辆视图中的相对区域模板 (用于模板匹配 ROI 缩小范围)
+  # 坐标为相对比例 [x_ratio, y_ratio, w_ratio, h_ratio]
+  front_bumper:      [0.20, 0.78, 0.60, 0.20]   # 前保险杠
+  rear_bumper:       [0.20, 0.78, 0.60, 0.20]   # 后保险杠
+  hood:              [0.20, 0.45, 0.60, 0.30]   # 引擎盖
+  trunk:             [0.20, 0.45, 0.60, 0.30]   # 后备箱盖
+  roof:              [0.25, 0.20, 0.50, 0.25]  # 车顶
+  front_door_left:   [0.40, 0.45, 0.25, 0.35]  # 左前门
+  rear_door_left:    [0.15, 0.45, 0.25, 0.35]   # 左后门
+  front_door_right:  [0.40, 0.45, 0.25, 0.35]  # 右前门
+  rear_door_right:   [0.15, 0.45, 0.25, 0.35]  # 右后门
+  fender_front_left: [0.62, 0.45, 0.18, 0.30]  # 左前翼子板
+  fender_front_right: [0.20, 0.45, 0.18, 0.30]  # 右前翼子板
+  headlight:         [0.05, 0.65, 0.15, 0.15]  # 前大灯
+  # 模板匹配阈值 (越高越严格, 0~1)
+  template_match_threshold: 0.65
+  # 轮廓最小面积(像素^2), 过滤噪点
+  min_contour_area: 200
+  # 部位识别准确率目标: >= 90%
+  target_accuracy: 0.90
+
+# ------------------------------------------------------------------------------
+# 损伤类型分类配置 (刮擦 / 凹陷 / 破裂 / 变形)
+# ------------------------------------------------------------------------------
+damage_types:
+  # 损伤类型 -> 特征判定阈值字典
+  scratch:       # 刮擦: 长条状, 方向性强, 深度浅
+    aspect_ratio_min: 3.0        # 长宽比阈值
+    edge_density_min: 0.25      # 边缘密度
+    color_variance_max: 0.15     # 颜色方差小 (浅层)
+    template_key: "scratch_tmpl"
+  dent:          # 凹陷: 阴影梯度, 面积中等
+    shadow_gradient_min: 0.35    # 阴影梯度
+    edge_density_min: 0.20
+    aspect_ratio_max: 2.5
+    template_key: "dent_tmpl"
+  crack:          # 破裂: 细长分叉, 边缘锐利
+    branch_count_min: 2          # 分叉数
+    edge_sharpness_min: 0.45     # 边缘锐度
+    width_ratio_max: 0.08        # 宽度占比小
+    template_key: "crack_tmpl"
+  deformation:    # 变形: 大面积轮廓畸变, 形状不规则
+    area_ratio_min: 0.12         # 面积占比
+    circularity_max: 0.55        # 圆度低 (不规则)
+    solidity_max: 0.80          # 实度低
+    template_key: "deformation_tmpl"
+  # 分类准确率目标: >= 85%
+  target_accuracy: 0.85
+  # 当多个类型置信度接近时的合并策略: 取最高置信度
+  confidence_margin: 0.10
+
+# ------------------------------------------------------------------------------
+# 损伤程度评估配置 (轻微 / 中度 / 重度)
+# ------------------------------------------------------------------------------
+damage_severity:
+  # 程度判定基于损伤面积占比 (相对车身部位 ROI)
+  minor:        # 轻微
+    area_ratio_max: 0.05
+    labor_hours_base: 1.5        # 基础维修工时(小时)
+    parts_cost_base: 200.0       # 基础配件费用(元)
+  moderate:     # 中度
+    area_ratio_max: 0.20
+    labor_hours_base: 4.0
+    parts_cost_base: 800.0
+  severe:       # 重度
+    area_ratio_min: 0.20
+    labor_hours_base: 8.0
+    parts_cost_base: 2500.0
+  # 工时单价(元/小时), 用于最终费用估算
+  labor_hour_rate: 120.0
+
+# ------------------------------------------------------------------------------
+# 理赔系统 GUI 坐标配置 (PyAutoGUI 屏幕坐标)
+# 注意: 不同分辨率/部署环境需重新校准, 此处为 1920x1080 示例
+# ------------------------------------------------------------------------------
+claims_system:
+  # 理赔系统可执行文件路径 (用于启动 C/S 客户端)
+  executable_path: "C:/Program Files/ClaimsSystem/claims.exe"
+  # 启动后等待窗口就绪时间(秒)
+  startup_wait: 8
+  # 登录界面坐标
+  login:
+    username_x: 960
+    username_y: 420
+    password_x: 960
+    password_y: 480
+    submit_x: 960
+    submit_y: 560
+    username: "rpa_account"
+    password: "ENC:replace_with_encrypted_password"
+  # 主界面 - 案件查询
+  case_search:
+    menu_x: 120
+    menu_y: 60
+    case_no_input_x: 600
+    case_no_input_y: 200
+    search_button_x: 850
+    search_button_y: 200
+    result_first_row_x: 600
+    result_first_row_y: 320
+  # 定损信息录入界面 - 15 个字段坐标
+  # 字段顺序与录入顺序一致
+  entry_fields:
+    - {name: "case_no",          x: 600, y: 180, type: "text"}
+    - {name: "license_plate",    x: 600, y: 220, type: "text"}
+    - {name: "vehicle_model",    x: 600, y: 260, type: "text"}
+    - {name: "damage_part",      x: 600, y: 300, type: "select"}
+    - {name: "damage_type",      x: 600, y: 340, type: "select"}
+    - {name: "damage_severity",  x: 600, y: 380, type: "select"}
+    - {name: "damage_area_ratio",x: 600, y: 420, type: "text"}
+    - {name: "labor_hours",      x: 600, y: 460, type: "text"}
+    - {name: "parts_cost",       x: 600, y: 500, type: "text"}
+    - {name: "labor_cost",       x: 600, y: 540, type: "text"}
+    - {name: "total_cost",       x: 600, y: 580, type: "text"}
+    - {name: "repair_shop",      x: 600, y: 620, type: "text"}
+    - {name: "accident_date",    x: 600, y: 660, type: "text"}
+    - {name: "accident_location",x: 600, y: 700, type: "text"}
+    - {name: "remark",           x: 600, y: 740, type: "text"}
+  # 照片上传
+  photo_upload:
+    upload_button_x: 1100
+    upload_button_y: 780
+    file_dialog_path_x: 600
+    file_dialog_path_y: 400
+    file_dialog_confirm_x: 850
+    file_dialog_confirm_y: 560
+  # 提交审核
+  submit:
+    submit_button_x: 1200
+    submit_button_y: 1020
+  # 异常弹窗识别 (弹窗标题文本 -> 对应按钮坐标)
+  popup_handlers:
+    - {text: "确认",       button_x: 960, button_y: 560, action: "click_ok"}
+    - {text: "确定",       button_x: 960, button_y: 560, action: "click_ok"}
+    - {text: "重试",       button_x: 860, button_y: 560, action: "click_retry"}
+    - {text: "登录超时",   button_x: 960, button_y: 560, action: "restart_login"}
+    - {text: "校验失败",   button_x: 960, button_y: 560, action: "abort_case"}
+  # 字段校验失败时的重试次数
+  entry_retry_limit: 2
+
+# ------------------------------------------------------------------------------
+# 案件状态追踪配置
+# ------------------------------------------------------------------------------
+case_tracking:
+  # 轮询间隔(秒)
+  poll_interval: 60
+  # 单案件状态查询最大重试次数
+  poll_max_retry: 5
+  # 审核结果识别文本
+  status_keywords:
+    approved: ["审核通过", "已通过", "通过"]
+    rejected: ["驳回", "审核驳回", "不予受理"]
+    supplement: ["补充材料", "需补充", "材料不足"]
+  # 驳回案件处理: 转入人工队列
+  rejected_to_manual: true
+
+# ------------------------------------------------------------------------------
+# 夜间无人值守模式配置
+# ------------------------------------------------------------------------------
+night_mode:
+  enabled: true
+  # 处理时段 (24小时制)
+  start_time: "20:00"
+  end_time: "08:00"
+  # 夜间监控轮询间隔(秒)
+  poll_interval: 30
+  # 处理完成后发送邮件通知值班人员
+  notify_on_complete: true
+
+# ------------------------------------------------------------------------------
+# 日志配置
+# ------------------------------------------------------------------------------
+logging:
+  # 日志级别: DEBUG / INFO / WARNING / ERROR
+  level: "INFO"
+  # 日志目录
+  log_dir: "./logs"
+  # 日志文件保留天数, 性能约束: 90 天
+  retention_days: 90
+  # 单日日志文件大小上限(MB), 性能约束: 100MB
+  max_daily_size_mb: 100
+  # 轮转方式: daily(按天) + size(按大小)
+  rotation: "daily"
+  # 日志格式
+  format: "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+  date_format: "%Y-%m-%d %H:%M:%S"
+
+# ------------------------------------------------------------------------------
+# 邮件告警通知配置
+# ------------------------------------------------------------------------------
+email_alert:
+  enabled: true
+  smtp_host: "smtp.company.com"
+  smtp_port: 465
+  smtp_ssl: true
+  smtp_user: "rpa_alert@company.com"
+  smtp_password: "ENC:replace_with_encrypted_smtp_password"
+  from_addr: "rpa_alert@company.com"
+  # 告警接收人 (值班人员)
+  to_addrs:
+    - "duty_manager@company.com"
+    - "claims_admin@company.com"
+  # 触发告警的最低日志级别
+  alert_level: "ERROR"
+  # 告警邮件主题前缀
+  subject_prefix: "[车险理赔RPA告警]"
+
+# ------------------------------------------------------------------------------
+# 异常处理与重试配置
+# ------------------------------------------------------------------------------
+exception_handling:
+  # 通用重试次数
+  default_retry: 3
+  # 重试退避基数(秒)
+  retry_backoff_base: 2
+  # 各场景独立配置
+  scenarios:
+    image_read_failure:
+      retry: 2
+      backoff: 3
+      action: "skip_image"
+    system_login_timeout:
+      retry: 3
+      backoff: 5
+      action: "restart_login"
+    popup_recognition_failure:
+      retry: 2
+      backoff: 2
+      action: "safe_dismiss"
+    field_validation_failure:
+      retry: 2
+      backoff: 1
+      action: "reenter_field"
+    gui_element_not_found:
+      retry: 3
+      backoff: 2
+      action: "refresh_page"
+  # 失败案件自动标记并转入人工队列
+  failure_to_manual: true

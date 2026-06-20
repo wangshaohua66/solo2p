@@ -1,0 +1,20 @@
+{
+  "case_no": "SMOKE_TEST",
+  "status": "success",
+  "image_analysis_ok": true,
+  "classification_ok": true,
+  "entry_ok": true,
+  "damage_count": 1,
+  "total_cost": 4420.0,
+  "total_labor_hours": 16.0,
+  "durations": {
+    "image_analysis": 0.42,
+    "classification": 0.0,
+    "system_entry": 13.24,
+    "total": 13.67
+  },
+  "error": "",
+  "result_path": "./data/output/SMOKE_TEST/case_result.json",
+  "submitted_at": "2026-06-20 12:56:52",
+  "audit_status": ""
+}
