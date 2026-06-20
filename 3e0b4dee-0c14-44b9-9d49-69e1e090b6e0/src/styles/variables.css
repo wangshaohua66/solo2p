@@ -1,0 +1,26 @@
+:root {
+  --color-bg-canvas: #1a1d24;
+  --color-bg-panel: #23272f;
+  --color-bg-panel-hover: #2a2f39;
+  --color-bg-input: #2e333d;
+  --color-border: #2e333d;
+  --color-border-active: #3a404c;
+  --color-text-primary: #ff6b35;
+  --color-text-secondary: #00d4ff;
+  --color-text-success: #52c41a;
+  --color-text-warning: #faad14;
+  --color-text-error: #ff4d4f;
+  --color-text-main: #e8eaed;
+  --color-text-muted: #8a8f99;
+  --font-pattern-checker-a: #1a1d24;
+  --color-pattern-checker-b: #23272f;
+  --shadow-glow-orange: rgba(255, 107, 53, 0.45);
+  --shadow-glow-cyan: rgba(0, 212, 255, 0.35);
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-pixel: 'Press Start 2P', cursive;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --shadow-inset: inset 0 2px 4px rgba(0,0,0,0.3);
+  --transition-fast: 120ms ease-out;
+  --transition-base: 200ms ease-out;
+}

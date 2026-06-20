@@ -1,0 +1,57 @@
+.checkerboard {
+  background-image:
+    linear-gradient(45deg, var(--color-pattern-checker-b) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--color-pattern-checker-b) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--color-pattern-checker-b) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--color-pattern-checker-b) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+  background-color: var(--color-pattern-checker-a);
+}
+.panel {
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+.panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; border-bottom: 1px solid var(--color-border);
+  font-weight: 600; font-size: 13px; color: var(--color-text-primary);
+  letter-spacing: 0.5px;
+}
+.btn-primary {
+  background: linear-gradient(180deg, #ff8050 0%, var(--color-text-primary) 100%);
+  border-color: var(--color-text-primary);
+  color: #fff; font-weight: 600;
+}
+.btn-primary:hover { box-shadow: 0 0 12px var(--shadow-glow-orange); }
+.btn-secondary { border-color: var(--color-text-secondary); color: var(--color-text-secondary); }
+.btn-secondary:hover { box-shadow: 0 0 10px var(--shadow-glow-cyan); }
+.badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 6px;
+  border-radius: 9px; font-size: 10px; font-weight: 600;
+  background: var(--color-text-primary); color: #fff;
+}
+.card-hover {
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 0 16px var(--shadow-glow-orange);
+}
+.section-group { margin-bottom: 16px; }
+.section-group-title {
+  font-size: 11px; font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 8px; padding: 0 4px;
+}
+.form-row {
+  display: flex; align-items: center; margin-bottom: 10px; gap: 10px;
+}
+.form-row > label {
+  flex: 0 0 80px; text-align: right;
+  font-size: 12px; color: var(--color-text-muted);
+}
+.form-row > input, .form-row > select { flex: 1; }
