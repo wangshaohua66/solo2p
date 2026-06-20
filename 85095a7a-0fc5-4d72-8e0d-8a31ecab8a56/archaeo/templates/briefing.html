@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>发掘简报 - {{ project.name }}</title>
+    <style>
+        body {
+            font-family: "Microsoft YaHei", "SimSun", serif;
+            margin: 40px;
+            line-height: 1.8;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            font-size: 24px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+        h2 {
+            font-size: 18px;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            color: #2c3e50;
+            border-left: 4px solid #3498db;
+            padding-left: 10px;
+        }
+        h3 {
+            font-size: 16px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            color: #34495e;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #fafafa;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .info-item {
+            display: flex;
+        }
+        .info-label {
+            font-weight: bold;
+            min-width: 100px;
+            color: #666;
+        }
+        .info-value {
+            flex: 1;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: white;
+        }
+        .status-not_started { background-color: #95a5a6; }
+        .status-in_progress { background-color: #3498db; }
+        .status-completed { background-color: #27ae60; }
+        .status-suspended { background-color: #e74c3c; }
+        .phase-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            background-color: #9b59b6;
+            color: white;
+        }
+        .checklist {
+            list-style: none;
+            padding: 0;
+        }
+        .checklist li {
+            padding: 5px 0;
+        }
+        .checklist .done {
+            color: #27ae60;
+        }
+        .checklist .pending {
+            color: #e67e22;
+        }
+        .deviation-warning {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .footer {
+            margin-top: 50px;
+            text-align: right;
+            color: #999;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>考古发掘简报</h1>
+
+    <h2>一、项目概况</h2>
+    <div class="info-grid">
+        <div class="info-item">
+            <span class="info-label">项目名称：</span>
+            <span class="info-value">{{ project.name }}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">项目编号：</span>
+            <span class="info-value">{{ project.code }}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">遗址名称：</span>
+            <span class="info-value">{{ project.site_name }}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">遗址代号：</span>
+            <span class="info-value">{{ project.site_code }}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">项目负责人：</span>
+            <span class="info-value">{{ project.leader }}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">当前阶段：</span>
+            <span class="info-value">
+                <span class="phase-badge">{{ project.phase|phase_name }}</span>
+            </span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">项目状态：</span>
+            <span class="info-value">
+                <span class="status-badge status-{{ project.status.value }}">{{ project.status|status_name }}</span>
+            </span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">发掘面积：</span>
+            <span class="info-value">{{ project.area|format_number }} 平方米</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">开始日期：</span>
+            <span class="info-value">{{ project.start_date|format_date }}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">结束日期：</span>
+            <span class="info-value">{{ project.end_date|format_date }}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">项目预算：</span>
+            <span class="info-value">¥ {{ project.budget|format_number }}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">经费执行率：</span>
+            <span class="info-value">{{ budget_summary.execution_rate|format_number }}%</span>
+        </div>
+    </div>
+
+    {% if project.description %}
+    <h3>项目简介</h3>
+    <p>{{ project.description }}</p>
+    {% endif %}
+
+    <h2>二、阶段校验清单</h2>
+    <ul class="checklist">
+        {% set checklist = project.get_checklist_status() %}
+        {% for item, done in checklist.items() %}
+        <li class="{{ 'done' if done else 'pending' }}">
+            {% if done %}✅{% else %}⬜{% endif %} {{ item }}
+        </li>
+        {% endfor %}
+    </ul>
+
+    <h2>三、探方概况</h2>
+    <p>本项目共布设探方 {{ trench_count }} 个。</p>
+
+    {% if trenches %}
+    <table>
+        <thead>
+            <tr>
+                <th>探方号</th>
+                <th>网格位置</th>
+                <th>尺寸(长×宽)</th>
+                <th>深度</th>
+                <th>状态</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for trench in trenches[:20] %}
+            <tr>
+                <td>{{ trench.code }}</td>
+                <td>{{ trench.grid_row }}行 × {{ trench.grid_col }}列</td>
+                <td>{{ trench.length }}m × {{ trench.width }}m</td>
+                <td>{{ trench.depth }}m</td>
+                <td>{{ trench.status|status_name }}</td>
+            </tr>
+            {% endfor %}
+            {% if trenches|length > 20 %}
+            <tr>
+                <td colspan="5" style="text-align: center; color: #999;">
+                    ... 共 {{ trenches|length }} 个探方，仅显示前20个
+                </td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    <h2>四、出土遗物统计</h2>
+    <p>本项目共出土遗物 {{ artifact_count }} 件/组。</p>
+
+    {% if artifact_stats %}
+    <table>
+        <thead>
+            <tr>
+                <th>遗物类别</th>
+                <th>数量</th>
+                <th>占比</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cat, count in artifact_stats.items() %}
+            <tr>
+                <td>{{ cat|category_name }}</td>
+                <td>{{ count }}</td>
+                <td>{{ (count / artifact_count * 100)|round(1) if artifact_count > 0 else 0 }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    {% if artifacts %}
+    <h3>代表性遗物</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>遗物编号</th>
+                <th>名称</th>
+                <th>类别</th>
+                <th>层位</th>
+                <th>数量</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for artifact in artifacts[:10] %}
+            <tr>
+                <td>{{ artifact.code }}</td>
+                <td>{{ artifact.name or '—' }}</td>
+                <td>{{ artifact.category|category_name }}</td>
+                <td>{{ artifact.layer or '—' }}</td>
+                <td>{{ artifact.quantity }}</td>
+            </tr>
+            {% endfor %}
+            {% if artifacts|length > 10 %}
+            <tr>
+                <td colspan="5" style="text-align: center; color: #999;">
+                    ... 共 {{ artifacts|length }} 件遗物，仅显示前10件
+                </td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    <h2>五、采样标本统计</h2>
+    <p>本项目共采集标本 {{ sample_count }} 件。</p>
+
+    {% if sample_stats %}
+    <table>
+        <thead>
+            <tr>
+                <th>标本类型</th>
+                <th>数量</th>
+                <th>占比</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for st, count in sample_stats.items() %}
+            <tr>
+                <td>{{ st|sample_type_name }}</td>
+                <td>{{ count }}</td>
+                <td>{{ (count / sample_count * 100)|round(1) if sample_count > 0 else 0 }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    {% if sample_status_stats %}
+    <h3>送检状态</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>状态</th>
+                <th>数量</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for status, count in sample_status_stats.items() %}
+            <tr>
+                <td>{{ status|sample_status_name }}</td>
+                <td>{{ count }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    <h2>六、人员配置</h2>
+    <p>本项目配置人员 {{ personnel|length }} 人。</p>
+
+    {% if personnel %}
+    <table>
+        <thead>
+            <tr>
+                <th>姓名</th>
+                <th>角色</th>
+                <th>技能</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for person in personnel %}
+            <tr>
+                <td>{{ person.name }}</td>
+                <td>{{ person.role|role_name }}</td>
+                <td>{{ person.skills|join('、') if person.skills else '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    <h2>七、经费执行情况</h2>
+    <p>项目预算：¥ {{ budget_summary.total_budgeted|format_number }}</p>
+    <p>实际支出：¥ {{ budget_summary.total_actual|format_number }}</p>
+    <p>执行率：{{ budget_summary.execution_rate|format_number }}%</p>
+
+    {% if budget_items %}
+    <table>
+        <thead>
+            <tr>
+                <th>预算科目</th>
+                <th>预算金额</th>
+                <th>实际支出</th>
+                <th>执行率</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in budget_items %}
+            <tr>
+                <td>{{ item.category }}</td>
+                <td>¥ {{ item.budgeted|format_number }}</td>
+                <td>¥ {{ item.actual|format_number }}</td>
+                <td class="{{ 'deviation-warning' if item.has_deviation else '' }}">
+                    {{ item.execution_rate|format_number }}%
+                    {% if item.has_deviation %} ⚠️{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    <div class="footer">
+        <p>生成时间：{{ generated_at|format_datetime }}</p>
+        <p>考古发掘项目管理系统</p>
+    </div>
+</body>
+</html>
