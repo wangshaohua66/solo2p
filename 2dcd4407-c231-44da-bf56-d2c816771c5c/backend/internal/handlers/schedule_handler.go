@@ -7,13 +7,14 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 	"exhibition-center/internal/middleware"
 	"exhibition-center/internal/models"
 	"exhibition-center/internal/repositories"
 )
 
 type AuthHandler struct {
-	db *models.DB
+	db *gorm.DB
 }
 
 type PageResponse struct {

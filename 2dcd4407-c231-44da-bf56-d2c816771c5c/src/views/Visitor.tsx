@@ -185,9 +185,36 @@ const VisitorPage: React.FC = () => {
     setSearchKeyword(value);
   };
 
+  const recordBoothVisit = async (booth: Booth) => {
+    try {
+      await api.visitors.recordBoothVisit(currentVisitorId, {
+        boothId: booth.id,
+        boothNo: booth.boothNo,
+        zone: booth.zone,
+        enterTime: new Date().toISOString(),
+      });
+      const updatedRecord = await api.visitors.getById(currentVisitorId) as VisitorRecord;
+      if (updatedRecord.boothVisits && updatedRecord.boothVisits.length > 0) {
+        setBoothVisits(updatedRecord.boothVisits.map(bv => ({
+          boothId: bv.boothId,
+          boothNo: bv.boothNo,
+          zone: bv.zone,
+          enterTime: bv.enterTime,
+          leaveTime: bv.leaveTime,
+          durationSec: bv.durationSec,
+        })));
+        setVisitorRecord(updatedRecord);
+      }
+      message.success(`已记录访问展位 ${booth.boothNo}`);
+    } catch (err) {
+      console.warn('记录展位访问轨迹失败:', err);
+    }
+  };
+
   const handleBoothClick = (booth: Booth) => {
     setSelectedBooth(booth);
     setBoothModalVisible(true);
+    recordBoothVisit(booth);
   };
 
   const handleMakeAppointment = (booth: Booth) => {
