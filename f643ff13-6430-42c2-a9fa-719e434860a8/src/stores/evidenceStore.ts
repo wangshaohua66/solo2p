@@ -239,8 +239,11 @@ export const useEvidenceStore = defineStore('evidence', () => {
     }
   )
 
+  const evidenceItems = computed(() => evidenceList.value)
+
   return {
     evidenceList,
+    evidenceItems,
     selectedEvidenceId,
     isLoading,
     uploadProgress,

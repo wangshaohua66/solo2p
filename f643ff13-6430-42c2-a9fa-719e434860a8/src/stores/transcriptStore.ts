@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
-import type { TranscriptEntry, Role, QuickPhrase, SearchResult, AppSettings, CourtCase, Annotation } from '@/types'
+import type { TranscriptEntry, Role, QuickPhrase, SearchResult, AppSettings, CourtCase, Annotation, CollaborationAction } from '@/types'
 import { storage, generateId, debounce } from '@/utils/storage'
 
 const STORAGE_KEYS = {
@@ -73,6 +73,13 @@ export const useTranscriptStore = defineStore('transcript', () => {
   const isPlaybackMode = ref(false)
   const playbackSpeed = ref(1)
   const playbackInterval = ref<number | null>(null)
+  const playbackAnnotationIds = ref<Set<string>>(new Set())
+  const collaborationUserId = ref<string>('')
+  const collaborationActions = ref<CollaborationAction[]>([])
+  const isCollaborating = ref(false)
+
+  let collaborationChannel: BroadcastChannel | null = null
+  let collaborationHandler: ((action: CollaborationAction) => void) | null = null
 
   const currentCase = computed(() => {
     return cases.value.find(c => c.id === settings.value.currentCaseId) || cases.value[0]
@@ -208,14 +215,18 @@ export const useTranscriptStore = defineStore('transcript', () => {
     }
   }
 
-  const addAnnotation = (annotation: Omit<Annotation, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const addAnnotation = (annotation: Omit<Annotation, 'id' | 'createdAt' | 'updatedAt'> & Partial<Pick<Annotation, 'id' | 'createdAt'>>, isRemote = false) => {
     const now = Date.now()
     const newAnnotation: Annotation = {
       ...annotation,
-      id: generateId(),
-      createdAt: now,
+      id: annotation.id || generateId(),
+      createdAt: annotation.createdAt || now,
       updatedAt: now
     }
+
+    const exists = annotations.value.find(a => a.id === newAnnotation.id)
+    if (exists) return exists
+
     annotations.value.push(newAnnotation)
 
     const transcript = getTranscriptById(annotation.transcriptId)
@@ -223,6 +234,10 @@ export const useTranscriptStore = defineStore('transcript', () => {
       updateTranscript(annotation.transcriptId, {
         annotationIds: [...transcript.annotationIds, newAnnotation.id]
       })
+    }
+
+    if (!isRemote && isCollaborating.value) {
+      broadcastCollaborationAction('add-annotation', newAnnotation)
     }
 
     debouncedSave()
@@ -386,22 +401,6 @@ export const useTranscriptStore = defineStore('transcript', () => {
     debouncedSave()
   }
 
-  const startPlayback = (onTick?: (time: number) => void) => {
-    if (playbackInterval.value) {
-      clearInterval(playbackInterval.value)
-    }
-    isPlaybackMode.value = true
-    playbackInterval.value = window.setInterval(() => {
-      const newTime = currentTime.value + 1000 * playbackSpeed.value
-      if (newTime >= totalDuration.value) {
-        stopPlayback()
-      } else {
-        setCurrentTime(newTime)
-        onTick?.(newTime)
-      }
-    }, 1000)
-  }
-
   const stopPlayback = () => {
     if (playbackInterval.value) {
       clearInterval(playbackInterval.value)
@@ -416,6 +415,171 @@ export const useTranscriptStore = defineStore('transcript', () => {
       stopPlayback()
       startPlayback()
     }
+  }
+
+  const getTimelineEvents = () => {
+    const events: Array<{
+      timestamp: number
+      type: 'transcript' | 'evidence' | 'annotation'
+      data: any
+    }> = []
+
+    transcripts.value.forEach(t => {
+      if (!t.isDeleted) {
+        events.push({
+          timestamp: t.timestamp,
+          type: 'transcript',
+          data: t
+        })
+      }
+    })
+
+    annotations.value.forEach(a => {
+      events.push({
+        timestamp: a.timestamp,
+        type: 'annotation',
+        data: a
+      })
+    })
+
+    return events.sort((a, b) => a.timestamp - b.timestamp)
+  }
+
+  const playbackEventIndex = ref(0)
+  const playbackOnAnnotationAdd = ref<((annotation: Annotation) => void) | null>(null)
+  const playbackOnEvidenceSelect = ref<((evidenceId: string) => void) | null>(null)
+  const playbackOnTranscriptAdd = ref<((transcript: TranscriptEntry) => void) | null>(null)
+
+  const onPlaybackAnnotationAdd = (cb: (annotation: Annotation) => void) => {
+    playbackOnAnnotationAdd.value = cb
+  }
+
+  const onPlaybackEvidenceSelect = (cb: (evidenceId: string) => void) => {
+    playbackOnEvidenceSelect.value = cb
+  }
+
+  const onPlaybackTranscriptAdd = (cb: (transcript: TranscriptEntry) => void) => {
+    playbackOnTranscriptAdd.value = cb
+  }
+
+  const startPlayback = (onTick?: (time: number) => void) => {
+    if (playbackInterval.value) {
+      clearInterval(playbackInterval.value)
+    }
+    isPlaybackMode.value = true
+    playbackAnnotationIds.value.clear()
+    playbackEventIndex.value = 0
+    const timelineEvents = getTimelineEvents()
+
+    playbackInterval.value = window.setInterval(() => {
+      const newTime = currentTime.value + 1000 * playbackSpeed.value
+
+      while (
+        playbackEventIndex.value < timelineEvents.length &&
+        timelineEvents[playbackEventIndex.value].timestamp <= newTime
+      ) {
+        const event = timelineEvents[playbackEventIndex.value]
+
+        if (event.type === 'transcript') {
+          const transcript = event.data as TranscriptEntry
+          selectedTranscriptId.value = transcript.id
+          playbackOnTranscriptAdd.value?.(transcript)
+
+          if (transcript.evidenceIds.length > 0) {
+            playbackOnEvidenceSelect.value?.(transcript.evidenceIds[transcript.evidenceIds.length - 1])
+          }
+        } else if (event.type === 'annotation') {
+          const annotation = event.data as Annotation
+          if (!playbackAnnotationIds.value.has(annotation.id)) {
+            playbackAnnotationIds.value.add(annotation.id)
+            playbackOnAnnotationAdd.value?.(annotation)
+          }
+        }
+
+        playbackEventIndex.value++
+      }
+
+      if (newTime >= totalDuration.value) {
+        stopPlayback()
+      } else {
+        setCurrentTime(newTime)
+        onTick?.(newTime)
+      }
+    }, 1000)
+  }
+
+  const initCollaboration = () => {
+    if (isCollaborating.value) return
+
+    if (typeof BroadcastChannel === 'undefined') {
+      console.warn('BroadcastChannel not supported, collaboration disabled')
+      return
+    }
+
+    try {
+      collaborationUserId.value = generateId()
+      collaborationChannel = new BroadcastChannel(`court-trial-${settings.value.currentCaseId}`)
+      isCollaborating.value = true
+
+      collaborationHandler = (action: CollaborationAction) => {
+        if (action.caseId !== settings.value.currentCaseId) return
+        collaborationActions.value.push(action)
+
+        switch (action.type) {
+          case 'add-annotation':
+            addAnnotation(action.payload, true)
+            break
+          case 'update-annotation':
+            updateAnnotation(action.payload.id, action.payload.updates)
+            break
+          case 'delete-annotation':
+            deleteAnnotation(action.payload)
+            break
+          case 'add-transcript':
+            addTranscript(action.payload.content, action.payload.role, action.payload.speaker)
+            break
+          case 'update-transcript':
+            updateTranscript(action.payload.id, action.payload.updates)
+            break
+        }
+      }
+
+      collaborationChannel.onmessage = (event: MessageEvent<CollaborationAction>) => {
+        const action = event.data
+        if (action.userId !== collaborationUserId.value && collaborationHandler) {
+          collaborationHandler(action)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to init collaboration:', error)
+      isCollaborating.value = false
+    }
+  }
+
+  const broadcastCollaborationAction = (type: CollaborationAction['type'], payload: any) => {
+    if (!collaborationChannel || !isCollaborating.value) return
+
+    const action: CollaborationAction = {
+      type,
+      payload,
+      userId: collaborationUserId.value,
+      timestamp: Date.now(),
+      caseId: settings.value.currentCaseId
+    }
+
+    try {
+      collaborationChannel.postMessage(action)
+    } catch (error) {
+      console.error('Failed to broadcast collaboration action:', error)
+    }
+  }
+
+  const disconnectCollaboration = () => {
+    if (collaborationChannel) {
+      collaborationChannel.close()
+      collaborationChannel = null
+    }
+    isCollaborating.value = false
   }
 
   watch(
@@ -443,6 +607,10 @@ export const useTranscriptStore = defineStore('transcript', () => {
     lastSavedAt,
     isPlaybackMode,
     playbackSpeed,
+    playbackAnnotationIds,
+    collaborationUserId,
+    collaborationActions,
+    isCollaborating,
     currentCase,
     totalDuration,
     activeTranscripts,
@@ -471,6 +639,13 @@ export const useTranscriptStore = defineStore('transcript', () => {
     updateSettings,
     startPlayback,
     stopPlayback,
-    setPlaybackSpeed
+    setPlaybackSpeed,
+    getTimelineEvents,
+    onPlaybackAnnotationAdd,
+    onPlaybackEvidenceSelect,
+    onPlaybackTranscriptAdd,
+    initCollaboration,
+    disconnectCollaboration,
+    broadcastCollaborationAction
   }
 })

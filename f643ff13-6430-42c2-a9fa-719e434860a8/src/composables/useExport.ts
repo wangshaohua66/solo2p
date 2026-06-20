@@ -300,7 +300,25 @@ export function useExport() {
     }
   }
 
-  const exportToZip = async () => {
+  const captureElementScreenshot = async (element: HTMLElement): Promise<Blob | null> => {
+    try {
+      const canvas = await html2canvas(element, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false
+      })
+      return await new Promise<Blob>((resolve) => {
+        canvas.toBlob((b) => resolve(b!), 'image/png', 1.0)
+      })
+    } catch (error) {
+      console.warn('Failed to capture screenshot:', error)
+      return null
+    }
+  }
+
+  const exportToZip = async (previewElement?: HTMLElement | null) => {
     isExporting.value = true
     exportProgress.value = 0
     exportError.value = null
@@ -317,18 +335,26 @@ export function useExport() {
       const pdfBlob = transcriptDoc.output('blob')
       zip.file('庭审笔录.pdf', pdfBlob)
 
-      exportProgress.value = 30
+      exportProgress.value = 25
 
       const evidenceFolder = zip.folder('证据材料')
+      const screenshotsFolder = zip.folder('证据截图')
       const totalEvidence = evidenceStore.evidenceItems.length
 
       for (let i = 0; i < totalEvidence; i++) {
         const evidence = evidenceStore.evidenceItems[i]
-        if (evidence.dataUrl) {
-          const blob = dataUrlToBlob(evidence.dataUrl)
+        if (evidence.dataUrl || evidence.blobUrl) {
+          const blob = evidence.dataUrl ? dataUrlToBlob(evidence.dataUrl) : await fetch(evidence.blobUrl!).then(r => r.blob())
           evidenceFolder?.file(`${i + 1}_${evidence.name}`, blob)
+
+          if (i === 0 && previewElement && ['image', 'pdf'].includes(evidence.type)) {
+            const screenshot = await captureElementScreenshot(previewElement)
+            if (screenshot) {
+              screenshotsFolder?.file(`${i + 1}_${evidence.name.split('.')[0]}_截图.png`, screenshot)
+            }
+          }
         }
-        exportProgress.value = 30 + Math.floor(((i + 1) / totalEvidence) * 40)
+        exportProgress.value = 25 + Math.floor(((i + 1) / Math.max(totalEvidence, 1)) * 45)
       }
 
       exportProgress.value = 80
@@ -336,6 +362,11 @@ export function useExport() {
       const annotationsJson = JSON.stringify({
         caseInfo: transcriptStore.currentCase,
         annotations: transcriptStore.annotations,
+        evidenceAnnotations: evidenceStore.evidenceItems.map(e => ({
+          evidenceId: e.id,
+          evidenceName: e.name,
+          annotations: e.annotations
+        })),
         exportedAt: Date.now()
       }, null, 2)
       zip.file('标注信息.json', annotationsJson)
@@ -350,7 +381,8 @@ export function useExport() {
 1. 庭审笔录.txt - 完整庭审笔录
 2. 庭审笔录.pdf - PDF格式笔录
 3. 标注信息.json - 结构化标注数据
-4. 证据材料/ - 证据文件目录（共${totalEvidence}份）
+4. 证据材料/ - 证据原始文件目录（共${totalEvidence}份）
+5. 证据截图/ - 证据预览截图
 
 笔录条目：${transcriptStore.activeTranscripts.length}条
 标注数量：${transcriptStore.annotations.length}条

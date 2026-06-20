@@ -32,9 +32,26 @@ export interface EvidenceItem {
   updatedAt: number
 }
 
+export type EvidenceAnnotationType = 'highlight' | 'comment' | 'signature' | 'rect' | 'arrow' | 'text'
+
+export interface DrawAnnotation {
+  id: string
+  type: 'rect' | 'arrow' | 'text'
+  x: number
+  y: number
+  width?: number
+  height?: number
+  endX?: number
+  endY?: number
+  color: string
+  strokeWidth: number
+  content?: string
+  fontSize?: number
+}
+
 export interface EvidenceAnnotation {
   id: string
-  type: 'highlight' | 'comment' | 'signature'
+  type: EvidenceAnnotationType
   x: number
   y: number
   width: number
@@ -42,6 +59,19 @@ export interface EvidenceAnnotation {
   content: string
   createdBy: Role
   createdAt: number
+  color?: string
+  draw?: DrawAnnotation
+}
+
+export interface CollaborationAction {
+  type: 'add-annotation' | 'update-annotation' | 'delete-annotation'
+       | 'add-transcript' | 'update-transcript'
+       | 'add-evidence' | 'select-evidence'
+       | 'add-evidence-annotation' | 'update-evidence-annotation'
+  payload: any
+  userId: string
+  timestamp: number
+  caseId: string
 }
 
 export interface Annotation {
