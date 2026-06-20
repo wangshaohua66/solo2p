@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<unionpayBatch batchNo="UP-2024-01">
+  <trade>
+    <orderId>ORD-UP-001</orderId>
+    <queryId>UP-TXN-001</queryId>
+    <merId>M003</merId>
+    <txnAmt>25000</txnAmt>
+    <respCode>00</respCode>
+    <txnTime>20240115090005</txnTime>
+    <txnType>01</txnType>
+  </trade>
+  <trade>
+    <orderId>ORD-UP-002</orderId>
+    <queryId>UP-TXN-002</queryId>
+    <merId>M003</merId>
+    <txnAmt>18000</txnAmt>
+    <respCode>00</respCode>
+    <txnTime>20240115090105</txnTime>
+    <txnType>01</txnType>
+  </trade>
+  <trade>
+    <orderId>ORD-UP-002</orderId>
+    <queryId>UP-TXN-002V</queryId>
+    <merId>M003</merId>
+    <txnAmt>18000</txnAmt>
+    <respCode>00</respCode>
+    <txnTime>20240115090105</txnTime>
+    <txnType>04</txnType>
+  </trade>
+</unionpayBatch>

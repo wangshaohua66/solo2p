@@ -1,0 +1,42 @@
+{
+  "name": "pay-reconcile",
+  "version": "1.0.0",
+  "description": "第三方支付多通道对账 CLI 工具：支持微信/支付宝/银联流水导入、订单匹配、差异分析、报告与审计",
+  "type": "module",
+  "main": "src/core/reconciliationEngine.js",
+  "bin": {
+    "reconcile": "bin/reconcile.js"
+  },
+  "scripts": {
+    "start": "node bin/reconcile.js",
+    "reconcile": "node bin/reconcile.js",
+    "link:global": "npm link",
+    "completion": "node bin/reconcile.js completion bash",
+    "smoke": "node bin/reconcile.js import ./data/transactions --dry-run --verbose",
+    "lint": "echo 'lint placeholder'",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^11.1.0",
+    "csv-parse": "^5.5.0",
+    "fast-xml-parser": "^4.3.2",
+    "inquirer": "^9.2.0",
+    "moment": "^2.29.4",
+    "pdfkit": "^0.13.0",
+    "xlsx": "^0.18.5"
+  },
+  "keywords": [
+    "reconciliation",
+    "payment",
+    "wechat",
+    "alipay",
+    "unionpay",
+    "cli"
+  ],
+  "author": "Pay Reconcile Team",
+  "license": "MIT"
+}

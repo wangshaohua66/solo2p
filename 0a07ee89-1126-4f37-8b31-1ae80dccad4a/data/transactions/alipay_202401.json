@@ -1,0 +1,9 @@
+{
+  "batchNo": "ALI-2024-01",
+  "tradeList": [
+    { "out_trade_no": "ORD-ALI-001", "trade_no": "ALI-TXN-001", "partner": "M002", "total_amount": 120.00, "trade_status": "TRADE_SUCCESS", "gmt_payment": "2024-01-15 11:00:05", "trade_type": "PAYMENT" },
+    { "out_trade_no": "ORD-ALI-002", "trade_no": "ALI-TXN-002", "partner": "M002", "total_amount": 90.00, "trade_status": "TRADE_SUCCESS", "gmt_payment": "2024-01-15 11:01:05", "trade_type": "PAYMENT" },
+    { "out_trade_no": "ORD-ALI-003", "trade_no": "ALI-TXN-003", "partner": "M002", "total_amount": 60.00, "trade_status": "TRADE_SUCCESS", "gmt_payment": "2024-01-15 11:02:05", "trade_type": "PAYMENT" },
+    { "out_trade_no": "ORD-ALI-099", "trade_no": "ALI-TXN-099", "partner": "M002", "total_amount": 50.00, "trade_status": "TRADE_SUCCESS", "gmt_payment": "2024-01-15 11:10:00", "trade_type": "PAYMENT" }
+  ]
+}

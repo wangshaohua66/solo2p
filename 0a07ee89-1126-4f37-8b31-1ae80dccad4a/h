@@ -1,0 +1,53 @@
+{
+  "version": "1.0.0",
+  "merchants": [],
+  "channels": [
+    {
+      "id": "wechat",
+      "name": "微信支付",
+      "enabled": true,
+      "fileFormat": "csv",
+      "timezone": "Asia/Shanghai"
+    },
+    {
+      "id": "alipay",
+      "name": "支付宝",
+      "enabled": true,
+      "fileFormat": "json",
+      "timezone": "Asia/Shanghai"
+    },
+    {
+      "id": "unionpay",
+      "name": "银联",
+      "enabled": true,
+      "fileFormat": "xml",
+      "timezone": "Asia/Shanghai"
+    }
+  ],
+  "rules": {
+    "timeWindowDays": 1,
+    "fuzzy": true,
+    "fuzzyThreshold": 0.85,
+    "fuzzyAmountRatio": 0.1,
+    "amountTolerance": 0,
+    "amountThreshold": 1,
+    "timeThresholdMs": 86400000,
+    "refundWindowDays": 90,
+    "allowPartialRefund": true
+  },
+  "reportTemplates": [
+    {
+      "id": "default",
+      "name": "默认对账报告",
+      "sections": [
+        "summary",
+        "differences",
+        "suggestions"
+      ]
+    }
+  ],
+  "storage": {
+    "dataDir": "/Users/paul/WorkSpace/TestSoloCoder/0a07ee89-1126-4f37-8b31-1ae80dccad4a/data",
+    "outputDir": "/Users/paul/WorkSpace/TestSoloCoder/0a07ee89-1126-4f37-8b31-1ae80dccad4a/reports"
+  }
+}

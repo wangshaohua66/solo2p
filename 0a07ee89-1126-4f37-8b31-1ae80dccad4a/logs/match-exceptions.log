@@ -1,0 +1,7 @@
+{"stage":"match","diffCount":11,"unmatched":{"orders":4,"transactions":1},"at":"2026-06-20T02:56:19.519Z"}
+{"stage":"match","diffCount":8,"unmatched":{"orders":3,"transactions":1},"at":"2026-06-20T03:00:42.775Z"}
+{"stage":"match","diffCount":9,"unmatched":{"orders":4,"transactions":2},"at":"2026-06-20T03:02:06.799Z"}
+{"stage":"match","diffCount":7,"unmatched":{"orders":2,"transactions":2},"at":"2026-06-20T03:04:13.275Z"}
+{"stage":"import","errors":[{"row":4,"message":"CSV解析错误: Quote Not Closed: the parsing is finished with an opening quote at line 4","raw":null}],"source":"/tmp/bad.csv","at":"2026-06-20T03:15:35.504Z"}
+{"stage":"match","diffCount":7,"unmatched":{"orders":2,"transactions":2},"at":"2026-06-20T03:15:51.958Z"}
+{"stage":"match","diffCount":7,"unmatched":{"orders":2,"transactions":2},"at":"2026-06-20T03:18:48.766Z"}

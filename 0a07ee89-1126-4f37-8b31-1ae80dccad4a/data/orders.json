@@ -1,0 +1,14 @@
+[
+  { "orderId": "ORD-WX-001", "merchantId": "M001", "channel": "wechat", "amount": 10000, "type": "payment", "status": "success", "timestamp": "2024-01-15 10:30:00" },
+  { "orderId": "ORD-WX-002", "merchantId": "M001", "channel": "wechat", "amount": 20000, "type": "payment", "status": "success", "timestamp": "2024-01-15 10:31:00" },
+  { "orderId": "ORD-WX-003", "merchantId": "M001", "channel": "wechat", "amount": 5000, "type": "payment", "status": "success", "timestamp": "2024-01-15 10:32:00" },
+  { "orderId": "ORD-WX-004", "merchantId": "M001", "channel": "wechat", "amount": 30000, "type": "payment", "status": "success", "timestamp": "2024-01-15 10:33:00" },
+  { "orderId": "ORD-WX-005", "merchantId": "M001", "channel": "wechat", "amount": 8000, "type": "payment", "status": "success", "timestamp": "2024-01-15 10:34:00" },
+  { "orderId": "ORD-WX-006", "merchantId": "M001", "channel": "wechat", "amount": 15000, "type": "payment", "status": "success", "timestamp": "2024-01-15 10:35:00" },
+  { "orderId": "ORD-ALI-001", "merchantId": "M002", "channel": "alipay", "amount": 12000, "type": "payment", "status": "success", "timestamp": "2024-01-15 11:00:00" },
+  { "orderId": "ORD-ALI-002", "merchantId": "M002", "channel": "alipay", "amount": 9000, "type": "payment", "status": "success", "timestamp": "2024-01-15 11:01:00" },
+  { "orderId": "ORD-ALI-003", "merchantId": "M002", "channel": "alipay", "amount": 6000, "type": "payment", "status": "success", "timestamp": "2024-01-15 11:02:00" },
+  { "orderId": "ORD-UP-001", "merchantId": "M003", "channel": "unionpay", "amount": 25000, "type": "payment", "status": "success", "timestamp": "2024-01-15 09:00:00" },
+  { "orderId": "ORD-UP-002", "merchantId": "M003", "channel": "unionpay", "amount": 18000, "type": "payment", "status": "success", "timestamp": "2024-01-15 09:01:00" },
+  { "orderId": "ORD-UP-003", "merchantId": "M003", "channel": "unionpay", "amount": 7000, "type": "payment", "status": "success", "timestamp": "2024-01-15 09:02:00" }
+]

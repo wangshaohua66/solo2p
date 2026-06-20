@@ -1,0 +1,30 @@
+{
+  "version": "1.0.0",
+  "merchants": [
+    { "id": "M001", "name": "示例科技商户A", "channel": "wechat", "enabled": true },
+    { "id": "M002", "name": "示例零售商户B", "channel": "alipay", "enabled": true },
+    { "id": "M003", "name": "示例服务商户C", "channel": "unionpay", "enabled": true }
+  ],
+  "channels": [
+    { "id": "wechat", "name": "微信支付", "enabled": true, "fileFormat": "csv", "timezone": "Asia/Shanghai" },
+    { "id": "alipay", "name": "支付宝", "enabled": true, "fileFormat": "json", "timezone": "Asia/Shanghai" },
+    { "id": "unionpay", "name": "银联", "enabled": true, "fileFormat": "xml", "timezone": "Asia/Shanghai" }
+  ],
+  "rules": {
+    "timeWindowDays": 1,
+    "fuzzy": true,
+    "fuzzyThreshold": 0.85,
+    "amountTolerance": 0,
+    "amountThreshold": 1,
+    "timeThresholdMs": 86400000,
+    "refundWindowDays": 90,
+    "allowPartialRefund": true
+  },
+  "reportTemplates": [
+    { "id": "default", "name": "默认对账报告", "sections": ["summary", "differences", "suggestions"] }
+  ],
+  "storage": {
+    "dataDir": "./data",
+    "outputDir": "./reports"
+  }
+}
