@@ -1,0 +1,14 @@
+/Users/paul/WorkSpace/TestSoloCoder/8b2011ec-7f78-4c88-b237-c8a8e74ef4b5/target/debug/deps/serde-5115488149d4529c.d: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/serde-1.0.228/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/serde-1.0.228/src/integer128.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/serde-1.0.228/src/private/mod.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/serde-1.0.228/src/private/de.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/serde-1.0.228/src/private/ser.rs /Users/paul/WorkSpace/TestSoloCoder/8b2011ec-7f78-4c88-b237-c8a8e74ef4b5/target/debug/build/serde-258665a108843663/out/private.rs
+
+/Users/paul/WorkSpace/TestSoloCoder/8b2011ec-7f78-4c88-b237-c8a8e74ef4b5/target/debug/deps/libserde-5115488149d4529c.rlib: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/serde-1.0.228/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/serde-1.0.228/src/integer128.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/serde-1.0.228/src/private/mod.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/serde-1.0.228/src/private/de.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/serde-1.0.228/src/private/ser.rs /Users/paul/WorkSpace/TestSoloCoder/8b2011ec-7f78-4c88-b237-c8a8e74ef4b5/target/debug/build/serde-258665a108843663/out/private.rs
+
+/Users/paul/WorkSpace/TestSoloCoder/8b2011ec-7f78-4c88-b237-c8a8e74ef4b5/target/debug/deps/libserde-5115488149d4529c.rmeta: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/serde-1.0.228/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/serde-1.0.228/src/integer128.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/serde-1.0.228/src/private/mod.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/serde-1.0.228/src/private/de.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/serde-1.0.228/src/private/ser.rs /Users/paul/WorkSpace/TestSoloCoder/8b2011ec-7f78-4c88-b237-c8a8e74ef4b5/target/debug/build/serde-258665a108843663/out/private.rs
+
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/serde-1.0.228/src/lib.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/serde-1.0.228/src/integer128.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/serde-1.0.228/src/private/mod.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/serde-1.0.228/src/private/de.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/serde-1.0.228/src/private/ser.rs:
+/Users/paul/WorkSpace/TestSoloCoder/8b2011ec-7f78-4c88-b237-c8a8e74ef4b5/target/debug/build/serde-258665a108843663/out/private.rs:
+
+# env-dep:OUT_DIR=/Users/paul/WorkSpace/TestSoloCoder/8b2011ec-7f78-4c88-b237-c8a8e74ef4b5/target/debug/build/serde-258665a108843663/out

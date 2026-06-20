@@ -1,0 +1,12 @@
+/Users/paul/WorkSpace/TestSoloCoder/8b2011ec-7f78-4c88-b237-c8a8e74ef4b5/target/debug/deps/rand_core-48661df4b98608c6.d: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/rand_core-0.6.4/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/rand_core-0.6.4/src/block.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/rand_core-0.6.4/src/error.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/rand_core-0.6.4/src/impls.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/rand_core-0.6.4/src/le.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/rand_core-0.6.4/src/os.rs
+
+/Users/paul/WorkSpace/TestSoloCoder/8b2011ec-7f78-4c88-b237-c8a8e74ef4b5/target/debug/deps/librand_core-48661df4b98608c6.rlib: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/rand_core-0.6.4/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/rand_core-0.6.4/src/block.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/rand_core-0.6.4/src/error.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/rand_core-0.6.4/src/impls.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/rand_core-0.6.4/src/le.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/rand_core-0.6.4/src/os.rs
+
+/Users/paul/WorkSpace/TestSoloCoder/8b2011ec-7f78-4c88-b237-c8a8e74ef4b5/target/debug/deps/librand_core-48661df4b98608c6.rmeta: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/rand_core-0.6.4/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/rand_core-0.6.4/src/block.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/rand_core-0.6.4/src/error.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/rand_core-0.6.4/src/impls.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/rand_core-0.6.4/src/le.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/rand_core-0.6.4/src/os.rs
+
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/rand_core-0.6.4/src/lib.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/rand_core-0.6.4/src/block.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/rand_core-0.6.4/src/error.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/rand_core-0.6.4/src/impls.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/rand_core-0.6.4/src/le.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/rand_core-0.6.4/src/os.rs:

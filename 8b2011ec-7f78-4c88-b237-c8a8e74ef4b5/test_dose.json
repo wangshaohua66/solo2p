@@ -1,0 +1,16 @@
+[
+  {"employee_id": "E001", "employee_name": "张三", "department": "运行一部", "record_time": "2025-06-20 08:00:00", "cumulative_dose": 1250.5, "unit": "uSv"},
+  {"employee_id": "E001", "employee_name": "张三", "department": "运行一部", "record_time": "2025-06-20 09:00:00", "cumulative_dose": 1252.3, "unit": "uSv"},
+  {"employee_id": "E001", "employee_name": "张三", "department": "运行一部", "record_time": "2025-06-20 10:00:00", "cumulative_dose": 1255.8, "unit": "uSv"},
+  {"employee_id": "E001", "employee_name": "张三", "department": "运行一部", "record_time": "2025-06-20 11:00:00", "cumulative_dose": 1258.2, "unit": "uSv"},
+  {"employee_id": "E002", "employee_name": "李四", "department": "运行一部", "record_time": "2025-06-20 08:00:00", "cumulative_dose": 850.2, "unit": "uSv"},
+  {"employee_id": "E002", "employee_name": "李四", "department": "运行一部", "record_time": "2025-06-20 09:00:00", "cumulative_dose": 851.0, "unit": "uSv"},
+  {"employee_id": "E002", "employee_name": "李四", "department": "运行一部", "record_time": "2025-06-20 10:00:00", "cumulative_dose": 852.5, "unit": "uSv"},
+  {"employee_id": "E003", "employee_name": "王五", "department": "维修部", "record_time": "2025-06-20 08:00:00", "cumulative_dose": 2100.0, "unit": "uSv"},
+  {"employee_id": "E003", "employee_name": "王五", "department": "维修部", "record_time": "2025-06-20 09:00:00", "cumulative_dose": 2105.5, "unit": "uSv"},
+  {"employee_id": "E003", "employee_name": "王五", "department": "维修部", "record_time": "2025-06-20 10:00:00", "cumulative_dose": 2112.0, "unit": "uSv"},
+  {"employee_id": "E004", "employee_name": "赵六", "department": "维修部", "record_time": "2025-06-20 08:00:00", "cumulative_dose": 560.8, "unit": "uSv"},
+  {"employee_id": "E004", "employee_name": "赵六", "department": "维修部", "record_time": "2025-06-20 09:00:00", "cumulative_dose": 561.5, "unit": "uSv"},
+  {"employee_id": "E005", "employee_name": "钱七", "department": "辐射防护科", "record_time": "2025-06-20 08:00:00", "cumulative_dose": 320.0, "unit": "uSv"},
+  {"employee_id": "E005", "employee_name": "钱七", "department": "辐射防护科", "record_time": "2025-06-20 09:00:00", "cumulative_dose": 320.5, "unit": "uSv"}
+]
