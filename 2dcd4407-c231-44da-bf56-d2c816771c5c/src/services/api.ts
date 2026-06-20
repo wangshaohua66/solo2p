@@ -4,6 +4,8 @@ import { useUserStore } from '../stores/userStore';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
+export const MAX_UPLOAD_SIZE = 50 * 1024 * 1024;
+
 const axiosInstance: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
@@ -100,6 +102,15 @@ export const api = {
     });
   },
   upload: <T>(url: string, formData: FormData, config?: AxiosRequestConfig): Promise<T> => {
+    for (const [, value] of formData.entries()) {
+      if (value instanceof File) {
+        if (value.size > MAX_UPLOAD_SIZE) {
+          const errorMsg = `文件 ${value.name} 大小超过限制，最大允许上传 50MB`;
+          message.error(errorMsg);
+          return Promise.reject(new Error(errorMsg));
+        }
+      }
+    }
     return axiosInstance.post(url, formData, {
       ...config,
       headers: {
@@ -107,6 +118,14 @@ export const api = {
         'Content-Type': 'multipart/form-data',
       },
     });
+  },
+  visitors: {
+    getById: (id: string) => api.get(`/visitors/${id}`),
+    recordBoothVisit: (visitorId: string, data: { boothId: string; boothNo?: string; zone?: string; enterTime?: string; leaveTime?: string; durationSec?: number }) =>
+      api.post(`/visitors/${visitorId}/booth-visit`, data),
+  },
+  finance: {
+    exportToSystem: (recordIds: string[]) => api.post('/finance/export-to-system', { recordIds }),
   },
 };
 

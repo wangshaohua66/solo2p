@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Table, Card, Tag, Space, Button, Input, Select, DatePicker, Statistic, Row, Col, Modal, Form, InputNumber, message } from 'antd';
 import { SearchOutlined, DownloadOutlined, PlusOutlined, CheckOutlined, FundOutlined, ExportOutlined } from '@ant-design/icons';
 import type { ColumnsType, TableProps } from 'antd/es/table';
+import type { TableRowSelection } from 'antd/es/table/interface';
 import type { FinanceRecord, DepositRecord } from '../../types';
 import { formatCurrency } from '../../utils/exportUtils';
 import { formatDate } from '../../utils/dateUtils';
@@ -18,6 +19,8 @@ interface FinanceTableProps {
   onRefund?: (id: string, amount: number, reason: string) => void;
   onAdd?: (data: Partial<FinanceRecord>) => void;
   onExport?: () => void;
+  rowSelection?: TableRowSelection<FinanceRecord>;
+  showRowSelection?: boolean;
 }
 
 const typeLabels: Record<string, string> = {
@@ -63,12 +66,18 @@ const FinanceTable: React.FC<FinanceTableProps> = ({
   onRefund,
   onAdd,
   onExport,
+  rowSelection,
 }) => {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [refundModalOpen, setRefundModalOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [selectedDeposit, setSelectedDeposit] = useState<DepositRecord | null>(null);
   const [form] = Form.useForm();
+  
+  const finalRowSelection: TableRowSelection<FinanceRecord> | undefined = rowSelection ?? {
+    selectedRowKeys,
+    onChange: setSelectedRowKeys,
+  };
 
   const summary = records.reduce(
     (acc, record) => {
@@ -215,11 +224,6 @@ const FinanceTable: React.FC<FinanceTableProps> = ({
     },
   ];
 
-  const rowSelection: TableProps<FinanceRecord>['rowSelection'] = {
-    selectedRowKeys,
-    onChange: setSelectedRowKeys,
-  };
-
   const handleRefund = async () => {
     try {
       const values = await form.validateFields();
@@ -318,7 +322,7 @@ const FinanceTable: React.FC<FinanceTableProps> = ({
         columns={columns}
         dataSource={records}
         rowKey="id"
-        rowSelection={rowSelection}
+        rowSelection={finalRowSelection}
         expandable={{ expandedRowRender }}
         pagination={{
           total,

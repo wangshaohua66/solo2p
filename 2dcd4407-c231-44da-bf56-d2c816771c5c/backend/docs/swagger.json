@@ -1,0 +1,3433 @@
+{
+    "schemes": [
+        "http",
+        "https"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "会展中心智慧运营管理系统后端API接口文档，包含档期管理、合同管理、财务结算、展位管理、服务商管理、观众服务、数据分析、系统管理等模块。",
+        "title": "市级国际会展中心智慧运营管理系统 API",
+        "termsOfService": "http://swagger.io/terms/",
+        "contact": {
+            "name": "API Support",
+            "url": "http://www.example.com/support",
+            "email": "support@example.com"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        },
+        "version": "1.0.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api",
+    "paths": {
+        "/api/auth/login": {
+            "post": {
+                "description": "用户使用用户名和密码登录系统",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "认证"
+                ],
+                "summary": "用户登录",
+                "parameters": [
+                    {
+                        "description": "登录信息",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/handlers.LoginResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/logout": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "用户登出系统",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "认证"
+                ],
+                "summary": "用户登出",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取当前登录用户的详细信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "认证"
+                ],
+                "summary": "获取当前用户信息",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.User"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/booths": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取展位列表，支持按展厅、状态、区域筛选",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "展位管理"
+                ],
+                "summary": "获取展位列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "展厅ID",
+                        "name": "venueId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "状态",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "区域",
+                        "name": "zone",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.Booth"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "创建新展位",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "展位管理"
+                ],
+                "summary": "创建展位",
+                "parameters": [
+                    {
+                        "description": "展位信息",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Booth"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Booth"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/booths/batch": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "批量创建多个展位",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "展位管理"
+                ],
+                "summary": "批量创建展位",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/booths/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据ID获取展位详情",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "展位管理"
+                ],
+                "summary": "获取展位详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "展位ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Booth"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "更新展位信息，包括位置、大小、价格、状态等",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "展位管理"
+                ],
+                "summary": "更新展位",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "展位ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新字段",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Booth"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "删除展位",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "展位管理"
+                ],
+                "summary": "删除展位",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "展位ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/contracts": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "分页获取合同列表",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "合同管理"
+                ],
+                "summary": "获取合同列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "每页数量",
+                        "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "状态筛选",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "关键词搜索",
+                        "name": "keyword",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "创建新合同",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "合同管理"
+                ],
+                "summary": "创建合同",
+                "parameters": [
+                    {
+                        "description": "合同信息",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Contract"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Contract"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/contracts/templates": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取所有可用的合同模板",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "合同管理"
+                ],
+                "summary": "获取合同模板列表",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.ContractTemplate"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/contracts/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据ID获取合同详情",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "合同管理"
+                ],
+                "summary": "获取合同详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "合同ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Contract"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "更新合同信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "合同管理"
+                ],
+                "summary": "更新合同",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "合同ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新字段",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Contract"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "删除合同",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "合同管理"
+                ],
+                "summary": "删除合同",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "合同ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/contracts/{id}/approve": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "审批通过合同",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "合同管理"
+                ],
+                "summary": "审批通过合同",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "合同ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Contract"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/contracts/{id}/archive": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "归档合同",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "合同管理"
+                ],
+                "summary": "合同归档",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "合同ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Contract"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/contracts/{id}/reject": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "驳回合同审批",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "合同管理"
+                ],
+                "summary": "驳回合同",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "合同ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Contract"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/contracts/{id}/sign": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "电子签署合同",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "合同管理"
+                ],
+                "summary": "合同签署",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "合同ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Contract"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/contracts/{id}/submit-approval": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "提交合同审批",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "合同管理"
+                ],
+                "summary": "提交审批",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "合同ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Contract"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/finance/deposit/{id}/refund": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "退还部分或全部押金",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "财务结算"
+                ],
+                "summary": "退还押金",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "押金记录ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.DepositRecord"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/finance/deposits": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取押金记录列表",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "财务结算"
+                ],
+                "summary": "获取押金列表",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.DepositRecord"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/finance/export-to-system": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "将财务记录导出到外部财务系统",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "财务结算"
+                ],
+                "summary": "导出到财务系统",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/finance/merge-settle": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "多展会合并结算",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "财务结算"
+                ],
+                "summary": "合并结算",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.MergeSettleResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/finance/records": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "分页获取财务收支记录",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "财务结算"
+                ],
+                "summary": "获取财务记录列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "每页数量",
+                        "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "类型: income/expense/deposit/refund",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "状态",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "关键词搜索",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "开始日期",
+                        "name": "startDate",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "结束日期",
+                        "name": "endDate",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "创建新的财务记录",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "财务结算"
+                ],
+                "summary": "创建财务记录",
+                "parameters": [
+                    {
+                        "description": "财务记录信息",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.FinanceRecord"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.FinanceRecord"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/finance/records/export": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "导出财务记录为Excel/CSV格式",
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "财务结算"
+                ],
+                "summary": "导出财务记录",
+                "responses": {}
+            }
+        },
+        "/api/finance/records/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据ID获取财务记录详情",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "财务结算"
+                ],
+                "summary": "获取财务记录详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "记录ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.FinanceRecord"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "更新财务记录信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "财务结算"
+                ],
+                "summary": "更新财务记录",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "记录ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新字段",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.FinanceRecord"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "删除财务记录",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "财务结算"
+                ],
+                "summary": "删除财务记录",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "记录ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/finance/records/{id}/confirm": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "确认财务记录有效",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "财务结算"
+                ],
+                "summary": "确认财务记录",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "记录ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.FinanceRecord"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/finance/summary": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取收入、支出、押金、退款等汇总数据",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "财务结算"
+                ],
+                "summary": "获取财务汇总",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.FinanceSummary"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/providers": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "分页获取服务商列表",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "服务商管理"
+                ],
+                "summary": "获取服务商列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "每页数量",
+                        "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "状态",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "关键词",
+                        "name": "keyword",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "创建新服务商",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "服务商管理"
+                ],
+                "summary": "创建服务商",
+                "parameters": [
+                    {
+                        "description": "服务商信息",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.ServiceProvider"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.ServiceProvider"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/providers/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据ID获取服务商详情",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "服务商管理"
+                ],
+                "summary": "获取服务商详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "服务商ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.ServiceProvider"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "更新服务商信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "服务商管理"
+                ],
+                "summary": "更新服务商",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "服务商ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新字段",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.ServiceProvider"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/schedules": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "分页获取档期列表",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "档期管理"
+                ],
+                "summary": "获取档期列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "每页数量",
+                        "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "状态筛选",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "创建新的档期申请",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "档期管理"
+                ],
+                "summary": "创建档期",
+                "parameters": [
+                    {
+                        "description": "档期信息",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Schedule"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Schedule"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/schedules/check-conflict": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "检查档期是否与其他档期冲突",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "档期管理"
+                ],
+                "summary": "检查档期冲突",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "档期ID（排除自身）",
+                        "name": "scheduleId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "展厅ID列表，逗号分隔",
+                        "name": "venueIds",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "开始日期",
+                        "name": "startDate",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "结束日期",
+                        "name": "endDate",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.ScheduleConflict"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/schedules/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据ID获取档期详情",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "档期管理"
+                ],
+                "summary": "获取档期详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "档期ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Schedule"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "更新档期信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "档期管理"
+                ],
+                "summary": "更新档期",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "档期ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新字段",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Schedule"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "删除档期",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "档期管理"
+                ],
+                "summary": "删除档期",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "档期ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/schedules/{id}/approve": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "审批档期申请",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "档期管理"
+                ],
+                "summary": "审批档期",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "档期ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Schedule"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/schedules/{id}/cancel": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "取消档期",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "档期管理"
+                ],
+                "summary": "取消档期",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "档期ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Schedule"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/schedules/{id}/lock": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "锁定或解锁档期",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "档期管理"
+                ],
+                "summary": "锁定/解锁档期",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "档期ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Schedule"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/upload": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "上传发票或附件文件，限制50MB",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "文件上传"
+                ],
+                "summary": "上传文件",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "文件",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/venues": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取所有可用展厅",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "展位管理"
+                ],
+                "summary": "获取展厅列表",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.Venue"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/visitors": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "分页获取访客签到记录",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "观众服务"
+                ],
+                "summary": "获取访客记录列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "每页数量",
+                        "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "展会ID",
+                        "name": "scheduleId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "关键词搜索",
+                        "name": "keyword",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "创建新的访客签到记录",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "观众服务"
+                ],
+                "summary": "创建访客记录",
+                "parameters": [
+                    {
+                        "description": "访客信息",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.VisitorRecord"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.VisitorRecord"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/visitors/checkin": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "通过二维码扫描签到",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "观众服务"
+                ],
+                "summary": "签到",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.VisitorRecord"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/visitors/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据ID获取访客详情，包含访问轨迹",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "观众服务"
+                ],
+                "summary": "获取访客详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "访客ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.VisitorRecord"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/visitors/{id}/booth-visit": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "记录访客访问展位的轨迹",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "观众服务"
+                ],
+                "summary": "记录展位访问",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "访客ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.VisitorRecord"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "handlers.APIResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "data": {},
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.LoginRequest": {
+            "type": "object",
+            "required": [
+                "password",
+                "username"
+            ],
+            "properties": {
+                "password": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "refreshToken": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/models.User"
+                }
+            }
+        },
+        "models.ApprovalStep": {
+            "type": "object",
+            "properties": {
+                "approvedAt": {
+                    "type": "string"
+                },
+                "approver": {
+                    "type": "string"
+                },
+                "approverId": {
+                    "type": "string"
+                },
+                "comment": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "order": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Booth": {
+            "type": "object",
+            "properties": {
+                "area": {
+                    "type": "number",
+                    "example": 9
+                },
+                "boothNo": {
+                    "type": "string",
+                    "example": "A01"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "exhibitorId": {
+                    "type": "string"
+                },
+                "exhibitorName": {
+                    "type": "string"
+                },
+                "facilities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "height": {
+                    "type": "number",
+                    "example": 24
+                },
+                "id": {
+                    "type": "string"
+                },
+                "isCorner": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "isOpenSide": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "powerCapacity": {
+                    "type": "string",
+                    "example": "15KW"
+                },
+                "price": {
+                    "type": "number",
+                    "example": 15000
+                },
+                "pricePerSquare": {
+                    "type": "number",
+                    "example": 1666.67
+                },
+                "scheduleId": {
+                    "type": "string"
+                },
+                "status": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.BoothStatus"
+                        }
+                    ],
+                    "example": "available"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "venueId": {
+                    "type": "string",
+                    "example": "venue-uuid-1"
+                },
+                "width": {
+                    "type": "number",
+                    "example": 36
+                },
+                "x": {
+                    "type": "number",
+                    "example": 100
+                },
+                "y": {
+                    "type": "number",
+                    "example": 100
+                },
+                "zone": {
+                    "type": "string",
+                    "example": "A区"
+                }
+            }
+        },
+        "models.BoothStatus": {
+            "type": "string",
+            "enum": [
+                "available",
+                "reserved",
+                "sold",
+                "occupied",
+                "maintenance"
+            ],
+            "x-enum-varnames": [
+                "BoothStatusAvailable",
+                "BoothStatusReserved",
+                "BoothStatusSold",
+                "BoothStatusOccupied",
+                "BoothStatusMaintenance"
+            ]
+        },
+        "models.BoothVisit": {
+            "type": "object",
+            "properties": {
+                "boothId": {
+                    "type": "string"
+                },
+                "boothNo": {
+                    "type": "string"
+                },
+                "durationSec": {
+                    "type": "integer"
+                },
+                "visitedAt": {
+                    "type": "string"
+                },
+                "zone": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Contract": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number",
+                    "example": 500000
+                },
+                "approvalFlow": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ApprovalStep"
+                    }
+                },
+                "archiveNo": {
+                    "type": "string"
+                },
+                "attachmentUrl": {
+                    "type": "string"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "contractNo": {
+                    "type": "string",
+                    "example": "HT-2026-001"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "currentStep": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "depositAmount": {
+                    "type": "number",
+                    "example": 150000
+                },
+                "depositRate": {
+                    "type": "number",
+                    "example": 30
+                },
+                "effectiveDate": {
+                    "type": "string"
+                },
+                "expireDate": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "partyA": {
+                    "type": "string",
+                    "example": "某市国际会展中心有限公司"
+                },
+                "partyB": {
+                    "type": "string",
+                    "example": "中国建筑材料联合会"
+                },
+                "partyBContact": {
+                    "type": "string"
+                },
+                "partyBPhone": {
+                    "type": "string"
+                },
+                "scheduleId": {
+                    "type": "string"
+                },
+                "scheduleName": {
+                    "type": "string",
+                    "example": "2026国际建材博览会"
+                },
+                "signedAt": {
+                    "type": "string"
+                },
+                "signedUrl": {
+                    "type": "string"
+                },
+                "status": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.ContractStatus"
+                        }
+                    ],
+                    "example": "draft"
+                },
+                "templateId": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.ContractStatus": {
+            "type": "string",
+            "enum": [
+                "draft",
+                "reviewing",
+                "approved",
+                "rejected",
+                "signed",
+                "archived"
+            ],
+            "x-enum-varnames": [
+                "ContractStatusDraft",
+                "ContractStatusReviewing",
+                "ContractStatusApproved",
+                "ContractStatusRejected",
+                "ContractStatusSigned",
+                "ContractStatusArchived"
+            ]
+        },
+        "models.ContractTemplate": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "defaultDepositRate": {
+                    "type": "number"
+                },
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.DepositRecord": {
+            "type": "object",
+            "properties": {
+                "contractId": {
+                    "type": "string"
+                },
+                "contractNo": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "depositedAmount": {
+                    "type": "number",
+                    "example": 150000
+                },
+                "depositedAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "partyName": {
+                    "type": "string"
+                },
+                "refundDate": {
+                    "type": "string"
+                },
+                "refundableAmount": {
+                    "type": "number",
+                    "example": 150000
+                },
+                "refundedAmount": {
+                    "type": "number",
+                    "example": 0
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "status": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.DepositStatus"
+                        }
+                    ],
+                    "example": "unrefunded"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.DepositStatus": {
+            "type": "string",
+            "enum": [
+                "unrefunded",
+                "partial",
+                "refunded"
+            ],
+            "x-enum-varnames": [
+                "DepositStatusUnrefunded",
+                "DepositStatusPartial",
+                "DepositStatusRefunded"
+            ]
+        },
+        "models.FinanceRecord": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number",
+                    "example": 150000
+                },
+                "category": {
+                    "type": "string"
+                },
+                "confirmedAt": {
+                    "type": "string"
+                },
+                "confirmedBy": {
+                    "type": "string"
+                },
+                "contractId": {
+                    "type": "string"
+                },
+                "contractNo": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string",
+                    "example": "CNY"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "invoiceNo": {
+                    "type": "string"
+                },
+                "invoiceUrl": {
+                    "type": "string"
+                },
+                "operatorId": {
+                    "type": "string"
+                },
+                "operatorName": {
+                    "type": "string"
+                },
+                "partyName": {
+                    "type": "string"
+                },
+                "paymentMethod": {
+                    "type": "string",
+                    "example": "bank_transfer"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "scheduleId": {
+                    "type": "string"
+                },
+                "scheduleName": {
+                    "type": "string"
+                },
+                "status": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.FinanceStatus"
+                        }
+                    ],
+                    "example": "pending"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "展位费收入"
+                },
+                "transactionNo": {
+                    "type": "string"
+                },
+                "type": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.FinanceType"
+                        }
+                    ],
+                    "example": "income"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.FinanceStatus": {
+            "type": "string",
+            "enum": [
+                "pending",
+                "confirmed",
+                "cancelled"
+            ],
+            "x-enum-varnames": [
+                "FinanceStatusPending",
+                "FinanceStatusConfirmed",
+                "FinanceStatusCancelled"
+            ]
+        },
+        "models.FinanceSummary": {
+            "type": "object",
+            "properties": {
+                "netProfit": {
+                    "type": "number"
+                },
+                "totalDeposit": {
+                    "type": "number"
+                },
+                "totalExpense": {
+                    "type": "number"
+                },
+                "totalIncome": {
+                    "type": "number"
+                },
+                "totalRefund": {
+                    "type": "number"
+                }
+            }
+        },
+        "models.FinanceType": {
+            "type": "string",
+            "enum": [
+                "income",
+                "expense",
+                "deposit",
+                "refund"
+            ],
+            "x-enum-varnames": [
+                "FinanceTypeIncome",
+                "FinanceTypeExpense",
+                "FinanceTypeDeposit",
+                "FinanceTypeRefund"
+            ]
+        },
+        "models.MergeSettleResult": {
+            "type": "object",
+            "properties": {
+                "depositAmount": {
+                    "type": "number"
+                },
+                "expenseAmount": {
+                    "type": "number"
+                },
+                "incomeAmount": {
+                    "type": "number"
+                },
+                "records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.FinanceRecord"
+                    }
+                },
+                "totalAmount": {
+                    "type": "number"
+                }
+            }
+        },
+        "models.ProviderStatus": {
+            "type": "string",
+            "enum": [
+                "pending",
+                "active",
+                "inactive",
+                "expired"
+            ],
+            "x-enum-varnames": [
+                "ProviderStatusPending",
+                "ProviderStatusActive",
+                "ProviderStatusInactive",
+                "ProviderStatusExpired"
+            ]
+        },
+        "models.Schedule": {
+            "type": "object",
+            "properties": {
+                "approvedAt": {
+                    "type": "string"
+                },
+                "approvedBy": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "endDate": {
+                    "type": "string",
+                    "example": "2026-03-20"
+                },
+                "exhibitionName": {
+                    "type": "string",
+                    "example": "2026国际建材博览会"
+                },
+                "expectedVisits": {
+                    "type": "integer",
+                    "example": 50000
+                },
+                "id": {
+                    "type": "string"
+                },
+                "isLocked": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "moveInDate": {
+                    "type": "string"
+                },
+                "moveOutDate": {
+                    "type": "string"
+                },
+                "organizerId": {
+                    "type": "string"
+                },
+                "organizerName": {
+                    "type": "string",
+                    "example": "中国建筑材料联合会"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "startDate": {
+                    "type": "string",
+                    "example": "2026-03-15"
+                },
+                "status": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.ScheduleStatus"
+                        }
+                    ],
+                    "example": "pending"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "venueIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "models.ScheduleConflict": {
+            "type": "object",
+            "properties": {
+                "conflicts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Schedule"
+                    }
+                },
+                "hasConflict": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "models.ScheduleStatus": {
+            "type": "string",
+            "enum": [
+                "pending",
+                "approved",
+                "locked",
+                "cancelled",
+                "completed"
+            ],
+            "x-enum-varnames": [
+                "ScheduleStatusPending",
+                "ScheduleStatusApproved",
+                "ScheduleStatusLocked",
+                "ScheduleStatusCancelled",
+                "ScheduleStatusCompleted"
+            ]
+        },
+        "models.ServiceProvider": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "certificates": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "completedOrders": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "contactEmail": {
+                    "type": "string",
+                    "example": "zhangsan@company.com"
+                },
+                "contactPerson": {
+                    "type": "string",
+                    "example": "张三"
+                },
+                "contactPhone": {
+                    "type": "string",
+                    "example": "13800138000"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "licenseNo": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "诚信搭建有限公司"
+                },
+                "qualificationExpireDate": {
+                    "type": "string"
+                },
+                "qualificationNo": {
+                    "type": "string"
+                },
+                "rating": {
+                    "type": "number",
+                    "example": 5
+                },
+                "serviceTypes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ServiceType"
+                    }
+                },
+                "status": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.ProviderStatus"
+                        }
+                    ],
+                    "example": "pending"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.ServiceType": {
+            "type": "string",
+            "enum": [
+                "build",
+                "logistics",
+                "catering",
+                "security",
+                "cleaning",
+                "av",
+                "other"
+            ],
+            "x-enum-varnames": [
+                "ServiceTypeBuild",
+                "ServiceTypeLogistics",
+                "ServiceTypeCatering",
+                "ServiceTypeSecurity",
+                "ServiceTypeCleaning",
+                "ServiceTypeAV",
+                "ServiceTypeOther"
+            ]
+        },
+        "models.User": {
+            "type": "object",
+            "properties": {
+                "avatarUrl": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "admin@exhibition.com"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "系统管理员"
+                },
+                "permissions": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "boolean"
+                    }
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "13800138000"
+                },
+                "role": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.UserRole"
+                        }
+                    ],
+                    "example": "admin"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "active"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string",
+                    "example": "admin"
+                }
+            }
+        },
+        "models.UserRole": {
+            "type": "string",
+            "enum": [
+                "admin",
+                "operator",
+                "organizer",
+                "exhibitor",
+                "builder",
+                "provider",
+                "visitor"
+            ],
+            "x-enum-varnames": [
+                "RoleAdmin",
+                "RoleOperator",
+                "RoleOrganizer",
+                "RoleExhibitor",
+                "RoleBuilder",
+                "RoleProvider",
+                "RoleVisitor"
+            ]
+        },
+        "models.Venue": {
+            "type": "object",
+            "properties": {
+                "area": {
+                    "type": "number",
+                    "example": 10000.5
+                },
+                "booths": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Booth"
+                    }
+                },
+                "capacity": {
+                    "type": "integer",
+                    "example": 5000
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "facilities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "floor": {
+                    "type": "string",
+                    "example": "1F"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "imageUrl": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "1号展厅"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "active"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "venueType": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.VenueType"
+                        }
+                    ],
+                    "example": "exhibition"
+                }
+            }
+        },
+        "models.VenueType": {
+            "type": "string",
+            "enum": [
+                "exhibition",
+                "meeting",
+                "multifunction"
+            ],
+            "x-enum-varnames": [
+                "VenueTypeExhibitionHall",
+                "VenueTypeMeeting",
+                "VenueTypeMultiFunction"
+            ]
+        },
+        "models.VisitorRecord": {
+            "type": "object",
+            "properties": {
+                "appointmentIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "boothVisits": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.BoothVisit"
+                    }
+                },
+                "checkInAt": {
+                    "type": "string"
+                },
+                "checkOutAt": {
+                    "type": "string"
+                },
+                "company": {
+                    "type": "string",
+                    "example": "某某科技有限公司"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "zhangsan@example.com"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "张三"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "13800138000"
+                },
+                "qrCode": {
+                    "type": "string",
+                    "example": "VISITOR-20260315-0001"
+                },
+                "remarks": {
+                    "type": "string"
+                },
+                "scheduleId": {
+                    "type": "string"
+                },
+                "scheduleName": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string",
+                    "example": "online"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "title": {
+                    "type": "string",
+                    "example": "市场经理"
+                },
+                "totalVisitTime": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "visitorType": {
+                    "type": "string",
+                    "example": "professional"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Type \"Bearer\" followed by a space and JWT token.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}

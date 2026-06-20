@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Card, Button, Space, Row, Col, Statistic, Modal, Form, Input, Select, DatePicker, InputNumber, message } from 'antd';
-import { PlusOutlined, ReloadOutlined, ExportOutlined, DollarOutlined, FileSearchOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, ExportOutlined, DollarOutlined, FileSearchOutlined, SendOutlined } from '@ant-design/icons';
 import FinanceTable from '../components/FinanceTable';
 import { useFinanceStore } from '../stores/financeStore';
 import type { FinanceRecord, MergeSettleRequest } from '../types';
 import { formatCurrency } from '../utils/exportUtils';
+import { api } from '../services/api';
 
 const { Option } = Select;
 
@@ -12,6 +13,8 @@ const FinancePage: React.FC = () => {
   const { records, deposits, loading, total, fetchRecords, fetchDeposits, addRecord, confirmRecord, refundDeposit, exportRecords, mergeSettle } = useFinanceStore();
   const [modalVisible, setModalVisible] = useState(false);
   const [mergeModalVisible, setMergeModalVisible] = useState(false);
+  const [selectedRecordIds, setSelectedRecordIds] = useState<React.Key[]>([]);
+  const [exportLoading, setExportLoading] = useState(false);
   const [form] = Form.useForm();
   const [mergeForm] = Form.useForm();
 
@@ -113,6 +116,51 @@ const FinancePage: React.FC = () => {
     }
   };
 
+  const handleExportToFinanceSystem = async () => {
+    if (selectedRecordIds.length === 0) {
+      Modal.confirm({
+        title: '导出到财务系统',
+        content: '未选择记录，将导出所有已确认的收支记录。是否继续？',
+        okText: '确认导出',
+        cancelText: '取消',
+        onOk: async () => {
+          const confirmedIds = records.filter(r => r.status === 'confirmed').map(r => r.id);
+          await doExportToFinanceSystem(confirmedIds);
+        },
+      });
+      return;
+    }
+
+    Modal.confirm({
+      title: '导出到财务系统',
+      content: `已选择 ${selectedRecordIds.length} 条记录，将批量导出至财务系统。是否继续？`,
+      okText: '确认导出',
+      cancelText: '取消',
+      onOk: async () => {
+        await doExportToFinanceSystem(selectedRecordIds.map(id => String(id)));
+      },
+    });
+  };
+
+  const doExportToFinanceSystem = async (recordIds: string[]) => {
+    try {
+      setExportLoading(true);
+      const result = await api.finance.exportToSystem(recordIds);
+      message.success(`成功导出 ${Array.isArray(result) ? result.length : 0} 条凭证到财务系统`);
+      setSelectedRecordIds([]);
+      fetchRecords();
+    } catch (error) {
+      message.error('导出到财务系统失败，请检查财务系统连接配置');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const tableRowSelection = {
+    selectedRowKeys: selectedRecordIds,
+    onChange: (keys: React.Key[]) => setSelectedRecordIds(keys),
+  };
+
   return (
     <div className="space-y-6">
       <Card
@@ -122,6 +170,14 @@ const FinancePage: React.FC = () => {
             <Button icon={<ReloadOutlined />} onClick={() => { fetchRecords(); fetchDeposits(); }}>刷新</Button>
             <Button icon={<FileSearchOutlined />} onClick={() => setMergeModalVisible(true)}>合并结算</Button>
             <Button icon={<ExportOutlined />} onClick={handleExport}>导出报表</Button>
+            <Button
+              type={selectedRecordIds.length > 0 ? 'primary' : 'default'}
+              icon={<SendOutlined />}
+              loading={exportLoading}
+              onClick={handleExportToFinanceSystem}
+            >
+              {selectedRecordIds.length > 0 ? `导出到财务系统 (${selectedRecordIds.length})` : '导出到财务系统'}
+            </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
               新增记录
             </Button>
@@ -135,6 +191,7 @@ const FinancePage: React.FC = () => {
           total={total}
           onConfirm={handleConfirm}
           onRefund={handleRefund}
+          rowSelection={tableRowSelection}
         />
       </Card>
 

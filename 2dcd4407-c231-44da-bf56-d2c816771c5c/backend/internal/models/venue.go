@@ -3,7 +3,7 @@ package models
 type VenueType string
 
 const (
-	VenueTypeExhibition Hall VenueType = "exhibition"
+	VenueTypeExhibitionHall VenueType = "exhibition"
 	VenueTypeMeeting         VenueType = "meeting"
 	VenueTypeMultiFunction   VenueType = "multifunction"
 )

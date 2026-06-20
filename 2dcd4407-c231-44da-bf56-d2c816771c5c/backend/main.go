@@ -29,7 +29,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/swaggo/echo-swagger"
-	// _ "exhibition-center/docs" // 执行 swag init 后取消此注释以启用Swagger
+	_ "exhibition-center/docs" // Swagger文档，由swag init生成
 
 	"exhibition-center/config"
 	"exhibition-center/internal/handlers"

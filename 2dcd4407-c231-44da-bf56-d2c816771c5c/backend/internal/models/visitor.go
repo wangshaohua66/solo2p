@@ -7,6 +7,8 @@ type BoothVisit struct {
 	BoothNo     string    `json:"boothNo"`
 	Zone        string    `json:"zone"`
 	VisitedAt   time.Time `json:"visitedAt"`
+	EnterTime   time.Time `json:"enterTime"`
+	LeaveTime   time.Time `json:"leaveTime,omitempty"`
 	DurationSec int       `json:"durationSec"`
 }
 

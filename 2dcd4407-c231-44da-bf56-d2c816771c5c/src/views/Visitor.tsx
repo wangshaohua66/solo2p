@@ -5,8 +5,9 @@ import {
   PhoneOutlined, ClockCircleOutlined, HistoryOutlined, ShopOutlined, TeamOutlined
 } from '@ant-design/icons';
 import { generateMockSchedules, generateMockBooths } from '../utils/mockData';
-import type { Schedule, Booth, Appointment, BoothVisit } from '../types';
+import type { Schedule, Booth, Appointment, BoothVisit, VisitorRecord } from '../types';
 import { formatDate, formatTime } from '../utils/dateUtils';
+import { api } from '../services/api';
 
 const { Search } = Input;
 
@@ -15,12 +16,14 @@ const VisitorPage: React.FC = () => {
   const [booths, setBooths] = useState<Booth[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [boothVisits, setBoothVisits] = useState<BoothVisit[]>([]);
+  const [visitorRecord, setVisitorRecord] = useState<VisitorRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [boothModalVisible, setBoothModalVisible] = useState(false);
   const [selectedBooth, setSelectedBooth] = useState<Booth | null>(null);
   const [appointmentModalVisible, setAppointmentModalVisible] = useState(false);
   const [qrModalVisible, setQrModalVisible] = useState(false);
+  const [currentVisitorId, setCurrentVisitorId] = useState<string>('v-record-001');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -60,51 +63,112 @@ const VisitorPage: React.FC = () => {
           createdAt: new Date().toISOString(),
         },
       ]);
-      const now = Date.now();
-      setBoothVisits([
-        {
-          boothId: 'booth-5001',
-          boothNo: 'A01',
-          zone: 'A',
-          enterTime: new Date(now - 3600 * 1000).toISOString(),
-          leaveTime: new Date(now - 3400 * 1000).toISOString(),
-          durationSec: 1200,
-        },
-        {
-          boothId: 'booth-5008',
-          boothNo: 'A08',
-          zone: 'A',
-          enterTime: new Date(now - 3300 * 1000).toISOString(),
-          leaveTime: new Date(now - 3000 * 1000).toISOString(),
-          durationSec: 1800,
-        },
-        {
-          boothId: 'booth-5015',
-          boothNo: 'B05',
-          zone: 'B',
-          enterTime: new Date(now - 2900 * 1000).toISOString(),
-          leaveTime: new Date(now - 2600 * 1000).toISOString(),
-          durationSec: 1500,
-        },
-        {
-          boothId: 'booth-5020',
-          boothNo: 'B10',
-          zone: 'B',
-          enterTime: new Date(now - 2500 * 1000).toISOString(),
-          leaveTime: new Date(now - 2200 * 1000).toISOString(),
-          durationSec: 1200,
-        },
-        {
-          boothId: 'booth-5030',
-          boothNo: 'C03',
-          zone: 'C',
-          enterTime: new Date(now - 2100 * 1000).toISOString(),
-        },
-      ]);
+
+      try {
+        const record = await api.visitors.getById(currentVisitorId) as VisitorRecord;
+        setVisitorRecord(record);
+        if (record.boothVisits && record.boothVisits.length > 0) {
+          setBoothVisits(record.boothVisits.map(bv => ({
+            boothId: bv.boothId,
+            boothNo: bv.boothNo,
+            zone: bv.zone,
+            enterTime: bv.enterTime,
+            leaveTime: bv.leaveTime,
+            durationSec: bv.durationSec,
+          })));
+        } else {
+          const now = Date.now();
+          const mockVisits: BoothVisit[] = [
+            {
+              boothId: 'booth-5001',
+              boothNo: 'A01',
+              zone: 'A',
+              enterTime: new Date(now - 3600 * 1000).toISOString(),
+              leaveTime: new Date(now - 3400 * 1000).toISOString(),
+              durationSec: 1200,
+            },
+            {
+              boothId: 'booth-5008',
+              boothNo: 'A08',
+              zone: 'A',
+              enterTime: new Date(now - 3300 * 1000).toISOString(),
+              leaveTime: new Date(now - 3000 * 1000).toISOString(),
+              durationSec: 1800,
+            },
+            {
+              boothId: 'booth-5015',
+              boothNo: 'B05',
+              zone: 'B',
+              enterTime: new Date(now - 2900 * 1000).toISOString(),
+              leaveTime: new Date(now - 2600 * 1000).toISOString(),
+              durationSec: 1500,
+            },
+            {
+              boothId: 'booth-5020',
+              boothNo: 'B10',
+              zone: 'B',
+              enterTime: new Date(now - 2500 * 1000).toISOString(),
+              leaveTime: new Date(now - 2200 * 1000).toISOString(),
+              durationSec: 1200,
+            },
+            {
+              boothId: 'booth-5030',
+              boothNo: 'C03',
+              zone: 'C',
+              enterTime: new Date(now - 2100 * 1000).toISOString(),
+            },
+          ];
+          setBoothVisits(mockVisits);
+          message.info('正在使用演示数据，后端连接成功后将自动切换为真实数据');
+        }
+      } catch (err) {
+        console.warn('获取访客记录失败，使用演示数据:', err);
+        const now = Date.now();
+        setBoothVisits([
+          {
+            boothId: 'booth-5001',
+            boothNo: 'A01',
+            zone: 'A',
+            enterTime: new Date(now - 3600 * 1000).toISOString(),
+            leaveTime: new Date(now - 3400 * 1000).toISOString(),
+            durationSec: 1200,
+          },
+          {
+            boothId: 'booth-5008',
+            boothNo: 'A08',
+            zone: 'A',
+            enterTime: new Date(now - 3300 * 1000).toISOString(),
+            leaveTime: new Date(now - 3000 * 1000).toISOString(),
+            durationSec: 1800,
+          },
+          {
+            boothId: 'booth-5015',
+            boothNo: 'B05',
+            zone: 'B',
+            enterTime: new Date(now - 2900 * 1000).toISOString(),
+            leaveTime: new Date(now - 2600 * 1000).toISOString(),
+            durationSec: 1500,
+          },
+          {
+            boothId: 'booth-5020',
+            boothNo: 'B10',
+            zone: 'B',
+            enterTime: new Date(now - 2500 * 1000).toISOString(),
+            leaveTime: new Date(now - 2200 * 1000).toISOString(),
+            durationSec: 1200,
+          },
+          {
+            boothId: 'booth-5030',
+            boothNo: 'C03',
+            zone: 'C',
+            enterTime: new Date(now - 2100 * 1000).toISOString(),
+          },
+        ]);
+      }
       setLoading(false);
     };
     fetchData();
-  }, []);
+  }, [currentVisitorId]);
 
   const filteredSchedules = schedules.filter(s => 
     s.exhibitionName.includes(searchKeyword) ||

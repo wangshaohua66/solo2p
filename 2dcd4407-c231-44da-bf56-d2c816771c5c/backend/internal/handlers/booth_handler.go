@@ -350,6 +350,9 @@ func (h *VisitorHandler) RecordBoothVisit(c echo.Context) error {
 	if visit.VisitedAt.IsZero() {
 		visit.VisitedAt = time.Now()
 	}
+	if visit.EnterTime.IsZero() {
+		visit.EnterTime = visit.VisitedAt
+	}
 
 	if err := h.repo.AddBoothVisit(id, visit); err != nil {
 		return ErrorResponse(c, http.StatusInternalServerError, err.Error())

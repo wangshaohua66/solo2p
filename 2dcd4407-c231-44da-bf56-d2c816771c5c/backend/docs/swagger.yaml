@@ -1,0 +1,2125 @@
+basePath: /api
+definitions:
+  handlers.APIResponse:
+    properties:
+      code:
+        type: integer
+      data: {}
+      message:
+        type: string
+    type: object
+  handlers.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  handlers.LoginResponse:
+    properties:
+      refreshToken:
+        type: string
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/models.User'
+    type: object
+  models.ApprovalStep:
+    properties:
+      approvedAt:
+        type: string
+      approver:
+        type: string
+      approverId:
+        type: string
+      comment:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      order:
+        type: integer
+      status:
+        type: string
+    type: object
+  models.Booth:
+    properties:
+      area:
+        example: 9
+        type: number
+      boothNo:
+        example: A01
+        type: string
+      createdAt:
+        type: string
+      description:
+        type: string
+      exhibitorId:
+        type: string
+      exhibitorName:
+        type: string
+      facilities:
+        items:
+          type: string
+        type: array
+      height:
+        example: 24
+        type: number
+      id:
+        type: string
+      isCorner:
+        example: false
+        type: boolean
+      isOpenSide:
+        example: false
+        type: boolean
+      powerCapacity:
+        example: 15KW
+        type: string
+      price:
+        example: 15000
+        type: number
+      pricePerSquare:
+        example: 1666.67
+        type: number
+      scheduleId:
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/models.BoothStatus'
+        example: available
+      updatedAt:
+        type: string
+      venueId:
+        example: venue-uuid-1
+        type: string
+      width:
+        example: 36
+        type: number
+      x:
+        example: 100
+        type: number
+      "y":
+        example: 100
+        type: number
+      zone:
+        example: A区
+        type: string
+    type: object
+  models.BoothStatus:
+    enum:
+    - available
+    - reserved
+    - sold
+    - occupied
+    - maintenance
+    type: string
+    x-enum-varnames:
+    - BoothStatusAvailable
+    - BoothStatusReserved
+    - BoothStatusSold
+    - BoothStatusOccupied
+    - BoothStatusMaintenance
+  models.BoothVisit:
+    properties:
+      boothId:
+        type: string
+      boothNo:
+        type: string
+      durationSec:
+        type: integer
+      visitedAt:
+        type: string
+      zone:
+        type: string
+    type: object
+  models.Contract:
+    properties:
+      amount:
+        example: 500000
+        type: number
+      approvalFlow:
+        items:
+          $ref: '#/definitions/models.ApprovalStep'
+        type: array
+      archiveNo:
+        type: string
+      attachmentUrl:
+        type: string
+      content:
+        type: string
+      contractNo:
+        example: HT-2026-001
+        type: string
+      createdAt:
+        type: string
+      currentStep:
+        example: 0
+        type: integer
+      depositAmount:
+        example: 150000
+        type: number
+      depositRate:
+        example: 30
+        type: number
+      effectiveDate:
+        type: string
+      expireDate:
+        type: string
+      id:
+        type: string
+      partyA:
+        example: 某市国际会展中心有限公司
+        type: string
+      partyB:
+        example: 中国建筑材料联合会
+        type: string
+      partyBContact:
+        type: string
+      partyBPhone:
+        type: string
+      scheduleId:
+        type: string
+      scheduleName:
+        example: 2026国际建材博览会
+        type: string
+      signedAt:
+        type: string
+      signedUrl:
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/models.ContractStatus'
+        example: draft
+      templateId:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  models.ContractStatus:
+    enum:
+    - draft
+    - reviewing
+    - approved
+    - rejected
+    - signed
+    - archived
+    type: string
+    x-enum-varnames:
+    - ContractStatusDraft
+    - ContractStatusReviewing
+    - ContractStatusApproved
+    - ContractStatusRejected
+    - ContractStatusSigned
+    - ContractStatusArchived
+  models.ContractTemplate:
+    properties:
+      content:
+        type: string
+      createdAt:
+        type: string
+      defaultDepositRate:
+        type: number
+      fields:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      name:
+        type: string
+      status:
+        type: string
+      type:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  models.DepositRecord:
+    properties:
+      contractId:
+        type: string
+      contractNo:
+        type: string
+      createdAt:
+        type: string
+      depositedAmount:
+        example: 150000
+        type: number
+      depositedAt:
+        type: string
+      id:
+        type: string
+      partyName:
+        type: string
+      refundDate:
+        type: string
+      refundableAmount:
+        example: 150000
+        type: number
+      refundedAmount:
+        example: 0
+        type: number
+      remark:
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/models.DepositStatus'
+        example: unrefunded
+      updatedAt:
+        type: string
+    type: object
+  models.DepositStatus:
+    enum:
+    - unrefunded
+    - partial
+    - refunded
+    type: string
+    x-enum-varnames:
+    - DepositStatusUnrefunded
+    - DepositStatusPartial
+    - DepositStatusRefunded
+  models.FinanceRecord:
+    properties:
+      amount:
+        example: 150000
+        type: number
+      category:
+        type: string
+      confirmedAt:
+        type: string
+      confirmedBy:
+        type: string
+      contractId:
+        type: string
+      contractNo:
+        type: string
+      createdAt:
+        type: string
+      currency:
+        example: CNY
+        type: string
+      id:
+        type: string
+      invoiceNo:
+        type: string
+      invoiceUrl:
+        type: string
+      operatorId:
+        type: string
+      operatorName:
+        type: string
+      partyName:
+        type: string
+      paymentMethod:
+        example: bank_transfer
+        type: string
+      remark:
+        type: string
+      scheduleId:
+        type: string
+      scheduleName:
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/models.FinanceStatus'
+        example: pending
+      title:
+        example: 展位费收入
+        type: string
+      transactionNo:
+        type: string
+      type:
+        allOf:
+        - $ref: '#/definitions/models.FinanceType'
+        example: income
+      updatedAt:
+        type: string
+    type: object
+  models.FinanceStatus:
+    enum:
+    - pending
+    - confirmed
+    - cancelled
+    type: string
+    x-enum-varnames:
+    - FinanceStatusPending
+    - FinanceStatusConfirmed
+    - FinanceStatusCancelled
+  models.FinanceSummary:
+    properties:
+      netProfit:
+        type: number
+      totalDeposit:
+        type: number
+      totalExpense:
+        type: number
+      totalIncome:
+        type: number
+      totalRefund:
+        type: number
+    type: object
+  models.FinanceType:
+    enum:
+    - income
+    - expense
+    - deposit
+    - refund
+    type: string
+    x-enum-varnames:
+    - FinanceTypeIncome
+    - FinanceTypeExpense
+    - FinanceTypeDeposit
+    - FinanceTypeRefund
+  models.MergeSettleResult:
+    properties:
+      depositAmount:
+        type: number
+      expenseAmount:
+        type: number
+      incomeAmount:
+        type: number
+      records:
+        items:
+          $ref: '#/definitions/models.FinanceRecord'
+        type: array
+      totalAmount:
+        type: number
+    type: object
+  models.ProviderStatus:
+    enum:
+    - pending
+    - active
+    - inactive
+    - expired
+    type: string
+    x-enum-varnames:
+    - ProviderStatusPending
+    - ProviderStatusActive
+    - ProviderStatusInactive
+    - ProviderStatusExpired
+  models.Schedule:
+    properties:
+      approvedAt:
+        type: string
+      approvedBy:
+        type: string
+      createdAt:
+        type: string
+      description:
+        type: string
+      endDate:
+        example: "2026-03-20"
+        type: string
+      exhibitionName:
+        example: 2026国际建材博览会
+        type: string
+      expectedVisits:
+        example: 50000
+        type: integer
+      id:
+        type: string
+      isLocked:
+        example: false
+        type: boolean
+      moveInDate:
+        type: string
+      moveOutDate:
+        type: string
+      organizerId:
+        type: string
+      organizerName:
+        example: 中国建筑材料联合会
+        type: string
+      remark:
+        type: string
+      startDate:
+        example: "2026-03-15"
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/models.ScheduleStatus'
+        example: pending
+      tags:
+        items:
+          type: string
+        type: array
+      updatedAt:
+        type: string
+      venueIds:
+        items:
+          type: string
+        type: array
+    type: object
+  models.ScheduleConflict:
+    properties:
+      conflicts:
+        items:
+          $ref: '#/definitions/models.Schedule'
+        type: array
+      hasConflict:
+        type: boolean
+    type: object
+  models.ScheduleStatus:
+    enum:
+    - pending
+    - approved
+    - locked
+    - cancelled
+    - completed
+    type: string
+    x-enum-varnames:
+    - ScheduleStatusPending
+    - ScheduleStatusApproved
+    - ScheduleStatusLocked
+    - ScheduleStatusCancelled
+    - ScheduleStatusCompleted
+  models.ServiceProvider:
+    properties:
+      address:
+        type: string
+      certificates:
+        items:
+          type: string
+        type: array
+      completedOrders:
+        example: 0
+        type: integer
+      contactEmail:
+        example: zhangsan@company.com
+        type: string
+      contactPerson:
+        example: 张三
+        type: string
+      contactPhone:
+        example: "13800138000"
+        type: string
+      createdAt:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      licenseNo:
+        type: string
+      name:
+        example: 诚信搭建有限公司
+        type: string
+      qualificationExpireDate:
+        type: string
+      qualificationNo:
+        type: string
+      rating:
+        example: 5
+        type: number
+      serviceTypes:
+        items:
+          $ref: '#/definitions/models.ServiceType'
+        type: array
+      status:
+        allOf:
+        - $ref: '#/definitions/models.ProviderStatus'
+        example: pending
+      updatedAt:
+        type: string
+    type: object
+  models.ServiceType:
+    enum:
+    - build
+    - logistics
+    - catering
+    - security
+    - cleaning
+    - av
+    - other
+    type: string
+    x-enum-varnames:
+    - ServiceTypeBuild
+    - ServiceTypeLogistics
+    - ServiceTypeCatering
+    - ServiceTypeSecurity
+    - ServiceTypeCleaning
+    - ServiceTypeAV
+    - ServiceTypeOther
+  models.User:
+    properties:
+      avatarUrl:
+        type: string
+      createdAt:
+        type: string
+      email:
+        example: admin@exhibition.com
+        type: string
+      id:
+        type: string
+      name:
+        example: 系统管理员
+        type: string
+      permissions:
+        additionalProperties:
+          type: boolean
+        type: object
+      phone:
+        example: "13800138000"
+        type: string
+      role:
+        allOf:
+        - $ref: '#/definitions/models.UserRole'
+        example: admin
+      status:
+        example: active
+        type: string
+      updatedAt:
+        type: string
+      username:
+        example: admin
+        type: string
+    type: object
+  models.UserRole:
+    enum:
+    - admin
+    - operator
+    - organizer
+    - exhibitor
+    - builder
+    - provider
+    - visitor
+    type: string
+    x-enum-varnames:
+    - RoleAdmin
+    - RoleOperator
+    - RoleOrganizer
+    - RoleExhibitor
+    - RoleBuilder
+    - RoleProvider
+    - RoleVisitor
+  models.Venue:
+    properties:
+      area:
+        example: 10000.5
+        type: number
+      booths:
+        items:
+          $ref: '#/definitions/models.Booth'
+        type: array
+      capacity:
+        example: 5000
+        type: integer
+      createdAt:
+        type: string
+      description:
+        type: string
+      facilities:
+        items:
+          type: string
+        type: array
+      floor:
+        example: 1F
+        type: string
+      id:
+        type: string
+      imageUrl:
+        type: string
+      name:
+        example: 1号展厅
+        type: string
+      status:
+        example: active
+        type: string
+      updatedAt:
+        type: string
+      venueType:
+        allOf:
+        - $ref: '#/definitions/models.VenueType'
+        example: exhibition
+    type: object
+  models.VenueType:
+    enum:
+    - exhibition
+    - meeting
+    - multifunction
+    type: string
+    x-enum-varnames:
+    - VenueTypeExhibitionHall
+    - VenueTypeMeeting
+    - VenueTypeMultiFunction
+  models.VisitorRecord:
+    properties:
+      appointmentIds:
+        items:
+          type: string
+        type: array
+      boothVisits:
+        items:
+          $ref: '#/definitions/models.BoothVisit'
+        type: array
+      checkInAt:
+        type: string
+      checkOutAt:
+        type: string
+      company:
+        example: 某某科技有限公司
+        type: string
+      createdAt:
+        type: string
+      email:
+        example: zhangsan@example.com
+        type: string
+      id:
+        type: string
+      name:
+        example: 张三
+        type: string
+      phone:
+        example: "13800138000"
+        type: string
+      qrCode:
+        example: VISITOR-20260315-0001
+        type: string
+      remarks:
+        type: string
+      scheduleId:
+        type: string
+      scheduleName:
+        type: string
+      source:
+        example: online
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      title:
+        example: 市场经理
+        type: string
+      totalVisitTime:
+        example: 0
+        type: integer
+      updatedAt:
+        type: string
+      visitorType:
+        example: professional
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@example.com
+    name: API Support
+    url: http://www.example.com/support
+  description: 会展中心智慧运营管理系统后端API接口文档，包含档期管理、合同管理、财务结算、展位管理、服务商管理、观众服务、数据分析、系统管理等模块。
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: 市级国际会展中心智慧运营管理系统 API
+  version: 1.0.0
+paths:
+  /api/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: 用户使用用户名和密码登录系统
+      parameters:
+      - description: 登录信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.LoginResponse'
+              type: object
+      summary: 用户登录
+      tags:
+      - 认证
+  /api/auth/logout:
+    post:
+      description: 用户登出系统
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 用户登出
+      tags:
+      - 认证
+  /api/auth/me:
+    get:
+      description: 获取当前登录用户的详细信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.User'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取当前用户信息
+      tags:
+      - 认证
+  /api/booths:
+    get:
+      description: 获取展位列表，支持按展厅、状态、区域筛选
+      parameters:
+      - description: 展厅ID
+        in: query
+        name: venueId
+        type: string
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      - description: 区域
+        in: query
+        name: zone
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Booth'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取展位列表
+      tags:
+      - 展位管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新展位
+      parameters:
+      - description: 展位信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Booth'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Booth'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 创建展位
+      tags:
+      - 展位管理
+  /api/booths/{id}:
+    delete:
+      description: 删除展位
+      parameters:
+      - description: 展位ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除展位
+      tags:
+      - 展位管理
+    get:
+      description: 根据ID获取展位详情
+      parameters:
+      - description: 展位ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Booth'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取展位详情
+      tags:
+      - 展位管理
+    put:
+      consumes:
+      - application/json
+      description: 更新展位信息，包括位置、大小、价格、状态等
+      parameters:
+      - description: 展位ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新字段
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Booth'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 更新展位
+      tags:
+      - 展位管理
+  /api/booths/batch:
+    post:
+      consumes:
+      - application/json
+      description: 批量创建多个展位
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 批量创建展位
+      tags:
+      - 展位管理
+  /api/contracts:
+    get:
+      description: 分页获取合同列表
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 状态筛选
+        in: query
+        name: status
+        type: string
+      - description: 关键词搜索
+        in: query
+        name: keyword
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取合同列表
+      tags:
+      - 合同管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新合同
+      parameters:
+      - description: 合同信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Contract'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Contract'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 创建合同
+      tags:
+      - 合同管理
+  /api/contracts/{id}:
+    delete:
+      description: 删除合同
+      parameters:
+      - description: 合同ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除合同
+      tags:
+      - 合同管理
+    get:
+      description: 根据ID获取合同详情
+      parameters:
+      - description: 合同ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Contract'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取合同详情
+      tags:
+      - 合同管理
+    put:
+      consumes:
+      - application/json
+      description: 更新合同信息
+      parameters:
+      - description: 合同ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新字段
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Contract'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 更新合同
+      tags:
+      - 合同管理
+  /api/contracts/{id}/approve:
+    post:
+      consumes:
+      - application/json
+      description: 审批通过合同
+      parameters:
+      - description: 合同ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Contract'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 审批通过合同
+      tags:
+      - 合同管理
+  /api/contracts/{id}/archive:
+    post:
+      consumes:
+      - application/json
+      description: 归档合同
+      parameters:
+      - description: 合同ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Contract'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 合同归档
+      tags:
+      - 合同管理
+  /api/contracts/{id}/reject:
+    post:
+      consumes:
+      - application/json
+      description: 驳回合同审批
+      parameters:
+      - description: 合同ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Contract'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 驳回合同
+      tags:
+      - 合同管理
+  /api/contracts/{id}/sign:
+    post:
+      consumes:
+      - application/json
+      description: 电子签署合同
+      parameters:
+      - description: 合同ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Contract'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 合同签署
+      tags:
+      - 合同管理
+  /api/contracts/{id}/submit-approval:
+    post:
+      consumes:
+      - application/json
+      description: 提交合同审批
+      parameters:
+      - description: 合同ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Contract'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 提交审批
+      tags:
+      - 合同管理
+  /api/contracts/templates:
+    get:
+      description: 获取所有可用的合同模板
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.ContractTemplate'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取合同模板列表
+      tags:
+      - 合同管理
+  /api/finance/deposit/{id}/refund:
+    post:
+      consumes:
+      - application/json
+      description: 退还部分或全部押金
+      parameters:
+      - description: 押金记录ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.DepositRecord'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 退还押金
+      tags:
+      - 财务结算
+  /api/finance/deposits:
+    get:
+      description: 获取押金记录列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.DepositRecord'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取押金列表
+      tags:
+      - 财务结算
+  /api/finance/export-to-system:
+    post:
+      consumes:
+      - application/json
+      description: 将财务记录导出到外部财务系统
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 导出到财务系统
+      tags:
+      - 财务结算
+  /api/finance/merge-settle:
+    post:
+      consumes:
+      - application/json
+      description: 多展会合并结算
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.MergeSettleResult'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 合并结算
+      tags:
+      - 财务结算
+  /api/finance/records:
+    get:
+      description: 分页获取财务收支记录
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: '类型: income/expense/deposit/refund'
+        in: query
+        name: type
+        type: string
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      - description: 关键词搜索
+        in: query
+        name: keyword
+        type: string
+      - description: 开始日期
+        in: query
+        name: startDate
+        type: string
+      - description: 结束日期
+        in: query
+        name: endDate
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取财务记录列表
+      tags:
+      - 财务结算
+    post:
+      consumes:
+      - application/json
+      description: 创建新的财务记录
+      parameters:
+      - description: 财务记录信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.FinanceRecord'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.FinanceRecord'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 创建财务记录
+      tags:
+      - 财务结算
+  /api/finance/records/{id}:
+    delete:
+      description: 删除财务记录
+      parameters:
+      - description: 记录ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除财务记录
+      tags:
+      - 财务结算
+    get:
+      description: 根据ID获取财务记录详情
+      parameters:
+      - description: 记录ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.FinanceRecord'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取财务记录详情
+      tags:
+      - 财务结算
+    put:
+      consumes:
+      - application/json
+      description: 更新财务记录信息
+      parameters:
+      - description: 记录ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新字段
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.FinanceRecord'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 更新财务记录
+      tags:
+      - 财务结算
+  /api/finance/records/{id}/confirm:
+    post:
+      consumes:
+      - application/json
+      description: 确认财务记录有效
+      parameters:
+      - description: 记录ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.FinanceRecord'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 确认财务记录
+      tags:
+      - 财务结算
+  /api/finance/records/export:
+    get:
+      description: 导出财务记录为Excel/CSV格式
+      produces:
+      - application/octet-stream
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: 导出财务记录
+      tags:
+      - 财务结算
+  /api/finance/summary:
+    get:
+      description: 获取收入、支出、押金、退款等汇总数据
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.FinanceSummary'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取财务汇总
+      tags:
+      - 财务结算
+  /api/providers:
+    get:
+      description: 分页获取服务商列表
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      - description: 关键词
+        in: query
+        name: keyword
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取服务商列表
+      tags:
+      - 服务商管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新服务商
+      parameters:
+      - description: 服务商信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.ServiceProvider'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.ServiceProvider'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 创建服务商
+      tags:
+      - 服务商管理
+  /api/providers/{id}:
+    get:
+      description: 根据ID获取服务商详情
+      parameters:
+      - description: 服务商ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.ServiceProvider'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取服务商详情
+      tags:
+      - 服务商管理
+    put:
+      consumes:
+      - application/json
+      description: 更新服务商信息
+      parameters:
+      - description: 服务商ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新字段
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.ServiceProvider'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 更新服务商
+      tags:
+      - 服务商管理
+  /api/schedules:
+    get:
+      description: 分页获取档期列表
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 状态筛选
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取档期列表
+      tags:
+      - 档期管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新的档期申请
+      parameters:
+      - description: 档期信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Schedule'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Schedule'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 创建档期
+      tags:
+      - 档期管理
+  /api/schedules/{id}:
+    delete:
+      description: 删除档期
+      parameters:
+      - description: 档期ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除档期
+      tags:
+      - 档期管理
+    get:
+      description: 根据ID获取档期详情
+      parameters:
+      - description: 档期ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Schedule'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取档期详情
+      tags:
+      - 档期管理
+    put:
+      consumes:
+      - application/json
+      description: 更新档期信息
+      parameters:
+      - description: 档期ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新字段
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Schedule'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 更新档期
+      tags:
+      - 档期管理
+  /api/schedules/{id}/approve:
+    post:
+      consumes:
+      - application/json
+      description: 审批档期申请
+      parameters:
+      - description: 档期ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Schedule'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 审批档期
+      tags:
+      - 档期管理
+  /api/schedules/{id}/cancel:
+    post:
+      consumes:
+      - application/json
+      description: 取消档期
+      parameters:
+      - description: 档期ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Schedule'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 取消档期
+      tags:
+      - 档期管理
+  /api/schedules/{id}/lock:
+    post:
+      consumes:
+      - application/json
+      description: 锁定或解锁档期
+      parameters:
+      - description: 档期ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Schedule'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 锁定/解锁档期
+      tags:
+      - 档期管理
+  /api/schedules/check-conflict:
+    get:
+      description: 检查档期是否与其他档期冲突
+      parameters:
+      - description: 档期ID（排除自身）
+        in: query
+        name: scheduleId
+        type: string
+      - description: 展厅ID列表，逗号分隔
+        in: query
+        name: venueIds
+        type: string
+      - description: 开始日期
+        in: query
+        name: startDate
+        required: true
+        type: string
+      - description: 结束日期
+        in: query
+        name: endDate
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.ScheduleConflict'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 检查档期冲突
+      tags:
+      - 档期管理
+  /api/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 上传发票或附件文件，限制50MB
+      parameters:
+      - description: 文件
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 上传文件
+      tags:
+      - 文件上传
+  /api/venues:
+    get:
+      description: 获取所有可用展厅
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Venue'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取展厅列表
+      tags:
+      - 展位管理
+  /api/visitors:
+    get:
+      description: 分页获取访客签到记录
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 展会ID
+        in: query
+        name: scheduleId
+        type: string
+      - description: 关键词搜索
+        in: query
+        name: keyword
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取访客记录列表
+      tags:
+      - 观众服务
+    post:
+      consumes:
+      - application/json
+      description: 创建新的访客签到记录
+      parameters:
+      - description: 访客信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.VisitorRecord'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.VisitorRecord'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 创建访客记录
+      tags:
+      - 观众服务
+  /api/visitors/{id}:
+    get:
+      description: 根据ID获取访客详情，包含访问轨迹
+      parameters:
+      - description: 访客ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.VisitorRecord'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取访客详情
+      tags:
+      - 观众服务
+  /api/visitors/{id}/booth-visit:
+    post:
+      consumes:
+      - application/json
+      description: 记录访客访问展位的轨迹
+      parameters:
+      - description: 访客ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.VisitorRecord'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 记录展位访问
+      tags:
+      - 观众服务
+  /api/visitors/checkin:
+    post:
+      consumes:
+      - application/json
+      description: 通过二维码扫描签到
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.VisitorRecord'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 签到
+      tags:
+      - 观众服务
+schemes:
+- http
+- https
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
