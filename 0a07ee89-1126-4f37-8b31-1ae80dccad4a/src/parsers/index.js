@@ -4,6 +4,7 @@ import csvParser from './csv.js';
 import jsonParser from './json.js';
 import xmlParser from './xml.js';
 import logger from '../utils/logger.js';
+import { checkIntegrity, checkFileFormat, renderReport } from './integrity.js';
 
 const EXT_MAP = {
   '.csv': 'csv',
@@ -48,6 +49,17 @@ export async function parseFile(filePath, options = {}) {
   logger.debug(`解析文件 ${filePath} (格式=${format})`);
   const result = await parser.parse(filePath, options);
   result.meta = { ...result.meta, format, file: filePath };
+
+  if (options.integrityCheck !== false) {
+    const fmtCheck = checkFileFormat(filePath, format);
+    const integrity = checkIntegrity(result.records, {
+      declaredCount: result.meta.declaredCount ?? null,
+    });
+    result.integrity = integrity;
+    result.formatCheck = fmtCheck;
+    result.integrityReport = renderReport(integrity, fmtCheck);
+  }
+
   return result;
 }
 
@@ -61,17 +73,53 @@ export async function parseDirectory(dirPath, options = {}) {
       return EXT_MAP[ext] || options.includeAll;
     });
   logger.info(`发现 ${files.length} 个待导入文件`);
+
+  const concurrency = options.concurrency || Math.min(files.length, 4);
+  const tasks = files.map((file) => async () => {
+    const channel = inferChannel(file, options.channel);
+    return parseFile(file, { ...options, channel });
+  });
+
+  const allResults = [];
+  for (let i = 0; i < tasks.length; i += concurrency) {
+    const batch = tasks.slice(i, i + concurrency).map((fn) => fn());
+    const batchResults = await Promise.all(batch);
+    allResults.push(...batchResults);
+  }
+
   const allRecords = [];
   const allErrors = [];
   const metas = [];
-  for (const file of files) {
-    const channel = inferChannel(file, options.channel);
-    const result = await parseFile(file, { ...options, channel });
-    allRecords.push(...result.records);
-    allErrors.push(...result.errors.map((e) => ({ ...e, file })));
-    metas.push(result.meta);
+  const integrityReports = [];
+  let totalIntegrityScore = 0;
+  let scoreCount = 0;
+
+  for (const r of allResults) {
+    allRecords.push(...r.records);
+    allErrors.push(...r.errors.map((e) => ({ ...e, file: r.meta.file })));
+    metas.push(r.meta);
+    if (r.integrity) {
+      totalIntegrityScore += r.integrity.overallScore;
+      scoreCount++;
+      integrityReports.push({ file: r.meta.file, integrity: r.integrity, formatCheck: r.formatCheck, report: r.integrityReport });
+    }
   }
-  return { records: allRecords, errors: allErrors, metas, meta: { count: allRecords.length, files: files.length } };
+
+  const summary = {
+    files: files.length,
+    records: allRecords.length,
+    errors: allErrors.length,
+    avgIntegrityScore: scoreCount > 0 ? Math.round(totalIntegrityScore / scoreCount) : null,
+  };
+
+  return {
+    records: allRecords,
+    errors: allErrors,
+    metas,
+    integrityReports,
+    integritySummary: summary,
+    meta: { count: allRecords.length, files: files.length, avgIntegrityScore: summary.avgIntegrityScore },
+  };
 }
 
 function inferChannel(filePath, fallback) {

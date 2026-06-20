@@ -190,6 +190,9 @@ class ReconciliationEngine {
       refundMatches: refundMatch.matches,
       differences: filteredDiffs,
       allDifferences: allDiffs,
+      unmatchedOrders: orderMatch.unmatchedOrders,
+      unmatchedTransactions: orderMatch.unmatchedTransactions,
+      unmatchedRefunds: refundMatch.unmatched,
       summary,
       stats: { ...orderMatch.stats, refunds: refundMatch.stats },
     };
@@ -220,15 +223,30 @@ class ReconciliationEngine {
     };
   }
 
-  reconcileByMerchant(orders, transactions, options = {}) {
+  async reconcileByMerchant(orders, transactions, options = {}) {
     const merchants = new Set([...orders.map((o) => o.merchantId), ...transactions.map((t) => t.merchantId)]);
+    const merchantIds = [...merchants].filter(Boolean);
     const results = {};
-    for (const merchantId of merchants) {
+    const concurrency = options.concurrency || Math.min(merchantIds.length, 8);
+
+    const tasks = merchantIds.map((merchantId) => async () => {
       const mOrders = orders.filter((o) => o.merchantId === merchantId);
       const mTxns = transactions.filter((t) => t.merchantId === merchantId);
-      if (mOrders.length === 0 && mTxns.length === 0) continue;
-      results[merchantId] = this.reconcile(mOrders, mTxns, options);
+      if (mOrders.length === 0 && mTxns.length === 0) return null;
+      return { merchantId, result: this.reconcile(mOrders, mTxns, options) };
+    });
+
+    for (let i = 0; i < tasks.length; i += concurrency) {
+      const batch = tasks.slice(i, i + concurrency).map((fn) => fn());
+      const batchResults = await Promise.all(batch);
+      for (const item of batchResults) {
+        if (item) results[item.merchantId] = item.result;
+      }
+      if (i + concurrency < tasks.length) {
+        await new Promise((r) => setTimeout(r, 0));
+      }
     }
+
     return results;
   }
 

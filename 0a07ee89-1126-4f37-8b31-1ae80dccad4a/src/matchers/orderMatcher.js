@@ -1,21 +1,32 @@
 import { differenceMs, isCrossMonth } from '../utils/dateNormalizer.js';
 
 const DAY_MS = 86400000;
+const PREFIX_LEN = 4;
+const BK_MAX_TOLERANCE = 4;
 
 function levenshtein(a, b) {
   const m = a.length;
   const n = b.length;
   if (m === 0) return n;
   if (n === 0) return m;
-  const dp = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
-  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  if (Math.abs(m - n) > BK_MAX_TOLERANCE) return BK_MAX_TOLERANCE + 1;
+  let prev = new Array(n + 1);
+  let curr = new Array(n + 1);
+  for (let j = 0; j <= n; j++) prev[j] = j;
   for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
+    curr[0] = i;
+    const minJ = Math.max(1, i - BK_MAX_TOLERANCE);
+    const maxJ = Math.min(n, i + BK_MAX_TOLERANCE);
+    let rowMin = Infinity;
+    for (let j = minJ; j <= maxJ; j++) {
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+      curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost);
+      if (curr[j] < rowMin) rowMin = curr[j];
     }
+    if (rowMin > BK_MAX_TOLERANCE) return BK_MAX_TOLERANCE + 1;
+    [prev, curr] = [curr, prev];
   }
-  return dp[m][n];
+  return prev[n];
 }
 
 function similarity(a, b) {
@@ -29,6 +40,48 @@ function similarity(a, b) {
 function includesOrder(txn, order) {
   if (!txn.orderId || !order.orderId) return false;
   return txn.orderId.includes(order.orderId) || order.orderId.includes(txn.orderId);
+}
+
+class BKTree {
+  constructor(distanceFn, maxTolerance = BK_MAX_TOLERANCE) {
+    this.distanceFn = distanceFn;
+    this.maxTolerance = maxTolerance;
+    this.root = null;
+  }
+
+  add(item, key) {
+    const node = { item, key, children: {} };
+    if (!this.root) { this.root = node; return; }
+    let cur = this.root;
+    while (true) {
+      const d = this.distanceFn(cur.key, key);
+      if (d === 0) return;
+      if (cur.children[d]) {
+        cur = cur.children[d];
+      } else {
+        cur.children[d] = node;
+        return;
+      }
+    }
+  }
+
+  query(key, tolerance) {
+    if (!this.root) return [];
+    const results = [];
+    const stack = [this.root];
+    const tol = Math.min(tolerance, this.maxTolerance);
+    while (stack.length) {
+      const node = stack.pop();
+      const d = this.distanceFn(node.key, key);
+      if (d <= tol) results.push({ item: node.item, distance: d });
+      const minD = Math.max(0, d - tol);
+      const maxD = d + tol;
+      for (let k = minD; k <= maxD; k++) {
+        if (node.children[k]) stack.push(node.children[k]);
+      }
+    }
+    return results;
+  }
 }
 
 class OrderMatcher {
@@ -48,12 +101,29 @@ class OrderMatcher {
       if (order.type !== 'payment' && order.type !== undefined) continue;
       if (this.channelFilter && order.channel !== this.channelFilter) continue;
       const key = order.merchantId || '_UNKNOWN_';
-      if (!index.has(key)) index.set(key, { byOrder: new Map(), list: [] });
+      if (!index.has(key)) index.set(key, {
+        byOrder: new Map(),
+        byPrefix: new Map(),
+        list: [],
+        sortedByAmount: null,
+        bkTree: null,
+      });
       const bucket = index.get(key);
       bucket.list.push(order);
-      const ok = order.orderId;
+      const ok = order.orderId || '';
       if (!bucket.byOrder.has(ok)) bucket.byOrder.set(ok, []);
       bucket.byOrder.get(ok).push(order);
+      const prefix = (ok || '').slice(0, PREFIX_LEN) || '_';
+      if (!bucket.byPrefix.has(prefix)) bucket.byPrefix.set(prefix, []);
+      bucket.byPrefix.get(prefix).push(order);
+    }
+    for (const bucket of index.values()) {
+      bucket.sortedByAmount = bucket.list.slice().sort((a, b) => a.amount - b.amount);
+      if (this.fuzzy && bucket.list.length > 0) {
+        const bk = new BKTree(levenshtein, BK_MAX_TOLERANCE);
+        for (const o of bucket.list) bk.add(o, o.orderId || '');
+        bucket.bkTree = bk;
+      }
     }
     return index;
   }
@@ -78,11 +148,49 @@ class OrderMatcher {
     return fallback || null;
   }
 
+  getAmountRangeCandidates(bucket, txn) {
+    if (!bucket || !bucket.sortedByAmount) return [];
+    const arr = bucket.sortedByAmount;
+    const minAmt = txn.amount * (1 - this.fuzzyAmountRatio) - 1;
+    const maxAmt = txn.amount * (1 + this.fuzzyAmountRatio) + 1;
+    let lo = 0, hi = arr.length - 1, left = arr.length;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (arr[mid].amount >= minAmt) { left = mid; hi = mid - 1; }
+      else lo = mid + 1;
+    }
+    const result = [];
+    for (let i = left; i < arr.length && arr[i].amount <= maxAmt; i++) {
+      result.push(arr[i]);
+    }
+    return result;
+  }
+
   findFuzzy(bucket, txn, matchedOrderIds) {
     if (!bucket || !this.fuzzy) return null;
+    const txnOrderId = txn.orderId || '';
+    const tolerance = Math.ceil(txnOrderId.length * (1 - this.fuzzyThreshold));
+    const bkTolerance = Math.max(1, Math.min(tolerance, BK_MAX_TOLERANCE));
+
+    let candidates = [];
+    if (bucket.bkTree && txnOrderId.length > PREFIX_LEN) {
+      const bkResults = bucket.bkTree.query(txnOrderId, bkTolerance);
+      candidates = bkResults.map((r) => r.item);
+    }
+
+    if (candidates.length === 0) {
+      const prefix = txnOrderId.slice(0, PREFIX_LEN) || '_';
+      const prefixList = bucket.byPrefix.get(prefix);
+      candidates = prefixList && prefixList.length > 0 ? prefixList : bucket.list;
+    }
+
+    const amountCandidates = this.getAmountRangeCandidates(bucket, txn);
+    const amountSet = new Set(amountCandidates.map((o) => o.id || o.orderId));
+    candidates = candidates.filter((o) => amountSet.has(o.id || o.orderId));
+
     let best = null;
     let bestScore = 0;
-    for (const order of bucket.list) {
+    for (const order of candidates) {
       if (matchedOrderIds && matchedOrderIds.has(order.id || order.orderId)) continue;
       const amountRatio = Math.abs(txn.amount - order.amount) / Math.max(1, Math.abs(order.amount));
       if (amountRatio > this.fuzzyAmountRatio) continue;

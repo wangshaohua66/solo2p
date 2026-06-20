@@ -70,7 +70,11 @@ withCommon(
     .option('-f, --format <format>', '强制文件格式: csv|json|ndjson|xml|auto', 'auto')
     .option('--force', '强制重新导入（忽略增量记录）')
     .option('--no-incremental', '禁用增量导入（不检查断点）')
-    .addHelpText('after', '\n示例:\n  $ reconcile import ./data/wechat_202401.csv --channel wechat\n  $ reconcile import ./data/transactions --dry-run -v')
+    .option('--integrity', '展示文件完整性校验报告')
+    .option('--no-integrity-check', '禁用文件完整性校验')
+    .option('--memory-limit <mb>', '内存限制(MB)，默认 500', '500')
+    .option('--concurrency <n>', '文件并发解析数，默认 4', '4')
+    .addHelpText('after', '\n示例:\n  $ reconcile import ./data/wechat_202401.csv --channel wechat\n  $ reconcile import ./data/transactions --dry-run -v --integrity')
 )
 .action(async function () {
   try {
@@ -96,6 +100,8 @@ withCommon(
     .option('--amount-threshold <cents>', '金额差异阈值(分)', '1')
     .option('-r, --result <name>', '使用已有导入结果')
     .option('--output <name>', '匹配结果保存名')
+    .option('--memory-limit <mb>', '内存限制(MB)，默认 500', '500')
+    .option('--concurrency <n>', '商户并发对账数，默认 8', '8')
     .addHelpText('after', '\n示例:\n  $ reconcile match --orders ./data/orders.json -t ./data/transactions -v\n  $ reconcile match -m M001 -w 2 --dry-run')
 )
 .action(async function () {

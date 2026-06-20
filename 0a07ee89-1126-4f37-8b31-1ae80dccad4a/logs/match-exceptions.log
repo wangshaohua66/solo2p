@@ -5,3 +5,4 @@
 {"stage":"import","errors":[{"row":4,"message":"CSV解析错误: Quote Not Closed: the parsing is finished with an opening quote at line 4","raw":null}],"source":"/tmp/bad.csv","at":"2026-06-20T03:15:35.504Z"}
 {"stage":"match","diffCount":7,"unmatched":{"orders":2,"transactions":2},"at":"2026-06-20T03:15:51.958Z"}
 {"stage":"match","diffCount":7,"unmatched":{"orders":2,"transactions":2},"at":"2026-06-20T03:18:48.766Z"}
+{"stage":"match","diffCount":7,"unmatched":{"orders":2,"transactions":2},"at":"2026-06-20T03:36:40.250Z"}

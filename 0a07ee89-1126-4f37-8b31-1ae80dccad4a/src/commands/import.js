@@ -5,6 +5,7 @@ import logger from '../utils/logger.js';
 import Storage from '../utils/storage.js';
 import { validateOptions, ValidationError } from '../utils/validators.js';
 import { isComplete } from '../models/transaction.js';
+import { globalMonitor } from '../utils/memoryMonitor.js';
 
 async function run(options = {}) {
   const errors = validateOptions(options, {
@@ -26,6 +27,9 @@ async function run(options = {}) {
   logger.highlight(`开始导入 ${isDir ? '目录' : '文件'}: ${source}`);
   if (dryRun) logger.warn('DRY-RUN 模式：仅预检，不落盘');
 
+  const monitor = options.memoryLimit ? globalMonitor : null;
+  if (monitor) monitor.start();
+
   const parseOpts = {
     channel: options.channel,
     format: options.format === 'auto' ? undefined : options.format,
@@ -39,10 +43,31 @@ async function run(options = {}) {
     if (incremental && !options.force && storage.isImported(source)) {
       logger.info(`文件已导入过，跳过（增量模式）: ${source}`);
       const existing = await storage.loadRecords(path.basename(source, path.extname(source)));
+      if (monitor) monitor.stop();
       return { skipped: true, records: existing, source, dryRun };
     }
     result = await parseFile(source, { ...parseOpts, format });
     result.meta = { ...result.meta, files: 1 };
+  }
+
+  if (monitor) {
+    monitor.stop();
+    const stats = monitor.getStats();
+    logger.info(`内存峰值: RSS ${(stats.peakRSS / 1024 / 1024).toFixed(1)} MB, Heap ${(stats.peakHeap / 1024 / 1024).toFixed(1)} MB`);
+  }
+
+  if (result.integritySummary) {
+    const s = result.integritySummary;
+    logger.info(`文件完整性平均得分: ${s.avgIntegrityScore ?? 'N/A'}/100 (${s.files} 个文件, ${s.records} 条记录)`);
+    if (result.integrityReports) {
+      for (const r of result.integrityReports) {
+        if (r.integrity.warnings.length > 0 || r.integrity.errors.length > 0) {
+          logger.warn(`${path.basename(r.file)} 完整性得分 ${r.integrity.overallScore}/100`);
+        }
+      }
+    }
+  } else if (result.integrity) {
+    logger.info(`文件完整性得分: ${result.integrity.overallScore}/100`);
   }
 
   const complete = result.records.filter(isComplete);
@@ -82,6 +107,12 @@ async function run(options = {}) {
     );
   }
 
+  if (options.integrity && result.integrityReport) {
+    logger.info('');
+    logger.highlight('=== 文件完整性校验报告 ===');
+    console.log(result.integrityReport);
+  }
+
   if (dryRun) {
     logger.info('DRY-RUN 结束，未写入数据');
     return { records: result.records, errors: result.errors, meta: result.meta, dryRun: true };
@@ -106,6 +137,7 @@ async function run(options = {}) {
     channel: options.channel,
     recordCount: result.records.length,
     errorCount: result.errors.length,
+    integrityScore: result.meta?.avgIntegrityScore ?? (result.integrity?.overallScore ?? null),
     createdAt: new Date().toISOString(),
   });
 

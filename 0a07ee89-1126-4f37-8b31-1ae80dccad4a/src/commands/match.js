@@ -7,6 +7,7 @@ import logger from '../utils/logger.js';
 import Storage from '../utils/storage.js';
 import config from '../core/config.js';
 import { validateOptions, ValidationError } from '../utils/validators.js';
+import { globalMonitor } from '../utils/memoryMonitor.js';
 
 async function loadRecords(spec, storage, opts = {}) {
   if (!spec) return [];
@@ -22,6 +23,48 @@ async function loadRecords(spec, storage, opts = {}) {
   }
   const name = path.basename(spec, path.extname(spec));
   return storage.loadRecords(name);
+}
+
+function mergeMerchantResults(results) {
+  const allMatches = [];
+  const allDiffs = [];
+  const allUnmatchedOrders = [];
+  const allUnmatchedTxns = [];
+  let totalOrders = 0;
+  let totalTxns = 0;
+  let totalMatched = 0;
+  let totalRefundMatched = 0;
+  let totalCrossMonth = 0;
+
+  for (const [merchantId, result] of Object.entries(results)) {
+    allMatches.push(...result.matches.map((m) => ({ ...m, merchantId })));
+    allDiffs.push(...result.differences.map((d) => ({ ...d, merchantId })));
+    allUnmatchedOrders.push(...result.unmatchedOrders.map((o) => ({ ...o, merchantId })));
+    allUnmatchedTxns.push(...result.unmatchedTransactions.map((t) => ({ ...t, merchantId })));
+    totalOrders += result.summary.orderCount;
+    totalTxns += result.summary.channelCount;
+    totalMatched += result.summary.matched;
+    totalRefundMatched += result.summary.refundMatched;
+    totalCrossMonth += result.summary.crossMonth;
+  }
+
+  return {
+    matches: allMatches,
+    differences: allDiffs,
+    unmatchedOrders: allUnmatchedOrders,
+    unmatchedTransactions: allUnmatchedTxns,
+    byMerchant: results,
+    summary: {
+      orderCount: totalOrders,
+      channelCount: totalTxns,
+      matched: totalMatched,
+      unmatchedOrders: allUnmatchedOrders.length,
+      unmatchedTransactions: allUnmatchedTxns.length,
+      matchRate: totalTxns > 0 ? totalMatched / totalTxns : 0,
+      refundMatched: totalRefundMatched,
+      crossMonth: totalCrossMonth,
+    },
+  };
 }
 
 async function run(options = {}) {
@@ -41,6 +84,10 @@ async function run(options = {}) {
   const storage = new Storage(options.dataDir);
   const ordersSpec = options.orders || 'orders';
   const txnSpec = options.transactions || 'transactions';
+  const concurrency = Number(options.concurrency || 8);
+
+  const monitor = options.memoryLimit ? globalMonitor : null;
+  if (monitor) monitor.start();
 
   let orders = await loadRecords(ordersSpec, storage, { channel: 'order', preserveChannel: true });
   let transactions = await loadRecords(txnSpec, storage, { channel: options.channel });
@@ -73,6 +120,7 @@ async function run(options = {}) {
 
   if (orders.length === 0 || transactions.length === 0) {
     logger.warn('订单或通道流水为空，无法执行匹配');
+    if (monitor) monitor.stop();
     return { matched: 0, matchRate: 0, unmatchedOrders: [], unmatchedTransactions: [] };
   }
 
@@ -87,11 +135,30 @@ async function run(options = {}) {
     allowPartialRefund: rules.allowPartialRefund !== false,
   });
 
-  const paymentTotal = transactions.filter((t) => !t.type || t.type === 'payment').length;
-  logger.startProgress(paymentTotal, '匹配');
-  const result = engine.reconcile(orders, transactions, {
-    onProgress: () => logger.tickProgress(1),
-  });
+  const merchantIds = new Set([...orders.map((o) => o.merchantId), ...transactions.map((t) => t.merchantId)]);
+  const useMultiMerchant = merchantIds.size > 1;
+
+  let result;
+  if (useMultiMerchant) {
+    logger.info(`检测到 ${merchantIds.size} 个商户，并发度 ${concurrency}，开始并行对账`);
+    const merchantResults = await engine.reconcileByMerchant(orders, transactions, {
+      concurrency,
+      onProgress: options.verbose ? () => {} : undefined,
+    });
+    result = mergeMerchantResults(merchantResults);
+  } else {
+    const paymentTotal = transactions.filter((t) => !t.type || t.type === 'payment').length;
+    logger.startProgress(paymentTotal, '匹配');
+    result = engine.reconcile(orders, transactions, {
+      onProgress: () => logger.tickProgress(1),
+    });
+  }
+
+  if (monitor) {
+    monitor.stop();
+    const stats = monitor.getStats();
+    logger.info(`内存峰值: RSS ${(stats.peakRSS / 1024 / 1024).toFixed(1)} MB, Heap ${(stats.peakHeap / 1024 / 1024).toFixed(1)} MB`);
+  }
 
   const { summary } = result;
   logger.success(`匹配完成：匹配率 ${(summary.matchRate * 100).toFixed(2)}% (${summary.matched}/${summary.channelCount})`);
@@ -146,6 +213,8 @@ async function run(options = {}) {
     matched: summary.matched,
     matchRate: summary.matchRate,
     diffCount: result.differences.length,
+    concurrency,
+    peakMemoryMB: monitor ? Math.round(monitor.getStats().peakRSS / 1024 / 1024) : null,
     createdAt: new Date().toISOString(),
   });
   logger.success(`匹配结果已保存: ${name}`);

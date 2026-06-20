@@ -2,6 +2,8 @@ import fs from 'fs';
 import readline from 'readline';
 import { fromRaw, validate } from '../models/transaction.js';
 
+const LARGE_FILE_THRESHOLD = 50 * 1024 * 1024;
+
 function findArray(obj) {
   if (Array.isArray(obj)) return obj;
   if (obj && typeof obj === 'object') {
@@ -66,23 +68,12 @@ export function parseString(content, options = {}) {
   return { records, errors, meta: { count: records.length, total: arr.length, format: 'json', channel } };
 }
 
-export function parseStream(filePath, options = {}) {
-  const channel = options.channel || 'alipay';
-  const stats = fs.statSync(filePath);
-  const errors = [];
-  const records = [];
-  const isNdjson = options.ndjson || /\.ndjson$|\.jsonl$/i.test(filePath);
-
-  if (!isNdjson) {
-    const content = fs.readFileSync(filePath, 'utf8');
-    const result = parseString(content, options);
-    if (typeof options.onRecord === 'function') result.records.forEach((r) => options.onRecord(r));
-    return Promise.resolve({ ...result, meta: { ...result.meta, file: filePath, size: stats.size } });
-  }
-
-  return new Promise((resolve, reject) => {
-    const rl = readline.createInterface({ input: fs.createReadStream(filePath, { encoding: 'utf8' }), crlfDelay: Infinity });
+function parseNdjsonStream(filePath, channel, options, stats) {
+  return new Promise((resolve) => {
+    const records = [];
+    const errors = [];
     let index = 0;
+    const rl = readline.createInterface({ input: fs.createReadStream(filePath, { encoding: 'utf8' }), crlfDelay: Infinity });
     rl.on('line', (line) => {
       const trimmed = line.trim();
       if (trimmed === '') return;
@@ -98,15 +89,171 @@ export function parseStream(filePath, options = {}) {
         errors.push({ row: index, message: `JSON行解析失败: ${e.message}`, raw: trimmed });
       }
     });
-    rl.on('error', (err) => reject(new Error(`文件读取失败: ${err.message}`)));
+    rl.on('error', (err) => {
+      errors.push({ row: null, message: `文件读取失败: ${err.message}`, raw: null });
+    });
     rl.on('close', () => {
       resolve({
         records,
         errors,
-        meta: { count: records.length, total: index, format: 'ndjson', channel, file: filePath, size: stats.size },
+        meta: { count: records.length, total: index, format: 'ndjson', channel, file: filePath, size: stats.size, streamed: true },
       });
     });
   });
+}
+
+function parseJsonArrayStream(filePath, channel, options, stats) {
+  return new Promise((resolve) => {
+    const records = [];
+    const errors = [];
+    let index = 0;
+    let buf = '';
+    let inArray = false;
+    let depth = 0;
+    let objStart = -1;
+    let braceDepth = 0;
+    let bracketDepth = 0;
+    let inString = false;
+    let stringChar = '';
+    let escapeNext = false;
+
+    const stream = fs.createReadStream(filePath, { encoding: 'utf8', highWaterMark: 256 * 1024 });
+
+    function emitObject(objStr, lineIdx) {
+      try {
+        const obj = JSON.parse(objStr);
+        const rec = transformRow(obj, lineIdx, channel, options, errors);
+        if (rec) {
+          records.push(rec);
+          if (typeof options.onRecord === 'function') options.onRecord(rec);
+        }
+      } catch (e) {
+        errors.push({ row: lineIdx + 1, message: `JSON对象解析失败: ${e.message}`, raw: objStr.slice(0, 200) });
+      }
+    }
+
+    function processChunk() {
+      let i = 0;
+      while (i < buf.length) {
+        const ch = buf[i];
+
+        if (!inArray) {
+          if (ch === '[') {
+            inArray = true;
+            depth = 1;
+            i++;
+            continue;
+          }
+          i++;
+          continue;
+        }
+
+        if (inString) {
+          if (escapeNext) {
+            escapeNext = false;
+          } else if (ch === '\\') {
+            escapeNext = true;
+          } else if (ch === stringChar) {
+            inString = false;
+          }
+          i++;
+          continue;
+        }
+
+        if (ch === '"' || ch === "'") {
+          inString = true;
+          stringChar = ch;
+          i++;
+          continue;
+        }
+
+        if (ch === '{') {
+          if (bracketDepth === 0 && depth === 1) {
+            objStart = i;
+          }
+          braceDepth++;
+          i++;
+          continue;
+        }
+        if (ch === '}') {
+          braceDepth--;
+          if (braceDepth === 0 && bracketDepth === 0 && depth === 1 && objStart >= 0) {
+            const objStr = buf.slice(objStart, i + 1);
+            emitObject(objStr, index);
+            index++;
+            objStart = -1;
+          }
+          i++;
+          continue;
+        }
+
+        if (ch === '[') {
+          bracketDepth++;
+          i++;
+          continue;
+        }
+        if (ch === ']') {
+          if (bracketDepth === 0 && braceDepth === 0) {
+            depth--;
+            if (depth === 0) {
+              buf = '';
+              i = buf.length;
+              continue;
+            }
+          } else {
+            bracketDepth--;
+          }
+          i++;
+          continue;
+        }
+
+        i++;
+      }
+
+      if (buf.length > 10 * 1024 * 1024) {
+        buf = buf.slice(buf.length - 5 * 1024 * 1024);
+      }
+    }
+
+    stream.on('data', (chunk) => {
+      buf += chunk;
+      processChunk();
+    });
+
+    stream.on('error', (err) => {
+      errors.push({ row: null, message: `文件读取失败: ${err.message}`, raw: null });
+      finish();
+    });
+
+    stream.on('end', finish);
+
+    function finish() {
+      resolve({
+        records,
+        errors,
+        meta: { count: records.length, total: index, format: 'json', channel, file: filePath, size: stats.size, streamed: true },
+      });
+    }
+  });
+}
+
+export function parseStream(filePath, options = {}) {
+  const channel = options.channel || 'alipay';
+  const stats = fs.statSync(filePath);
+  const isNdjson = options.ndjson || /\.ndjson$|\.jsonl$/i.test(filePath);
+
+  if (isNdjson) {
+    return parseNdjsonStream(filePath, channel, options, stats);
+  }
+
+  if (stats.size < LARGE_FILE_THRESHOLD && !options.forceStream) {
+    const content = fs.readFileSync(filePath, 'utf8');
+    const result = parseString(content, options);
+    if (typeof options.onRecord === 'function') result.records.forEach((r) => options.onRecord(r));
+    return Promise.resolve({ ...result, meta: { ...result.meta, file: filePath, size: stats.size, streamed: false } });
+  }
+
+  return parseJsonArrayStream(filePath, channel, options, stats);
 }
 
 export function parse(filePath, options = {}) {
