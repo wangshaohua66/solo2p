@@ -3,7 +3,8 @@ spring:
     name: sports-event-service
   data:
     mongodb:
-      uri: mongodb://localhost:27017/sports_event
+      uri: mongodb://localhost:27017,localhost:27018,localhost:27019/sports_event?replicaSet=rs0
+      replica-set: rs0
       auto-index-creation: true
   cloud:
     nacos:

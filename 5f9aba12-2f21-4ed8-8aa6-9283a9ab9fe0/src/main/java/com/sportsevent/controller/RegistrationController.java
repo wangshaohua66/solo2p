@@ -4,12 +4,14 @@ import com.sportsevent.dto.ApiResponse;
 import com.sportsevent.engine.EligibilityValidator;
 import com.sportsevent.engine.LeagueScheduler;
 import com.sportsevent.entity.Athlete;
+import com.sportsevent.entity.League;
 import com.sportsevent.entity.Ranking;
 import com.sportsevent.entity.Registration;
 import com.sportsevent.entity.Score;
 import com.sportsevent.exception.BusinessException;
 import com.sportsevent.exception.ResourceNotFoundException;
 import com.sportsevent.repository.AthleteRepository;
+import com.sportsevent.repository.LeagueRepository;
 import com.sportsevent.repository.RankingRepository;
 import com.sportsevent.repository.RegistrationRepository;
 import com.sportsevent.repository.ScoreRepository;
@@ -40,6 +42,7 @@ public class RegistrationController {
     private final LeagueScheduler leagueScheduler;
     private final ScoreRepository scoreRepository;
     private final RankingRepository rankingRepository;
+    private final LeagueRepository leagueRepository;
 
     @PostMapping
     @Operation(summary = "提交报名申请")
@@ -194,9 +197,19 @@ public class RegistrationController {
         profile.setOrganization(athlete.getOrganization());
         profile.setStatus(athlete.getStatus());
         profile.setRegistrationCount((long) registrations.size());
-        profile.setParticipatedSports(registrations.stream()
-                .map(Registration::getSportType)
-                .collect(Collectors.toSet()));
+        java.util.Set<String> leagueIds = registrations.stream()
+                .map(Registration::getLeagueId)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+        java.util.Set<League.SportType> participatedSports = new java.util.HashSet<>();
+        for (String leagueId : leagueIds) {
+            leagueRepository.findById(leagueId).ifPresent(l -> {
+                if (l.getSportType() != null) {
+                    participatedSports.add(l.getSportType());
+                }
+            });
+        }
+        profile.setParticipatedSports(participatedSports);
         profile.setScores(scores);
         profile.setRankings(rankings);
         profile.setSuspensionRecords(athlete.getSuspensionRecords());

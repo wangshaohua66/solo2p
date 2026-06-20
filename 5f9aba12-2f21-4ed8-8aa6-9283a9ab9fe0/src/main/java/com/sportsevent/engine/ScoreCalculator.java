@@ -42,7 +42,10 @@ public class ScoreCalculator {
 
         List<Match> matches = matchRepository.findByLeagueIdAndStage(leagueId, Match.StageType.GROUP_STAGE);
         List<Score> confirmedScores = scoreRepository.findByLeagueIdAndStatus(leagueId, Score.ScoreStatus.CONFIRMED);
-        Map<String, Score> scoreMap = confirmedScores.stream()
+        List<Score> validScores = confirmedScores.stream()
+                .filter(s -> !Boolean.TRUE.equals(s.isExcludedFromRanking()))
+                .collect(Collectors.toList());
+        Map<String, Score> scoreMap = validScores.stream()
                 .collect(Collectors.toMap(Score::getMatchId, s -> s));
 
         Map<String, List<Match>> groupMatchesMap = matches.stream()

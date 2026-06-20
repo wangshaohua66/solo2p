@@ -25,4 +25,7 @@ public interface RegistrationRepository extends MongoRepository<Registration, St
 
     @Query("{'leagueId': ?0, 'athleteIds': ?1, 'status': {$in: ['SUBMITTED', 'UNDER_REVIEW', 'APPROVED']}}")
     List<Registration> findActiveByLeagueIdAndAthleteId(String leagueId, String athleteId);
+
+    @Query("{'athleteIds': ?0}")
+    List<Registration> findByAthleteId(String athleteId);
 }

@@ -1,9 +1,9 @@
 package com.sportsevent.config;
 
 import com.mongodb.ReadPreference;
-import com.mongodb.ServerAddress;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
+import com.mongodb.MongoClientSettings;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -45,27 +45,35 @@ public class MongoConfig {
     @Bean
     @Primary
     public MongoTemplate mongoTemplate(MongoDatabaseFactory mongoDatabaseFactory) {
-        return new MongoTemplate(mongoDatabaseFactory);
+        MongoTemplate template = new MongoTemplate(mongoDatabaseFactory);
+        template.setReadPreference(ReadPreference.primary());
+        return template;
     }
 
     @Bean(name = "secondaryMongoTemplate")
     public MongoTemplate secondaryMongoTemplate() {
-        MongoClient secondaryClient = MongoClients.create(mongoUri);
+        MongoClientSettings settings = MongoClientSettings.builder()
+                .applyConnectionString(new com.mongodb.ConnectionString(mongoUri))
+                .readPreference(ReadPreference.secondaryPreferred())
+                .build();
+        MongoClient secondaryClient = MongoClients.create(settings);
         SimpleMongoClientDatabaseFactory factory =
                 new SimpleMongoClientDatabaseFactory(secondaryClient, databaseName);
-
-        MongoTemplate template = new MongoTemplate(factory);
-        template.getMongoDatabase().withReadPreference(ReadPreference.secondaryPreferred());
-        return template;
+        return new MongoTemplate(factory);
     }
 
     @Bean
+    @Primary
     public MongoDatabaseFactory mongoDatabaseFactory(MongoClient mongoClient) {
         return new SimpleMongoClientDatabaseFactory(mongoClient, databaseName);
     }
 
     @Bean
+    @Primary
     public MongoClient mongoClient() {
-        return MongoClients.create(mongoUri);
+        MongoClientSettings.Builder builder = MongoClientSettings.builder()
+                .applyConnectionString(new com.mongodb.ConnectionString(mongoUri))
+                .readPreference(ReadPreference.primary());
+        return MongoClients.create(builder.build());
     }
 }
