@@ -63,7 +63,7 @@ window.EXH_ROUTES = {
     reserve: function(id){ return "{{ path('app_booth_reserve', {id: 0}) }}".replace('/0/', '/' + id + '/'); },
     release: function(id){ return "{{ path('app_booth_release', {id: 0}) }}".replace('/0/', '/' + id + '/'); },
     batch: "{{ path('app_booth_batch') }}",
-    contractNew: "{{ path('app_contract_new') }}"
+    contractNew: "{{ path('app_contract_index') }}"
 };
 window.EXH_DATA = { exhibitors: {{ exhibitorsData|json_encode|raw }} };
 </script>
