@@ -1,0 +1,396 @@
+# ==============================================================================
+# 多银行网银自动化采集配置
+# 某区域住房公积金管理中心 - 公积金贷款还款流水核对系统
+#
+# 安全说明：所有敏感凭据（密码、PIN、短信验证码）均不硬编码于此，
+#          通过环境变量 .env 注入，定位器与菜单路径仅作结构描述。
+# ==============================================================================
+
+defaults:
+  # 导航层元素出现超时（毫秒）
+  element_timeout: 15000
+  # 单银行登录至导出完成上限（毫秒）= 5分钟
+  bank_timeout: 300000
+  # 登录失败自动重试次数上限
+  login_max_retry: 3
+  # 8家银行并行总耗时上限（毫秒）= 20分钟
+  global_timeout: 1200000
+  # 下载文件就绪轮询间隔（毫秒）
+  download_poll_interval: 1000
+  # 下载文件就绪超时（毫秒）
+  download_ready_timeout: 60000
+  # 同一元素连续定位失败阈值，达到则标记需更新配置
+  locator_fail_threshold: 3
+  # 截图存档目录
+  screenshot_dir: ./logs/screenshots
+  # 下载文件临时目录
+  download_dir: ./downloads
+  # 浏览器无头模式（生产环境建议 true，调试时 false）
+  headless: false
+
+# ------------------------------------------------------------------------------
+# 中心业务系统应还计划对接（用于核对引擎）
+# ------------------------------------------------------------------------------
+center_system:
+  db_path: ./data/repayments.db
+  plan_table: repayment_plans
+  record_table: repayment_records
+  exception_table: repayment_exceptions
+  change_log_table: page_change_logs
+
+# ==============================================================================
+# 银行列表
+# ==============================================================================
+banks:
+
+  # 1. 中国工商银行 ICBC - U盾 + PIN
+  - code: ICBC
+    name: 中国工商银行
+    auth_type: ukey
+    base_url: https://corporate.icbc.com.cn/sper
+    login:
+      username_locator: { by: id, value: "txtUserId" }
+      password_locator: { by: id, value: "txtPassword" }
+      submit_locator:  { by: id, value: "btnLogin" }
+      ukey:
+        detect_command: "ls /dev | grep -i icbc"
+        pin_locator: { by: id, value: "txtPin" }
+        pin_env: ICBC_UKEY_PIN
+        confirm_locator: { by: id, value: "btnConfirmPin" }
+      success_indicator: { by: css, value: ".user-welcome" }
+      success_timeout: 30000
+    export:
+      file_format: xlsx
+      download_button: { by: id, value: "btnExport" }
+      export_confirm: { by: id, value: "btnConfirmExport" }
+      # 6层嵌套菜单
+      path:
+        - { action: click, target: { by: id, value: "nav-loan" },            desc: 贷款管理,          wait_for: { by: css, value: ".nav-sub-loan" } }
+        - { action: hover, target: { by: css, value: ".nav-sub-loan .repay" }, desc: 悬停还款管理,     wait_for: { by: css, value: ".nav-repay-detail" } }
+        - { action: click, target: { by: css, value: ".nav-repay-detail" },   desc: 还款明细查询,     wait_for: { by: id, value: "filter-form" } }
+        - { action: click, target: { by: id, value: "tab-history" },          desc: 历史还款流水,     wait_for: { by: id, value: "date-range-start" } }
+        - { action: click, target: { by: id, value: "btnQuery" },             desc: 查询上月流水,     wait_for: { by: css, value: ".repay-table tr.data-row" } }
+        - { action: click, target: { by: id, value: "btnExport" },            desc: 导出Excel,        wait_for: { by: id, value: "export-confirm-dialog" } }
+    mapping:
+      sheet_name: 还款明细
+      header_row: 2
+      amount_unit: yuan
+      date_format: YYYYMMDD
+      fields:
+        borrower_name: { header: 借款人姓名 }
+        contract_no:   { header: 贷款合同号 }
+        period:        { header: 还款期次 }
+        due_principal: { header: 应还本金 }
+        due_interest:  { header: 应还利息 }
+        actual_amount: { header: 实还金额 }
+        repay_date:    { header: 还款日期 }
+
+  # 2. 中国农业银行 ABC - 短信验证码
+  - code: ABC
+    name: 中国农业银行
+    auth_type: sms
+    base_url: https://corporate.abchina.com.cn/sper
+    login:
+      username_locator: { by: id, value: "loginName" }
+      password_locator: { by: id, value: "loginPwd" }
+      submit_locator:  { by: id, value: "loginBtn" }
+      sms:
+        trigger_locator: { by: id, value: "sendSmsBtn" }
+        code_locator:    { by: id, value: "smsCode" }
+        wait_timeout: 120000
+        prompt: 请输入农业银行短信验证码
+      success_indicator: { by: css, value: ".welcome-text" }
+      success_timeout: 30000
+    export:
+      file_format: csv
+      encoding: gbk
+      download_button: { by: id, value: "exportBtn" }
+      export_confirm: { by: id, value: "confirmExport" }
+      path:
+        - { action: click, target: { by: id, value: "menu-credit" },      desc: 信贷业务,    wait_for: { by: css, value: ".sub-credit" } }
+        - { action: hover, target: { by: css, value: ".sub-credit .loan" }, desc: 悬停贷款,   wait_for: { by: css, value: ".loan-repay" } }
+        - { action: click, target: { by: css, value: ".loan-repay" },      desc: 还款流水,   wait_for: { by: id, value: "queryPanel" } }
+        - { action: click, target: { by: id, value: "btnSearch" },         desc: 查询,       wait_for: { by: css, value: "table.repay-list tr" } }
+        - { action: click, target: { by: id, value: "exportBtn" },         desc: 导出CSV,    wait_for: { by: id, value: "exportDialog" } }
+    mapping:
+      header_row: 0
+      amount_unit: fen
+      date_format: YYYY-MM-DD
+      fields:
+        borrower_name: { header: 客户名称 }
+        contract_no:   { header: 合同编号 }
+        period:        { header: 期次 }
+        due_principal: { header: 应还本金_分 }
+        due_interest:  { header: 应还利息_分 }
+        actual_amount: { header: 实还金额_分 }
+        repay_date:    { header: 还款日 }
+
+  # 3. 中国银行 BOC - U盾 + PIN
+  - code: BOC
+    name: 中国银行
+    auth_type: ukey
+    base_url: https://bocnet.boc.cn/sper
+    login:
+      username_locator: { by: id, value: "userId" }
+      password_locator: { by: id, value: "password" }
+      submit_locator:  { by: id, value: "loginButton" }
+      ukey:
+        detect_command: "ls /dev | grep -i boc"
+        pin_locator: { by: id, value: "pinInput" }
+        pin_env: BOC_UKEY_PIN
+        confirm_locator: { by: id, value: "pinOk" }
+      success_indicator: { by: css, value: "#header-user" }
+      success_timeout: 30000
+    export:
+      file_format: pdf
+      download_button: { by: id, value: "pdfExport" }
+      export_confirm: { by: id, value: "confirmPdf" }
+      path:
+        - { action: click, target: { by: id, value: "m-loan" },          desc: 贷款,      wait_for: { by: css, value: ".m-sub" } }
+        - { action: hover, target: { by: css, value: ".m-sub .repay" },   desc: 悬停还款,  wait_for: { by: css, value: ".m-repay-list" } }
+        - { action: click, target: { by: css, value: ".m-repay-list" },  desc: 还款列表,  wait_for: { by: id, value: "filterBar" } }
+        - { action: click, target: { by: id, value: "queryBtn" },        desc: 查询,      wait_for: { by: css, value: ".data-table tbody tr" } }
+        - { action: click, target: { by: id, value: "pdfExport" },       desc: 导出PDF,   wait_for: { by: id, value: "pdfConfirm" } }
+    mapping:
+      amount_unit: yuan
+      date_format: YYYY/MM/DD
+      fields:
+        borrower_name: { header: 借款人 }
+        contract_no:   { header: 合同号 }
+        period:        { header: 期次 }
+        due_principal: { header: 应还本金 }
+        due_interest:  { header: 应还利息 }
+        actual_amount: { header: 实还金额 }
+        repay_date:    { header: 还款日期 }
+
+  # 4. 中国建设银行 CCB - 动态短信 + 滑块
+  - code: CCB
+    name: 中国建设银行
+    auth_type: sms
+    base_url: https://ib.ccb.cn/sper
+    login:
+      username_locator: { by: id, value: "USERID" }
+      password_locator: { by: id, value: "LOGPASS" }
+      submit_locator:  { by: id, value: "loginButton" }
+      sms:
+        trigger_locator: { by: id, value: "sendCode" }
+        code_locator:    { by: id, value: "SMSCODE" }
+        wait_timeout: 120000
+        prompt: 请输入建设银行短信验证码
+      slider:
+        detect_locator: { by: css, value: ".nc_iconfont.btn_slide" }
+        track_locator: { by: css, value: ".nc_scale" }
+      success_indicator: { by: css, value: ".user-info" }
+      success_timeout: 30000
+    export:
+      file_format: xlsx
+      download_button: { by: id, value: "expBtn" }
+      export_confirm: { by: id, value: "expOk" }
+      path:
+        - { action: click, target: { by: id, value: "navCredit" },        desc: 信贷,      wait_for: { by: css, value: ".creditMenu" } }
+        - { action: hover, target: { by: css, value: ".creditMenu .rp" }, desc: 悬停还款,  wait_for: { by: css, value: ".rpDetail" } }
+        - { action: click, target: { by: css, value: ".rpDetail" },       desc: 还款明细,  wait_for: { by: id, value: "qForm" } }
+        - { action: click, target: { by: id, value: "tabHist" },          desc: 历史,     wait_for: { by: id, value: "dStart" } }
+        - { action: click, target: { by: id, value: "doQuery" },         desc: 查询,     wait_for: { by: css, value: ".rpTable tr" } }
+        - { action: click, target: { by: id, value: "expBtn" },           desc: 导出,     wait_for: { by: id, value: "expOk" } }
+    mapping:
+      sheet_name: 还款明细
+      header_row: 1
+      amount_unit: yuan
+      date_format: YYYYMMDD
+      fields:
+        borrower_name: { header: 借款人姓名 }
+        contract_no:   { header: 贷款合同号 }
+        period:        { header: 期次 }
+        due_principal: { header: 应还本金 }
+        due_interest:  { header: 应还利息 }
+        actual_amount: { header: 实还金额 }
+        repay_date:    { header: 还款日期 }
+
+  # 5. 交通银行 COMM - U盾
+  - code: COMM
+    name: 交通银行
+    auth_type: ukey
+    base_url: https://corp.95559.com/sper
+    login:
+      username_locator: { by: id, value: "uname" }
+      password_locator: { by: id, value: "upass" }
+      submit_locator:  { by: id, value: "lbtn" }
+      ukey:
+        detect_command: "ls /dev | grep -i bocom"
+        pin_locator: { by: id, value: "ukpin" }
+        pin_env: COMM_UKEY_PIN
+        confirm_locator: { by: id, value: "ukok" }
+      success_indicator: { by: css, value: ".home-welcome" }
+      success_timeout: 30000
+    export:
+      file_format: csv
+      encoding: utf-8
+      download_button: { by: id, value: "dlBtn" }
+      export_confirm: { by: id, value: "dlOk" }
+      path:
+        - { action: click, target: { by: id, value: "mLoan" },        desc: 贷款,    wait_for: { by: css, value: ".loanSub" } }
+        - { action: hover, target: { by: css, value: ".loanSub .rp" }, desc: 悬停,    wait_for: { by: css, value: ".rpLink" } }
+        - { action: click, target: { by: css, value: ".rpLink" },      desc: 还款流水, wait_for: { by: id, value: "filterBar" } }
+        - { action: click, target: { by: id, value: "srchBtn" },      desc: 查询,   wait_for: { by: css, value: "table.rp tr" } }
+        - { action: click, target: { by: id, value: "dlBtn" },        desc: 导出,   wait_for: { by: id, value: "dlOk" } }
+    mapping:
+      header_row: 0
+      amount_unit: fen
+      date_format: DD/MM/YYYY
+      fields:
+        borrower_name: { header: 客户名称 }
+        contract_no:   { header: 合同编号 }
+        period:        { header: 期次 }
+        due_principal: { header: 应还本金(分) }
+        due_interest:  { header: 应还利息(分) }
+        actual_amount: { header: 实还金额(分) }
+        repay_date:    { header: 还款日期 }
+
+  # 6. 招商银行 CMB - 短信
+  - code: CMB
+    name: 招商银行
+    auth_type: sms
+    base_url: https://biz.cmbchina.com/sper
+    login:
+      username_locator: { by: id, value: "loginUserId" }
+      password_locator: { by: id, value: "loginPasswd" }
+      submit_locator:  { by: id, value: "btn-login" }
+      sms:
+        trigger_locator: { by: id, value: "sendSms" }
+        code_locator:    { by: id, value: "smsInput" }
+        wait_timeout: 120000
+        prompt: 请输入招商银行短信验证码
+      success_indicator: { by: css, value: ".welcome-name" }
+      success_timeout: 30000
+    export:
+      file_format: xlsx
+      download_button: { by: id, value: "exportButton" }
+      export_confirm: { by: id, value: "confirmBtn" }
+      path:
+        - { action: click, target: { by: id, value: "nav-loan" },          desc: 贷款,      wait_for: { by: css, value: ".subNav" } }
+        - { action: hover, target: { by: css, value: ".subNav .repay" },   desc: 悬停,     wait_for: { by: css, value: ".repayDetail" } }
+        - { action: click, target: { by: css, value: ".repayDetail" },     desc: 还款明细,  wait_for: { by: id, value: "filterForm" } }
+        - { action: click, target: { by: id, value: "tabHistory" },        desc: 历史,     wait_for: { by: id, value: "startDate" } }
+        - { action: click, target: { by: id, value: "queryBtn" },         desc: 查询,     wait_for: { by: css, value: ".repayTable tr" } }
+        - { action: click, target: { by: id, value: "exportButton" },     desc: 导出,     wait_for: { by: id, value: "confirmBtn" } }
+    mapping:
+      sheet_name: 流水
+      header_row: 2
+      amount_unit: yuan
+      date_format: YYYY-MM-DD
+      fields:
+        borrower_name: { header: 借款人 }
+        contract_no:   { header: 合同号 }
+        period:        { header: 期次 }
+        due_principal: { header: 应还本金 }
+        due_interest:  { header: 应还利息 }
+        actual_amount: { header: 实还金额 }
+        repay_date:    { header: 还款日期 }
+
+  # 7. 上海浦东发展银行 SPDB - U盾
+  - code: SPDB
+    name: 浦发银行
+    auth_type: ukey
+    base_url: https://corporate.spdb.com.cn/sper
+    login:
+      username_locator: { by: id, value: "userid" }
+      password_locator: { by: id, value: "userpwd" }
+      submit_locator:  { by: id, value: "loginBtn" }
+      ukey:
+        detect_command: "ls /dev | grep -i spdb"
+        pin_locator: { by: id, value: "pincode" }
+        pin_env: SPDB_UKEY_PIN
+        confirm_locator: { by: id, value: "pinConfirm" }
+      success_indicator: { by: css, value: ".header-user" }
+      success_timeout: 30000
+    export:
+      file_format: csv
+      encoding: gbk
+      download_button: { by: id, value: "exportLink" }
+      export_confirm: { by: id, value: "exportYes" }
+      path:
+        - { action: click, target: { by: id, value: "menuLoan" },        desc: 贷款,    wait_for: { by: css, value: ".loanMenu" } }
+        - { action: hover, target: { by: css, value: ".loanMenu .rp" },  desc: 悬停,   wait_for: { by: css, value: ".rpList" } }
+        - { action: click, target: { by: css, value: ".rpList" },         desc: 还款流水, wait_for: { by: id, value: "qBar" } }
+        - { action: click, target: { by: id, value: "btnQ" },            desc: 查询,   wait_for: { by: css, value: ".rpTbl tr" } }
+        - { action: click, target: { by: id, value: "exportLink" },      desc: 导出,   wait_for: { by: id, value: "exportYes" } }
+    mapping:
+      header_row: 0
+      amount_unit: fen
+      date_format: YYYYMMDD
+      fields:
+        borrower_name: { header: 借款人名称 }
+        contract_no:   { header: 合同编号 }
+        period:        { header: 期次 }
+        due_principal: { header: 应还本金(分) }
+        due_interest:  { header: 应还利息(分) }
+        actual_amount: { header: 实还金额(分) }
+        repay_date:    { header: 还款日期 }
+
+  # 8. 中国民生银行 CMBC - 短信 + 滑块
+  - code: CMBC
+    name: 中国民生银行
+    auth_type: sms
+    base_url: https://mbank.cmbc.com.cn/sper
+    login:
+      username_locator: { by: id, value: "loginName" }
+      password_locator: { by: id, value: "loginPassword" }
+      submit_locator:  { by: id, value: "submitLogin" }
+      sms:
+        trigger_locator: { by: id, value: "sendVerifyCode" }
+        code_locator:    { by: id, value: "verifyCode" }
+        wait_timeout: 120000
+        prompt: 请输入民生银行短信验证码
+      slider:
+        detect_locator: { by: css, value: ".slide-btn" }
+        track_locator: { by: css, value: ".slide-track" }
+      success_indicator: { by: css, value: ".welcome-banner" }
+      success_timeout: 30000
+    export:
+      file_format: pdf
+      download_button: { by: id, value: "pdfDownload" }
+      export_confirm: { by: id, value: "pdfConfirmBtn" }
+      path:
+        - { action: click, target: { by: id, value: "creditMenu" },      desc: 信贷,    wait_for: { by: css, value: ".creditSub" } }
+        - { action: hover, target: { by: css, value: ".creditSub .rp" }, desc: 悬停,   wait_for: { by: css, value: ".rpDetail" } }
+        - { action: click, target: { by: css, value: ".rpDetail" },       desc: 还款明细, wait_for: { by: id, value: "filterPanel" } }
+        - { action: click, target: { by: id, value: "searchBtn" },        desc: 查询,   wait_for: { by: css, value: ".rpDataTable tr" } }
+        - { action: click, target: { by: id, value: "pdfDownload" },     desc: 导出PDF, wait_for: { by: id, value: "pdfConfirmBtn" } }
+    mapping:
+      amount_unit: yuan
+      date_format: YYYY-MM-DD
+      fields:
+        borrower_name: { header: 借款人姓名 }
+        contract_no:   { header: 贷款合同号 }
+        period:        { header: 还款期次 }
+        due_principal: { header: 应还本金 }
+        due_interest:  { header: 应还利息 }
+        actual_amount: { header: 实还金额 }
+        repay_date:    { header: 还款日期 }
+
+# ------------------------------------------------------------------------------
+# 告警通道配置
+# ------------------------------------------------------------------------------
+notifier:
+  dingtalk:
+    webhook: https://oapi.dingtalk.com/robot/send
+    access_token_env: DINGTALK_ACCESS_TOKEN
+    secret_env: DINGTALK_SECRET
+    at_all: false
+    # 逾期/部分还款实时推送
+    realtime_types: [overdue, partial]
+  email:
+    smtp_host: smtp.exmail.example.com
+    smtp_port: 465
+    secure: true
+    user_env: SMTP_USER
+    pass_env: SMTP_PASS
+    from: 公积金还款核对系统 <no-reply@fund-center.gov.cn>
+    to:
+      - finance1@fund-center.gov.cn
+      - finance2@fund-center.gov.cn
+      - finance3@fund-center.gov.cn
+    ops_to:
+      - ops@fund-center.gov.cn
+    subject_prefix: 【公积金还款核对】

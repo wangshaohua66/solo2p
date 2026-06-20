@@ -1,0 +1,29 @@
+{
+  "name": "housing-fund-bank-repayment-rpa",
+  "version": "1.0.0",
+  "description": "某区域住房公积金管理中心 - 多银行还款流水自动化采集、解析、核对与告警系统",
+  "main": "src/main.js",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "start": "node src/main.js",
+    "start:bank": "node src/main.js --bank",
+    "check": "node tools/syntax-check.js",
+    "mock": "node src/main.js --mock"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "chalk": "^4.1.2",
+    "cli-progress": "^3.12.0",
+    "iconv-lite": "^0.6.3",
+    "js-yaml": "^4.1.0",
+    "nodemailer": "^6.9.16",
+    "pdf-parse": "^1.1.1",
+    "selenium-webdriver": "^4.27.0",
+    "sqlite3": "^5.1.7",
+    "webdriverio": "^8.40.6",
+    "xlsx": "^0.18.5"
+  }
+}
