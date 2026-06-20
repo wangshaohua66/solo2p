@@ -1,0 +1,68 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: mw-gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${MW_NACOS_ADDR:127.0.0.1:8848}
+        namespace: ${MW_NACOS_NAMESPACE:public}
+    gateway:
+      discovery:
+        locator:
+          enabled: false
+      routes:
+        - id: mw-auth
+          uri: lb://mw-auth
+          predicates:
+            - Path=/auth/**
+        - id: mw-registration
+          uri: lb://mw-registration
+          predicates:
+            - Path=/registration/**
+        - id: mw-scheduling
+          uri: lb://mw-scheduling
+          predicates:
+            - Path=/scheduling/**
+        - id: mw-tracking
+          uri: lb://mw-tracking
+          predicates:
+            - Path=/tracking/**
+        - id: mw-disposal
+          uri: lb://mw-disposal
+          predicates:
+            - Path=/disposal/**
+        - id: mw-supervision
+          uri: lb://mw-supervision
+          predicates:
+            - Path=/supervision/**
+        - id: mw-trace
+          uri: lb://mw-trace
+          predicates:
+            - Path=/trace/**
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials RETAIN_UNIQUE
+
+  data:
+    redis:
+      host: ${MW_REDIS_HOST:127.0.0.1}
+      port: ${MW_REDIS_PORT:6379}
+      password: ${MW_REDIS_PASSWORD:}
+
+mw:
+  security:
+    jwt:
+      secret: ${MW_JWT_SECRET:mw-medical-waste-secret-key-2024-trace-platform}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: gateway,health,info
+
+logging:
+  level:
+    com.mw.gateway: INFO
+    org.springframework.cloud.gateway: INFO

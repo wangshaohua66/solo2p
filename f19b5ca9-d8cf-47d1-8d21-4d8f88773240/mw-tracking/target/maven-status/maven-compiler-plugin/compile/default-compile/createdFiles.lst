@@ -1,0 +1,9 @@
+com/mw/tracking/repository/GpsPointRepository.class
+com/mw/tracking/dto/GpsBatchRequest.class
+com/mw/tracking/document/VehicleLocation.class
+com/mw/tracking/repository/VehicleLocationRepository.class
+com/mw/tracking/document/GpsPoint.class
+com/mw/tracking/TrackingApplication.class
+com/mw/tracking/service/VehicleTrackingService.class
+com/mw/tracking/dto/GpsIngestDTO.class
+com/mw/tracking/controller/TrackingController.class

@@ -1,0 +1,8 @@
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-supervision/src/main/java/com/mw/supervision/dto/AlertConfirmRequest.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-supervision/src/main/java/com/mw/supervision/controller/SupervisionController.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-supervision/src/main/java/com/mw/supervision/repository/AlertRuleRepository.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-supervision/src/main/java/com/mw/supervision/SupervisionApplication.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-supervision/src/main/java/com/mw/supervision/document/AlertRule.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-supervision/src/main/java/com/mw/supervision/document/Alert.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-supervision/src/main/java/com/mw/supervision/service/SupervisionAlertService.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-supervision/src/main/java/com/mw/supervision/repository/AlertRepository.java

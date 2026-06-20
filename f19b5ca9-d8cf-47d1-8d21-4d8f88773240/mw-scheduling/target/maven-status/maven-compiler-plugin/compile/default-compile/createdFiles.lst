@@ -1,0 +1,15 @@
+com/mw/scheduling/dto/VehiclePositionDTO.class
+com/mw/scheduling/dto/PendingNodeDTO.class
+com/mw/scheduling/dto/PlanResultDTO$PlanResultDTOBuilder.class
+com/mw/scheduling/document/DispatchOrder.class
+com/mw/scheduling/repository/VehicleRepository.class
+com/mw/scheduling/controller/SchedulingController.class
+com/mw/scheduling/service/TransferSchedulingService.class
+com/mw/scheduling/document/StopNode.class
+com/mw/scheduling/SchedulingApplication.class
+com/mw/scheduling/repository/DispatchOrderRepository.class
+com/mw/scheduling/dto/PlanRequest.class
+com/mw/scheduling/dto/PlanResultDTO.class
+com/mw/scheduling/dto/UrgentInsertRequest.class
+com/mw/scheduling/document/Vehicle.class
+com/mw/scheduling/client/TrackingVehicleClient.class

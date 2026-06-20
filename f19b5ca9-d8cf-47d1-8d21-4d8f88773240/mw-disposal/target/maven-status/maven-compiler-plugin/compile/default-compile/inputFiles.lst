@@ -1,0 +1,10 @@
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-disposal/src/main/java/com/mw/disposal/controller/DisposalController.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-disposal/src/main/java/com/mw/disposal/document/DisposalBatch.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-disposal/src/main/java/com/mw/disposal/dto/DisposalBatchCreateRequest.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-disposal/src/main/java/com/mw/disposal/document/EmissionData.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-disposal/src/main/java/com/mw/disposal/dto/EmissionLinkRequest.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-disposal/src/main/java/com/mw/disposal/document/TimeValue.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-disposal/src/main/java/com/mw/disposal/service/DisposalProcessService.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-disposal/src/main/java/com/mw/disposal/DisposalApplication.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-disposal/src/main/java/com/mw/disposal/dto/ProcessDataRequest.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-disposal/src/main/java/com/mw/disposal/repository/DisposalBatchRepository.java

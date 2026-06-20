@@ -1,0 +1,39 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: mw-tracking
+  data:
+    mongodb:
+      uri: ${MW_MONGO_URI:mongodb://127.0.0.1:27017/mw_platform}
+    redis:
+      host: ${MW_REDIS_HOST:127.0.0.1}
+      port: ${MW_REDIS_PORT:6379}
+      password: ${MW_REDIS_PASSWORD:}
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${MW_NACOS_ADDR:127.0.0.1:8848}
+        namespace: ${MW_NACOS_NAMESPACE:public}
+
+mw:
+  security:
+    jwt:
+      secret: ${MW_JWT_SECRET:mw-medical-waste-secret-key-2024-trace-platform}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    com.mw: INFO

@@ -1,0 +1,10 @@
+com/mw/disposal/repository/DisposalBatchRepository.class
+com/mw/disposal/service/DisposalProcessService.class
+com/mw/disposal/dto/EmissionLinkRequest.class
+com/mw/disposal/dto/DisposalBatchCreateRequest.class
+com/mw/disposal/document/TimeValue.class
+com/mw/disposal/DisposalApplication.class
+com/mw/disposal/dto/ProcessDataRequest.class
+com/mw/disposal/document/EmissionData.class
+com/mw/disposal/document/DisposalBatch.class
+com/mw/disposal/controller/DisposalController.class

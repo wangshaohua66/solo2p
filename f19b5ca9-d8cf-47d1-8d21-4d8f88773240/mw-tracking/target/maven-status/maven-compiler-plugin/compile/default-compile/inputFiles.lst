@@ -1,0 +1,9 @@
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-tracking/src/main/java/com/mw/tracking/repository/GpsPointRepository.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-tracking/src/main/java/com/mw/tracking/controller/TrackingController.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-tracking/src/main/java/com/mw/tracking/service/VehicleTrackingService.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-tracking/src/main/java/com/mw/tracking/dto/GpsIngestDTO.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-tracking/src/main/java/com/mw/tracking/document/VehicleLocation.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-tracking/src/main/java/com/mw/tracking/TrackingApplication.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-tracking/src/main/java/com/mw/tracking/document/GpsPoint.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-tracking/src/main/java/com/mw/tracking/dto/GpsBatchRequest.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-tracking/src/main/java/com/mw/tracking/repository/VehicleLocationRepository.java

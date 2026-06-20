@@ -1,0 +1,10 @@
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-auth/src/main/java/com/mw/auth/repository/AccountRepository.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-auth/src/main/java/com/mw/auth/document/Account.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-auth/src/main/java/com/mw/auth/AuthApplication.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-auth/src/main/java/com/mw/auth/controller/AuthController.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-auth/src/main/java/com/mw/auth/dto/RegisterRequest.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-auth/src/main/java/com/mw/auth/dto/TokenResponse.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-auth/src/main/java/com/mw/auth/service/AuthService.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-auth/src/main/java/com/mw/auth/dto/RefreshRequest.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-auth/src/main/java/com/mw/auth/config/SecurityConfig.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-auth/src/main/java/com/mw/auth/dto/LoginRequest.java

@@ -1,0 +1,4 @@
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-gateway/src/main/java/com/mw/gateway/GatewayApplication.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-gateway/src/main/java/com/mw/gateway/config/CorsConfig.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-gateway/src/main/java/com/mw/gateway/security/GatewayJwtUtil.java
+/Users/paul/WorkSpace/TestSoloCoder/f19b5ca9-d8cf-47d1-8d21-4d8f88773240/mw-gateway/src/main/java/com/mw/gateway/security/JwtAuthGlobalFilter.java
