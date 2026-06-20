@@ -1,4 +1,4 @@
-import type { Member, Exercise, TrainingPlan, DietAdvice } from "@/types";
+import type { Member, Exercise, TrainingPlan, DietAdvice, MuscleGroup, Equipment, Difficulty, ExerciseCategory } from "@/types";
 
 export const generateMockMembers = (count: number = 50): Member[] => {
   const firstNames = ["张", "李", "王", "刘", "陈", "杨", "赵", "黄", "周", "吴", "徐", "孙", "马", "朱", "胡"];
@@ -101,7 +101,7 @@ export const generateMockMembers = (count: number = 50): Member[] => {
   return members;
 };
 
-export const mockExercises: Exercise[] = [
+const baseExercises: Exercise[] = [
   { id: "ex-1", name: "杠铃卧推", muscleGroup: "chest", equipment: "barbell", difficulty: "intermediate", category: "compound", isCustom: false, description: "平躺在卧推凳上，双手握杠铃置于胸部上方，垂直向上推举至手臂伸直。", tips: ["保持肩胛骨收紧", "下放时控制速度", "肘部约45度角"], videoUrl: "https://example.com/bench-press" },
   { id: "ex-2", name: "哑铃卧推", muscleGroup: "chest", equipment: "dumbbell", difficulty: "beginner", category: "compound", isCustom: false, description: "平躺持哑铃，从胸部两侧向上推举至手臂伸直。", tips: ["手腕保持中立", "下放至与胸平"] },
   { id: "ex-3", name: "上斜哑铃飞鸟", muscleGroup: "chest", equipment: "dumbbell", difficulty: "intermediate", category: "isolation", isCustom: false, description: "上斜凳上持哑铃展开双臂，以弧线轨迹合拢。", tips: ["肘部微屈", "感受胸肌拉伸"] },
@@ -141,8 +141,114 @@ export const mockExercises: Exercise[] = [
   { id: "ex-37", name: "静态拉伸", muscleGroup: "full-body", equipment: "bodyweight", difficulty: "beginner", category: "flexibility", isCustom: false, description: "训练后静态拉伸保持20-30秒。", tips: ["不疼痛为度", "深呼吸"] },
   { id: "ex-38", name: "硬拉", muscleGroup: "back", equipment: "barbell", difficulty: "advanced", category: "compound", isCustom: false, description: "从地面拉起杠铃至身体直立。", tips: ["脊柱中立", "蹬地发力"] },
   { id: "ex-39", name: "壶铃摆动", muscleGroup: "full-body", equipment: "kettlebell", difficulty: "intermediate", category: "compound", isCustom: false, description: "壶铃从双腿间向前摆动至肩高。", tips: ["髋部发力", "手臂像绳子"] },
-  { id: "ex-40", name: "弹力带面拉", muscleGroup: "shoulders", equipment: "band", difficulty: "beginner", category: "isolation", isCustom: false, description: "弹力带固定，拉向面部两侧。", tips: ["外旋肩膀", "后束收缩"] },
+  { id: "ex-40", name: "弹力带面拉", muscleGroup: "shoulders", equipment: "band", difficulty: "beginner", category: "isolation", isCustom: false, description: "弹力带固定，拉向面部两侧。", tips: ["外旋肩膀", "后束收缩"], videoUrl: "https://example.com/band-face-pull" },
 ];
+
+const muscleGroupNames: Record<MuscleGroup, { base: string[]; equipments: Equipment[] }> = {
+  chest: {
+    base: ["卧推", "飞鸟", "夹胸", "推举", "屈伸", "俯卧撑", "支撑"],
+    equipments: ["barbell", "dumbbell", "machine", "cable", "bodyweight", "band"],
+  },
+  back: {
+    base: ["划船", "下拉", "引体", "硬拉", "拉力", "飞鸟", "伸展"],
+    equipments: ["barbell", "dumbbell", "machine", "cable", "bodyweight"],
+  },
+  shoulders: {
+    base: ["推举", "平举", "飞鸟", "侧平举", "前平举", "面拉", "提拉"],
+    equipments: ["barbell", "dumbbell", "machine", "cable", "band"],
+  },
+  biceps: {
+    base: ["弯举", "锤式弯举", "集中弯举", "牧师弯举", "蜘蛛弯举", "反向弯举"],
+    equipments: ["barbell", "dumbbell", "machine", "cable", "band"],
+  },
+  triceps: {
+    base: ["臂屈伸", "下压", "窄距推举", "过头臂屈伸", "仰卧臂屈伸", "法式推举"],
+    equipments: ["barbell", "dumbbell", "machine", "cable", "bodyweight", "band"],
+  },
+  legs: {
+    base: ["深蹲", "腿举", "硬拉", "箭步蹲", "腿屈伸", "腿弯举", "提踵", "跨步蹲", "保加利亚深蹲"],
+    equipments: ["barbell", "dumbbell", "machine", "kettlebell", "bodyweight", "band"],
+  },
+  core: {
+    base: ["卷腹", "平板支撑", "举腿", "转体", "卷腹", "支撑", "仰卧抬腿", "空中自行车"],
+    equipments: ["bodyweight", "machine", "cable", "kettlebell"],
+  },
+  cardio: {
+    base: ["有氧", "冲刺", "跳跃", "波比跳", "高抬腿", "开合跳", "登山者"],
+    equipments: ["machine", "bodyweight", "kettlebell"],
+  },
+  "full-body": {
+    base: ["摆动", "翻站", "挺举", "抓举", "复合训练", "战绳"],
+    equipments: ["barbell", "kettlebell", "dumbbell", "other"],
+  },
+};
+
+const equipmentLabels: Record<Equipment, string> = {
+  barbell: "杠铃",
+  dumbbell: "哑铃",
+  machine: "器械",
+  cable: "绳索",
+  bodyweight: "自重",
+  kettlebell: "壶铃",
+  band: "弹力带",
+  other: "其他",
+};
+
+const difficultyLabels: Record<Difficulty, string> = {
+  beginner: "初级",
+  intermediate: "中级",
+  advanced: "高级",
+};
+
+const generateExercisesToTotal = (base: Exercise[], target: number): Exercise[] => {
+  const result = [...base];
+  const groups = Object.keys(muscleGroupNames) as MuscleGroup[];
+  let counter = base.length;
+  let variant = 1;
+
+  while (result.length < target) {
+    for (const group of groups) {
+      if (result.length >= target) break;
+      const config = muscleGroupNames[group];
+      const moveBase = config.base[variant % config.base.length];
+      const equipment = config.equipments[variant % config.equipments.length];
+      const equipLabel = equipmentLabels[equipment];
+      const difficulty: Difficulty =
+        variant % 3 === 0 ? "beginner" : variant % 3 === 1 ? "intermediate" : "advanced";
+      const category: ExerciseCategory =
+        group === "cardio" ? "cardio" : group === "full-body" ? "compound" : variant % 2 === 0 ? "isolation" : "compound";
+      counter += 1;
+      const anglePrefix = ["上斜", "下斜", "平", "单臂", "窄距", "宽距", "半程", "停顿", "离心", "爆发"][variant % 10];
+      const name = `${anglePrefix}${equipLabel}${moveBase}`;
+      const description = `${equipLabel}${moveBase}的${anglePrefix}变式，针对${group}肌群进行针对性刺激，注意控制动作节奏与呼吸配合。`;
+      const tips = [
+        `${variant % 2 === 0 ? "顶峰收缩1-2秒" : "全程控制下放速度"}`,
+        `${variant % 3 === 0 ? "保持核心收紧" : "肩胛骨稳定"}`,
+        `${variant % 2 === 0 ? "避免借力代偿" : "感受目标肌群发力"}`,
+      ];
+      const slug = `${group}-${equipment}-${variant}-${counter}`;
+      result.push({
+        id: `ex-${counter}`,
+        name,
+        muscleGroup: group,
+        equipment,
+        difficulty,
+        description,
+        tips,
+        videoUrl: `https://example.com/videos/${slug}`,
+        isCustom: false,
+        category,
+      });
+    }
+    variant += 1;
+  }
+  return result;
+};
+
+export const mockExercises: Exercise[] = generateExercisesToTotal(baseExercises, 300);
+
+export const getExerciseById = (id: string): Exercise | undefined =>
+  mockExercises.find((e) => e.id === id);
 
 export const generateMockPlans = (members: Member[]): TrainingPlan[] => {
   return members.slice(0, 10).map((member, idx) => {

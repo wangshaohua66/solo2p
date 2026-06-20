@@ -1,6 +1,6 @@
-import type { Member, TrainingPlan, DietAdvice, BodyMeasurement, TrainingRecord } from "@/types";
+import type { Member, TrainingPlan, DietAdvice } from "@/types";
 import { getWeekdayName } from "./dateUtils";
-import { getGoalLabel, getMuscleGroupLabel } from "@/hooks/useTrainingVolume";
+import { getGoalLabel } from "@/hooks/useTrainingVolume";
 
 const toCSV = (rows: (string | number)[][]): string => {
   return rows
@@ -98,17 +98,152 @@ export const exportDietAdvice = (advice: DietAdvice, member: Member) => {
 export const exportMemberReport = (member: Member) => {
   const rows: (string | number)[][] = [];
   rows.push([`${member.name} 训练档案报告`]);
-  rows.push([`性别：${member.gender === "male" ? "男" : "女"}`, `身高：${member.height}cm`, `初始体重：${member.weight}kg`]);
+  rows.push([`性别：${member.gender === "male" ? "男" : "女"}`, `身高：${member.height}cm`, `当前体重：${member.weight}kg`]);
   rows.push([`训练目标：${getGoalLabel(member.goal).label}`, `入队日期：${member.createdAt}`]);
+  if (member.phone) rows.push([`联系电话：${member.phone}`]);
   if (member.tags.length) rows.push([`标签：${member.tags.join("、")}`]);
+  if (member.notes) rows.push([`教练备注：${member.notes}`]);
   rows.push([]);
 
   rows.push(["体测记录"]);
-  rows.push(["日期", "体重(kg)", "体脂率(%)", "肌肉量(kg)", "胸围(cm)", "腰围(cm)", "臀围(cm)", "臂围(cm)", "腿围(cm)"]);
-  member.bodyMeasurements.forEach((m) => {
+  rows.push([
+    "日期",
+    "体重(kg)",
+    "体脂率(%)",
+    "肌肉量(kg)",
+    "胸围(cm)",
+    "腰围(cm)",
+    "臀围(cm)",
+    "臂围(cm)",
+    "腿围(cm)",
+  ]);
+  const sortedMeasurements = [...member.bodyMeasurements].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+  sortedMeasurements.forEach((m) => {
     rows.push([
       m.date,
       m.weight.toFixed(1),
-      m.bodyFatRate?.toFixed(1) ?? "-",
-      m.muscleMass?.toFixed(1) ?? "-",
-      m.chest?.toFixed(1)
+      m.bodyFatRate != null ? m.bodyFatRate.toFixed(1) : "-",
+      m.muscleMass != null ? m.muscleMass.toFixed(1) : "-",
+      m.chest != null ? m.chest.toFixed(1) : "-",
+      m.waist != null ? m.waist.toFixed(1) : "-",
+      m.hip != null ? m.hip.toFixed(1) : "-",
+      m.arm != null ? m.arm.toFixed(1) : "-",
+      m.thigh != null ? m.thigh.toFixed(1) : "-",
+    ]);
+  });
+  rows.push([]);
+
+  if (member.trainingRecords.length > 0) {
+    rows.push(["训练记录"]);
+    rows.push([
+      "日期",
+      "动作",
+      "组数",
+      "次数",
+      "重量(kg)",
+      "完成组数",
+      "完成次数",
+      "RPE",
+      "完成状态",
+      "训练时长(分钟)",
+      "备注",
+    ]);
+    const sortedRecords = [...member.trainingRecords].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+    sortedRecords.forEach((r) => {
+      if (r.exercises.length === 0) {
+        rows.push([
+          r.date,
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          r.rpe ?? "-",
+          r.completed ? "已完成" : "未完成",
+          r.duration,
+          r.notes || "",
+        ]);
+        return;
+      }
+      r.exercises.forEach((ex, idx) => {
+        rows.push([
+          idx === 0 ? r.date : "",
+          ex.name,
+          ex.sets,
+          ex.reps,
+          ex.weight ?? "-",
+          ex.completedSets ?? "-",
+          ex.completedReps ?? "-",
+          idx === 0 ? (r.rpe ?? "-") : "",
+          idx === 0 ? (r.completed ? "已完成" : "未完成") : "",
+          idx === 0 ? r.duration : "",
+          idx === 0 ? (r.notes || "") : "",
+        ]);
+      });
+    });
+    rows.push([]);
+
+    rows.push(["训练统计汇总"]);
+    const totalSessions = member.trainingRecords.length;
+    const completedSessions = member.trainingRecords.filter((r) => r.completed).length;
+    const totalVolume = member.trainingRecords.reduce((sum, r) => sum + (r.totalVolume || 0), 0);
+    const totalDuration = member.trainingRecords.reduce((sum, r) => sum + (r.duration || 0), 0);
+    const avgRPE =
+      member.trainingRecords.filter((r) => r.rpe != null).length > 0
+        ? (
+            member.trainingRecords.reduce((sum, r) => sum + (r.rpe || 0), 0) /
+            member.trainingRecords.filter((r) => r.rpe != null).length
+          ).toFixed(1)
+        : "-";
+    rows.push(["总训练次数", totalSessions]);
+    rows.push(["完成次数", completedSessions]);
+    rows.push(["完成率(%)", totalSessions > 0 ? ((completedSessions / totalSessions) * 100).toFixed(1) : "0"]);
+    rows.push(["累计训练容量(kg)", totalVolume]);
+    rows.push(["累计训练时长(分钟)", totalDuration]);
+    rows.push(["平均RPE评分", avgRPE]);
+  }
+
+  const csv = toCSV(rows);
+  triggerDownload(csv, `${member.name}_训练档案报告.csv`);
+};
+
+export const exportMembersBatch = (members: Member[]) => {
+  const rows: (string | number)[][] = [];
+  rows.push([
+    "姓名",
+    "性别",
+    "出生日期",
+    "身高(cm)",
+    "体重(kg)",
+    "训练目标",
+    "电话",
+    "标签",
+    "入队日期",
+    "体测次数",
+    "训练次数",
+    "备注",
+  ]);
+  members.forEach((m) => {
+    rows.push([
+      m.name,
+      m.gender === "male" ? "男" : "女",
+      m.birthDate,
+      m.height,
+      m.weight,
+      getGoalLabel(m.goal).label,
+      m.phone || "",
+      m.tags.join("、"),
+      m.createdAt,
+      m.bodyMeasurements.length,
+      m.trainingRecords.length,
+      m.notes || "",
+    ]);
+  });
+  const csv = toCSV(rows);
+  triggerDownload(csv, `学员名单_${new Date().toISOString().split("T")[0]}.csv`);
+};
