@@ -1,5 +1,6 @@
-import type { StackingSettings, StackResult } from './types'
+import type { StackingSettings, StackResult, Tile, TiledStackAccumulator } from './types'
 import { calculateSNR, mean, quickSortMedian, madMedian } from '@/utils/mathUtils'
+import { createTileGrid, imageToTiles, finalizeTiledStackMean, calculateTiledSNR } from '@/utils/tiledImage'
 
 export const stackMean = (
   frames: Array<{ id: string; data: Float32Array }>,
@@ -294,5 +295,239 @@ export const calculateFrameQuality = (
     quality: score >= 60 ? 'good' : 'rejected',
     score,
     reason: reasons.join('; ') || undefined
+  }
+}
+
+export const finalizeTiledStackMedian = (
+  frameTilesList: Tile[][],
+  width: number,
+  height: number,
+  tileSize: number = 512
+): Tile[] => {
+  const grid = createTileGrid(width, height, tileSize, 0)
+  const frameCount = frameTilesList.length
+  const resultTiles: Tile[] = []
+
+  for (let tileIdx = 0; tileIdx < grid.tiles.length; tileIdx++) {
+    const tile = grid.tiles[tileIdx]
+    const pixelCount = tile.width * tile.height
+    const result = new Float32Array(pixelCount)
+    const values = new Array(frameCount)
+
+    for (let p = 0; p < pixelCount; p++) {
+      for (let f = 0; f < frameCount; f++) {
+        values[f] = frameTilesList[f][tileIdx].data[p]
+      }
+      result[p] = quickSortMedian(values, frameCount)
+    }
+
+    resultTiles.push({ ...tile, data: result })
+  }
+
+  return resultTiles
+}
+
+export const stackTiledMean = (
+  frameTilesList: Tile[][],
+  width: number,
+  height: number,
+  tileSize: number = 512,
+  onProgress?: (tileIndex: number, total: number) => void
+): Tile[] => {
+  const grid = createTileGrid(width, height, tileSize, 0)
+  const tileCount = grid.tiles.length
+  const sumTiles: Float32Array[] = []
+  const countTiles: Float32Array[] = []
+
+  for (const tile of grid.tiles) {
+    sumTiles.push(new Float32Array(tile.width * tile.height))
+    countTiles.push(new Float32Array(tile.width * tile.height))
+  }
+
+  for (let fi = 0; fi < frameTilesList.length; fi++) {
+    const frameTiles = frameTilesList[fi]
+    for (let ti = 0; ti < tileCount; ti++) {
+      const sum = sumTiles[ti]
+      const count = countTiles[ti]
+      const data = frameTiles[ti].data
+      for (let p = 0; p < data.length; p++) {
+        const v = data[p]
+        if (isFinite(v)) {
+          sum[p] += v
+          count[p] += 1
+        }
+      }
+    }
+    onProgress?.(fi + 1, frameTilesList.length)
+  }
+
+  const resultTiles: Tile[] = []
+  for (let ti = 0; ti < tileCount; ti++) {
+    const tile = grid.tiles[ti]
+    const sum = sumTiles[ti]
+    const count = countTiles[ti]
+    const data = new Float32Array(sum.length)
+
+    for (let p = 0; p < sum.length; p++) {
+      if (count[p] > 0) {
+        data[p] = sum[p] / count[p]
+      }
+    }
+
+    resultTiles.push({ ...tile, data })
+  }
+
+  return resultTiles
+}
+
+export const stackTiledSigmaClip = (
+  frameTilesList: Tile[][],
+  width: number,
+  height: number,
+  settings: StackingSettings,
+  tileSize: number = 512,
+  onProgress?: (iter: number, accepted: number, total: number) => void
+): { tiles: Tile[]; acceptedCount: number; rejectedIds: string[] } => {
+  const grid = createTileGrid(width, height, tileSize, 0)
+  const tileCount = grid.tiles.length
+  const frameCount = frameTilesList.length
+
+  let acceptedIndices = frameTilesList.map((_, i) => i)
+  const rejectedIndices = new Set<number>()
+  let iteration = 0
+
+  while (iteration < settings.iterations && acceptedIndices.length >= 3) {
+    const medianTiles: Tile[] = []
+    const currentCount = acceptedIndices.length
+    const values = new Array(currentCount)
+
+    for (let tileIdx = 0; tileIdx < tileCount; tileIdx++) {
+      const tile = grid.tiles[tileIdx]
+      const pixelCount = tile.width * tile.height
+      const medianData = new Float32Array(pixelCount)
+
+      for (let p = 0; p < pixelCount; p++) {
+        for (let fi = 0; fi < currentCount; fi++) {
+          const frameIdx = acceptedIndices[fi]
+          values[fi] = frameTilesList[frameIdx][tileIdx].data[p]
+        }
+        medianData[p] = quickSortMedian(values, currentCount)
+      }
+
+      medianTiles.push({ ...tile, data: medianData })
+    }
+
+    const residuals = new Array(currentCount).fill(0)
+    const sampleStep = 100
+
+    for (let fi = 0; fi < currentCount; fi++) {
+      const frameIdx = acceptedIndices[fi]
+      let sumAbsDev = 0
+      let sampleCount = 0
+
+      for (let tileIdx = 0; tileIdx < tileCount; tileIdx++) {
+        const frameTile = frameTilesList[frameIdx][tileIdx]
+        const medianTile = medianTiles[tileIdx]
+        const data = frameTile.data
+        const med = medianTile.data
+
+        for (let p = 0; p < data.length; p += sampleStep) {
+          sumAbsDev += Math.abs(data[p] - med[p])
+          sampleCount++
+        }
+      }
+
+      residuals[fi] = sumAbsDev / sampleCount
+    }
+
+    const { median: medRes, mad } = madMedian(residuals)
+    const upperLimit = medRes + settings.sigmaThreshold * mad
+    const lowerLimit = medRes - settings.sigmaThreshold * mad
+
+    const newAccepted: number[] = []
+    for (let fi = 0; fi < currentCount; fi++) {
+      if (residuals[fi] >= lowerLimit && residuals[fi] <= upperLimit) {
+        newAccepted.push(acceptedIndices[fi])
+      } else {
+        rejectedIndices.add(acceptedIndices[fi])
+      }
+    }
+
+    if (newAccepted.length === acceptedIndices.length) {
+      break
+    }
+
+    acceptedIndices = newAccepted
+    iteration++
+
+    onProgress?.(iteration, acceptedIndices.length, frameCount)
+  }
+
+  const acceptedTilesList = acceptedIndices.map(i => frameTilesList[i])
+  const resultTiles = stackTiledMean(acceptedTilesList, width, height, tileSize)
+
+  return {
+    tiles: resultTiles,
+    acceptedCount: acceptedIndices.length,
+    rejectedIds: Array.from(rejectedIndices).map(i => `frame-${i}`)
+  }
+}
+
+export const stackTiledFrames = (
+  frameTilesList: Tile[][],
+  width: number,
+  height: number,
+  settings: StackingSettings,
+  tileSize: number = 512,
+  onProgress?: (step: string, progress: number) => void
+): { tiles: Tile[]; snr: number; stackedCount: number; rejectedCount: number } => {
+  if (frameTilesList.length === 0) {
+    throw new Error('没有有效的帧可用于叠加')
+  }
+
+  let resultTiles: Tile[]
+  let stackedCount = frameTilesList.length
+  let rejectedCount = 0
+
+  switch (settings.mode) {
+    case 'mean':
+      resultTiles = stackTiledMean(frameTilesList, width, height, tileSize)
+      break
+    case 'median':
+      resultTiles = finalizeTiledStackMedian(frameTilesList, width, height, tileSize)
+      break
+    case 'sigma-clip':
+    default: {
+      const result = stackTiledSigmaClip(frameTilesList, width, height, settings, tileSize)
+      resultTiles = result.tiles
+      stackedCount = result.acceptedCount
+      rejectedCount = frameTilesList.length - result.acceptedCount
+      break
+    }
+  }
+
+  const sampleTile = resultTiles[Math.floor(resultTiles.length / 2)]
+  let snr = 0
+  if (sampleTile && sampleTile.data.length > 0) {
+    let sum = 0
+    let sumSq = 0
+    for (let i = 0; i < sampleTile.data.length; i++) {
+      const v = sampleTile.data[i]
+      if (isFinite(v)) {
+        sum += v
+        sumSq += v * v
+      }
+    }
+    const mean = sum / sampleTile.data.length
+    const variance = (sumSq / sampleTile.data.length) - mean * mean
+    const std = Math.sqrt(Math.max(0, variance))
+    snr = std > 0 ? mean / std * Math.sqrt(stackedCount) : 0
+  }
+
+  return {
+    tiles: resultTiles,
+    snr,
+    stackedCount,
+    rejectedCount
   }
 }

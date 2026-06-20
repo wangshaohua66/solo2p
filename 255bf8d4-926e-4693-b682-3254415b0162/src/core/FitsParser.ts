@@ -273,26 +273,7 @@ export const parseFitsFile = async (file: File): Promise<FitsFrame> => {
           return
         }
 
-        const dataView = new DataView(arrayBuffer)
-        const { header, dataOffset } = parseFitsHeader(dataView)
-        const pixelData = parsePixelData(dataView, header, dataOffset)
-
-        const width = header.NAXIS1
-        const height = header.NAXIS2
-        const thumbnail = generateThumbnail(pixelData, width, height)
-
-        const frame: FitsFrame = {
-          id: generateId(),
-          fileName: file.name,
-          header,
-          pixelData,
-          width,
-          height,
-          thumbnail,
-          quality: 'pending',
-          processedAt: Date.now()
-        }
-
+        const frame = parseFitsBufferSync(arrayBuffer, file.name)
         resolve(frame)
       } catch (error) {
         reject(error)
@@ -304,17 +285,19 @@ export const parseFitsFile = async (file: File): Promise<FitsFrame> => {
   })
 }
 
-export const parseFitsBuffer = async (
+const parseFitsBufferSync = (
   arrayBuffer: ArrayBuffer,
   fileName: string = 'unknown.fits'
-): Promise<FitsFrame> => {
+): FitsFrame => {
   const dataView = new DataView(arrayBuffer)
-  const { header, dataOffset } = parseFitsHeader(dataView)
-  const pixelData = parsePixelData(dataView, header, dataOffset)
+  const hdus = parseAllHDUs(dataView)
 
-  const width = header.NAXIS1
-  const height = header.NAXIS2
-  const thumbnail = generateThumbnail(pixelData, width, height)
+  const primaryHdu = hdus.find(h => h.type === 'image' && h.pixelData) || hdus[0]
+  const header = primaryHdu.header
+  const pixelData = primaryHdu.pixelData || new Float32Array(0)
+  const width = primaryHdu.width || 0
+  const height = primaryHdu.height || 0
+  const thumbnail = pixelData.length > 0 ? generateThumbnail(pixelData, width, height) : ''
 
   return {
     id: generateId(),
@@ -325,8 +308,16 @@ export const parseFitsBuffer = async (
     height,
     thumbnail,
     quality: 'pending',
-    processedAt: Date.now()
+    processedAt: Date.now(),
+    hdus
   }
+}
+
+export const parseFitsBuffer = async (
+  arrayBuffer: ArrayBuffer,
+  fileName: string = 'unknown.fits'
+): Promise<FitsFrame> => {
+  return parseFitsBufferSync(arrayBuffer, fileName)
 }
 
 export const createMockFitsFrame = (

@@ -7,12 +7,14 @@ import type {
   StackingSettings,
   WorkerMessage,
   WorkerProgress,
-  StackResult
+  StackResult,
+  Tile
 } from '@/core/types'
-import { batchCalibrate } from '@/core/AstroCalibration'
+import { batchCalibrate, createMasterDarkTiled, createMasterFlatTiled, calibrateFrameTiled } from '@/core/AstroCalibration'
 import { batchAlign } from '@/core/StarMatcher'
-import { stackFrames, calculateFrameQuality } from '@/core/ImageStacker'
+import { stackFrames, calculateFrameQuality, stackTiledFrames } from '@/core/ImageStacker'
 import { detectStars } from '@/core/StarMatcher'
+import { tilesToImage, imageToTiles } from '@/utils/tiledImage'
 
 interface StackJob {
   taskId: string
@@ -200,24 +202,48 @@ const processStackJob = async (job: StackJob) => {
     sendProgress({
       taskId,
       progress: 0.8,
-      step: `开始叠加 ${goodFrames.length} 帧`,
+      step: `开始叠加 ${goodFrames.length} 帧 (分块流水线)`,
       frameIndex: 0
     })
 
-    const result = stackFrames(
-      goodFrames,
+    const frameTilesList: Tile[][] = []
+    for (const gf of goodFrames) {
+      const frame = frames.find(f => f.id === gf.id)
+      if (frame && frame.alignedData) {
+        const tiles = imageToTiles(frame.alignedData, refFrame.width, refFrame.height, 512, 0)
+        frameTilesList.push(tiles)
+      }
+    }
+
+    const tiledResult = stackTiledFrames(
+      frameTilesList,
       refFrame.width,
       refFrame.height,
       stackingSettings,
-      (frameIndex, total, step) => {
+      512,
+      (step, progress) => {
         sendProgress({
           taskId,
-          progress: 0.8 + 0.15 * (frameIndex / total),
-          step,
-          frameIndex
+          progress: 0.8 + 0.15 * progress,
+          step: `分块叠加: ${step}`,
+          frameIndex: 0
         })
       }
     )
+
+    const stackedPixelData = tilesToImage(tiledResult.tiles, refFrame.width, refFrame.height, 0)
+
+    const result: StackResult = {
+      width: refFrame.width,
+      height: refFrame.height,
+      pixelData: stackedPixelData,
+      snr: tiledResult.snr,
+      snrHistory: [tiledResult.snr],
+      stackedCount: tiledResult.stackedCount,
+      rejectedCount: tiledResult.rejectedCount,
+      rejectedFrameIds: [],
+      meanFwhm: 0
+    }
 
     sendProgress({
       taskId,

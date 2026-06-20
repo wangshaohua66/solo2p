@@ -1,0 +1,1 @@
+/Users/paul/WorkSpace/TestSoloCoder/255bf8d4-926e-4693-b682-3254415b0162/wasm/fits-parser/target/wasm32-unknown-unknown/release/fits_parser.wasm: /Users/paul/WorkSpace/TestSoloCoder/255bf8d4-926e-4693-b682-3254415b0162/wasm/fits-parser/src/lib.rs

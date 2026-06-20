@@ -283,7 +283,7 @@ export const Workbench = () => {
 
       <div className="flex-1 flex overflow-hidden relative">
         <aside
-          className={`hidden md:flex ${
+          className={`hidden lg:flex ${
             leftPanelOpen ? 'w-64 xl:w-72' : 'w-0'
           } transition-all duration-300 overflow-hidden flex-shrink-0 border-r border-space-panel relative`}
         >
@@ -307,7 +307,7 @@ export const Workbench = () => {
 
             <button
               onClick={() => setRightPanelOpen(!rightPanelOpen)}
-              className="hidden xl:hidden absolute right-2 top-2 z-20 p-2 bg-space-panel/90 backdrop-blur hover:bg-signal-green rounded-lg transition-colors"
+              className="hidden md:flex xl:hidden absolute right-2 top-2 z-20 p-2 bg-space-panel/90 backdrop-blur hover:bg-signal-green rounded-lg transition-colors"
             >
               <Settings size={18} />
             </button>
@@ -497,7 +497,7 @@ export const Workbench = () => {
         </aside>
 
         <div
-          className={`xl:hidden fixed inset-0 z-40 transition-opacity duration-300 ${
+          className={`hidden md:block xl:hidden fixed inset-0 z-40 transition-opacity duration-300 ${
             rightPanelOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
           }`}
           onClick={() => setRightPanelOpen(false)}
@@ -506,7 +506,7 @@ export const Workbench = () => {
         </div>
 
         <aside
-          className={`xl:hidden fixed top-14 right-0 bottom-0 w-72 z-50 bg-space-deep border-l border-space-panel transform transition-transform duration-300 flex flex-col ${
+          className={`hidden md:flex xl:hidden fixed top-14 right-0 bottom-0 w-72 z-50 bg-space-deep border-l border-space-panel transform transition-transform duration-300 flex-col ${
             rightPanelOpen ? 'translate-x-0' : 'translate-x-full'
           }`}
         >

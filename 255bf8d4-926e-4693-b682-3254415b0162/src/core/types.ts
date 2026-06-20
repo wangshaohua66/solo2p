@@ -95,6 +95,7 @@ export interface FitsFrame {
   quality: 'pending' | 'good' | 'rejected'
   rejectReason?: string
   processedAt?: number
+  hdus?: FitsHDU[]
 }
 
 export interface CalibrationSettings {
@@ -127,7 +128,7 @@ export type ChannelName = 'luminance' | 'red' | 'green' | 'blue'
 
 export interface ChannelSettings {
   enabled: boolean
-  stretchFunction: 'linear' | 'log' | 'asinh' | 'auto'
+  stretchFunction: 'linear' | 'log' | 'arctan' | 'auto'
   blackPoint: number
   whitePoint: number
   gamma: number
@@ -141,7 +142,7 @@ export interface VisualizationSettings {
   red: ChannelSettings
   green: ChannelSettings
   blue: ChannelSettings
-  stretchFunction: 'linear' | 'log' | 'asinh' | 'auto'
+  stretchFunction: 'linear' | 'log' | 'arctan' | 'auto'
   blackPoint: number
   whitePoint: number
   colorMap: 'gray' | 'heat' | 'cool' | 'viridis'

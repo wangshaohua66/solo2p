@@ -90,7 +90,7 @@ export const applyColorMap = (
   return lut[idx]
 }
 
-export type StretchFunction = 'linear' | 'log' | 'asinh' | 'auto'
+export type StretchFunction = 'linear' | 'log' | 'arctan' | 'auto'
 
 export const applyStretch = (
   value: number,
@@ -107,7 +107,7 @@ export const applyStretch = (
     case 'log':
       normalized = Math.log(1 + normalized * 9) / Math.log(10)
       break
-    case 'asinh':
+    case 'arctan':
       const stretchAmount = 10
       normalized = Math.atan(normalized * stretchAmount) / Math.atan(stretchAmount)
       break

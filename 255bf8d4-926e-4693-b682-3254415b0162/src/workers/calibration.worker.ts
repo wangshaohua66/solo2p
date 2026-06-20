@@ -3,9 +3,11 @@ import type {
   DarkFrameInfo,
   FlatFrameInfo,
   CalibrationSettings,
-  WorkerMessage
+  WorkerMessage,
+  Tile
 } from '@/core/types'
-import { applyCalibration, matchCalibrationFrames } from '@/core/AstroCalibration'
+import { applyCalibration, matchCalibrationFrames, calibrateFrameTiled, createMasterDarkTiled, createMasterFlatTiled } from '@/core/AstroCalibration'
+import { tilesToImage } from '@/utils/tiledImage'
 
 interface CalibrationJob {
   taskId: string
@@ -62,6 +64,17 @@ const processCalibration = async (job: CalibrationJob) => {
 
     sendProgress(taskId, 0.1, '开始校准处理', 0, frames.length)
 
+    const masterDarkTiles = darkFrames.length > 0 && settings.darkSubtraction
+      ? createMasterDarkTiled(darkFrames, 'median', 512)
+      : null
+
+    const masterFlatResult = flatFrames.length > 0 && settings.flatCorrection
+      ? createMasterFlatTiled(flatFrames, 'median', 512)
+      : null
+
+    const masterFlatTiles = masterFlatResult?.tiles
+    const flatMean = masterFlatResult?.flatMean
+
     for (let i = 0; i < frames.length; i++) {
       if (isCancelled) {
         return
@@ -81,7 +94,23 @@ const processCalibration = async (job: CalibrationJob) => {
       const dark = match.darkFrameId ? darkCache.get(match.darkFrameId) : undefined
       const flat = match.flatFrameId ? flatCache.get(match.flatFrameId) : undefined
 
-      const calibrated = applyCalibration(frame, settings, dark, flat)
+      const darkTiles = dark 
+        ? imageToTilesSingle(dark.pixelData, frame.width, frame.height, 512)
+        : masterDarkTiles ?? undefined
+      const flatTiles = flat
+        ? imageToTilesSingle(flat.pixelData, frame.width, frame.height, 512)
+        : masterFlatTiles ?? undefined
+
+      const calibratedTiles = calibrateFrameTiled(
+        frame,
+        settings,
+        darkTiles,
+        flatTiles,
+        flatMean,
+        512
+      )
+
+      const calibrated = tilesToImage(calibratedTiles, frame.width, frame.height, 0)
       results.set(frame.id, calibrated)
     }
 
@@ -94,6 +123,40 @@ const processCalibration = async (job: CalibrationJob) => {
   }
 
   isProcessing = false
+}
+
+const imageToTilesSingle = (data: Float32Array, width: number, height: number, tileSize: number): Tile[] => {
+  const tiles: Tile[] = []
+  const tilesX = Math.ceil(width / tileSize)
+  const tilesY = Math.ceil(height / tileSize)
+
+  for (let ty = 0; ty < tilesY; ty++) {
+    for (let tx = 0; tx < tilesX; tx++) {
+      const offsetX = tx * tileSize
+      const offsetY = ty * tileSize
+      const w = Math.min(tileSize, width - offsetX)
+      const h = Math.min(tileSize, height - offsetY)
+      const tileData = new Float32Array(w * h)
+
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          tileData[y * w + x] = data[(offsetY + y) * width + (offsetX + x)]
+        }
+      }
+
+      tiles.push({
+        tileX: tx,
+        tileY: ty,
+        offsetX,
+        offsetY,
+        width: w,
+        height: h,
+        data: tileData
+      })
+    }
+  }
+
+  return tiles
 }
 
 self.onmessage = (e: MessageEvent<WorkerMessage>) => {

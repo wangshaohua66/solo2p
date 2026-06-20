@@ -162,19 +162,31 @@ export const parsePixelTile = (
   return tileData
 }
 
-let wasmModule: any = null
+let wasmExports: {
+  memory: WebAssembly.Memory
+  alloc_u8: (size: number) => number
+  dealloc_u8: (ptr: number, size: number) => void
+  alloc_f32: (count: number) => number
+  dealloc_f32: (ptr: number, count: number) => void
+  parse_pixels_u8: (input: number, count: number, bzero: number, bscale: number, output: number) => number
+  parse_pixels_i16: (input: number, count: number, bzero: number, bscale: number, output: number) => number
+  parse_pixels_i32: (input: number, count: number, bzero: number, bscale: number, output: number) => number
+  parse_pixels_f32: (input: number, count: number, bzero: number, bscale: number, output: number) => number
+  parse_pixels_f64: (input: number, count: number, bzero: number, bscale: number, output: number) => number
+  bytes_per_pixel: (bitpix: number) => number
+  version: () => number
+} | null = null
 let wasmReady = false
 
 export const initWasmFitsParser = async (): Promise<boolean> => {
   if (wasmReady) return true
 
   try {
-    const wasmPath = '../wasm/fits-parser'
-    // @ts-ignore - WASM module is optional, will fall back to JS if not available
-    const wasm = await import(/* @vite-ignore */ wasmPath)
-    wasmModule = wasm
+    const response = await fetch('/fits-parser.wasm')
+    const wasm = await WebAssembly.instantiateStreaming(response, {})
+    wasmExports = wasm.instance.exports as any
     wasmReady = true
-    console.info('[FitsParser] WASM module loaded successfully')
+    console.info('[FitsParser] WASM module loaded successfully, version:', wasmExports!.version())
     return true
   } catch (e) {
     console.warn('[FitsParser] Failed to load WASM module, falling back to JS:', e)
@@ -185,12 +197,24 @@ export const initWasmFitsParser = async (): Promise<boolean> => {
 
 export const isWasmAvailable = (): boolean => wasmReady
 
+const getWasmParseFn = (bitpix: number) => {
+  if (!wasmExports) return null
+  switch (bitpix) {
+    case 8: return wasmExports.parse_pixels_u8
+    case 16: return wasmExports.parse_pixels_i16
+    case 32: return wasmExports.parse_pixels_i32
+    case -32: return wasmExports.parse_pixels_f32
+    case -64: return wasmExports.parse_pixels_f64
+    default: return null
+  }
+}
+
 export const parsePixelDataWasm = async (
   dataView: DataView,
   header: FitsHeader,
   offset: number
 ): Promise<Float32Array> => {
-  if (!wasmReady) {
+  if (!wasmReady || !wasmExports) {
     return parsePixelDataFast(dataView, header, offset)
   }
 
@@ -199,18 +223,36 @@ export const parsePixelDataWasm = async (
     const bscale = header.BSCALE || 1
     const naxis1 = header.NAXIS1
     const naxis2 = header.NAXIS2
+    const pixelCount = naxis1 * naxis2
+    const bitpix = header.BITPIX
 
-    const result = wasmModule.parse_fits_pixels(
-      dataView,
-      offset,
-      naxis1,
-      naxis2,
-      header.BITPIX,
-      bzero,
-      bscale
-    )
+    const bpp = wasmExports.bytes_per_pixel(bitpix)
+    if (bpp === 0) {
+      throw new Error(`Unsupported BITPIX: ${bitpix}`)
+    }
 
-    return new Float32Array(result)
+    const inputSize = pixelCount * bpp
+    const inputPtr = wasmExports.alloc_u8(inputSize)
+    const outputPtr = wasmExports.alloc_f32(pixelCount)
+
+    try {
+      const memory = new Uint8Array(wasmExports.memory.buffer)
+      const inputBytes = new Uint8Array(dataView.buffer, dataView.byteOffset + offset, inputSize)
+      memory.set(inputBytes, inputPtr)
+
+      const parseFn = getWasmParseFn(bitpix)
+      if (!parseFn) {
+        throw new Error(`No WASM parser for BITPIX: ${bitpix}`)
+      }
+
+      parseFn(inputPtr, pixelCount, bzero, bscale, outputPtr)
+
+      const result = new Float32Array(wasmExports.memory.buffer, outputPtr, pixelCount)
+      return new Float32Array(result)
+    } finally {
+      wasmExports.dealloc_u8(inputPtr, inputSize)
+      wasmExports.dealloc_f32(outputPtr, pixelCount)
+    }
   } catch (e) {
     console.warn('[FitsParser] WASM parse failed, falling back to JS:', e)
     return parsePixelDataFast(dataView, header, offset)
@@ -226,30 +268,5 @@ export const parsePixelTileWasm = async (
   tileWidth: number,
   tileHeight: number
 ): Promise<Float32Array> => {
-  if (!wasmReady) {
-    return parsePixelTile(dataView, header, offset, tileX, tileY, tileWidth, tileHeight)
-  }
-
-  try {
-    const bzero = header.BZERO || 0
-    const bscale = header.BSCALE || 1
-
-    const result = wasmModule.parse_fits_pixels_tile(
-      dataView,
-      offset,
-      header.NAXIS1,
-      header.BITPIX,
-      bzero,
-      bscale,
-      tileX,
-      tileY,
-      tileWidth,
-      tileHeight
-    )
-
-    return new Float32Array(result)
-  } catch (e) {
-    console.warn('[FitsParser] WASM tile parse failed, falling back to JS:', e)
-    return parsePixelTile(dataView, header, offset, tileX, tileY, tileWidth, tileHeight)
-  }
+  return parsePixelTile(dataView, header, offset, tileX, tileY, tileWidth, tileHeight)
 }

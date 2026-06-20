@@ -8,7 +8,10 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "check": "tsc -b --noEmit"
+    "check": "tsc -b --noEmit",
+    "wasm:build": "cd wasm/fits-parser && cargo build --target wasm32-unknown-unknown --release && cp target/wasm32-unknown-unknown/release/fits_parser.wasm ../../public/fits-parser.wasm",
+    "wasm:build:dev": "cd wasm/fits-parser && cargo build --target wasm32-unknown-unknown && cp target/wasm32-unknown-unknown/debug/fits_parser.wasm ../../public/fits-parser.wasm",
+    "wasm:check": "cd wasm/fits-parser && cargo check --target wasm32-unknown-unknown"
   },
   "dependencies": {
     "chart.js": "^4.4.0",

@@ -13,12 +13,14 @@ import { useCanvasInteraction } from '@/hooks/useCanvasInteraction'
 import { useHistogram } from '@/hooks/useHistogram'
 import {
   pixelToImageData,
+  pixelToImageDataRGB,
   autoStretchParams,
   type ColorMapName,
-  type StretchFunction
+  type StretchFunction,
+  type ChannelRenderParams
 } from '@/utils/colorMaps'
 import { formatADU } from '@/utils/fitsUtils'
-import type { PixelInfo, StarDetection } from '@/core/types'
+import type { PixelInfo, StarDetection, ChannelSettings } from '@/core/types'
 
 interface ImageCanvasProps {
   compareMode?: boolean
@@ -78,14 +80,15 @@ export const ImageCanvas = ({ compareMode = false, comparePosition = 50 }: Image
 
   const stretchParams = useMemo(() => {
     if (!displayData) return { blackPoint: 0, whitePoint: 1 }
-    if (visualizationSettings.stretchFunction === 'auto') {
+    const channelSettings = visualizationSettings[visualizationSettings.activeChannel]
+    if (channelSettings.stretchFunction === 'auto') {
       return autoStretchParams(displayData)
     }
     return {
-      blackPoint: visualizationSettings.blackPoint,
-      whitePoint: visualizationSettings.whitePoint
+      blackPoint: channelSettings.blackPoint,
+      whitePoint: channelSettings.whitePoint
     }
-  }, [displayData, visualizationSettings])
+  }, [displayData, visualizationSettings.activeChannel, visualizationSettings])
 
   const {
     viewport,
@@ -142,16 +145,47 @@ export const ImageCanvas = ({ compareMode = false, comparePosition = 50 }: Image
     ctx.fillStyle = '#0a0e17'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-    const imageData = pixelToImageData(
-      displayData,
-      selectedFrame.width,
-      selectedFrame.height,
-      stretchParams.blackPoint,
-      stretchParams.whitePoint,
-      visualizationSettings.stretchFunction,
-      visualizationSettings.colorMap,
-      visualizationSettings.gamma
-    )
+    let imageData: ImageData
+
+    if (visualizationSettings.mode === 'rgb') {
+      const redChannel: ChannelRenderParams = {
+        pixelData: visualizationSettings.red.enabled ? displayData : null,
+        blackPoint: visualizationSettings.red.blackPoint,
+        whitePoint: visualizationSettings.red.whitePoint,
+        stretch: visualizationSettings.red.stretchFunction,
+        gamma: visualizationSettings.red.gamma,
+        weight: 1
+      }
+      const greenChannel: ChannelRenderParams = {
+        pixelData: visualizationSettings.green.enabled ? displayData : null,
+        blackPoint: visualizationSettings.green.blackPoint,
+        whitePoint: visualizationSettings.green.whitePoint,
+        stretch: visualizationSettings.green.stretchFunction,
+        gamma: visualizationSettings.green.gamma,
+        weight: 1
+      }
+      const blueChannel: ChannelRenderParams = {
+        pixelData: visualizationSettings.blue.enabled ? displayData : null,
+        blackPoint: visualizationSettings.blue.blackPoint,
+        whitePoint: visualizationSettings.blue.whitePoint,
+        stretch: visualizationSettings.blue.stretchFunction,
+        gamma: visualizationSettings.blue.gamma,
+        weight: 1
+      }
+      imageData = pixelToImageDataRGB(redChannel, greenChannel, blueChannel, selectedFrame.width, selectedFrame.height)
+    } else {
+      const activeSettings = visualizationSettings[visualizationSettings.activeChannel]
+      imageData = pixelToImageData(
+        displayData,
+        selectedFrame.width,
+        selectedFrame.height,
+        activeSettings.blackPoint,
+        activeSettings.whitePoint,
+        activeSettings.stretchFunction,
+        activeSettings.colorMap,
+        activeSettings.gamma
+      )
+    }
 
     const tempCanvas = document.createElement('canvas')
     tempCanvas.width = selectedFrame.width
@@ -306,7 +340,7 @@ export const ImageCanvas = ({ compareMode = false, comparePosition = 50 }: Image
   const stretchOptions: { value: StretchFunction; label: string }[] = [
     { value: 'linear', label: '线性' },
     { value: 'log', label: '对数' },
-    { value: 'asinh', label: '反正切' },
+    { value: 'arctan', label: '反正切' },
     { value: 'auto', label: '自动' }
   ]
 
@@ -406,8 +440,8 @@ export const ImageCanvas = ({ compareMode = false, comparePosition = 50 }: Image
         </div>
       )}
 
-      <div className="absolute top-4 right-4 bg-space-deep/90 backdrop-blur rounded-lg p-3 border border-space-panel min-w-48">
-        <div className="flex items-center gap-2 mb-2">
+      <div className="absolute top-4 right-4 bg-space-deep/90 backdrop-blur rounded-lg p-3 border border-space-panel min-w-56 max-h-[85vh] overflow-y-auto">
+        <div className="flex items-center gap-2 mb-3">
           <Palette size={14} className="text-signal-green" />
           <span className="text-sm font-medium text-white">显示设置</span>
           <button
@@ -418,47 +452,235 @@ export const ImageCanvas = ({ compareMode = false, comparePosition = 50 }: Image
           </button>
         </div>
 
-        <div className="space-y-2 text-xs">
-          <div>
-            <label className="text-gray-400 block mb-1">调色板</label>
-            <select
-              value={visualizationSettings.colorMap}
-              onChange={(e) => setVisualizationSettings({ colorMap: e.target.value as ColorMapName })}
-              className="w-full bg-space-panel border border-space-panel/50 rounded px-2 py-1 text-white focus:outline-none focus:border-signal-green"
+        <div className="space-y-3 text-xs">
+          <div className="flex gap-1">
+            <button
+              onClick={() => setVisualizationSettings({ mode: 'mono' })}
+              className={`flex-1 py-1.5 rounded text-xs font-medium transition-colors ${
+                visualizationSettings.mode === 'mono'
+                  ? 'bg-signal-green text-white'
+                  : 'bg-space-panel text-gray-400 hover:text-white'
+              }`}
             >
-              {colorMapOptions.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
+              单通道
+            </button>
+            <button
+              onClick={() => setVisualizationSettings({ mode: 'rgb' })}
+              className={`flex-1 py-1.5 rounded text-xs font-medium transition-colors ${
+                visualizationSettings.mode === 'rgb'
+                  ? 'bg-signal-green text-white'
+                  : 'bg-space-panel text-gray-400 hover:text-white'
+              }`}
+            >
+              RGB合成
+            </button>
           </div>
 
-          <div>
-            <label className="text-gray-400 block mb-1">拉伸函数</label>
-            <select
-              value={visualizationSettings.stretchFunction}
-              onChange={(e) => setVisualizationSettings({ stretchFunction: e.target.value as StretchFunction })}
-              className="w-full bg-space-panel border border-space-panel/50 rounded px-2 py-1 text-white focus:outline-none focus:border-signal-green"
-            >
-              {stretchOptions.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
+          {visualizationSettings.mode === 'mono' && (
+            <>
+              <div>
+                <label className="text-gray-400 block mb-1">当前通道</label>
+                <div className="grid grid-cols-4 gap-1">
+                  {(['luminance', 'red', 'green', 'blue'] as const).map(ch => (
+                    <button
+                      key={ch}
+                      onClick={() => setVisualizationSettings({ activeChannel: ch })}
+                      className={`py-1 rounded text-xs font-medium transition-colors ${
+                        visualizationSettings.activeChannel === ch
+                          ? 'bg-signal-green text-white'
+                          : 'bg-space-panel text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {ch === 'luminance' ? '亮' : ch === 'red' ? 'R' : ch === 'green' ? 'G' : 'B'}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          <div>
-            <label className="text-gray-400 block mb-1">
-              Gamma: {visualizationSettings.gamma.toFixed(1)}
-            </label>
-            <input
-              type="range"
-              min="0.1"
-              max="3"
-              step="0.1"
-              value={visualizationSettings.gamma}
-              onChange={(e) => setVisualizationSettings({ gamma: Number(e.target.value) })}
-              className="w-full h-2 bg-space-panel rounded-lg appearance-none cursor-pointer slider"
-            />
-          </div>
+              <div className="bg-space-panel/30 rounded p-2.5 space-y-2.5">
+                <div>
+                  <label className="text-gray-400 block mb-1">调色板</label>
+                  <select
+                    value={visualizationSettings[visualizationSettings.activeChannel].colorMap}
+                    onChange={(e) => {
+                      setVisualizationSettings({
+                        [visualizationSettings.activeChannel]: {
+                          ...visualizationSettings[visualizationSettings.activeChannel],
+                          colorMap: e.target.value as ColorMapName
+                        }
+                      } as any)
+                    }}
+                    className="w-full bg-space-deep border border-space-panel/50 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-signal-green"
+                  >
+                    {colorMapOptions.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-gray-400 block mb-1">拉伸函数</label>
+                  <select
+                    value={visualizationSettings[visualizationSettings.activeChannel].stretchFunction}
+                    onChange={(e) => {
+                      setVisualizationSettings({
+                        [visualizationSettings.activeChannel]: {
+                          ...visualizationSettings[visualizationSettings.activeChannel],
+                          stretchFunction: e.target.value as StretchFunction
+                        }
+                      } as any)
+                    }}
+                    className="w-full bg-space-deep border border-space-panel/50 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-signal-green"
+                  >
+                    {stretchOptions.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-gray-400 block mb-1">
+                    Gamma: {visualizationSettings[visualizationSettings.activeChannel].gamma.toFixed(1)}
+                  </label>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="3"
+                    step="0.1"
+                    value={visualizationSettings[visualizationSettings.activeChannel].gamma}
+                    onChange={(e) => {
+                      setVisualizationSettings({
+                        [visualizationSettings.activeChannel]: {
+                          ...visualizationSettings[visualizationSettings.activeChannel],
+                          gamma: Number(e.target.value)
+                        }
+                      } as any)
+                    }}
+                    className="w-full h-2 bg-space-deep rounded-lg appearance-none cursor-pointer slider"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-gray-400 block mb-1">
+                      黑点
+                    </label>
+                    <input
+                      type="number"
+                      value={Math.round(visualizationSettings[visualizationSettings.activeChannel].blackPoint)}
+                      onChange={(e) => {
+                        setVisualizationSettings({
+                          [visualizationSettings.activeChannel]: {
+                            ...visualizationSettings[visualizationSettings.activeChannel],
+                            blackPoint: Number(e.target.value)
+                          }
+                        } as any)
+                      }}
+                      className="w-full bg-space-deep border border-space-panel/50 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-signal-green"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-gray-400 block mb-1">
+                      白点
+                    </label>
+                    <input
+                      type="number"
+                      value={Math.round(visualizationSettings[visualizationSettings.activeChannel].whitePoint)}
+                      onChange={(e) => {
+                        setVisualizationSettings({
+                          [visualizationSettings.activeChannel]: {
+                            ...visualizationSettings[visualizationSettings.activeChannel],
+                            whitePoint: Number(e.target.value)
+                          }
+                        } as any)
+                      }}
+                      className="w-full bg-space-deep border border-space-panel/50 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-signal-green"
+                    />
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {visualizationSettings.mode === 'rgb' && (
+            <div className="space-y-3">
+              {(['red', 'green', 'blue'] as const).map(ch => (
+                <div key={ch} className="bg-space-panel/30 rounded p-2 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className={`text-sm font-medium ${
+                      ch === 'red' ? 'text-red-400' : ch === 'green' ? 'text-green-400' : 'text-blue-400'
+                    }`}>
+                      {ch === 'red' ? '红通道' : ch === 'green' ? '绿通道' : '蓝通道'}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setVisualizationSettings({
+                          [ch]: {
+                            ...visualizationSettings[ch],
+                            enabled: !visualizationSettings[ch].enabled
+                          }
+                        } as any)
+                      }}
+                      className={`relative w-8 h-4 rounded-full transition-colors ${
+                        visualizationSettings[ch].enabled ? 'bg-signal-green' : 'bg-gray-600'
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform ${
+                          visualizationSettings[ch].enabled ? 'translate-x-4' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {visualizationSettings[ch].enabled && (
+                    <div className="space-y-2 pt-1">
+                      <div>
+                        <label className="text-gray-500 block mb-0.5 text-[10px]">拉伸函数</label>
+                        <select
+                          value={visualizationSettings[ch].stretchFunction}
+                          onChange={(e) => {
+                            setVisualizationSettings({
+                              [ch]: {
+                                ...visualizationSettings[ch],
+                                stretchFunction: e.target.value as StretchFunction
+                              }
+                            } as any)
+                          }}
+                          className="w-full bg-space-deep border border-space-panel/50 rounded px-1.5 py-0.5 text-white text-[11px] focus:outline-none focus:border-signal-green"
+                        >
+                          {stretchOptions.map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-gray-500 block mb-0.5 text-[10px]">
+                          Gamma: {visualizationSettings[ch].gamma.toFixed(1)}
+                        </label>
+                        <input
+                          type="range"
+                          min="0.1"
+                          max="3"
+                          step="0.1"
+                          value={visualizationSettings[ch].gamma}
+                          onChange={(e) => {
+                            setVisualizationSettings({
+                              [ch]: {
+                                ...visualizationSettings[ch],
+                                gamma: Number(e.target.value)
+                              }
+                            } as any)
+                          }}
+                          className="w-full h-1.5 bg-space-deep rounded-lg appearance-none cursor-pointer slider"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
 
           {histogramData.stats && (
             <div className="pt-2 border-t border-space-panel/50">
