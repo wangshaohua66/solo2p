@@ -138,17 +138,22 @@ def match_photos_to_artifacts(project_id: int, photo_dir: Path) -> Tuple[List[Ar
     if not project:
         raise ValueError(f"项目 {project_id} 不存在")
 
-    artifacts = db.list_artifacts(project_id=project_id, limit=10000)
+    site_code = project.site_code or project.code
+    artifacts = db.list_artifacts(project_id=project_id, limit=50000)
     artifact_map = {a.code: a for a in artifacts}
+
+    trench_map = {}
+    trenches = db.list_trenches(project_id=project_id, limit=5000)
+    for t in trenches:
+        trench_map[t.code] = t
 
     photo_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif"}
     matched: List[ArtifactPhoto] = []
     unmatched: List[ArtifactPhoto] = []
 
-    for photo_path in photo_dir.iterdir():
-        if photo_path.suffix.lower() not in photo_extensions:
-            continue
+    photo_paths = sorted([p for p in photo_dir.iterdir() if p.suffix.lower() in photo_extensions])
 
+    for photo_path in photo_paths:
         exif_data = get_exif_data(photo_path)
         photo_time = get_photo_datetime(exif_data)
         lat, lon = get_gps_coordinates(exif_data)
@@ -161,7 +166,7 @@ def match_photos_to_artifacts(project_id: int, photo_dir: Path) -> Tuple[List[Ar
             gps_longitude=lon,
         )
 
-        matched_artifact = _find_matching_artifact(photo, artifact_map)
+        matched_artifact = _find_matching_artifact(photo, artifact_map, site_code, trench_map)
         if matched_artifact:
             photo.artifact_id = matched_artifact.id
             photo.is_matched = True
@@ -182,14 +187,70 @@ def match_photos_to_artifacts(project_id: int, photo_dir: Path) -> Tuple[List[Ar
     return matched, unmatched
 
 
-def _find_matching_artifact(photo: ArtifactPhoto, artifact_map: dict) -> Optional[Artifact]:
+def _find_matching_artifact(photo: ArtifactPhoto, artifact_map: dict, site_code: str, trench_map: dict) -> Optional[Artifact]:
     file_stem = Path(photo.file_name).stem
 
+    matched = _match_by_filename_pattern(file_stem, artifact_map, site_code, trench_map)
+    if matched:
+        return matched
+
+    matched = _match_by_exif_time(photo, artifact_map)
+    if matched:
+        return matched
+
+    return None
+
+
+def _match_by_filename_pattern(file_stem: str, artifact_map: dict, site_code: str, trench_map: dict) -> Optional[Artifact]:
+    import re
+
+    pattern = re.compile(
+        rf"^{re.escape(site_code)}-(\w+)-(\w+)-(\d+)",
+        re.IGNORECASE
+    )
+    match = pattern.search(file_stem)
+    if match:
+        trench_code = match.group(1)
+        layer = match.group(2)
+        seq_str = match.group(3)
+
+        candidate_code = f"{site_code}-{trench_code}-{layer}-{int(seq_str):04d}"
+        if candidate_code in artifact_map:
+            return artifact_map[candidate_code]
+
     for code in artifact_map:
-        if code in file_stem or file_stem in code:
+        if code.lower() in file_stem.lower():
             return artifact_map[code]
 
     return None
+
+
+def _match_by_exif_time(photo: ArtifactPhoto, artifact_map: dict, time_window_minutes: int = 30) -> Optional[Artifact]:
+    if not photo.photo_time or not artifact_map:
+        return None
+
+    photo_time = photo.photo_time
+    best_match = None
+    min_diff = float('inf')
+
+    for artifact in artifact_map.values():
+        if not artifact.discovered_date:
+            continue
+
+        from datetime import datetime, date
+        artifact_date = artifact.discovered_date
+        if isinstance(artifact_date, date) and not isinstance(artifact_date, datetime):
+            artifact_dt = datetime.combine(artifact_date, datetime.min.time())
+        else:
+            artifact_dt = artifact_date
+
+        diff = abs((photo_time - artifact_dt).total_seconds() / 60.0)
+
+        if diff <= time_window_minutes and diff < min_diff:
+            min_diff = diff
+            best_match = artifact
+
+    return best_match
 
 
 def write_gps_to_exif(image_path: Path, latitude: float, longitude: float) -> bool:

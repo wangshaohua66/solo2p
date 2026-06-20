@@ -295,6 +295,19 @@ CREATE TABLE IF NOT EXISTS sync_conflicts (
     resolution TEXT DEFAULT '',
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS sync_batches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    batch_id TEXT UNIQUE NOT NULL,
+    status TEXT DEFAULT 'pending',
+    total_records INTEGER DEFAULT 0,
+    processed_records INTEGER DEFAULT 0,
+    last_record_id INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_sync_batches_batch ON sync_batches(batch_id);
 """
 
 
@@ -1485,12 +1498,12 @@ def _record_sync(table_name: str, record_id: int, operation: str, data: Dict[str
         )
 
 
-def get_unsynced_records(limit: int = 10000) -> List[SyncRecord]:
+def get_unsynced_records(limit: int = 10000, after_id: int = 0) -> List[SyncRecord]:
     db = get_db()
     with db.get_connection() as conn:
         cursor = conn.execute(
-            "SELECT * FROM sync_records WHERE synced = 0 ORDER BY id LIMIT ?",
-            (limit,),
+            "SELECT * FROM sync_records WHERE synced = 0 AND id > ? ORDER BY id LIMIT ?",
+            (after_id, limit),
         )
         rows = cursor.fetchall()
         return [_row_to_sync_record(row) for row in rows]
@@ -1506,6 +1519,81 @@ def mark_synced(record_ids: List[int], sync_batch: str) -> None:
             f"UPDATE sync_records SET synced = 1, sync_batch = ? WHERE id IN ({placeholders})",
             [sync_batch] + record_ids,
         )
+
+
+def create_sync_batch(batch_id: str, total_records: int = 0) -> None:
+    db = get_db()
+    with db.get_connection() as conn:
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO sync_batches 
+            (batch_id, status, total_records, processed_records, last_record_id)
+            VALUES (?, 'pending', ?, 0, 0)
+            """,
+            (batch_id, total_records),
+        )
+
+
+def update_sync_batch_progress(batch_id: str, processed: int, last_record_id: int, status: str = "in_progress") -> None:
+    db = get_db()
+    with db.get_connection() as conn:
+        conn.execute(
+            """
+            UPDATE sync_batches 
+            SET processed_records = ?, last_record_id = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE batch_id = ?
+            """,
+            (processed, last_record_id, status, batch_id),
+        )
+
+
+def complete_sync_batch(batch_id: str) -> None:
+    db = get_db()
+    with db.get_connection() as conn:
+        conn.execute(
+            """
+            UPDATE sync_batches 
+            SET status = 'completed', updated_at = CURRENT_TIMESTAMP
+            WHERE batch_id = ?
+            """,
+            (batch_id,),
+        )
+
+
+def get_sync_batch(batch_id: str) -> Optional[Dict[str, Any]]:
+    db = get_db()
+    with db.get_connection() as conn:
+        cursor = conn.execute(
+            "SELECT * FROM sync_batches WHERE batch_id = ?",
+            (batch_id,),
+        )
+        row = cursor.fetchone()
+        if row:
+            return _row_to_dict(row)
+        return None
+
+
+def get_pending_sync_batch() -> Optional[Dict[str, Any]]:
+    db = get_db()
+    with db.get_connection() as conn:
+        cursor = conn.execute(
+            "SELECT * FROM sync_batches WHERE status IN ('pending', 'in_progress') ORDER BY id DESC LIMIT 1"
+        )
+        row = cursor.fetchone()
+        if row:
+            return _row_to_dict(row)
+        return None
+
+
+def list_sync_batches(limit: int = 20) -> List[Dict[str, Any]]:
+    db = get_db()
+    with db.get_connection() as conn:
+        cursor = conn.execute(
+            "SELECT * FROM sync_batches ORDER BY id DESC LIMIT ?",
+            (limit,),
+        )
+        rows = cursor.fetchall()
+        return [_row_to_dict(row) for row in rows]
 
 
 def create_sync_conflict(conflict: SyncConflict) -> SyncConflict:
@@ -1595,3 +1683,187 @@ def generate_sample_code(site_code: str, sample_type: str, seq: int) -> str:
     }
     abbr = type_abbr.get(sample_type, "OTH")
     return f"{site_code}-{abbr}-{seq:04d}"
+
+
+def get_next_artifact_seq(project_id: int, site_code: str, trench_code: str, layer: str) -> int:
+    artifacts = list_artifacts(project_id=project_id, limit=50000)
+    prefix = f"{site_code}-{trench_code}-{layer}-"
+    max_seq = 0
+    for a in artifacts:
+        if a.code.startswith(prefix):
+            try:
+                seq_str = a.code[len(prefix):]
+                seq = int(seq_str)
+                if seq > max_seq:
+                    max_seq = seq
+            except (ValueError, TypeError):
+                continue
+    return max_seq + 1
+
+
+def get_next_sample_seq(project_id: int, site_code: str, sample_type: str) -> int:
+    samples = list_samples(project_id=project_id, limit=50000)
+    type_abbr = {
+        "carbon_14": "C14",
+        "pollen": "POL",
+        "phytolith": "PHY",
+        "dna": "DNA",
+        "other": "OTH",
+    }
+    abbr = type_abbr.get(sample_type, "OTH")
+    prefix = f"{site_code}-{abbr}-"
+    max_seq = 0
+    for s in samples:
+        if s.code.startswith(prefix):
+            try:
+                seq_str = s.code[len(prefix):]
+                seq = int(seq_str)
+                if seq > max_seq:
+                    max_seq = seq
+            except (ValueError, TypeError):
+                continue
+    return max_seq + 1
+
+
+def export_trenches_geojson(project_id: int) -> dict:
+    project = get_project(project_id)
+    if not project:
+        raise ValueError(f"项目 {project_id} 不存在")
+
+    trenches = list_trenches(project_id=project_id, limit=5000)
+    features = []
+
+    for trench in trenches:
+        x = trench.x_coordinate
+        y = trench.y_coordinate
+        length = trench.length
+        width = trench.width
+
+        if x == 0 and y == 0:
+            x = trench.grid_col * length
+            y = trench.grid_row * width
+
+        coordinates = [
+            [x, y],
+            [x + length, y],
+            [x + length, y + width],
+            [x, y + width],
+            [x, y],
+        ]
+
+        feature = {
+            "type": "Feature",
+            "properties": {
+                "id": trench.id,
+                "code": trench.code,
+                "grid_row": trench.grid_row,
+                "grid_col": trench.grid_col,
+                "length": trench.length,
+                "width": trench.width,
+                "depth": trench.depth,
+                "status": trench.status,
+                "description": trench.description,
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [coordinates],
+            },
+        }
+        features.append(feature)
+
+    geojson = {
+        "type": "FeatureCollection",
+        "name": f"{project.name} - 探方分布图",
+        "crs": {
+            "type": "name",
+            "properties": {
+                "name": "urn:ogc:def:crs:EPSG::4326"
+            }
+        },
+        "properties": {
+            "project_id": project.id,
+            "project_name": project.name,
+            "project_code": project.code,
+            "site_name": project.site_name,
+            "trench_count": len(features),
+        },
+        "features": features,
+    }
+
+    return geojson
+
+
+def get_sample_summary(project_id: Optional[int] = None, sample_type: Optional[str] = None) -> dict:
+    db = get_db()
+    
+    conditions = []
+    params = []
+    
+    if project_id:
+        conditions.append("project_id = ?")
+        params.append(project_id)
+    if sample_type:
+        conditions.append("sample_type = ?")
+        params.append(sample_type)
+    
+    where_clause = ""
+    if conditions:
+        where_clause = "WHERE " + " AND ".join(conditions)
+    
+    sent_conditions = list(conditions)
+    sent_conditions.append("sent_date IS NOT NULL")
+    sent_where = "WHERE " + " AND ".join(sent_conditions) if sent_conditions else ""
+    
+    overdue_conditions = list(conditions)
+    overdue_conditions.append("status = ?")
+    overdue_params = list(params) + ["overdue"]
+    overdue_where = "WHERE " + " AND ".join(overdue_conditions) if overdue_conditions else ""
+    
+    with db.get_connection() as conn:
+        total = conn.execute(
+            f"SELECT COUNT(*) FROM samples {where_clause}",
+            params,
+        ).fetchone()[0]
+        
+        status_query = f"""
+            SELECT status, COUNT(*) as cnt 
+            FROM samples {where_clause}
+            GROUP BY status
+        """
+        status_rows = conn.execute(status_query, params).fetchall()
+        
+        type_query = f"""
+            SELECT sample_type, COUNT(*) as cnt 
+            FROM samples {where_clause}
+            GROUP BY sample_type
+        """
+        type_rows = conn.execute(type_query, params).fetchall()
+        
+        sent_count = conn.execute(
+            f"SELECT COUNT(*) FROM samples {sent_where}",
+            params,
+        ).fetchone()[0]
+        
+        overdue_count = conn.execute(
+            f"SELECT COUNT(*) FROM samples {overdue_where}",
+            overdue_params,
+        ).fetchone()[0]
+    
+    status_counts = {}
+    for row in status_rows:
+        status_counts[row["status"]] = row["cnt"]
+    
+    type_counts = {}
+    for row in type_rows:
+        type_counts[row["sample_type"]] = row["cnt"]
+    
+    send_rate = (sent_count / total * 100) if total > 0 else 0.0
+    
+    return {
+        "total": total,
+        "sent": sent_count,
+        "overdue": overdue_count,
+        "send_rate": round(send_rate, 2),
+        "status_counts": status_counts,
+        "type_counts": type_counts,
+    }

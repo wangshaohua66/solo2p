@@ -92,7 +92,8 @@ def _get_role_name(role: str) -> str:
     return PersonRole.get_role_name(PersonRole(role))
 
 
-def generate_briefing(project_id: int, output_path: Optional[Path] = None) -> Path:
+def generate_briefing(project_id: int, output_path: Optional[Path] = None, 
+                      format: str = "doc") -> Path:
     project = db.get_project(project_id)
     if not project:
         raise ValueError(f"项目 {project_id} 不存在")
@@ -170,11 +171,15 @@ def generate_briefing(project_id: int, output_path: Optional[Path] = None) -> Pa
 
     html_content = template.render(context)
 
+    if format == "doc":
+        html_content = _wrap_html_for_word(html_content, f"{project.name} - 发掘简报")
+
     if output_path is None:
         report_dir = get_config_dir() / "reports"
         report_dir.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_path = report_dir / f"briefing_{project.code}_{timestamp}.html"
+        ext = ".doc" if format == "doc" else ".html"
+        output_path = report_dir / f"briefing_{project.code}_{timestamp}{ext}"
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
@@ -182,6 +187,74 @@ def generate_briefing(project_id: int, output_path: Optional[Path] = None) -> Pa
 
     logger.info(f"发掘简报已生成: {output_path}")
     return output_path
+
+
+def _wrap_html_for_word(html_content: str, title: str) -> str:
+    word_header = f'''<html xmlns:o="urn:schemas-microsoft-com:office:office"
+xmlns:w="urn:schemas-microsoft-com:office:word"
+xmlns="http://www.w3.org/TR/REC-html40">
+
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Type" content="application/msword; charset=utf-8">
+<title>{title}</title>
+<!--[if gte mso 9]><xml>
+<w:WordDocument>
+<w:View>Print</w:View>
+<w:Zoom>100</w:Zoom>
+<w:DoNotOptimizeForBrowser/>
+</w:WordDocument>
+</xml><![endif]-->
+<style>
+@page {{
+    size: A4;
+    margin: 2cm;
+}}
+body {{
+    font-family: "Microsoft YaHei", "SimSun", serif;
+    font-size: 12pt;
+    line-height: 1.5;
+}}
+h1, h2, h3 {{
+    font-family: "Microsoft YaHei", "SimHei", sans-serif;
+}}
+table {{
+    border-collapse: collapse;
+    width: 100%;
+}}
+table, th, td {{
+    border: 1px solid #000;
+}}
+th, td {{
+    padding: 6px;
+    text-align: left;
+}}
+th {{
+    background-color: #f0f0f0;
+    font-weight: bold;
+}}
+</style>
+</head>
+<body>
+'''
+
+    body_start = html_content.find('<body')
+    if body_start != -1:
+        body_start = html_content.find('>', body_start) + 1
+    else:
+        body_start = 0
+
+    body_end = html_content.find('</body>')
+    if body_end == -1:
+        body_end = len(html_content)
+
+    body_content = html_content[body_start:body_end]
+
+    word_footer = '''
+</body>
+</html>'''
+
+    return word_header + body_content + word_footer
 
 
 def generate_annual_report(year: int, output_path: Optional[Path] = None) -> Path:
@@ -291,6 +364,38 @@ def generate_budget_report(project_id: int, quarter: Optional[int] = None,
     budget_items = db.list_budget_items(project_id=project_id)
     budget_summary = db.get_project_budget_summary(project_id)
 
+    if quarter and 1 <= quarter <= 4:
+        filtered_items = []
+        total_budgeted = 0.0
+        total_actual = 0.0
+        for item in budget_items:
+            item_actual = item.actual / 4.0 * quarter
+            item_budgeted = item.budgeted / 4.0 * quarter
+            from copy import deepcopy
+            new_item = deepcopy(item)
+            new_item.actual = round(item_actual, 2)
+            new_item.budgeted = round(item_budgeted, 2)
+            filtered_items.append(new_item)
+            total_budgeted += new_item.budgeted
+            total_actual += new_item.actual
+        
+        execution_rate = (total_actual / total_budgeted * 100) if total_budgeted > 0 else 0.0
+        deviation_items = [item for item in filtered_items if item.has_deviation]
+        
+        return {
+            "project_name": project.name,
+            "project_code": project.code,
+            "year": year,
+            "quarter": quarter,
+            "total_budgeted": round(total_budgeted, 2),
+            "total_actual": round(total_actual, 2),
+            "execution_rate": round(execution_rate, 2),
+            "item_count": len(filtered_items),
+            "deviation_count": len(deviation_items),
+            "deviation_items": deviation_items,
+            "budget_items": filtered_items,
+        }
+
     deviation_items = [item for item in budget_items if item.has_deviation]
 
     return {
@@ -308,7 +413,9 @@ def generate_budget_report(project_id: int, quarter: Optional[int] = None,
     }
 
 
-def export_budget_excel(project_id: int, output_path: Path) -> Path:
+def export_budget_excel(project_id: int, output_path: Path, 
+                        quarter: Optional[int] = None, 
+                        year: Optional[int] = None) -> Path:
     try:
         from openpyxl import Workbook
         from openpyxl.styles import Font, Alignment, PatternFill
@@ -316,19 +423,25 @@ def export_budget_excel(project_id: int, output_path: Path) -> Path:
         logger.warning("openpyxl 未安装，无法导出 Excel")
         raise
 
-    budget_data = generate_budget_report(project_id)
+    budget_data = generate_budget_report(project_id, quarter=quarter, year=year)
     budget_items = budget_data["budget_items"]
 
     wb = Workbook()
     ws = wb.active
-    ws.title = "经费执行情况"
+    title_suffix = f" - {budget_data['year']}年第{budget_data['quarter']}季度" if budget_data.get("quarter") else ""
+    ws.title = f"经费执行情况{title_suffix.strip(' - ')}"
 
     header_font = Font(bold=True, size=12)
     header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
     header_font_white = Font(bold=True, size=12, color="FFFFFF")
     center_align = Alignment(horizontal="center", vertical="center")
+    deviation_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
 
-    ws["A1"] = f"{budget_data['project_name']} - 经费执行表"
+    period_text = f"{budget_data['year']}年"
+    if budget_data.get("quarter"):
+        period_text += f"第{budget_data['quarter']}季度"
+    
+    ws["A1"] = f"{budget_data['project_name']} - 经费执行表 ({period_text})"
     ws["A1"].font = Font(bold=True, size=14)
     ws.merge_cells("A1:E1")
     ws["A1"].alignment = center_align
@@ -349,7 +462,9 @@ def export_budget_excel(project_id: int, output_path: Path) -> Path:
         deviation_cell = ws.cell(row=row_idx, column=5)
         if item.has_deviation:
             deviation_cell.value = "⚠️ 偏差超20%"
-            deviation_cell.font = Font(color="FF0000")
+            deviation_cell.font = Font(color="FF0000", bold=True)
+            for col in range(1, 6):
+                ws.cell(row=row_idx, column=col).fill = deviation_fill
         else:
             deviation_cell.value = "正常"
 

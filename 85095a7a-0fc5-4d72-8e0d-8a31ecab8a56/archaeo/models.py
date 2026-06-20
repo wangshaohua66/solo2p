@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 class ProjectPhase(str, Enum):
     PROSPECTING = "prospecting"
     EXCAVATION = "excavation"
+    SAMPLING = "sampling"
     PROCESSING = "processing"
     REPORT = "report"
 
@@ -16,6 +17,7 @@ class ProjectPhase(str, Enum):
         names = {
             cls.PROSPECTING: "勘探立项",
             cls.EXCAVATION: "布方发掘",
+            cls.SAMPLING: "采样送检",
             cls.PROCESSING: "资料整理",
             cls.REPORT: "报告编写",
         }
@@ -34,7 +36,13 @@ class ProjectPhase(str, Enum):
                 "探方布设完成",
                 "发掘日志记录",
                 "出土遗物登记",
-                "采样标本送检",
+                "层位关系记录",
+            ],
+            cls.SAMPLING: [
+                "采样标本登记",
+                "送检机构确认",
+                "标本送检出库",
+                "送检回执存档",
             ],
             cls.PROCESSING: [
                 "遗物修复完成",
@@ -59,14 +67,18 @@ class ProjectStatus(str, Enum):
     SUSPENDED = "suspended"
 
     @classmethod
-    def get_status_name(cls, status: "ProjectStatus") -> str:
+    def get_status_name(cls, status) -> str:
         names = {
-            cls.NOT_STARTED: "未开始",
-            cls.IN_PROGRESS: "进行中",
-            cls.COMPLETED: "已完成",
-            cls.SUSPENDED: "已暂停",
+            cls.NOT_STARTED.value: "未开始",
+            cls.IN_PROGRESS.value: "进行中",
+            cls.COMPLETED.value: "已完成",
+            cls.SUSPENDED.value: "已暂停",
         }
-        return names.get(status, status.value)
+        if isinstance(status, cls):
+            status_val = status.value
+        else:
+            status_val = status
+        return names.get(status_val, str(status))
 
 
 class Project(BaseModel):
@@ -237,15 +249,19 @@ class SampleStatus(str, Enum):
     OVERDUE = "overdue"
 
     @classmethod
-    def get_status_name(cls, status: "SampleStatus") -> str:
+    def get_status_name(cls, status) -> str:
         names = {
-            cls.COLLECTED: "已采集",
-            cls.SENT: "已送检",
-            cls.TESTING: "检测中",
-            cls.COMPLETED: "已完成",
-            cls.OVERDUE: "已超期",
+            cls.COLLECTED.value: "已采集",
+            cls.SENT.value: "已送检",
+            cls.TESTING.value: "检测中",
+            cls.COMPLETED.value: "已完成",
+            cls.OVERDUE.value: "已超期",
         }
-        return names.get(status, status.value)
+        if isinstance(status, cls):
+            status_val = status.value
+        else:
+            status_val = status
+        return names.get(status_val, str(status))
 
 
 class Sample(BaseModel):

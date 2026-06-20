@@ -22,20 +22,65 @@ def get_sync_dir() -> Path:
     return sync_dir
 
 
-def package_incremental_data(batch_id: Optional[str] = None, limit: int = 10000) -> Tuple[str, int]:
+def package_incremental_data(batch_id: Optional[str] = None, limit: int = 10000, 
+                             resume: bool = False, batch_size: int = 1000) -> Tuple[str, int]:
+    if resume:
+        pending_batch = db.get_pending_sync_batch()
+        if pending_batch and pending_batch.get("status") in ("pending", "in_progress"):
+            batch_id = pending_batch["batch_id"]
+            last_record_id = pending_batch.get("last_record_id", 0)
+            processed = pending_batch.get("processed_records", 0)
+            logger.info(f"恢复同步批次: {batch_id}, 已处理: {processed} 条")
+            return _package_batch(batch_id, last_record_id, limit, batch_size)
+    
     batch_id = batch_id or generate_sync_batch()
-
-    unsynced = db.get_unsynced_records(limit=limit)
+    
+    unsynced = db.get_unsynced_records(limit=1, after_id=0)
     if not unsynced:
         return batch_id, 0
+    
+    total_count = _count_unsynced_records()
+    db.create_sync_batch(batch_id, total_count)
+    
+    return _package_batch(batch_id, 0, limit, batch_size)
 
+
+def _count_unsynced_records() -> int:
+    from . import db as db_module
+    db_instance = db_module.get_db()
+    with db_instance.get_connection() as conn:
+        cursor = conn.execute("SELECT COUNT(*) FROM sync_records WHERE synced = 0")
+        return cursor.fetchone()[0]
+
+
+def _package_batch(batch_id: str, start_after_id: int, max_records: int, batch_size: int) -> Tuple[str, int]:
     sync_dir = get_sync_dir()
-    package_file = sync_dir / f"{batch_id}.json"
+    total_processed = 0
+    last_id = start_after_id
+    all_records = []
+
+    while total_processed < max_records:
+        batch_limit = min(batch_size, max_records - total_processed)
+        batch_records = db.get_unsynced_records(limit=batch_limit, after_id=last_id)
+        
+        if not batch_records:
+            break
+        
+        all_records.extend(batch_records)
+        total_processed += len(batch_records)
+        last_id = batch_records[-1].id
+        
+        db.update_sync_batch_progress(batch_id, total_processed, last_id, "in_progress")
+    
+    if not all_records:
+        return batch_id, 0
 
     sync_data = {
         "batch_id": batch_id,
         "generated_at": datetime.now().isoformat(),
-        "record_count": len(unsynced),
+        "record_count": len(all_records),
+        "start_record_id": all_records[0].id,
+        "end_record_id": all_records[-1].id,
         "records": [
             {
                 "id": rec.id,
@@ -45,18 +90,40 @@ def package_incremental_data(batch_id: Optional[str] = None, limit: int = 10000)
                 "data": rec.data,
                 "created_at": rec.created_at.isoformat() if rec.created_at else None,
             }
-            for rec in unsynced
+            for rec in all_records
         ],
     }
 
+    package_file = sync_dir / f"{batch_id}.json"
     with open(package_file, "w", encoding="utf-8") as f:
         json.dump(sync_data, f, ensure_ascii=False, indent=2)
 
-    record_ids = [rec.id for rec in unsynced]
+    record_ids = [rec.id for rec in all_records]
     db.mark_synced(record_ids, batch_id)
+    
+    db.complete_sync_batch(batch_id)
 
-    logger.info(f"打包完成: {len(unsynced)} 条记录到 {package_file}")
-    return batch_id, len(unsynced)
+    logger.info(f"打包完成: {len(all_records)} 条记录到 {package_file}")
+    return batch_id, len(all_records)
+
+
+def resume_sync_package(limit: int = 10000, batch_size: int = 1000) -> Tuple[str, int]:
+    pending_batch = db.get_pending_sync_batch()
+    if not pending_batch:
+        return package_incremental_data(limit=limit, batch_size=batch_size)
+    
+    batch_id = pending_batch["batch_id"]
+    return package_incremental_data(batch_id=batch_id, limit=limit, resume=True, batch_size=batch_size)
+
+
+def get_sync_batch_progress(batch_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    if batch_id:
+        return db.get_sync_batch(batch_id)
+    return db.get_pending_sync_batch()
+
+
+def list_all_sync_batches(limit: int = 20) -> List[Dict[str, Any]]:
+    return db.list_sync_batches(limit=limit)
 
 
 def load_sync_package(package_path: Path) -> Dict[str, Any]:

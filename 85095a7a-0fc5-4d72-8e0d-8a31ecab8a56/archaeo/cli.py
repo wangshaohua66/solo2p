@@ -80,6 +80,7 @@ def _phase_emoji(phase: str) -> str:
     phase_map = {
         "prospecting": "🔍",
         "excavation": "⛏️",
+        "sampling": "🧪",
         "processing": "📦",
         "report": "📝",
     }
@@ -509,13 +510,38 @@ def trench_stratum_list(
     console.print(table)
 
 
+@trench_app.command("export-geojson")
+def trench_export_geojson(
+    project_id: int = typer.Option(..., "--project", "-p", help="项目ID"),
+    output: str = typer.Option(..., "--output", "-o", help="输出文件路径"),
+):
+    """导出探方分布平面图为 GeoJSON 格式"""
+    import json
+
+    try:
+        geojson_data = db.export_trenches_geojson(project_id)
+        output_path = Path(output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(geojson_data, f, ensure_ascii=False, indent=2)
+
+        console.print(
+            f"[green]✓ 导出成功: {geojson_data['properties']['trench_count']} 个探方[/green]\n"
+            f"[cyan]输出文件: {output_path}[/cyan]"
+        )
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
+
+
 @artifact_app.command("create")
 def artifact_create(
     project_id: int = typer.Option(..., "--project", "-p", help="项目ID"),
-    code: str = typer.Option(..., "--code", "-c", help="遗物编号"),
+    code: Optional[str] = typer.Option(None, "--code", "-c", help="遗物编号（留空则自动生成）"),
     name: str = typer.Option("", "--name", "-n", help="遗物名称"),
     category: ArtifactCategory = typer.Option(ArtifactCategory.OTHER, "--category", "-t", help="遗物类别"),
-    trench_id: Optional[int] = typer.Option(None, "--trench", "-t", help="探方ID"),
+    trench_id: Optional[int] = typer.Option(None, "--trench", "-T", help="探方ID"),
     layer: str = typer.Option("", "--layer", "-l", help="层位号"),
     quantity: int = typer.Option(1, "--qty", "-q", help="数量"),
     description: str = typer.Option("", "--desc", "-d", help="描述"),
@@ -525,9 +551,31 @@ def artifact_create(
     """登记出土遗物"""
     from .models import Artifact
 
+    code_value = code
+    if not code_value:
+        project = db.get_project(project_id)
+        if not project:
+            console.print(f"[red]项目 {project_id} 不存在[/red]")
+            raise typer.Exit(1)
+
+        site_code = project.site_code or project.code
+
+        trench_code = ""
+        if trench_id:
+            trench = db.get_trench(trench_id)
+            if trench:
+                trench_code = trench.code
+
+        if not trench_code or not layer:
+            console.print("[red]自动编号需要提供探方ID和层位号[/red]")
+            raise typer.Exit(1)
+
+        next_seq = db.get_next_artifact_seq(project_id, site_code, trench_code, layer)
+        code_value = db.generate_artifact_code(site_code, trench_code, layer, next_seq)
+
     artifact = Artifact(
         project_id=project_id,
-        code=code,
+        code=code_value,
         name=name,
         category=category,
         trench_id=trench_id,
@@ -611,7 +659,7 @@ def artifact_show(
 @sample_app.command("create")
 def sample_create(
     project_id: int = typer.Option(..., "--project", "-p", help="项目ID"),
-    code: str = typer.Option(..., "--code", "-c", help="标本编号"),
+    code: Optional[str] = typer.Option(None, "--code", "-c", help="标本编号（留空则自动生成）"),
     sample_type: SampleType = typer.Option(SampleType.OTHER, "--type", "-t", help="标本类型"),
     trench_id: Optional[int] = typer.Option(None, "--trench", "-T", help="探方ID"),
     description: str = typer.Option("", "--desc", "-d", help="描述"),
@@ -622,9 +670,20 @@ def sample_create(
     """登记采样标本"""
     from .models import Sample
 
+    code_value = code
+    if not code_value:
+        project = db.get_project(project_id)
+        if not project:
+            console.print(f"[red]项目 {project_id} 不存在[/red]")
+            raise typer.Exit(1)
+
+        site_code = project.site_code or project.code
+        next_seq = db.get_next_sample_seq(project_id, site_code, sample_type.value)
+        code_value = db.generate_sample_code(site_code, sample_type.value, next_seq)
+
     sample = Sample(
         project_id=project_id,
-        code=code,
+        code=code_value,
         sample_type=sample_type,
         trench_id=trench_id,
         description=description,
@@ -749,6 +808,55 @@ def sample_check_overdue():
         console.print(table)
     else:
         console.print("[green]✓ 没有超期标本[/green]")
+
+
+@sample_app.command("summary")
+def sample_summary(
+    project_id: Optional[int] = typer.Option(None, "--project", "-p", help="按项目筛选"),
+    sample_type: Optional[SampleType] = typer.Option(None, "--type", "-t", help="按标本类型筛选"),
+):
+    """汇总送检状态"""
+    summary = db.get_sample_summary(
+        project_id=project_id,
+        sample_type=sample_type.value if sample_type else None,
+    )
+
+    console.print(Panel(
+        f"[bold]标本送检状态汇总[/bold]\n\n"
+        f"总数: {summary['total']} 件\n"
+        f"已送检: {summary['sent']} 件\n"
+        f"送检率: {summary['send_rate']}%\n"
+        f"超期: {summary['overdue']} 件",
+        title="📊 标本汇总",
+        border_style="cyan",
+    ))
+
+    status_table = Table(title="各状态计数", row_styles=["none", "dim"])
+    status_table.add_column("状态", style="white")
+    status_table.add_column("数量", style="cyan", justify="right")
+    status_table.add_column("占比", style="green", justify="right")
+
+    from .models import SampleStatus
+    total = summary["total"] if summary["total"] > 0 else 1
+    for status_val, count in summary["status_counts"].items():
+        status_name = SampleStatus.get_status_name(status_val)
+        pct = round(count / total * 100, 1)
+        status_table.add_row(status_name, str(count), f"{pct}%")
+
+    console.print(status_table)
+
+    if summary["type_counts"]:
+        type_table = Table(title="各类型计数", row_styles=["none", "dim"])
+        type_table.add_column("类型", style="white")
+        type_table.add_column("数量", style="magenta", justify="right")
+        type_table.add_column("占比", style="green", justify="right")
+
+        for type_val, count in summary["type_counts"].items():
+            type_name = SampleType.get_type_name(SampleType(type_val))
+            pct = round(count / total * 100, 1)
+            type_table.add_row(type_name, str(count), f"{pct}%")
+
+        console.print(type_table)
 
 
 @schedule_app.command("person-add")
@@ -927,6 +1035,99 @@ def schedule_workload(
     console.print(table)
 
 
+@schedule_app.command("equipment-add")
+def schedule_equipment_add(
+    name: str = typer.Option(..., "--name", "-n", help="设备名称"),
+    code: str = typer.Option(..., "--code", "-c", help="设备编号"),
+    category: str = typer.Option("", "--category", "-t", help="设备类别"),
+    status: str = typer.Option("available", "--status", help="设备状态"),
+    desc: str = typer.Option("", "--desc", "-d", help="设备描述"),
+):
+    """添加设备"""
+    from .models import Equipment
+
+    equipment = Equipment(
+        name=name,
+        code=code,
+        category=category,
+        status=status,
+        description=desc,
+    )
+
+    try:
+        created = db.create_equipment(equipment)
+        console.print(f"[green]✓ 设备 {created.name} 添加成功 (ID: {created.id})[/green]")
+    except Exception as e:
+        console.print(f"[red]添加失败：{e}[/red]")
+        raise typer.Exit(1)
+
+
+@schedule_app.command("equipment-list")
+def schedule_equipment_list(
+    category: Optional[str] = typer.Option(None, "--category", "-c", help="按类别筛选"),
+    status: Optional[str] = typer.Option(None, "--status", "-s", help="按状态筛选"),
+    limit: int = typer.Option(50, "--limit", "-n", help="显示数量"),
+):
+    """列出设备清单"""
+    equipments = db.list_equipment(category=category, status=status, limit=limit)
+
+    table = Table(title=f"设备清单 ({len(equipments)}台)", row_styles=["none", "dim"])
+    table.add_column("ID", style="cyan", width=6)
+    table.add_column("编号", style="yellow", width=12)
+    table.add_column("名称", style="white", width=16)
+    table.add_column("类别", style="magenta", width=10)
+    table.add_column("状态", style="green", width=10)
+    table.add_column("描述", style="blue", width=20)
+
+    for e in equipments:
+        table.add_row(
+            str(e.id),
+            e.code,
+            e.name,
+            e.category or "-",
+            e.status,
+            Text(e.description or "-", overflow="ellipsis"),
+        )
+
+    console.print(table)
+
+
+@schedule_app.command("assign-equip")
+def schedule_assign_equipment(
+    project_id: int = typer.Option(..., "--project", "-p", help="项目ID"),
+    equipment_id: int = typer.Option(..., "--equipment", "-e", help="设备ID"),
+    start_date: str = typer.Option(..., "--start", "-s", help="开始日期 (YYYY-MM-DD)"),
+    end_date: str = typer.Option(..., "--end", "-d", help="结束日期 (YYYY-MM-DD)"),
+    notes: str = typer.Option("", "--notes", "-n", help="备注"),
+):
+    """分配设备到项目"""
+    from .models import Assignment
+    from datetime import datetime
+
+    try:
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d").date()
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d").date()
+    except ValueError:
+        console.print("[red]日期格式错误，请使用 YYYY-MM-DD[/red]")
+        raise typer.Exit(1)
+
+    assignment = Assignment(
+        project_id=project_id,
+        equipment_id=equipment_id,
+        assignment_type="equipment",
+        start_date=start_dt,
+        end_date=end_dt,
+        notes=notes,
+    )
+
+    try:
+        created = db.create_assignment(assignment)
+        console.print(f"[green]✓ 设备分配成功 (分配ID: {created.id})[/green]")
+    except Exception as e:
+        console.print(f"[red]分配失败：{e}[/red]")
+        raise typer.Exit(1)
+
+
 @budget_app.command("add")
 def budget_add(
     project_id: int = typer.Option(..., "--project", "-p", help="项目ID"),
@@ -1022,11 +1223,18 @@ def budget_update(
 def budget_export(
     project_id: int = typer.Option(..., "--project", "-p", help="项目ID"),
     output: str = typer.Option(..., "--output", "-o", help="输出文件路径"),
+    quarter: Optional[int] = typer.Option(None, "--quarter", "-q", help="季度 (1-4)，不指定则全年"),
+    year: Optional[int] = typer.Option(None, "--year", "-y", help="年份，不指定则当前年"),
 ):
     """导出经费执行表为Excel"""
     try:
         output_path = Path(output)
-        result = report_module.export_budget_excel(project_id, output_path)
+        result = report_module.export_budget_excel(
+            project_id, 
+            output_path,
+            quarter=quarter,
+            year=year,
+        )
         console.print(f"[green]✓ 经费报表已导出到: {result}[/green]")
     except ImportError:
         console.print("[red]错误：需要安装 openpyxl 库[/red]")
@@ -1041,9 +1249,10 @@ def budget_export(
 def sync_package(
     batch_id: Optional[str] = typer.Option(None, "--batch", "-b", help="批次ID"),
     limit: int = typer.Option(10000, "--limit", "-n", help="最大记录数"),
+    batch_size: int = typer.Option(1000, "--batch-size", "-s", help="每批处理大小"),
 ):
     """打包增量数据用于同步"""
-    batch_id, count = sync_module.package_incremental_data(batch_id=batch_id, limit=limit)
+    batch_id, count = sync_module.package_incremental_data(batch_id=batch_id, limit=limit, batch_size=batch_size)
 
     if count == 0:
         console.print("[yellow]没有待同步的数据[/yellow]")
@@ -1052,6 +1261,65 @@ def sync_package(
         package_file = sync_dir / f"{batch_id}.json"
         console.print(f"[green]✓ 打包完成: {count} 条记录[/green]")
         console.print(f"[cyan]同步包: {package_file}[/cyan]")
+
+
+@sync_app.command("resume")
+def sync_resume(
+    limit: int = typer.Option(10000, "--limit", "-n", help="最大记录数"),
+    batch_size: int = typer.Option(1000, "--batch-size", "-s", help="每批处理大小"),
+):
+    """从中断点继续打包同步数据"""
+    batch_id, count = sync_module.resume_sync_package(limit=limit, batch_size=batch_size)
+
+    if count == 0:
+        console.print("[yellow]没有待同步的数据[/yellow]")
+    else:
+        sync_dir = sync_module.get_sync_dir()
+        package_file = sync_dir / f"{batch_id}.json"
+        console.print(f"[green]✓ 断点续传打包完成: {count} 条记录[/green]")
+        console.print(f"[cyan]同步包: {package_file}[/cyan]")
+
+
+@sync_app.command("batches")
+def sync_batches(
+    limit: int = typer.Option(10, "--limit", "-n", help="显示数量"),
+):
+    """列出同步批次列表"""
+    batches = sync_module.list_all_sync_batches(limit=limit)
+
+    table = Table(title="同步批次列表", row_styles=["none", "dim"])
+    table.add_column("批次ID", style="cyan", width=40)
+    table.add_column("状态", style="white", width=12)
+    table.add_column("总记录", style="blue", justify="right", width=8)
+    table.add_column("已处理", style="green", justify="right", width=8)
+    table.add_column("进度", style="yellow", width=16)
+
+    for b in batches:
+        total = b.get("total_records", 0)
+        processed = b.get("processed_records", 0)
+        pct = (processed / total * 100) if total > 0 else 0
+        status = b.get("status", "unknown")
+        status_emoji = _get_batch_status_emoji(status)
+        
+        table.add_row(
+            b.get("batch_id", ""),
+            f"{status_emoji} {status}",
+            str(total),
+            str(processed),
+            f"{pct:.1f}%",
+        )
+
+    console.print(table)
+
+
+def _get_batch_status_emoji(status: str) -> str:
+    status_map = {
+        "pending": "⏳",
+        "in_progress": "🔄",
+        "completed": "✅",
+        "failed": "❌",
+    }
+    return status_map.get(status, "❓")
 
 
 @sync_app.command("apply")
@@ -1159,11 +1427,12 @@ def sync_resolve(
 def report_briefing(
     project_id: int = typer.Option(..., "--project", "-p", help="项目ID"),
     output: Optional[str] = typer.Option(None, "--output", "-o", help="输出文件路径"),
+    fmt: str = typer.Option("doc", "--format", "-f", help="输出格式: doc 或 html"),
 ):
     """生成发掘简报"""
     try:
         output_path = Path(output) if output else None
-        result = report_module.generate_briefing(project_id, output_path)
+        result = report_module.generate_briefing(project_id, output_path, format=fmt)
         console.print(f"[green]✓ 发掘简报已生成: {result}[/green]")
     except Exception as e:
         console.print(f"[red]生成失败：{e}[/red]")
