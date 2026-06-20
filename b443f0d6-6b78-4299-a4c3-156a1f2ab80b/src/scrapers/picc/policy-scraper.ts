@@ -8,30 +8,41 @@ export class PiccPolicyScraper extends PolicyScraper {
     logger.info(`获取人保保单列表 - 第${page}页`);
 
     try {
-      if (!this.isLoggedIn) {
+      if (!this.isCheckpointItemCompleted('step-login')) {
+        if (!this.isLoggedIn) {
         const loginSuccess = await this.login();
         if (!loginSuccess) {
-          return [];
-        }
-      }
-
-      const sessionOk = await this.ensureSession();
-      if (!sessionOk) {
         return [];
-      }
-      this.saveCheckpoint('step-login', true);
+        }
+        }
 
-      this.emitProgress('加载保单列表', 30);
-      await this.navigateToPolicyList();
-
-      if (page > 1) {
-        await this.goToPage(page);
+        const sessionOk = await this.ensureSession();
+        if (!sessionOk) {
+        return [];
+        }
+        this.saveCheckpoint('step-login', true);
+      } else {
+        this.isLoggedIn = true;
+        logger.info('断点续传: 跳过登录步骤');
       }
-      this.saveCheckpoint('step-navigate', true);
+
+      if (!this.isCheckpointItemCompleted('step-navigate')) {
+        this.emitProgress('加载保单列表', 30);
+        await this.navigateToPolicyList();
+
+        if (page > 1) {
+          await this.goToPage(page);
+        }
+        this.saveCheckpoint('step-navigate', true);
+      } else {
+        logger.info('断点续传: 跳过导航/翻页步骤');
+      }
 
       this.emitProgress('解析保单列表', 70);
       const policies = await this.parsePolicyList(productType);
-      this.saveCheckpoint('step-parse', true);
+      if (!this.isCheckpointItemCompleted('step-parse')) {
+        this.saveCheckpoint('step-parse', true);
+      }
 
       this.emitProgress('完成', 100);
       logger.info(`获取到 ${policies.length} 条人保保单`);

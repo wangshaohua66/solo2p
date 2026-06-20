@@ -9,34 +9,53 @@ export class ChinalifeQuoteScraper extends QuoteScraper {
     logger.info(`开始抓取国寿报价: ${request.industry}, ${request.employeeCount}人`);
 
     try {
-      if (!this.isLoggedIn) {
+      if (!this.isCheckpointItemCompleted('step-login')) {
+        if (!this.isLoggedIn) {
         const loginSuccess = await this.login();
         if (!loginSuccess) {
-          return this.createErrorResult('登录失败', request.productType);
+        return this.createErrorResult('登录失败', request.productType);
         }
+        }
+
+        const sessionOk = await this.ensureSession();
+        if (!sessionOk) {
+        return this.createErrorResult('会话验证失败', request.productType);
+        }
+        this.saveCheckpoint('step-login', true);
+      } else {
+        this.isLoggedIn = true;
+        logger.info('断点续传: 跳过登录步骤');
       }
 
-      const sessionOk = await this.ensureSession();
-      if (!sessionOk) {
-          return this.createErrorResult('会话验证失败', request.productType);
-        }
-      this.saveCheckpoint('step-login', true);
+      if (!this.isCheckpointItemCompleted('step-fill-form')) {
+        this.emitProgress('填写报价表单', 30);
+        await this.fillQuoteForm(request);
+        this.saveCheckpoint('step-fill-form', true);
+      } else {
+        logger.info('断点续传: 跳过填写报价表单步骤');
+      }
 
-      this.emitProgress('填写报价表单', 30);
-      await this.fillQuoteForm(request);
-      this.saveCheckpoint('step-fill-form', true);
+      if (!this.isCheckpointItemCompleted('step-submit')) {
+        this.emitProgress('提交报价计算', 50);
+        await this.submitQuoteForm();
+        this.saveCheckpoint('step-submit', true);
+      } else {
+        logger.info('断点续传: 跳过提交报价步骤');
+      }
 
-      this.emitProgress('提交报价计算', 50);
-      await this.submitQuoteForm();
-      this.saveCheckpoint('step-submit', true);
-
-      this.emitProgress('等待报价结果', 70);
-      await this.waitForQuoteResult();
-      this.saveCheckpoint('step-wait-result', true);
+      if (!this.isCheckpointItemCompleted('step-wait-result')) {
+        this.emitProgress('等待报价结果', 70);
+        await this.waitForQuoteResult();
+        this.saveCheckpoint('step-wait-result', true);
+      } else {
+        logger.info('断点续传: 跳过等待报价结果步骤');
+      }
 
       this.emitProgress('解析报价数据', 90);
       const result = await this.parseQuoteResult(request);
-      this.saveCheckpoint('step-parse', true);
+      if (!this.isCheckpointItemCompleted('step-parse')) {
+        this.saveCheckpoint('step-parse', true);
+      }
 
       const duration = (Date.now() - startTime) / 1000;
       logger.info(`国寿报价抓取完成: ¥${result.premium}, 耗时 ${duration.toFixed(1)}s`);
