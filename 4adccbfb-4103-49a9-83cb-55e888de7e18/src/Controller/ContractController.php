@@ -41,9 +41,17 @@ class ContractController extends AbstractAppController
             $counts[$code] = $this->em->getRepository(Contract::class)->count(['exhibition' => $ex, 'status' => $code]);
         }
 
+        // 用于新建合同模态框
+        $exhibitors = $ex ? $this->em->getRepository(Exhibitor::class)->findBy([], ['name' => 'ASC']) : [];
+        $booths = $ex ? $this->em->getRepository(Booth::class)->findBy(['exhibition' => $ex]) : [];
+        $boothsData = array_map(fn (Booth $b) => [
+            'id' => $b->getId(), 'code' => $b->getCode(), 'price' => (float) $b->getPrice(),
+            'status' => $b->getStatus(), 'exhibitorId' => $b->getExhibitor()?->getId(),
+        ], $booths);
+
         return $this->render('contract/index.html.twig', $this->viewVars([
             'ex' => $ex, 'contracts' => $contracts, 'counts' => $counts, 'currentStatus' => $status,
-            'flow' => Contract::STATUSES,
+            'flow' => Contract::STATUSES, 'exhibitors' => $exhibitors, 'boothsData' => $boothsData,
         ]));
     }
 

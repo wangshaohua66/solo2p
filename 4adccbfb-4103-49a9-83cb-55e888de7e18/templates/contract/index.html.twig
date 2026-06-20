@@ -7,7 +7,7 @@
         <h4><i class="bi bi-file-earmark-text text-accent"></i> 合同管理</h4>
         <div class="sub">展位租赁合同的签订、多级审批与电子签章</div>
     </div>
-    <a href="{{ path('app_contract_new') }}" class="btn btn-accent"><i class="bi bi-plus-lg me-1"></i> 新建合同</a>
+    <button type="button" class="btn btn-accent" data-bs-toggle="modal" data-bs-target="#contractNewModal"{% if not exhibitors %} disabled{% endif %}><i class="bi bi-plus-lg me-1"></i> 新建合同</button>
 </div>
 
 <div class="d-flex flex-wrap gap-2 mb-3">
@@ -41,4 +41,118 @@
         </table>
     </div>
 </div>
+
+{% if exhibitors %}
+<div class="modal fade" id="contractNewModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-file-earmark-plus text-accent me-2"></i>新建展位租赁合同</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+      </div>
+      <form method="post" action="{{ path('app_contract_create') }}" data-exh-ajax id="contractNewForm">
+      <div class="modal-body">
+        <p class="text-muted small mb-3">选择参展商与展位，自动带入展位价格作为合同金额，表单字段可点击分组标题折叠展开。</p>
+
+        <div class="accordion" id="contractAccordion">
+          <div class="accordion-item border rounded mb-2">
+            <h2 class="accordion-header"><button class="accordion-button py-2" type="button" data-bs-toggle="collapse" data-bs-target="#colParty"><i class="bi bi-people text-accent me-2"></i>合同主体信息</button></h2>
+            <div id="colParty" class="accordion-collapse collapse show" data-bs-parent="#contractAccordion">
+              <div class="accordion-body p-3">
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label">参展商 <span class="text-danger">*</span></label>
+                    <select name="exhibitorId" id="mExhibitorId" class="form-select" required>
+                        <option value="">请选择…</option>
+                        {% for e in exhibitors %}<option value="{{ e.id }}" data-industry="{{ e.industry }}">{{ e.name }}（{{ e.industry }}）</option>{% endfor %}
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">展位 <span class="text-danger">*</span></label>
+                    <select name="boothId" id="mBoothId" class="form-select" required>
+                        <option value="">请先选择参展商</option>
+                    </select>
+                    <small class="text-muted" id="mBoothHint"></small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="accordion-item border rounded mb-2">
+            <h2 class="accordion-header"><button class="accordion-button collapsed py-2" type="button" data-bs-toggle="collapse" data-bs-target="#colAmount"><i class="bi bi-cash-coin text-accent me-2"></i>合同金额</button></h2>
+            <div id="colAmount" class="accordion-collapse collapse" data-bs-parent="#contractAccordion">
+              <div class="accordion-body p-3">
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label">合同金额（元）<span class="text-danger">*</span></label>
+                    <div class="input-group">
+                      <span class="input-group-text">¥</span>
+                      <input type="number" name="amount" id="mAmount" class="form-control" required min="1">
+                    </div>
+                    <small class="text-muted">选择展位后将自动填充展位价格，可根据优惠情况调整。</small>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">展会</label>
+                    <div class="form-control-plaintext"><i class="bi bi-calendar-event text-accent me-2"></i>{{ ex.name }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="accordion-item border rounded">
+            <h2 class="accordion-header"><button class="accordion-button collapsed py-2" type="button" data-bs-toggle="collapse" data-bs-target="#colTerms"><i class="bi bi-journal-text text-accent me-2"></i>合同说明</button></h2>
+            <div id="colTerms" class="accordion-collapse collapse" data-bs-parent="#contractAccordion">
+              <div class="accordion-body p-3">
+                <ul class="small text-muted mb-0">
+                  <li>合同创建后状态为 <span class="badge status-badge status-draft">草稿</span>，由销售经理提交。</li>
+                  <li>审批流程：销售经理 → 财务 → 总经理 → 双方签章。</li>
+                  <li>展位在创建草稿后即被锁定给对应参展商。</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-deep" data-bs-dismiss="modal">取消</button>
+        <button type="submit" class="btn btn-accent"><i class="bi bi-check-lg me-1"></i> 创建合同草稿</button>
+      </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block javascripts %}
+{% if exhibitors %}
+<script>
+var BOOTHS = {{ boothsData|json_encode|raw }};
+$('#mExhibitorId').on('change', function(){
+    var eid = $(this).val();
+    var $b = $('#mBoothId').empty().append('<option value="">请选择…</option>');
+    if (!eid) { return; }
+    var opts = BOOTHS.filter(function(b){
+        return b.status === 'available' || (b.status === 'reserved' && b.exhibitorId == eid);
+    });
+    if (!opts.length) { $('#mBoothHint').text('该参展商无可选展位').removeClass('text-muted').addClass('text-danger'); return; }
+    opts.forEach(function(b){
+        var label = b.code + ' · ¥' + Number(b.price).toLocaleString('zh-CN') + ' · ' + (b.status==='reserved'?'已预订':'可预订');
+        $b.append('<option value="'+b.id+'" data-price="'+b.price+'">'+label+'</option>');
+    });
+    $('#mBoothHint').text('提示：仅显示可预订或本参展商已预订的展位').addClass('text-muted').removeClass('text-danger');
+});
+$('#mBoothId').on('change', function(){
+    var p = $(this).find(':selected').data('price');
+    if (p) { $('#mAmount').val(p); }
+});
+$('#contractNewModal').on('hidden.bs.modal', function(){
+    $('#contractNewForm')[0].reset();
+    $('#mBoothId').empty().append('<option value="">请先选择参展商</option>');
+    $('#mBoothHint').text('').addClass('text-muted').removeClass('text-danger');
+});
+</script>
+{% endif %}
 {% endblock %}

@@ -7,11 +7,21 @@ use App\Entity\Contract;
 use App\Entity\Exhibitor;
 use App\Entity\ServiceOrder;
 use App\Entity\Visitor;
+use App\Service\SurveyService;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 class DashboardController extends AbstractAppController
 {
+    public function __construct(
+        \App\Service\ContextService $context,
+        \App\Service\CacheService $cache,
+        \Doctrine\ORM\EntityManagerInterface $em,
+        private readonly SurveyService $survey
+    ) {
+        parent::__construct($context, $cache, $em);
+    }
+
     #[Route('/dashboard', name: 'app_dashboard', methods: ['GET'])]
     public function index(): Response
     {
@@ -24,6 +34,17 @@ class DashboardController extends AbstractAppController
         ]));
     }
 
+    #[Route('/dashboard/satisfaction', name: 'app_dashboard_satisfaction', methods: ['GET'])]
+    public function satisfaction(): Response
+    {
+        $ex = $this->currentExhibition();
+        $report = $this->survey->getByExhibition($ex);
+
+        return $this->render('dashboard/satisfaction.html.twig', $this->viewVars([
+            'ex' => $ex, 'report' => $report, 'dimensions' => \App\Entity\SatisfactionSurvey::DIMENSIONS,
+        ]));
+    }
+
     private function buildData(?object $ex): array
     {
         $empty = [
@@ -32,6 +53,7 @@ class DashboardController extends AbstractAppController
             'visitor' => ['total' => 0, 'checkedIn' => 0, 'pro' => 0, 'pub' => 0, 'zones' => []],
             'order' => ['total' => 0, 'pending' => 0, 'accepted' => 0, 'done' => 0, 'rate' => 0],
             'industry' => [],
+            'satisfaction' => ['count' => 0, 'average' => 0],
         ];
         if (!$ex) {
             return $empty;
@@ -90,6 +112,7 @@ class DashboardController extends AbstractAppController
                 'rate' => count($orders) ? round($oc['done'] / count($orders) * 100, 1) : 0,
             ],
             'industry' => $ind,
+            'satisfaction' => ['count' => $this->survey->getByExhibition($ex)['count'], 'average' => $this->survey->getByExhibition($ex)['average']],
         ];
     }
 }

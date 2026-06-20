@@ -5,23 +5,70 @@
 {% block body %}
 <form id="regForm">
     <h5 class="fw-bold mb-1"><i class="bi bi-ticket-perforated-fill text-accent me-2"></i>观众登记</h5>
-    <p class="text-muted small mb-3">填写信息后即刻获取二维码电子票，现场扫码入场。</p>
+    <p class="text-muted small mb-3">完善画像可帮助主办方提供更精准的服务，标 <span class="text-danger">*</span> 为必填项。</p>
 
     <div class="mb-3">
-        <label class="form-label small">观众类型</label>
+        <label class="form-label small">观众类型 <span class="text-danger">*</span></label>
         <div class="d-flex gap-2">
             <label class="flex-fill"><input type="radio" name="type" value="public" checked class="form-check-input"> <span class="small">普通观众</span></label>
             <label class="flex-fill"><input type="radio" name="type" value="professional" class="form-check-input"> <span class="small">专业观众</span></label>
         </div>
     </div>
     <div class="mb-3">
-        <label class="form-label small">姓名</label>
+        <label class="form-label small">姓名 <span class="text-danger">*</span></label>
         <input type="text" name="name" class="form-control form-control-lg" placeholder="请输入姓名" autofocus>
     </div>
     <div class="mb-3">
-        <label class="form-label small">手机号</label>
+        <label class="form-label small">手机号 <span class="text-danger">*</span></label>
         <input type="tel" name="phone" inputmode="numeric" class="form-control form-control-lg" placeholder="请输入手机号">
     </div>
+
+    <div class="accordion mb-3" id="profileAccordion">
+        <div class="accordion-item border rounded">
+            <h2 class="accordion-header"><button class="accordion-button collapsed py-2" type="button" data-bs-toggle="collapse" data-bs-target="#colDemog"><i class="bi bi-person-bounding-box text-accent me-2"></i><span class="small">人口统计信息</span><span class="text-muted small ms-2">(选填)</span></button></h2>
+            <div id="colDemog" class="accordion-collapse collapse" data-bs-parent="#profileAccordion">
+                <div class="accordion-body p-3">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label small">年龄段</label>
+                            <select name="ageGroup" class="form-select form-select-sm"><option value="">请选择</option>{% for g in ageGroups %}<option value="{{ g }}">{{ g }} 岁</option>{% endfor %}</select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">性别</label>
+                            <select name="gender" class="form-select form-select-sm"><option value="">请选择</option>{% for code, label in genders %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small">所在地区</label>
+                            <select name="region" class="form-select form-select-sm"><option value="">请选择</option>{% for r in regions %}<option value="{{ r }}">{{ r }}</option>{% endfor %}</select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="accordion-item border rounded mt-2">
+            <h2 class="accordion-header"><button class="accordion-button collapsed py-2" type="button" data-bs-toggle="collapse" data-bs-target="#colWork"><i class="bi bi-briefcase text-accent me-2"></i><span class="small">职业与所属行业</span><span class="text-muted small ms-2">(选填)</span></button></h2>
+            <div id="colWork" class="accordion-collapse collapse" data-bs-parent="#profileAccordion">
+                <div class="accordion-body p-3">
+                    <div class="mb-2">
+                        <label class="form-label small">公司名称</label>
+                        <input type="text" name="company" class="form-control form-control-sm" placeholder="请输入所在公司">
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label small">职务</label>
+                            <select name="position" class="form-select form-select-sm"><option value="">请选择</option>{% for p in positions %}<option value="{{ p }}">{{ p }}</option>{% endfor %}</select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">行业</label>
+                            <select name="industry" class="form-select form-select-sm"><option value="">请选择</option>{% for i in industries %}<option value="{{ i }}">{{ i }}</option>{% endfor %}</select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <button type="submit" class="btn btn-accent btn-lg w-100"><i class="bi bi-qr-code me-2"></i>获取电子票</button>
 </form>
 {% endblock %}

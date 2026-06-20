@@ -8,7 +8,7 @@
 <div class="page-head">
     <div>
         <h4><i class="bi bi-person-badge text-accent"></i> 观众登记与票务</h4>
-        <div class="sub">线上预售电子票 · 现场扫码登记 · 实时入场统计</div>
+        <div class="sub">线上预售电子票 · 现场扫码登记 · 实时入场统计 · 观众画像分析</div>
     </div>
     <div class="d-flex gap-2">
         <a href="{{ path('app_visitor_register') }}" class="btn btn-outline-deep btn-sm"><i class="bi bi-phone me-1"></i>购票页</a>
@@ -21,13 +21,22 @@
     <div class="stat-card"><i class="bi bi-door-open stat-icon text-success"></i><div class="stat-label">已入场</div><div class="stat-value" id="liveFlow">{{ stats.checkedIn }}</div><div class="stat-trend text-muted">Redis 实时计数</div></div>
     <div class="stat-card"><i class="bi bi-briefcase stat-icon text-info"></i><div class="stat-label">专业观众</div><div class="stat-value">{{ stats.professional }}</div></div>
     <div class="stat-card"><i class="bi bi-people stat-icon text-warning"></i><div class="stat-label">普通观众</div><div class="stat-value">{{ stats.public }}</div></div>
+    <div class="stat-card"><i class="bi bi-building stat-icon text-primary"></i><div class="stat-label">有企业画像</div><div class="stat-value">{{ profile.withCompany }}</div><div class="stat-trend text-muted">{{ profile.total ? ((profile.withCompany / profile.total * 100)|round(1)) : 0 }}%</div></div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-lg-4"><div class="card h-100"><div class="card-header"><i class="bi bi-gender-ambiguous text-accent me-2"></i>性别分布</div><div class="card-body"><canvas id="cGender" height="180"></canvas></div></div></div>
+    <div class="col-lg-4"><div class="card h-100"><div class="card-header"><i class="bi bi-calendar text-accent me-2"></i>年龄分布</div><div class="card-body"><canvas id="cAge" height="180"></canvas></div></div></div>
+    <div class="col-lg-4"><div class="card h-100"><div class="card-header"><i class="bi bi-geo-alt text-accent me-2"></i>地区分布 TOP5</div><div class="card-body"><canvas id="cRegion" height="180"></canvas></div></div></div>
+    <div class="col-lg-6"><div class="card h-100"><div class="card-header"><i class="bi bi-diagram-3 text-accent me-2"></i>所属行业</div><div class="card-body"><canvas id="cIndustry" height="180"></canvas></div></div></div>
+    <div class="col-lg-6"><div class="card h-100"><div class="card-header"><i class="bi bi-person-badge text-accent me-2"></i>职务分布</div><div class="card-body"><canvas id="cPosition" height="180"></canvas></div></div></div>
 </div>
 
 <div class="card">
     <div class="card-header"><i class="bi bi-clock-history text-accent me-2"></i>最近登记观众</div>
     <div class="card-body p-0">
         <table class="table table-hover mb-0 align-middle">
-            <thead><tr><th>票号</th><th>姓名</th><th>电话</th><th>类型</th><th>入场</th></tr></thead>
+            <thead><tr><th>票号</th><th>姓名</th><th>电话</th><th>类型</th><th>画像</th><th>入场</th></tr></thead>
             <tbody>
             {% for v in recent %}
             <tr style="cursor:pointer" onclick="location='{{ path('app_visitor_ticket_view', {id: v.id}) }}'">
@@ -35,10 +44,17 @@
                 <td>{{ v.name ?: '-' }}</td>
                 <td class="text-muted">{{ v.phone ?: '-' }}</td>
                 <td><span class="tag-pill">{{ v.typeLabel }}</span></td>
+                <td class="small">
+                    {% if v.gender %}<span class="tag-pill">{{ v.genderLabel }}</span>{% endif %}
+                    {% if v.ageGroup %}<span class="tag-pill">{{ v.ageGroup }}岁</span>{% endif %}
+                    {% if v.industry %}<span class="tag-pill"><i class="bi bi-diagram-3"></i> {{ v.industry }}</span>{% endif %}
+                    {% if v.region %}<span class="tag-pill"><i class="bi bi-geo-alt"></i> {{ v.region }}</span>{% endif %}
+                    {% if not v.gender and not v.ageGroup and not v.industry and not v.region %}<span class="text-muted">未采集</span>{% endif %}
+                </td>
                 <td>{% if v.checkedIn %}<span class="badge status-badge status-done">已入场</span>{% else %}<span class="text-muted">未入场</span>{% endif %}</td>
             </tr>
             {% else %}
-            <tr><td colspan="5" class="empty-state"><i class="bi bi-inbox"></i><p class="mb-0">暂无观众记录</p></td></tr>
+            <tr><td colspan="6" class="empty-state"><i class="bi bi-inbox"></i><p class="mb-0">暂无观众记录</p></td></tr>
             {% endfor %}
             </tbody>
         </table>
@@ -50,6 +66,48 @@
 {% block javascripts %}
 {% if ex %}
 <script>
+const P = {{ profile|json_encode|raw }};
+if (Object.keys(P.gender).length) {
+    new Chart(document.getElementById('cGender'), { type:'doughnut',
+        data:{ labels: Object.keys(P.gender), datasets:[{ data: Object.values(P.gender), backgroundColor:['#0d6efd','#FF6A13','#adb5bd'] }] },
+        options:{ plugins:{ legend:{ position:'bottom' } }, cutout:'62%' } });
+} else {
+    $('#cGender').parent().html('<div class="text-center text-muted small py-4"><i class="bi bi-inbox fs-3 d-block mb-2"></i>暂无数据</div>');
+}
+new Chart(document.getElementById('cAge'), { type:'bar',
+    data:{ labels: Object.keys(P.age), datasets:[{ label:'人数', data: Object.values(P.age), backgroundColor:'#0B2A4A' }] },
+    options:{ plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1 } } } });
+(function(){
+    const top5 = Object.entries(P.region).slice(0,5);
+    if (top5.length) {
+        new Chart(document.getElementById('cRegion'), { type:'bar',
+            data:{ labels: top5.map(x=>x[0]), datasets:[{ data: top5.map(x=>x[1]), backgroundColor:'#FF6A13' }] },
+            options:{ indexAxis:'y', plugins:{ legend:{ display:false } }, scales:{ x:{ beginAtZero:true, ticks:{ stepSize:1 } } } });
+    } else {
+        $('#cRegion').parent().html('<div class="text-center text-muted small py-4"><i class="bi bi-inbox fs-3 d-block mb-2"></i>暂无数据</div>');
+    }
+})();
+(function(){
+    const ind = Object.entries(P.industry);
+    if (ind.length) {
+        new Chart(document.getElementById('cIndustry'), { type:'bar',
+            data:{ labels: ind.map(x=>x[0]), datasets:[{ data: ind.map(x=>x[1]), backgroundColor:'#28a745' }] },
+            options:{ plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1 } } } });
+    } else {
+        $('#cIndustry').parent().html('<div class="text-center text-muted small py-4"><i class="bi bi-inbox fs-3 d-block mb-2"></i>暂无数据</div>');
+    }
+})();
+(function(){
+    const pos = Object.entries(P.position);
+    if (pos.length) {
+        new Chart(document.getElementById('cPosition'), { type:'bar',
+            data:{ labels: pos.map(x=>x[0]), datasets:[{ data: pos.map(x=>x[1]), backgroundColor:'#0d6efd' }] },
+            options:{ indexAxis:'y', plugins:{ legend:{ display:false } }, scales:{ x:{ beginAtZero:true, ticks:{ stepSize:1 } } } });
+    } else {
+        $('#cPosition').parent().html('<div class="text-center text-muted small py-4"><i class="bi bi-inbox fs-3 d-block mb-2"></i>暂无数据</div>');
+    }
+})();
+
 setInterval(function(){
     Exh.get("{{ path('app_visitor_stats') }}").then(function(s){ $('#liveFlow').text(s.checkedIn); });
 }, 5000);

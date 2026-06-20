@@ -1,0 +1,67 @@
+{% extends 'base.html.twig' %}
+{% block title %}参展商满意度分析报告{% endblock %}
+
+{% block body %}
+{% if not ex %}
+<div class="empty-state card"><i class="bi bi-emoji-smile"></i><p>请先选择展会以查看满意度分析</p></div>
+{% else %}
+<div class="page-head">
+    <div>
+        <h4><i class="bi bi-emoji-smile text-accent"></i> 参展商满意度分析报告</h4>
+        <div class="sub">{{ ex.name }} · 共收集 {{ report.count }} 份有效问卷</div>
+    </div>
+    <a href="{{ path('app_dashboard') }}" class="btn btn-outline-deep btn-sm"><i class="bi bi-bar-chart me-1"></i>返回看板</a>
+</div>
+
+<div class="kpi-grid mb-3">
+    <div class="stat-card"><i class="bi bi-star-fill stat-icon text-warning"></i><div class="stat-label">综合满意度</div><div class="stat-value">{{ report.average }}<span class="unit">/5.0</span></div><div class="stat-trend text-muted">基于 {{ report.count }} 份评价</div></div>
+    <div class="stat-card"><i class="bi bi-hand-thumbs-up stat-icon text-success"></i><div class="stat-label">好评（4-5分）</div><div class="stat-value">{{ report.distribution['满意'] }}</div></div>
+    <div class="stat-card"><i class="bi bi-hand-thumbs-down stat-icon text-danger"></i><div class="stat-label">需改进（1-2分）</div><div class="stat-value">{{ report.distribution['不满意'] }}</div></div>
+    <div class="stat-card"><i class="bi bi-chat-quote stat-icon text-info"></i><div class="stat-label">反馈留言</div><div class="stat-value">{{ report.feedbacks|length }}</div></div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6"><div class="card h-100"><div class="card-header"><i class="bi bi-bar-chart-steps text-accent me-2"></i>各维度评分</div><div class="card-body"><canvas id="cDim" height="180"></canvas></div></div></div>
+    <div class="col-lg-6"><div class="card h-100"><div class="card-header"><i class="bi bi-pie-chart text-accent me-2"></i>总体满意度分布</div><div class="card-body"><canvas id="cDist" height="180"></canvas></div></div></div>
+    <div class="col-lg-6"><div class="card h-100"><div class="card-header"><i class="bi bi-diagram-3 text-accent me-2"></i>各行业满意度排名</div><div class="card-body">
+        <table class="table table-sm align-middle">
+            <thead><tr><th>行业</th><th>平均分</th><th>评级</th></tr></thead>
+            <tbody>
+            {% for ind, score in report.industryRank %}
+            <tr>
+                <td>{{ ind }}</td>
+                <td class="fw-bold">{{ score }}</td>
+                <td>{% if score >= 4.0 %}<span class="badge status-badge status-paid">优秀</span>{% elseif score >= 3.0 %}<span class="badge status-badge status-reserved">良好</span>{% else %}<span class="badge status-badge status-rejected">需改进</span>{% endif %}</td>
+            </tr>
+            {% else %}<tr><td colspan="3" class="text-center text-muted small">暂无数据</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div></div></div>
+    <div class="col-lg-6"><div class="card h-100"><div class="card-header"><i class="bi bi-chat-left-text text-accent me-2"></i>参展商反馈意见</div><div class="card-body" style="max-height:360px;overflow-y:auto">
+        {% for f in report.feedbacks %}
+        <div class="border-start border-3 border-accent ps-3 mb-3">
+            <div class="fw-semibold small">{{ f.company }} · 评分 <span class="text-accent">{{ f.score }}</span></div>
+            <div class="text-muted small">{{ f.content }}</div>
+        </div>
+        {% else %}
+        <div class="text-center text-muted small py-4"><i class="bi bi-inbox fs-3 d-block mb-2"></i>暂无反馈留言</div>
+        {% endfor %}
+    </div></div></div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block javascripts %}
+{% if ex %}
+<script>
+const R = {{ report|json_encode|raw }};
+const D = {{ dimensions|json_encode|raw }};
+new Chart(document.getElementById('cDim'), { type:'radar',
+    data:{ labels: Object.values(D), datasets:[{ label:'评分', data:[R.dimensions.venue,R.dimensions.service,R.dimensions.organization,R.dimensions.traffic,R.dimensions.overall], backgroundColor:'rgba(255,106,19,0.2)', borderColor:'#FF6A13', borderWidth:2, pointBackgroundColor:'#0B2A4A' }] },
+    options:{ scales:{ r:{ beginAtZero:true, max:5, ticks:{ stepSize:1 } } } } });
+new Chart(document.getElementById('cDist'), { type:'doughnut',
+    data:{ labels:['满意(4-5分)','一般(3分)','需改进(1-2分)'], datasets:[{ data:[R.distribution['满意'],R.distribution['一般'],R.distribution['不满意']], backgroundColor:['#28a745','#ffc107','#dc3545'] }] },
+    options:{ plugins:{ legend:{ position:'bottom' } }, cutout:'60%' } });
+</script>
+{% endif %}
+{% endblock %}

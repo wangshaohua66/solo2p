@@ -7,6 +7,7 @@ use App\Entity\Contract;
 use App\Entity\ContractLog;
 use App\Entity\Exhibition;
 use App\Entity\Exhibitor;
+use App\Entity\SatisfactionSurvey;
 use App\Entity\ServiceOrder;
 use App\Entity\ServiceProvider;
 use App\Entity\Visitor;
@@ -36,7 +37,7 @@ class SeedCommand extends Command
         $exhibitors = $this->seedExhibitors();
         $providers = $this->seedProviders();
 
-        $stats = ['booths' => 0, 'contracts' => 0, 'orders' => 0, 'visitors' => 0];
+        $stats = ['booths' => 0, 'contracts' => 0, 'orders' => 0, 'visitors' => 0, 'surveys' => 0];
         $visitorZones = [];
 
         foreach ($exhibitions as $exh) {
@@ -47,6 +48,7 @@ class SeedCommand extends Command
             $stats['orders'] += $this->seedOrders($exh, $booths, $exhibitors, $providers);
             $checked = $this->seedVisitors($exh);
             $stats['visitors'] += $checked;
+            $stats['surveys'] += $this->seedSurveys($exh, $exhibitors);
 
             // 预热 Redis 展位状态缓存
             $this->cache->invalidateBoothStatuses($exh->getId());
@@ -61,11 +63,12 @@ class SeedCommand extends Command
         $io->success('演示数据已生成');
         $io->table(['指标', '数量'], [
             ['展会', count($exhibitions)],
-            ['参展商', count($exhibitors)],
+            ['参展商', 22],
             ['展位', $stats['booths']],
             ['合同', $stats['contracts']],
             ['服务工单', $stats['orders']],
             ['观众(已入场)', $stats['visitors']],
+            ['满意度问卷', $stats['surveys']],
             ['Redis', $this->cache->isAvailable() ? '已连接' : '内存降级'],
         ]);
 
@@ -74,7 +77,7 @@ class SeedCommand extends Command
 
     private function truncate(SymfonyStyle $io): void
     {
-        $tables = ['contract_log', 'contract', 'service_order', 'visitor', 'booth', 'service_provider', 'exhibitor', 'exhibition'];
+        $tables = ['contract_log', 'contract', 'service_order', 'satisfaction_survey', 'visitor', 'booth', 'service_provider', 'exhibitor', 'exhibition'];
         $conn = $this->em->getConnection();
         $conn->executeStatement('PRAGMA foreign_keys = OFF');
         foreach ($tables as $t) {
@@ -347,6 +350,8 @@ class SeedCommand extends Command
         $checked = 0;
         $names = ['李', '王', '张', '刘', '陈', '杨', '黄', '赵', '周', '吴'];
         $given = ['伟', '芳', '娜', '敏', '静', '强', '磊', '军', '洋', '勇'];
+        $companyPrefix = ['上海', '北京', '广州', '深圳', '杭州', '苏州', '南京', '成都'];
+        $companySuffix = ['科技有限公司', '贸易有限公司', '实业集团', '信息咨询', '制造有限公司', '网络科技'];
         $now = new \DateTimeImmutable();
         for ($i = 0; $i < $total; ++$i) {
             $name = $names[array_rand($names)].$given[array_rand($given)];
@@ -362,6 +367,23 @@ class SeedCommand extends Command
                 ->setTicketCode($code)
                 ->setCheckedIn($checkedIn)
                 ->setCheckinAt($checkedIn ? $now->modify('-'.mt_rand(0, 240).' minutes') : null);
+
+            // 约 70% 观众提供画像信息
+            if (mt_rand(1, 100) <= 70) {
+                $v->setAgeGroup(Visitor::AGE_GROUPS[array_rand(Visitor::AGE_GROUPS)]);
+                $genderRoll = mt_rand(1, 100);
+                if ($genderRoll <= 55) { $v->setGender('male'); }
+                elseif ($genderRoll <= 95) { $v->setGender('female'); }
+                else { $v->setGender('other'); }
+                $v->setRegion(Visitor::REGIONS[array_rand(Visitor::REGIONS)]);
+            }
+            // 专业观众和部分普通观众提供职业画像
+            if ($isPro || mt_rand(1, 100) <= 40) {
+                $v->setCompany($companyPrefix[array_rand($companyPrefix)].$companySuffix[array_rand($companySuffix)]);
+                $v->setPosition(Visitor::POSITIONS[array_rand(Visitor::POSITIONS)]);
+                $v->setIndustry(Visitor::VISITOR_INDUSTRIES[array_rand(Visitor::VISITOR_INDUSTRIES)]);
+            }
+
             $this->em->persist($v);
             if ($checkedIn) {
                 ++$checked;
@@ -371,5 +393,52 @@ class SeedCommand extends Command
         $this->cache->set('visitor:flow:'.$exh->getId(), (string) $checked);
 
         return $checked;
+    }
+
+    /**
+     * @param array<string, Exhibitor[]> $exhibitorsByIndustry
+     */
+    private function seedSurveys(Exhibition $exh, array $exhibitorsByIndustry): int
+    {
+        $all = [];
+        foreach ($exhibitorsByIndustry as $list) {
+            foreach ($list as $e) { $all[] = $e; }
+        }
+        if (empty($all)) { return 0; }
+        $count = 0;
+        $feedbacks = [
+            '场馆设施完善，指引清晰，下次还会参加。',
+            '现场服务响应迅速，主办方组织能力很强。',
+            '客流高峰期略显拥挤，建议增加通道。',
+            '整体体验不错，同行观众质量较高。',
+            '配套服务齐全，餐饮和休息区都很到位。',
+            '希望能增加更多商务对接活动。',
+        ];
+        // 让约 60% 的参展商参与评价
+        foreach ($all as $ex) {
+            if (mt_rand(1, 100) > 60) { continue; }
+            $base = mt_rand(3, 5);
+            $venue = max(1, min(5, $base + mt_rand(-1, 1)));
+            $service = max(1, min(5, $base + mt_rand(-1, 1)));
+            $organization = max(1, min(5, $base + mt_rand(-1, 1)));
+            $traffic = max(1, min(5, $base + mt_rand(-2, 0)));
+            $overall = max(1, min(5, (int) round(($venue + $service + $organization + $traffic) / 4 + mt_rand(-1, 1) / 2)));
+            $survey = (new SatisfactionSurvey())
+                ->setExhibition($exh)
+                ->setExhibitor($ex)
+                ->setVenue($venue)
+                ->setService($service)
+                ->setOrganization($organization)
+                ->setTraffic($traffic)
+                ->setOverall($overall);
+            if (mt_rand(1, 100) <= 55) {
+                $survey->setFeedback($feedbacks[array_rand($feedbacks)]);
+            }
+            $this->em->persist($survey);
+            ++$count;
+        }
+        $this->em->flush();
+
+        return $count;
     }
 }

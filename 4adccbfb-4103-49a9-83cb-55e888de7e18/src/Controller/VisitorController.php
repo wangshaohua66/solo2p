@@ -16,9 +16,10 @@ class VisitorController extends AbstractAppController
         $ex = $this->currentExhibition();
         $stats = $this->stats($ex);
         $recent = $ex ? $this->em->getRepository(Visitor::class)->findBy(['exhibition' => $ex], ['id' => 'DESC'], 12) : [];
+        $profile = $this->profileStats($ex);
 
         return $this->render('visitor/index.html.twig', $this->viewVars([
-            'ex' => $ex, 'stats' => $stats, 'recent' => $recent,
+            'ex' => $ex, 'stats' => $stats, 'recent' => $recent, 'profile' => $profile,
         ]));
     }
 
@@ -26,7 +27,14 @@ class VisitorController extends AbstractAppController
     #[Route('/visitor/register', name: 'app_visitor_register', methods: ['GET'])]
     public function register(): Response
     {
-        return $this->render('visitor/register.html.twig', $this->viewVars(['ex' => $this->currentExhibition()]));
+        return $this->render('visitor/register.html.twig', $this->viewVars([
+            'ex' => $this->currentExhibition(),
+            'ageGroups' => Visitor::AGE_GROUPS,
+            'genders' => Visitor::GENDERS,
+            'positions' => Visitor::POSITIONS,
+            'industries' => Visitor::VISITOR_INDUSTRIES,
+            'regions' => Visitor::REGIONS,
+        ]));
     }
 
     #[Route('/visitor/ticket', name: 'app_visitor_ticket', methods: ['POST'])]
@@ -41,7 +49,13 @@ class VisitorController extends AbstractAppController
             ->setName(trim((string) $request->request->get('name')) ?: null)
             ->setPhone(trim((string) $request->request->get('phone')) ?: null)
             ->setType($type)
-            ->setTicketCode($code);
+            ->setTicketCode($code)
+            ->setAgeGroup(in_array($request->request->get('ageGroup'), Visitor::AGE_GROUPS, true) ? $request->request->get('ageGroup') : null)
+            ->setGender(array_key_exists($request->request->get('gender'), Visitor::GENDERS) ? $request->request->get('gender') : null)
+            ->setCompany(trim((string) $request->request->get('company')) ?: null)
+            ->setPosition(in_array($request->request->get('position'), Visitor::POSITIONS, true) ? $request->request->get('position') : null)
+            ->setIndustry(in_array($request->request->get('industry'), Visitor::VISITOR_INDUSTRIES, true) ? $request->request->get('industry') : null)
+            ->setRegion(in_array($request->request->get('region'), Visitor::REGIONS, true) ? $request->request->get('region') : null);
         $this->em->persist($v);
         $this->em->flush();
 
@@ -110,6 +124,35 @@ class VisitorController extends AbstractAppController
             'professional' => $pro,
             'public' => $pub,
             'zones' => $zones,
+        ];
+    }
+
+    private function profileStats(?object $ex): array
+    {
+        $empty = [
+            'age' => [], 'gender' => [], 'industry' => [], 'region' => [], 'position' => [],
+            'withCompany' => 0, 'total' => 0,
+        ];
+        if (!$ex) { return $empty; }
+        $repo = $this->em->getRepository(Visitor::class);
+        $visitors = $repo->findBy(['exhibition' => $ex]);
+        $age = $gender = $industry = $region = $position = [];
+        $withCompany = 0;
+        foreach ($visitors as $v) {
+            if ($v->getAgeGroup()) { $age[$v->getAgeGroup()] = ($age[$v->getAgeGroup()] ?? 0) + 1; }
+            if ($v->getGender()) { $gender[$v->getGenderLabel()] = ($gender[$v->getGenderLabel()] ?? 0) + 1; }
+            if ($v->getIndustry()) { $industry[$v->getIndustry()] = ($industry[$v->getIndustry()] ?? 0) + 1; }
+            if ($v->getRegion()) { $region[$v->getRegion()] = ($region[$v->getRegion()] ?? 0) + 1; }
+            if ($v->getPosition()) { $position[$v->getPosition()] = ($position[$v->getPosition()] ?? 0) + 1; }
+            if ($v->getCompany()) { ++$withCompany; }
+        }
+        arsort($industry); arsort($region); arsort($position);
+        foreach (Visitor::AGE_GROUPS as $g) { if (!isset($age[$g])) { $age[$g] = 0; } }
+        ksort($age);
+
+        return [
+            'age' => $age, 'gender' => $gender, 'industry' => $industry, 'region' => $region, 'position' => $position,
+            'withCompany' => $withCompany, 'total' => count($visitors),
         ];
     }
 }
