@@ -101,6 +101,20 @@ export class CheckpointManager {
     data: Record<string, any> = {}
   ): CheckpointData {
     const taskId = generateId();
+    return this.createCheckpointWithId(taskId, taskType, total, data);
+  }
+
+  public createCheckpointWithId(
+    taskId: string,
+    taskType: 'quote' | 'policy' | 'renewal',
+    total: number,
+    data: Record<string, any> = {}
+  ): CheckpointData {
+    const existing = this.checkpoints.get(taskId);
+    if (existing) {
+      logger.debug(`检查点已存在，复用: ${taskId}`);
+      return existing;
+    }
     const checkpoint: CheckpointData = {
       taskId,
       taskType,
@@ -115,7 +129,7 @@ export class CheckpointManager {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    
+
     this.checkpoints.set(taskId, checkpoint);
     this.saveCheckpointToFile(taskId, checkpoint);
     logger.debug(`创建检查点: ${taskId} (${taskType})`);

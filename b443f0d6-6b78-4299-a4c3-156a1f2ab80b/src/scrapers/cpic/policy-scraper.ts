@@ -19,6 +19,7 @@ export class CpicPolicyScraper extends PolicyScraper {
       if (!sessionOk) {
         return [];
       }
+      this.saveCheckpoint('step-login', true);
 
       this.emitProgress('加载保单列表', 30);
       await this.navigateToPolicyList();
@@ -26,9 +27,11 @@ export class CpicPolicyScraper extends PolicyScraper {
       if (page > 1) {
         await this.goToPage(page);
       }
+      this.saveCheckpoint('step-navigate', true);
 
       this.emitProgress('解析保单列表', 70);
       const policies = await this.parsePolicyList(productType);
+      this.saveCheckpoint('step-parse', true);
 
       this.emitProgress('完成', 100);
       logger.info(`获取到 ${policies.length} 条太保保单`);

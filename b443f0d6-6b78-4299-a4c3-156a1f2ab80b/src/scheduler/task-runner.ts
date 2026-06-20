@@ -21,6 +21,7 @@ import { QuoteScraper, PolicyScraper } from '../scrapers/base-scraper';
 import QuoteComparator from '../engine/comparator';
 import RenewalTracker from '../engine/renewal-tracker';
 import { getAllCompanyIds } from '../config/profiles';
+import { CheckpointManager } from '../utils/checkpoint';
 
 dotenv.config();
 
@@ -50,12 +51,14 @@ export class TaskRunner extends EventEmitter {
   private maxRetries: number;
   private retryDelayBase: number;
   private isRunning: boolean = false;
+  private checkpointManager: CheckpointManager;
 
   private constructor(options?: TaskRunnerOptions) {
     super();
     const concurrency = options?.concurrency ?? parseInt(process.env.MAX_BROWSER_INSTANCES || '4', 10);
     this.maxRetries = options?.maxRetries ?? parseInt(process.env.MAX_RETRY_TIMES || '3', 10);
     this.retryDelayBase = options?.retryDelayBase ?? parseInt(process.env.RETRY_DELAY_BASE || '30000', 10);
+    this.checkpointManager = CheckpointManager.getInstance();
 
     this.queue = new PriorityQueue(concurrency);
   }
@@ -87,6 +90,11 @@ export class TaskRunner extends EventEmitter {
     };
 
     this.tasks.set(task.id, task);
+    this.checkpointManager.createCheckpointWithId(task.id, 'quote', 5, {
+      companyId,
+      customerId,
+      productType: request.productType,
+    });
     logger.info(`创建报价任务: ${task.id} - ${companyId}`);
     return task;
   }
@@ -110,6 +118,10 @@ export class TaskRunner extends EventEmitter {
     };
 
     this.tasks.set(task.id, task);
+    this.checkpointManager.createCheckpointWithId(task.id, 'policy', 4, {
+      companyId,
+      customerId,
+    });
     logger.info(`创建保单任务: ${task.id} - ${companyId}`);
     return task;
   }
@@ -133,6 +145,10 @@ export class TaskRunner extends EventEmitter {
     };
 
     this.tasks.set(task.id, task);
+    this.checkpointManager.createCheckpointWithId(task.id, 'renewal', 3, {
+      companyId,
+      customerId,
+    });
     logger.info(`创建续保任务: ${task.id} - ${companyId}`);
     return task;
   }
@@ -153,11 +169,12 @@ export class TaskRunner extends EventEmitter {
     }
 
     this.updateTaskStatus(taskId, 'running');
+    this.checkpointManager.setStatus(taskId, 'in-progress');
 
     try {
       const result = await retryWithBackoff(
         async () => {
-          const scraper = ScraperFactory.createQuoteScraper(task.companyId, taskId);
+          const scraper = ScraperFactory.createQuoteScraper(task.companyId, taskId, this.checkpointManager);
           await scraper.initialize();
 
           scraper.on('progress', (progress: any) => {
@@ -173,10 +190,12 @@ export class TaskRunner extends EventEmitter {
       );
 
       this.updateTaskStatus(taskId, 'completed');
+      this.checkpointManager.setStatus(taskId, 'completed');
       return result;
     } catch (error) {
       logger.error(`报价任务执行失败: ${taskId}`, { error: (error as Error).message });
       this.updateTaskStatus(taskId, 'failed', (error as Error).message);
+      this.checkpointManager.setStatus(taskId, 'failed');
       return null;
     }
   }

@@ -18,20 +18,25 @@ export class CpicQuoteScraper extends QuoteScraper {
 
       const sessionOk = await this.ensureSession();
       if (!sessionOk) {
-        return this.createErrorResult('会话验证失败', request.productType);
-      }
+          return this.createErrorResult('会话验证失败', request.productType);
+        }
+      this.saveCheckpoint('step-login', true);
 
       this.emitProgress('填写报价表单', 30);
       await this.fillQuoteForm(request);
+      this.saveCheckpoint('step-fill-form', true);
 
       this.emitProgress('提交报价计算', 50);
       await this.submitQuoteForm();
+      this.saveCheckpoint('step-submit', true);
 
       this.emitProgress('等待报价结果', 70);
       await this.waitForQuoteResult();
+      this.saveCheckpoint('step-wait-result', true);
 
       this.emitProgress('解析报价数据', 90);
       const result = await this.parseQuoteResult(request);
+      this.saveCheckpoint('step-parse', true);
 
       const duration = (Date.now() - startTime) / 1000;
       logger.info(`太保报价抓取完成: ¥${result.premium}, 耗时 ${duration.toFixed(1)}s`);
