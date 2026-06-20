@@ -222,6 +222,10 @@ var Schedule = (function () {
     $('#btnCalcSuggest').off('click').on('click', function () {
       var result = calcSuggestions(state.storeId, state.date, state.weather);
       state.suggestions = result.suggest;
+      state.collapsed = {};
+      Object.keys(state.suggestions).forEach(function (skuId) {
+        state.collapsed[skuId] = true;
+      });
       state.planBlocks = buildPlanBlocks(state.suggestions, state.date);
       state.conflicts = detectConflicts(state.planBlocks, state.storeId);
       drawGantt();
@@ -248,6 +252,10 @@ var Schedule = (function () {
     if (!state.suggestions || Object.keys(state.suggestions).length === 0) {
       var result = calcSuggestions(state.storeId, state.date, state.weather);
       state.suggestions = result.suggest;
+      state.collapsed = {};
+      Object.keys(state.suggestions).forEach(function (skuId) {
+        state.collapsed[skuId] = true;
+      });
       state.planBlocks = buildPlanBlocks(state.suggestions, state.date);
       state.conflicts = detectConflicts(state.planBlocks, state.storeId);
     }
