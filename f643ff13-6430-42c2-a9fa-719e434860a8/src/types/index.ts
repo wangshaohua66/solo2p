@@ -63,15 +63,55 @@ export interface EvidenceAnnotation {
   draw?: DrawAnnotation
 }
 
+export interface CollaborationUser {
+  id: string
+  name: string
+  role: Role
+  caseId: string
+  joinedAt: number
+}
+
 export interface CollaborationAction {
   type: 'add-annotation' | 'update-annotation' | 'delete-annotation'
        | 'add-transcript' | 'update-transcript'
        | 'add-evidence' | 'select-evidence'
-       | 'add-evidence-annotation' | 'update-evidence-annotation'
+       | 'add-evidence-annotation' | 'update-evidence-annotation' | 'delete-evidence-annotation'
   payload: any
   userId: string
   timestamp: number
   caseId: string
+}
+
+export type WebSocketMessageType = 
+  | 'join' 
+  | 'leave' 
+  | 'user-joined' 
+  | 'user-left' 
+  | 'users-list' 
+  | 'action' 
+  | 'sync-request' 
+  | 'sync-response'
+  | 'ping'
+  | 'pong'
+
+export interface WebSocketMessage {
+  type: WebSocketMessageType
+  payload?: any
+  userId?: string
+  timestamp: number
+  caseId?: string
+}
+
+export interface WebSocketJoinPayload {
+  user: CollaborationUser
+}
+
+export interface WebSocketUsersListPayload {
+  users: CollaborationUser[]
+}
+
+export interface WebSocketActionPayload {
+  action: CollaborationAction
 }
 
 export interface Annotation {

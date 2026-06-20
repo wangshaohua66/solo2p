@@ -1,16 +1,92 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
-import type { EvidenceItem, EvidenceType, EvidenceAnnotation } from '@/types'
+import type { EvidenceItem, EvidenceType, EvidenceAnnotation, CollaborationAction } from '@/types'
 import { storage, generateId, debounce, fileToDataUrl, fileToBlobUrl } from '@/utils/storage'
+import { useCollaboration } from '@/composables/useCollaboration'
 
 const STORAGE_KEY = 'evidence'
 
 export const useEvidenceStore = defineStore('evidence', () => {
+  const collaboration = useCollaboration()
+
   const evidenceList = ref<EvidenceItem[]>([])
   const selectedEvidenceId = ref<string | null>(null)
   const isLoading = ref(false)
   const uploadProgress = ref(0)
   const currentCaseId = ref('')
+  const collaborationActions = ref<CollaborationAction[]>([])
+
+  const isCollaborating = computed(() => collaboration.isConnected.value)
+  const connectedUsers = computed(() => collaboration.connectedUsers)
+
+  let unregisterActionHandler: (() => void) | null = null
+
+  const handleIncomingAction = (action: CollaborationAction) => {
+    if (action.caseId !== currentCaseId.value) return
+    collaborationActions.value.push(action)
+
+    switch (action.type) {
+      case 'add-evidence-annotation':
+        addEvidenceAnnotation(
+          action.payload.evidenceId,
+          action.payload.annotation,
+          true
+        )
+        break
+      case 'update-evidence-annotation':
+        updateEvidenceAnnotation(
+          action.payload.evidenceId,
+          action.payload.annotationId,
+          action.payload.updates,
+          true
+        )
+        break
+      case 'delete-evidence-annotation':
+        deleteEvidenceAnnotation(
+          action.payload.evidenceId,
+          action.payload.annotationId,
+          true
+        )
+        break
+      case 'select-evidence':
+        selectedEvidenceId.value = action.payload.evidenceId
+        break
+    }
+  }
+
+  const broadcastEvidenceAction = (
+    type: CollaborationAction['type'],
+    payload: any
+  ) => {
+    if (!isCollaborating.value) return
+    collaboration.sendAction({ type, payload })
+  }
+
+  const initCollaboration = async (
+    caseId: string,
+    role?: string,
+    name?: string,
+    wsUrl?: string
+  ): Promise<boolean> => {
+    try {
+      const success = await collaboration.connect(caseId, role, name, wsUrl)
+      if (success) {
+        unregisterActionHandler = collaboration.onAction(handleIncomingAction)
+      }
+      return success
+    } catch (error) {
+      console.error('Failed to init evidence collaboration:', error)
+      return false
+    }
+  }
+
+  const disconnectCollaboration = () => {
+    if (unregisterActionHandler) {
+      unregisterActionHandler()
+      unregisterActionHandler = null
+    }
+    collaboration.disconnect()
+  }
 
   const selectedEvidence = computed(() => {
     if (!selectedEvidenceId.value) return null
@@ -174,8 +250,11 @@ export const useEvidenceStore = defineStore('evidence', () => {
     debouncedSave()
   }
 
-  const selectEvidence = (id: string | null) => {
+  const selectEvidence = (id: string | null, isRemote = false) => {
     selectedEvidenceId.value = id
+    if (!isRemote && id) {
+      broadcastEvidenceAction('select-evidence', { evidenceId: id })
+    }
   }
 
   const rotateEvidence = (id: string, angle: number = 90) => {
@@ -195,29 +274,77 @@ export const useEvidenceStore = defineStore('evidence', () => {
 
   const addEvidenceAnnotation = (
     evidenceId: string,
-    annotation: Omit<EvidenceAnnotation, 'id' | 'createdAt'>
+    annotation: Omit<EvidenceAnnotation, 'id' | 'createdAt'> & Partial<Pick<EvidenceAnnotation, 'id' | 'createdAt'>>,
+    isRemote = false
   ) => {
     const evidence = getEvidenceById(evidenceId)
     if (evidence) {
       const newAnnotation: EvidenceAnnotation = {
         ...annotation,
-        id: generateId(),
-        createdAt: Date.now()
+        id: annotation.id || generateId(),
+        createdAt: annotation.createdAt || Date.now()
       }
       updateEvidence(evidenceId, {
         annotations: [...evidence.annotations, newAnnotation]
       })
+
+      if (!isRemote) {
+        broadcastEvidenceAction('add-evidence-annotation', {
+          evidenceId,
+          annotation: newAnnotation
+        })
+      }
+
       return newAnnotation
     }
     return null
   }
 
-  const deleteEvidenceAnnotation = (evidenceId: string, annotationId: string) => {
+  const updateEvidenceAnnotation = (
+    evidenceId: string,
+    annotationId: string,
+    updates: Partial<EvidenceAnnotation>,
+    isRemote = false
+  ) => {
+    const evidence = getEvidenceById(evidenceId)
+    if (evidence) {
+      const annotationIndex = evidence.annotations.findIndex(a => a.id === annotationId)
+      if (annotationIndex !== -1) {
+        const updatedAnnotations = [...evidence.annotations]
+        updatedAnnotations[annotationIndex] = {
+          ...updatedAnnotations[annotationIndex],
+          ...updates
+        }
+        updateEvidence(evidenceId, { annotations: updatedAnnotations })
+
+        if (!isRemote) {
+          broadcastEvidenceAction('update-evidence-annotation', {
+            evidenceId,
+            annotationId,
+            updates
+          })
+        }
+      }
+    }
+  }
+
+  const deleteEvidenceAnnotation = (
+    evidenceId: string,
+    annotationId: string,
+    isRemote = false
+  ) => {
     const evidence = getEvidenceById(evidenceId)
     if (evidence) {
       updateEvidence(evidenceId, {
         annotations: evidence.annotations.filter(a => a.id !== annotationId)
       })
+
+      if (!isRemote) {
+        broadcastEvidenceAction('delete-evidence-annotation', {
+          evidenceId,
+          annotationId
+        })
+      }
     }
   }
 
@@ -250,6 +377,9 @@ export const useEvidenceStore = defineStore('evidence', () => {
     currentCaseId,
     selectedEvidence,
     evidenceByType,
+    isCollaborating,
+    connectedUsers,
+    collaborationActions,
     getEvidenceById,
     loadFromStorage,
     saveToStorage,
@@ -262,7 +392,11 @@ export const useEvidenceStore = defineStore('evidence', () => {
     scaleEvidence,
     setEvidenceTime,
     addEvidenceAnnotation,
+    updateEvidenceAnnotation,
     deleteEvidenceAnnotation,
-    searchEvidence
+    searchEvidence,
+    initCollaboration,
+    disconnectCollaboration,
+    broadcastEvidenceAction
   }
 })
