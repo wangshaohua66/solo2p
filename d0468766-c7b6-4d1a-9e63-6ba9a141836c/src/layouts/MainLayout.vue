@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute, RouterView } from 'vue-router'
-import { useAppStore } from '@/stores/app'
+import { computed, ref } from 'vue'
+import { useRoute, RouterLink, RouterView, useRouter } from 'vue-router'
+import { useAppStore, ROLE_META } from '@/stores/app'
 import * as ElIcons from '@element-plus/icons-vue'
+import type { UserRole } from '@/types'
+import { ElDropdown, type DropdownMenuCommand } from 'element-plus'
 
 const route = useRoute()
+const router = useRouter()
 const appStore = useAppStore()
 
 const menus = [
@@ -18,7 +21,25 @@ const menus = [
   { index: '/monitor', title: '影厅监控', icon: 'Monitor' }
 ]
 
+const filteredMenus = computed(() => menus.filter((m) => appStore.canAccess(m.index)))
 const currentTitle = computed(() => (route.meta.title as string) || '光影院线')
+
+const roleOptions = computed(() =>
+  (Object.keys(ROLE_META) as UserRole[]).map((r) => ({
+    label: ROLE_META[r].label,
+    value: r,
+    icon: r === appStore.role ? 'Check' : 'CircleClose'
+  }))
+)
+
+function handleRoleCommand(cmd: DropdownMenuCommand | string | number | object) {
+  const r = cmd as UserRole
+  appStore.setRole(r)
+  if (!appStore.canAccess(route.path)) {
+    const firstAllowed = appStore.allowedRoutes[0] || '/dashboard'
+    router.push(firstAllowed)
+  }
+}
 </script>
 
 <template>
@@ -57,7 +78,7 @@ const currentTitle = computed(() => (route.meta.title as string) || '光影院�
 
       <nav class="nav">
         <RouterLink
-          v-for="m in menus"
+          v-for="m in filteredMenus"
           :key="m.index"
           :to="m.index"
           class="nav-item"
@@ -72,13 +93,28 @@ const currentTitle = computed(() => (route.meta.title as string) || '光影院�
       </nav>
 
       <div class="sidebar-foot">
-        <div class="role-card" v-show="!appStore.collapsed">
-          <div class="role-avatar">管</div>
-          <div class="role-info">
-            <strong>院线管理层</strong>
-            <span>15家影院 · 120厅</span>
+        <el-dropdown trigger="click" @command="handleRoleCommand">
+          <div class="role-card" v-show="!appStore.collapsed">
+            <div class="role-avatar" :style="{ color: appStore.roleMeta.color, borderColor: appStore.roleMeta.color }">{{ appStore.roleMeta.avatar }}</div>
+            <div class="role-info">
+              <strong>{{ appStore.roleMeta.label }}</strong>
+              <span>{{ appStore.roleMeta.desc }}</span>
+            </div>
+            <component :is="(ElIcons as any).CaretBottom" class="caret" />
           </div>
-        </div>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item
+                v-for="r in (Object.keys(ROLE_META) as UserRole[])"
+                :key="r"
+                :command="r"
+              >
+                <span class="role-switch-item" :style="{ color: ROLE_META[r].color }">{{ ROLE_META[r].avatar }}</span>
+                {{ ROLE_META[r].label }}
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </aside>
 
@@ -289,13 +325,24 @@ const currentTitle = computed(() => (route.meta.title as string) || '光影院�
   border-radius: 10px;
   background: $gold-soft;
   border: 1px solid $gold-line;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  .caret {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--c-text-tertiary);
+  }
+  &:hover {
+    border-color: $gold;
+    box-shadow: $shadow-gold;
+  }
 }
 .role-avatar {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: $grad-gold;
-  color: #1a1305;
+  background: rgba(232, 181, 71, 0.1);
+  border: 2px solid $gold;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -314,6 +361,18 @@ const currentTitle = computed(() => (route.meta.title as string) || '光影院�
     font-size: 11px;
     color: var(--c-text-tertiary);
   }
+}
+.role-switch-item {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  text-align: center;
+  line-height: 16px;
+  font-size: 11px;
+  margin-right: 6px;
+  font-weight: 700;
 }
 
 .main {

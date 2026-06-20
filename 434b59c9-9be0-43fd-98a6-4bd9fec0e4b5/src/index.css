@@ -1,0 +1,204 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bio-bg: #0d1117;
+  --color-bio-panel: #161b22;
+  --color-bio-border: #30363d;
+  --color-bio-text: #c9d1d9;
+  --color-bio-text-secondary: #8b949e;
+  --color-bio-blue: #58a6ff;
+  --color-bio-orange: #f0883e;
+  --color-bio-red: #ff7b72;
+  --color-bio-green: #3fb950;
+  --color-bio-yellow: #d29922;
+  --color-base-a: #3fb950;
+  --color-base-t: #f85149;
+  --color-base-c: #58a6ff;
+  --color-base-g: #d29922;
+  --color-mut-pathogenic: #ff00aa;
+  --color-mut-likely: #ff7b00;
+  --color-mut-benign: #00ffcc;
+  --color-mut-uncertain: #a371f7;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--color-bio-bg);
+  color: var(--color-bio-text);
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bio-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-bio-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #484f58;
+}
+
+.ant-tabs {
+  background: transparent;
+}
+
+.ant-tabs-nav {
+  margin-bottom: 0 !important;
+}
+
+.ant-tabs-tab {
+  color: var(--color-bio-text-secondary) !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+.ant-tabs-tab-active {
+  color: var(--color-bio-blue) !important;
+}
+
+.ant-tabs-ink-bar {
+  background: var(--color-bio-blue) !important;
+}
+
+.ant-tabs-content-holder {
+  background: transparent;
+}
+
+.ant-btn-primary {
+  background: var(--color-bio-blue) !important;
+}
+
+.ant-input,
+.ant-select-selector,
+.ant-slider-track {
+  background: var(--color-bio-panel) !important;
+  border-color: var(--color-bio-border) !important;
+  color: var(--color-bio-text) !important;
+}
+
+.ant-table {
+  background: var(--color-bio-panel) !important;
+}
+
+.ant-table-thead > tr > th {
+  background: var(--color-bio-bg) !important;
+  color: var(--color-bio-text-secondary) !important;
+  border-bottom: 1px solid var(--color-bio-border) !important;
+}
+
+.ant-table-tbody > tr > td {
+  border-bottom: 1px solid var(--color-bio-border) !important;
+  color: var(--color-bio-text) !important;
+}
+
+.ant-table-row:hover > td {
+  background: rgba(88, 166, 255, 0.05) !important;
+}
+
+.ant-collapse {
+  background: transparent !important;
+  border: 1px solid var(--color-bio-border) !important;
+}
+
+.ant-collapse-header {
+  color: var(--color-bio-text) !important;
+}
+
+.ant-collapse-content {
+  background: var(--color-bio-panel) !important;
+  border-top: 1px solid var(--color-bio-border) !important;
+}
+
+.ant-modal-content,
+.ant-drawer-content,
+.ant-drawer-header {
+  background: var(--color-bio-panel) !important;
+  color: var(--color-bio-text) !important;
+}
+
+.ant-modal-title,
+.ant-drawer-title {
+  color: var(--color-bio-text) !important;
+}
+
+.ant-tag {
+  border: none;
+}
+
+.ant-tooltip-inner {
+  background: var(--color-bio-panel);
+  color: var(--color-bio-text);
+  border: 1px solid var(--color-bio-border);
+}
+
+.resizable-panel {
+  position: relative;
+}
+
+.resizable-handle {
+  position: absolute;
+  top: 0;
+  width: 4px;
+  height: 100%;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.2s;
+  z-index: 10;
+}
+
+.resizable-handle:hover,
+.resizable-handle.active {
+  background: var(--color-bio-blue);
+}
+
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast-item {
+  padding: 12px 16px;
+  border-radius: 6px;
+  background: var(--color-bio-panel);
+  border: 1px solid var(--color-bio-border);
+  color: var(--color-bio-text);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}

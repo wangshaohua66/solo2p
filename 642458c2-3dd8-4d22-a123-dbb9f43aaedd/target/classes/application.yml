@@ -1,0 +1,47 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: notarization-system
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/notarization_db
+      auto-index-creation: true
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+
+jwt:
+  secret: bm90YXJpemF0aW9uLXN5c3RlbS1qd3Qtc2VjcmV0LWtleS1mb3ItcHJvZHVjdGlvbi11c2Utb25seS1hbmQtc3RvcmVkLXNlY3VyZWx5
+  access-token-expiration: 86400000
+
+logging:
+  level:
+    com.notarization: DEBUG
+    org.springframework.security: INFO
+    org.springframework.data.mongodb.core.MongoTemplate: INFO
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+
+performance:
+  thresholds:
+    api-response-warning-ms: 300
+    api-response-error-ms: 2000
+    hash-calculation-warning-ms: 50

@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -54,7 +55,11 @@ func NewManager(vault *crypto.Vault) *Manager {
 	return &Manager{vault: vault}
 }
 
-func (m *Manager) LoadConfig(path, format string) (*ConfigData, *errors.SecfgError) {
+func (m *Manager) LoadConfig(ctx context.Context, path, format string) (*ConfigData, *errors.SecfgError) {
+	if err := ctx.Err(); err != nil {
+		return nil, errors.NewWithMessage(errors.E008, "操作被上下文取消", err, false)
+	}
+
 	if err := validator.ValidateConfigPath(path); err != nil {
 		return nil, err
 	}
@@ -67,6 +72,10 @@ func (m *Manager) LoadConfig(path, format string) (*ConfigData, *errors.SecfgErr
 		return nil, err
 	}
 
+	if err := ctx.Err(); err != nil {
+		return nil, errors.NewWithMessage(errors.E008, "操作被上下文取消", err, false)
+	}
+
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return nil, errors.New(errors.E014, err, false)
@@ -77,6 +86,10 @@ func (m *Manager) LoadConfig(path, format string) (*ConfigData, *errors.SecfgErr
 		return nil, secErr
 	}
 
+	if err := ctx.Err(); err != nil {
+		return nil, errors.NewWithMessage(errors.E008, "操作被上下文取消", err, false)
+	}
+
 	return &ConfigData{
 		Data:   data,
 		Format: format,
@@ -84,7 +97,11 @@ func (m *Manager) LoadConfig(path, format string) (*ConfigData, *errors.SecfgErr
 	}, nil
 }
 
-func (m *Manager) SaveConfig(cfg *ConfigData, outputPath string) *errors.SecfgError {
+func (m *Manager) SaveConfig(ctx context.Context, cfg *ConfigData, outputPath string) *errors.SecfgError {
+	if err := ctx.Err(); err != nil {
+		return errors.NewWithMessage(errors.E008, "操作被上下文取消", err, false)
+	}
+
 	content, secErr := m.serializeContent(cfg.Data, cfg.Format)
 	if secErr != nil {
 		return secErr
@@ -93,6 +110,10 @@ func (m *Manager) SaveConfig(cfg *ConfigData, outputPath string) *errors.SecfgEr
 	writePath := outputPath
 	if writePath == "" {
 		writePath = cfg.Path
+	}
+
+	if err := ctx.Err(); err != nil {
+		return errors.NewWithMessage(errors.E008, "操作被上下文取消", err, false)
 	}
 
 	if err := os.WriteFile(writePath, content, 0644); err != nil {
@@ -199,20 +220,28 @@ func (m *Manager) serializeProperties(data map[string]interface{}) ([]byte, *err
 	return []byte(strings.Join(lines, "\n") + "\n"), nil
 }
 
-func (m *Manager) EncryptConfig(cfg *ConfigData) (int, *errors.SecfgError) {
+func (m *Manager) EncryptConfig(ctx context.Context, cfg *ConfigData) (int, *errors.SecfgError) {
+	if err := ctx.Err(); err != nil {
+		return 0, errors.NewWithMessage(errors.E003, "操作被上下文取消", err, false)
+	}
+
 	if m.vault == nil {
 		return 0, errors.NewWithMessage(errors.E003, "Vault未初始化", nil, false)
 	}
 
 	count := 0
-	err := m.walkAndEncrypt(cfg.Data, "", &count)
+	err := m.walkAndEncrypt(ctx, cfg.Data, "", &count)
 	if err != nil {
 		return count, err
 	}
 	return count, nil
 }
 
-func (m *Manager) walkAndEncrypt(data interface{}, path string, count *int) *errors.SecfgError {
+func (m *Manager) walkAndEncrypt(ctx context.Context, data interface{}, path string, count *int) *errors.SecfgError {
+	if err := ctx.Err(); err != nil {
+		return errors.NewWithMessage(errors.E003, "加密操作被取消", err, false)
+	}
+
 	switch v := data.(type) {
 	case map[string]interface{}:
 		for key, val := range v {
@@ -223,7 +252,10 @@ func (m *Manager) walkAndEncrypt(data interface{}, path string, count *int) *err
 
 			if strVal, ok := val.(string); ok {
 				if validator.IsSensitiveField(key) && !m.vault.IsEncrypted(strVal) {
-					encrypted, err := m.vault.Encrypt(strVal)
+					if err := ctx.Err(); err != nil {
+						return errors.NewWithMessage(errors.E003, "加密操作被取消", err, false)
+					}
+					encrypted, err := m.vault.Encrypt(ctx, strVal)
 					if err != nil {
 						return errors.NewWithMessage(errors.E003,
 							fmt.Sprintf("加密字段失败: %s", currentPath), err, false)
@@ -232,7 +264,7 @@ func (m *Manager) walkAndEncrypt(data interface{}, path string, count *int) *err
 					*count++
 				}
 			} else {
-				if err := m.walkAndEncrypt(val, currentPath, count); err != nil {
+				if err := m.walkAndEncrypt(ctx, val, currentPath, count); err != nil {
 					return err
 				}
 			}
@@ -240,7 +272,7 @@ func (m *Manager) walkAndEncrypt(data interface{}, path string, count *int) *err
 	case []interface{}:
 		for i, item := range v {
 			currentPath := fmt.Sprintf("%s[%d]", path, i)
-			if err := m.walkAndEncrypt(item, currentPath, count); err != nil {
+			if err := m.walkAndEncrypt(ctx, item, currentPath, count); err != nil {
 				return err
 			}
 		}
@@ -248,20 +280,28 @@ func (m *Manager) walkAndEncrypt(data interface{}, path string, count *int) *err
 	return nil
 }
 
-func (m *Manager) DecryptConfig(cfg *ConfigData) (int, *errors.SecfgError) {
+func (m *Manager) DecryptConfig(ctx context.Context, cfg *ConfigData) (int, *errors.SecfgError) {
+	if err := ctx.Err(); err != nil {
+		return 0, errors.NewWithMessage(errors.E004, "操作被上下文取消", err, false)
+	}
+
 	if m.vault == nil {
 		return 0, errors.NewWithMessage(errors.E004, "Vault未初始化", nil, false)
 	}
 
 	count := 0
-	err := m.walkAndDecrypt(cfg.Data, "", &count)
+	err := m.walkAndDecrypt(ctx, cfg.Data, "", &count)
 	if err != nil {
 		return count, err
 	}
 	return count, nil
 }
 
-func (m *Manager) walkAndDecrypt(data interface{}, path string, count *int) *errors.SecfgError {
+func (m *Manager) walkAndDecrypt(ctx context.Context, data interface{}, path string, count *int) *errors.SecfgError {
+	if err := ctx.Err(); err != nil {
+		return errors.NewWithMessage(errors.E004, "解密操作被取消", err, false)
+	}
+
 	switch v := data.(type) {
 	case map[string]interface{}:
 		for key, val := range v {
@@ -272,7 +312,10 @@ func (m *Manager) walkAndDecrypt(data interface{}, path string, count *int) *err
 
 			if strVal, ok := val.(string); ok {
 				if m.vault.IsEncrypted(strVal) {
-					decrypted, err := m.vault.Decrypt(strVal)
+					if err := ctx.Err(); err != nil {
+						return errors.NewWithMessage(errors.E004, "解密操作被取消", err, false)
+					}
+					decrypted, err := m.vault.Decrypt(ctx, strVal)
 					if err != nil {
 						return errors.NewWithMessage(errors.E004,
 							fmt.Sprintf("解密字段失败: %s", currentPath), err, false)
@@ -281,7 +324,7 @@ func (m *Manager) walkAndDecrypt(data interface{}, path string, count *int) *err
 					*count++
 				}
 			} else {
-				if err := m.walkAndDecrypt(val, currentPath, count); err != nil {
+				if err := m.walkAndDecrypt(ctx, val, currentPath, count); err != nil {
 					return err
 				}
 			}
@@ -289,7 +332,7 @@ func (m *Manager) walkAndDecrypt(data interface{}, path string, count *int) *err
 	case []interface{}:
 		for i, item := range v {
 			currentPath := fmt.Sprintf("%s[%d]", path, i)
-			if err := m.walkAndDecrypt(item, currentPath, count); err != nil {
+			if err := m.walkAndDecrypt(ctx, item, currentPath, count); err != nil {
 				return err
 			}
 		}
@@ -297,7 +340,7 @@ func (m *Manager) walkAndDecrypt(data interface{}, path string, count *int) *err
 	return nil
 }
 
-func (m *Manager) CompareConfigs(source, target *ConfigData, mappings []FieldMapping) *DiffReport {
+func (m *Manager) CompareConfigs(ctx context.Context, source, target *ConfigData, mappings []FieldMapping) *DiffReport {
 	report := &DiffReport{
 		SourceEnv: source.Path,
 		TargetEnv: target.Path,
@@ -307,6 +350,11 @@ func (m *Manager) CompareConfigs(source, target *ConfigData, mappings []FieldMap
 	targetFlat := flattenMap(target.Data, "")
 
 	appliedSource := applyMappings(sourceFlat, mappings)
+
+	if err := ctx.Err(); err != nil {
+		report.SourceEnv = report.SourceEnv + "(已取消)"
+		return report
+	}
 
 	for key, val := range appliedSource {
 		targetVal, exists := targetFlat[key]
@@ -341,7 +389,11 @@ func (m *Manager) CompareConfigs(source, target *ConfigData, mappings []FieldMap
 	return report
 }
 
-func (m *Manager) ApplyDiff(target *ConfigData, diff *DiffReport) *errors.SecfgError {
+func (m *Manager) ApplyDiff(ctx context.Context, target *ConfigData, diff *DiffReport) *errors.SecfgError {
+	if err := ctx.Err(); err != nil {
+		return errors.NewWithMessage(errors.E012, "同步操作被取消", err, false)
+	}
+
 	for _, item := range diff.AddedItems {
 		setNestedValue(target.Data, item.Path, item.NewValue)
 	}
@@ -562,7 +614,11 @@ func parseArrayIndex(part string) (int, bool) {
 	return 0, false
 }
 
-func (m *Manager) FindConfigFiles(dir string, recursive bool) ([]string, *errors.SecfgError) {
+func (m *Manager) FindConfigFiles(ctx context.Context, dir string, recursive bool) ([]string, *errors.SecfgError) {
+	if err := ctx.Err(); err != nil {
+		return nil, errors.NewWithMessage(errors.E012, "文件查找被取消", err, false)
+	}
+
 	if err := validator.ValidateDirectoryPath(dir); err != nil {
 		return nil, err
 	}
@@ -579,6 +635,9 @@ func (m *Manager) FindConfigFiles(dir string, recursive bool) ([]string, *errors
 
 	walkFn := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
+			return err
+		}
+		if err := ctx.Err(); err != nil {
 			return err
 		}
 		if info.IsDir() {

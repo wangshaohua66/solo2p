@@ -24,6 +24,7 @@ function test(name, fn) {
 function makeTmpHome() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sc-test-'));
   process.env.SC_HOME = dir;
+  process.env.SC_STORE_PATH = path.join(dir, 'store.json');
   process.env.SC_AUDIT_MAX_SIZE = '2048';
   return dir;
 }
@@ -149,6 +150,27 @@ async function main() {
     for (let i = 0; i < 50; i++) store.recordAudit({ action: 'noop', secretName: `s${i}` });
     const rotated = fs.existsSync(`${store.auditPath()}.1`);
     assert.ok(rotated, '应生成 audit.jsonl.1 轮转文件');
+  });
+  await test('updateAuditRecord 更新审计记录字段', () => {
+    const rec = store.recordAudit({ action: 'cert-alert', secretName: 'test.example.com', status: 'success', metadata: { tier: 'high', handled: false } });
+    assert.equal(rec.metadata.handled, false);
+    const updated = store.updateAuditRecord(rec.id, { metadata: { handled: true, handledAt: new Date().toISOString() } });
+    assert.ok(updated);
+    assert.equal(updated.metadata.handled, true);
+    assert.ok(updated.metadata.handledAt);
+    const queried = store.queryAudit({ action: 'cert-alert' }).find((r) => r.id === rec.id);
+    assert.equal(queried.metadata.handled, true);
+  });
+  await test('store.json 路径可通过 SC_STORE_PATH 覆盖', () => {
+    assert.ok(store.storePath().includes(os.tmpdir()));
+  });
+  await test('registerTemp + cleanupAllTemp 临时文件清理', () => {
+    const tmpFile = path.join(os.tmpdir(), `sc-test-${Date.now()}.tmp`);
+    fs.writeFileSync(tmpFile, 'test');
+    store.registerTemp(tmpFile);
+    assert.ok(fs.existsSync(tmpFile));
+    store.cleanupAllTemp();
+    assert.ok(!fs.existsSync(tmpFile));
   });
 
   console.log('util:');

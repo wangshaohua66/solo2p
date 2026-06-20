@@ -1,0 +1,37 @@
+@use './styles/variables.scss' as *;
+
+page {
+  background-color: $color-bg-page;
+  color: $color-text-primary;
+  font-size: $font-size-md;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
+  line-height: $line-height-normal;
+  min-height: 100vh;
+}
+
+view, text, button, input, scroll-view {
+  box-sizing: border-box;
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.text-gold {
+  color: $color-text-gold;
+}
+
+.text-red {
+  color: $color-accent;
+}
+
+.text-green {
+  color: $color-success;
+}
+
+.gradient-gold-text {
+  background: $gold-gradient;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}

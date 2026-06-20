@@ -1,0 +1,339 @@
+{
+  "total_samples": 120,
+  "correct": 116,
+  "accuracy": 0.966667,
+  "accuracy_pct": "96.67%",
+  "meets_90pct_target": true,
+  "per_part": {
+    "front_bumper": {
+      "part": "front_bumper",
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "total": 10,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "rear_bumper": {
+      "part": "rear_bumper",
+      "tp": 8,
+      "fp": 0,
+      "fn": 2,
+      "total": 10,
+      "precision": 1.0,
+      "recall": 0.8,
+      "f1": 0.888888888888889
+    },
+    "hood": {
+      "part": "hood",
+      "tp": 9,
+      "fp": 0,
+      "fn": 1,
+      "total": 10,
+      "precision": 1.0,
+      "recall": 0.9,
+      "f1": 0.9473684210526316
+    },
+    "trunk": {
+      "part": "trunk",
+      "tp": 10,
+      "fp": 1,
+      "fn": 0,
+      "total": 10,
+      "precision": 0.9090909090909091,
+      "recall": 1.0,
+      "f1": 0.9523809523809523
+    },
+    "roof": {
+      "part": "roof",
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "total": 10,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "front_door_left": {
+      "part": "front_door_left",
+      "tp": 10,
+      "fp": 1,
+      "fn": 0,
+      "total": 10,
+      "precision": 0.9090909090909091,
+      "recall": 1.0,
+      "f1": 0.9523809523809523
+    },
+    "rear_door_left": {
+      "part": "rear_door_left",
+      "tp": 10,
+      "fp": 1,
+      "fn": 0,
+      "total": 10,
+      "precision": 0.9090909090909091,
+      "recall": 1.0,
+      "f1": 0.9523809523809523
+    },
+    "front_door_right": {
+      "part": "front_door_right",
+      "tp": 10,
+      "fp": 1,
+      "fn": 0,
+      "total": 10,
+      "precision": 0.9090909090909091,
+      "recall": 1.0,
+      "f1": 0.9523809523809523
+    },
+    "rear_door_right": {
+      "part": "rear_door_right",
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "total": 10,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "fender_front_left": {
+      "part": "fender_front_left",
+      "tp": 9,
+      "fp": 0,
+      "fn": 1,
+      "total": 10,
+      "precision": 1.0,
+      "recall": 0.9,
+      "f1": 0.9473684210526316
+    },
+    "fender_front_right": {
+      "part": "fender_front_right",
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "total": 10,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "headlight": {
+      "part": "headlight",
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "total": 10,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    }
+  },
+  "confusion_matrix": {
+    "front_bumper": {
+      "front_bumper": 10,
+      "rear_bumper": 0,
+      "hood": 0,
+      "trunk": 0,
+      "roof": 0,
+      "front_door_left": 0,
+      "rear_door_left": 0,
+      "front_door_right": 0,
+      "rear_door_right": 0,
+      "fender_front_left": 0,
+      "fender_front_right": 0,
+      "headlight": 0
+    },
+    "rear_bumper": {
+      "front_bumper": 0,
+      "rear_bumper": 8,
+      "hood": 0,
+      "trunk": 1,
+      "roof": 0,
+      "front_door_left": 1,
+      "rear_door_left": 0,
+      "front_door_right": 0,
+      "rear_door_right": 0,
+      "fender_front_left": 0,
+      "fender_front_right": 0,
+      "headlight": 0
+    },
+    "hood": {
+      "front_bumper": 0,
+      "rear_bumper": 0,
+      "hood": 9,
+      "trunk": 0,
+      "roof": 0,
+      "front_door_left": 0,
+      "rear_door_left": 0,
+      "front_door_right": 1,
+      "rear_door_right": 0,
+      "fender_front_left": 0,
+      "fender_front_right": 0,
+      "headlight": 0
+    },
+    "trunk": {
+      "front_bumper": 0,
+      "rear_bumper": 0,
+      "hood": 0,
+      "trunk": 10,
+      "roof": 0,
+      "front_door_left": 0,
+      "rear_door_left": 0,
+      "front_door_right": 0,
+      "rear_door_right": 0,
+      "fender_front_left": 0,
+      "fender_front_right": 0,
+      "headlight": 0
+    },
+    "roof": {
+      "front_bumper": 0,
+      "rear_bumper": 0,
+      "hood": 0,
+      "trunk": 0,
+      "roof": 10,
+      "front_door_left": 0,
+      "rear_door_left": 0,
+      "front_door_right": 0,
+      "rear_door_right": 0,
+      "fender_front_left": 0,
+      "fender_front_right": 0,
+      "headlight": 0
+    },
+    "front_door_left": {
+      "front_bumper": 0,
+      "rear_bumper": 0,
+      "hood": 0,
+      "trunk": 0,
+      "roof": 0,
+      "front_door_left": 10,
+      "rear_door_left": 0,
+      "front_door_right": 0,
+      "rear_door_right": 0,
+      "fender_front_left": 0,
+      "fender_front_right": 0,
+      "headlight": 0
+    },
+    "rear_door_left": {
+      "front_bumper": 0,
+      "rear_bumper": 0,
+      "hood": 0,
+      "trunk": 0,
+      "roof": 0,
+      "front_door_left": 0,
+      "rear_door_left": 10,
+      "front_door_right": 0,
+      "rear_door_right": 0,
+      "fender_front_left": 0,
+      "fender_front_right": 0,
+      "headlight": 0
+    },
+    "front_door_right": {
+      "front_bumper": 0,
+      "rear_bumper": 0,
+      "hood": 0,
+      "trunk": 0,
+      "roof": 0,
+      "front_door_left": 0,
+      "rear_door_left": 0,
+      "front_door_right": 10,
+      "rear_door_right": 0,
+      "fender_front_left": 0,
+      "fender_front_right": 0,
+      "headlight": 0
+    },
+    "rear_door_right": {
+      "front_bumper": 0,
+      "rear_bumper": 0,
+      "hood": 0,
+      "trunk": 0,
+      "roof": 0,
+      "front_door_left": 0,
+      "rear_door_left": 0,
+      "front_door_right": 0,
+      "rear_door_right": 10,
+      "fender_front_left": 0,
+      "fender_front_right": 0,
+      "headlight": 0
+    },
+    "fender_front_left": {
+      "front_bumper": 0,
+      "rear_bumper": 0,
+      "hood": 0,
+      "trunk": 0,
+      "roof": 0,
+      "front_door_left": 0,
+      "rear_door_left": 1,
+      "front_door_right": 0,
+      "rear_door_right": 0,
+      "fender_front_left": 9,
+      "fender_front_right": 0,
+      "headlight": 0
+    },
+    "fender_front_right": {
+      "front_bumper": 0,
+      "rear_bumper": 0,
+      "hood": 0,
+      "trunk": 0,
+      "roof": 0,
+      "front_door_left": 0,
+      "rear_door_left": 0,
+      "front_door_right": 0,
+      "rear_door_right": 0,
+      "fender_front_left": 0,
+      "fender_front_right": 10,
+      "headlight": 0
+    },
+    "headlight": {
+      "front_bumper": 0,
+      "rear_bumper": 0,
+      "hood": 0,
+      "trunk": 0,
+      "roof": 0,
+      "front_door_left": 0,
+      "rear_door_left": 0,
+      "front_door_right": 0,
+      "rear_door_right": 0,
+      "fender_front_left": 0,
+      "fender_front_right": 0,
+      "headlight": 10
+    },
+    "unknown": {
+      "front_bumper": 0,
+      "rear_bumper": 0,
+      "hood": 0,
+      "trunk": 0,
+      "roof": 0,
+      "front_door_left": 0,
+      "rear_door_left": 0,
+      "front_door_right": 0,
+      "rear_door_right": 0,
+      "fender_front_left": 0,
+      "fender_front_right": 0,
+      "headlight": 0
+    }
+  },
+  "errors": [
+    {
+      "file": "./data/benchmark_body_parts/rear_bumper/rear_bumper_05.jpg",
+      "ground_truth": "rear_bumper",
+      "predicted": "trunk",
+      "variant": 5
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_bumper/rear_bumper_07.jpg",
+      "ground_truth": "rear_bumper",
+      "predicted": "front_door_left",
+      "variant": 7
+    },
+    {
+      "file": "./data/benchmark_body_parts/hood/hood_09.jpg",
+      "ground_truth": "hood",
+      "predicted": "front_door_right",
+      "variant": 9
+    },
+    {
+      "file": "./data/benchmark_body_parts/fender_front_left/fender_front_left_03.jpg",
+      "ground_truth": "fender_front_left",
+      "predicted": "rear_door_left",
+      "variant": 3
+    }
+  ]
+}

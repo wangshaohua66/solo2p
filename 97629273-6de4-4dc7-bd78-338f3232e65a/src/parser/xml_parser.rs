@@ -106,15 +106,8 @@ impl XmlParser {
                     state.path.pop();
                 }
                 Ok(Event::Text(t)) => {
-                    let decoded = t.xml_content().unwrap_or_default();
-                    let text = if decoded.contains('&') {
-                        quick_xml::escape::unescape(&decoded)
-                            .map(|c| c.into_owned())
-                            .unwrap_or_else(|_| decoded.into_owned())
-                    } else {
-                        decoded.into_owned()
-                    };
-                    let text = text.trim();
+                    let decoded = t.unescape().unwrap_or_default();
+                    let text = decoded.trim();
                     if !text.is_empty() {
                         handle_text(text, &mut patent, &mut state);
                     }
@@ -129,7 +122,7 @@ impl XmlParser {
                 }
                 Ok(Event::Eof) => break,
                 Err(e) => {
-                    let pos = reader.buffer_position() as usize;
+                    let pos = reader.buffer_position();
                     let (line, col) = offset_to_line_col(content, pos);
                     return Ok(ParseOutcome {
                         patent,

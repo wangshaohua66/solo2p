@@ -4,17 +4,20 @@ import * as ElIcons from '@element-plus/icons-vue'
 import StatCard from '@/components/StatCard.vue'
 import SectionPanel from '@/components/SectionPanel.vue'
 import BaseChart from '@/components/BaseChart.vue'
+import CinemaCard from '@/components/CinemaCard.vue'
 import { dashboardApi } from '@/api'
-import type { DashboardMetrics, AlertItem } from '@/types'
+import type { DashboardMetrics, AlertItem, Cinema } from '@/types'
 
 const loading = ref(true)
 const metrics = ref<DashboardMetrics | null>(null)
 const alerts = ref<AlertItem[]>([])
+const cinemas = ref<Cinema[]>([])
 
 onMounted(async () => {
-  const [m, a] = await Promise.all([dashboardApi.getMetrics(), dashboardApi.getAlerts()])
+  const [m, a, cs] = await Promise.all([dashboardApi.getMetrics(), dashboardApi.getAlerts(), dashboardApi.getCinemas()])
   metrics.value = m
   alerts.value = a
+  cinemas.value = cs
   loading.value = false
 })
 
@@ -131,6 +134,19 @@ const levelTag: Record<string, string> = { danger: 'danger', warning: 'warning',
 
     <el-skeleton :loading="loading" animated :rows="6">
       <template #default>
+        <div class="cinemas-section">
+          <div class="section-title-bar">
+            <h3>
+              <component :is="(ElIcons as any).Shop" />
+              <span>影院概览</span>
+            </h3>
+            <p>点击卡片查看影院详情</p>
+          </div>
+          <div class="cinema-grid">
+            <CinemaCard v-for="cinema in cinemas.slice(0, 8)" :key="cinema.id" :cinema="cinema" />
+          </div>
+        </div>
+
         <div class="stat-row">
           <StatCard label="今日票房" :value="metrics!.todayBoxOffice" prefix="¥" unit="元" icon="Money" :trend="12.4" accent="gold" />
           <StatCard label="今日人次" :value="metrics!.todayAudience" unit="人" icon="User" :trend="8.1" accent="info" />
@@ -301,12 +317,50 @@ const levelTag: Record<string, string> = { danger: 'danger', warning: 'warning',
   display: inline-block;
 }
 
+.cinemas-section {
+  margin-bottom: 6px;
+}
+.section-title-bar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--c-text-primary);
+    margin: 0;
+    svg { color: $gold; }
+  }
+  p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--c-text-tertiary);
+  }
+}
+.cinema-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
 @media (max-width: 1280px) {
   .stat-row {
     grid-template-columns: repeat(2, 1fr);
   }
   .grid-2,
   .grid-3 {
+    grid-template-columns: 1fr;
+  }
+  .cinema-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 768px) {
+  .cinema-grid {
     grid-template-columns: 1fr;
   }
 }

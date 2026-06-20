@@ -38,13 +38,16 @@ const managers = ['陈志远', '林婉清', '赵建国', '周明辉', '吴静怡
 export const cinemas: Cinema[] = cinemaNames.map((name, i) => ({
   id: `C${String(i + 1).padStart(2, '0')}`,
   name,
-  address: ['东城区', '朝阳区', '西城区', '海淀区', '朝阳区', '朝阳区', '大兴区', '朝阳区', '昌平区', '海淀区', '丰台区', '大兴区', '通州区', '昌平区', '石景山区'][i] + name.split('·')[1],
+  address: ['东城区王府井大街88号', '朝阳区朝阳北路101号', '西城区西单北大街120号', '海淀区成府路28号', '朝阳区建国门外大街1号', '朝阳区广顺北大街33号', '大兴区欣宁大街15号', '朝阳区西大望路21号', '昌平区立汤路186号', '海淀区清河中街68号', '丰台区丰葆路88号', '大兴区永兴路7号', '通州区新华西街58号', '昌平区府学路甲24号', '石景山区石景山路乙18号'][i],
   halls: 8,
   screens: 8,
   manager: managers[i],
   status: i === 9 ? 'maintenance' : 'open',
   todayBoxOffice: Math.round(80000 + Math.random() * 220000),
-  todayAudience: Math.round(1200 + Math.random() * 3800)
+  todayAudience: Math.round(1200 + Math.random() * 3800),
+  images: [],
+  phone: `010-${88000000 + i * 137}`,
+  businessHours: '10:00 - 24:00'
 }))
 
 export const halls: Hall[] = []
@@ -78,18 +81,35 @@ const movieData: Array<[string, number, string, number]> = [
   ['破晓行动', 130, '动作/战争', 8.5]
 ]
 
-export const movies: Movie[] = movieData.map((m, i) => ({
-  id: `M${String(i + 1).padStart(2, '0')}`,
-  name: m[0] as string,
-  poster: '',
-  duration: m[1] as number,
-  genre: m[2] as string,
-  releaseDate: `2026-0${(i % 6) + 1}-${String((i * 7) % 27 + 1).padStart(2, '0')}`,
-  rating: m[3] as number,
-  boxOffice: Math.round((0.8 + Math.random() * 8) * 10000) * 10000,
-  dcpCount: 4 + (i % 6),
-  status: i < 6 ? '热映' : i < 8 ? '即将上映' : '点映'
-}))
+function computeScheduleWeight(boxOffice: number, rating: number, duration: number, daysSinceRelease: number): number {
+  const boScore = Math.min(1, boxOffice / 500000000)
+  const ratingScore = rating / 10
+  const durationScore = duration < 100 ? 0.9 : duration > 150 ? 0.7 : 1.0
+  const decay = Math.max(0.3, 1 - daysSinceRelease * 0.04)
+  const w = boScore * 0.45 + ratingScore * 0.3 + durationScore * 0.1 + decay * 0.15
+  return Math.round(w * 100) / 100
+}
+
+export const movies: Movie[] = movieData.map((m, i) => {
+  const release = new Date(`2026-0${(i % 6) + 1}-${String((i * 7) % 27 + 1).padStart(2, '0')}`)
+  const daysSinceRelease = Math.max(0, Math.floor((new Date('2026-06-19').getTime() - release.getTime()) / 86400000))
+  const baseBo = (m[3] >= 9 ? 350000000 : m[3] >= 8.5 ? 180000000 : 80000000)
+  const genreBoost = m[2].includes('科幻') ? 1.4 : m[2].includes('动作') ? 1.2 : m[2].includes('动画') ? 1.3 : 1.0
+  const boxOffice = Math.round(baseBo * genreBoost * (0.85 + ((i * 37) % 30) / 100))
+  const rating = Math.round((computeScheduleWeight(boxOffice, m[3] as number, m[1] as number, daysSinceRelease) * 10) * 10) / 10
+  return {
+    id: `M${String(i + 1).padStart(2, '0')}`,
+    name: m[0] as string,
+    poster: '',
+    duration: m[1] as number,
+    genre: m[2] as string,
+    releaseDate: `2026-0${(i % 6) + 1}-${String((i * 7) % 27 + 1).padStart(2, '0')}`,
+    rating,
+    boxOffice,
+    dcpCount: 4 + (i % 6),
+    status: i < 6 ? '热映' : i < 8 ? '即将上映' : '点映'
+  }
+})
 
 // 排片：为前5家影院生成今日排片
 export const schedules: ScheduleItem[] = []

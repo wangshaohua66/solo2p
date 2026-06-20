@@ -1,5 +1,7 @@
 // 光影院线 — 领域类型定义
 
+export type UserRole = 'management' | 'cinema_manager' | 'scheduler' | 'cashier' | 'concession_staff'
+
 export interface Cinema {
   id: string
   name: string
@@ -10,6 +12,9 @@ export interface Cinema {
   status: 'open' | 'maintenance' | 'closed'
   todayBoxOffice: number
   todayAudience: number
+  images: string[]
+  phone: string
+  businessHours: string
 }
 
 export interface Hall {

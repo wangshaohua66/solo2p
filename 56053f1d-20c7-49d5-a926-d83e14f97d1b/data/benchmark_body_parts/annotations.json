@@ -1,0 +1,1219 @@
+{
+  "images": [
+    {
+      "file": "./data/benchmark_body_parts/front_bumper/front_bumper_00.jpg",
+      "part": "front_bumper",
+      "variant": 0,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_bumper/front_bumper_01.jpg",
+      "part": "front_bumper",
+      "variant": 1,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_bumper/front_bumper_02.jpg",
+      "part": "front_bumper",
+      "variant": 2,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_bumper/front_bumper_03.jpg",
+      "part": "front_bumper",
+      "variant": 3,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_bumper/front_bumper_04.jpg",
+      "part": "front_bumper",
+      "variant": 4,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_bumper/front_bumper_05.jpg",
+      "part": "front_bumper",
+      "variant": 5,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_bumper/front_bumper_06.jpg",
+      "part": "front_bumper",
+      "variant": 6,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_bumper/front_bumper_07.jpg",
+      "part": "front_bumper",
+      "variant": 7,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_bumper/front_bumper_08.jpg",
+      "part": "front_bumper",
+      "variant": 8,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_bumper/front_bumper_09.jpg",
+      "part": "front_bumper",
+      "variant": 9,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_bumper/rear_bumper_00.jpg",
+      "part": "rear_bumper",
+      "variant": 0,
+      "spec": {
+        "view": "rear",
+        "target_nx": 0.5,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_bumper/rear_bumper_01.jpg",
+      "part": "rear_bumper",
+      "variant": 1,
+      "spec": {
+        "view": "rear",
+        "target_nx": 0.5,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_bumper/rear_bumper_02.jpg",
+      "part": "rear_bumper",
+      "variant": 2,
+      "spec": {
+        "view": "rear",
+        "target_nx": 0.5,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_bumper/rear_bumper_03.jpg",
+      "part": "rear_bumper",
+      "variant": 3,
+      "spec": {
+        "view": "rear",
+        "target_nx": 0.5,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_bumper/rear_bumper_04.jpg",
+      "part": "rear_bumper",
+      "variant": 4,
+      "spec": {
+        "view": "rear",
+        "target_nx": 0.5,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_bumper/rear_bumper_05.jpg",
+      "part": "rear_bumper",
+      "variant": 5,
+      "spec": {
+        "view": "rear",
+        "target_nx": 0.5,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_bumper/rear_bumper_06.jpg",
+      "part": "rear_bumper",
+      "variant": 6,
+      "spec": {
+        "view": "rear",
+        "target_nx": 0.5,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_bumper/rear_bumper_07.jpg",
+      "part": "rear_bumper",
+      "variant": 7,
+      "spec": {
+        "view": "rear",
+        "target_nx": 0.5,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_bumper/rear_bumper_08.jpg",
+      "part": "rear_bumper",
+      "variant": 8,
+      "spec": {
+        "view": "rear",
+        "target_nx": 0.5,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_bumper/rear_bumper_09.jpg",
+      "part": "rear_bumper",
+      "variant": 9,
+      "spec": {
+        "view": "rear",
+        "target_nx": 0.5,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/hood/hood_00.jpg",
+      "part": "hood",
+      "variant": 0,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.45
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/hood/hood_01.jpg",
+      "part": "hood",
+      "variant": 1,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.45
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/hood/hood_02.jpg",
+      "part": "hood",
+      "variant": 2,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.45
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/hood/hood_03.jpg",
+      "part": "hood",
+      "variant": 3,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.45
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/hood/hood_04.jpg",
+      "part": "hood",
+      "variant": 4,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.45
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/hood/hood_05.jpg",
+      "part": "hood",
+      "variant": 5,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.45
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/hood/hood_06.jpg",
+      "part": "hood",
+      "variant": 6,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.45
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/hood/hood_07.jpg",
+      "part": "hood",
+      "variant": 7,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.45
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/hood/hood_08.jpg",
+      "part": "hood",
+      "variant": 8,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.45
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/hood/hood_09.jpg",
+      "part": "hood",
+      "variant": 9,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.45
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/trunk/trunk_00.jpg",
+      "part": "trunk",
+      "variant": 0,
+      "spec": {
+        "view": "rear",
+        "target_nx": 0.5,
+        "target_ny": 0.45
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/trunk/trunk_01.jpg",
+      "part": "trunk",
+      "variant": 1,
+      "spec": {
+        "view": "rear",
+        "target_nx": 0.5,
+        "target_ny": 0.45
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/trunk/trunk_02.jpg",
+      "part": "trunk",
+      "variant": 2,
+      "spec": {
+        "view": "rear",
+        "target_nx": 0.5,
+        "target_ny": 0.45
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/trunk/trunk_03.jpg",
+      "part": "trunk",
+      "variant": 3,
+      "spec": {
+        "view": "rear",
+        "target_nx": 0.5,
+        "target_ny": 0.45
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/trunk/trunk_04.jpg",
+      "part": "trunk",
+      "variant": 4,
+      "spec": {
+        "view": "rear",
+        "target_nx": 0.5,
+        "target_ny": 0.45
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/trunk/trunk_05.jpg",
+      "part": "trunk",
+      "variant": 5,
+      "spec": {
+        "view": "rear",
+        "target_nx": 0.5,
+        "target_ny": 0.45
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/trunk/trunk_06.jpg",
+      "part": "trunk",
+      "variant": 6,
+      "spec": {
+        "view": "rear",
+        "target_nx": 0.5,
+        "target_ny": 0.45
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/trunk/trunk_07.jpg",
+      "part": "trunk",
+      "variant": 7,
+      "spec": {
+        "view": "rear",
+        "target_nx": 0.5,
+        "target_ny": 0.45
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/trunk/trunk_08.jpg",
+      "part": "trunk",
+      "variant": 8,
+      "spec": {
+        "view": "rear",
+        "target_nx": 0.5,
+        "target_ny": 0.45
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/trunk/trunk_09.jpg",
+      "part": "trunk",
+      "variant": 9,
+      "spec": {
+        "view": "rear",
+        "target_nx": 0.5,
+        "target_ny": 0.45
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/roof/roof_00.jpg",
+      "part": "roof",
+      "variant": 0,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.18
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/roof/roof_01.jpg",
+      "part": "roof",
+      "variant": 1,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.18
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/roof/roof_02.jpg",
+      "part": "roof",
+      "variant": 2,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.18
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/roof/roof_03.jpg",
+      "part": "roof",
+      "variant": 3,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.18
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/roof/roof_04.jpg",
+      "part": "roof",
+      "variant": 4,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.18
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/roof/roof_05.jpg",
+      "part": "roof",
+      "variant": 5,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.18
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/roof/roof_06.jpg",
+      "part": "roof",
+      "variant": 6,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.18
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/roof/roof_07.jpg",
+      "part": "roof",
+      "variant": 7,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.18
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/roof/roof_08.jpg",
+      "part": "roof",
+      "variant": 8,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.18
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/roof/roof_09.jpg",
+      "part": "roof",
+      "variant": 9,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.5,
+        "target_ny": 0.18
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_door_left/front_door_left_00.jpg",
+      "part": "front_door_left",
+      "variant": 0,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.78,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_door_left/front_door_left_01.jpg",
+      "part": "front_door_left",
+      "variant": 1,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.78,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_door_left/front_door_left_02.jpg",
+      "part": "front_door_left",
+      "variant": 2,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.78,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_door_left/front_door_left_03.jpg",
+      "part": "front_door_left",
+      "variant": 3,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.78,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_door_left/front_door_left_04.jpg",
+      "part": "front_door_left",
+      "variant": 4,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.78,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_door_left/front_door_left_05.jpg",
+      "part": "front_door_left",
+      "variant": 5,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.78,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_door_left/front_door_left_06.jpg",
+      "part": "front_door_left",
+      "variant": 6,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.78,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_door_left/front_door_left_07.jpg",
+      "part": "front_door_left",
+      "variant": 7,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.78,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_door_left/front_door_left_08.jpg",
+      "part": "front_door_left",
+      "variant": 8,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.78,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_door_left/front_door_left_09.jpg",
+      "part": "front_door_left",
+      "variant": 9,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.78,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_door_left/rear_door_left_00.jpg",
+      "part": "rear_door_left",
+      "variant": 0,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.42,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_door_left/rear_door_left_01.jpg",
+      "part": "rear_door_left",
+      "variant": 1,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.42,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_door_left/rear_door_left_02.jpg",
+      "part": "rear_door_left",
+      "variant": 2,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.42,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_door_left/rear_door_left_03.jpg",
+      "part": "rear_door_left",
+      "variant": 3,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.42,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_door_left/rear_door_left_04.jpg",
+      "part": "rear_door_left",
+      "variant": 4,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.42,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_door_left/rear_door_left_05.jpg",
+      "part": "rear_door_left",
+      "variant": 5,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.42,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_door_left/rear_door_left_06.jpg",
+      "part": "rear_door_left",
+      "variant": 6,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.42,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_door_left/rear_door_left_07.jpg",
+      "part": "rear_door_left",
+      "variant": 7,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.42,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_door_left/rear_door_left_08.jpg",
+      "part": "rear_door_left",
+      "variant": 8,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.42,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_door_left/rear_door_left_09.jpg",
+      "part": "rear_door_left",
+      "variant": 9,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.42,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_door_right/front_door_right_00.jpg",
+      "part": "front_door_right",
+      "variant": 0,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.22,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_door_right/front_door_right_01.jpg",
+      "part": "front_door_right",
+      "variant": 1,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.22,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_door_right/front_door_right_02.jpg",
+      "part": "front_door_right",
+      "variant": 2,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.22,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_door_right/front_door_right_03.jpg",
+      "part": "front_door_right",
+      "variant": 3,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.22,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_door_right/front_door_right_04.jpg",
+      "part": "front_door_right",
+      "variant": 4,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.22,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_door_right/front_door_right_05.jpg",
+      "part": "front_door_right",
+      "variant": 5,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.22,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_door_right/front_door_right_06.jpg",
+      "part": "front_door_right",
+      "variant": 6,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.22,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_door_right/front_door_right_07.jpg",
+      "part": "front_door_right",
+      "variant": 7,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.22,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_door_right/front_door_right_08.jpg",
+      "part": "front_door_right",
+      "variant": 8,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.22,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/front_door_right/front_door_right_09.jpg",
+      "part": "front_door_right",
+      "variant": 9,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.22,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_door_right/rear_door_right_00.jpg",
+      "part": "rear_door_right",
+      "variant": 0,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.58,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_door_right/rear_door_right_01.jpg",
+      "part": "rear_door_right",
+      "variant": 1,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.58,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_door_right/rear_door_right_02.jpg",
+      "part": "rear_door_right",
+      "variant": 2,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.58,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_door_right/rear_door_right_03.jpg",
+      "part": "rear_door_right",
+      "variant": 3,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.58,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_door_right/rear_door_right_04.jpg",
+      "part": "rear_door_right",
+      "variant": 4,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.58,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_door_right/rear_door_right_05.jpg",
+      "part": "rear_door_right",
+      "variant": 5,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.58,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_door_right/rear_door_right_06.jpg",
+      "part": "rear_door_right",
+      "variant": 6,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.58,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_door_right/rear_door_right_07.jpg",
+      "part": "rear_door_right",
+      "variant": 7,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.58,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_door_right/rear_door_right_08.jpg",
+      "part": "rear_door_right",
+      "variant": 8,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.58,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/rear_door_right/rear_door_right_09.jpg",
+      "part": "rear_door_right",
+      "variant": 9,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.58,
+        "target_ny": 0.48
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/fender_front_left/fender_front_left_00.jpg",
+      "part": "fender_front_left",
+      "variant": 0,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.78,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/fender_front_left/fender_front_left_01.jpg",
+      "part": "fender_front_left",
+      "variant": 1,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.78,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/fender_front_left/fender_front_left_02.jpg",
+      "part": "fender_front_left",
+      "variant": 2,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.78,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/fender_front_left/fender_front_left_03.jpg",
+      "part": "fender_front_left",
+      "variant": 3,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.78,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/fender_front_left/fender_front_left_04.jpg",
+      "part": "fender_front_left",
+      "variant": 4,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.78,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/fender_front_left/fender_front_left_05.jpg",
+      "part": "fender_front_left",
+      "variant": 5,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.78,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/fender_front_left/fender_front_left_06.jpg",
+      "part": "fender_front_left",
+      "variant": 6,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.78,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/fender_front_left/fender_front_left_07.jpg",
+      "part": "fender_front_left",
+      "variant": 7,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.78,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/fender_front_left/fender_front_left_08.jpg",
+      "part": "fender_front_left",
+      "variant": 8,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.78,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/fender_front_left/fender_front_left_09.jpg",
+      "part": "fender_front_left",
+      "variant": 9,
+      "spec": {
+        "view": "left_side",
+        "target_nx": 0.78,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/fender_front_right/fender_front_right_00.jpg",
+      "part": "fender_front_right",
+      "variant": 0,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.22,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/fender_front_right/fender_front_right_01.jpg",
+      "part": "fender_front_right",
+      "variant": 1,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.22,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/fender_front_right/fender_front_right_02.jpg",
+      "part": "fender_front_right",
+      "variant": 2,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.22,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/fender_front_right/fender_front_right_03.jpg",
+      "part": "fender_front_right",
+      "variant": 3,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.22,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/fender_front_right/fender_front_right_04.jpg",
+      "part": "fender_front_right",
+      "variant": 4,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.22,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/fender_front_right/fender_front_right_05.jpg",
+      "part": "fender_front_right",
+      "variant": 5,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.22,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/fender_front_right/fender_front_right_06.jpg",
+      "part": "fender_front_right",
+      "variant": 6,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.22,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/fender_front_right/fender_front_right_07.jpg",
+      "part": "fender_front_right",
+      "variant": 7,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.22,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/fender_front_right/fender_front_right_08.jpg",
+      "part": "fender_front_right",
+      "variant": 8,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.22,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/fender_front_right/fender_front_right_09.jpg",
+      "part": "fender_front_right",
+      "variant": 9,
+      "spec": {
+        "view": "right_side",
+        "target_nx": 0.22,
+        "target_ny": 0.88
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/headlight/headlight_00.jpg",
+      "part": "headlight",
+      "variant": 0,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.18,
+        "target_ny": 0.82
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/headlight/headlight_01.jpg",
+      "part": "headlight",
+      "variant": 1,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.18,
+        "target_ny": 0.82
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/headlight/headlight_02.jpg",
+      "part": "headlight",
+      "variant": 2,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.18,
+        "target_ny": 0.82
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/headlight/headlight_03.jpg",
+      "part": "headlight",
+      "variant": 3,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.18,
+        "target_ny": 0.82
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/headlight/headlight_04.jpg",
+      "part": "headlight",
+      "variant": 4,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.18,
+        "target_ny": 0.82
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/headlight/headlight_05.jpg",
+      "part": "headlight",
+      "variant": 5,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.18,
+        "target_ny": 0.82
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/headlight/headlight_06.jpg",
+      "part": "headlight",
+      "variant": 6,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.18,
+        "target_ny": 0.82
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/headlight/headlight_07.jpg",
+      "part": "headlight",
+      "variant": 7,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.18,
+        "target_ny": 0.82
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/headlight/headlight_08.jpg",
+      "part": "headlight",
+      "variant": 8,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.18,
+        "target_ny": 0.82
+      }
+    },
+    {
+      "file": "./data/benchmark_body_parts/headlight/headlight_09.jpg",
+      "part": "headlight",
+      "variant": 9,
+      "spec": {
+        "view": "front",
+        "target_nx": 0.18,
+        "target_ny": 0.82
+      }
+    }
+  ],
+  "parts": [
+    "front_bumper",
+    "rear_bumper",
+    "hood",
+    "trunk",
+    "roof",
+    "front_door_left",
+    "rear_door_left",
+    "front_door_right",
+    "rear_door_right",
+    "fender_front_left",
+    "fender_front_right",
+    "headlight"
+  ],
+  "variants_per_part": 10
+}

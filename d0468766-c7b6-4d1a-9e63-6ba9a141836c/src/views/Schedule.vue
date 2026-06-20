@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElRadioGroup, ElRadioButton } from 'element-plus'
 import * as ElIcons from '@element-plus/icons-vue'
 import SectionPanel from '@/components/SectionPanel.vue'
 import { scheduleApi, movieApi, dashboardApi } from '@/api'
@@ -13,6 +13,17 @@ const halls = ref<Hall[]>([])
 const schedules = ref<ScheduleItem[]>([])
 const selectedCinemaId = ref('C01')
 const weekOffset = ref(0)
+const monthOffset = ref(0)
+const viewMode = ref<'week' | 'month'>('week')
+const CLEANING_MINUTES = 15
+
+function computeScheduleWeight(boxOffice: number, rating: number, duration: number): number {
+  const boScore = Math.min(1, boxOffice / 500000000)
+  const ratingScore = rating / 10
+  const durationScore = duration < 100 ? 0.9 : duration > 150 ? 0.7 : 1.0
+  const w = boScore * 0.45 + ratingScore * 0.3 + durationScore * 0.25
+  return Math.round(w * 100) / 10
+}
 
 const weekDays = computed(() => {
   const base = new Date('2026-06-19')
@@ -26,6 +37,37 @@ const weekDays = computed(() => {
   })
 })
 
+const monthDays = computed(() => {
+  const base = new Date('2026-06-19')
+  const year = base.getFullYear()
+  const month = base.getMonth() + monthOffset.value
+  const d = new Date(year, month, 1)
+  const total = new Date(year, month + 1, 0).getDate()
+  const startWeekday = d.getDay() === 0 ? 6 : d.getDay() - 1
+  const days: { date: string; label: string; week: string; inMonth: boolean }[] = []
+  for (let i = 0; i < startWeekday; i++) {
+    const pd = new Date(year, month, -startWeekday + i + 1)
+    days.push({ date: pd.toISOString().slice(0, 10), label: `${pd.getDate()}`, week: ['日', '一', '二', '三', '四', '五', '六'][pd.getDay()], inMonth: false })
+  }
+  for (let i = 1; i <= total; i++) {
+    const cd = new Date(year, month, i)
+    days.push({ date: cd.toISOString().slice(0, 10), label: `${i}`, week: ['日', '一', '二', '三', '四', '五', '六'][cd.getDay()], inMonth: true })
+  }
+  while (days.length % 7 !== 0) {
+    const idx = days.length - total - startWeekday + 1
+    const nd = new Date(year, month + 1, idx)
+    days.push({ date: nd.toISOString().slice(0, 10), label: `${nd.getDate()}`, week: ['日', '一', '二', '三', '四', '五', '六'][nd.getDay()], inMonth: false })
+  }
+  return days
+})
+
+const monthTitle = computed(() => {
+  const base = new Date('2026-06-19')
+  const year = base.getFullYear()
+  const month = base.getMonth() + monthOffset.value + 1
+  return `${year}年${month}月`
+})
+
 const dayHours = Array.from({ length: 15 }, (_, i) => 9 + i)
 
 const cinemaHalls = computed(() => halls.value.filter((h) => h.cinemaId === selectedCinemaId.value).slice(0, 5))
@@ -37,7 +79,7 @@ onMounted(async () => {
     movieApi.getHalls(),
     scheduleApi.getSchedules({ cinemaId: selectedCinemaId.value })
   ])
-  movies.value = m.filter((x) => x.status !== '下映')
+  movies.value = m.filter((x) => x.status !== '下映').map((mv) => ({ ...mv, rating: computeScheduleWeight(mv.boxOffice, mv.rating, mv.duration) }))
   cinemas.value = cs
   halls.value = hs
   schedules.value = sch
@@ -72,15 +114,16 @@ function onDrop(e: DragEvent, hall: Hall, date: string, hour: number) {
   const movie = draggedMovie.value
   if (!movie) return
   const startTime = `${String(hour).padStart(2, '0')}:00`
-  const endMin = hour * 60 + movie.duration + 15
+  const endMin = hour * 60 + movie.duration + CLEANING_MINUTES
   const endTime = `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`
   scheduleApi
-    .detectConflict({ hallId: hall.id, date, startTime, endTime })
+    .detectConflict({ hallId: hall.id, date, startTime, endTime, cleaningMinutes: CLEANING_MINUTES })
     .then((res) => {
       if (res.conflict) {
         ElMessage.error(`冲突：${res.reason}`)
         return
       }
+      const weight = computeScheduleWeight(movie.boxOffice, movie.rating, movie.duration)
       scheduleApi
         .saveSchedule({
           movieId: movie.id,
@@ -94,18 +137,25 @@ function onDrop(e: DragEvent, hall: Hall, date: string, hour: number) {
           endTime,
           price: hall.type === 'IMAX' ? 88 : hall.type === 'CGS' ? 68 : hall.type === '杜比' ? 78 : 45,
           seatsTotal: hall.capacity,
-          weight: Math.round((0.6 + Math.random() * 0.4) * 100) / 100
+          weight
         })
         .then(() => {
-          ElMessage.success(`《${movie.name}》已排入 ${hall.name} ${startTime}`)
+          ElMessage.success(`《${movie.name}》已排入 ${hall.name} ${startTime}（权重 ${weight}）`)
           onCinemaChange()
         })
     })
   draggedMovie.value = null
 }
 
-function cellSchedules(hallId: string, date: string, hour: number) {
-  return schedules.value.filter((s) => s.hallId === hallId && s.date === date && timeToMinutes(s.startTime) >= hour * 60 && timeToMinutes(s.startTime) < (hour + 1) * 60)
+function cellSchedules(hallId: string, date: string, hour?: number) {
+  if (hour !== undefined) {
+    return schedules.value.filter((s) => s.hallId === hallId && s.date === date && timeToMinutes(s.startTime) >= hour * 60 && timeToMinutes(s.startTime) < (hour + 1) * 60)
+  }
+  return schedules.value.filter((s) => s.hallId === hallId && s.date === date)
+}
+
+function dateSchedules(date: string) {
+  return schedules.value.filter((s) => s.date === date)
 }
 
 const statusMap: Record<string, { text: string; color: string }> = {
@@ -123,10 +173,19 @@ const statusMap: Record<string, { text: string; color: string }> = {
         <el-select v-model="selectedCinemaId" placeholder="选择影院" @change="onCinemaChange" style="width: 220px">
           <el-option v-for="c in cinemas" :key="c.id" :label="c.name" :value="c.id" />
         </el-select>
-        <div class="week-nav">
+        <el-radio-group v-model="viewMode" size="default">
+          <el-radio-button value="week"><component :is="(ElIcons as any).Calendar" />周视图</el-radio-button>
+          <el-radio-button value="month"><component :is="(ElIcons as any).Calendar" />月视图</el-radio-button>
+        </el-radio-group>
+        <div class="week-nav" v-if="viewMode === 'week'">
           <el-button :icon="(ElIcons as any).ArrowLeft" circle @click="weekOffset--" />
           <span class="week-label">第 {{ weekOffset + 1 }} 周 · {{ weekDays[0].label }} - {{ weekDays[6].label }}</span>
           <el-button :icon="(ElIcons as any).ArrowRight" circle @click="weekOffset++" />
+        </div>
+        <div class="week-nav" v-else>
+          <el-button :icon="(ElIcons as any).ArrowLeft" circle @click="monthOffset--" />
+          <span class="week-label">{{ monthTitle }}</span>
+          <el-button :icon="(ElIcons as any).ArrowRight" circle @click="monthOffset++" />
         </div>
       </div>
       <div class="actions">
@@ -164,7 +223,8 @@ const statusMap: Record<string, { text: string; color: string }> = {
         </div>
       </SectionPanel>
 
-      <SectionPanel title="排片日历 · 周视图" :subtitle="`${cinemas.find(c => c.id === selectedCinemaId)?.name || ''} · 拖拽影片到对应影厅与时段`" no-padding class="calendar-panel">
+      <!-- 周视图 -->
+      <SectionPanel v-if="viewMode === 'week'" title="排片日历 · 周视图" :subtitle="`${cinemas.find(c => c.id === selectedCinemaId)?.name || ''} · 拖拽影片到对应影厅与时段（含${CLEANING_MINUTES}分钟清洁间隔）`" no-padding class="calendar-panel">
         <div class="cal-grid">
           <div class="cal-head">
             <div class="corner-cell">影厅 / 时段</div>
@@ -207,6 +267,42 @@ const statusMap: Record<string, { text: string; color: string }> = {
           </div>
         </div>
       </SectionPanel>
+
+      <!-- 月视图 -->
+      <SectionPanel v-else title="排片日历 · 月视图" :subtitle="`${cinemas.find(c => c.id === selectedCinemaId)?.name || ''} · 全月场次概览（含${CLEANING_MINUTES}分钟清洁间隔检测）`" no-padding class="calendar-panel">
+        <div class="month-grid">
+          <div class="month-head">
+            <div v-for="w in ['一', '二', '三', '四', '五', '六', '日']" :key="w" class="mhead-cell">星期{{ w }}</div>
+          </div>
+          <div class="month-body">
+            <div
+              v-for="d in monthDays"
+              :key="d.date"
+              class="mday-cell"
+              :class="{ 'out-month': !d.inMonth, 'today': d.date === '2026-06-19' }"
+            >
+              <div class="mday-head">
+                <span class="mday-date">{{ d.label }}</span>
+                <span class="mday-count">{{ dateSchedules(d.date).length }}场</span>
+              </div>
+              <div class="mday-shows">
+                <div
+                  v-for="sch in dateSchedules(d.date).slice(0, 3)"
+                  :key="sch.id"
+                  class="m-show"
+                  :style="{ '--c': statusMap[sch.status].color }"
+                >
+                  <span class="ms-time">{{ sch.startTime }}</span>
+                  <span class="ms-name">{{ sch.movieName }}</span>
+                </div>
+                <div v-if="dateSchedules(d.date).length > 3" class="m-more">
+                  +{{ dateSchedules(d.date).length - 3 }} 更多场次
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </SectionPanel>
     </div>
   </div>
 </template>
@@ -228,6 +324,7 @@ const statusMap: Record<string, { text: string; color: string }> = {
   display: flex;
   align-items: center;
   gap: 16px;
+  flex-wrap: wrap;
 }
 .week-nav {
   display: flex;
@@ -458,5 +555,114 @@ const statusMap: Record<string, { text: string; color: string }> = {
     font-size: 9px;
     color: var(--c);
   }
+}
+
+// 月视图样式
+.month-grid {
+  width: 100%;
+}
+.month-head {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+.mhead-cell {
+  background: rgba(232, 181, 71, 0.06);
+  border-bottom: 1px solid var(--c-border);
+  border-right: 1px solid var(--c-border);
+  padding: 12px 8px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: $gold;
+  &:last-child {
+    border-right: none;
+  }
+}
+.month-body {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: minmax(120px, auto);
+}
+.mday-cell {
+  border-bottom: 1px solid var(--c-border);
+  border-right: 1px solid var(--c-border);
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.01);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 120px;
+  transition: background 0.2s ease;
+  &.out-month {
+    background: rgba(0, 0, 0, 0.15);
+    opacity: 0.5;
+  }
+  &.today {
+    background: rgba(232, 181, 71, 0.08);
+    .mday-date {
+      color: $gold;
+      font-weight: 700;
+    }
+  }
+  &:hover {
+    background: $gold-soft;
+  }
+  &:nth-child(7n) {
+    border-right: none;
+  }
+}
+.mday-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  .mday-date {
+    font-size: 14px;
+    font-family: var(--font-num);
+    color: var(--c-text-primary);
+  }
+  .mday-count {
+    font-size: 11px;
+    color: $gold;
+    background: rgba(232, 181, 71, 0.12);
+    padding: 1px 6px;
+    border-radius: 8px;
+  }
+}
+.mday-shows {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  overflow: hidden;
+}
+.m-show {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  padding: 3px 5px;
+  border-radius: 4px;
+  font-size: 11px;
+  background: color-mix(in srgb, var(--c) 15%, transparent);
+  border-left: 2px solid var(--c);
+  .ms-time {
+    font-family: var(--font-num);
+    color: var(--c);
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .ms-name {
+    color: var(--c-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+.m-more {
+  font-size: 11px;
+  color: var(--c-text-tertiary);
+  text-align: center;
+  padding: 4px;
+  border-top: 1px dashed var(--c-border);
+  margin-top: auto;
 }
 </style>

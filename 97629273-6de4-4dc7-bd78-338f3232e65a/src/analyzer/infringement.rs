@@ -106,9 +106,25 @@ impl InfringementAnalyzer {
         target_features: &[Feature],
         claim_filter: Option<&str>,
     ) -> ComparisonReport {
+        self.compare_patents_cb(patents, target_description, target_features, claim_filter, |_| {})
+    }
+
+    /// 带进度回调的批量比对：每处理完一件专利调用一次 cb，回调参数为该专利引用
+    pub fn compare_patents_cb<F>(
+        &self,
+        patents: &[Patent],
+        target_description: &str,
+        target_features: &[Feature],
+        claim_filter: Option<&str>,
+        mut cb: F,
+    ) -> ComparisonReport
+    where
+        F: FnMut(&Patent),
+    {
         let mut results = Vec::new();
         for p in patents {
             results.extend(self.compare_patent(p, target_features, claim_filter));
+            cb(p);
         }
         ComparisonReport {
             target_description: target_description.to_string(),

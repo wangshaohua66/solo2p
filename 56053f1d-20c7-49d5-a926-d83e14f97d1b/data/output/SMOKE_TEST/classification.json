@@ -2,13 +2,13 @@
   "case_no": "SMOKE_TEST",
   "items": [
     {
-      "body_part": "door",
-      "body_part_label": "车门",
+      "body_part": "hood",
+      "body_part_label": "引擎盖",
       "damage_type": "dent",
       "damage_type_label": "凹陷",
       "severity": "severe",
       "severity_label": "重度",
-      "area_ratio": 0.3997,
+      "area_ratio": 0.4,
       "confidence": 0.34,
       "labor_hours": 16.0,
       "parts_cost": 2500.0,

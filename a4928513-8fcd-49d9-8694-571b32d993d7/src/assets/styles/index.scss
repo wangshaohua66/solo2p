@@ -1,0 +1,128 @@
+@use 'reset.scss';
+@use 'theme.scss';
+@use 'element-plus.scss';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  background-color: #1A1A1F;
+}
+
+@layer components {
+  .page-container {
+    @apply p-6 h-full overflow-auto;
+    @include scrollbar-custom;
+  }
+
+  .section-title {
+    @apply text-lg font-semibold mb-4 flex items-center gap-2;
+    color: $color-funeral-gold;
+
+    &::before {
+      content: '';
+      width: 3px;
+      height: 18px;
+      background: linear-gradient(180deg, $color-funeral-gold 0%, $color-funeral-gold-dark 100%);
+      border-radius: 2px;
+    }
+  }
+
+  .stat-card {
+    @apply relative overflow-hidden;
+    @include card-base;
+    @include gold-border-hover;
+
+    .stat-number {
+      @include text-gradient-gold;
+      @apply text-3xl font-bold font-display;
+    }
+
+    .stat-label {
+      color: $color-funeral-text-secondary;
+      @apply text-sm;
+    }
+
+    .stat-icon {
+      @apply absolute right-4 top-4 opacity-20;
+      color: $color-funeral-gold;
+      font-size: 48px;
+    }
+  }
+
+  .gold-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, $color-funeral-gold-dark 50%, transparent 100%);
+    margin: 16px 0;
+  }
+
+  .tag-status {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium;
+  }
+
+  .timeline-node {
+    @apply relative pl-8 pb-6;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 8px;
+      top: 6px;
+      bottom: -6px;
+      width: 2px;
+      background: $color-funeral-border;
+    }
+
+    &:last-child::before {
+      display: none;
+    }
+
+    &.is-active::before {
+      background: linear-gradient(180deg, $color-funeral-gold 0%, $color-funeral-border 100%);
+    }
+  }
+
+  .timeline-dot {
+    @apply absolute left-0 top-0 w-5 h-5 rounded-full border-2 flex items-center justify-center;
+    border-color: $color-funeral-border;
+    background: $color-funeral-dark;
+
+    .is-active & {
+      border-color: $color-funeral-gold;
+      background: $color-funeral-gold;
+      box-shadow: $shadow-gold-glow;
+
+      &::after {
+        content: '';
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #FFFFFF;
+      }
+    }
+
+    .is-completed & {
+      border-color: $color-status-success;
+      background: $color-status-success;
+    }
+  }
+}
+
+@layer utilities {
+  .text-gold-gradient {
+    @include text-gradient-gold;
+  }
+
+  .bg-gold-gradient {
+    @include gold-gradient;
+  }
+
+  .scrollbar-thin {
+    @include scrollbar-custom;
+  }
+}

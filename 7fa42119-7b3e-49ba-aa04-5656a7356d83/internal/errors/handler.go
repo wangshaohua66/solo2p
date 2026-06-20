@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
+	"sync"
 	"time"
 )
 
@@ -63,6 +65,23 @@ var errorSuggestions = map[string]string{
 	E015: "请检查目标路径是否可写，磁盘空间是否充足",
 }
 
+var (
+	stackTraceEnabledMu sync.RWMutex
+	stackTraceEnabled   bool
+)
+
+func EnableStackTrace(enable bool) {
+	stackTraceEnabledMu.Lock()
+	defer stackTraceEnabledMu.Unlock()
+	stackTraceEnabled = enable
+}
+
+func IsStackTraceEnabled() bool {
+	stackTraceEnabledMu.RLock()
+	defer stackTraceEnabledMu.RUnlock()
+	return stackTraceEnabled
+}
+
 type SecfgError struct {
 	Code        string
 	Description string
@@ -72,10 +91,22 @@ type SecfgError struct {
 }
 
 func (e *SecfgError) Error() string {
+	var sb strings.Builder
+
 	if e.Err != nil {
-		return fmt.Sprintf("[%s] %s: %v\n建议: %s", e.Code, e.Description, e.Err, e.Suggestion)
+		fmt.Fprintf(&sb, "[%s] %s: %v\n建议: %s", e.Code, e.Description, e.Err, e.Suggestion)
+	} else {
+		fmt.Fprintf(&sb, "[%s] %s\n建议: %s", e.Code, e.Description, e.Suggestion)
 	}
-	return fmt.Sprintf("[%s] %s\n建议: %s", e.Code, e.Description, e.Suggestion)
+
+	if IsStackTraceEnabled() && len(e.Stack) > 0 {
+		sb.WriteString("\n错误堆栈:")
+		for i, s := range e.Stack {
+			fmt.Fprintf(&sb, "\n  #%d %s", i, s)
+		}
+	}
+
+	return sb.String()
 }
 
 func (e *SecfgError) Unwrap() error {
@@ -99,7 +130,7 @@ func New(code string, err error, includeStack bool) *SecfgError {
 		Err:         err,
 	}
 
-	if includeStack {
+	if includeStack || IsStackTraceEnabled() {
 		se.Stack = captureStack()
 	}
 

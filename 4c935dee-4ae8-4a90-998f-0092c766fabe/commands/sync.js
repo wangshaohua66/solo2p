@@ -6,7 +6,7 @@ const config = require('../config');
 const { VaultClient } = require('../lib/vault-client');
 const { createLogger } = require('../lib/logger');
 const store = require('../lib/store');
-const { renderTable, makeSpinner, statusBadge } = require('../lib/ui');
+const { renderTable, makeSpinner, statusBadge, progressBar } = require('../lib/ui');
 const { pLimit, toAppError, ERROR_CODES } = require('../lib/util');
 const inquirer = require('inquirer');
 
@@ -41,8 +41,9 @@ async function doExport(argv) {
   spinner.start();
   await vault.login();
   const paths = await vault.listAll(argv.prefix || '');
-  spinner.text = `读取 ${paths.length} 个密钥`;
-  const reads = await vault.readMany(paths);
+  const reads = await vault.readMany(paths, (done) => {
+    spinner.text = `读取密钥: ${progressBar(done, paths.length, 20)}`;
+  });
   const secrets = reads.filter((r) => r.ok).map((r) => ({ path: r.path, data: r.data }));
   const failed = reads.filter((r) => !r.ok);
 
@@ -64,14 +65,17 @@ async function doExport(argv) {
   const encrypted = crypto.encryptToPayload(bundle, passphrase);
   const outFile = argv.out;
   const tmp = `${outFile}.tmp`;
+  store.registerTemp(tmp);
   fs.writeFileSync(tmp, JSON.stringify(encrypted, null, 2));
   fs.renameSync(tmp, outFile);
+  store.unregisterTemp(tmp);
   try { fs.chmodSync(outFile, 0o600); } catch { /* best effort */ }
   spinner.succeed(`导出完成: ${secrets.length} 个密钥 -> ${outFile} (失败 ${failed.length})`);
 
   const result = { exported: secrets.length, failed: failed.length, file: outFile, profile: profile.name };
   if (argv.json) process.stdout.write(JSON.stringify(result, null, 2) + '\n');
   store.recordAudit({ action: 'sync-export', secretName: '*', source: 'vault', status: 'success', profile: profile.name, message: `导出 ${secrets.length} 个密钥到 ${outFile}` });
+  store.recordAudit({ action: 'access', secretName: '*', secretPath: argv.prefix || '', source: 'vault', status: 'success', profile: profile.name, message: `扫描导出 ${secrets.length} 个密钥` });
   return result;
 }
 
@@ -122,6 +126,10 @@ async function doImport(argv) {
         }
       }
 
+      if (exists) {
+        store.recordAudit({ action: 'access', secretName: item.dstPath, secretPath: item.dstPath, source: 'vault', status: 'success', profile: profile.name, message: '同步冲突检测读取' });
+      }
+
       let action = exists ? conflict : 'create';
       if (argv.dryRun) action = exists ? `would-${conflict}` : 'would-create';
 
@@ -161,7 +169,7 @@ async function doImport(argv) {
       }
     });
     processed += 1;
-    spinner.text = `导入中: ${processed}/${items.length}`;
+    spinner.text = `导入中: ${progressBar(processed, items.length, 20)}`;
   }
 
   spinner.succeed(`导入完成: 成功 ${results.filter((r) => r.ok).length} / 失败 ${results.filter((r) => !r.ok).length}`);

@@ -12,11 +12,13 @@ mod util;
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
-use clap::Parser;
+use indicatif::{ProgressBar, ProgressStyle};
 use log::LevelFilter;
 use serde_json::Value;
+use structopt::StructOpt;
 
 use crate::analyzer::{CitationGraph, InfringementAnalyzer};
 use crate::cli::{Cli, Command, ConfigCmd, GraphCmd, ImportCmd, TreeCmd};
@@ -27,7 +29,7 @@ use crate::report::ReportGenerator;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let cli = Cli::parse();
+    let cli = Cli::from_args();
     let settings = load_settings(&cli)?;
     init_logger(&cli, &settings);
 
@@ -106,13 +108,12 @@ async fn run_import(cmd: &ImportCmd, settings: &Settings) -> Result<()> {
 
     let parser = XmlParser::new(settings.parsing.strict);
     let total = files.len();
-    eprintln!("开始导入 {} 个文件...", total);
+
+    let pb = make_progress_bar(total as u64, "导入专利 XML");
     let mut added = 0usize;
     let mut errors = 0usize;
-    for (i, file) in files.iter().enumerate() {
-        if !settings.log.level.is_empty() {
-            eprintln!("  [{}/{}] {}", i + 1, total, file.display());
-        }
+    for file in &files {
+        pb.set_message(file.display().to_string());
         match parser.parse_file(file) {
             Ok(outcome) => {
                 let mut patent = outcome.patent;
@@ -127,6 +128,7 @@ async fn run_import(cmd: &ImportCmd, settings: &Settings) -> Result<()> {
                     patent.source_format = Cli::parse_source_format(fmt);
                 }
                 if !passes_filters(&patent, cmd) {
+                    pb.inc(1);
                     continue;
                 }
                 for d in &outcome.diagnostics {
@@ -144,8 +146,9 @@ async fn run_import(cmd: &ImportCmd, settings: &Settings) -> Result<()> {
                 log::error!("解析失败 {}: {}", file.display(), e);
             }
         }
+        pb.inc(1);
     }
-    eprintln!("导入完成：新增 {} 件，失败 {} 件", added, errors);
+    pb.finish_with_message(format!("完成：新增 {} 件，失败 {} 件", added, errors));
 
     save_cache(&cmd.cache, &existing)?;
     println!("缓存已写入: {}（共 {} 件专利）", cmd.cache.display(), existing.len());
@@ -260,7 +263,12 @@ async fn run_compare(cmd: &cli::CompareCmd, settings: &Settings, cli: &Cli) -> R
         }
         Target::Text(t) => analyzer.split_features(&t, "T"),
     };
-    let report = analyzer.compare_patents(&selected, &desc, &features, cmd.claim.as_deref());
+    let pb = make_progress_bar(selected.len() as u64, "侵权比对");
+    let report = analyzer.compare_patents_cb(&selected, &desc, &features, cmd.claim.as_deref(), |p| {
+        pb.set_message(p.id.clone());
+        pb.inc(1);
+    });
+    pb.finish_and_clear();
     output_comparison(&report, settings, cli.output.as_deref(), cli.format.as_deref())
 }
 
@@ -282,7 +290,12 @@ async fn run_report(cmd: &cli::ReportCmd, settings: &Settings, cli: &Cli) -> Res
         }
         Target::Text(t) => analyzer.split_features(&t, "T"),
     };
-    let report = analyzer.compare_patents(&selected, &desc, &features, None);
+    let pb = make_progress_bar(selected.len() as u64, "生成比对报告");
+    let report = analyzer.compare_patents_cb(&selected, &desc, &features, None, |p| {
+        pb.set_message(p.id.clone());
+        pb.inc(1);
+    });
+    pb.finish_and_clear();
     let generator = ReportGenerator::new(&settings.output);
 
     let graph = CitationGraph::from_patents(&selected);
@@ -509,4 +522,17 @@ fn write_output(content: &str, output: Option<&Path>) -> Result<()> {
         None => print!("{}", content),
     }
     Ok(())
+}
+
+/// 构造带 ETA/百分比/计数的进度条
+fn make_progress_bar(total: u64, msg: &str) -> ProgressBar {
+    let pb = ProgressBar::new(total);
+    let style = ProgressStyle::default_bar()
+        .template("{prefix:.bold.dim} {spinner} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len} ({eta}) {msg}")
+        .unwrap_or_else(|_| ProgressStyle::default_bar())
+        .progress_chars("#>-");
+    pb.set_style(style);
+    pb.set_prefix(msg.to_string());
+    pb.enable_steady_tick(Duration::from_millis(120));
+    pb
 }

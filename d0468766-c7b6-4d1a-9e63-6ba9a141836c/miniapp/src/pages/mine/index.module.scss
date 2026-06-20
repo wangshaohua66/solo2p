@@ -1,0 +1,138 @@
+@use '@/styles/variables.scss' as *;
+
+.container {
+  min-height: 100vh;
+  background: $color-bg-page;
+  padding-bottom: 140rpx;
+}
+
+.profileHeader {
+  position: relative;
+  padding: $spacing-xl $spacing-lg 100rpx;
+  background: linear-gradient(180deg, $color-primary-soft 0%, transparent 100%);
+
+  .profileRow {
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+
+    .avatar {
+      width: 140rpx;
+      height: 140rpx;
+      border-radius: $radius-round;
+      border: 3px solid $color-primary;
+      overflow: hidden;
+      flex-shrink: 0;
+
+      .img { width: 100%; height: 100%; }
+    }
+
+    .info {
+      flex: 1;
+      min-width: 0;
+
+      .name {
+        font-size: $font-size-xxl;
+        font-weight: $font-weight-bold;
+        color: $color-text-primary;
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+      }
+      .level {
+        font-size: $font-size-xs;
+        background: $gold-gradient;
+        color: #1a1a1a;
+        padding: 2rpx $spacing-sm;
+        border-radius: $radius-xs;
+        font-weight: $font-weight-semibold;
+      }
+      .phone {
+        margin-top: $spacing-xs;
+        font-size: $font-size-sm;
+        color: $color-text-secondary;
+      }
+    }
+
+    .arrow {
+      color: $color-text-tertiary;
+      font-size: $font-size-lg;
+    }
+  }
+
+  .statsRow {
+    display: flex;
+    justify-content: space-around;
+    margin-top: $spacing-xl;
+    background: $color-bg-card;
+    border-radius: $radius-lg;
+    padding: $spacing-lg;
+    border: 1px solid $color-border-gold;
+
+    .stat {
+      text-align: center;
+      flex: 1;
+
+      .num {
+        font-size: $font-size-xxl;
+        font-weight: $font-weight-bold;
+        color: $color-text-gold;
+        font-family: 'DIN', monospace;
+      }
+      .label {
+        font-size: $font-size-xs;
+        color: $color-text-secondary;
+        margin-top: $spacing-xs;
+      }
+    }
+  }
+}
+
+.menuSection {
+  margin: $spacing-lg;
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  border: 1px solid $color-border;
+  overflow: hidden;
+
+  .sectionTitle {
+    padding: $spacing-md $spacing-lg;
+    font-size: $font-size-sm;
+    color: $color-text-tertiary;
+    border-bottom: 1px solid $color-divider;
+  }
+
+  .menuItem {
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+    padding: $spacing-lg;
+    border-bottom: 1px solid $color-divider;
+
+    &:last-child { border-bottom: none; }
+    &:active { background: $color-bg-hover; }
+
+    .icon {
+      width: 48rpx;
+      height: 48rpx;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: $font-size-xl;
+      flex-shrink: 0;
+    }
+    .label {
+      flex: 1;
+      font-size: $font-size-md;
+      color: $color-text-primary;
+    }
+    .extra {
+      font-size: $font-size-sm;
+      color: $color-text-tertiary;
+    }
+    .arrow {
+      color: $color-text-tertiary;
+      font-size: $font-size-md;
+    }
+  }
+}

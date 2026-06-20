@@ -42,6 +42,10 @@ public class Claim {
     private String reviewerName;
     private Long financeId;
     private String financeName;
+    private Integer caseLevel;
+    private String caseLevelName;
+    private Boolean fastTrack;
+    private Boolean autoReviewed;
     private Integer fraudScore;
     private String fraudFlags;
     private Boolean fraudSuspicious;

@@ -45,13 +45,15 @@ var (
 	verbose      bool
 	configPath   string
 	outputFormat string
+	stackTrace   bool
 
 	memoryMu           sync.Mutex
 	memoryThresholdMB  uint64 = 100
 	memoryAlertCount   int
 	watcher            *fsnotify.Watcher
 	watcherOnce        sync.Once
-	managersMu         sync.RWMutex
+	initManagersOnce     sync.Once
+	initManagersErr      error
 )
 
 var rootCmd = &cobra.Command{
@@ -72,6 +74,9 @@ var rootCmd = &cobra.Command{
   secfg backup create -f config.yaml          # 创建配置备份
   secfg audit query --command encrypt         # 查询加密操作审计`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		if stackTrace || verbose {
+			errors.EnableStackTrace(true)
+		}
 		return initManagers()
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
@@ -94,11 +99,13 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "显示详细输出")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "显示详细输出 (隐含开启堆栈追踪)")
+	rootCmd.PersistentFlags().BoolVar(&stackTrace, "stack-trace", false, "显示详细错误堆栈追踪 (使用 --stack-trace 或 -v)")
 	rootCmd.PersistentFlags().StringVar(&configPath, "config-path", "", "配置目录路径 (默认 ~/.secfg)")
 	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output-format", "o", "table", "输出格式: table|json")
 
 	viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
+	viper.BindPFlag("stack_trace", rootCmd.PersistentFlags().Lookup("stack-trace"))
 	viper.BindPFlag("config-path", rootCmd.PersistentFlags().Lookup("config-path"))
 	viper.BindPFlag("output-format", rootCmd.PersistentFlags().Lookup("output-format"))
 
@@ -267,36 +274,41 @@ func startConfigWatcher() {
 }
 
 func initManagers() error {
-	keyPath := viper.GetString("key_path")
-	backupPath := viper.GetString("backup_path")
-	auditPath := viper.GetString("audit_path")
+	initManagersOnce.Do(func() {
+		keyPath := viper.GetString("key_path")
+		backupPath := viper.GetString("backup_path")
+		auditPath := viper.GetString("audit_path")
 
-	var err *errors.SecfgError
-	vault, err = crypto.NewVault(keyPath)
-	if err != nil {
-		return fmt.Errorf("初始化Vault失败: %v", err)
-	}
+		var err *errors.SecfgError
+		vault, err = crypto.NewVault(keyPath)
+		if err != nil {
+			initManagersErr = fmt.Errorf("初始化Vault失败: %v", err)
+			return
+		}
 
-	configMgr = config.NewManager(vault)
+		configMgr = config.NewManager(vault)
 
-	backupMgr, err = backup.NewManager(backupPath, vault)
-	if err != nil {
-		return fmt.Errorf("初始化Backup管理器失败: %v", err)
-	}
+		backupMgr, err = backup.NewManager(backupPath, vault)
+		if err != nil {
+			initManagersErr = fmt.Errorf("初始化Backup管理器失败: %v", err)
+			return
+		}
 
-	auditLogger, err = audit.NewLogger(auditPath)
-	if err != nil {
-		return fmt.Errorf("初始化Audit日志器失败: %v", err)
-	}
+		auditLogger, err = audit.NewLogger(auditPath)
+		if err != nil {
+			initManagersErr = fmt.Errorf("初始化Audit日志器失败: %v", err)
+			return
+		}
+	})
 
-	return nil
+	return initManagersErr
 }
 
-func logOperation(command string, params map[string]interface{}, filePath string, success bool, err error) {
+func logOperation(ctx context.Context, command string, params map[string]interface{}, filePath string, success bool, err error) {
 	if auditLogger == nil {
 		return
 	}
-	if logErr := auditLogger.Log(command, params, filePath, success, err); logErr != nil {
+	if logErr := auditLogger.Log(ctx, command, params, filePath, success, err); logErr != nil {
 		printWarning("审计日志写入失败: " + logErr.Error())
 	}
 }
@@ -487,7 +499,6 @@ func newEncryptCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx, cancel := encryptContext()
 			defer cancel()
-			_ = ctx
 			defer checkMemoryUsage()
 			defer reportMemoryIfVerbose()
 
@@ -543,9 +554,9 @@ func newEncryptCmd() *cobra.Command {
 			if filePath != "" {
 				files = []string{filePath}
 			} else if dirPath != "" {
-				files, err = configMgr.FindConfigFiles(dirPath, recursive)
+				files, err = configMgr.FindConfigFiles(ctx, dirPath, recursive)
 				if err != nil {
-					logOperation("encrypt", params, dirPath, false, err)
+					logOperation(ctx, "encrypt", params, dirPath, false, err)
 					return err
 				}
 			} else {
@@ -559,7 +570,7 @@ func newEncryptCmd() *cobra.Command {
 
 			if doBackup {
 				printInfo("创建备份快照...")
-				if _, err := backupMgr.CreateSnapshot(files, "encrypt-pre-backup"); err != nil {
+				if _, err := backupMgr.CreateSnapshot(ctx, files, "encrypt-pre-backup"); err != nil {
 					printWarning("备份创建失败: " + err.Error())
 				}
 			}
@@ -580,7 +591,7 @@ func newEncryptCmd() *cobra.Command {
 					sem <- struct{}{}
 					defer func() { <-sem }()
 
-					cfg, err := configMgr.LoadConfig(file, format)
+					cfg, err := configMgr.LoadConfig(ctx, file, format)
 					if err != nil {
 						mu.Lock()
 						printError(fmt.Sprintf("加载 %s 失败: %s", file, err.Error()))
@@ -588,21 +599,21 @@ func newEncryptCmd() *cobra.Command {
 						return
 					}
 
-					count, err := configMgr.EncryptConfig(cfg)
+					count, err := configMgr.EncryptConfig(ctx, cfg)
 					if err != nil {
 						mu.Lock()
 						printError(fmt.Sprintf("加密 %s 失败: %s", file, err.Error()))
 						mu.Unlock()
-						logOperation("encrypt", params, file, false, err)
+						logOperation(ctx, "encrypt", params, file, false, err)
 						return
 					}
 
 					if count > 0 {
-						if err := configMgr.SaveConfig(cfg, ""); err != nil {
+						if err := configMgr.SaveConfig(ctx, cfg, ""); err != nil {
 							mu.Lock()
 							printError(fmt.Sprintf("保存 %s 失败: %s", file, err.Error()))
 							mu.Unlock()
-							logOperation("encrypt", params, file, false, err)
+							logOperation(ctx, "encrypt", params, file, false, err)
 							return
 						}
 					}
@@ -611,7 +622,7 @@ func newEncryptCmd() *cobra.Command {
 					successCount++
 					totalFields += count
 					mu.Unlock()
-					logOperation("encrypt", params, file, true, nil)
+					logOperation(ctx, "encrypt", params, file, true, nil)
 				}(f)
 			}
 
@@ -646,7 +657,6 @@ func newDecryptCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx, cancel := decryptContext()
 			defer cancel()
-			_ = ctx
 			defer checkMemoryUsage()
 			defer reportMemoryIfVerbose()
 
@@ -708,9 +718,9 @@ func newDecryptCmd() *cobra.Command {
 			if filePath != "" {
 				files = []string{filePath}
 			} else if dirPath != "" {
-				files, err = configMgr.FindConfigFiles(dirPath, recursive)
+				files, err = configMgr.FindConfigFiles(ctx, dirPath, recursive)
 				if err != nil {
-					logOperation("decrypt", params, dirPath, false, err)
+					logOperation(ctx, "decrypt", params, dirPath, false, err)
 					return err
 				}
 			} else {
@@ -738,7 +748,7 @@ func newDecryptCmd() *cobra.Command {
 					sem <- struct{}{}
 					defer func() { <-sem }()
 
-					cfg, err := configMgr.LoadConfig(file, format)
+					cfg, err := configMgr.LoadConfig(ctx, file, format)
 					if err != nil {
 						mu.Lock()
 						printError(fmt.Sprintf("加载 %s 失败: %s", file, err.Error()))
@@ -746,12 +756,12 @@ func newDecryptCmd() *cobra.Command {
 						return
 					}
 
-					count, err := configMgr.DecryptConfig(cfg)
+					count, err := configMgr.DecryptConfig(ctx, cfg)
 					if err != nil {
 						mu.Lock()
 						printError(fmt.Sprintf("解密 %s 失败: %s", file, err.Error()))
 						mu.Unlock()
-						logOperation("decrypt", params, file, false, err)
+						logOperation(ctx, "decrypt", params, file, false, err)
 						return
 					}
 
@@ -761,11 +771,11 @@ func newDecryptCmd() *cobra.Command {
 					}
 
 					if count > 0 || outputPath != "" {
-						if err := configMgr.SaveConfig(cfg, savePath); err != nil {
+						if err := configMgr.SaveConfig(ctx, cfg, savePath); err != nil {
 							mu.Lock()
 							printError(fmt.Sprintf("保存 %s 失败: %s", file, err.Error()))
 							mu.Unlock()
-							logOperation("decrypt", params, file, false, err)
+							logOperation(ctx, "decrypt", params, file, false, err)
 							return
 						}
 					}
@@ -774,7 +784,7 @@ func newDecryptCmd() *cobra.Command {
 					successCount++
 					totalFields += count
 					mu.Unlock()
-					logOperation("decrypt", params, file, true, nil)
+					logOperation(ctx, "decrypt", params, file, true, nil)
 				}(f)
 			}
 

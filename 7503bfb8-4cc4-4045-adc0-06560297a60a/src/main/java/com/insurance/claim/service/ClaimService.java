@@ -6,16 +6,20 @@ import com.insurance.claim.common.ResultCode;
 import com.insurance.claim.dto.request.*;
 import com.insurance.claim.dto.response.ClaimResponse;
 import com.insurance.claim.dto.response.CompensationDetailResponse;
+import com.insurance.claim.engine.ClaimLevelClassifier;
 import com.insurance.claim.entity.*;
 import com.insurance.claim.enums.ClaimStatus;
 import com.insurance.claim.enums.InsuranceType;
 import com.insurance.claim.mapper.*;
+import com.insurance.claim.queue.SurveyTaskQueue;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -25,9 +29,9 @@ import java.util.concurrent.atomic.AtomicLong;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ClaimService {
+public class ClaimService implements SurveyTaskQueue.SurveyTaskDispatcher {
 
-    private final ClaimMapper claimMapper;
+    private final ClaimRepository claimRepository;
     private final ClaimPartyMapper claimPartyMapper;
     private final ClaimDocumentMapper claimDocumentMapper;
     private final SurveyMapper surveyMapper;
@@ -40,8 +44,36 @@ public class ClaimService {
     private final FraudDetectionService fraudDetectionService;
     private final RiskAssessmentEngine riskAssessmentEngine;
     private final CompensationCalculationEngine compensationCalculationEngine;
+    private final SurveyTaskQueue surveyTaskQueue;
+    private final ClaimLevelClassifier claimLevelClassifier;
+    private final PartPriceMatchingService partPriceMatchingService;
 
     private final AtomicLong claimNoGenerator = new AtomicLong(System.currentTimeMillis() % 1000000);
+
+    @PostConstruct
+    public void init() {
+        surveyTaskQueue.setDispatcher(this);
+        log.info("ClaimService初始化完成，已注册为查勘任务调度器");
+    }
+
+    @Override
+    public void dispatch(Claim claim) throws Exception {
+        log.info("任务队列自动调度派工: 案件{}", claim.getClaimNo());
+        SurveyAssignRequest autoAssign = new SurveyAssignRequest();
+        autoAssign.setClaimId(claim.getId());
+        autoAssign.setAssignMode("auto");
+        autoAssign.setLongitude(claim.getAccidentLongitude());
+        autoAssign.setLatitude(claim.getAccidentLatitude());
+        autoAssign.setSearchRadius(10000);
+        autoAssign.setRemark("系统自动派工");
+        try {
+            assignSurveyor(autoAssign);
+            log.info("队列自动派工成功: 案件{}", claim.getClaimNo());
+        } catch (Exception e) {
+            log.error("队列自动派工失败: 案件{}", claim.getClaimNo(), e);
+            throw e;
+        }
+    }
 
     @Transactional(rollbackFor = Exception.class)
     public ClaimResponse reportClaim(ClaimReportRequest request) {
@@ -60,7 +92,7 @@ public class ClaimService {
         claim.setFraudSuspicious(false);
         claim.setVersion(0);
 
-        claimMapper.insert(claim);
+        claimRepository.insert(claim);
         log.info("理赔报案创建成功: 案件编号={}, ID={}", claim.getClaimNo(), claim.getId());
 
         if (request.getParties() != null && !request.getParties().isEmpty()) {
@@ -76,15 +108,20 @@ public class ClaimService {
 
         fraudDetectionService.detectFraudOnReport(claim);
 
-        Claim updatedClaim = claimMapper.selectById(claim.getId());
+        Claim updatedClaim = claimRepository.selectById(claim.getId());
+
+        surveyTaskQueue.enqueue(updatedClaim);
+        log.info("报案信息已推送至查勘任务队列: 案件{}", claim.getClaimNo());
+
         return convertToResponse(updatedClaim);
     }
 
     @Transactional(rollbackFor = Exception.class)
     public Survey assignSurveyor(SurveyAssignRequest request) {
-        log.info("查勘派工: 案件ID={}, 查勘员ID={}", request.getClaimId(), request.getSurveyorId());
+        log.info("查勘派工: 案件ID={}, 模式={}, 手动查勘员ID={}",
+                request.getClaimId(), request.getAssignMode(), request.getSurveyorId());
 
-        Claim claim = claimMapper.selectById(request.getClaimId());
+        Claim claim = claimRepository.selectById(request.getClaimId());
         if (claim == null) {
             throw new BusinessException(ResultCode.CLAIM_NOT_FOUND);
         }
@@ -94,32 +131,69 @@ public class ClaimService {
                     "案件状态不允许派工，当前状态: " + claim.getStatus().getName());
         }
 
-        User surveyor = userMapper.selectById(request.getSurveyorId());
-        if (surveyor == null) {
-            throw new BusinessException("查勘员不存在");
-        }
-
         Survey existingSurvey = surveyMapper.selectByClaimId(request.getClaimId());
         if (existingSurvey != null) {
-            throw new BusinessException("该案件已有查勘记录");
+            log.warn("该案件已有查勘记录，直接返回已有派工: 案件={}", claim.getClaimNo());
+            return existingSurvey;
+        }
+
+        User surveyor;
+        if ("manual".equalsIgnoreCase(request.getAssignMode()) && request.getSurveyorId() != null) {
+            surveyor = userMapper.selectById(request.getSurveyorId());
+            if (surveyor == null) {
+                throw new BusinessException("查勘员不存在");
+            }
+            log.info("手动指定查勘员: 案件={}, 查勘员={}", claim.getClaimNo(), surveyor.getRealName());
+        } else {
+            BigDecimal longitude = request.getLongitude() != null ? request.getLongitude() : claim.getAccidentLongitude();
+            BigDecimal latitude = request.getLatitude() != null ? request.getLatitude() : claim.getAccidentLatitude();
+            Integer radius = request.getSearchRadius() != null ? request.getSearchRadius() : 5000;
+
+            if (longitude == null || latitude == null) {
+                throw new BusinessException("智能分配模式需提供事故GPS坐标(经度+纬度)");
+            }
+
+            log.info("智能分配查勘员: 案件={}, 经度={}, 纬度={}, 搜索半径={}m",
+                    claim.getClaimNo(), longitude, latitude, radius);
+
+            List<User> availableSurveyors = userMapper.selectAvailableSurveyors(
+                    longitude.doubleValue(), latitude.doubleValue(), radius);
+
+            if (availableSurveyors == null || availableSurveyors.isEmpty()) {
+                log.warn("附近{}m内无可用查勘员，扩大范围搜索", radius);
+                availableSurveyors = userMapper.selectAvailableSurveyors(
+                        longitude.doubleValue(), latitude.doubleValue(), radius * 3);
+            }
+
+            if (availableSurveyors == null || availableSurveyors.isEmpty()) {
+                throw new BusinessException("未找到可用查勘员，请切换至手动指定模式");
+            }
+
+            surveyor = availableSurveyors.get(0);
+            log.info("智能分配成功: 案件={}, 最近查勘员={}, 距离={}km",
+                    claim.getClaimNo(), surveyor.getRealName(),
+                    surveyor.getDistance() != null ? surveyor.getDistance().setScale(2, RoundingMode.HALF_UP) : "N/A");
         }
 
         Survey survey = new Survey();
         survey.setClaimId(request.getClaimId());
         survey.setClaimNo(claim.getClaimNo());
-        survey.setSurveyorId(request.getSurveyorId());
+        survey.setSurveyorId(surveyor.getId());
         survey.setSurveyorName(surveyor.getRealName());
         survey.setSurveyorPhone(surveyor.getPhone());
         survey.setAssignedAt(LocalDateTime.now());
+        survey.setGpsVerified(false);
+        survey.setRemark(request.getRemark());
         surveyMapper.insert(survey);
 
-        claim.setSurveyorId(request.getSurveyorId());
+        claim.setSurveyorId(surveyor.getId());
         claim.setSurveyorName(surveyor.getRealName());
         claim.setSurveyAssignedAt(LocalDateTime.now());
         claim.setStatus(ClaimStatus.SURVEY_ASSIGNED);
-        claimMapper.updateById(claim);
+        claimRepository.updateById(claim);
 
-        log.info("查勘派工完成: 案件={}, 查勘员={}", claim.getClaimNo(), surveyor.getRealName());
+        log.info("查勘派工完成: 案件={}, 模式={}, 查勘员={}",
+                claim.getClaimNo(), request.getAssignMode(), surveyor.getRealName());
         return surveyMapper.selectById(survey.getId());
     }
 
@@ -132,7 +206,7 @@ public class ClaimService {
             throw new BusinessException("查勘记录不存在");
         }
 
-        Claim claim = claimMapper.selectById(survey.getClaimId());
+        Claim claim = claimRepository.selectById(survey.getClaimId());
         if (claim == null) {
             throw new BusinessException(ResultCode.CLAIM_NOT_FOUND);
         }
@@ -163,7 +237,7 @@ public class ClaimService {
         claim.setLiabilityRatio(request.getLiabilityRatio());
         claim.setSurveyCompletedAt(LocalDateTime.now());
         claim.setStatus(ClaimStatus.SURVEY_COMPLETED);
-        claimMapper.updateById(claim);
+        claimRepository.updateById(claim);
 
         fraudDetectionService.detectFraudOnSurvey(survey);
 
@@ -175,7 +249,7 @@ public class ClaimService {
     public LossAssessment submitAssessment(LossAssessmentRequest request) {
         log.info("提交定损结果: 案件ID={}", request.getClaimId());
 
-        Claim claim = claimMapper.selectById(request.getClaimId());
+        Claim claim = claimRepository.selectById(request.getClaimId());
         if (claim == null) {
             throw new BusinessException(ResultCode.CLAIM_NOT_FOUND);
         }
@@ -205,14 +279,43 @@ public class ClaimService {
         assessment.setSalvageValue(request.getSalvageValue());
         assessment.setAssessmentComments(request.getAssessmentComments());
 
+        Policy policy = policyMapper.selectByPolicyNo(claim.getPolicyNo());
+
         BigDecimal totalPartsCost = BigDecimal.ZERO;
         BigDecimal totalLaborCost = BigDecimal.ZERO;
         BigDecimal totalMaterialCost = BigDecimal.ZERO;
         BigDecimal totalOtherCost = BigDecimal.ZERO;
         boolean exceedStandard = false;
+        int matchedGuideCount = 0;
+        int partCount = 0;
 
+        List<LossItem> lossItems = new ArrayList<>();
         if (request.getLossItems() != null && !request.getLossItems().isEmpty()) {
             for (LossItemRequest itemRequest : request.getLossItems()) {
+                if (itemRequest.getQuantity() == null) itemRequest.setQuantity(1);
+                if (itemRequest.getUnitPrice() == null) itemRequest.setUnitPrice(BigDecimal.ZERO);
+
+                if (itemRequest.getItemType() != null && itemRequest.getItemType() == 1) {
+                    partCount++;
+                    PartPriceGuide guide = partPriceMatchingService.matchGuidePrice(
+                            itemRequest.getItemCode(), itemRequest.getItemName(),
+                            policy != null ? policy.getVehicleBrand() : null,
+                            policy != null ? policy.getVehicleModel() : null,
+                            claim.getAccidentProvince(), claim.getAccidentCity());
+                    if (guide != null) {
+                        matchedGuideCount++;
+                        if (itemRequest.getGuidePrice() == null) {
+                            itemRequest.setGuidePrice(guide.getGuidePrice());
+                        }
+                        if (itemRequest.getUnitPrice().compareTo(BigDecimal.ZERO) == 0) {
+                            itemRequest.setUnitPrice(guide.getGuidePrice());
+                        }
+                        if (partPriceMatchingService.isExceedStandard(itemRequest.getUnitPrice(), guide.getGuidePrice())) {
+                            exceedStandard = true;
+                        }
+                    }
+                }
+
                 BigDecimal itemTotal = itemRequest.getUnitPrice()
                         .multiply(BigDecimal.valueOf(itemRequest.getQuantity()));
 
@@ -225,13 +328,29 @@ public class ClaimService {
 
                 if (itemRequest.getGuidePrice() != null
                         && itemRequest.getUnitPrice().compareTo(itemRequest.getGuidePrice()) > 0) {
-                    BigDecimal exceedRatio = itemRequest.getUnitPrice()
-                            .subtract(itemRequest.getGuidePrice())
-                            .divide(itemRequest.getGuidePrice(), 4, java.math.RoundingMode.HALF_UP);
-                    if (exceedRatio.compareTo(BigDecimal.valueOf(0.1)) > 0) {
+                    BigDecimal exceedRatio = partPriceMatchingService.calculatePriceDeviation(
+                            itemRequest.getUnitPrice(), itemRequest.getGuidePrice());
+                    if (exceedRatio.compareTo(BigDecimal.valueOf(30)) > 0) {
                         exceedStandard = true;
                     }
                 }
+
+                LossItem item = new LossItem();
+                BeanUtils.copyProperties(itemRequest, item);
+                item.setAssessmentId(0L);
+                item.setClaimId(request.getClaimId());
+                item.setTotalAmount(itemRequest.getUnitPrice().multiply(BigDecimal.valueOf(itemRequest.getQuantity())));
+
+                if (itemRequest.getGuidePrice() != null
+                        && itemRequest.getUnitPrice().compareTo(itemRequest.getGuidePrice()) > 0) {
+                    item.setExceedGuidePrice(true);
+                    item.setExceedRatio(partPriceMatchingService.calculatePriceDeviation(
+                            itemRequest.getUnitPrice(), itemRequest.getGuidePrice()));
+                } else {
+                    item.setExceedGuidePrice(false);
+                }
+
+                lossItems.add(item);
             }
         }
 
@@ -252,40 +371,31 @@ public class ClaimService {
 
         lossAssessmentMapper.insertAssessment(assessment);
 
-        if (request.getLossItems() != null && !request.getLossItems().isEmpty()) {
-            List<LossItem> lossItems = new ArrayList<>();
-            for (LossItemRequest itemRequest : request.getLossItems()) {
-                LossItem item = new LossItem();
-                BeanUtils.copyProperties(itemRequest, item);
-                item.setAssessmentId(assessment.getId());
-                item.setClaimId(request.getClaimId());
-                item.setTotalAmount(itemRequest.getUnitPrice().multiply(BigDecimal.valueOf(itemRequest.getQuantity())));
-
-                if (itemRequest.getGuidePrice() != null
-                        && itemRequest.getUnitPrice().compareTo(itemRequest.getGuidePrice()) > 0) {
-                    item.setExceedGuidePrice(true);
-                    item.setExceedRatio(itemRequest.getUnitPrice()
-                            .subtract(itemRequest.getGuidePrice())
-                            .divide(itemRequest.getGuidePrice(), 4, java.math.RoundingMode.HALF_UP));
-                } else {
-                    item.setExceedGuidePrice(false);
-                }
-
-                lossItems.add(item);
-            }
+        for (LossItem item : lossItems) {
+            item.setAssessmentId(assessment.getId());
+        }
+        if (!lossItems.isEmpty()) {
             lossAssessmentMapper.batchInsertLossItems(lossItems);
         }
+
+        ClaimLevelClassifier.ClassificationResult classification =
+                claimLevelClassifier.classify(claim, assessment);
+        claim.setCaseLevel(classification.getReviewLevel());
+        claim.setCaseLevelName(classification.getLevelName());
+        claim.setFastTrack(classification.isAutoReviewEligible());
 
         claim.setAssessorId(request.getAssessorId());
         claim.setAssessorName(assessor.getRealName());
         claim.setTotalLossAmount(totalLossAmount);
         claim.setAssessmentCompletedAt(LocalDateTime.now());
         claim.setStatus(ClaimStatus.ASSESSMENT_COMPLETED);
-        claimMapper.updateById(claim);
+        claimRepository.updateById(claim);
 
         fraudDetectionService.detectFraudOnAssessment(request.getClaimId());
 
-        log.info("定损提交完成: 案件={}, 总损失={}", claim.getClaimNo(), totalLossAmount);
+        log.info("定损提交完成: 案件={}, 总损失={}, 配件指导价匹配{}/{}, 超标={}, 分级={}",
+                claim.getClaimNo(), totalLossAmount, matchedGuideCount, partCount,
+                exceedStandard, classification.getLevelName());
         return lossAssessmentMapper.selectById(assessment.getId());
     }
 
@@ -293,7 +403,7 @@ public class ClaimService {
     public ClaimReview reviewClaim(ClaimReviewRequest request) {
         log.info("核赔审核: 案件ID={}, 结果={}", request.getClaimId(), request.getReviewResult());
 
-        Claim claim = claimMapper.selectById(request.getClaimId());
+        Claim claim = claimRepository.selectById(request.getClaimId());
         if (claim == null) {
             throw new BusinessException(ResultCode.CLAIM_NOT_FOUND);
         }
@@ -321,13 +431,13 @@ public class ClaimService {
 
         fraudDetectionService.detectFraudOnReview(request.getClaimId());
 
-        Claim updatedClaim = claimMapper.selectById(request.getClaimId());
+        Claim updatedClaim = claimRepository.selectById(request.getClaimId());
 
         if (Boolean.TRUE.equals(updatedClaim.getFraudSuspicious())) {
             log.info("案件标记为欺诈可疑，转入人工复核: {}", claim.getClaimNo());
-            claimMapper.updateStatus(request.getClaimId(), ClaimStatus.FRAUD_SUSPICIOUS.getCode(), updatedClaim.getVersion());
+            claimRepository.updateStatus(request.getClaimId(), ClaimStatus.FRAUD_SUSPICIOUS.getCode(), updatedClaim.getVersion());
         } else if (request.getReviewResult() == 1) {
-            claimMapper.updateStatus(request.getClaimId(), ClaimStatus.REVIEW_APPROVED.getCode(), updatedClaim.getVersion());
+            claimRepository.updateStatus(request.getClaimId(), ClaimStatus.REVIEW_APPROVED.getCode(), updatedClaim.getVersion());
             claim.setReviewerId(request.getReviewerId());
             claim.setReviewerName(reviewer.getRealName());
             claim.setReviewComments(request.getReviewComments());
@@ -341,19 +451,19 @@ public class ClaimService {
             updatedClaim.setDeductibleAmount(policyService.calculateDeductible(claim.getPolicyNo(),
                     assessment.getTotalLossAmount()));
 
-            claimMapper.updateById(updatedClaim);
+            claimRepository.updateById(updatedClaim);
 
             policyService.incrementClaimCount(policy.getId(), payableAmount);
 
-            claimMapper.updateStatus(request.getClaimId(), ClaimStatus.CALCULATION_COMPLETED.getCode(), updatedClaim.getVersion() + 1);
+            claimRepository.updateStatus(request.getClaimId(), ClaimStatus.CALCULATION_COMPLETED.getCode(), updatedClaim.getVersion() + 1);
 
             log.info("核赔通过: 案件={}, 应赔付={}", claim.getClaimNo(), payableAmount);
         } else if (request.getReviewResult() == 2) {
-            claimMapper.updateStatus(request.getClaimId(), ClaimStatus.REVIEW_REJECTED.getCode(), updatedClaim.getVersion());
+            claimRepository.updateStatus(request.getClaimId(), ClaimStatus.REVIEW_REJECTED.getCode(), updatedClaim.getVersion());
             claim.setRejectReason(request.getRejectReason());
             log.info("核赔驳回: 案件={}, 原因={}", claim.getClaimNo(), request.getRejectReason());
         } else if (request.getReviewResult() == 3) {
-            claimMapper.updateStatus(request.getClaimId(), ClaimStatus.REVIEW_REJECTED.getCode(), updatedClaim.getVersion());
+            claimRepository.updateStatus(request.getClaimId(), ClaimStatus.REVIEW_REJECTED.getCode(), updatedClaim.getVersion());
             claim.setRejectReason(request.getSupplementRequirements());
             log.info("需补充材料: 案件={}, 要求={}", claim.getClaimNo(), request.getSupplementRequirements());
         }
@@ -362,7 +472,7 @@ public class ClaimService {
     }
 
     public CompensationDetailResponse calculateCompensation(Long claimId) {
-        Claim claim = claimMapper.selectById(claimId);
+        Claim claim = claimRepository.selectById(claimId);
         if (claim == null) {
             throw new BusinessException(ResultCode.CLAIM_NOT_FOUND);
         }
@@ -477,7 +587,7 @@ public class ClaimService {
             claim.setFloatingCoefficient(floatingCoefficient);
             claim.setCalculationCompletedAt(LocalDateTime.now());
             claim.setStatus(ClaimStatus.CALCULATION_COMPLETED);
-            claimMapper.updateById(claim);
+            claimRepository.updateById(claim);
         }
 
         return response;
@@ -506,11 +616,11 @@ public class ClaimService {
     }
 
     public Claim getClaimById(Long id) {
-        return claimMapper.selectById(id);
+        return claimRepository.selectById(id);
     }
 
     public Claim getClaimByNo(String claimNo) {
-        return claimMapper.selectByClaimNo(claimNo);
+        return claimRepository.selectByClaimNo(claimNo);
     }
 
     public PageResult<ClaimResponse> queryClaims(ClaimQueryRequest query) {
@@ -524,8 +634,8 @@ public class ClaimService {
         int offset = (query.getPageNum() - 1) * query.getPageSize();
         query.setPageNum(offset);
 
-        Long total = claimMapper.selectCount(query);
-        List<Claim> claims = claimMapper.selectList(query);
+        Long total = claimRepository.selectCount(query);
+        List<Claim> claims = claimRepository.selectList(query);
 
         List<ClaimResponse> responses = new ArrayList<>();
         for (Claim claim : claims) {
@@ -537,7 +647,7 @@ public class ClaimService {
     }
 
     public int countRecentClaimsByIdCard(String idCard, int days) {
-        return claimMapper.countClaimsByIdCardAndDays(idCard, days);
+        return claimRepository.countClaimsByIdCardAndDays(idCard, days);
     }
 
     private String generateClaimNo() {
@@ -617,7 +727,7 @@ public class ClaimService {
 
     @Transactional(rollbackFor = Exception.class)
     public boolean closeClaim(Long claimId) {
-        Claim claim = claimMapper.selectById(claimId);
+        Claim claim = claimRepository.selectById(claimId);
         if (claim == null) {
             throw new BusinessException(ResultCode.CLAIM_NOT_FOUND);
         }
@@ -627,14 +737,14 @@ public class ClaimService {
                     "只有支付完成的案件才能结案，当前状态: " + claim.getStatus().getName());
         }
 
-        claimMapper.closeClaim(claimId, LocalDateTime.now());
+        claimRepository.closeClaim(claimId, LocalDateTime.now());
         log.info("案件已结案: {}", claim.getClaimNo());
         return true;
     }
 
     @Transactional(rollbackFor = Exception.class)
     public boolean cancelClaim(Long claimId, String reason) {
-        Claim claim = claimMapper.selectById(claimId);
+        Claim claim = claimRepository.selectById(claimId);
         if (claim == null) {
             throw new BusinessException(ResultCode.CLAIM_NOT_FOUND);
         }
@@ -643,7 +753,7 @@ public class ClaimService {
             throw new BusinessException("案件已结案或已注销，无法注销");
         }
 
-        claimMapper.cancelClaim(claimId, reason);
+        claimRepository.cancelClaim(claimId, reason);
         log.info("案件已注销: {}, 原因: {}", claim.getClaimNo(), reason);
         return true;
     }

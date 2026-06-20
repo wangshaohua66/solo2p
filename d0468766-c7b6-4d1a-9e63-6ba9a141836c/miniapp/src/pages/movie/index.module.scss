@@ -1,0 +1,134 @@
+@use '@/styles/variables.scss' as *;
+
+.container {
+  min-height: 100vh;
+  background: $color-bg-page;
+  padding-bottom: 140rpx;
+}
+
+.tabs {
+  display: flex;
+  padding: $spacing-md $spacing-lg;
+  gap: $spacing-md;
+  background: $color-bg-card;
+  border-bottom: 1px solid $color-border;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+
+  .tab {
+    padding: $spacing-sm $spacing-lg;
+    border-radius: $radius-button;
+    font-size: $font-size-md;
+    font-weight: $font-weight-medium;
+    color: $color-text-secondary;
+    background: $color-bg-page;
+    transition: all $transition-base;
+
+    &.active {
+      background: $gold-gradient;
+      color: #1a1a1a;
+      font-weight: $font-weight-semibold;
+    }
+  }
+}
+
+.movieList {
+  padding: $spacing-lg;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.movieItem {
+  display: flex;
+  gap: $spacing-md;
+  padding: $spacing-md;
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  border: 1px solid $color-border;
+
+  &:active {
+    background: $color-bg-hover;
+  }
+
+  .poster {
+    width: 180rpx;
+    height: 250rpx;
+    border-radius: $radius-sm;
+    overflow: hidden;
+    flex-shrink: 0;
+    position: relative;
+
+    .img {
+      width: 100%;
+      height: 100%;
+    }
+    .status {
+      position: absolute;
+      left: $spacing-xs;
+      bottom: $spacing-xs;
+      padding: 2rpx $spacing-sm;
+      border-radius: $radius-xs;
+      background: $color-primary;
+      color: #1a1a1a;
+      font-size: $font-size-xs;
+      font-weight: $font-weight-semibold;
+    }
+  }
+
+  .info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+
+    .title {
+      font-size: $font-size-lg;
+      font-weight: $font-weight-semibold;
+      color: $color-text-primary;
+      @include text-ellipsis;
+    }
+    .genre {
+      margin-top: $spacing-xs;
+      font-size: $font-size-sm;
+      color: $color-text-tertiary;
+      @include text-ellipsis;
+    }
+    .rating {
+      margin-top: $spacing-xs;
+      font-size: $font-size-md;
+      color: $color-text-gold;
+      font-weight: $font-weight-bold;
+      .label {
+        color: $color-text-tertiary;
+        font-weight: $font-weight-normal;
+        font-size: $font-size-xs;
+        margin-right: $spacing-xs;
+      }
+    }
+    .meta {
+      margin-top: auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      .date {
+        font-size: $font-size-xs;
+        color: $color-text-tertiary;
+      }
+      .btn {
+        @include button-reset;
+        background: $gold-gradient;
+        color: #1a1a1a;
+        height: $button-height-sm;
+        padding: 0 $spacing-lg;
+        border-radius: $radius-button;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-semibold;
+
+        &:active { opacity: 0.85; transform: scale(0.96); }
+      }
+    }
+  }
+}

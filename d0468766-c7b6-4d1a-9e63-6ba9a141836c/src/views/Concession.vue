@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElNotification } from 'element-plus'
 import * as ElIcons from '@element-plus/icons-vue'
 import SectionPanel from '@/components/SectionPanel.vue'
 import StatCard from '@/components/StatCard.vue'
@@ -22,7 +22,33 @@ onMounted(async () => {
   skus.value = s
   docs.value = d
   loading.value = false
+  triggerLowStockAlert(s)
 })
+
+function triggerLowStockAlert(skuList: ConcessionSku[]) {
+  const low = skuList.filter((s) => s.status === 'low')
+  const out = skuList.filter((s) => s.status === 'out')
+  if (out.length > 0) {
+    ElNotification({
+      title: `紧急：${out.length}个SKU已断货`,
+      message: out.slice(0, 3).map((s) => `${s.name} · ${s.cinemaName}`).join('；') + (out.length > 3 ? `；等 ${out.length} 个` : ''),
+      type: 'error',
+      duration: 0,
+      showClose: true,
+      dangerouslyUseHTMLString: false
+    })
+  }
+  if (low.length > 0) {
+    ElNotification({
+      title: `补货提醒：${low.length}个SKU库存偏低`,
+      message: low.slice(0, 4).map((s) => `${s.name} · 剩${s.stock}${s.unit}`).join('；') + (low.length > 4 ? `；等 ${low.length} 个` : ''),
+      type: 'warning',
+      duration: 8000,
+      showClose: true,
+      dangerouslyUseHTMLString: false
+    })
+  }
+}
 
 const stats = computed(() => {
   const low = skus.value.filter((s) => s.status === 'low').length

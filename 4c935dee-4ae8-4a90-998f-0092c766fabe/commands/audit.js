@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { buildContext } = require('../lib/runtime');
 const { renderTable, makeSpinner } = require('../lib/ui');
+const store = require('../lib/store');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -181,8 +182,10 @@ async function report(argv) {
     const html = renderHtml(reportData);
     const outFile = argv.out || `audit-report-${ctx.profile.name}-${Date.now()}.html`;
     const tmp = `${outFile}.tmp`;
+    ctx.store.registerTemp(tmp);
     fs.writeFileSync(tmp, html);
     fs.renameSync(tmp, outFile);
+    ctx.store.unregisterTemp(tmp);
     logger.success(`HTML 报告已写入: ${outFile}`);
   }
 

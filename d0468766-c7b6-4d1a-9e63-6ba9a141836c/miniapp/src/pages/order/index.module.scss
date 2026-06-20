@@ -1,0 +1,160 @@
+@use '@/styles/variables.scss' as *;
+
+.container {
+  min-height: 100vh;
+  background: $color-bg-page;
+  padding-bottom: 140rpx;
+}
+
+.tabs {
+  display: flex;
+  padding: $spacing-md $spacing-lg;
+  gap: $spacing-sm;
+  background: $color-bg-card;
+  border-bottom: 1px solid $color-border;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+
+  .tab {
+    flex: 1;
+    text-align: center;
+    padding: $spacing-sm 0;
+    font-size: $font-size-md;
+    color: $color-text-secondary;
+    border-radius: $radius-md;
+    transition: all $transition-base;
+
+    &.active {
+      color: $color-text-gold;
+      font-weight: $font-weight-semibold;
+      background: $color-primary-soft;
+    }
+  }
+}
+
+.orderList {
+  padding: $spacing-lg;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.orderCard {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  border: 1px solid $color-border;
+  overflow: hidden;
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: $spacing-md $spacing-lg;
+    border-bottom: 1px solid $color-divider;
+
+    .time {
+      font-size: $font-size-sm;
+      color: $color-text-tertiary;
+    }
+    .status {
+      font-size: $font-size-sm;
+      font-weight: $font-weight-semibold;
+
+      &.paid { color: $color-success; }
+      &.pending { color: $color-warning; }
+      &.cancelled, &.refunded { color: $color-text-tertiary; }
+    }
+  }
+
+  .body {
+    padding: $spacing-lg;
+    display: flex;
+    gap: $spacing-md;
+
+    .info {
+      flex: 1;
+      min-width: 0;
+
+      .movie {
+        font-size: $font-size-lg;
+        font-weight: $font-weight-semibold;
+        color: $color-text-primary;
+        @include text-ellipsis;
+      }
+      .cinema {
+        margin-top: $spacing-sm;
+        font-size: $font-size-sm;
+        color: $color-text-secondary;
+        @include text-ellipsis;
+      }
+      .hall {
+        margin-top: $spacing-xs;
+        font-size: $font-size-xs;
+        color: $color-text-tertiary;
+      }
+      .seats {
+        margin-top: $spacing-xs;
+        font-size: $font-size-sm;
+        color: $color-text-gold;
+        font-weight: $font-weight-medium;
+      }
+    }
+    .amount {
+      text-align: right;
+
+      .num {
+        font-size: $font-size-xl;
+        font-weight: $font-weight-bold;
+        color: $color-accent;
+      }
+      .label {
+        font-size: $font-size-xs;
+        color: $color-text-tertiary;
+      }
+    }
+  }
+
+  .footer {
+    padding: $spacing-md $spacing-lg;
+    border-top: 1px solid $color-divider;
+    display: flex;
+    justify-content: flex-end;
+    gap: $spacing-sm;
+
+    .btn {
+      @include button-reset;
+      height: $button-height-sm;
+      padding: 0 $spacing-lg;
+      border-radius: $radius-button;
+      font-size: $font-size-sm;
+      border: 1px solid $color-border;
+      background: transparent;
+      color: $color-text-secondary;
+
+      &:active { opacity: 0.8; }
+
+      &.primary {
+        background: $gold-gradient;
+        color: #1a1a1a;
+        border-color: transparent;
+        font-weight: $font-weight-semibold;
+      }
+    }
+  }
+}
+
+.empty {
+  padding: 160rpx $spacing-lg;
+  text-align: center;
+
+  .icon {
+    font-size: 120rpx;
+    opacity: 0.3;
+  }
+  .tip {
+    margin-top: $spacing-md;
+    font-size: $font-size-md;
+    color: $color-text-tertiary;
+  }
+}

@@ -1,0 +1,24 @@
+@use '@/styles/variables.scss' as *;
+
+.container {
+  min-height: 100vh;
+  background: $color-bg-page;
+  padding: 200rpx $spacing-lg;
+  text-align: center;
+
+  .icon {
+    font-size: 120rpx;
+    opacity: 0.3;
+  }
+  .title {
+    margin-top: $spacing-xl;
+    font-size: $font-size-xl;
+    font-weight: $font-weight-semibold;
+    color: $color-text-primary;
+  }
+  .tip {
+    margin-top: $spacing-sm;
+    font-size: $font-size-sm;
+    color: $color-text-tertiary;
+  }
+}

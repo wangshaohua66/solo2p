@@ -12,7 +12,9 @@ function appDir() {
 }
 
 function storePath() {
-  return path.join(appDir(), 'store.json');
+  const override = process.env.SC_STORE_PATH;
+  if (override) return path.resolve(override);
+  return path.join(process.cwd(), 'store.json');
 }
 
 function auditPath() {
@@ -37,7 +39,6 @@ function defaultState() {
 }
 
 function loadState() {
-  ensureDir();
   const file = storePath();
   if (!fs.existsSync(file)) {
     const state = defaultState();
@@ -58,11 +59,12 @@ function loadState() {
 }
 
 function saveState(state) {
-  ensureDir();
   state.updatedAt = new Date().toISOString();
   const tmp = `${storePath()}.tmp`;
+  registerTemp(tmp);
   fs.writeFileSync(tmp, JSON.stringify(state, null, 2));
   fs.renameSync(tmp, storePath());
+  unregisterTemp(tmp);
 }
 
 function secretKey(profile, secretPath) {
@@ -132,6 +134,30 @@ function recordAudit(entry) {
   return record;
 }
 
+function updateAuditRecord(id, updates) {
+  const file = auditPath();
+  if (!fs.existsSync(file)) return null;
+  const lines = fs.readFileSync(file, 'utf8').split('\n').filter(Boolean);
+  let found = null;
+  const updated = lines.map((line) => {
+    let rec;
+    try { rec = JSON.parse(line); } catch { return line; }
+    if (rec.id !== id) return line;
+    found = Object.assign({}, rec, updates, {
+      metadata: Object.assign({}, rec.metadata || {}, (updates && updates.metadata) || {})
+    });
+    return JSON.stringify(found);
+  });
+  if (found) {
+    const tmp = `${file}.tmp`;
+    registerTemp(tmp);
+    fs.writeFileSync(tmp, updated.join('\n') + '\n');
+    fs.renameSync(tmp, file);
+    unregisterTemp(tmp);
+  }
+  return found;
+}
+
 function queryAudit(filters) {
   const f = filters || {};
   const file = auditPath();
@@ -157,9 +183,41 @@ function queryAudit(filters) {
   return results;
 }
 
+const _tempFiles = new Set();
+let _exitHookInstalled = false;
+
+function registerTemp(filePath) {
+  _tempFiles.add(path.resolve(filePath));
+  _installExitHooks();
+}
+
+function unregisterTemp(filePath) {
+  _tempFiles.delete(path.resolve(filePath));
+}
+
+function cleanupAllTemp() {
+  for (const fp of _tempFiles) {
+    try {
+      if (fs.existsSync(fp)) fs.unlinkSync(fp);
+    } catch { /* best effort */ }
+  }
+  _tempFiles.clear();
+}
+
+function _installExitHooks() {
+  if (_exitHookInstalled) return;
+  _exitHookInstalled = true;
+  const handler = () => { cleanupAllTemp(); };
+  process.on('beforeExit', handler);
+  process.on('SIGINT', () => { cleanupAllTemp(); process.exit(130); });
+  process.on('SIGTERM', () => { cleanupAllTemp(); process.exit(143); });
+  process.on('uncaughtException', () => { cleanupAllTemp(); process.exit(1); });
+}
+
 function cleanupTemp(filePath) {
   try {
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    _tempFiles.delete(path.resolve(filePath));
     return true;
   } catch {
     return false;
@@ -175,7 +233,11 @@ module.exports = {
   upsertSecret,
   getSecrets,
   recordAudit,
+  updateAuditRecord,
   queryAudit,
   rotateAudit,
-  cleanupTemp
+  registerTemp,
+  unregisterTemp,
+  cleanupTemp,
+  cleanupAllTemp
 };

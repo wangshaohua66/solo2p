@@ -8,13 +8,13 @@
   "total_cost": 4420.0,
   "total_labor_hours": 16.0,
   "durations": {
-    "image_analysis": 0.42,
-    "classification": 0.0,
-    "system_entry": 13.24,
-    "total": 13.67
+    "image_analysis": 0.56,
+    "classification": 0.01,
+    "system_entry": 13.25,
+    "total": 13.94
   },
   "error": "",
   "result_path": "./data/output/SMOKE_TEST/case_result.json",
-  "submitted_at": "2026-06-20 12:56:52",
+  "submitted_at": "2026-06-20 14:15:21",
   "audit_status": ""
 }

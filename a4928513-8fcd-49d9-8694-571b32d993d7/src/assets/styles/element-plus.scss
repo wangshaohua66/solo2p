@@ -1,0 +1,322 @@
+@use 'theme.scss' as *;
+
+.el-button {
+  border-radius: $radius-sm !important;
+  font-weight: 500;
+  transition: all 0.25s ease !important;
+}
+
+.el-button--primary {
+  --el-button-bg-color: $color-funeral-gold !important;
+  --el-button-border-color: $color-funeral-gold !important;
+  --el-button-text-color: #1A1A1F !important;
+  --el-button-hover-bg-color: $color-funeral-gold-light !important;
+  --el-button-hover-border-color: $color-funeral-gold-light !important;
+  --el-button-active-bg-color: $color-funeral-gold-dark !important;
+  --el-button-active-border-color: $color-funeral-gold-dark !important;
+}
+
+.el-button--default {
+  --el-button-bg-color: $color-funeral-card !important;
+  --el-button-border-color: $color-funeral-border !important;
+  --el-button-text-color: #FFFFFF !important;
+  --el-button-hover-bg-color: #3A3A44 !important;
+  --el-button-hover-border-color: $color-funeral-gold !important;
+  --el-button-hover-text-color: $color-funeral-gold !important;
+}
+
+.el-input__wrapper {
+  background-color: $color-funeral-deepest !important;
+  box-shadow: 0 0 0 1px $color-funeral-border inset !important;
+  border-radius: $radius-sm !important;
+  transition: all 0.25s ease !important;
+
+  &:hover {
+    box-shadow: 0 0 0 1px $color-funeral-gold-dark inset !important;
+  }
+
+  &.is-focus {
+    box-shadow: 0 0 0 1px $color-funeral-gold inset !important;
+  }
+}
+
+.el-input__inner {
+  color: #FFFFFF !important;
+  &::placeholder {
+    color: $color-funeral-text-muted !important;
+  }
+}
+
+.el-select {
+  --el-select-border-color-hover: $color-funeral-gold !important;
+}
+
+.el-select-dropdown {
+  background-color: $color-funeral-card !important;
+  border: 1px solid $color-funeral-border !important;
+}
+
+.el-select-dropdown__item {
+  color: #FFFFFF !important;
+  &.hover,
+  &:hover {
+    background-color: rgba(201, 168, 108, 0.1) !important;
+    color: $color-funeral-gold !important;
+  }
+  &.selected {
+    color: $color-funeral-gold !important;
+    font-weight: 600 !important;
+  }
+}
+
+.el-card {
+  background-color: $color-funeral-card !important;
+  border: 1px solid $color-funeral-border !important;
+  border-radius: $radius-md !important;
+  box-shadow: $shadow-card !important;
+  transition: all 0.3s ease;
+
+  &:hover {
+    border-color: rgba(201, 168, 108, 0.4) !important;
+    box-shadow: $shadow-card-hover !important;
+  }
+}
+
+.el-card__header {
+  border-bottom: 1px solid $color-funeral-border !important;
+  padding: 16px 20px !important;
+}
+
+.el-card__body {
+  padding: 20px !important;
+}
+
+.el-table {
+  --el-table-bg-color: transparent !important;
+  --el-table-tr-bg-color: transparent !important;
+  --el-table-border-color: $color-funeral-border !important;
+  --el-table-header-bg-color: $color-funeral-deepest !important;
+  --el-table-header-text-color: $color-funeral-gold !important;
+  --el-table-text-color: #FFFFFF !important;
+  --el-table-row-hover-bg-color: rgba(201, 168, 108, 0.05) !important;
+  border-radius: $radius-md !important;
+  overflow: hidden;
+}
+
+.el-table--border {
+  border: 1px solid $color-funeral-border !important;
+}
+
+.el-dialog {
+  background-color: $color-funeral-card !important;
+  border: 1px solid $color-funeral-border !important;
+  border-radius: $radius-lg !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5) !important;
+}
+
+.el-dialog__header {
+  border-bottom: 1px solid $color-funeral-border !important;
+  padding: 16px 24px !important;
+  margin-right: 0 !important;
+}
+
+.el-dialog__title {
+  color: $color-funeral-gold !important;
+  font-weight: 600 !important;
+}
+
+.el-dialog__body {
+  color: #FFFFFF !important;
+  padding: 24px !important;
+}
+
+.el-dialog__footer {
+  border-top: 1px solid $color-funeral-border !important;
+  padding: 12px 24px !important;
+}
+
+.el-tabs__item {
+  color: $color-funeral-text-secondary !important;
+  &.is-active {
+    color: $color-funeral-gold !important;
+  }
+  &:hover {
+    color: $color-funeral-gold-light !important;
+  }
+}
+
+.el-tabs__active-bar {
+  background-color: $color-funeral-gold !important;
+}
+
+.el-pager li {
+  background-color: $color-funeral-card !important;
+  color: $color-funeral-text-secondary !important;
+  &.is-active {
+    background-color: $color-funeral-gold !important;
+    color: #1A1A1F !important;
+  }
+  &:hover {
+    color: $color-funeral-gold !important;
+  }
+}
+
+.el-tag {
+  border-radius: 4px !important;
+  border: none !important;
+}
+
+.el-menu {
+  background-color: $color-funeral-deepest !important;
+  border-right: none !important;
+}
+
+.el-menu-item,
+.el-sub-menu__title {
+  color: $color-funeral-text-secondary !important;
+  &:hover {
+    background-color: rgba(201, 168, 108, 0.1) !important;
+    color: $color-funeral-gold !important;
+  }
+}
+
+.el-menu-item.is-active {
+  background-color: rgba(201, 168, 108, 0.15) !important;
+  color: $color-funeral-gold !important;
+  border-right: 3px solid $color-funeral-gold;
+}
+
+.el-sub-menu .el-menu-item {
+  background-color: darken($color-funeral-deepest, 2%) !important;
+}
+
+.el-message-box {
+  background-color: $color-funeral-card !important;
+  border: 1px solid $color-funeral-border !important;
+  border-radius: $radius-md !important;
+}
+
+.el-message-box__title {
+  color: $color-funeral-gold !important;
+}
+
+.el-message-box__message {
+  color: #FFFFFF !important;
+}
+
+.el-date-editor {
+  --el-date-editor-datetimerange-width: 400px;
+  .el-input__wrapper {
+    background-color: $color-funeral-deepest !important;
+  }
+}
+
+.el-picker-panel {
+  background-color: $color-funeral-card !important;
+  border: 1px solid $color-funeral-border !important;
+  color: #FFFFFF !important;
+}
+
+.el-date-picker__header-label,
+.el-month-table td .cell,
+.el-year-table td .cell {
+  color: #FFFFFF !important;
+  &:hover {
+    color: $color-funeral-gold !important;
+  }
+}
+
+.el-day {
+  color: #FFFFFF !important;
+  &.is-today {
+    color: $color-funeral-gold !important;
+  }
+  &.is-selected {
+    background-color: $color-funeral-gold !important;
+    color: #1A1A1F !important;
+  }
+}
+
+.el-form-item__label {
+  color: $color-funeral-text-secondary !important;
+}
+
+.el-breadcrumb__inner {
+  color: $color-funeral-text-muted !important;
+  a {
+    color: $color-funeral-text-secondary !important;
+    &:hover {
+      color: $color-funeral-gold !important;
+    }
+  }
+  &.is-link {
+    color: $color-funeral-text-secondary !important;
+    &:hover {
+      color: $color-funeral-gold !important;
+    }
+  }
+}
+
+.el-breadcrumb__separator {
+  color: $color-funeral-text-muted !important;
+}
+
+.el-pagination {
+  --el-pagination-bg-color: transparent !important;
+  --el-pagination-text-color: $color-funeral-text-secondary !important;
+  --el-pagination-hover-color: $color-funeral-gold !important;
+  .btn-prev,
+  .btn-next {
+    background-color: $color-funeral-card !important;
+  }
+}
+
+.el-icon {
+  width: 1em !important;
+  height: 1em !important;
+  min-width: 1em !important;
+  min-height: 1em !important;
+  max-width: 1em !important;
+  max-height: 1em !important;
+  font-size: inherit !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  vertical-align: middle !important;
+  overflow: hidden !important;
+
+  svg {
+    width: 1em !important;
+    height: 1em !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    min-width: 100% !important;
+    min-height: 100% !important;
+    display: block !important;
+  }
+}
+
+.el-input__prefix-inner,
+.el-input__suffix-inner {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
+
+  .el-icon {
+    width: 16px !important;
+    height: 16px !important;
+    min-width: 16px !important;
+    min-height: 16px !important;
+    max-width: 16px !important;
+    max-height: 16px !important;
+    font-size: 16px !important;
+
+    svg {
+      width: 16px !important;
+      height: 16px !important;
+    }
+  }
+}

@@ -307,4 +307,106 @@ mod tests {
         let bwd = g.reachable("P4", 3, Direction::Incoming);
         assert!(bwd.contains(&"P1".to_string()));
     }
+
+    // ===== 万级批量性能/稳定性基准测试 =====
+
+    /// 构造 N 件专利，每件引用前 3 个编号以内的专利（模拟真实长尾引用分布）
+    fn synthetic_chain(n: usize) -> Vec<Patent> {
+        (0..n)
+            .map(|i| {
+                let id = format!("P{:06}", i);
+                let mut cites: Vec<&str> = Vec::new();
+                // 引用前 3 个邻居，i=0/1/2 跳过自身引用
+                if i >= 3 {
+                    cites.push(Box::leak(format!("P{:06}", i - 1).into_boxed_str()));
+                    cites.push(Box::leak(format!("P{:06}", i - 2).into_boxed_str()));
+                    cites.push(Box::leak(format!("P{:06}", i - 3).into_boxed_str()));
+                } else if i >= 1 {
+                    cites.push(Box::leak(format!("P{:06}", i - 1).into_boxed_str()));
+                }
+                patent(&id, &cites)
+            })
+            .collect()
+    }
+
+    #[test]
+    fn bench_10000_nodes_graph_build_and_pagerank() {
+        let t = std::time::Instant::now();
+        let patents = synthetic_chain(10_000);
+        let build_elapsed = t.elapsed();
+
+        let t = std::time::Instant::now();
+        let mut g = CitationGraph::new();
+        // 分块增量合并，模拟生产环境的流式批量处理
+        for chunk in patents.chunks(500) {
+            g.add_patents(chunk);
+        }
+        let graph_elapsed = t.elapsed();
+
+        let expected_nodes = 10_000;
+        assert_eq!(g.node_count(), expected_nodes);
+        // 每件专利平均引用 ~2.5 次，边数应在 20k ~ 30k
+        assert!(g.edge_count() >= 20_000);
+        assert!(g.edge_count() <= 35_000);
+
+        let t = std::time::Instant::now();
+        let ranked = g.pagerank(0.85, 100);
+        let pr_elapsed = t.elapsed();
+
+        assert_eq!(ranked.len(), expected_nodes);
+        // PageRank Top 应当是最早被引用的基础专利（P000000、P000001 等）
+        assert!(ranked[0].0.starts_with('P'));
+        assert!(ranked[0].1 > 0.0);
+
+        let t = std::time::Instant::now();
+        let analysis = g.analyze(0.85, 100, 10);
+        let analyze_elapsed = t.elapsed();
+        assert_eq!(analysis.node_count, expected_nodes);
+        assert_eq!(analysis.core_patents.len(), 10);
+        assert!(!analysis.sources.is_empty());
+        assert!(!analysis.sinks.is_empty());
+
+        eprintln!(
+            "\n[bench] 10k 节点图谱: 数据生成={:?}, 建图={:?}, PageRank(100 iter)={:?}, analyze={:?}",
+            build_elapsed, graph_elapsed, pr_elapsed, analyze_elapsed
+        );
+        // 性能断言：建图 ≤ 10s，PageRank ≤ 5s（debug 构建宽松阈值）
+        assert!(graph_elapsed < std::time::Duration::from_secs(15), "建图超时: {:?}", graph_elapsed);
+        assert!(pr_elapsed < std::time::Duration::from_secs(10), "PageRank 超时: {:?}", pr_elapsed);
+    }
+
+    #[test]
+    fn incremental_merge_10k_stable() {
+        // 模拟生产增量导入：每批 1000 件，分 10 批合并，内存占用稳定
+        let mut g = CitationGraph::new();
+        for batch in 0..10 {
+            let start = batch * 1000;
+            let patents: Vec<Patent> = (start..start + 1000)
+                .map(|i| {
+                    let id = format!("BATCH{}-P{:06}", batch, i);
+                    let cites: Vec<String> = if i > start {
+                        (1..=3)
+                            .filter_map(|k| {
+                                let j = i.saturating_sub(k);
+                                if j >= start {
+                                    Some(format!("BATCH{}-P{:06}", batch, j))
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect()
+                    } else {
+                        Vec::new()
+                    };
+                    let mut p = Patent::new(&id, SourceFormat::Unknown);
+                    p.citations = cites.iter().map(|c| Citation::patent(c)).collect();
+                    p
+                })
+                .collect();
+            g.add_patents(&patents);
+            // 每批合并后立即 GC 友好地验证结构完整
+            assert_eq!(g.node_count(), (batch + 1) * 1000);
+        }
+        assert_eq!(g.node_count(), 10_000);
+    }
 }

@@ -3,7 +3,7 @@
 const fs = require('fs');
 const crypto = require('../lib/crypto');
 const { buildContext } = require('../lib/runtime');
-const { renderTable, makeSpinner, statusBadge } = require('../lib/ui');
+const { renderTable, makeSpinner, statusBadge, progressBar } = require('../lib/ui');
 const { pLimit, toAppError, ERROR_CODES } = require('../lib/util');
 
 function resolveTargets(argv, ctx) {
@@ -52,12 +52,14 @@ async function rotateOne(target, ctx, opts) {
   } catch (err) {
     result.error = err.message;
     result.code = err.code;
+    ctx.store.recordAudit({ action: 'access', secretName: target.path, secretPath: target.path, source: 'vault', status: 'failed', profile: ctx.profile.name, message: `读取失败: ${err.message}` });
     ctx.store.recordAudit({ action: 'rotate', secretName: target.path, secretPath: target.path, source: 'vault', status: 'failed', profile: ctx.profile.name, message: `读取失败: ${err.message}` });
     return result;
   }
 
   const oldValue = beforeData[target.field];
   const beforeHash = crypto.sha256(oldValue);
+  ctx.store.recordAudit({ action: 'access', secretName: target.path, secretPath: target.path, source: 'vault', status: 'success', profile: ctx.profile.name, message: `轮换前读取字段 ${target.field}` });
   const newValue = crypto.generatePassword({ length: target.length });
   const afterHash = crypto.sha256(newValue);
 
@@ -152,7 +154,7 @@ async function run(argv) {
   const results = await Promise.all(targets.map((t) => limit(async () => {
     const r = await rotateOne(t, ctx, { dryRun: argv.dryRun });
     completed += 1;
-    spinner.text = `${label}: ${completed}/${targets.length}`;
+    spinner.text = `${label}: ${progressBar(completed, targets.length, 20)}`;
     return r;
   })));
 

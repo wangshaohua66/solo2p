@@ -7,7 +7,7 @@ import com.insurance.claim.entity.Claim;
 import com.insurance.claim.entity.Payment;
 import com.insurance.claim.entity.User;
 import com.insurance.claim.enums.ClaimStatus;
-import com.insurance.claim.mapper.ClaimMapper;
+import com.insurance.claim.mapper.ClaimRepository;
 import com.insurance.claim.mapper.PaymentMapper;
 import com.insurance.claim.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class PaymentService {
 
     private final PaymentMapper paymentMapper;
-    private final ClaimMapper claimMapper;
+    private final ClaimRepository claimMapper;
     private final UserMapper userMapper;
 
     @Value("${claim.payment.retry-count:3}")
@@ -42,7 +42,7 @@ public class PaymentService {
     public Payment createPayment(PaymentRequest request) {
         log.info("创建支付记录: 案件ID={}, 支付金额={}", request.getClaimId(), request.getPaymentAmount());
 
-        Claim claim = claimMapper.selectById(request.getClaimId());
+        Claim claim = claimRepository.selectById(request.getClaimId());
         if (claim == null) {
             throw new BusinessException(ResultCode.CLAIM_NOT_FOUND);
         }
@@ -101,10 +101,10 @@ public class PaymentService {
         paymentMapper.insert(payment);
 
         if (claim.getStatus() == ClaimStatus.CALCULATION_COMPLETED) {
-            claimMapper.updateStatus(request.getClaimId(), ClaimStatus.PAYMENT_PENDING.getCode(), claim.getVersion());
+            claimRepository.updateStatus(request.getClaimId(), ClaimStatus.PAYMENT_PENDING.getCode(), claim.getVersion());
         } else if (claim.getStatus() == ClaimStatus.PAYMENT_PENDING
                 || claim.getStatus() == ClaimStatus.PAYMENT_PARTIAL) {
-            claimMapper.updateStatus(request.getClaimId(), ClaimStatus.PAYMENT_PARTIAL.getCode(), claim.getVersion());
+            claimRepository.updateStatus(request.getClaimId(), ClaimStatus.PAYMENT_PARTIAL.getCode(), claim.getVersion());
         }
 
         log.info("支付记录创建成功: 支付单号={}, 金额={}", payment.getPaymentNo(), request.getPaymentAmount());
@@ -136,19 +136,19 @@ public class PaymentService {
                 electronicVoucherUrl
         );
 
-        Claim claim = claimMapper.selectById(payment.getClaimId());
+        Claim claim = claimRepository.selectById(payment.getClaimId());
         BigDecimal alreadyPaid = paymentMapper.sumPaidAmountByClaimId(payment.getClaimId());
         BigDecimal payableAmount = claim.getPayableAmount() != null ? claim.getPayableAmount() : BigDecimal.ZERO;
 
         if (alreadyPaid.compareTo(payableAmount) >= 0) {
-            claimMapper.updatePaymentAmount(
+            claimRepository.updatePaymentAmount(
                     payment.getClaimId(),
                     alreadyPaid,
                     ClaimStatus.PAYMENT_COMPLETED.getCode()
             );
             log.info("支付全部完成: 案件{}, 累计支付{}", claim.getClaimNo(), alreadyPaid);
         } else {
-            claimMapper.updatePaymentAmount(
+            claimRepository.updatePaymentAmount(
                     payment.getClaimId(),
                     alreadyPaid,
                     ClaimStatus.PAYMENT_PARTIAL.getCode()

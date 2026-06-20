@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import { useAppStore } from '@/stores/app'
 
 const MainLayout = () => import('@/layouts/MainLayout.vue')
 
@@ -64,6 +65,14 @@ const routes: RouteRecordRaw[] = [
 const router = createRouter({
   history: createWebHashHistory(),
   routes
+})
+
+router.beforeEach((to) => {
+  const appStore = useAppStore()
+  const path = `/${to.path.split('/').filter(Boolean)[0] || 'dashboard'}`
+  if (!appStore.canAccess(path)) {
+    return appStore.allowedRoutes[0] || '/dashboard'
+  }
 })
 
 export default router

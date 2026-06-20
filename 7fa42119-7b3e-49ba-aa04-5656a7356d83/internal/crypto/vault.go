@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -68,7 +69,11 @@ func NewVault(basePath string) (*Vault, *errors.SecfgError) {
 	return v, nil
 }
 
-func (v *Vault) GenerateKey() (string, *errors.SecfgError) {
+func (v *Vault) GenerateKey(ctx context.Context) (string, *errors.SecfgError) {
+	if err := ctx.Err(); err != nil {
+		return "", errors.NewWithMessage(errors.E005, "密钥生成被取消", err, false)
+	}
+
 	key, err := validator.GenerateStrongKey(KeySize)
 	if err != nil {
 		return "", err
@@ -94,6 +99,10 @@ func (v *Vault) GenerateKey() (string, *errors.SecfgError) {
 
 	v.keyStore.CurrentKey = keyID
 
+	if err := ctx.Err(); err != nil {
+		return "", errors.NewWithMessage(errors.E005, "密钥生成被取消", err, false)
+	}
+
 	if err := v.saveKeyStore(); err != nil {
 		return "", err
 	}
@@ -101,19 +110,23 @@ func (v *Vault) GenerateKey() (string, *errors.SecfgError) {
 	return keyID, nil
 }
 
-func (v *Vault) RotateKey() (string, *errors.SecfgError) {
+func (v *Vault) RotateKey(ctx context.Context) (string, *errors.SecfgError) {
 	if v.keyStore.CurrentKey == "" {
 		return "", errors.NewWithMessage(errors.E005, "没有可用的密钥，先生成主密钥", nil, false)
 	}
 
-	if err := v.backupOldKeys(); err != nil {
+	if err := v.backupOldKeys(ctx); err != nil {
 		return "", err
 	}
 
-	return v.GenerateKey()
+	return v.GenerateKey(ctx)
 }
 
-func (v *Vault) backupOldKeys() *errors.SecfgError {
+func (v *Vault) backupOldKeys(ctx context.Context) *errors.SecfgError {
+	if err := ctx.Err(); err != nil {
+		return errors.NewWithMessage(errors.E009, "密钥备份被取消", err, false)
+	}
+
 	backupDir := filepath.Join(v.keyStore.basePath, "key_backups")
 	if err := os.MkdirAll(backupDir, 0700); err != nil {
 		return errors.New(errors.E009, err, false)
@@ -141,6 +154,10 @@ func (v *Vault) backupOldKeys() *errors.SecfgError {
 		return backup[i].Metadata.Version < backup[j].Metadata.Version
 	})
 
+	if err := ctx.Err(); err != nil {
+		return errors.NewWithMessage(errors.E009, "密钥备份被取消", err, false)
+	}
+
 	data, err := json.MarshalIndent(backup, "", "  ")
 	if err != nil {
 		return errors.New(errors.E009, err, false)
@@ -153,7 +170,11 @@ func (v *Vault) backupOldKeys() *errors.SecfgError {
 	return nil
 }
 
-func (v *Vault) Encrypt(plaintext string) (string, *errors.SecfgError) {
+func (v *Vault) Encrypt(ctx context.Context, plaintext string) (string, *errors.SecfgError) {
+	if err := ctx.Err(); err != nil {
+		return "", errors.NewWithMessage(errors.E003, "加密操作被取消", err, false)
+	}
+
 	key, err := v.getCurrentKey()
 	if err != nil {
 		return "", err
@@ -174,13 +195,21 @@ func (v *Vault) Encrypt(plaintext string) (string, *errors.SecfgError) {
 		return "", errors.New(errors.E003, stdErr, false)
 	}
 
+	if err := ctx.Err(); err != nil {
+		return "", errors.NewWithMessage(errors.E003, "加密操作被取消", err, false)
+	}
+
 	ciphertext := gcm.Seal(nonce, nonce, []byte(plaintext), nil)
 	encoded := base64.StdEncoding.EncodeToString(ciphertext)
 
 	return fmt.Sprintf("%s%s%s", EncryptedPrefix, encoded, EncryptedSuffix), nil
 }
 
-func (v *Vault) Decrypt(encrypted string) (string, *errors.SecfgError) {
+func (v *Vault) Decrypt(ctx context.Context, encrypted string) (string, *errors.SecfgError) {
+	if err := ctx.Err(); err != nil {
+		return "", errors.NewWithMessage(errors.E004, "解密操作被取消", err, false)
+	}
+
 	if !v.IsEncrypted(encrypted) {
 		return encrypted, nil
 	}
@@ -200,6 +229,10 @@ func (v *Vault) Decrypt(encrypted string) (string, *errors.SecfgError) {
 
 	var lastErr *errors.SecfgError
 	for keyID, key := range v.keyStore.Keys {
+		if err := ctx.Err(); err != nil {
+			return "", errors.NewWithMessage(errors.E004, "解密操作被取消", err, false)
+		}
+
 		block, stdErr := aes.NewCipher(key)
 		if stdErr != nil {
 			lastErr = errors.New(errors.E004, stdErr, false)

@@ -3,7 +3,7 @@ package com.insurance.claim.service;
 import com.insurance.claim.entity.Claim;
 import com.insurance.claim.entity.Policy;
 import com.insurance.claim.entity.Survey;
-import com.insurance.claim.mapper.ClaimMapper;
+import com.insurance.claim.mapper.ClaimRepository;
 import com.insurance.claim.mapper.PolicyMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +30,7 @@ public class RiskAssessmentEngine {
     @Value("${claim.fraud.suspicious-score-threshold:70}")
     private Integer suspiciousScoreThreshold;
 
-    private final ClaimMapper claimMapper;
+    private final ClaimRepository claimMapper;
     private final PolicyMapper policyMapper;
 
     public RiskAssessmentResult assessClaimRisk(Claim claim, Policy policy) {
@@ -63,7 +63,7 @@ public class RiskAssessmentEngine {
         RiskFactor factor = new RiskFactor("claim_frequency", "报案频率", 0, "正常");
 
         if (claim.getReporterIdCard() != null) {
-            int recentClaims = claimMapper.countClaimsByIdCardAndDays(
+            int recentClaims = claimRepository.countClaimsByIdCardAndDays(
                     claim.getReporterIdCard(), highFrequencyDays);
 
             if (recentClaims >= highFrequencyCount * 2) {

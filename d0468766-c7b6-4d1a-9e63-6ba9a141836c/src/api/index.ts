@@ -75,11 +75,26 @@ export const scheduleApi = {
     schedules.push(newItem)
     return delay(newItem, 400)
   },
-  detectConflict: (item: { hallId: string; date: string; startTime: string; endTime: string }): Promise<{ conflict: boolean; reason: string }> => {
+  detectConflict: (item: { hallId: string; date: string; startTime: string; endTime: string; cleaningMinutes?: number }): Promise<{ conflict: boolean; reason: string }> => {
+    function toMin(t: string) {
+      const [h, m] = t.split(':').map(Number)
+      return h * 60 + m
+    }
+    const cleaning = item.cleaningMinutes ?? 15
+    const start = toMin(item.startTime) - cleaning
+    const end = toMin(item.endTime) + cleaning
     const hit = schedules.find(
-      (s) => s.hallId === item.hallId && s.date === item.date && !(item.endTime <= s.startTime || item.startTime >= s.endTime)
+      (s) => s.hallId === item.hallId && s.date === item.date && !(end <= toMin(s.startTime) || start >= toMin(s.endTime))
     )
-    return delay({ conflict: !!hit, reason: hit ? `${hit.hallName} 该时段已有《${hit.movieName}》${hit.startTime}-${hit.endTime}场次` : '' }, 200)
+    if (hit) {
+      const overlap = Math.min(toMin(item.endTime), toMin(hit.endTime)) - Math.max(toMin(item.startTime), toMin(hit.startTime))
+      const isCleaningConflict = overlap <= 0
+      const reason = isCleaningConflict
+        ? `${hit.hallName} 清洁间隔冲突：《${hit.movieName}》${hit.startTime}-${hit.endTime}结束后需预留${cleaning}分钟清洁时间`
+        : `${hit.hallName} 该时段已有《${hit.movieName}》${hit.startTime}-${hit.endTime}场次`
+      return delay({ conflict: true, reason }, 200)
+    }
+    return delay({ conflict: false, reason: '' }, 200)
   }
 }
 

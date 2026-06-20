@@ -1,0 +1,17 @@
+doctrine_mongodb:
+    connections:
+        default:
+            server: '%env(resolve:DATABASE_URL)%'
+            options:
+                connectTimeoutMS: 3000
+                socketTimeoutMS: 30000
+    default_database: '%env(MONGODB_DB)%'
+    document_managers:
+        default:
+            auto_mapping: true
+            mappings:
+                App:
+                    is_bundle: false
+                    dir: '%kernel.project_dir%/src/Document'
+                    prefix: 'App\Document'
+                    alias: App

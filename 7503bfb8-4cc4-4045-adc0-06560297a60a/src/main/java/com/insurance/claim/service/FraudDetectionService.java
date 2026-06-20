@@ -4,7 +4,7 @@ import com.insurance.claim.entity.Claim;
 import com.insurance.claim.entity.Policy;
 import com.insurance.claim.entity.Survey;
 import com.insurance.claim.enums.ClaimStatus;
-import com.insurance.claim.mapper.ClaimMapper;
+import com.insurance.claim.mapper.ClaimRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -17,7 +17,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class FraudDetectionService {
 
-    private final ClaimMapper claimMapper;
+    private final ClaimRepository claimMapper;
     private final RiskAssessmentEngine riskAssessmentEngine;
     private final PolicyService policyService;
 
@@ -38,7 +38,7 @@ public class FraudDetectionService {
     public void detectFraudOnSurvey(Survey survey) {
         log.info("开始欺诈检测: 查勘阶段 - 查勘记录{}", survey.getId());
 
-        Claim claim = claimMapper.selectById(survey.getClaimId());
+        Claim claim = claimRepository.selectById(survey.getClaimId());
         RiskAssessmentEngine.RiskAssessmentResult result = riskAssessmentEngine.assessSurveyRisk(survey, claim);
         if (claim != null) {
             int combinedScore = (claim.getFraudScore() != null ? claim.getFraudScore() : 0)
@@ -47,7 +47,7 @@ public class FraudDetectionService {
 
             String combinedFlags = mergeFlags(claim.getFraudFlags(), result.getFraudFlags());
 
-            claimMapper.updateFraudInfo(claim.getId(), combinedScore, combinedFlags, combinedSuspicious);
+            claimRepository.updateFraudInfo(claim.getId(), combinedScore, combinedFlags, combinedSuspicious);
 
             if (combinedSuspicious && !Boolean.TRUE.equals(claim.getFraudSuspicious())) {
                 log.warn("查勘后确认高欺诈风险: 案件{}, 综合得分{}", claim.getClaimNo(), combinedScore);
@@ -59,7 +59,7 @@ public class FraudDetectionService {
     public void detectFraudOnAssessment(Long claimId) {
         log.info("开始欺诈检测: 定损阶段 - 案件{}", claimId);
 
-        Claim claim = claimMapper.selectById(claimId);
+        Claim claim = claimRepository.selectById(claimId);
         if (claim == null) {
             return;
         }
@@ -87,7 +87,7 @@ public class FraudDetectionService {
             String combinedFlags = mergeFlags(claim.getFraudFlags(), String.join(",", newFlags));
             boolean combinedSuspicious = combinedScore >= riskAssessmentEngine.getSuspiciousScoreThreshold();
 
-            claimMapper.updateFraudInfo(claimId, combinedScore, combinedFlags, combinedSuspicious);
+            claimRepository.updateFraudInfo(claimId, combinedScore, combinedFlags, combinedSuspicious);
 
             if (combinedSuspicious) {
                 handleSuspiciousClaim(claimId, combinedScore, combinedFlags);
@@ -98,7 +98,7 @@ public class FraudDetectionService {
     public void detectFraudOnReview(Long claimId) {
         log.info("开始欺诈检测: 核赔阶段 - 案件{}", claimId);
 
-        Claim claim = claimMapper.selectById(claimId);
+        Claim claim = claimRepository.selectById(claimId);
         if (claim == null) {
             return;
         }
@@ -110,7 +110,7 @@ public class FraudDetectionService {
             String combinedFlags = mergeFlags(claim.getFraudFlags(), String.join(",", patternFlags));
             boolean combinedSuspicious = combinedScore >= riskAssessmentEngine.getSuspiciousScoreThreshold();
 
-            claimMapper.updateFraudInfo(claimId, combinedScore, combinedFlags, combinedSuspicious);
+            claimRepository.updateFraudInfo(claimId, combinedScore, combinedFlags, combinedSuspicious);
 
             if (combinedSuspicious) {
                 log.warn("核赔阶段检测到欺诈模式: 案件{}, 模式: {}", claimId, patternFlags);
@@ -123,14 +123,14 @@ public class FraudDetectionService {
         List<String> patterns = new ArrayList<>();
 
         if (claim.getReporterIdCard() != null) {
-            int recentClaims = claimMapper.countClaimsByIdCardAndDays(claim.getReporterIdCard(), 90);
+            int recentClaims = claimRepository.countClaimsByIdCardAndDays(claim.getReporterIdCard(), 90);
             if (recentClaims >= 5) {
                 patterns.add("serial_claimant");
             }
         }
 
         if (claim.getPolicyNo() != null) {
-            List<Claim> policyClaims = claimMapper.selectByPolicyNo(claim.getPolicyNo());
+            List<Claim> policyClaims = claimRepository.selectByPolicyNo(claim.getPolicyNo());
             if (policyClaims.size() >= 3) {
                 patterns.add("high_frequency_policy");
             }
@@ -152,9 +152,9 @@ public class FraudDetectionService {
 
     private void handleSuspiciousClaim(Long claimId, int score, String flags) {
         try {
-            Claim claim = claimMapper.selectById(claimId);
+            Claim claim = claimRepository.selectById(claimId);
             if (claim != null && claim.getStatus() != ClaimStatus.FRAUD_SUSPICIOUS) {
-                claimMapper.updateStatus(claimId, ClaimStatus.FRAUD_SUSPICIOUS.getCode(), claim.getVersion());
+                claimRepository.updateStatus(claimId, ClaimStatus.FRAUD_SUSPICIOUS.getCode(), claim.getVersion());
                 log.info("案件已标记为欺诈可疑并转入人工复核: {}", claim.getClaimNo());
             }
         } catch (Exception e) {
@@ -163,7 +163,7 @@ public class FraudDetectionService {
     }
 
     private void updateClaimFraudInfo(Long claimId, RiskAssessmentEngine.RiskAssessmentResult result) {
-        claimMapper.updateFraudInfo(claimId, result.getTotalScore(), result.getFraudFlags(), result.isSuspicious());
+        claimRepository.updateFraudInfo(claimId, result.getTotalScore(), result.getFraudFlags(), result.isSuspicious());
     }
 
     private String mergeFlags(String existingFlags, String newFlags) {
@@ -178,12 +178,12 @@ public class FraudDetectionService {
     }
 
     public boolean isClaimSuspicious(Long claimId) {
-        Claim claim = claimMapper.selectById(claimId);
+        Claim claim = claimRepository.selectById(claimId);
         return claim != null && Boolean.TRUE.equals(claim.getFraudSuspicious());
     }
 
     public int getFraudScore(Long claimId) {
-        Claim claim = claimMapper.selectById(claimId);
+        Claim claim = claimRepository.selectById(claimId);
         return claim != null && claim.getFraudScore() != null ? claim.getFraudScore() : 0;
     }
 }

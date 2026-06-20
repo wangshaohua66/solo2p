@@ -173,11 +173,39 @@ async function run(argv) {
           status: 'success',
           profile: ctx.profile.name,
           message: `证书将在 ${c.daysRemaining} 天后到期 (${crypto.TIER_LABEL[c.tier]})`,
-          metadata: { tier: c.tier, daysRemaining: c.daysRemaining, notAfter: c.notAfter, handled: false }
+          metadata: { tier: c.tier, daysRemaining: c.daysRemaining, notAfter: c.notAfter, fingerprint: c.fingerprint, handled: false }
         });
       }
     } else {
       logger.info('无紧急证书，跳过告警推送');
+    }
+  }
+
+  if (argv.ack) {
+    const alertItems = certs.filter((c) => c.tier !== 'ok');
+    let handled = 0;
+    for (const c of alertItems) {
+      const unhandled = ctx.store.queryAudit({
+        action: 'cert-alert',
+        profile: ctx.profile.name
+      }).filter((r) => {
+        if (r.metadata && r.metadata.handled) return false;
+        if (c.fingerprint && r.metadata && r.metadata.fingerprint === c.fingerprint) return true;
+        if (r.secretPath === c.source) return true;
+        if (c.cn && r.secretName === c.cn) return true;
+        return false;
+      });
+      for (const rec of unhandled) {
+        ctx.store.updateAuditRecord(rec.id, {
+          metadata: { handled: true, handledAt: new Date().toISOString() }
+        });
+        handled += 1;
+      }
+    }
+    if (handled > 0) {
+      logger.success(`已确认处理 ${handled} 条证书告警`);
+    } else {
+      logger.info('没有待处理的证书告警');
     }
   }
 
@@ -191,6 +219,7 @@ module.exports = {
     .positional('paths', { type: 'string', describe: '证书文件或目录' })
     .option('critical', { type: 'boolean', default: false, describe: '仅输出紧急过期证书 (<=7天或已过期)' })
     .option('notify', { type: 'boolean', default: false, describe: '推送告警到钉钉/企业微信 webhook' })
+    .option('ack', { type: 'boolean', default: false, describe: '确认处理匹配的证书告警，标记为已处理' })
     .option('format', { type: 'string', choices: ['table', 'json'], describe: '输出格式' }),
   handler: async (argv) => {
     try {

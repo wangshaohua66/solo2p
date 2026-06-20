@@ -42,8 +42,14 @@ const (
 	CodeAppointmentFull   = 30001
 	CodeAppointmentBlacklist = 30002
 
-	CodeReferBase       = 40000
-	CodeReferTempAlert  = 40001
+	CodeReferBase           = 40000
+	CodeReferNotFound       = 40001
+	CodeReferCodeDuplicate  = 40002
+	CodeReferBlacklisted    = 40003
+	CodeReferCreditExceeded = 40004
+	CodeBookingNotFound     = 40005
+	CodeBookingNoDuplicate  = 40006
+	CodeBookingStatusInvalid = 40007
 
 	CodeDangerousBase   = 50000
 	CodeDangerousCustomsError = 50001

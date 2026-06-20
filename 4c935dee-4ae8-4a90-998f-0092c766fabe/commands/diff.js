@@ -62,8 +62,10 @@ async function run(argv) {
     const paths = await ctx.vault.listAll('');
     for (const p of paths) stored.push({ path: p, source: 'vault', location: `vault://${ctx.profile.vault.mount}/${p}` });
     vaultOk = true;
+    ctx.store.recordAudit({ action: 'access', secretName: '*', secretPath: '', source: 'vault', status: 'success', profile: ctx.profile.name, message: `差异分析读取 ${paths.length} 个 Vault 密钥` });
   } catch (err) {
     spinner.warn(`Vault 不可用，仅基于本地引用分析: ${err.message}`);
+    ctx.store.recordAudit({ action: 'access', secretName: '*', source: 'vault', status: 'failed', profile: ctx.profile.name, message: `Vault 访问失败: ${err.message}` });
   }
 
   if (includeK8s) {
@@ -73,8 +75,10 @@ async function run(argv) {
         stored.push({ path: `${s.name}`, source: 'k8s', location: `k8s://${s.namespace}/${s.name}`, keys: s.keys });
         for (const k of s.keys) stored.push({ path: `${s.name}/${k}`, source: 'k8s', location: `k8s://${s.namespace}/${s.name}/${k}` });
       }
+      ctx.store.recordAudit({ action: 'access', secretName: '*', secretPath: '', source: 'k8s', status: 'success', profile: ctx.profile.name, message: `差异分析读取 ${secrets.length} 个 K8s Secret` });
     } catch (err) {
       spinner.warn(`K8s 不可用: ${err.message}`);
+      ctx.store.recordAudit({ action: 'access', secretName: '*', source: 'k8s', status: 'failed', profile: ctx.profile.name, message: `K8s 访问失败: ${err.message}` });
     }
   }
 

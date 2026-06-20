@@ -1,0 +1,704 @@
+openapi: 3.0.3
+info:
+  title: 光影院线运营管理平台 API
+  description: |
+    面向区域连锁电影院线（15家影院、120块银幕）的全链路数字化运营系统后端 API。
+    覆盖：智能排片、DCP调度追踪、在线选座购票、会员通兑、卖品进销存、票房数据中心、影厅监控、TMS对接。
+  version: 1.0.0
+  contact:
+    name: 光影院线技术团队
+    email: tech@guangying-cinema.com
+  license:
+    name: Proprietary
+servers:
+  - url: https://api.guangying-cinema.com/v1
+    description: 生产环境
+  - url: https://staging-api.guangying-cinema.com/v1
+    description: 预发环境
+  - url: http://localhost:8000/v1
+    description: 本地开发
+tags:
+  - name: Dashboard
+    description: 运营驾驶舱 - 全局指标与告警
+  - name: Movie
+    description: 影片与影厅管理
+  - name: Schedule
+    description: 智能排片 - 场次、冲突检测、权重计算
+  - name: Booking
+    description: 在线选座购票 - 座位、订单、电子票
+  - name: DCP
+    description: DCP 拷贝调度追踪
+  - name: Member
+    description: 会员体系 - 用户、积分、券
+  - name: Concession
+    description: 卖品进销存 - SKU、库存、单据
+  - name: Monitor
+    description: 影厅状态监控
+  - name: Auth
+    description: 鉴权与角色
+  - name: TMS
+    description: TMS 影院管理系统对接
+  - name: WebSocket
+    description: 座位实时锁定 WebSocket 协议
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  schemas:
+    UserRole:
+      type: string
+      enum: [management, cinema_manager, scheduler, cashier, concession_staff]
+      description: |
+        五类角色：
+        - management: 院线管理层（全部8模块权限）
+        - cinema_manager: 影院经理（除排片外7模块）
+        - scheduler: 排片员（排片/DCP/数据分析）
+        - cashier: 售票员（选座/会员）
+        - concession_staff: 卖品员（仅卖品）
+
+    Cinema:
+      type: object
+      required: [id, name, address, halls, screens, manager, status]
+      properties:
+        id:
+          type: string
+          example: C01
+        name:
+          type: string
+          example: 光影·王府井旗舰店
+        address:
+          type: string
+          example: 东城区王府井大街88号
+        phone:
+          type: string
+          example: 010-88000000
+        businessHours:
+          type: string
+          example: 10:00 - 24:00
+        images:
+          type: array
+          items: { type: string }
+        halls:
+          type: integer
+        screens:
+          type: integer
+        manager:
+          type: string
+        status:
+          type: string
+          enum: [open, maintenance, closed]
+        todayBoxOffice:
+          type: integer
+        todayAudience:
+          type: integer
+
+    Movie:
+      type: object
+      required: [id, name, duration, genre, releaseDate, rating, boxOffice, status]
+      properties:
+        id: { type: string, example: M01 }
+        name: { type: string, example: 银河孤舟 }
+        poster: { type: string }
+        duration: { type: integer, example: 142 }
+        genre: { type: string, example: 科幻/冒险 }
+        releaseDate: { type: string, format: date }
+        rating: { type: number, example: 9.2 }
+        boxOffice: { type: integer, description: 单位：元 }
+        dcpCount: { type: integer }
+        status: { type: string, enum: [热映, 即将上映, 点映, 下映] }
+        schedulingWeight: { type: number, description: 排片权重 0-10，基于历史票房×0.45 + 评分×0.3 + 时长×0.25 }
+
+    ScheduleItem:
+      type: object
+      required: [id, movieId, hallId, date, startTime, endTime, price, seatsTotal, seatsSold]
+      properties:
+        id: { type: string }
+        movieId: { type: string }
+        movieName: { type: string }
+        cinemaId: { type: string }
+        cinemaName: { type: string }
+        hallId: { type: string }
+        hallName: { type: string }
+        date: { type: string, format: date }
+        startTime: { type: string, pattern: '^\d{2}:\d{2}$' }
+        endTime: { type: string, pattern: '^\d{2}:\d{2}$' }
+        price: { type: integer }
+        seatsTotal: { type: integer }
+        seatsSold: { type: integer }
+        status: { type: string, enum: [planned, on_sale, sold_out, finished] }
+        weight: { type: number }
+
+    BookingOrder:
+      type: object
+      required: [id, scheduleId, seats, totalAmount, status, createdAt]
+      properties:
+        id: { type: string }
+        scheduleId: { type: string }
+        memberId: { type: string }
+        seats:
+          type: array
+          items:
+            type: object
+            properties:
+              row: { type: integer }
+              col: { type: integer }
+              seatId: { type: string }
+        concessionItems:
+          type: array
+          items:
+            type: object
+            properties:
+              skuId: { type: string }
+              quantity: { type: integer }
+        totalAmount: { type: integer }
+        paidAmount: { type: integer }
+        pointsUsed: { type: integer }
+        status: { type: string, enum: [pending, paid, cancelled, refunded] }
+        qrCode: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    ConcessionSku:
+      type: object
+      required: [id, name, category, stock, costPrice, salePrice, status]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        category: { type: string, enum: [饮品, 爆米花, 零食, 周边, 套餐] }
+        cinemaId: { type: string }
+        cinemaName: { type: string }
+        stock: { type: integer }
+        minStock: { type: integer }
+        unit: { type: string }
+        costPrice: { type: integer }
+        salePrice: { type: integer }
+        monthSales: { type: integer }
+        status: { type: string, enum: [healthy, low, out, overstock] }
+
+    Error:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details: { type: object }
+
+  responses:
+    BadRequest:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: 未授权
+    Forbidden:
+      description: 角色权限不足
+    NotFound:
+      description: 资源不存在
+    Conflict:
+      description: 资源冲突（排片冲突、座位已锁定等）
+
+security:
+  - BearerAuth: []
+
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: 用户登录（支持5类角色）
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  userId: { type: string }
+                  role: { $ref: '#/components/schemas/UserRole' }
+                  name: { type: string }
+                  allowedRoutes: { type: array, items: { type: string } }
+                  expiresIn: { type: integer, description: 秒 }
+
+  /auth/switch-role:
+    post:
+      tags: [Auth]
+      summary: 切换当前用户角色（用于多角色用户）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role: { $ref: '#/components/schemas/UserRole' }
+      responses:
+        '200':
+          description: 切换成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  role: { $ref: '#/components/schemas/UserRole' }
+                  allowedRoutes: { type: array, items: { type: string } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /dashboard/metrics:
+    get:
+      tags: [Dashboard]
+      summary: 获取驾驶舱核心指标
+      parameters:
+        - in: query
+          name: range
+          schema: { type: string, enum: [today, week, month] }
+          default: today
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  todayBoxOffice: { type: integer }
+                  todayAudience: { type: integer }
+                  avgPerShow: { type: integer }
+                  occupancy: { type: number }
+                  boxOfficeTrend:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        date: { type: string }
+                        value: { type: integer }
+
+  /dashboard/cinemas:
+    get:
+      tags: [Dashboard]
+      summary: 获取影院列表
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Cinema' }
+
+  /dashboard/alerts:
+    get:
+      tags: [Dashboard]
+      summary: 获取告警列表
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: string }
+                    type: { type: string, enum: [schedule, inventory, device, dcp] }
+                    level: { type: string, enum: [danger, warning, info] }
+                    title: { type: string }
+                    desc: { type: string }
+                    time: { type: string }
+
+  /movies:
+    get:
+      tags: [Movie]
+      summary: 影片列表
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string, enum: [热映, 即将上映, 点映] }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Movie' }
+
+  /movies/{id}/scheduling-weight:
+    get:
+      tags: [Movie]
+      summary: 计算影片排片权重（基于历史票房×0.45 + 评分×0.3 + 时长×0.25）
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  movieId: { type: string }
+                  weight: { type: number }
+                  boxOfficeScore: { type: number }
+                  ratingScore: { type: number }
+                  durationScore: { type: number }
+
+  /halls:
+    get:
+      tags: [Movie]
+      summary: 影厅列表
+      parameters:
+        - in: query
+          name: cinemaId
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: string }
+                    cinemaId: { type: string }
+                    cinemaName: { type: string }
+                    name: { type: string }
+                    capacity: { type: integer }
+                    rows: { type: integer }
+                    cols: { type: integer }
+                    type: { type: string, enum: [IMAX, CGS, 杜比, 激光, 标准] }
+
+  /schedules:
+    get:
+      tags: [Schedule]
+      summary: 查询排片列表
+      parameters:
+        - in: query
+          name: cinemaId
+          schema: { type: string }
+        - in: query
+          name: date
+          schema: { type: string, format: date }
+        - in: query
+          name: hallId
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ScheduleItem' }
+    post:
+      tags: [Schedule]
+      summary: 新建排片（自动检测冲突，含清洁间隔buffer）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleItem'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScheduleItem' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /schedules/{id}:
+    put:
+      tags: [Schedule]
+      summary: 更新排片
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ScheduleItem' }
+      responses:
+        '200':
+          description: OK
+    delete:
+      tags: [Schedule]
+      summary: 删除排片
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: 删除成功
+
+  /schedules/detect-conflict:
+    post:
+      tags: [Schedule]
+      summary: 检测场次冲突（含清洁间隔，默认15分钟）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [hallId, date, startTime, endTime]
+              properties:
+                hallId: { type: string }
+                date: { type: string, format: date }
+                startTime: { type: string, pattern: '^\d{2}:\d{2}$' }
+                endTime: { type: string, pattern: '^\d{2}:\d{2}$' }
+                cleaningMinutes: { type: integer, default: 15, description: 清洁间隔buffer }
+                excludeScheduleId: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conflict: { type: boolean }
+                  reason: { type: string }
+                  conflictSchedule: { $ref: '#/components/schemas/ScheduleItem' }
+
+  /schedules/{id}/seats:
+    get:
+      tags: [Booking]
+      summary: 获取场次座位图（含实时锁定/售出状态）
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scheduleId: { type: string }
+                  rows: { type: integer }
+                  cols: { type: integer }
+                  seats:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        row: { type: integer }
+                        col: { type: integer }
+                        status: { type: string, enum: [available, locked, sold] }
+                        lockedBy: { type: string }
+                        lockedUntil: { type: string, format: date-time }
+
+  /bookings:
+    post:
+      tags: [Booking]
+      summary: 创建订单（选座锁定后下单）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookingOrder' }
+      responses:
+        '201':
+          description: 创建成功
+    get:
+      tags: [Booking]
+      summary: 查询订单列表
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: memberId
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+
+  /bookings/{id}/pay:
+    post:
+      tags: [Booking]
+      summary: 订单支付（确认座位售出）
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [payMethod]
+              properties:
+                payMethod: { type: string, enum: [wechat, alipay, card, points] }
+                amount: { type: integer }
+                pointsUsed: { type: integer }
+      responses:
+        '200':
+          description: 支付成功
+
+  /dcp/copies:
+    get:
+      tags: [DCP]
+      summary: DCP拷贝列表
+      responses:
+        '200':
+          description: OK
+
+  /dcp/dispatches:
+    get:
+      tags: [DCP]
+      summary: DCP调度记录
+    post:
+      tags: [DCP]
+      summary: 新建DCP调度
+
+  /members:
+    get:
+      tags: [Member]
+      summary: 会员列表
+    post:
+      tags: [Member]
+      summary: 新增会员
+
+  /members/{id}:
+    get:
+      tags: [Member]
+      summary: 会员详情（含积分、券、消费记录）
+    put:
+      tags: [Member]
+      summary: 更新会员信息
+
+  /members/{id}/coupons:
+    get:
+      tags: [Member]
+      summary: 会员券包
+    post:
+      tags: [Member]
+      summary: 发券（赠券/促销券）
+
+  /concession/skus:
+    get:
+      tags: [Concession]
+      summary: 卖品SKU列表（含库存状态）
+    post:
+      tags: [Concession]
+      summary: 新增SKU
+
+  /concession/skus/{id}:
+    put:
+      tags: [Concession]
+      summary: 更新SKU（含库存调整）
+
+  /concession/low-stock:
+    get:
+      tags: [Concession]
+      summary: 查询低库存SKU（自动补货提醒源）
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    skuId: { type: string }
+                    skuName: { type: string }
+                    cinemaName: { type: string }
+                    currentStock: { type: integer }
+                    minStock: { type: integer }
+                    suggestedReorderQty: { type: integer }
+
+  /concession/docs:
+    get:
+      tags: [Concession]
+      summary: 出入库单据
+    post:
+      tags: [Concession]
+      summary: 新建出入库单据
+
+  /monitor/halls:
+    get:
+      tags: [Monitor]
+      summary: 影厅实时状态监控（含场次进度、设备状态）
+      responses:
+        '200':
+          description: OK
+
+  /tms/devices:
+    get:
+      tags: [TMS]
+      summary: TMS设备状态列表（对接GDC/巴可/辰星等TMS）
+      responses:
+        '200':
+          description: OK
+  /tms/kdm:
+    get:
+      tags: [TMS]
+      summary: KDM密钥列表（含到期提醒）
+  /tms/alarms:
+    get:
+      tags: [TMS]
+      summary: TMS设备告警
+  /tms/sessions:
+    get:
+      tags: [TMS]
+      summary: TMS场次放映进度
+
+  /ws/seats:
+    get:
+      tags: [WebSocket]
+      summary: WebSocket 座位实时锁定协议
+      description: |
+        连接地址：ws://host/ws/seats?scheduleId=xxx&uid=yyy
+        客户端→服务端消息：
+          - subscribe: { type: 'subscribe', payload: { scheduleId } }
+          - seat.lock: { type: 'seat.lock', payload: { scheduleId, row, col, seatId, userId, ttl } }
+          - seat.unlock: { type: 'seat.unlock', payload: { scheduleId, seatId, userId } }
+          - seat.confirm: { type: 'seat.confirm', payload: { scheduleId, seatId, userId, orderId } }
+          - ping
+        服务端→客户端消息：
+          - welcome / pong
+          - seat.locked / seat.unlocked / seat.sold
+          - lock.result { success, reason }
+      responses:
+        '101':
+          description: WebSocket 协议切换成功

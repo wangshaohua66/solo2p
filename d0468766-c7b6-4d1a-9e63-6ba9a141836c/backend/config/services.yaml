@@ -1,0 +1,57 @@
+parameters:
+    env(JWT_SECRET): 'guangying-jwt-secret-key-change-in-production'
+    env(JWT_TTL): '86400'
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        public: false
+
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/DependencyInjection/'
+            - '../src/Document/'
+            - '../src/Entity/'
+            - '../src/Kernel.php'
+
+    App\Controller\AbstractApiController:
+        abstract: true
+        calls:
+            - [setContainer, ['@service_container']]
+
+    App\Controller\AuthController:
+        arguments:
+            $jwtSecret: '%env(JWT_SECRET)%'
+            $jwtTtl: '%env(int:JWT_TTL)%'
+        tags: ['controller.service_arguments']
+
+    App\Controller\DashboardController:
+        tags: ['controller.service_arguments']
+
+    App\Controller\ScheduleController:
+        tags: ['controller.service_arguments']
+
+    App\Controller\BookingController:
+        tags: ['controller.service_arguments']
+
+    App\Controller\MovieController:
+        tags: ['controller.service_arguments']
+
+    App\Controller\MemberController:
+        tags: ['controller.service_arguments']
+
+    App\Controller\ConcessionController:
+        tags: ['controller.service_arguments']
+
+    App\Controller\DcpController:
+        tags: ['controller.service_arguments']
+
+    App\Controller\MonitorController:
+        tags: ['controller.service_arguments']
+
+    App\Service\ScheduleConflictService: ~
+    App\Service\SchedulingWeightService: ~
+    App\Service\SeatLockingService: ~
+    App\Service\TmsIntegrationService: ~

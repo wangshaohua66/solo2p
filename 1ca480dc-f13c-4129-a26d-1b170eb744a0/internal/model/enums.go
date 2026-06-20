@@ -111,3 +111,12 @@ const (
 	DangerousClass8 DangerousClass = "CLASS_8"
 	DangerousClass9 DangerousClass = "CLASS_9"
 )
+
+type ReshufflePriority string
+
+const (
+	ReshufflePriorityLow      ReshufflePriority = "LOW"
+	ReshufflePriorityMedium   ReshufflePriority = "MEDIUM"
+	ReshufflePriorityHigh     ReshufflePriority = "HIGH"
+	ReshufflePriorityCritical ReshufflePriority = "CRITICAL"
+)

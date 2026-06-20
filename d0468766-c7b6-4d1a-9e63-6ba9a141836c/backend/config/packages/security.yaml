@@ -1,0 +1,26 @@
+security:
+    enable_authenticator_manager: true
+    password_hashers:
+        App\Document\User:
+            algorithm: auto
+
+    providers:
+        app_user_provider:
+            id: App\Security\UserProvider
+
+    firewalls:
+        dev:
+            pattern: ^/(_(profiler|wdt)|css|images|js)/
+            security: false
+
+        api:
+            pattern: ^/api/
+            stateless: true
+            lazy: true
+            provider: app_user_provider
+            custom_authenticators:
+                - App\Security\JwtAuthenticator
+
+    access_control:
+        - { path: ^/api/auth/(login|roles)$, roles: PUBLIC_ACCESS }
+        - { path: ^/api/, roles: ROLE_USER }

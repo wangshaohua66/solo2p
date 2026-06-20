@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.insurance.claim.mapper.ClaimRepository">
+
+    <resultMap id="BaseResultMap" type="com.insurance.claim.entity.Claim">
+        <id column="id" property="id"/>
+        <result column="claim_no" property="claimNo"/>
+        <result column="policy_no" property="policyNo"/>
+        <result column="insurance_type" property="insuranceType" typeHandler="com.insurance.claim.enums.handler.InsuranceTypeHandler"/>
+        <result column="status" property="status" typeHandler="com.insurance.claim.enums.handler.ClaimStatusHandler"/>
+        <result column="accident_time" property="accidentTime"/>
+        <result column="accident_location" property="accidentLocation"/>
+        <result column="accident_province" property="accidentProvince"/>
+        <result column="accident_city" property="accidentCity"/>
+        <result column="accident_district" property="accidentDistrict"/>
+        <result column="accident_longitude" property="accidentLongitude"/>
+        <result column="accident_latitude" property="accidentLatitude"/>
+        <result column="accident_description" property="accidentDescription"/>
+        <result column="reporter_name" property="reporterName"/>
+        <result column="reporter_phone" property="reporterPhone"/>
+        <result column="reporter_id_card" property="reporterIdCard"/>
+        <result column="estimated_amount" property="estimatedAmount"/>
+        <result column="total_loss_amount" property="totalLossAmount"/>
+        <result column="deductible_amount" property="deductibleAmount"/>
+        <result column="payable_amount" property="payableAmount"/>
+        <result column="paid_amount" property="paidAmount"/>
+        <result column="liability_ratio" property="liabilityRatio"/>
+        <result column="accident_count" property="accidentCount"/>
+        <result column="floating_coefficient" property="floatingCoefficient"/>
+        <result column="surveyor_id" property="surveyorId"/>
+        <result column="surveyor_name" property="surveyorName"/>
+        <result column="assessor_id" property="assessorId"/>
+        <result column="assessor_name" property="assessorName"/>
+        <result column="reviewer_id" property="reviewerId"/>
+        <result column="reviewer_name" property="reviewerName"/>
+        <result column="finance_id" property="financeId"/>
+        <result column="finance_name" property="financeName"/>
+        <result column="fraud_score" property="fraudScore"/>
+        <result column="fraud_flags" property="fraudFlags"/>
+        <result column="fraud_suspicious" property="fraudSuspicious"/>
+        <result column="review_comments" property="reviewComments"/>
+        <result column="reject_reason" property="rejectReason"/>
+        <result column="reported_at" property="reportedAt"/>
+        <result column="survey_assigned_at" property="surveyAssignedAt"/>
+        <result column="survey_completed_at" property="surveyCompletedAt"/>
+        <result column="assessment_completed_at" property="assessmentCompletedAt"/>
+        <result column="review_completed_at" property="reviewCompletedAt"/>
+        <result column="calculation_completed_at" property="calculationCompletedAt"/>
+        <result column="payment_completed_at" property="paymentCompletedAt"/>
+        <result column="closed_at" property="closedAt"/>
+        <result column="remark" property="remark"/>
+        <result column="version" property="version"/>
+        <result column="deleted" property="deleted"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, claim_no, policy_no, insurance_type, status, accident_time, accident_location,
+        accident_province, accident_city, accident_district, accident_longitude, accident_latitude,
+        accident_description, reporter_name, reporter_phone, reporter_id_card, estimated_amount,
+        total_loss_amount, deductible_amount, payable_amount, paid_amount, liability_ratio,
+        accident_count, floating_coefficient, surveyor_id, surveyor_name, assessor_id, assessor_name,
+        reviewer_id, reviewer_name, finance_id, finance_name, fraud_score, fraud_flags,
+        fraud_suspicious, review_comments, reject_reason, reported_at, survey_assigned_at,
+        survey_completed_at, assessment_completed_at, review_completed_at, calculation_completed_at,
+        payment_completed_at, closed_at, remark, version, deleted, created_at, updated_at
+    </sql>
+
+    <insert id="insert" parameterType="com.insurance.claim.entity.Claim" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO claim (
+            claim_no, policy_no, insurance_type, status, accident_time, accident_location,
+            accident_province, accident_city, accident_district, accident_longitude, accident_latitude,
+            accident_description, reporter_name, reporter_phone, reporter_id_card, estimated_amount,
+            liability_ratio, fraud_score, fraud_flags, fraud_suspicious, reported_at,
+            remark, version, deleted, created_at, updated_at
+        ) VALUES (
+            #{claimNo}, #{policyNo}, #{insuranceType, typeHandler=com.insurance.claim.enums.handler.InsuranceTypeHandler},
+            #{status, typeHandler=com.insurance.claim.enums.handler.ClaimStatusHandler},
+            #{accidentTime}, #{accidentLocation}, #{accidentProvince}, #{accidentCity},
+            #{accidentDistrict}, #{accidentLongitude}, #{accidentLatitude}, #{accidentDescription},
+            #{reporterName}, #{reporterPhone}, #{reporterIdCard}, #{estimatedAmount},
+            #{liabilityRatio}, #{fraudScore}, #{fraudFlags}, #{fraudSuspicious},
+            #{reportedAt}, #{remark}, 0, 0, NOW(), NOW()
+        )
+    </insert>
+
+    <update id="updateById" parameterType="com.insurance.claim.entity.Claim">
+        UPDATE claim
+        <set>
+            <if test="status != null">status = #{status, typeHandler=com.insurance.claim.enums.handler.ClaimStatusHandler},</if>
+            <if test="totalLossAmount != null">total_loss_amount = #{totalLossAmount},</if>
+            <if test="deductibleAmount != null">deductible_amount = #{deductibleAmount},</if>
+            <if test="payableAmount != null">payable_amount = #{payableAmount},</if>
+            <if test="liabilityRatio != null">liability_ratio = #{liabilityRatio},</if>
+            <if test="accidentCount != null">accident_count = #{accidentCount},</if>
+            <if test="floatingCoefficient != null">floating_coefficient = #{floatingCoefficient},</if>
+            <if test="surveyorId != null">surveyor_id = #{surveyorId},</if>
+            <if test="surveyorName != null">surveyor_name = #{surveyorName},</if>
+            <if test="assessorId != null">assessor_id = #{assessorId},</if>
+            <if test="assessorName != null">assessor_name = #{assessorName},</if>
+            <if test="reviewerId != null">reviewer_id = #{reviewerId},</if>
+            <if test="reviewerName != null">reviewer_name = #{reviewerName},</if>
+            <if test="financeId != null">finance_id = #{financeId},</if>
+            <if test="financeName != null">finance_name = #{financeName},</if>
+            <if test="fraudScore != null">fraud_score = #{fraudScore},</if>
+            <if test="fraudFlags != null">fraud_flags = #{fraudFlags},</if>
+            <if test="fraudSuspicious != null">fraud_suspicious = #{fraudSuspicious},</if>
+            <if test="reviewComments != null">review_comments = #{reviewComments},</if>
+            <if test="rejectReason != null">reject_reason = #{rejectReason},</if>
+            <if test="surveyAssignedAt != null">survey_assigned_at = #{surveyAssignedAt},</if>
+            <if test="surveyCompletedAt != null">survey_completed_at = #{surveyCompletedAt},</if>
+            <if test="assessmentCompletedAt != null">assessment_completed_at = #{assessmentCompletedAt},</if>
+            <if test="reviewCompletedAt != null">review_completed_at = #{reviewCompletedAt},</if>
+            <if test="calculationCompletedAt != null">calculation_completed_at = #{calculationCompletedAt},</if>
+            <if test="paymentCompletedAt != null">payment_completed_at = #{paymentCompletedAt},</if>
+            <if test="closedAt != null">closed_at = #{closedAt},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            version = version + 1,
+            updated_at = NOW()
+        </set>
+        WHERE id = #{id} AND version = #{version} AND deleted = 0
+    </update>
+
+    <update id="updateStatus">
+        UPDATE claim
+        SET status = #{status}, version = version + 1, updated_at = NOW()
+        WHERE id = #{id} AND version = #{version} AND deleted = 0
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM claim
+        WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="selectByClaimNo" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM claim
+        WHERE claim_no = #{claimNo} AND deleted = 0
+    </select>
+
+    <select id="selectList" parameterType="com.insurance.claim.dto.request.ClaimQueryRequest" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM claim
+        <where>
+            deleted = 0
+            <if test="claimNo != null and claimNo != ''">AND claim_no = #{claimNo}</if>
+            <if test="policyNo != null and policyNo != ''">AND policy_no = #{policyNo}</if>
+            <if test="insuranceType != null">AND insurance_type = #{insuranceType}</if>
+            <if test="status != null">AND status = #{status}</if>
+            <if test="reporterName != null and reporterName != ''">AND reporter_name LIKE CONCAT('%', #{reporterName}, '%')</if>
+            <if test="reporterPhone != null and reporterPhone != ''">AND reporter_phone = #{reporterPhone}</if>
+            <if test="accidentProvince != null and accidentProvince != ''">AND accident_province = #{accidentProvince}</if>
+            <if test="accidentCity != null and accidentCity != ''">AND accident_city = #{accidentCity}</if>
+            <if test="fraudSuspicious != null">AND fraud_suspicious = #{fraudSuspicious}</if>
+            <if test="reportStartTime != null">AND reported_at >= #{reportStartTime}</if>
+            <if test="reportEndTime != null">AND reported_at &lt;= #{reportEndTime}</if>
+            <if test="accidentStartTime != null">AND accident_time >= #{accidentStartTime}</if>
+            <if test="accidentEndTime != null">AND accident_time &lt;= #{accidentEndTime}</if>
+            <if test="surveyorId != null">AND surveyor_id = #{surveyorId}</if>
+            <if test="assessorId != null">AND assessor_id = #{assessorId}</if>
+            <if test="reviewerId != null">AND reviewer_id = #{reviewerId}</if>
+        </where>
+        ORDER BY ${orderBy} ${orderDirection}
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="selectCount" parameterType="com.insurance.claim.dto.request.ClaimQueryRequest" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM claim
+        <where>
+            deleted = 0
+            <if test="claimNo != null and claimNo != ''">AND claim_no = #{claimNo}</if>
+            <if test="policyNo != null and policyNo != ''">AND policy_no = #{policyNo}</if>
+            <if test="insuranceType != null">AND insurance_type = #{insuranceType}</if>
+            <if test="status != null">AND status = #{status}</if>
+            <if test="reporterName != null and reporterName != ''">AND reporter_name LIKE CONCAT('%', #{reporterName}, '%')</if>
+            <if test="reporterPhone != null and reporterPhone != ''">AND reporter_phone = #{reporterPhone}</if>
+            <if test="fraudSuspicious != null">AND fraud_suspicious = #{fraudSuspicious}</if>
+            <if test="reportStartTime != null">AND reported_at >= #{reportStartTime}</if>
+            <if test="reportEndTime != null">AND reported_at &lt;= #{reportEndTime}</if>
+        </where>
+    </select>
+
+    <select id="selectByPolicyNo" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM claim
+        WHERE policy_no = #{policyNo} AND deleted = 0
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="selectByReporterIdCard" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM claim
+        WHERE reporter_id_card = #{reporterIdCard} AND deleted = 0
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="countClaimsByIdCardAndDays" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM claim
+        WHERE reporter_id_card = #{idCard}
+          AND deleted = 0
+          AND status != 16
+          AND reported_at >= DATE_SUB(NOW(), INTERVAL #{days} DAY)
+    </select>
+
+    <select id="countAccidentByIdCard" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM claim
+        WHERE reporter_id_card = #{idCard}
+          AND deleted = 0
+          AND status IN (14, 15)
+    </select>
+
+    <update id="updateFraudInfo">
+        UPDATE claim
+        SET fraud_score = #{fraudScore},
+            fraud_flags = #{fraudFlags},
+            fraud_suspicious = #{fraudSuspicious},
+            updated_at = NOW()
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="updatePaymentAmount">
+        UPDATE claim
+        SET paid_amount = #{paidAmount},
+            status = #{status},
+            payment_completed_at = IF(status = 14, NOW(), payment_completed_at),
+            updated_at = NOW()
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="closeClaim">
+        UPDATE claim
+        SET status = 15, closed_at = #{closedAt}, updated_at = NOW()
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="cancelClaim">
+        UPDATE claim
+        SET status = 16, remark = #{remark}, updated_at = NOW()
+        WHERE id = #{id} AND deleted = 0
+    </update>
+</mapper>

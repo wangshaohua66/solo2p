@@ -1,0 +1,295 @@
+@use '@/styles/variables.scss' as *;
+
+.container {
+  min-height: 100vh;
+  background: $color-bg-page;
+  padding-bottom: 140rpx;
+}
+
+.header {
+  position: relative;
+  padding: $spacing-lg;
+  background: $gold-gradient-soft;
+  border-bottom: 1px solid $color-border-gold;
+
+  .locationBar {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+    margin-bottom: $spacing-md;
+
+    .city {
+      font-size: $font-size-lg;
+      font-weight: $font-weight-semibold;
+      color: $color-text-gold;
+    }
+    .arrow {
+      font-size: $font-size-sm;
+      color: $color-text-secondary;
+    }
+  }
+
+  .searchBox {
+    display: flex;
+    align-items: center;
+    background: $color-bg-card;
+    border-radius: $radius-button;
+    padding: 0 $spacing-lg;
+    height: $button-height-md;
+    border: 1px solid $color-border;
+    gap: $spacing-sm;
+
+    .icon {
+      color: $color-text-tertiary;
+      font-size: $font-size-md;
+    }
+    .input {
+      flex: 1;
+      color: $color-text-secondary;
+      font-size: $font-size-md;
+    }
+  }
+
+  .promo {
+    margin-top: $spacing-md;
+    border-radius: $radius-lg;
+    background: linear-gradient(135deg, $color-accent 0%, #8b1e30 100%);
+    padding: $spacing-lg;
+    position: relative;
+    overflow: hidden;
+
+    .promoTitle {
+      font-size: $font-size-lg;
+      font-weight: $font-weight-bold;
+      color: $color-text-white;
+      margin-bottom: $spacing-xs;
+    }
+    .promoSub {
+      font-size: $font-size-sm;
+      color: rgba(255, 255, 255, 0.85);
+    }
+    .promoBadge {
+      position: absolute;
+      right: $spacing-lg;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255, 255, 255, 0.9);
+      color: $color-accent;
+      font-weight: $font-weight-bold;
+      padding: $spacing-xs $spacing-md;
+      border-radius: $radius-button;
+      font-size: $font-size-md;
+    }
+  }
+}
+
+.section {
+  padding: $spacing-lg;
+
+  .sectionHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: $spacing-md;
+
+    .sectionTitle {
+      font-size: $font-size-lg;
+      font-weight: $font-weight-semibold;
+      color: $color-text-primary;
+    }
+    .more {
+      font-size: $font-size-sm;
+      color: $color-text-tertiary;
+    }
+  }
+}
+
+.movieRow {
+  display: flex;
+  gap: $spacing-md;
+  overflow-x: scroll;
+  padding-bottom: $spacing-sm;
+  white-space: nowrap;
+
+  .movieCard {
+    @include scroll-x-item(200rpx);
+    background: $color-bg-card;
+    border-radius: $radius-md;
+    overflow: hidden;
+    white-space: normal;
+
+    .poster {
+      width: 200rpx;
+      height: 280rpx;
+      position: relative;
+
+      .posterImg {
+        width: 100%;
+        height: 100%;
+      }
+      .rating {
+        position: absolute;
+        top: $spacing-xs;
+        right: $spacing-xs;
+        background: rgba(0, 0, 0, 0.7);
+        color: $color-text-gold;
+        font-weight: $font-weight-bold;
+        padding: 2rpx $spacing-sm;
+        border-radius: $radius-xs;
+        font-size: $font-size-sm;
+      }
+      .statusTag {
+        position: absolute;
+        bottom: $spacing-xs;
+        left: $spacing-xs;
+        background: $color-primary;
+        color: #1a1a1a;
+        font-weight: $font-weight-semibold;
+        padding: 2rpx $spacing-sm;
+        border-radius: $radius-xs;
+        font-size: $font-size-xs;
+      }
+    }
+    .movieInfo {
+      padding: $spacing-sm;
+      .name {
+        font-size: $font-size-md;
+        font-weight: $font-weight-semibold;
+        color: $color-text-primary;
+        @include text-ellipsis;
+      }
+      .meta {
+        font-size: $font-size-xs;
+        color: $color-text-tertiary;
+        margin-top: $spacing-xs;
+        @include text-ellipsis;
+      }
+    }
+  }
+}
+
+.cinemaList {
+  padding: 0 $spacing-lg $spacing-lg;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.cinemaCard {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  border: 1px solid $color-border;
+  transition: all $transition-base;
+
+  &:active {
+    background: $color-bg-hover;
+    transform: scale(0.99);
+  }
+
+  .cardTop {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+
+    .left {
+      flex: 1;
+      min-width: 0;
+
+      .name {
+        font-size: $font-size-lg;
+        font-weight: $font-weight-semibold;
+        color: $color-text-primary;
+        @include text-ellipsis;
+      }
+      .tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: $spacing-xs;
+        margin-top: $spacing-sm;
+
+        .tag {
+          font-size: $font-size-xs;
+          padding: 2rpx $spacing-sm;
+          border-radius: $radius-xs;
+          background: $color-primary-soft;
+          color: $color-text-gold;
+          white-space: nowrap;
+        }
+      }
+    }
+
+    .right {
+      text-align: right;
+      margin-left: $spacing-md;
+
+      .rating {
+        font-size: $font-size-xl;
+        font-weight: $font-weight-bold;
+        color: $color-text-gold;
+      }
+      .price {
+        margin-top: $spacing-xs;
+        font-size: $font-size-xs;
+        color: $color-text-secondary;
+        .num {
+          color: $color-accent;
+          font-size: $font-size-lg;
+          font-weight: $font-weight-bold;
+        }
+      }
+    }
+  }
+
+  .cardMiddle {
+    margin-top: $spacing-md;
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+
+    .addr {
+      flex: 1;
+      font-size: $font-size-sm;
+      color: $color-text-secondary;
+      @include text-ellipsis;
+    }
+    .distance {
+      font-size: $font-size-sm;
+      color: $color-text-tertiary;
+      white-space: nowrap;
+    }
+  }
+
+  .cardBottom {
+    margin-top: $spacing-md;
+    padding-top: $spacing-md;
+    border-top: 1px solid $color-divider;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .info {
+      font-size: $font-size-xs;
+      color: $color-text-tertiary;
+    }
+    .btn {
+      @include button-reset;
+      background: $gold-gradient;
+      color: #1a1a1a;
+      height: $button-height-sm;
+      padding: 0 $spacing-lg;
+      border-radius: $radius-button;
+      font-size: $font-size-sm;
+      font-weight: $font-weight-semibold;
+
+      &:active {
+        opacity: 0.85;
+        transform: scale(0.96);
+      }
+    }
+  }
+}
+
+.bannerRow {
+  padding: 0 $spacing-lg $spacing-lg;
+}

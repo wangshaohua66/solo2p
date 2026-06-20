@@ -53,8 +53,11 @@ async function run(argv) {
         });
       }
       spinner.succeed(`Vault: 列出 ${paths.length} 个密钥路径`);
+      ctx.store.recordAudit({ action: 'access', secretName: '*', secretPath: '', source: 'vault', status: 'success', profile: ctx.profile.name, message: `扫描列出 ${paths.length} 个 Vault 密钥` });
+      ctx.store.recordAudit({ action: 'scan', secretName: '*', source: 'vault', status: 'success', profile: ctx.profile.name, message: `扫描 Vault 发现 ${paths.length} 个密钥` });
     } catch (err) {
       spinner.warn(`Vault 不可用: ${err.message} (status=${getHttpStatus(err)})`);
+      ctx.store.recordAudit({ action: 'scan', secretName: '*', source: 'vault', status: 'failed', profile: ctx.profile.name, message: `Vault 扫描失败: ${err.message}` });
     }
   }
 
@@ -77,8 +80,11 @@ async function run(argv) {
         }
       }
       spinner.succeed(`Kubernetes: 列出 ${secrets.length} 个 Secret`);
+      ctx.store.recordAudit({ action: 'access', secretName: '*', secretPath: '', source: 'k8s', status: 'success', profile: ctx.profile.name, message: `扫描列出 ${secrets.length} 个 K8s Secret` });
+      ctx.store.recordAudit({ action: 'scan', secretName: '*', source: 'k8s', status: 'success', profile: ctx.profile.name, message: `扫描 K8s 发现 ${secrets.length} 个 Secret` });
     } catch (err) {
       spinner.warn(`Kubernetes 不可用: ${err.message} (status=${getHttpStatus(err)})`);
+      ctx.store.recordAudit({ action: 'scan', secretName: '*', source: 'k8s', status: 'failed', profile: ctx.profile.name, message: `K8s 扫描失败: ${err.message}` });
     }
   }
 

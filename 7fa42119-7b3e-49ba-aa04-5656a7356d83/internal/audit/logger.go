@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -74,7 +75,7 @@ func (l *Logger) Close() {
 	}
 }
 
-func (l *Logger) Log(command string, params map[string]interface{}, filePath string, success bool, err error) *errors.SecfgError {
+func (l *Logger) Log(ctx context.Context, command string, params map[string]interface{}, filePath string, success bool, err error) *errors.SecfgError {
 	currentUser, _ := user.Current()
 	username := "unknown"
 	if currentUser != nil {
@@ -107,12 +108,22 @@ func (l *Logger) Log(command string, params map[string]interface{}, filePath str
 		Error:     errMsg,
 	}
 
+	if err := ctx.Err(); err != nil {
+		return errors.NewWithMessage(errors.E013, "审计日志写入被取消", err, false)
+	}
+
 	data, err := json.Marshal(log)
 	if err != nil {
 		return errors.New(errors.E011, err, false)
 	}
 
 	dbErr := l.db.Update(func(tx *bbolt.Tx) error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		b := tx.Bucket([]byte(bucketAuditLogs))
 		if b == nil {
 			return fmt.Errorf("audit logs bucket not found")
@@ -152,7 +163,11 @@ func maskSensitive(value string) string {
 	return value[:2] + strings.Repeat("*", len(value)-4) + value[len(value)-2:]
 }
 
-func (l *Logger) Query(filter QueryFilter) ([]AuditLog, *errors.SecfgError) {
+func (l *Logger) Query(ctx context.Context, filter QueryFilter) ([]AuditLog, *errors.SecfgError) {
+	if err := ctx.Err(); err != nil {
+		return nil, errors.NewWithMessage(errors.E013, "审计查询被取消", err, false)
+	}
+
 	var logs []AuditLog
 
 	err := l.db.View(func(tx *bbolt.Tx) error {
@@ -162,6 +177,12 @@ func (l *Logger) Query(filter QueryFilter) ([]AuditLog, *errors.SecfgError) {
 		}
 
 		return b.ForEach(func(k, v []byte) error {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+
 			var log AuditLog
 			if err := json.Unmarshal(v, &log); err != nil {
 				return err
