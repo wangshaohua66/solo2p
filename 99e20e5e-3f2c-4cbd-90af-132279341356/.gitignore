@@ -1,0 +1,103 @@
+## Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+## Visual Studio 2015/2017 cache/options directory
+.vs/
+.vscode/
+
+## User-specific files
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## NuGet Packages
+*.nupkg
+packages/
+
+## Local configuration file
+*.local
+appsettings.Local.json
+
+## DotCover
+*.dotCover
+
+## Visual Studio cache/options directory
+.vs/
+
+## ReSharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+## Click-Once
+*.vsp
+*.psess
+*.vspx
+
+## Guidance Automation Toolkit
+*.gpState
+
+## TFS 2012 Local Workspace
+$tf/
+
+## OpenCover
+*OpenCover.Settings
+*.opencover.xml
+
+## Backup & Report files
+*.bak
+*.cache
+*~
+
+## Node
+node_modules/
+
+## Dependencies
+node_modules/
+jspm_packages/
+
+## Optional: npm cache directory
+.npm
+
+## TypeScript v1 declaration files
+typings/
+
+## TypeScript cache
+*.tsbuildinfo
+
+## Optional eslint cache
+.eslintcache
+
+## Output of 'npm pack'
+*.tgz
+
+## Yarn Integrity file
+.yarn-integrity
+
+## dotenv environment variables file
+.env
+.env.test
+
+## Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+## yarn v2
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+## Redis dump
+dump.rdb
