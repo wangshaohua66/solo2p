@@ -13,6 +13,9 @@ interface EditorStore {
   leftPanelOpen: boolean;
   rightPanelOpen: boolean;
   activeRightTab: "markers" | "comments" | "transcript";
+  singleTrackMode: boolean;
+  leftDrawerOpen: boolean;
+  rightDrawerOpen: boolean;
 
   setSelection: (s: Selection | null) => void;
   setIsSelecting: (v: boolean) => void;
@@ -31,6 +34,9 @@ interface EditorStore {
   setLeftPanelOpen: (v: boolean) => void;
   setRightPanelOpen: (v: boolean) => void;
   setActiveRightTab: (t: "markers" | "comments" | "transcript") => void;
+  setSingleTrackMode: (v: boolean) => void;
+  setLeftDrawerOpen: (v: boolean) => void;
+  setRightDrawerOpen: (v: boolean) => void;
 }
 
 export const useEditorStore = create<EditorStore>((set, get) => ({
@@ -44,6 +50,9 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   leftPanelOpen: true,
   rightPanelOpen: true,
   activeRightTab: "markers",
+  singleTrackMode: false,
+  leftDrawerOpen: false,
+  rightDrawerOpen: false,
 
   setSelection: (s) => set({ selection: s }),
   setIsSelecting: (v) => set({ isSelecting: v }),
@@ -122,4 +131,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   setLeftPanelOpen: (v) => set({ leftPanelOpen: v }),
   setRightPanelOpen: (v) => set({ rightPanelOpen: v }),
   setActiveRightTab: (t) => set({ activeRightTab: t }),
+  setSingleTrackMode: (v) => set({ singleTrackMode: v }),
+  setLeftDrawerOpen: (v) => set({ leftDrawerOpen: v }),
+  setRightDrawerOpen: (v) => set({ rightDrawerOpen: v }),
 }));

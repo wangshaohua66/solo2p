@@ -147,14 +147,24 @@ export function Navbar() {
 
   const handleCut = () => {
     if (!selection) return;
-    setClipboard({ ...selection, trackId: selection.activeTrackId, timestamp: Date.now() });
+    setClipboard({
+      ...selection,
+      trackId: selection.activeTrackId ?? undefined,
+      timestamp: Date.now(),
+      regionDuration: Math.max(0.001, selection.end - selection.start),
+    });
     pushHistory("cut_selection", { selection }, null);
     clearSelection();
   };
 
   const handleCopy = () => {
     if (!selection) return;
-    setClipboard({ ...selection, trackId: selection.activeTrackId, timestamp: Date.now() });
+    setClipboard({
+      ...selection,
+      trackId: selection.activeTrackId ?? undefined,
+      timestamp: Date.now(),
+      regionDuration: Math.max(0.001, selection.end - selection.start),
+    });
   };
 
   const handlePaste = () => {

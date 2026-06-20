@@ -31,10 +31,10 @@ export function MarkerPanel() {
   const activeTab = useEditorStore((s) => s.activeRightTab);
   const setActiveTab = useEditorStore((s) => s.setActiveRightTab);
 
-  if (!rightOpen) return null;
+  void rightOpen;
 
   return (
-    <aside className="flex flex-col w-[20%] min-w-[280px] max-w-[420px] shrink-0 border-l border-border bg-background-secondary/50">
+    <aside className="flex flex-col w-full h-full min-w-0 shrink-0 border-l border-border bg-background-secondary/50">
       <div className="flex border-b border-border shrink-0">
         <TabButton
           active={activeTab === "markers"}

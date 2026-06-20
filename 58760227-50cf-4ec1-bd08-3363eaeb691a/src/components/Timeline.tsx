@@ -32,6 +32,15 @@ export function Timeline({ pxPerSec: propsPxPerSec, onSeek: propsOnSeek, onPlayP
     [project.tracks]
   );
 
+  const singleTrackMode = useEditorStore((s) => s.singleTrackMode);
+  const activeTrackId = useProjectStore((s) => s.activeTrackId);
+
+  const visibleTracks = useMemo(() => {
+    if (!singleTrackMode) return sortedTracks;
+    const active = sortedTracks.find((t) => t.id === activeTrackId);
+    return active ? [active] : sortedTracks.slice(0, 1);
+  }, [sortedTracks, singleTrackMode, activeTrackId]);
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -48,9 +57,9 @@ export function Timeline({ pxPerSec: propsPxPerSec, onSeek: propsOnSeek, onPlayP
   }, []);
 
   useEffect(() => {
-    if (sortedTracks.length === 0) return;
-    setTrackHeights(Math.max(80, Math.floor((size.h - 60) / sortedTracks.length)));
-  }, [sortedTracks.length, size.h]);
+    if (visibleTracks.length === 0) return;
+    setTrackHeights(Math.max(80, Math.floor((size.h - 60) / visibleTracks.length)));
+  }, [visibleTracks.length, size.h]);
 
   const ticks = useMemo(
     () => generateTimeTicks(project.duration, pxPerSec),
@@ -183,7 +192,7 @@ export function Timeline({ pxPerSec: propsPxPerSec, onSeek: propsOnSeek, onPlayP
           style={{ width: totalWidth + "px" }}
           onClick={handleTimelineClick}
         >
-          {sortedTracks.length === 0 ? (
+          {visibleTracks.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-8">
               <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-accent-soft to-waveform-selection flex items-center justify-center mb-6 border border-border">
                 <svg
@@ -219,7 +228,7 @@ export function Timeline({ pxPerSec: propsPxPerSec, onSeek: propsOnSeek, onPlayP
             </div>
           ) : (
             <div className="flex flex-col">
-              {sortedTracks.map((t: AudioTrack, i: number) => (
+              {visibleTracks.map((t: AudioTrack, i: number) => (
                 <div
                   key={t.id}
                   className="relative border-b border-border/40 flex items-center"

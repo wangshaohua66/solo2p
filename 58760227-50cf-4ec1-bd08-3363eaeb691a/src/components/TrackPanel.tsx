@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Volume2,
   VolumeX,
@@ -193,20 +193,63 @@ export function TrackPanel({ pxPerSec = 80 }: TrackPanelProps) {
     setLoading,
     setError,
     activeTrackId,
+    setActiveTrackId,
+    reorderTracks,
   } = useProjectStore();
 
   const leftOpen = useEditorStore((s) => s.leftPanelOpen);
   const { decodeFile, computeWaveform } = useAudioEngine();
+
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   const sortedTracks = useMemo(
     () => [...project.tracks].sort((a, b) => a.order - b.order),
     [project.tracks]
   );
 
-  if (!leftOpen) return null;
+  void leftOpen;
+
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    setDragId(id);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", id);
+  };
+
+  const handleDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverId !== id) setDragOverId(id);
+  };
+
+  const handleDragLeave = (id: string) => {
+    if (dragOverId === id) setDragOverId(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    const sourceId = dragId ?? e.dataTransfer.getData("text/plain");
+    setDragOverId(null);
+    setDragId(null);
+    if (!sourceId || sourceId === targetId) return;
+
+    const orderedIds = sortedTracks.map((t) => t.id);
+    const fromIdx = orderedIds.indexOf(sourceId);
+    const toIdx = orderedIds.indexOf(targetId);
+    if (fromIdx === -1 || toIdx === -1) return;
+
+    orderedIds.splice(fromIdx, 1);
+    orderedIds.splice(toIdx, 0, sourceId);
+    reorderTracks(orderedIds);
+  };
+
+  const handleDragEnd = () => {
+    setDragId(null);
+    setDragOverId(null);
+  };
 
   return (
-    <aside className="flex flex-col w-[20%] min-w-[260px] max-w-[380px] shrink-0 border-r border-border bg-background-secondary/50">
+    <aside className="flex flex-col w-full h-full min-w-0 shrink-0 border-r border-border bg-background-secondary/50">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
           <Headphones className="w-4 h-4 text-waveform-bar" />
@@ -237,24 +280,44 @@ export function TrackPanel({ pxPerSec = 80 }: TrackPanelProps) {
           </div>
         )}
 
-        {sortedTracks.map((t) => (
-          <div key={t.id} onClick={() => t.id !== activeTrackId && useProjectStore.getState().setActiveTrackId(t.id)}>
-            <TrackRow
-              track={t}
-              onRemove={removeTrack}
-              onVolume={(id, v) => updateTrack(id, { volume: v })}
-              onToggleMute={toggleMute}
-              onToggleSolo={toggleSolo}
-              onName={(id, name) => updateTrack(id, { name })}
-              decodeFile={decodeFile}
-              setLoading={setLoading}
-              setError={setError}
-              updateTrack={updateTrack}
-              computeWaveform={computeWaveform}
-              pxPerSec={pxPerSec}
-            />
-          </div>
-        ))}
+        {sortedTracks.map((t) => {
+          const isDragging = dragId === t.id;
+          const isDragOver = dragOverId === t.id && dragId !== t.id;
+          return (
+            <div
+              key={t.id}
+              draggable
+              onDragStart={(e) => handleDragStart(e, t.id)}
+              onDragOver={(e) => handleDragOver(e, t.id)}
+              onDragLeave={() => handleDragLeave(t.id)}
+              onDrop={(e) => handleDrop(e, t.id)}
+              onDragEnd={handleDragEnd}
+              onClick={() => t.id !== activeTrackId && setActiveTrackId(t.id)}
+              className={`transition-all duration-150 ${
+                isDragging
+                  ? "opacity-40 scale-[0.98]"
+                  : isDragOver
+                  ? "ring-2 ring-accent ring-offset-2 ring-offset-background-secondary scale-[1.01]"
+                  : ""
+              }`}
+            >
+              <TrackRow
+                track={t}
+                onRemove={removeTrack}
+                onVolume={(id, v) => updateTrack(id, { volume: v })}
+                onToggleMute={toggleMute}
+                onToggleSolo={toggleSolo}
+                onName={(id, name) => updateTrack(id, { name })}
+                decodeFile={decodeFile}
+                setLoading={setLoading}
+                setError={setError}
+                updateTrack={updateTrack}
+                computeWaveform={computeWaveform}
+                pxPerSec={pxPerSec}
+              />
+            </div>
+          );
+        })}
       </div>
 
       {useProjectStore.getState().error && (

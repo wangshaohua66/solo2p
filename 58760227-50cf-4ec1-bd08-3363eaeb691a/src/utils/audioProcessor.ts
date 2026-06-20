@@ -182,3 +182,73 @@ export function uuid(): string {
   }
   return "id-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
 }
+
+export function waveformDataToAudioBuffer(
+  peaks: number[],
+  audioCtx: AudioContext,
+  duration: number,
+  sampleRate: number
+): AudioBuffer {
+  const totalFrames = Math.max(1, Math.ceil(duration * sampleRate));
+  const buffer = audioCtx.createBuffer(2, totalFrames, sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const data = buffer.getChannelData(ch);
+    for (let i = 0; i < totalFrames; i++) {
+      const t = i / sampleRate;
+      const peakIdx = Math.min(
+        peaks.length - 1,
+        Math.max(0, Math.floor((t / Math.max(0.001, duration)) * peaks.length))
+      );
+      const peak = peaks[peakIdx] ?? 0.3;
+      data[i] =
+        Math.sin(t * 440 * Math.PI * 2) * 0.4 * peak +
+        Math.sin(t * 440 * 2.3 * Math.PI * 2) * 0.15 * peak;
+    }
+  }
+  return buffer;
+}
+
+export function bufferToWaveformData(
+  buffer: AudioBuffer,
+  samples: number
+): number[] {
+  const mono = getMonoChannelData(buffer);
+  const perPixel = Math.max(1, Math.floor(mono.length / Math.max(1, samples)));
+  return computeWaveformPeaks(mono, perPixel, Math.max(1, samples));
+}
+
+export function extractWaveformRegion(
+  peaks: number[],
+  startSec: number,
+  endSec: number,
+  duration: number
+): number[] {
+  const startIdx = Math.floor((startSec / Math.max(0.001, duration)) * peaks.length);
+  const endIdx = Math.min(peaks.length, Math.ceil((endSec / Math.max(0.001, duration)) * peaks.length));
+  return peaks.slice(Math.max(0, startIdx), endIdx);
+}
+
+export function removeWaveformRegion(
+  peaks: number[],
+  startSec: number,
+  endSec: number,
+  duration: number
+): number[] {
+  const startIdx = Math.floor((startSec / Math.max(0.001, duration)) * peaks.length);
+  const endIdx = Math.min(peaks.length, Math.ceil((endSec / Math.max(0.001, duration)) * peaks.length));
+  return [...peaks.slice(0, Math.max(0, startIdx)), ...peaks.slice(endIdx)];
+}
+
+export function insertWaveformRegion(
+  peaks: number[],
+  insertPeaks: number[],
+  atSec: number,
+  duration: number
+): number[] {
+  const atIdx = Math.floor((atSec / Math.max(0.001, duration)) * peaks.length);
+  return [
+    ...peaks.slice(0, Math.max(0, atIdx)),
+    ...insertPeaks,
+    ...peaks.slice(Math.max(0, atIdx)),
+  ];
+}

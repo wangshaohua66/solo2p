@@ -21,6 +21,8 @@ interface ClipboardSelection {
   end: number;
   trackId?: string;
   timestamp: number;
+  waveformData?: number[];
+  regionDuration: number;
 }
 
 interface ProjectStore {
