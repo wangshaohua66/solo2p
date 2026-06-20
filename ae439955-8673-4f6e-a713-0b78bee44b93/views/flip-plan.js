@@ -527,5 +527,5 @@
     }
   };
 
-  global.FlipPlanView = FlipPlan;
+  global.FlipPlanView = FlipPlanView;
 })(window);

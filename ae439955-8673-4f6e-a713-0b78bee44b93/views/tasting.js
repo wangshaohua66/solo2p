@@ -269,7 +269,7 @@
 
       global.App.showToast('品评记录已保存', 'success');
       this.renderDetail();
-      this.renderBatchList(global.Store.getBatchesByWarehouse(this.warehouseId).filter(b => b.status === 'in-stock').slice(0, 50));
+      this.renderBatchList(global.Store.getBatchesByWarehouse(this.warehouseId).filter(b => b.status === 'in-stock'));
     }
   };
 
