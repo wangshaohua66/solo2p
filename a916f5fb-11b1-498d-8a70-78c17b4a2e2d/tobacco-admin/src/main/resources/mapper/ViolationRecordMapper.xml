@@ -9,21 +9,23 @@
         <result column="task_id" property="taskId"/>
         <result column="retailer_id" property="retailerId"/>
         <result column="retailer_name" property="retailerName"/>
-        <result column="county_id" property="countyId"/>
-        <result column="violation_type_id" property="violationTypeId"/>
+        <result column="license_no" property="licenseNo"/>
+        <result column="violation_type" property="violationType"/>
         <result column="violation_type_name" property="violationTypeName"/>
         <result column="severity" property="severity"/>
         <result column="description" property="description"/>
-        <result column="evidence" property="evidence"/>
-        <result column="credit_deduct" property="creditDeduct"/>
-        <result column="disposal_suggestion" property="disposalSuggestion"/>
         <result column="inspector_id" property="inspectorId"/>
         <result column="inspector_name" property="inspectorName"/>
-        <result column="disposal_status" property="disposalStatus"/>
+        <result column="county_id" property="countyId"/>
+        <result column="station_id" property="stationId"/>
+        <result column="deduct_points" property="deductPoints"/>
+        <result column="has_triggered_penalty" property="hasTriggeredPenalty"/>
+        <result column="penalty_type" property="penaltyType"/>
+        <result column="status" property="status"/>
+        <result column="disposal_opinion" property="disposalOpinion"/>
         <result column="disposal_user_id" property="disposalUserId"/>
         <result column="disposal_user_name" property="disposalUserName"/>
         <result column="disposal_time" property="disposalTime"/>
-        <result column="disposal_result" property="disposalResult"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
         <result column="deleted" property="deleted"/>
@@ -37,23 +39,6 @@
         SELECT * FROM violation_record
         WHERE retailer_id = #{retailerId} AND deleted = 0
         ORDER BY create_time DESC
-    </select>
-
-    <select id="selectByTaskId" resultMap="BaseResultMap">
-        SELECT * FROM violation_record
-        WHERE task_id = #{taskId} AND deleted = 0
-        ORDER BY create_time DESC
-    </select>
-
-    <select id="selectPendingDisposal" resultMap="BaseResultMap">
-        SELECT * FROM violation_record
-        WHERE disposal_status = 0 AND deleted = 0
-        ORDER BY CASE severity
-            WHEN 'high' THEN 1
-            WHEN 'medium' THEN 2
-            WHEN 'low' THEN 3
-            ELSE 4
-        END, create_time ASC
     </select>
 
     <select id="selectPageByCondition" resultMap="BaseResultMap">
