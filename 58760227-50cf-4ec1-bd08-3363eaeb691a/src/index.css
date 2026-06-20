@@ -1,0 +1,99 @@
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    @apply bg-background text-white font-sans antialiased;
+    overflow: hidden;
+  }
+
+  ::selection {
+    @apply bg-accent-soft text-white;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border hover:bg-border-hover rounded-full;
+  }
+}
+
+@layer components {
+  .btn-icon {
+    @apply w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-150
+           hover:bg-white/5 active:scale-95 text-white/70 hover:text-white;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg
+           bg-accent hover:bg-accent-hover text-white font-medium
+           transition-all duration-150 active:scale-[0.98];
+    box-shadow: 0 0 20px rgba(233, 69, 96, 0.3);
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg
+           bg-white/5 hover:bg-white/10 text-white/80 hover:text-white
+           transition-all duration-150 border border-transparent
+           hover:border-border active:scale-[0.98];
+  }
+
+  .panel {
+    @apply bg-background-secondary border border-border rounded-xl;
+  }
+
+  .panel-title {
+    @apply text-sm font-semibold text-white/90 uppercase tracking-wide;
+  }
+
+  .input {
+    @apply w-full px-3 py-2 rounded-lg bg-background-tertiary/50 border border-border
+           focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20
+           text-sm text-white placeholder:text-white/40 transition-all duration-150;
+  }
+
+  .slider {
+    @apply w-full h-1.5 rounded-full appearance-none cursor-pointer bg-white/10
+           accent-accent;
+  }
+
+  .slider::-webkit-slider-thumb {
+    @apply appearance-none w-4 h-4 rounded-full bg-accent shadow-glow-accent
+           transition-transform duration-150 hover:scale-110 cursor-pointer;
+  }
+
+  .tag {
+    @apply inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium;
+  }
+
+  .tag-pending {
+    @apply bg-accent-soft text-accent border border-accent/30;
+  }
+
+  .tag-resolved {
+    @apply bg-success-soft text-success border border-success/30;
+  }
+}
