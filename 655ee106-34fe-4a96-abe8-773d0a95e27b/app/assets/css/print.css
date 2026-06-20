@@ -1,0 +1,10 @@
+/* 打印样式 — 用于进度汇报 PDF 导出（仅打印 .report-sheet 区域） */
+@media print{
+  @page{size:A4;margin:14mm}
+  body{background:#fff!important;color:#1b2330!important;background-image:none!important}
+  body *{visibility:hidden}
+  .report-sheet, .report-sheet *{visibility:visible}
+  .report-sheet{position:absolute;left:0;top:0;width:100%;box-shadow:none!important;border:0!important;padding:0!important}
+  .report-sheet .chart-card{background:#fff!important;border:1px solid #e2e8f0!important;page-break-inside:avoid}
+  .print-only{display:block!important}
+}

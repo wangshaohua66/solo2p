@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>施工进度管理系统 | Construction Progress OS</title>
+  <link rel="stylesheet" href="vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="vendor/bootstrap-icons.css">
+  <link rel="stylesheet" href="app/assets/css/app.css">
+  <link rel="stylesheet" href="app/assets/css/print.css" media="print">
+</head>
+
+<body>
+  <div class="backdrop-nav"></div>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-area">
+      <header class="topbar" id="topbar"></header>
+      <main id="app-main" class="content-pad"></main>
+    </div>
+  </div>
+  <input type="file" id="import-file" accept="application/json" style="display:none">
+
+  <script src="vendor/jquery.min.js"></script>
+  <script src="vendor/bootstrap.bundle.min.js"></script>
+  <script src="vendor/moment.min.js"></script>
+  <script src="vendor/chart.umd.min.js"></script>
+  <script src="vendor/jquery.dataTables.min.js"></script>
+  <script src="vendor/dataTables.bootstrap5.min.js"></script>
+  <script src="vendor/jquery.validate.min.js"></script>
+
+  <script src="app/services/data.service.js"></script>
+  <script src="app/utils/router.js"></script>
+  <script src="app/utils/ui.js"></script>
+  <script src="app/utils/validator.js"></script>
+
+  <script src="app/modules/project/list.js"></script>
+  <script src="app/modules/task/gantt.js"></script>
+  <script src="app/modules/resource/schedule.js"></script>
+  <script src="app/modules/progress/fill.js"></script>
+  <script src="app/modules/progress/report.js"></script>
+  <script src="app/modules/warning/center.js"></script>
+  <script src="app/modules/change/manage.js"></script>
+  <script src="app/modules/analytics/stats.js"></script>
+
+  <script src="app/app.js"></script>
+</body>
+
+</html>
