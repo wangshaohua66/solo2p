@@ -66,14 +66,9 @@ func (h *WSHandler) HandleWebSocket(c echo.Context) error {
 	roles := make([]string, 0, 1)
 	roles = append(roles, string(claims.Role))
 
-	client := &ws.Client{
-		conn:   conn,
-		send:   make(chan []byte, 256),
-		userID: claims.UserID,
-		roles:  roles,
-	}
+	client := ws.NewClient(conn, claims.UserID, roles)
 
-	h.hub.register <- client
+	h.hub.Register(client)
 
 	go client.WritePump()
 	go client.ReadPump(h.hub)
@@ -88,8 +83,8 @@ func (h *WSHandler) NotifyPiracy(p *model.PiracyRecord, work *model.Work) error 
 		WorkTitle:   work.Title,
 		MatchScore:  p.MatchScore,
 		SuspectURL:  p.SuspectURL,
-		SuspectName: p.SuspectName,
-		Platform:    string(p.Platform),
+		SuspectName: p.SuspectTitle,
+		Platform:    p.SuspectPlatform,
 	}
 	return h.hub.SendToRoles(
 		[]string{string(model.RoleAdmin), string(model.RoleCopyright)},

@@ -50,8 +50,8 @@ type CrawlProgressPayload struct {
 type Client struct {
 	conn   *websocket.Conn
 	send   chan []byte
-	userID string
-	roles  []string
+	UserID string
+	Roles  []string
 }
 
 type Hub struct {
@@ -71,6 +71,23 @@ func NewHub() *Hub {
 	}
 }
 
+func NewClient(conn *websocket.Conn, userID string, roles []string) *Client {
+	return &Client{
+		conn:   conn,
+		send:   make(chan []byte, 256),
+		UserID: userID,
+		Roles:  roles,
+	}
+}
+
+func (h *Hub) Register(client *Client) {
+	h.register <- client
+}
+
+func (h *Hub) Unregister(client *Client) {
+	h.unregister <- client
+}
+
 func (h *Hub) Run() {
 	for {
 		select {
@@ -78,13 +95,13 @@ func (h *Hub) Run() {
 			h.mu.Lock()
 			h.clients[client] = true
 			h.mu.Unlock()
-			log.Printf("[WS] Client connected: %s", client.userID)
+			log.Printf("[WS] Client connected: %s", client.UserID)
 		case client := <-h.unregister:
 			h.mu.Lock()
 			if _, ok := h.clients[client]; ok {
 				delete(h.clients, client)
 				close(client.send)
-				log.Printf("[WS] Client disconnected: %s", client.userID)
+				log.Printf("[WS] Client disconnected: %s", client.UserID)
 			}
 			h.mu.Unlock()
 		case message := <-h.broadcast:
@@ -128,7 +145,7 @@ func (h *Hub) SendToUser(userID string, msgType MessageType, payload interface{}
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	for client := range h.clients {
-		if client.userID == userID {
+		if client.UserID == userID {
 			select {
 			case client.send <- data:
 			default:
@@ -153,7 +170,7 @@ func (h *Hub) SendToRoles(roles []string, msgType MessageType, payload interface
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	for client := range h.clients {
-		for _, cr := range client.roles {
+		for _, cr := range client.Roles {
 			for _, r := range roles {
 				if cr == r {
 					select {
@@ -173,7 +190,7 @@ func (h *Hub) SendToRoles(roles []string, msgType MessageType, payload interface
 
 func (c *Client) ReadPump(hub *Hub) {
 	defer func() {
-		hub.unregister <- c
+		hub.Unregister(c)
 		_ = c.conn.Close()
 	}()
 

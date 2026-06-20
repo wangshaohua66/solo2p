@@ -12,8 +12,8 @@ import dayjs from 'dayjs';
 import ReactECharts from 'echarts-for-react';
 import type { EChartsOption } from 'echarts';
 import { useAppDispatch, useAppSelector } from '@/store';
-import { fetchPiracies, setPiracyFilter, setCurrentPiracy, updatePiracyStatus, setRightsLetter } from '@/store/appSlice';
-import { monitorAPI, workAPI } from '@/api';
+import { fetchPiracies, setPiracyFilter, setCurrentPiracy, updatePiracyStatus, setRightsLetter, pushNotification } from '@/store/appSlice';
+import { monitorAPI, workAPI, wsManager, WSPiracyAlert, WSCrawlProgress, WSAlert, WSMessage } from '@/api';
 import { PiracyRecord, PiracyStatus, PiracyStatusNames, Work } from '@/types';
 
 const { Title, Text } = Typography;
@@ -39,11 +39,70 @@ const Monitor: React.FC = () => {
   const [waveformSeed1, setWaveformSeed1] = useState('');
   const [waveformSeed2, setWaveformSeed2] = useState('');
   const [selectedPiracy, setSelectedPiracy] = useState<PiracyRecord | null>(null);
+  const [crawlProgressList, setCrawlProgressList] = useState<Record<string, { platform: string; progress: number; status: string; error_msg?: string }>>({});
 
   useEffect(() => {
     dispatch(fetchPiracies());
     workAPI.list({ page_size: 200 }).then((res) => setWorks(res.data.data || []));
   }, [dispatch, piracyFilter.page, piracyFilter.page_size, piracyFilter.status, piracyFilter.work_id]);
+
+  useEffect(() => {
+    const unsub = wsManager.subscribe((msg: WSMessage) => {
+      switch (msg.type) {
+        case 'piracy_alert': {
+          const p = msg.payload as WSPiracyAlert;
+          dispatch(pushNotification({
+            id: `piracy-${p.piracy_id}-${Date.now()}`,
+            type: 'error',
+            message: `[盗版告警] ${p.work_title} 在 ${p.platform} 发现疑似侵权: ${p.suspect_name} (匹配度 ${(p.match_score * 100).toFixed(1)}%)`,
+          }));
+          dispatch(fetchPiracies());
+          break;
+        }
+        case 'crawl_progress': {
+          const cp = msg.payload as WSCrawlProgress;
+          setCrawlProgressList((prev) => ({
+            ...prev,
+            [cp.task_id || cp.platform]: {
+              platform: cp.platform,
+              progress: cp.progress,
+              status: cp.status,
+              error_msg: cp.error_msg,
+            },
+          }));
+          if (cp.status === 'success' || cp.status === 'failed') {
+            setTimeout(() => {
+              setCrawlProgressList((prev) => {
+                const { [cp.task_id || cp.platform]: _, ...rest } = prev;
+                return rest;
+              });
+            }, 3000);
+          }
+          if (cp.status === 'failed' && cp.error_msg) {
+            dispatch(pushNotification({
+              id: `crawl-err-${cp.platform}-${Date.now()}`,
+              type: 'warning',
+              message: `[采集失败] ${cp.platform}: ${cp.error_msg}`,
+            }));
+          }
+          if (cp.status === 'success') {
+            dispatch(fetchPiracies());
+          }
+          break;
+        }
+        case 'alert': {
+          const a = msg.payload as WSAlert;
+          dispatch(pushNotification({
+            id: `alert-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            type: a.level,
+            message: `[${a.title}] ${a.message}`,
+          }));
+          break;
+        }
+      }
+    });
+    return () => { unsub(); };
+  }, [dispatch]);
 
   useEffect(() => {
     if (currentPiracy) {
@@ -168,6 +227,35 @@ const Monitor: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {Object.keys(crawlProgressList).length > 0 && (
+        <Card size="small" className="gold-card" title={<Space><ThunderboltOutlined style={{ color: '#D4AF37' }} /><span>平台采集进度</span></Space>}>
+          <Row gutter={[16, 12]}>
+            {Object.values(crawlProgressList).map((cp, i) => (
+              <Col xs={24} sm={12} md={8} key={i}>
+                <div style={{ padding: '8px 12px', background: '#1A170E', borderRadius: 6, border: '1px solid #2A2312' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <Space>
+                      <SoundOutlined style={{ color: '#D4AF37' }} />
+                      <span style={{ fontWeight: 600 }}>{cp.platform}</span>
+                    </Space>
+                    <Tag color={cp.status === 'success' ? 'success' : cp.status === 'failed' ? 'error' : 'processing'}>
+                      {cp.status === 'success' ? '完成' : cp.status === 'failed' ? '失败' : cp.status === 'running' ? '采集中' : cp.status}
+                    </Tag>
+                  </div>
+                  <Progress
+                    percent={Math.round(cp.progress * 100)}
+                    size="small"
+                    showInfo
+                    strokeColor={cp.status === 'failed' ? '#FF4D4F' : cp.status === 'success' ? '#52C41A' : '#D4AF37'}
+                  />
+                  {cp.error_msg && <div style={{ marginTop: 4, fontSize: 12, color: '#FF4D4F' }}>{cp.error_msg}</div>}
+                </div>
+              </Col>
+            ))}
+          </Row>
+        </Card>
+      )}
+
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} md={4}>
           <div className="stat-card">

@@ -462,7 +462,8 @@ func (h *WorkHandler) CompareVersions(c echo.Context) error {
 	}
 
 	var va, vb *model.WorkVersion
-	for _, v := range w.Versions {
+	for i := range w.Versions {
+		v := &w.Versions[i]
 		if v.ID == req.VersionA {
 			va = v
 		}
@@ -490,40 +491,34 @@ func (h *WorkHandler) CompareVersions(c echo.Context) error {
 		Changed: va.Status != vb.Status,
 	})
 	diffs = append(diffs, VersionDiff{
-		Field:   "文件名",
-		ValueA:  va.FileName,
-		ValueB:  vb.FileName,
-		Changed: va.FileName != vb.FileName,
-	})
-	diffs = append(diffs, VersionDiff{
-		Field:   "文件大小 (KB)",
-		ValueA:  va.FileSize,
-		ValueB:  vb.FileSize,
+		Field:   "文件大小 (MB)",
+		ValueA:  fmt.Sprintf("%.2f", float64(va.FileSize)/1024/1024),
+		ValueB:  fmt.Sprintf("%.2f", float64(vb.FileSize)/1024/1024),
 		Changed: va.FileSize != vb.FileSize,
 	})
 	diffs = append(diffs, VersionDiff{
-		Field:   "时长 (秒)",
-		ValueA:  va.Duration,
-		ValueB:  vb.Duration,
-		Changed: va.Duration != vb.Duration,
+		Field:   "文件链接",
+		ValueA:  va.FileURL,
+		ValueB:  vb.FileURL,
+		Changed: va.FileURL != vb.FileURL,
 	})
 	diffs = append(diffs, VersionDiff{
-		Field:   "比特率 (kbps)",
-		ValueA:  va.Bitrate,
-		ValueB:  vb.Bitrate,
-		Changed: va.Bitrate != vb.Bitrate,
-	})
-	diffs = append(diffs, VersionDiff{
-		Field:   "采样率 (Hz)",
-		ValueA:  va.SampleRate,
-		ValueB:  vb.SampleRate,
-		Changed: va.SampleRate != vb.SampleRate,
+		Field:   "音频指纹",
+		ValueA:  func() string { if len(va.AudioFingerprint) > 24 { return va.AudioFingerprint[:24] + "..." }; return va.AudioFingerprint }(),
+		ValueB:  func() string { if len(vb.AudioFingerprint) > 24 { return vb.AudioFingerprint[:24] + "..." }; return vb.AudioFingerprint }(),
+		Changed: va.AudioFingerprint != vb.AudioFingerprint,
 	})
 	diffs = append(diffs, VersionDiff{
 		Field:   "上传人",
-		ValueA:  va.UploadedBy,
-		ValueB:  vb.UploadedBy,
-		Changed: va.UploadedBy != vb.UploadedBy,
+		ValueA:  va.CreatedBy,
+		ValueB:  vb.CreatedBy,
+		Changed: va.CreatedBy != vb.CreatedBy,
+	})
+	diffs = append(diffs, VersionDiff{
+		Field:   "创建时间",
+		ValueA:  va.CreatedAt.Format("2006-01-02 15:04:05"),
+		ValueB:  vb.CreatedAt.Format("2006-01-02 15:04:05"),
+		Changed: !va.CreatedAt.Equal(vb.CreatedAt),
 	})
 	diffs = append(diffs, VersionDiff{
 		Field:   "备注",
@@ -606,7 +601,8 @@ func (h *WorkHandler) ListAuthLinks(c echo.Context) error {
 		}
 
 		workMap[w.ID] = w
-		for _, link := range w.AuthChain {
+		for i := range w.AuthChain {
+			link := &w.AuthChain[i]
 			if req.AuthType != "" && link.AuthType != req.AuthType {
 				continue
 			}
