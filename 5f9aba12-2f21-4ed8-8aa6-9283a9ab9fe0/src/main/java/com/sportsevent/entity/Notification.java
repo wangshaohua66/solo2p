@@ -43,7 +43,7 @@ public class Notification {
 
     public enum NotificationType {
         SCHEDULE_CHANGE, VENUE_CHANGE, SCORE_PUBLISHED, REGISTRATION_RESULT,
-        MATCH_REMINDER, REFEREE_ASSIGNMENT, LEAGUE_ANNOUNCEMENT
+        MATCH_REMINDER, REFEREE_ASSIGNMENT, LEAGUE_ANNOUNCEMENT, APPEAL_RESULT
     }
 
     public enum NotificationChannel {

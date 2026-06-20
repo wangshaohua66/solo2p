@@ -1,6 +1,7 @@
 package com.sportsevent.controller;
 
 import com.sportsevent.dto.ApiResponse;
+import com.sportsevent.engine.LeagueScheduler;
 import com.sportsevent.entity.CourtBooking;
 import com.sportsevent.entity.League;
 import com.sportsevent.entity.Match;
@@ -30,6 +31,7 @@ public class VenueController {
     private final VenueRepository venueRepository;
     private final CourtBookingRepository courtBookingRepository;
     private final MatchRepository matchRepository;
+    private final LeagueScheduler leagueScheduler;
 
     @PostMapping
     @Operation(summary = "创建场馆")
@@ -198,6 +200,32 @@ public class VenueController {
         CourtBooking saved = courtBookingRepository.save(booking);
 
         return ApiResponse.success("Booking cancelled", saved);
+    }
+
+    @PostMapping("/change-check/{matchId}")
+    @Operation(summary = "检测场地变更冲突",
+            description = "在变更比赛场地前，检测新场地是否存在时间、裁判、队伍等维度冲突")
+    public ApiResponse<List<Match.ConflictWarning>> checkVenueChangeConflicts(
+            @PathVariable String matchId,
+            @Parameter(description = "新场馆ID") @RequestParam String newVenueId,
+            @Parameter(description = "新场地号") @RequestParam(required = false) Integer newCourtNumber) {
+        Match match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Match", matchId));
+
+        Match tempMatch = new Match();
+        tempMatch.setId(match.getId());
+        tempMatch.setLeagueId(match.getLeagueId());
+        tempMatch.setTeamAId(match.getTeamAId());
+        tempMatch.setTeamBId(match.getTeamBId());
+        tempMatch.setStartTime(match.getStartTime());
+        tempMatch.setEndTime(match.getEndTime());
+        tempMatch.setRefereeIds(match.getRefereeIds());
+        tempMatch.setVenueId(newVenueId);
+        tempMatch.setCourtNumber(newCourtNumber);
+
+        List<Match.ConflictWarning> conflicts = leagueScheduler.validateMatchConflicts(tempMatch);
+
+        return ApiResponse.success("Found " + conflicts.size() + " conflicts", conflicts);
     }
 
     @lombok.Data

@@ -2,9 +2,11 @@ package com.sportsevent.engine;
 
 import com.sportsevent.entity.Athlete;
 import com.sportsevent.entity.League;
+import com.sportsevent.entity.Match;
 import com.sportsevent.entity.Registration;
 import com.sportsevent.repository.AthleteRepository;
 import com.sportsevent.repository.LeagueRepository;
+import com.sportsevent.repository.MatchRepository;
 import com.sportsevent.repository.RegistrationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +27,7 @@ public class EligibilityValidator {
     private final AthleteRepository athleteRepository;
     private final LeagueRepository leagueRepository;
     private final RegistrationRepository registrationRepository;
+    private final MatchRepository matchRepository;
 
     @Value("${event.eligibility.max-multisport:3}")
     private int maxMultiSportPerSeason;
@@ -197,9 +200,45 @@ public class EligibilityValidator {
         List<Registration.MultiSportConflict> conflicts = new ArrayList<>();
 
         List<Registration> allRegs = registrationRepository.findApprovedByAthleteId(athleteId);
+        if (allRegs.isEmpty()) {
+            return conflicts;
+        }
+
         Set<String> leagueIds = allRegs.stream()
                 .map(Registration::getLeagueId)
                 .collect(Collectors.toSet());
+
+        Map<String, League.SportType> leagueSportMap = new HashMap<>();
+        for (String leagueId : leagueIds) {
+            leagueRepository.findById(leagueId).ifPresent(l -> leagueSportMap.put(leagueId, l.getSportType()));
+        }
+
+        Set<League.SportType> sports = new HashSet<>(leagueSportMap.values());
+        if (sports.size() <= 1) {
+            return conflicts;
+        }
+
+        for (Registration reg : allRegs) {
+            League.SportType regSport = leagueSportMap.get(reg.getLeagueId());
+            if (regSport == null) continue;
+
+            List<Match> leagueMatches = matchRepository.findByLeagueId(reg.getLeagueId());
+            for (Match m : leagueMatches) {
+                if (m.getStartTime() == null) continue;
+
+                boolean timeOverlap = m.getStartTime().isBefore(endTime)
+                        && m.getEndTime() != null && m.getEndTime().isAfter(startTime);
+
+                if (timeOverlap) {
+                    Registration.MultiSportConflict conflict = new Registration.MultiSportConflict();
+                    conflict.setAthleteId(athleteId);
+                    conflict.setConflictingLeagueId(reg.getLeagueId());
+                    conflict.setMatchId(m.getId());
+                    conflict.setConflictTime(m.getStartTime());
+                    conflicts.add(conflict);
+                }
+            }
+        }
 
         return conflicts;
     }

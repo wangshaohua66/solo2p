@@ -158,7 +158,7 @@ public class ScoreController {
     }
 
     @PutMapping("/{id}/appeal/decision")
-    @Operation(summary = "处理成绩申诉", description = "申诉处理后级联重算积分排名")
+    @Operation(summary = "处理成绩申诉", description = "申诉处理后级联重算积分排名；申诉成立时清除原成绩数据")
     public ApiResponse<Score> resolveAppeal(
             @PathVariable String id,
             @Parameter(description = "处理人") @RequestParam String decidedBy,
@@ -178,13 +178,33 @@ public class ScoreController {
 
         if (decision == Score.AppealRecord.AppealDecision.UPHELD) {
             score.setStatus(Score.ScoreStatus.OVERRULED);
+            score.setTeamAScore(null);
+            score.setTeamBScore(null);
+            score.setIsWin(null);
+            score.setPointDifference(null);
+            score.setExcludedFromRanking(true);
         } else {
             score.setStatus(Score.ScoreStatus.CONFIRMED);
+            score.setExcludedFromRanking(false);
         }
         score.setUpdatedAt(LocalDateTime.now());
 
         Score saved = scoreRepository.save(score);
+
+        Match match = matchRepository.findById(saved.getMatchId()).orElse(null);
+        if (match != null) {
+            if (decision == Score.AppealRecord.AppealDecision.UPHELD) {
+                match.setStatus(Match.MatchStatus.APPEAL_UPHELD);
+            } else {
+                match.setStatus(Match.MatchStatus.FINISHED);
+            }
+            match.setUpdatedAt(LocalDateTime.now());
+            matchRepository.save(match);
+        }
+
         scoreCalculator.calculateGroupRankings(score.getLeagueId());
+
+        notifyAppealResolved(saved, decision);
 
         return ApiResponse.success("Appeal resolved, rankings recalculated", saved);
     }
@@ -231,6 +251,25 @@ public class ScoreController {
                 Notification.NotificationType.SCORE_PUBLISHED,
                 "比赛成绩已公布",
                 "比赛结果: " + score.getTeamAScore() + " - " + score.getTeamBScore(),
+                score.getId(),
+                "Score",
+                Notification.NotificationChannel.IN_APP,
+                recipients
+        );
+        notificationDispatcher.dispatch(notification);
+    }
+
+    private void notifyAppealResolved(Score score, Score.AppealRecord.AppealDecision decision) {
+        List<Notification.Recipient> recipients = new ArrayList<>();
+        String title = decision == Score.AppealRecord.AppealDecision.UPHELD
+                ? "成绩申诉成立" : "成绩申诉驳回";
+        String content = decision == Score.AppealRecord.AppealDecision.UPHELD
+                ? "原成绩已撤销，积分排名将重新计算"
+                : "原成绩维持有效，积分排名不变";
+        Notification notification = notificationDispatcher.createNotification(
+                Notification.NotificationType.APPEAL_RESULT,
+                title,
+                content,
                 score.getId(),
                 "Score",
                 Notification.NotificationChannel.IN_APP,

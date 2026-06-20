@@ -2,22 +2,32 @@ package com.sportsevent.controller;
 
 import com.sportsevent.dto.ApiResponse;
 import com.sportsevent.engine.EligibilityValidator;
+import com.sportsevent.engine.LeagueScheduler;
 import com.sportsevent.entity.Athlete;
+import com.sportsevent.entity.Ranking;
 import com.sportsevent.entity.Registration;
+import com.sportsevent.entity.Score;
 import com.sportsevent.exception.BusinessException;
 import com.sportsevent.exception.ResourceNotFoundException;
 import com.sportsevent.repository.AthleteRepository;
+import com.sportsevent.repository.RankingRepository;
 import com.sportsevent.repository.RegistrationRepository;
+import com.sportsevent.repository.ScoreRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/registrations")
 @RequiredArgsConstructor
@@ -27,6 +37,9 @@ public class RegistrationController {
     private final RegistrationRepository registrationRepository;
     private final AthleteRepository athleteRepository;
     private final EligibilityValidator eligibilityValidator;
+    private final LeagueScheduler leagueScheduler;
+    private final ScoreRepository scoreRepository;
+    private final RankingRepository rankingRepository;
 
     @PostMapping
     @Operation(summary = "提交报名申请")
@@ -113,7 +126,21 @@ public class RegistrationController {
         registration.setUpdatedAt(LocalDateTime.now());
 
         Registration saved = registrationRepository.save(registration);
-        return ApiResponse.success("Registration approved", saved);
+
+        triggerScheduleRecreationAsync(registration.getLeagueId());
+
+        return ApiResponse.success("Registration approved, schedule recreation triggered", saved);
+    }
+
+    @Async
+    public void triggerScheduleRecreationAsync(String leagueId) {
+        try {
+            log.info("Triggering schedule recreation for league: {}", leagueId);
+            leagueScheduler.generateSchedule(leagueId);
+            log.info("Schedule recreation completed for league: {}", leagueId);
+        } catch (Exception e) {
+            log.error("Failed to recreate schedule for league: {}", leagueId, e);
+        }
     }
 
     @PutMapping("/{id}/reject")
@@ -151,10 +178,63 @@ public class RegistrationController {
 
     @GetMapping("/athletes/{athleteId}/profile")
     @Operation(summary = "查询运动员参赛档案", description = "聚合跨赛季跨项目参赛记录、成绩排名、禁赛历史")
-    public ApiResponse<Athlete> getAthleteProfile(@PathVariable String athleteId) {
+    public ApiResponse<AthleteProfileDTO> getAthleteProfile(@PathVariable String athleteId) {
         Athlete athlete = athleteRepository.findById(athleteId)
                 .orElseThrow(() -> new ResourceNotFoundException("Athlete", athleteId));
-        return ApiResponse.success(athlete);
+
+        List<Registration> registrations = registrationRepository.findByAthleteId(athleteId);
+        List<Score> scores = scoreRepository.findByAthleteId(athleteId);
+        List<Ranking> rankings = rankingRepository.findByAthleteId(athleteId);
+
+        AthleteProfileDTO profile = new AthleteProfileDTO();
+        profile.setAthleteId(athleteId);
+        profile.setName(athlete.getName());
+        profile.setGender(athlete.getGender());
+        profile.setBirthDate(athlete.getBirthDate());
+        profile.setOrganization(athlete.getOrganization());
+        profile.setStatus(athlete.getStatus());
+        profile.setRegistrationCount((long) registrations.size());
+        profile.setParticipatedSports(registrations.stream()
+                .map(Registration::getSportType)
+                .collect(Collectors.toSet()));
+        profile.setScores(scores);
+        profile.setRankings(rankings);
+        profile.setSuspensionRecords(athlete.getSuspensionRecords());
+
+        long totalWins = scores.stream()
+                .filter(s -> Boolean.TRUE.equals(s.getIsWin()))
+                .count();
+        profile.setTotalWins(totalWins);
+        profile.setTotalMatches((long) scores.size());
+
+        double winRate = scores.isEmpty() ? 0.0 : (double) totalWins / scores.size() * 100;
+        profile.setWinRate(winRate);
+
+        return ApiResponse.success(profile);
+    }
+
+    @GetMapping("/athletes/{athleteId}/profile/export")
+    @Operation(summary = "导出运动员档案统计", description = "导出运动员参赛记录与成绩统计")
+    public ApiResponse<AthleteProfileDTO> exportAthleteProfile(@PathVariable String athleteId) {
+        return getAthleteProfile(athleteId);
+    }
+
+    @lombok.Data
+    public static class AthleteProfileDTO {
+        private String athleteId;
+        private String name;
+        private String gender;
+        private LocalDateTime birthDate;
+        private String organization;
+        private Athlete.AthleteStatus status;
+        private Long registrationCount;
+        private java.util.Set<com.sportsevent.entity.League.SportType> participatedSports;
+        private List<Score> scores;
+        private List<Ranking> rankings;
+        private java.util.List<Athlete.SuspensionRecord> suspensionRecords;
+        private Long totalWins;
+        private Long totalMatches;
+        private Double winRate;
     }
 
     @GetMapping("/athletes")

@@ -24,6 +24,8 @@ public class Score {
 
     private String teamBId;
 
+    private String athleteId;
+
     private Integer teamAScore;
 
     private Integer teamBScore;
@@ -35,6 +37,12 @@ public class Score {
     private boolean appealed;
 
     private AppealRecord appealRecord;
+
+    private Boolean isWin;
+
+    private Integer pointDifference;
+
+    private boolean excludedFromRanking;
 
     private LocalDateTime recordedAt;
 

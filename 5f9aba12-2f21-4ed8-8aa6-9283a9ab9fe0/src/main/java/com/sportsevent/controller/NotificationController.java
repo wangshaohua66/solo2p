@@ -1,14 +1,19 @@
 package com.sportsevent.controller;
 
 import com.sportsevent.dto.ApiResponse;
+import com.sportsevent.engine.LeagueScheduler;
 import com.sportsevent.engine.NotificationDispatcher;
 import com.sportsevent.entity.Match;
 import com.sportsevent.entity.Notification;
+import com.sportsevent.entity.Referee;
 import com.sportsevent.entity.Team;
+import com.sportsevent.entity.Venue;
 import com.sportsevent.exception.ResourceNotFoundException;
 import com.sportsevent.repository.MatchRepository;
 import com.sportsevent.repository.NotificationRepository;
+import com.sportsevent.repository.RefereeRepository;
 import com.sportsevent.repository.TeamRepository;
+import com.sportsevent.repository.VenueRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -30,6 +35,9 @@ public class NotificationController {
     private final NotificationDispatcher notificationDispatcher;
     private final MatchRepository matchRepository;
     private final TeamRepository teamRepository;
+    private final RefereeRepository refereeRepository;
+    private final VenueRepository venueRepository;
+    private final LeagueScheduler leagueScheduler;
 
     @PostMapping
     @Operation(summary = "创建并发送通知")
@@ -91,13 +99,28 @@ public class NotificationController {
 
     @PostMapping("/venue-change/{matchId}")
     @Operation(summary = "推送场馆变更通知",
-            description = "场地临时变更时自动检测并推送通知到受影响参赛方")
-    public ApiResponse<Notification> sendVenueChangeNotification(
+            description = "场地临时变更时自动检测冲突、更新Match场地信息并推送通知到受影响参赛方")
+    public ApiResponse<Match> sendVenueChangeNotification(
             @PathVariable String matchId,
             @Parameter(description = "新场馆ID") @RequestParam String newVenueId,
+            @Parameter(description = "新场地号") @RequestParam(required = false) Integer newCourtNumber,
             @Parameter(description = "备注") @RequestParam(required = false) String remark) {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Match", matchId));
+
+        String oldVenueId = match.getVenueId();
+        Integer oldCourtNumber = match.getCourtNumber();
+
+        match.setVenueId(newVenueId);
+        if (newCourtNumber != null) {
+            match.setCourtNumber(newCourtNumber);
+        }
+
+        List<Match.ConflictWarning> conflicts = leagueScheduler.validateMatchConflicts(match);
+        match.setConflicts(conflicts);
+        match.setUpdatedAt(LocalDateTime.now());
+
+        Match savedMatch = matchRepository.save(match);
 
         List<Notification.Recipient> recipients = new ArrayList<>();
 
@@ -120,27 +143,33 @@ public class NotificationController {
             }
         }
 
-        String content = String.format("比赛场地已变更，请留意新场馆。比赛时间：%s",
-                match.getStartTime() != null ? match.getStartTime().toString() : "待定");
+        Venue newVenue = venueRepository.findById(newVenueId).orElse(null);
+        String venueName = newVenue != null ? newVenue.getName() : newVenueId;
+
+        StringBuilder content = new StringBuilder();
+        content.append(String.format("比赛场地已变更为：%s%s号场。",
+                venueName, match.getCourtNumber() != null ? match.getCourtNumber() : ""));
+        if (!conflicts.isEmpty()) {
+            content.append("【注意】存在 ").append(conflicts.size()).append(" 项冲突警告。");
+        }
         if (remark != null) {
-            content += "。备注：" + remark;
+            content.append("备注：").append(remark);
         }
 
         Notification notification = notificationDispatcher.createNotification(
                 Notification.NotificationType.VENUE_CHANGE,
                 "【重要】比赛场地变更通知",
-                content,
+                content.toString(),
                 matchId,
                 "Match",
                 Notification.NotificationChannel.WECHAT_TEMPLATE,
                 recipients
         );
 
-        CompletableFuture<NotificationDispatcher.DispatchResult> dispatchFuture =
-                notificationDispatcher.dispatch(notification);
+        notificationDispatcher.dispatch(notification);
 
-        return ApiResponse.success("Venue change notification sent to " + recipients.size() + " recipients",
-                notification);
+        return ApiResponse.success("Venue changed, notification sent to " + recipients.size() + " recipients",
+                savedMatch);
     }
 
     @PostMapping("/schedule-change/{leagueId}")
@@ -153,14 +182,46 @@ public class NotificationController {
             @Parameter(description = "内容") @RequestParam String content) {
         List<Notification.Recipient> recipients = new ArrayList<>();
 
-        List<Team> teams = teamRepository.findAll();
-        for (Team team : teams) {
-            Notification.Recipient r = new Notification.Recipient();
-            r.setRecipientId(team.getId());
-            r.setRecipientType(Notification.Recipient.RecipientType.TEAM);
-            r.setName(team.getName());
-            r.setContact(team.getLeaderPhone());
-            recipients.add(r);
+        switch (targetType) {
+            case TEAM:
+                List<Team> teams = teamRepository.findAll();
+                for (Team team : teams) {
+                    Notification.Recipient r = new Notification.Recipient();
+                    r.setRecipientId(team.getId());
+                    r.setRecipientType(Notification.Recipient.RecipientType.TEAM);
+                    r.setName(team.getName());
+                    r.setContact(team.getLeaderPhone());
+                    recipients.add(r);
+                }
+                break;
+
+            case REFEREE:
+                List<Referee> referees = refereeRepository.findAll();
+                for (Referee referee : referees) {
+                    Notification.Recipient r = new Notification.Recipient();
+                    r.setRecipientId(referee.getId());
+                    r.setRecipientType(Notification.Recipient.RecipientType.REFEREE);
+                    r.setName(referee.getName());
+                    r.setContact(referee.getPhone());
+                    recipients.add(r);
+                }
+                break;
+
+            case VENUE_MANAGER:
+                List<Venue> venues = venueRepository.findAll();
+                for (Venue venue : venues) {
+                    Notification.Recipient r = new Notification.Recipient();
+                    r.setRecipientId(venue.getId());
+                    r.setRecipientType(Notification.Recipient.RecipientType.VENUE_MANAGER);
+                    r.setName(venue.getName());
+                    r.setContact(venue.getContactPhone());
+                    recipients.add(r);
+                }
+                break;
+
+            case ATHLETE:
+            default:
+                break;
         }
 
         Notification notification = notificationDispatcher.createNotification(
@@ -174,7 +235,7 @@ public class NotificationController {
         );
 
         notificationDispatcher.dispatch(notification);
-        return ApiResponse.success("Schedule change notification sent to " + recipients.size() + " recipients",
+        return ApiResponse.success("Schedule change notification sent to " + recipients.size() + " " + targetType + " recipients",
                 notification);
     }
 

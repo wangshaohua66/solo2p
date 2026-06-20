@@ -1,0 +1,95 @@
+spring:
+  application:
+    name: sports-event-gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        namespace: sports-event
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        - id: event-service-league
+          uri: lb://sports-event-service
+          predicates:
+            - Path=/api/leagues/**
+          filters:
+            - StripPrefix=0
+
+        - id: event-service-registration
+          uri: lb://sports-event-service
+          predicates:
+            - Path=/api/registrations/**
+          filters:
+            - StripPrefix=0
+
+        - id: event-service-referee
+          uri: lb://sports-event-service
+          predicates:
+            - Path=/api/referees/**
+          filters:
+            - StripPrefix=0
+
+        - id: event-service-venue
+          uri: lb://sports-event-service
+          predicates:
+            - Path=/api/venues/**
+          filters:
+            - StripPrefix=0
+
+        - id: event-service-score
+          uri: lb://sports-event-service
+          predicates:
+            - Path=/api/scores/**
+          filters:
+            - StripPrefix=0
+
+        - id: event-service-notification
+          uri: lb://sports-event-service
+          predicates:
+            - Path=/api/notifications/**
+          filters:
+            - StripPrefix=0
+
+        - id: event-service-athletes
+          uri: lb://sports-event-service
+          predicates:
+            - Path=/api/athletes/**
+          filters:
+            - StripPrefix=0
+
+        - id: event-service-swagger
+          uri: lb://sports-event-service
+          predicates:
+            - Path=/v3/api-docs/**, /swagger-ui/**, /swagger-ui.html
+          filters:
+            - StripPrefix=0
+
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
+
+server:
+  port: 9000
+
+logging:
+  level:
+    root: INFO
+    com.sportsevent.gateway: DEBUG
+    org.springframework.cloud.gateway: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, gateway, metrics

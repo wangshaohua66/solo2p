@@ -4,10 +4,13 @@ import com.sportsevent.dto.ApiResponse;
 import com.sportsevent.entity.League;
 import com.sportsevent.entity.Match;
 import com.sportsevent.entity.Referee;
+import com.sportsevent.entity.Team;
 import com.sportsevent.exception.BusinessException;
 import com.sportsevent.exception.ResourceNotFoundException;
+import com.sportsevent.repository.LeagueRepository;
 import com.sportsevent.repository.MatchRepository;
 import com.sportsevent.repository.RefereeRepository;
+import com.sportsevent.repository.TeamRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,6 +30,8 @@ public class RefereeController {
 
     private final RefereeRepository refereeRepository;
     private final MatchRepository matchRepository;
+    private final LeagueRepository leagueRepository;
+    private final TeamRepository teamRepository;
 
     @PostMapping
     @Operation(summary = "创建裁判信息")
@@ -236,11 +241,49 @@ public class RefereeController {
     }
 
     private League.SportType inferSportType(String leagueId) {
-        return null;
+        return leagueRepository.findById(leagueId)
+                .map(League::getSportType)
+                .orElse(null);
     }
 
     private Set<String> getAvoidedRefereeIds(Match match) {
         Set<String> avoided = new HashSet<>();
+
+        Set<String> relatedTeamIds = new HashSet<>();
+        if (match.getTeamAId() != null) relatedTeamIds.add(match.getTeamAId());
+        if (match.getTeamBId() != null) relatedTeamIds.add(match.getTeamBId());
+
+        Set<String> relatedOrgIds = new HashSet<>();
+        for (String teamId : relatedTeamIds) {
+            teamRepository.findById(teamId).ifPresent(team -> {
+                if (team.getLeaderName() != null) {
+                    relatedOrgIds.add(team.getLeaderName());
+                }
+            });
+        }
+
+        List<Referee> allReferees = refereeRepository.findAll();
+        for (Referee referee : allReferees) {
+            if (referee.getAvoidanceRelations() != null) {
+                for (Referee.AvoidanceRelation ar : referee.getAvoidanceRelations()) {
+                    if (relatedTeamIds.contains(ar.getRelatedEntityId())) {
+                        avoided.add(referee.getId());
+                        break;
+                    }
+                    if (ar.getRelatedEntityName() != null && relatedOrgIds.contains(ar.getRelatedEntityName())) {
+                        avoided.add(referee.getId());
+                        break;
+                    }
+                    if (ar.getType() == Referee.AvoidanceRelation.AvoidanceType.SAME_ORGANIZATION
+                            && referee.getOrganization() != null
+                            && relatedOrgIds.contains(referee.getOrganization())) {
+                        avoided.add(referee.getId());
+                        break;
+                    }
+                }
+            }
+        }
+
         return avoided;
     }
 

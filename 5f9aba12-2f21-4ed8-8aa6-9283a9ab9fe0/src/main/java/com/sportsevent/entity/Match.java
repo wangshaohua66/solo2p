@@ -56,7 +56,7 @@ public class Match {
     }
 
     public enum MatchStatus {
-        SCHEDULED, IN_PROGRESS, FINISHED, CANCELLED, POSTPONED
+        SCHEDULED, IN_PROGRESS, FINISHED, CANCELLED, POSTPONED, APPEAL_UPHELD
     }
 
     @Data

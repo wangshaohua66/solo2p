@@ -126,11 +126,12 @@ public class LeagueController {
     }
 
     @PutMapping("/{leagueId}/matches/{matchId}")
-    @Operation(summary = "调整单场比赛", description = "手动微调比赛时间、场地后自动重新校验冲突")
+    @Operation(summary = "调整单场比赛", description = "手动微调比赛时间、场地后自动重新校验冲突，冲突时保存并标记警告")
     public ApiResponse<Match> updateMatch(
             @PathVariable String leagueId,
             @PathVariable String matchId,
-            @RequestBody Match match) {
+            @RequestBody Match match,
+            @Parameter(description = "是否强制保存（有冲突时）") @RequestParam(defaultValue = "false") boolean forceSave) {
         Match existing = matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Match", matchId));
 
@@ -145,15 +146,20 @@ public class LeagueController {
         List<Match.ConflictWarning> conflicts = leagueScheduler.validateMatchConflicts(match);
         match.setConflicts(conflicts);
 
-        if (conflicts.stream().anyMatch(c ->
+        boolean hasCriticalConflict = conflicts.stream().anyMatch(c ->
                 c.getType() == Match.ConflictWarning.ConflictType.VENUE_CONFLICT
                         || c.getType() == Match.ConflictWarning.ConflictType.TEAM_CONFLICT
-                        || c.getType() == Match.ConflictWarning.ConflictType.REFEREE_CONFLICT)) {
-            throw new BusinessException("Match has unresolved conflicts: " + conflicts.size() + " issues");
+                        || c.getType() == Match.ConflictWarning.ConflictType.REFEREE_CONFLICT
+                        || c.getType() == Match.ConflictWarning.ConflictType.ATHLETE_MULTISPORT_CONFLICT);
+
+        if (hasCriticalConflict && !forceSave) {
+            return ApiResponse.warning("Match has " + conflicts.size() + " conflict warnings. Set forceSave=true to save anyway.", match);
         }
 
         Match saved = matchRepository.save(match);
-        return ApiResponse.success("Match updated (validated)", saved);
+        String message = conflicts.isEmpty() ? "Match updated (validated)"
+                : "Match saved with " + conflicts.size() + " conflict warnings";
+        return ApiResponse.success(message, saved);
     }
 
     @PostMapping("/{leagueId}/matches/{matchId}/validate")

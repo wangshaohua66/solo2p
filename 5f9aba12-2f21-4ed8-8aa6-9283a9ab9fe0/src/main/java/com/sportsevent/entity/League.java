@@ -30,7 +30,7 @@ public class League {
 
     private LocalDateTime endDate;
 
-    private List<String> groupNames;
+    private List<String> groupDefinitionIds;
 
     private List<String> venueIds;
 

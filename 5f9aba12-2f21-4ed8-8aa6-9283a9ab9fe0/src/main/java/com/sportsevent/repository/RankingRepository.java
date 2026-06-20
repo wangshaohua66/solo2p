@@ -19,4 +19,6 @@ public interface RankingRepository extends MongoRepository<Ranking, String> {
 
     @Query("{'leagueId': ?0, 'groupName': ?1}")
     List<Ranking> findByLeagueAndGroupOrderByPointsDesc(String leagueId, String groupName);
+
+    List<Ranking> findByAthleteId(String athleteId);
 }

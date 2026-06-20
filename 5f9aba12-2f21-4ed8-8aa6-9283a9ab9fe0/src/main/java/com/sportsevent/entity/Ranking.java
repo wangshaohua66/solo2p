@@ -21,6 +21,8 @@ public class Ranking {
 
     private String teamId;
 
+    private String athleteId;
+
     private Integer position;
 
     private Integer played;

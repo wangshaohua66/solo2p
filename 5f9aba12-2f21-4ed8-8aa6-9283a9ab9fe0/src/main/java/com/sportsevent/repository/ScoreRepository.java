@@ -17,4 +17,6 @@ public interface ScoreRepository extends MongoRepository<Score, String> {
     List<Score> findByLeagueIdAndStatus(String leagueId, Score.ScoreStatus status);
 
     List<Score> findByTeamAIdOrTeamBId(String teamAId, String teamBId);
+
+    List<Score> findByAthleteId(String athleteId);
 }
