@@ -1,0 +1,48 @@
+server:
+  port: 8080
+  read_timeout: 30
+  write_timeout: 30
+  cors_origins: "*"
+
+redis:
+  addr: "localhost:6379"
+  password: ""
+  db: 0
+  pool_size: 50
+
+jwt:
+  secret: "labelops-jwt-secret-key-change-in-production"
+  expire_hours: 24
+  issuer: "labelops"
+
+platforms:
+  netease:
+    api_key: ""
+    api_secret: ""
+    base_url: "https://music.163.com/api"
+    enabled: true
+  qqmusic:
+    api_key: ""
+    api_secret: ""
+    base_url: "https://c.y.qq.com"
+    enabled: true
+  kugou:
+    api_key: ""
+    api_secret: ""
+    base_url: "https://www.kugou.com"
+    enabled: true
+  kuwo:
+    api_key: ""
+    api_secret: ""
+    base_url: "https://www.kuwo.cn"
+    enabled: true
+  spotify:
+    api_key: ""
+    api_secret: ""
+    base_url: "https://api.spotify.com/v1"
+    enabled: true
+  apple_music:
+    api_key: ""
+    api_secret: ""
+    base_url: "https://api.music.apple.com/v1"
+    enabled: true
