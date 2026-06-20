@@ -1,0 +1,571 @@
+.\" Manpage for config-drift-checker
+.\" Contact ops@example.com for corrections or updates
+.TH CONFIG-DRIFT-CHECKER 1 "2026年6月" "config-drift-checker v1.0.0" "运维工具手册"
+
+.SH 名称
+config-drift \- 企业级配置漂移检测与管理命令行工具
+
+.SH 总览
+.B config-drift
+.RI [ 全局选项 ]
+.I 子命令
+.RI [ 子命令选项 ]
+.RI [ 参数... ]
+
+.SH 描述
+.B config-drift-checker
+是一个面向微服务架构的配置文件自动化管理工具，针对多环境（开发、测试、预发布、生产）下配置文件的差异对比、漂移预警、敏感信息扫描、变更追溯等运维痛点提供一站式解决方案。
+.PP
+工具支持 YAML、JSON、ENV、PROPERTIES 等多种配置格式，内置 58+ 条敏感信息识别规则，覆盖密码、密钥、PII个人信息、支付敏感数据、不安全配置等类型，并可对接多种密钥管理系统（KMS）。
+
+.SH 全局选项
+以下全局选项在所有子命令前均可使用：
+.TP
+.BR \-h ", " \-\-help
+显示帮助信息。可指定子命令后使用
+.B config-drift <子命令> --help
+查看子命令详细参数。
+.TP
+.BR \-V ", " \-\-version
+输出工具版本号。
+.TP
+.BR \-\-json
+以 JSON 格式输出结果，便于脚本解析和系统集成。
+.TP
+.BR \-q ", " \-\-quiet
+静默模式，仅输出最终结果，不显示进度 spinner 和额外信息。
+.TP
+.BR \-d ", " \-\-debug
+启用调试模式，输出详细日志和错误堆栈信息。
+.TP
+.BR \-\-man
+显示本手册页（格式化输出）。
+.TP
+.BR \-\-config " \fIPATH\fR"
+指定自定义项目配置文件路径，默认查找当前目录
+.B .driftrc.json
+.TP
+.BR \-\-no\-color
+禁用彩色输出，适用于 CI/CD 流水线或日志采集场景。
+
+.SH 子命令
+
+.SS init - 环境初始化向导
+交互式引导用户完成项目配置初始化，包括：
+- 项目名称与描述设置
+- 添加/管理多个环境（开发、测试、预发布、生产）
+- 自动扫描指定目录下的配置文件
+- 建立微服务名称与配置文件映射索引
+- 生成
+.B .driftrc.json
+项目配置文件
+.TP
+.B 用法：
+config-drift init
+.RI [ 选项 ]
+.TP
+.B 选项：
+.RS
+.TP
+.BR \-y ", " \-\-yes
+跳过交互确认，使用默认值自动完成初始化。
+.TP
+.BR \-f ", " \-\-force
+强制覆盖已存在的配置文件。
+.TP
+.BR \-\-scan\-dir " \fIDIR\fR"
+指定需要扫描的配置文件根目录，可多次指定。
+.RE
+
+.SS env - 环境管理
+列出、添加、删除和管理已配置的环境信息，设置基线环境。
+.TP
+.B 用法：
+config-drift env
+.RI [ 子操作 ] [ 选项 ]
+.TP
+.B 子操作：
+.RS
+.TP
+.BR \-\-list
+（默认）列出所有已配置的环境及其路径。
+.TP
+.BR \-\-add " \fINAME PATH\fR"
+添加一个新环境，指定环境名称和配置根目录路径。
+.TP
+.BR \-\-remove " \fINAME\fR"
+移除已配置的环境。
+.TP
+.BR \-\-set\-baseline " \fINAME\fR"
+将指定环境设为漂移检测的基线（通常为预发布/测试环境）。
+.RE
+
+.SS diff - 差异检测
+对比两个环境的配置差异，按微服务分组展示新增、删除、修改的配置项，并高亮显示可能导致运行异常的关键配置（如数据库连接、线程池、资源配额等）。
+.TP
+.B 用法：
+config-drift diff
+.I SOURCE_ENV TARGET_ENV
+.RI [ 选项 ]
+.TP
+.B 选项：
+.RS
+.TP
+.BR \-s ", " \-\-service " \fINAME\fR"
+仅对比指定的微服务，可多次指定。
+.TP
+.BR \-k ", " \-\-key " \fIPATTERN\fR"
+仅对比配置键名匹配正则表达式的配置项。
+.TP
+.BR \-\-severity " \fILEVEL\fR"
+仅显示指定严重级别以上的差异：critical|high|medium|low|info
+.TP
+.BR \-o ", " \-\-output " \fIFORMAT\fR"
+输出格式：console（默认）| json | html
+.TP
+.BR \-f ", " \-\-file " \fIPATH\fR"
+将报告保存到指定文件（配合 -o html/json 使用）。
+.TP
+.BR \-\-ignore\-case
+忽略键名大小写。
+.RE
+
+.SS scan - 漂移扫描
+检测目标环境相对于基线环境的配置漂移情况，按严重程度（严重/高危/中等/低危/信息）分级预警，标记未经过审批的配置变更并输出漂移综合评分。
+.TP
+.B 用法：
+config-drift scan
+.RI [ 选项 ]
+.TP
+.B 选项：
+.RS
+.TP
+.BR \-e ", " \-\-env " \fINAME\fR"
+（必填）要扫描的目标环境名称。
+.TP
+.BR \-b ", " \-\-baseline " \fINAME\fR"
+指定基线环境，不指定时使用默认配置的基线。
+.TP
+.BR \-\-show\-all
+显示所有漂移项，默认只显示 medium 以上严重级别的项。
+.TP
+.BR \-\-threshold " \fIN\fR"
+漂移评分阈值（默认 50），超过阈值时命令以非零退出码退出，用于 CI 告警。
+.TP
+.BR \-\-create\-snapshot
+扫描完成后自动创建当前环境的配置快照，用于后续变更追溯。
+.TP
+.BR \-\-fail\-on\-unauthorized
+检测到未授权变更时立即以非零退出码退出。
+.RE
+
+.SS secrets - 敏感信息扫描
+识别配置文件中的敏感信息（如数据库密码、API密钥、私钥证书、身份证号、银行卡号等 58+ 规则），生成脱敏建议，并支持对接企业密钥管理系统（HashiCorp Vault、阿里云KMS、AWS KMS等）。
+.TP
+.B 用法：
+config-drift secrets
+.RI [ 选项 ]
+.TP
+.B 选项：
+.RS
+.TP
+.BR \-e ", " \-\-env " \fINAME\fR"
+扫描指定环境下的所有配置文件。
+.TP
+.BR \-p ", " \-\-path " \fIPATH\fR"
+扫描指定目录或单个文件，支持多次指定。
+.TP
+.BR \-s ", " \-\-severity " \fILEVEL\fR"
+仅显示指定严重级别以上的发现：critical|high|medium|low|info
+.TP
+.BR \-c ", " \-\-category " \fICAT\fR"
+按敏感信息类别过滤：password|api_key|pii|private_key|security_config|payment|database|webhook|network
+.TP
+.BR \-\-kms\-export " \fIPROVIDER\fR"
+将识别出的密钥导出至指定 KMS 提供商：vault|aliyun-kms|aws-kms|tencent-kms|huawei-kms|azure-key-vault|gcp-secret-manager
+.TP
+.BR \-\-export\-kms\-path " \fIPATH\fR"
+KMS 中的存储路径前缀，如 secret/bank/dev/
+.TP
+.BR \-\-mask\-all
+输出报告中对所有敏感值进行掩码处理（默认启用，除非使用 --show-secrets）。
+.TP
+.BR \-\-show\-secrets
+在输出中显示完整的敏感值（⚠️ 仅用于调试，严禁将此输出存入日志）。
+.RE
+
+.SS sync - 配置同步
+将源环境配置同步至目标环境，支持变更预览、交互式确认、选择性同步、冲突处理（覆盖/跳过/合并/交互），每次同步自动记录审计日志。
+.TP
+.B 用法：
+config-drift sync
+.I SOURCE_ENV TARGET_ENV
+.RI [ 选项 ]
+.TP
+.B 选项：
+.RS
+.TP
+.BR \-s ", " \-\-service " \fINAME\fR"
+仅同步指定微服务的配置，可多次指定。
+.TP
+.BR \-k ", " \-\-key " \fIPATTERN\fR"
+仅同步键名匹配正则表达式的配置项。
+.TP
+.BR \-\-dry\-run
+仅生成同步计划并预览，不实际执行修改。
+.TP
+.BR \-\-strategy " \fISTRATEGY\fR"
+冲突解决策略：
+.RS
+.TP
+.B overwrite
+（默认）源环境完全覆盖目标环境
+.TP
+.B skip
+冲突时跳过目标环境已有配置
+.TP
+.B merge
+深度合并，数组追加、对象合并
+.TP
+.B interactive
+逐项询问用户确认
+.RE
+.TP
+.BR \-y ", " \-\-yes
+跳过交互式确认，自动执行同步。
+.TP
+.BR \-\-backup
+同步前自动备份目标环境配置文件至 data/backups/
+.TP
+.BR \-\-batch\-size " \fIN\fR"
+批量操作大小，默认 20。
+.RE
+
+.SS history - 变更追溯与快照管理
+查看指定配置项或微服务的变更历史，支持按时间范围、操作类型、操作人筛选，并支持配置快照的创建、列表和对比。
+.TP
+.B 用法：
+config-drift history
+.RI [ 选项 ]
+.TP
+.B 选项：
+.RS
+.TP
+.BR \-e ", " \-\-env " \fINAME\fR"
+仅查询指定环境的变更记录。
+.TP
+.BR \-s ", " \-\-service " \fINAME\fR"
+仅查询指定微服务的变更记录。
+.TP
+.BR \-k ", " \-\-key " \fIPATTERN\fR"
+按配置项键名（模糊或正则）查询。
+.TP
+.BR \-\-operator " \fINAME\fR"
+按操作人筛选。
+.TP
+.BR \-\-type " \fITYPE\fR"
+按操作类型筛选：add|modify|remove|sync|snapshot|rollback|init|scan
+.TP
+.BR \-\-from " \fIDATE\fR"
+查询起始时间，格式：YYYY-MM-DD 或 YYYY-MM-DDTHH:MM:SS
+.TP
+.BR \-\-to " \fIDATE\fR"
+查询结束时间。
+.TP
+.BR \-n ", " \-\-limit " \fIN\fR"
+限制返回记录条数，默认 100。
+.TP
+.BR \-\-create\-snapshot " \fIENV\fR"
+创建指定环境的配置快照。
+.TP
+.BR \-\-snapshots
+列出所有已创建的配置快照。
+.TP
+.BR \-\-compare " \fISNAP_A,SNAP_B\fR"
+对比两个快照之间的差异。
+.TP
+.BR \-o ", " \-\-output " \fIFORMAT\fR"
+输出格式：console|json。
+.RE
+
+.SS export - 配置导出
+导出环境配置清单，支持 JSON、CSV、Markdown 三种格式，便于文档归档、合规审计、对外汇报。
+.TP
+.B 用法：
+config-drift export
+.RI [ 选项 ]
+.TP
+.B 选项：
+.RS
+.TP
+.BR \-e ", " \-\-env " \fINAME\fR"
+（可多次指定）要导出的环境名称，不指定则导出全部环境。
+.TP
+.BR \-f ", " \-\-format " \fIFORMAT\fR"
+导出格式：json（默认）| csv | markdown
+.TP
+.BR \-o ", " \-\-output " \fIPATH\fR"
+输出文件路径，不指定则自动保存到 data/export_*.{format}
+.TP
+.BR \-\-include\-values
+导出内容中包含配置项实际值（⚠️ 可能包含敏感信息，请谨慎使用）。
+.TP
+.BR \-\-mask
+对导出的配置值进行脱敏处理（默认启用）。
+.RE
+
+.SS validate - 批量校验
+批量校验配置文件格式正确性、必填项完整性、配置值范围合法性（端口范围、URL格式、IP地址等），输出校验通过率和失败明细。
+.TP
+.B 用法：
+config-drift validate
+.RI [ 选项 ]
+.TP
+.B 选项：
+.RS
+.TP
+.BR \-e ", " \-\-env " \fINAME\fR"
+（可多次指定）要校验的环境名称，不指定则校验全部环境。
+.TP
+.BR \-p ", " \-\-path " \fIPATH\fR"
+仅校验指定路径下的配置文件。
+.TP
+.BR \-\-strict
+严格模式，任何校验失败均以非零退出码退出。
+.TP
+.BR \-\-fail\-on\-warning
+即使是警告级别问题也以非零退出码退出（用于 CI）。
+.TP
+.BR \-o ", " \-\-output " \fIFORMAT\fR"
+输出格式：console（默认）| json。
+.RE
+
+.SH 配置文件
+
+.B config-drift
+支持三级配置合并（优先级从低到高）：
+.PP
+1.
+.B 全局配置
+：~/.config/config-drift/config.json
+.PP
+2.
+.B 项目配置
+：当前工作目录下的 .driftrc.json
+.PP
+3.
+.B 环境变量
+：所有以 CONFIG_DRIFT_ 开头的环境变量（会覆盖同名配置）
+
+.SS .driftrc.json 关键字段
+.TP
+.B projectName
+项目名称，用于报告展示和审计区分。
+.TP
+.B environments
+对象数组，每个环境包含 name（环境名）、path（配置根目录）、description（描述）等字段。
+.TP
+.B baselineEnvironment
+作为漂移检测基线的环境名称。
+.TP
+.B filePatterns
+需要扫描的配置文件 glob 匹配模式数组，如 ["**/*.yml", "**/*.yaml", "**/*.json"]。
+.TP
+.B ignorePatterns
+扫描时忽略的文件/目录 glob 模式，如 ["**/node_modules/**", "**/.git/**"]。
+.TP
+.B criticalKeys
+被视为"关键配置"的键名正则表达式，这些配置发生变更时漂移严重级别自动提升。
+.TP
+.B dataDirectory
+工具运行产生的数据（快照、历史、报告、备份）存储目录，默认 ./data。
+.TP
+.B logDirectory
+日志文件存储目录，默认 ./logs。
+
+.SH 敏感信息识别规则
+内置 58 条规则，分为以下类别：
+.TP
+.B password (PWD-*)
+通用密码、数据库密码、网络代理密码、SSH私钥密码（4条）
+.TP
+.B api_key (API-*)
+AWS/阿里云/腾讯云/华为云/GCP/Azure等云厂商密钥、OAuth客户端密钥、Webhook、Git Token等（10条）
+.TP
+.B jwt (JWT-*)
+JWT签名密钥、硬编码JWT令牌、K8s ServiceAccount Token（3条）
+.TP
+.B private_key (CERT-*)
+PEM/OpenSSH/PPK/PKCS8私钥、高熵Base64/Hex疑似密钥（6条）
+.TP
+.B url_leak / database (URL-*, DB-*)
+URL内嵌凭据、JDBC/MongoDB/Redis连接串含密码（4条）
+.TP
+.B pii (PII-*)
+身份证、银行卡、护照、通行证、手机号、邮箱、统一社会信用代码、驾驶证、社保号、税号、车牌号、国际信用卡（12条）
+.TP
+.B payment (PAY-*)
+微信支付、支付宝、银联支付密钥（3条）
+.TP
+.B network (NET-*)
+内网/公网IP地址、MAC地址（3条）
+.TP
+.B security_config (CFG-*)
+DEBUG模式、CORS通配符、SSL禁用、认证关闭、Actuator全开放、H2控制台、Swagger暴露等（10条）
+.TP
+.B ops (OPS-*)
+健康检查缺失、数据库备份缺失、连接池过大（3条）
+
+.SH 退出码
+.TP
+.B 0
+命令执行成功，无严重问题。
+.TP
+.B 1
+命令参数错误或配置初始化失败。
+.TP
+.B 2
+差异检测/漂移扫描中发现严重级别问题（可通过 --threshold 调整）。
+.TP
+.B 3
+敏感信息扫描发现 critical/high 级别敏感数据。
+.TP
+.B 4
+配置校验失败。
+.TP
+.B 5
+配置同步时发生冲突且未设置冲突策略。
+.TP
+.B 6
+指定的环境/文件/路径不存在。
+.TP
+.B 7
+文件读写权限不足。
+.TP
+.B 8
+KMS 对接失败。
+.TP
+.B 9
+配置文件解析错误（YAML/JSON 格式无效）。
+.TP
+.B 10
+内部未知错误。
+
+.SH 日志
+所有操作均通过
+.B winston
+记录日志，按日期滚动存储到
+.B logs/
+目录下：
+.TP
+.B error.log
+仅 ERROR 级别日志。
+.TP
+.B combined.log
+INFO/WARN/ERROR 全部级别日志。
+.TP
+.B audit.log
+审计日志（同步、快照、删除等变更操作），记录操作人、时间、操作内容。
+.TP
+.B exceptions.log
+未捕获异常堆栈信息。
+.TP
+.B rejections.log
+未处理的 Promise Rejection。
+
+.SH 示例
+.TP
+初始化项目配置：
+.RS
+config-drift init --scan-dir ./configs
+.RE
+.PP
+.TP
+对比开发与测试环境的user-service配置差异：
+.RS
+config-drift diff dev test --service user-service -o html -f diff-report.html
+.RE
+.PP
+.TP
+扫描生产环境相对于基线的漂移并创建快照：
+.RS
+config-drift scan --env prod --show-all --create-snapshot --threshold 30
+.RE
+.PP
+.TP
+扫描指定目录下所有配置文件的敏感信息（高严重级别）：
+.RS
+config-drift secrets --path /opt/app/configs --severity high -o json
+.RE
+.PP
+.TP
+将预发布环境的配置以交互确认方式同步至生产：
+.RS
+config-drift sync staging prod --strategy interactive --backup
+.RE
+.PP
+.TP
+查询最近7天内数据库相关配置的变更记录：
+.RS
+config-drift history --key datasource --from 2026-06-13
+.RE
+.PP
+.TP
+以 JSON 格式导出所有环境的配置清单：
+.RS
+config-drift export -f json --include-values -o audit-report.json
+.RE
+.PP
+.TP
+严格模式批量校验所有环境配置：
+.RS
+config-drift validate --strict --fail-on-warning
+.RE
+
+.SH 环境变量
+.TP
+.B CONFIG_DRIFT_CONFIG
+指定项目配置文件路径（等同 --config）。
+.TP
+.B CONFIG_DRIFT_DATA_DIR
+数据存储目录。
+.TP
+.B CONFIG_DRIFT_LOG_DIR
+日志存储目录。
+.TP
+.B CONFIG_DRIFT_QUIET
+设为 1 启用静默模式。
+.TP
+.B CONFIG_DRIFT_DEBUG
+设为 1 启用调试模式。
+.TP
+.B CONFIG_DRIFT_NO_COLOR
+设为 1 禁用彩色输出。
+.TP
+.B VAULT_ADDR / VAULT_TOKEN
+HashiCorp Vault 对接地址和 Token。
+.TP
+.B ALIYUN_KMS_ENDPOINT
+阿里云 KMS 接入点。
+.TP
+.B AWS_DEFAULT_REGION
+AWS KMS 默认区域。
+.TP
+.B AZURE_KEY_VAULT_URI
+Azure Key Vault URI。
+.TP
+.B GCP_PROJECT_ID
+GCP Secret Manager 项目 ID。
+
+.SH 参见
+.BR node (1),
+.BR npm (1),
+项目 README.md 文档：/usr/local/share/doc/config-drift-checker/README.md
+.PP
+官方仓库：https://github.com/your-org/config-drift-checker
+
+.SH 作者
+运维平台团队 <ops@example.com>
+
+.SH 版权
+Copyright (c) 2026 某区域银行科技部门. 基于 MIT License 开源.

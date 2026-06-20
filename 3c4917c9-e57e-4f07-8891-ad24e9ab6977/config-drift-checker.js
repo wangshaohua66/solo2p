@@ -47,6 +47,7 @@ program
   .option('--debug', '启用调试模式，输出详细日志和堆栈信息')
   .option('--quiet', '静默模式，禁止控制台输出')
   .option('--json', '以JSON格式输出结果')
+  .option('--man', '显示手册页 (man page)')
   .option('-c, --config <path>', `指定项目配置文件路径 (默认: ./${PROJECT_CONFIG_NAME})`)
   .hook('preAction', (thisCommand, actionCommand) => {
     const opts = program.opts();
@@ -1359,6 +1360,130 @@ program
       if (program.opts().json) console.log(JSON.stringify(envs, null, 2));
     }
   });
+
+async function displayManPage() {
+  const manPath = path.join(__dirname, 'man', 'config-drift-checker.1');
+  if (!fileExists(manPath)) {
+    console.error(chalk.red(`手册文件不存在: ${manPath}`));
+    process.exit(1);
+  }
+
+  const { execSync } = await import('child_process');
+  try {
+    const hasMan = (() => { try { execSync('which man', { stdio: 'ignore' }); return true; } catch { return false; } })();
+    if (hasMan && process.stdout.isTTY) {
+      execSync(`man ${manPath}`, { stdio: 'inherit', env: { ...process.env, MANWIDTH: process.stdout.columns || 80 } });
+      process.exit(0);
+    }
+  } catch {
+    // fallback to plain text rendering
+  }
+
+  const groff = fs.readFileSync(manPath, 'utf8');
+  const lines = groff.split('\n');
+  const output = [];
+  let inPreformatted = false;
+  let indentLevel = 0;
+
+  function applyInlineStyles(text) {
+    return text
+      .replace(/\\fB([^\\f]+)\\f[RP]/g, (_, m) => chalk.bold(m))
+      .replace(/\\fI([^\\f]+)\\f[RP]/g, (_, m) => chalk.italic(m))
+      .replace(/\\fB([^\\f]+)/g, (_, m) => chalk.bold(m))
+      .replace(/\\fI([^\\f]+)/g, (_, m) => chalk.italic(m))
+      .replace(/\\f[RP]/g, '')
+      .replace(/\\-\\-/g, '--')
+      .replace(/\\-/g, '-')
+      .replace(/\\&/g, '')
+      .replace(/\\ /g, ' ');
+  }
+
+  for (const line of lines) {
+    if (line.startsWith('.\\"')) continue;
+    if (line.startsWith('.TH')) {
+      const parts = line.slice(3).trim().replace(/^"|"$/g, '').split(/"\s+"/);
+      if (parts.length >= 4) {
+        output.push(chalk.bold.cyan(`\n${'='.repeat(78)}`));
+        output.push(chalk.bold.cyan(`${parts[0]}(${parts[1]})`.padEnd(39) + parts[3].padStart(39)));
+        output.push(chalk.bold.cyan(`${'='.repeat(78)}\n`));
+      }
+      continue;
+    }
+    if (line.startsWith('.SH')) {
+      const title = applyInlineStyles(line.slice(3).trim().replace(/^"|"$/g, ''));
+      output.push('');
+      output.push(chalk.bold.underline.white(title.toUpperCase()));
+      output.push('');
+      indentLevel = 0;
+      continue;
+    }
+    if (line.startsWith('.SS')) {
+      const title = applyInlineStyles(line.slice(3).trim().replace(/^"|"$/g, ''));
+      output.push('');
+      output.push(chalk.bold.yellow(title));
+      continue;
+    }
+    if (line.startsWith('.TP')) {
+      indentLevel = 2;
+      continue;
+    }
+    if (line.startsWith('.B ')) {
+      const text = applyInlineStyles(line.slice(3).trim().replace(/^"|"$/g, ''));
+      output.push(' '.repeat(indentLevel) + chalk.bold(text));
+      indentLevel = 4;
+      continue;
+    }
+    if (line.startsWith('.BR ')) {
+      const parts = line.slice(4).trim().split(/\s+/).map(s => s.replace(/^"|"$/g, ''));
+      const formatted = parts.map((p, i) => i % 2 === 0 ? chalk.bold(p) : p).join('');
+      output.push(' '.repeat(indentLevel) + formatted);
+      indentLevel = 4;
+      continue;
+    }
+    if (line.startsWith('.BI ')) {
+      const parts = line.slice(4).trim().split(/\s+/).map(s => s.replace(/^"|"$/g, ''));
+      const formatted = parts.map((p, i) => i % 2 === 0 ? chalk.bold(p) : chalk.italic(p)).join('');
+      output.push(' '.repeat(indentLevel) + formatted);
+      indentLevel = 4;
+      continue;
+    }
+    if (line.startsWith('.I ')) {
+      const text = applyInlineStyles(line.slice(3).trim().replace(/^"|"$/g, ''));
+      output.push(' '.repeat(indentLevel) + chalk.italic(text));
+      indentLevel = 4;
+      continue;
+    }
+    if (line.startsWith('.PP') || line.startsWith('.P') || line.startsWith('.LP')) {
+      output.push('');
+      indentLevel = 0;
+      continue;
+    }
+    if (line.startsWith('.RS')) {
+      indentLevel += 4;
+      continue;
+    }
+    if (line.startsWith('.RE')) {
+      indentLevel = Math.max(0, indentLevel - 4);
+      continue;
+    }
+    if (line.startsWith('.nf')) { inPreformatted = true; output.push(''); continue; }
+    if (line.startsWith('.fi')) { inPreformatted = false; output.push(''); continue; }
+    if (line.trim() === '') { output.push(''); continue; }
+
+    const styled = applyInlineStyles(line);
+    output.push(' '.repeat(inPreformatted ? 4 : indentLevel) + styled);
+  }
+
+  output.push('');
+  output.push(chalk.cyan(`${'='.repeat(78)}`));
+  console.log(output.join('\n'));
+  process.exit(0);
+}
+
+const initialOpts = process.argv.slice(2);
+if (initialOpts.includes('--man')) {
+  await displayManPage();
+}
 
 try {
   await program.parseAsync(process.argv);

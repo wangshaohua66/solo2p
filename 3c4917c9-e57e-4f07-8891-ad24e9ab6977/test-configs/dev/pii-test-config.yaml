@@ -1,0 +1,45 @@
+# 测试用PII敏感信息配置（仅用于测试，全部为假数据）
+# 请勿在真实系统中使用此类信息
+user:
+  name: "张三"
+  id_card: "110101199003078765"
+  passport: "E12345678"
+  driving_license: "110101199003078765"
+  social_security: "A123456789"
+  tax_id: "91110105MA001ABCD2"
+  credit_card:
+    visa: "4916338506082832"
+    master: "5500005555555559"
+    unionpay: "6222021234567890123"
+  bank_card: "6228480402564890018"
+  phone: "13912345678"
+  email: "zhangsan@example.com"
+  license_plate: "京A12345"
+  company_credit_code: "91310000132208398A"
+
+database:
+  url: "jdbc:mysql://10.0.1.50:3306/user_db?user=admin&password=SecretP@ss123"
+  admin_password: "SuperSecretRoot2026!"
+
+security:
+  jwt_token: "eyJhbGciOiJSUzI1NiIsImtpZCI6IjIwMjYwNjIwIn0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6InpoYW5nc2FuIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+  rsa_private: |
+    -----BEGIN RSA PRIVATE KEY-----
+    MIIEpAIBAAKCAQEA0Z1...
+    -----END RSA PRIVATE KEY-----
+  wechat_pay_key: "L8Zf4k2xQ9n7R1tW3m6B5v0C2d8S4h9K"
+  alipay_app_id: "2021000000001234"
+  github_token: "ghp_abcdefghijklmnopqrstuvwxyz0123456789ABC"
+
+network:
+  internal_ip: "10.0.2.100"
+  public_ip: "203.0.113.42"
+  mac_address: "00:1A:2B:3C:4D:5E"
+  proxy: "http://proxy_user:ProxyPass123@proxy.example.com:8080"
+
+debug:
+  mode: true
+  log_level: "DEBUG"
+  cors_origin: "*"
+  ssl_verify: false
+  auth_enabled: false

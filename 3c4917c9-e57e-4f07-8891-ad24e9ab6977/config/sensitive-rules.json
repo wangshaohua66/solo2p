@@ -1,277 +1,665 @@
 {
-  "version": "1.0.0",
-  "description": "敏感配置项识别规则库",
+  "version": "2.0.0",
+  "description": "敏感配置项识别规则库（扩展版，50+条规则）",
   "rules": [
     {
       "id": "PWD-001",
-      "name": "通用密码",
+      "name": "通用密码字段",
       "severity": "critical",
       "category": "password",
-      "description": "检测配置文件中的密码字段",
-      "keyPatterns": [
-        "password",
-        "passwd",
-        "pwd",
-        "pass",
-        "secret",
-        "token",
-        "apikey",
-        "api_key",
-        "api-key",
-        "accesskey",
-        "access_key",
-        "secretkey",
-        "secret_key",
-        "privatekey",
-        "private_key",
-        "private-key"
-      ],
+      "description": "检测配置文件中的通用密码字段",
+      "keyPatterns": ["password", "passwd", "pwd", "pass", "pswd"],
       "valuePattern": null,
       "minLength": 4,
       "suggestion": "建议使用密钥管理系统（KMS）或环境变量注入敏感信息，避免明文存储"
     },
     {
-      "id": "DB-001",
+      "id": "PWD-002",
       "name": "数据库密码",
       "severity": "critical",
       "category": "database",
       "description": "检测数据库连接配置中的密码",
       "keyPatterns": [
-        "datasource.*password",
-        "database.*password",
-        "jdbc.*password",
-        "db.*password",
-        "mysql.*password",
-        "postgres.*password",
-        "oracle.*password",
-        "mongodb.*password",
-        "redis.*password"
+        "datasource.*password", "database.*password", "jdbc.*password",
+        "db.*password", "mysql.*password", "postgres.*password",
+        "oracle.*password", "mongodb.*password", "redis.*password",
+        "mariadb.*password", "sqlite.*password", "sqlserver.*password",
+        "cassandra.*password", "neo4j.*password", "influxdb.*password"
       ],
       "valuePattern": null,
       "suggestion": "数据库密码应使用加密存储或通过Secret Manager动态获取"
     },
     {
-      "id": "API-001",
-      "name": "API密钥",
-      "severity": "critical",
-      "category": "api_key",
-      "description": "检测第三方API密钥",
+      "id": "PWD-003",
+      "name": "代理/网络密码",
+      "severity": "high",
+      "category": "network",
+      "description": "检测HTTP代理、FTP、SMTP等网络服务密码",
       "keyPatterns": [
-        "aws.*key",
-        "aws.*secret",
-        "gcp.*key",
-        "azure.*key",
-        "aliyun.*key",
-        "tencent.*key",
-        "authorization.*key",
-        "client.*secret",
-        "client.*id",
-        "app.*secret",
-        "app.*key"
+        "proxy.*password", "ftp.*password", "smtp.*password",
+        "pop3.*password", "imap.*password", "ldap.*password",
+        "socks.*password", "vpn.*password"
       ],
       "valuePattern": null,
+      "suggestion": "网络服务密码建议使用加密存储，定期轮换"
+    },
+    {
+      "id": "PWD-004",
+      "name": "SSH密钥密码",
+      "severity": "high",
+      "category": "ssh",
+      "description": "检测SSH私钥密码、passphrase",
+      "keyPatterns": ["ssh.*password", "ssh.*passphrase", "key.*passphrase", "private.*passphrase"],
+      "valuePattern": null,
+      "suggestion": "SSH密钥密码应使用ssh-agent或KMS管理，禁止明文配置"
+    },
+    {
+      "id": "API-001",
+      "name": "通用API密钥",
+      "severity": "critical",
+      "category": "api_key",
+      "description": "检测第三方API密钥配置",
+      "keyPatterns": [
+        "apikey", "api_key", "api-key", "accesskey", "access_key",
+        "secretkey", "secret_key", "privatekey", "private_key",
+        "appkey", "app_key", "appsecret", "app_secret", "app_secret"
+      ],
+      "valuePattern": null,
+      "minLength": 8,
       "suggestion": "API密钥建议通过Vault等密钥管理系统管理，定期轮换"
     },
     {
-      "id": "JWT-001",
-      "name": "JWT令牌密钥",
+      "id": "API-002",
+      "name": "OAuth客户端密钥",
       "severity": "critical",
-      "category": "jwt",
-      "description": "检测JWT签名密钥",
+      "category": "oauth",
+      "description": "检测OAuth 2.0客户端ID和密钥",
       "keyPatterns": [
-        "jwt.*secret",
-        "jwt.*key",
-        "jwt.*private",
-        "token.*secret",
-        "token.*signing",
-        "signing.*key"
+        "client.*secret", "client.*id", "oauth.*secret", "oauth.*token",
+        "openid.*secret", "auth0.*secret", "oidc.*secret"
       ],
       "valuePattern": null,
-      "suggestion": "JWT密钥应使用RSA非对称加密，私钥通过KMS安全存储"
+      "suggestion": "OAuth客户端密钥应存储于专用密钥管理系统，禁止提交到代码仓库"
     },
     {
-      "id": "URL-001",
-      "name": "URL中内嵌凭据",
-      "severity": "high",
-      "category": "url_leak",
-      "description": "检测URL中包含的用户名密码",
-      "keyPatterns": ["url", "uri", "endpoint", "connection"],
-      "valuePattern": "([a-zA-Z0-9._%+-]+):([a-zA-Z0-9._%+-]+)@",
-      "minLength": 10,
-      "suggestion": "URL中的凭据应单独提取，使用参数化配置方式"
-    },
-    {
-      "id": "KEY-001",
-      "name": "AWS访问密钥格式",
+      "id": "API-003",
+      "name": "AWS访问密钥",
       "severity": "critical",
       "category": "aws_key",
       "description": "检测AWS Access Key格式",
-      "keyPatterns": null,
-      "valuePattern": "AKIA[0-9A-Z]{16}",
-      "suggestion": "检测到AWS访问密钥，请立即轮换并使用IAM角色替代"
-    },
-    {
-      "id": "KEY-002",
-      "name": "私钥文件内容",
-      "severity": "critical",
-      "category": "private_key",
-      "description": "检测PEM格式私钥",
-      "keyPatterns": null,
-      "valuePattern": "-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----",
-      "suggestion": "私钥严禁存储在配置文件中，应使用证书管理系统"
-    },
-    {
-      "id": "KEY-003",
-      "name": "通用高强度密钥",
-      "severity": "high",
-      "category": "generic_key",
-      "description": "检测高熵值字符串，疑似密钥",
-      "keyPatterns": null,
-      "valuePattern": "[a-zA-Z0-9+/]{40,}={0,2}",
-      "minLength": 40,
-      "entropyThreshold": 3.5,
-      "suggestion": "疑似加密密钥，请确认是否为敏感信息并使用安全存储方式"
-    },
-    {
-      "id": "PHONE-001",
-      "name": "手机号泄露",
-      "severity": "medium",
-      "category": "pii",
-      "description": "检测配置中的手机号码",
-      "keyPatterns": null,
-      "valuePattern": "1[3-9]\\d{9}",
-      "suggestion": "配置文件中不应存储用户手机号等PII信息"
-    },
-    {
-      "id": "EMAIL-001",
-      "name": "邮箱泄露",
-      "severity": "low",
-      "category": "pii",
-      "description": "检测配置中的邮箱地址",
-      "keyPatterns": null,
-      "valuePattern": "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}",
-      "suggestion": "邮箱地址建议脱敏处理或存储于专用用户系统"
-    },
-    {
-      "id": "IP-001",
-      "name": "内网IP地址",
-      "severity": "low",
-      "category": "network",
-      "description": "检测内网IP地址配置",
-      "keyPatterns": ["host", "address", "ip", "server"],
-      "valuePattern": "^(10\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|192\\.168\\.)",
-      "suggestion": "内网IP建议通过服务发现机制动态配置"
-    },
-    {
-      "id": "WECHAT-001",
-      "name": "微信支付密钥",
-      "severity": "critical",
-      "category": "payment",
-      "description": "检测微信支付相关密钥",
       "keyPatterns": [
-        "wechat.*secret",
-        "weixin.*secret",
-        "wx.*secret",
-        "wechat.*key",
-        "mch.*key",
-        "merchant.*key"
+        "aws.*access.*key", "aws.*secret.*key", "aws.*session.*token"
       ],
-      "valuePattern": null,
-      "suggestion": "支付密钥必须使用硬件安全模块(HSM)或专用KMS存储"
+      "valuePattern": "AKIA[0-9A-Z]{16}",
+      "minLength": 16,
+      "suggestion": "检测到AWS访问密钥，请立即轮换并使用IAM角色替代AK/SK"
     },
     {
-      "id": "ALIYUN-001",
-      "name": "阿里云密钥",
+      "id": "API-004",
+      "name": "阿里云AccessKey",
       "severity": "critical",
       "category": "aliyun_key",
-      "description": "检测阿里云AccessKey格式",
-      "keyPatterns": null,
+      "description": "检测阿里云RAM用户AccessKey",
+      "keyPatterns": ["aliyun.*key", "alibaba.*key", "acs.*key"],
       "valuePattern": "LTAI[a-zA-Z0-9]{12,}",
       "suggestion": "请立即轮换阿里云密钥，建议使用RAM角色替代AK/SK"
     },
     {
-      "id": "K8S-001",
-      "name": "Kubernetes令牌",
+      "id": "API-005",
+      "name": "腾讯云密钥",
+      "severity": "critical",
+      "category": "tencent_key",
+      "description": "检测腾讯云SecretId/SecretKey",
+      "keyPatterns": ["tencent.*key", "qcloud.*key", "tc.*secret"],
+      "valuePattern": "AKID[a-zA-Z0-9]{16,}",
+      "suggestion": "请立即轮换腾讯云密钥，使用CAM角色进行授权"
+    },
+    {
+      "id": "API-006",
+      "name": "华为云密钥",
+      "severity": "critical",
+      "category": "huawei_key",
+      "description": "检测华为云Access Key",
+      "keyPatterns": ["huawei.*key", "hw.*key", "obs.*key"],
+      "valuePattern": null,
+      "suggestion": "请轮换华为云密钥，建议使用统一身份认证服务IAM"
+    },
+    {
+      "id": "API-007",
+      "name": "Google Cloud密钥",
+      "severity": "critical",
+      "category": "gcp_key",
+      "description": "检测Google Cloud服务账号密钥",
+      "keyPatterns": ["gcp.*key", "google.*key", "gc.*secret", "firebase.*key"],
+      "valuePattern": null,
+      "suggestion": "GCP密钥建议使用服务账号和Workload Identity，禁止使用服务账号密钥"
+    },
+    {
+      "id": "API-008",
+      "name": "Azure密钥",
+      "severity": "critical",
+      "category": "azure_key",
+      "description": "检测Microsoft Azure密钥和连接串",
+      "keyPatterns": ["azure.*key", "microsoft.*key", "blob.*key", "storage.*key"],
+      "valuePattern": null,
+      "suggestion": "Azure密钥应托管于Key Vault，使用Managed Identity替代密钥认证"
+    },
+    {
+      "id": "API-009",
+      "name": "Slack/钉钉/飞书Webhook",
+      "severity": "high",
+      "category": "webhook",
+      "description": "检测企业IM工具的Webhook地址",
+      "keyPatterns": ["webhook.*url", "slack.*url", "dingtalk.*url", "feishu.*url", "lark.*url"],
+      "valuePattern": "hooks\\.slack\\.com|oapi\\.dingtalk\\.com|open\\.feishu\\.cn",
+      "suggestion": "Webhook URL属于敏感信息，建议使用环境变量或KMS管理"
+    },
+    {
+      "id": "API-010",
+      "name": "GitHub/GitLab Token",
+      "severity": "high",
+      "category": "git_token",
+      "description": "检测Git仓库访问令牌",
+      "keyPatterns": ["github.*token", "gitlab.*token", "git.*token", "gitea.*token", "personal.*token"],
+      "valuePattern": "ghp_[A-Za-z0-9]{36}|glpat-[A-Za-z0-9]{20,}",
+      "suggestion": "Git Token应立即撤销并重新生成，使用细粒度Token替代永久Token"
+    },
+    {
+      "id": "JWT-001",
+      "name": "JWT签名密钥",
+      "severity": "critical",
+      "category": "jwt",
+      "description": "检测JWT/HMAC签名密钥",
+      "keyPatterns": [
+        "jwt.*secret", "jwt.*key", "jwt.*private", "token.*secret",
+        "token.*signing", "signing.*key", "hmac.*secret", "hmac.*key"
+      ],
+      "valuePattern": null,
+      "minLength": 16,
+      "suggestion": "JWT密钥应使用RSA非对称加密，私钥通过KMS安全存储，长度建议≥256位"
+    },
+    {
+      "id": "JWT-002",
+      "name": "JWT令牌值",
+      "severity": "critical",
+      "category": "jwt",
+      "description": "检测硬编码的JWT令牌字符串",
+      "keyPatterns": null,
+      "valuePattern": "eyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}",
+      "minLength": 60,
+      "suggestion": "检测到JWT令牌，应立即过期作废并使用短期令牌+刷新令牌机制"
+    },
+    {
+      "id": "JWT-003",
+      "name": "Kubernetes ServiceAccount Token",
       "severity": "critical",
       "category": "k8s",
       "description": "检测Kubernetes Service Account Token",
       "keyPatterns": null,
       "valuePattern": "eyJhbGciOiJSUzI1NiIsImtpZCI6",
-      "suggestion": "K8s令牌不应硬编码，应通过ServiceAccount自动注入"
+      "suggestion": "K8s令牌不应硬编码，应通过ServiceAccount自动注入并使用BoundServiceAccountTokenVolume"
     },
     {
-      "id": "LOG-001",
-      "name": "日志级别配置错误",
+      "id": "CERT-001",
+      "name": "PEM格式私钥",
+      "severity": "critical",
+      "category": "private_key",
+      "description": "检测PEM格式RSA/EC/DSA私钥",
+      "keyPatterns": null,
+      "valuePattern": "-----BEGIN (RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----",
+      "suggestion": "私钥严禁存储在配置文件中，应使用证书管理系统或KMS，并配合HSM硬件加密"
+    },
+    {
+      "id": "CERT-002",
+      "name": "PKCS8私钥头",
+      "severity": "critical",
+      "category": "private_key",
+      "description": "检测PKCS8格式私钥",
+      "keyPatterns": null,
+      "valuePattern": "-----BEGIN ENCRYPTED PRIVATE KEY-----",
+      "suggestion": "检测到加密私钥，仍建议使用证书管理系统统一管理，禁止存入配置仓库"
+    },
+    {
+      "id": "CERT-003",
+      "name": "SSH私钥",
+      "severity": "critical",
+      "category": "private_key",
+      "description": "检测OpenSSH私钥格式",
+      "keyPatterns": null,
+      "valuePattern": "-----BEGIN OPENSSH PRIVATE KEY-----",
+      "suggestion": "SSH私钥严禁存入配置文件，应使用ssh-agent或Key Management Service"
+    },
+    {
+      "id": "CERT-004",
+      "name": "PPK私钥(PuTTY)",
+      "severity": "critical",
+      "category": "private_key",
+      "description": "检测PuTTY PPK格式私钥",
+      "keyPatterns": null,
+      "valuePattern": "PuTTY-User-Key-File-",
+      "suggestion": "PuTTY私钥同样严禁明文存储，应使用专用密钥管理器"
+    },
+    {
+      "id": "CERT-005",
+      "name": "通用高强度密钥",
+      "severity": "high",
+      "category": "generic_key",
+      "description": "检测高熵值Base64字符串，疑似加密密钥",
+      "keyPatterns": null,
+      "valuePattern": "[a-zA-Z0-9+/]{40,}={0,2}",
+      "minLength": 40,
+      "entropyThreshold": 3.8,
+      "suggestion": "疑似加密密钥，请确认是否为敏感信息并使用安全存储方式"
+    },
+    {
+      "id": "CERT-006",
+      "name": "Hex格式密钥",
+      "severity": "high",
+      "category": "generic_key",
+      "description": "检测高熵值16进制字符串（AES/DES密钥常见）",
+      "keyPatterns": null,
+      "valuePattern": "[a-fA-F0-9]{32,}",
+      "minLength": 32,
+      "entropyThreshold": 3.2,
+      "suggestion": "疑似16进制加密密钥，请确认并使用KMS存储"
+    },
+    {
+      "id": "URL-001",
+      "name": "URL内嵌凭据",
+      "severity": "high",
+      "category": "url_leak",
+      "description": "检测URL/连接串中包含的用户名密码",
+      "keyPatterns": ["url", "uri", "endpoint", "connection", "connectstring", "connectionstring"],
+      "valuePattern": "[a-zA-Z0-9._%+-]+:[a-zA-Z0-9._%+-!@#$^&*()]+@",
+      "minLength": 10,
+      "suggestion": "URL中的凭据应单独提取，使用参数化配置方式或环境变量"
+    },
+    {
+      "id": "DB-001",
+      "name": "JDBC连接串含密码",
+      "severity": "critical",
+      "category": "database",
+      "description": "检测JDBC URL中的用户密码",
+      "keyPatterns": ["datasource.*url", "jdbc.*url", "spring.*datasource.*url"],
+      "valuePattern": "jdbc:[a-zA-Z]+://.*(password|user)=[^&]+",
+      "suggestion": "JDBC连接串中的密码应使用&password=${PASSWORD}占位并通过环境变量注入"
+    },
+    {
+      "id": "DB-002",
+      "name": "MongoDB连接串",
+      "severity": "critical",
+      "category": "database",
+      "description": "检测MongoDB连接字符串含密码",
+      "keyPatterns": ["mongo.*uri", "mongodb.*url", "mongodb.*connect"],
+      "valuePattern": "mongodb(\\+srv)?://[a-zA-Z0-9_.-]+:[^@]+@",
+      "suggestion": "MongoDB连接串密码应独立配置，通过Secret注入，禁止硬编码"
+    },
+    {
+      "id": "DB-003",
+      "name": "Redis连接串",
+      "severity": "high",
+      "category": "database",
+      "description": "检测Redis连接字符串",
+      "keyPatterns": ["redis.*url", "redis.*uri", "cache.*url"],
+      "valuePattern": "redis(s)?://:[^@]+@|redis(s)?://[a-zA-Z0-9]+:[^@]+@",
+      "suggestion": "Redis密码应独立配置，建议启用TLS+ACL认证"
+    },
+    {
+      "id": "PII-001",
+      "name": "中国身份证号",
+      "severity": "high",
+      "category": "pii",
+      "description": "检测18位中国居民身份证号码",
+      "keyPatterns": null,
+      "valuePattern": "[1-9]\\d{5}(19|20)\\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\\d|3[01])\\d{3}[\\dXx]",
+      "suggestion": "身份证号属于高度敏感PII，严禁存储于配置文件，应使用脱敏或加密存储并符合《个人信息保护法》"
+    },
+    {
+      "id": "PII-002",
+      "name": "中国银行卡号",
+      "severity": "high",
+      "category": "pii",
+      "description": "检测16-19位中国银联/银行卡号",
+      "keyPatterns": null,
+      "valuePattern": "(62|4|5|3)[0-9]{14,18}",
+      "minLength": 16,
+      "entropyThreshold": 2.8,
+      "suggestion": "银行卡号属支付敏感信息（PCI-DSS管制），应加密存储并实施令牌化（Tokenization）"
+    },
+    {
+      "id": "PII-003",
+      "name": "中国护照号码",
       "severity": "medium",
-      "category": "log_config",
-      "description": "检测生产环境调试日志级别",
-      "keyPatterns": ["log.*level", "logging.*level", "root.*level"],
+      "category": "pii",
+      "description": "检测中国护照号码格式（E/G+8位数字）",
+      "keyPatterns": null,
+      "valuePattern": "(E|G|H|D|S|P)\\d{8}",
+      "suggestion": "护照号码属敏感证件信息，严禁存储于配置，使用时需脱敏处理"
+    },
+    {
+      "id": "PII-004",
+      "name": "港澳通行证号码",
+      "severity": "medium",
+      "category": "pii",
+      "description": "检测港澳居民来往内地通行证号码",
+      "keyPatterns": null,
+      "valuePattern": "[HM]\\d{8}|(C|W)\\d{8}",
+      "suggestion": "通行证号码属敏感证件信息，应加密存储"
+    },
+    {
+      "id": "PII-005",
+      "name": "中国手机号",
+      "severity": "medium",
+      "category": "pii",
+      "description": "检测中国大陆11位手机号码",
+      "keyPatterns": null,
+      "valuePattern": "1[3-9]\\d{9}",
+      "suggestion": "配置文件中不应存储用户手机号等PII信息，应存放于专门的用户中心并做脱敏"
+    },
+    {
+      "id": "PII-006",
+      "name": "中国电子邮箱",
+      "severity": "low",
+      "category": "pii",
+      "description": "检测配置中的邮箱地址",
+      "keyPatterns": null,
+      "valuePattern": "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.(com|cn|net|org|gov|edu)",
+      "suggestion": "邮箱地址建议脱敏处理或存储于专用用户系统"
+    },
+    {
+      "id": "PII-007",
+      "name": "统一社会信用代码",
+      "severity": "medium",
+      "category": "pii",
+      "description": "检测18位中国法人统一社会信用代码",
+      "keyPatterns": null,
+      "valuePattern": "[0-9A-HJ-NPQRTUWXY]{2}\\d{6}[0-9A-HJ-NPQRTUWXY]{10}",
+      "suggestion": "统一社会信用代码属企业敏感信息，需按监管要求管理"
+    },
+    {
+      "id": "PII-008",
+      "name": "中国驾驶证号",
+      "severity": "medium",
+      "category": "pii",
+      "description": "检测中国机动车驾驶证号（与身份证号一致）",
+      "keyPatterns": null,
+      "valuePattern": "[1-9]\\d{5}(19|20)\\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\\d|3[01])\\d{3}[\\dXx]",
+      "suggestion": "驾驶证号属证件敏感信息，禁止存储于配置文件"
+    },
+    {
+      "id": "PII-009",
+      "name": "中国社会保障号",
+      "severity": "high",
+      "category": "pii",
+      "description": "检测社保/医保号码格式",
+      "keyPatterns": null,
+      "valuePattern": "A\\d{8,10}|\\d{3}-\\d{2}-\\d{4}|[0-9]{9,12}",
+      "minLength": 9,
+      "suggestion": "社会保险号码属高度敏感信息，应加密存储并设置严格访问控制"
+    },
+    {
+      "id": "PII-010",
+      "name": "中国个人税号",
+      "severity": "high",
+      "category": "pii",
+      "description": "检测纳税人识别号（个人为身份证号）",
+      "keyPatterns": ["tax.*id", "taxpayer.*id", "tin.*id", "tax.*number"],
+      "valuePattern": "[1-9]\\d{5}(19|20)\\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\\d|3[01])\\d{3}[\\dXx]|\\d{15,20}",
+      "suggestion": "个人税号属高度敏感财务信息，严禁明文存储于配置"
+    },
+    {
+      "id": "PII-011",
+      "name": "中国车牌号",
+      "severity": "low",
+      "category": "pii",
+      "description": "检测中国民用车辆号牌号码",
+      "keyPatterns": null,
+      "valuePattern": "[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼][A-Z][A-Z0-9]{5,6}",
+      "suggestion": "车牌号属车辆识别信息，建议脱敏存储"
+    },
+    {
+      "id": "PII-012",
+      "name": "国际通用信用卡号",
+      "severity": "critical",
+      "category": "payment",
+      "description": "检测Visa/Master/Amex等国际信用卡号",
+      "keyPatterns": null,
+      "valuePattern": "(4[0-9]{12,15}|5[1-5][0-9]{14}|3[47][0-9]{13}|6(011|5[0-9]{2})[0-9]{12})",
+      "minLength": 13,
+      "entropyThreshold": 2.5,
+      "suggestion": "信用卡号属PCI-DSS管制信息，严禁明文存储，必须加密并令牌化处理（Tokenization）"
+    },
+    {
+      "id": "PAY-001",
+      "name": "微信支付密钥",
+      "severity": "critical",
+      "category": "payment",
+      "description": "检测微信支付API密钥、商户号",
+      "keyPatterns": [
+        "wechat.*secret", "weixin.*secret", "wx.*secret", "wechat.*key",
+        "mch.*key", "merchant.*key", "wxpay.*key", "mch_id"
+      ],
+      "valuePattern": null,
+      "suggestion": "支付密钥必须使用硬件安全模块(HSM)或专用KMS存储，禁止明文配置"
+    },
+    {
+      "id": "PAY-002",
+      "name": "支付宝密钥/应用ID",
+      "severity": "critical",
+      "category": "payment",
+      "description": "检测支付宝开放平台密钥和AppID",
+      "keyPatterns": ["alipay.*key", "alipay.*secret", "alipay.*appid", "alipay.*private"],
+      "valuePattern": null,
+      "suggestion": "支付宝密钥建议使用证书模式，通过KMS管理私钥"
+    },
+    {
+      "id": "PAY-003",
+      "name": "银联/网联密钥",
+      "severity": "critical",
+      "category": "payment",
+      "description": "检测银联商务/网联支付密钥",
+      "keyPatterns": ["unionpay.*key", "cup.*key", "netpay.*key", "ups.*key"],
+      "valuePattern": null,
+      "suggestion": "银联密钥属金融敏感数据，必须使用加密机(HSM)保护"
+    },
+    {
+      "id": "NET-001",
+      "name": "内网IP地址段",
+      "severity": "low",
+      "category": "network",
+      "description": "检测内网IPv4地址（10.x/172.16-31.x/192.168.x）",
+      "keyPatterns": ["host", "address", "ip", "server", "node", "endpoint"],
+      "valuePattern": "^(10\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|192\\.168\\.)",
+      "suggestion": "内网IP建议通过服务发现机制（Consul/Nacos/Eureka）动态配置，避免硬编码"
+    },
+    {
+      "id": "NET-002",
+      "name": "公网IP地址",
+      "severity": "medium",
+      "category": "network",
+      "description": "检测公网IPv4地址配置",
+      "keyPatterns": ["public.*ip", "external.*ip", "wan.*ip", "remote.*ip"],
+      "valuePattern": "(?!(10\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|192\\.168\\.|127\\.|0\\.))(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)",
+      "suggestion": "公网IP建议通过弹性IP或CDN管理，配置文件中尽量使用域名"
+    },
+    {
+      "id": "NET-003",
+      "name": "MAC地址",
+      "severity": "low",
+      "category": "network",
+      "description": "检测MAC硬件地址配置",
+      "keyPatterns": ["mac.*address", "hwaddr", "ethernet.*addr"],
+      "valuePattern": "([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}",
+      "suggestion": "MAC地址属网络标识信息，一般不应出现在业务配置中"
+    },
+    {
+      "id": "CFG-001",
+      "name": "生产环境DEBUG模式开启",
+      "severity": "high",
+      "category": "security_config",
+      "description": "检测生产环境调试日志级别/调试模式",
+      "keyPatterns": ["log.*level", "logging.*level", "root.*level", "debug.*enable", "dev.*mode"],
       "forbiddenValuesForEnv": {
-        "prod": ["DEBUG", "TRACE", "debug", "trace"]
+        "prod": ["DEBUG", "TRACE", "debug", "trace", "true", "on", "1"]
       },
-      "suggestion": "生产环境日志级别应设置为INFO或WARN，避免性能问题和信息泄露"
+      "suggestion": "生产环境日志级别应设置为INFO或WARN，避免性能问题和敏感信息泄露"
     },
     {
-      "id": "CORS-001",
-      "name": "CORS过度宽松",
+      "id": "CFG-002",
+      "name": "CORS过度宽松(通配符)",
       "severity": "high",
       "category": "security_config",
-      "description": "检测CORS配置中的通配符",
-      "keyPatterns": ["cors.*origin", "allowed.*origin", "access-control-allow-origin"],
-      "forbiddenValues": ["*"],
-      "suggestion": "CORS Origin应精确配置，禁止使用通配符"
+      "description": "检测CORS配置中的Origin通配符",
+      "keyPatterns": [
+        "cors.*origin", "allowed.*origin", "access-control-allow-origin",
+        "cross.*origin", "origin.*allow"
+      ],
+      "forbiddenValues": ["*", "null"],
+      "suggestion": "CORS Origin应精确配置白名单，禁止使用通配符*，并配合withCredentials验证"
     },
     {
-      "id": "SSL-001",
-      "name": "SSL验证禁用",
+      "id": "CFG-003",
+      "name": "SSL/TLS证书验证禁用",
       "severity": "high",
       "category": "security_config",
-      "description": "检测SSL证书验证禁用配置",
-      "keyPatterns": ["ssl.*verify", "tls.*verify", "verify.*ssl", "verify.*cert"],
-      "forbiddenValues": ["false", "disable", "disabled", "none", "0"],
-      "suggestion": "生产环境严禁禁用SSL证书验证，存在中间人攻击风险"
+      "description": "检测禁用SSL证书验证的不安全配置",
+      "keyPatterns": [
+        "ssl.*verify", "tls.*verify", "verify.*ssl", "verify.*cert",
+        "insecure.*skip", "rejectunauthorized", "strict.*ssl"
+      ],
+      "forbiddenValues": ["false", "disable", "disabled", "none", "0", "no", "off"],
+      "suggestion": "生产环境严禁禁用SSL证书验证，存在中间人攻击(MITM)风险，必须启用严格证书校验"
     },
     {
-      "id": "DEBUG-001",
-      "name": "调试模式开启",
+      "id": "CFG-004",
+      "name": "生产调试模式开启",
       "severity": "high",
       "category": "security_config",
-      "description": "检测生产环境调试模式开启",
-      "keyPatterns": ["debug", "dev.*mode", "development.*mode"],
+      "description": "检测生产环境应用调试模式",
+      "keyPatterns": ["debug", "dev.*mode", "development.*mode", "profiler", "trace.*enable"],
       "forbiddenValuesForEnv": {
-        "prod": ["true", "enabled", "on", "1"]
+        "prod": ["true", "enabled", "on", "1", "yes"]
       },
-      "suggestion": "生产环境必须关闭调试模式，防止敏感信息泄露"
+      "suggestion": "生产环境必须关闭调试模式，防止堆栈信息、环境变量等敏感信息泄露"
     },
     {
-      "id": "AUTH-001",
-      "name": "认证禁用",
+      "id": "CFG-005",
+      "name": "安全认证禁用",
       "severity": "critical",
       "category": "security_config",
-      "description": "检测安全认证被禁用",
-      "keyPatterns": ["auth.*enable", "security.*enable", "login.*require"],
-      "forbiddenValues": ["false", "disabled", "0"],
-      "suggestion": "严禁禁用安全认证机制，请立即修复此配置"
+      "description": "检测安全认证/登录校验被禁用",
+      "keyPatterns": [
+        "auth.*enable", "security.*enable", "login.*require",
+        "authentication.*enable", "authorization.*enable", "access.*control"
+      ],
+      "forbiddenValues": ["false", "disabled", "0", "no", "off", "none"],
+      "suggestion": "严禁禁用安全认证机制！此配置可能导致系统完全暴露，需立即修复"
     },
     {
-      "id": "HEALTH-001",
-      "name": "健康检查端口",
+      "id": "CFG-006",
+      "name": "Actuator端点全开",
+      "severity": "high",
+      "category": "security_config",
+      "description": "检测Spring Boot Actuator端点全开放配置",
+      "keyPatterns": [
+        "management.*endpoints.*web.*exposure.*include",
+        "endpoints.*web.*exposure.*include"
+      ],
+      "forbiddenValuesForEnv": {
+        "prod": ["*"]
+      },
+      "suggestion": "生产环境仅暴露health/info等必要端点，env/beans等敏感端点需认证保护"
+    },
+    {
+      "id": "CFG-007",
+      "name": "环境变量暴露配置",
+      "severity": "high",
+      "category": "security_config",
+      "description": "检测Spring Boot env端点show-values配置",
+      "keyPatterns": ["management.*endpoint.*env.*show-values", "show.*values"],
+      "forbiddenValuesForEnv": {
+        "prod": ["always", "true", "ALWAYS"]
+      },
+      "suggestion": "env端点显示配置值会泄露所有环境变量和配置属性，生产环境必须禁用"
+    },
+    {
+      "id": "CFG-008",
+      "name": "管理安全禁用",
+      "severity": "critical",
+      "category": "security_config",
+      "description": "检测Spring Boot Actuator安全认证被关闭",
+      "keyPatterns": ["management.*security.*enabled", "endpoints.*sensitive"],
+      "forbiddenValuesForEnv": {
+        "prod": ["false", "false, false"]
+      },
+      "suggestion": "Actuator端点必须启用安全认证，配置独立的管理端口和用户认证"
+    },
+    {
+      "id": "CFG-009",
+      "name": "H2控制台开放",
+      "severity": "critical",
+      "category": "security_config",
+      "description": "检测H2数据库控制台在生产环境开启",
+      "keyPatterns": ["spring.*h2.*console.*enabled", "h2.*console.*enable"],
+      "forbiddenValuesForEnv": {
+        "prod": ["true", "enabled", "on"]
+      },
+      "suggestion": "H2控制台严禁在生产环境开启，存在远程代码执行漏洞风险"
+    },
+    {
+      "id": "CFG-010",
+      "name": "Swagger/API文档生产暴露",
+      "severity": "medium",
+      "category": "security_config",
+      "description": "检测生产环境Swagger/Knife4j文档未关闭",
+      "keyPatterns": [
+        "swagger.*enable", "knife4j.*enable", "springdoc.*api-docs.*enabled",
+        "openapi.*enable", "springfox.*enabled"
+      ],
+      "forbiddenValuesForEnv": {
+        "prod": ["true", "enabled", "on"]
+      },
+      "suggestion": "生产环境应关闭Swagger文档暴露，如确需访问应配置内网访问和认证"
+    },
+    {
+      "id": "OPS-001",
+      "name": "健康检查配置缺失",
       "severity": "low",
       "category": "ops",
-      "description": "检测健康检查端点配置",
-      "keyPatterns": ["management.*health", "actuator.*health", "health.*endpoint"],
+      "description": "检测健康检查/Actuator端点配置",
+      "keyPatterns": [
+        "management.*health", "actuator.*health", "health.*endpoint",
+        "healthcheck.*enable"
+      ],
       "requiredForEnv": ["prod", "staging"],
-      "suggestion": "建议配置健康检查端点用于监控告警"
+      "suggestion": "建议配置健康检查端点用于K8s liveness/readiness探针及监控告警平台"
     },
     {
-      "id": "BACKUP-001",
-      "name": "备份配置缺失",
+      "id": "OPS-002",
+      "name": "数据库备份配置缺失",
       "severity": "medium",
       "category": "ops",
-      "description": "检测数据库备份配置",
-      "keyPatterns": ["backup.*enable", "backup.*schedule", "db.*backup"],
+      "description": "检测生产环境数据库定期备份策略配置",
+      "keyPatterns": ["backup.*enable", "backup.*schedule", "db.*backup", "database.*backup"],
       "requiredForEnv": ["prod"],
-      "suggestion": "生产环境数据库必须配置定期备份策略"
+      "suggestion": "生产环境数据库必须配置定期备份策略（每日+增量），并定期做恢复演练"
+    },
+    {
+      "id": "OPS-003",
+      "name": "连接池最大值过高",
+      "severity": "medium",
+      "category": "ops",
+      "description": "检测数据库连接池最大值配置不合理",
+      "keyPatterns": [
+        "maximum-pool-size", "max-active", "maxpoolsize", "pool.*max",
+        "hikari.*maximum", "datasource.*max"
+      ],
+      "valuePattern": null,
+      "maxValueForEnv": {
+        "prod": 200,
+        "staging": 100
+      },
+      "suggestion": "连接池过大可能耗尽数据库连接，建议按数据库最大连接数/N合理设置"
     }
   ],
   "maskingRules": {
@@ -297,15 +685,46 @@
       "visibleEnd": 0,
       "maskChar": "*",
       "fixedLength": 20
+    },
+    "id_card": {
+      "visibleStart": 6,
+      "visibleEnd": 4,
+      "maskChar": "*"
+    },
+    "bank_card": {
+      "visibleStart": 4,
+      "visibleEnd": 4,
+      "maskChar": "*"
+    },
+    "phone": {
+      "visibleStart": 3,
+      "visibleEnd": 4,
+      "maskChar": "*"
+    },
+    "email": {
+      "visibleStart": 2,
+      "visibleEnd": 0,
+      "maskChar": "*",
+      "keepDomain": true
     }
   },
   "kmsIntegration": {
-    "supportedProviders": ["hashicorp-vault", "aliyun-kms", "aws-kms", "tencent-kms"],
+    "supportedProviders": [
+      "hashicorp-vault",
+      "aliyun-kms",
+      "aws-kms",
+      "tencent-kms",
+      "huawei-kms",
+      "azure-key-vault",
+      "gcp-secret-manager"
+    ],
     "envVars": {
       "vaultAddress": "VAULT_ADDR",
       "vaultToken": "VAULT_TOKEN",
       "aliyunKmsEndpoint": "ALIYUN_KMS_ENDPOINT",
-      "awsRegion": "AWS_DEFAULT_REGION"
+      "awsRegion": "AWS_DEFAULT_REGION",
+      "azureKeyVaultUri": "AZURE_KEY_VAULT_URI",
+      "gcpProjectId": "GCP_PROJECT_ID"
     }
   }
 }
