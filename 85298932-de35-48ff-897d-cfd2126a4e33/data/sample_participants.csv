@@ -1,0 +1,11 @@
+name,employee_id,department,email,phone
+张伟,E001,技术部,zhangwei@example.com,13800138001
+李娜,E002,市场部,lina@example.com,13800138002
+王强,E003,人力资源部,wangqiang@example.com,13800138003
+刘芳,E004,财务部,liufang@example.com,13800138004
+陈明,E005,技术部,chenming@example.com,13800138005
+杨丽,E006,市场部,yangli@example.com,13800138006
+赵刚,E007,运营部,zhaogang@example.com,13800138007
+黄敏,E008,客服部,huangmin@example.com,13800138008
+周杰,E009,技术部,zhoujie@example.com,13800138009
+吴静,E010,人力资源部,wujing@example.com,13800138010

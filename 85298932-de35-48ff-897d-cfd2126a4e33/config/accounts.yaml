@@ -1,0 +1,122 @@
+# 人才测评平台多账号配置
+platform:
+  baseUrl: "https://assessment.example.com"
+  loginUrl: "https://assessment.example.com/login"
+  dashboardUrl: "https://assessment.example.com/dashboard"
+  sessionTimeoutSec: 1800
+  heartBeatIntervalSec: 60
+  loginTimeoutMs: 30000
+
+accounts:
+  - id: "ACC001"
+    username: "operator01@company.com"
+    password: "ENC:change_me_001"
+    maxConcurrency: 50
+    reservedSlots: 5
+    enabled: true
+
+  - id: "ACC002"
+    username: "operator02@company.com"
+    password: "ENC:change_me_002"
+    maxConcurrency: 50
+    reservedSlots: 5
+    enabled: true
+
+  - id: "ACC003"
+    username: "operator03@company.com"
+    password: "ENC:change_me_003"
+    maxConcurrency: 50
+    reservedSlots: 5
+    enabled: true
+
+  - id: "ACC004"
+    username: "operator04@company.com"
+    password: "ENC:change_me_004"
+    maxConcurrency: 50
+    reservedSlots: 5
+    enabled: true
+
+  - id: "ACC005"
+    username: "operator05@company.com"
+    password: "ENC:change_me_005"
+    maxConcurrency: 50
+    reservedSlots: 5
+    enabled: true
+
+  - id: "ACC006"
+    username: "operator06@company.com"
+    password: "ENC:change_me_006"
+    maxConcurrency: 50
+    reservedSlots: 5
+    enabled: true
+
+  - id: "ACC007"
+    username: "operator07@company.com"
+    password: "ENC:change_me_007"
+    maxConcurrency: 50
+    reservedSlots: 5
+    enabled: true
+
+  - id: "ACC008"
+    username: "operator08@company.com"
+    password: "ENC:change_me_008"
+    maxConcurrency: 50
+    reservedSlots: 5
+    enabled: true
+
+scales:
+  - code: "MBTI"
+    name: "MBTI人格类型量表"
+    pageObject: "MBTI"
+    estimatedMinutes: 20
+  - code: "BIG5"
+    name: "大五人格量表"
+    pageObject: "BigFive"
+    estimatedMinutes: 25
+  - code: "HOLLAND"
+    name: "霍兰德职业兴趣量表"
+    pageObject: "Holland"
+    estimatedMinutes: 30
+  - code: "SCL90"
+    name: "SCL-90症状自评量表"
+    pageObject: "SCL90"
+    estimatedMinutes: 15
+  - code: "PF16"
+    name: "16PF卡特尔人格量表"
+    pageObject: "PF16"
+    estimatedMinutes: 40
+  - code: "DISC"
+    name: "DISC行为风格测验"
+    pageObject: "DISC"
+    estimatedMinutes: 15
+  - code: "EQ"
+    name: "情商EQ测评量表"
+    pageObject: "EQ"
+    estimatedMinutes: 20
+  - code: "IQ"
+    name: "瑞文标准推理测验(IQ)"
+    pageObject: "RavenIQ"
+    estimatedMinutes: 45
+
+scheduler:
+  warnCapacityThreshold: 10
+  statusPollIntervalSec: 90
+  taskTimeoutMinutes: 30
+  maxRetryAttempts: 3
+  downloadConcurrency: 4
+  headless: true
+  windowSize: "1366x768"
+
+storage:
+  sqlitePath: "./data/assessment.db"
+  maxRecordsPerTable: 100000
+
+logging:
+  level: "info"
+  dir: "./logs"
+  maxFileSizeMB: 50
+  maxFiles: 30
+
+reports:
+  baseDir: "./reports"
+  summaryFileName: "batch_summary.csv"

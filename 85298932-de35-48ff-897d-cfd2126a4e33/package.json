@@ -1,0 +1,32 @@
+{
+  "name": "talent-assessment-automation",
+  "version": "1.0.0",
+  "description": "多账号人才测评SaaS平台自动化调度系统",
+  "main": "src/main.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/main.js",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "selenium-webdriver": "^4.18.0",
+    "webdriverio": "^8.32.0",
+    "chromedriver": "^121.0.0",
+    "winston": "^3.11.0",
+    "winston-daily-rotate-file": "^5.0.0",
+    "better-sqlite3": "^11.3.0",
+    "js-yaml": "^4.1.0",
+    "chalk": "^4.1.2",
+    "cli-progress": "^3.12.0",
+    "csv-parse": "^5.5.0",
+    "csv-stringify": "^6.4.0",
+    "fs-extra": "^11.2.0",
+    "dayjs": "^1.11.10",
+    "inquirer": "^8.2.6",
+    "blessed": "^0.1.81",
+    "uuid": "^9.0.1"
+  }
+}
