@@ -1,0 +1,121 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background text-text-primary font-sans antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-background-soft;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border-muted rounded-full hover:bg-brand-cyan/40 transition-colors;
+  }
+
+  ::selection {
+    @apply bg-brand-cyan/30 text-text-primary;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply btn bg-brand-orange text-white hover:bg-brand-orange/90 hover:shadow-glow-orange focus:ring-brand-orange/50;
+  }
+
+  .btn-secondary {
+    @apply btn bg-background-elevated text-text-primary hover:bg-background-elevated/80 border border-border focus:ring-border-accent;
+  }
+
+  .btn-ghost {
+    @apply btn text-text-secondary hover:text-text-primary hover:bg-background-elevated;
+  }
+
+  .btn-accent {
+    @apply btn bg-brand-cyan/10 text-brand-cyan border border-brand-cyan/30 hover:bg-brand-cyan/20 hover:shadow-glow focus:ring-brand-cyan/50;
+  }
+
+  .input {
+    @apply w-full rounded-lg bg-background-soft border border-border px-3 py-2 text-sm text-text-primary placeholder-text-muted transition-colors focus:outline-none focus:ring-2 focus:ring-brand-cyan/40 focus:border-brand-cyan/50;
+  }
+
+  .input-error {
+    @apply border-brand-rose/60 focus:ring-brand-rose/30 focus:border-brand-rose/60;
+  }
+
+  .card {
+    @apply bg-background-panel rounded-xl border border-border shadow-card;
+  }
+
+  .card-hover {
+    @apply card transition-all duration-200 hover:border-border-muted hover:shadow-glow;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium;
+  }
+
+  .chip-default {
+    @apply chip bg-background-elevated text-text-secondary;
+  }
+
+  .chip-success {
+    @apply chip bg-brand-emerald/15 text-brand-emerald;
+  }
+
+  .chip-warning {
+    @apply chip bg-brand-orange/15 text-brand-orange;
+  }
+
+  .chip-error {
+    @apply chip bg-brand-rose/15 text-brand-rose;
+  }
+
+  .chip-info {
+    @apply chip bg-brand-cyan/15 text-brand-cyan;
+  }
+
+  .section-title {
+    @apply font-display text-lg font-semibold text-text-primary;
+  }
+
+  .skeleton {
+    @apply animate-shimmer bg-gradient-to-r from-background-soft via-background-elevated to-background-soft bg-[length:200%_100%];
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-brand-cyan to-brand-violet bg-clip-text text-transparent;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+
+  .backdrop-surface {
+    @apply backdrop-blur-xl bg-background/70;
+  }
+}
