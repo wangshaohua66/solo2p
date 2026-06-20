@@ -48,6 +48,47 @@ function onDragStart(e: DragEvent, item: FurnitureCatalogItem) {
   }
 }
 
+function parseIconPaths(icon: string): string[] {
+  try {
+    if (icon.startsWith('[') && icon.endsWith(']')) {
+      const parsed = JSON.parse(icon)
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed
+    }
+  } catch {}
+  return []
+}
+
+function isImagePath(icon: string): boolean {
+  return icon.startsWith('./') || icon.startsWith('/') || 
+         icon.startsWith('http') || icon.endsWith('.svg') || 
+         icon.endsWith('.png') || icon.endsWith('.jpg')
+}
+
+function shadeColor(hex: string): string[] {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  const adjust = (c: number, amt: number) => Math.max(0, Math.min(255, Math.round(c + amt)))
+  return [
+    `rgb(${adjust(r, 20)}, ${adjust(g, 20)}, ${adjust(b, 20)})`,
+    `rgb(${r}, ${g}, ${b})`,
+    `rgb(${adjust(r, -25)}, ${adjust(g, -25)}, ${adjust(b, -25)})`
+  ]
+}
+
+function getIconSvgHtml(item: FurnitureCatalogItem): string {
+  const paths = parseIconPaths(item.icon)
+  if (paths.length === 0) return ''
+  const colors = shadeColor(item.color)
+  let html = '<svg viewBox="-50 -50 100 100" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">'
+  paths.forEach((d, i) => {
+    const fill = colors[i % colors.length]
+    html += `<path d="${d}" fill="${fill}" stroke="rgba(0,0,0,0.15)" stroke-width="0.5"/>`
+  })
+  html += '</svg>'
+  return html
+}
+
 const itemCount = computed(() => furnitureCatalog.length)
 </script>
 
@@ -118,7 +159,19 @@ const itemCount = computed(() => furnitureCatalog.length)
         :title="`${item.name} - 拖拽到画布放置`"
       >
         <div class="item-icon" :style="{ backgroundColor: item.color + '30' }">
-          <span class="icon">{{ item.icon }}</span>
+          <svg
+            v-if="parseIconPaths(item.icon).length > 0"
+            v-html="getIconSvgHtml(item)"
+            class="icon-svg"
+            viewBox="-50 -50 100 100"
+          />
+          <img
+            v-else-if="isImagePath(item.icon)"
+            :src="item.icon"
+            class="icon-img"
+            alt=""
+          />
+          <span v-else class="icon-fallback">📦</span>
         </div>
         <div class="item-info">
           <div class="item-name">{{ item.name }}</div>
@@ -309,6 +362,23 @@ const itemCount = computed(() => furnitureCatalog.length)
 
 .item-icon .icon {
   font-size: 24px;
+}
+
+.item-icon .icon-svg {
+  width: 40px;
+  height: 40px;
+  display: block;
+}
+
+.item-icon .icon-img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  display: block;
+}
+
+.item-icon .icon-fallback {
+  font-size: 22px;
 }
 
 .item-info {

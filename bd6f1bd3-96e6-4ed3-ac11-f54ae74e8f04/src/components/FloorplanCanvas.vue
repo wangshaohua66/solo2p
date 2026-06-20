@@ -320,11 +320,27 @@ const renderWindowOpening = (wall: Wall) => {
   ctx.stroke()
 }
 
-const renderIsometricIcon = (iconKey: string, cx: number, cy: number, size: number, color: string) => {
+const renderIsometricIcon = (icon: string, cx: number, cy: number, size: number, color: string) => {
   if (!ctx) return
   
-  const paths = (isometricIcons as Record<string, string[]>)?.[iconKey]
-  if (!paths || paths.length === 0) {
+  let paths: string[] = []
+  try {
+    if (icon.startsWith('[') && icon.endsWith(']')) {
+      const parsed = JSON.parse(icon)
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        paths = parsed
+      }
+    }
+  } catch {}
+  
+  if (paths.length === 0) {
+    const mapped = (isometricIcons as Record<string, string[]>)?.[icon]
+    if (mapped && mapped.length > 0) {
+      paths = mapped
+    }
+  }
+  
+  if (paths.length === 0) {
     ctx.fillStyle = '#666'
     ctx.font = `${size * 0.8}px Arial`
     ctx.textAlign = 'center'
