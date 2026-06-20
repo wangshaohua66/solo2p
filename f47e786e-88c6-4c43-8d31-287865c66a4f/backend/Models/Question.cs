@@ -53,8 +53,7 @@ public enum QuestionType
     Single = 1,
     Multiple = 2,
     Judge = 3,
-    Scenario = 4,
-    ShortAnswer = 5
+    Scenario = 4
 }
 
 public enum DifficultyLevel

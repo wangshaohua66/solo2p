@@ -18,6 +18,9 @@ public class Firefighter
     [MaxLength(20)]
     public string? Phone { get; set; }
 
+    [MaxLength(100)]
+    public string? Email { get; set; }
+
     public int FireStationId { get; set; }
 
     [ForeignKey(nameof(FireStationId))]

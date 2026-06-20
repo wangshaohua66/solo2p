@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using FireTraining.Data;
 using FireTraining.Models;
+using FireTraining.Common;
 
 namespace FireTraining.Services;
 
@@ -60,7 +61,7 @@ public class SchedulingService : ISchedulingService
                 if (s1.ScheduleDate != s2.ScheduleDate)
                     continue;
 
-                if (s1.RoomId == s2.RoomId && TimeOverlaps(s1, s2))
+                if (s1.RoomId == s2.RoomId && TimeOverlapsMinutes(s1, s2))
                 {
                     conflicts.Add(new ConflictResult
                     {
@@ -84,7 +85,7 @@ public class SchedulingService : ISchedulingService
                     .ToListAsync(cancellationToken);
 
                 var common = participants1.Intersect(participants2).ToList();
-                if (common.Any() && TimeOverlaps(s1, s2))
+                if (common.Any() && TimeOverlapsMinutes(s1, s2))
                 {
                     conflicts.Add(new ConflictResult
                     {
@@ -105,12 +106,15 @@ public class SchedulingService : ISchedulingService
 
     public async Task<bool> HasConflictAsync(int roomId, DateTime scheduleDate, int startHour, int startMinute, int endHour, int endMinute, int? excludeScheduleId = null, CancellationToken cancellationToken = default)
     {
+        var newStartMinutes = startHour * 60 + startMinute;
+        var newEndMinutes = endHour * 60 + endMinute;
+
         var query = _context.TrainingSchedules
             .Where(s => s.RoomId == roomId
                 && s.ScheduleDate == scheduleDate.Date
                 && s.Status != ScheduleStatus.Cancelled
-                && s.StartHour < endHour
-                && s.EndHour > startHour);
+                && (s.StartHour * 60 + s.StartMinute) < newEndMinutes
+                && (s.EndHour * 60 + s.EndMinute) > newStartMinutes);
 
         if (excludeScheduleId.HasValue)
         {
@@ -371,6 +375,9 @@ public class SchedulingService : ISchedulingService
 
         if (!hasConflict) return null;
 
+        var scheduleStartMinutes = schedule.StartHour * 60 + schedule.StartMinute;
+        var scheduleEndMinutes = schedule.EndHour * 60 + schedule.EndMinute;
+
         var conflictingSchedule = await _context.TrainingSchedules
             .Include(s => s.Course)
             .FirstOrDefaultAsync(s =>
@@ -378,8 +385,8 @@ public class SchedulingService : ISchedulingService
                 && s.ScheduleDate == schedule.ScheduleDate.Date
                 && s.Id != schedule.Id
                 && s.Status != ScheduleStatus.Cancelled
-                && s.StartHour < schedule.EndHour
-                && s.EndHour > schedule.StartHour,
+                && (s.StartHour * 60 + s.StartMinute) < scheduleEndMinutes
+                && (s.EndHour * 60 + s.EndMinute) > scheduleStartMinutes,
                 cancellationToken);
 
         return new ConflictResult
@@ -405,14 +412,17 @@ public class SchedulingService : ISchedulingService
         if (!participantIds.Any())
             return conflicts;
 
+        var scheduleStartMinutes = schedule.StartHour * 60 + schedule.StartMinute;
+        var scheduleEndMinutes = schedule.EndHour * 60 + schedule.EndMinute;
+
         var overlappingSchedules = await _context.TrainingSchedules
             .Include(s => s.Course)
             .Where(s =>
                 s.Id != schedule.Id
                 && s.ScheduleDate == schedule.ScheduleDate.Date
                 && s.Status != ScheduleStatus.Cancelled
-                && s.StartHour < schedule.EndHour
-                && s.EndHour > schedule.StartHour)
+                && (s.StartHour * 60 + s.StartMinute) < scheduleEndMinutes
+                && (s.EndHour * 60 + s.EndMinute) > scheduleStartMinutes)
             .ToListAsync(cancellationToken);
 
         foreach (var overlapping in overlappingSchedules)
@@ -439,9 +449,13 @@ public class SchedulingService : ISchedulingService
         return conflicts;
     }
 
-    private static bool TimeOverlaps(TrainingSchedule s1, TrainingSchedule s2)
+    private static bool TimeOverlapsMinutes(TrainingSchedule s1, TrainingSchedule s2)
     {
-        return s1.StartHour < s2.EndHour && s1.EndHour > s2.StartHour;
+        var s1Start = s1.StartHour * 60 + s1.StartMinute;
+        var s1End = s1.EndHour * 60 + s1.EndMinute;
+        var s2Start = s2.StartHour * 60 + s2.StartMinute;
+        var s2End = s2.EndHour * 60 + s2.EndMinute;
+        return s1Start < s2End && s1End > s2Start;
     }
 
     private static int CalculateSlotScore(Room room, int hour, int dayOfWeek)

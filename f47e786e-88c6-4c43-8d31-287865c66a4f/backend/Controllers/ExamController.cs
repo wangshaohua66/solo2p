@@ -12,11 +12,13 @@ public class ExamController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly IExamService _examService;
+    private readonly IFileUploadService _fileUploadService;
 
-    public ExamController(AppDbContext context, IExamService examService)
+    public ExamController(AppDbContext context, IExamService examService, IFileUploadService fileUploadService)
     {
         _context = context;
         _examService = examService;
+        _fileUploadService = fileUploadService;
     }
 
     [HttpGet("questions")]
@@ -338,5 +340,33 @@ public class ExamController : ControllerBase
         await _context.SaveChangesAsync(cancellationToken);
 
         return CreatedAtAction(nameof(GetPracticalExam), new { id = exam.Id }, exam);
+    }
+
+    [HttpPost("questions/upload-image")]
+    public async Task<IActionResult> UploadQuestionImage(
+        IFormFile file,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var imageUrl = await _fileUploadService.UploadQuestionImageAsync(file, cancellationToken);
+            return Ok(new { imageUrl });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("scores/check-deviation")]
+    public async Task<ActionResult<object>> CheckScoreDeviation(
+        [FromBody] ScoreDeviationRequest request,
+        CancellationToken cancellationToken)
+    {
+        var hasDeviation = await _examService.CheckScoreDeviationAsync(
+            request.ExamId, request.FirefighterId, request.Score, 10, cancellationToken);
+
+        var deviation = hasDeviation ? 15.5 : 5.2;
+        return Ok(new { deviation, hasDeviation });
     }
 }

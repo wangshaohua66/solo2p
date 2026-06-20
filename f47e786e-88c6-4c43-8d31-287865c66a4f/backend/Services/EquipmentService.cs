@@ -34,10 +34,12 @@ public interface IEquipmentService
 public class EquipmentService : IEquipmentService
 {
     private readonly AppDbContext _context;
+    private readonly INotificationService _notificationService;
 
-    public EquipmentService(AppDbContext context)
+    public EquipmentService(AppDbContext context, INotificationService notificationService)
     {
         _context = context;
+        _notificationService = notificationService;
     }
 
     public async Task<List<Equipment>> GetEquipmentAsync(
@@ -516,6 +518,17 @@ public class EquipmentService : IEquipmentService
         foreach (var reservation in overdueReservations)
         {
             reservation.IsOverdue = true;
+            reservation.OverdueNotified = true;
+            reservation.OverdueNotifiedAt = DateTime.UtcNow;
+
+            try
+            {
+                await _notificationService.SendOverdueReminderAsync(reservation.Id, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"发送逾期提醒失败：预约ID={reservation.Id}, 错误={ex.Message}");
+            }
         }
 
         await _context.SaveChangesAsync(cancellationToken);

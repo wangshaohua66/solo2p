@@ -32,6 +32,7 @@ public class AppDbContext : DbContext
     public DbSet<EquipmentReservation> EquipmentReservations { get; set; }
     public DbSet<LearningProgress> LearningProgresses { get; set; }
     public DbSet<LearningProgressDetail> LearningProgressDetails { get; set; }
+    public DbSet<InAppMessage> InAppMessages { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

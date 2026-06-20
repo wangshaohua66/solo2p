@@ -210,6 +210,39 @@ public class EquipmentController : ControllerBase
         return Ok(new { isAvailable });
     }
 
+    [HttpPost("availability/check")]
+    public async Task<ActionResult<object>> CheckAvailabilityPost(
+        [FromBody] AvailabilityCheckRequest request,
+        CancellationToken cancellationToken)
+    {
+        var isAvailable = await _equipmentService.CheckAvailabilityAsync(
+            request.EquipmentId, request.StartTime, request.EndTime, request.Qty, null, cancellationToken);
+
+        var hasConflict = !isAvailable;
+        var conflicts = new List<object>();
+        var canOverrideByPriority = false;
+
+        if (hasConflict)
+        {
+            var conflictingReservations = await _equipmentService.GetConflictingReservationsAsync(
+                request.EquipmentId, request.StartTime, request.EndTime, null, cancellationToken);
+
+            conflicts = conflictingReservations.Select(r => new
+            {
+                reservationId = r.Id,
+                reason = $"与预约 {r.Id} 冲突",
+                priority = r.Priority
+            }).Cast<object>().ToList();
+
+            if (request.Priority >= 3)
+            {
+                canOverrideByPriority = true;
+            }
+        }
+
+        return Ok(new { hasConflict, conflicts, canOverrideByPriority });
+    }
+
     [HttpGet("availability/conflicts")]
     public async Task<ActionResult<IEnumerable<EquipmentReservation>>> GetConflictingReservations(
         int equipmentId,

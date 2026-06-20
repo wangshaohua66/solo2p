@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using FireTraining.Data;
 using FireTraining.Models;
+using FireTraining.Common;
 using System.Text.Json;
 
 namespace FireTraining.Services;

@@ -44,6 +44,10 @@ builder.Services.AddScoped<ISchedulingService, SchedulingService>();
 builder.Services.AddScoped<IExamService, ExamService>();
 builder.Services.AddScoped<IEquipmentService, EquipmentService>();
 builder.Services.AddScoped<IStatisticService, StatisticService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IFileUploadService, FileUploadService>();
+
+builder.Services.AddHostedService<OverdueReminderBackgroundService>();
 
 builder.Services.AddCors(options =>
 {

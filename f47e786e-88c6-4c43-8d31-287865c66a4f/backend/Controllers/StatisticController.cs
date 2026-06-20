@@ -191,6 +191,45 @@ public class StatisticController : ControllerBase
         return File(data, "text/csv; charset=utf-8", fileName);
     }
 
+    [HttpGet("export")]
+    public async Task<IActionResult> ExportReportV2(
+        [FromQuery] string type,
+        [FromQuery] string dateRange,
+        [FromQuery] string format = "csv",
+        CancellationToken cancellationToken = default)
+    {
+        var filter = new StatisticFilter();
+        var now = DateTime.Now;
+
+        switch (dateRange)
+        {
+            case "month":
+                filter.StartDate = new DateTime(now.Year, now.Month, 1);
+                filter.EndDate = filter.StartDate.Value.AddMonths(1).AddDays(-1);
+                break;
+            case "quarter":
+                var quarter = (now.Month - 1) / 3 + 1;
+                filter.StartDate = new DateTime(now.Year, (quarter - 1) * 3 + 1, 1);
+                filter.EndDate = filter.StartDate.Value.AddMonths(3).AddDays(-1);
+                break;
+            case "year":
+                filter.StartDate = new DateTime(now.Year, 1, 1);
+                filter.EndDate = new DateTime(now.Year, 12, 31);
+                break;
+        }
+
+        ReportType reportType = ReportType.Comprehensive;
+        if (!string.IsNullOrEmpty(type))
+        {
+            Enum.TryParse<ReportType>(type, true, out reportType);
+        }
+
+        var data = await _statisticService.ExportReportAsync(filter, reportType, cancellationToken);
+
+        var fileName = $"{type}_{dateRange}_report_{DateTime.Now:yyyyMMdd}.csv";
+        return File(data, "text/csv; charset=utf-8", fileName);
+    }
+
     [HttpGet("reports/comprehensive")]
     public async Task<ActionResult<object>> GetComprehensiveReport(
         [FromQuery] StatisticFilter filter,

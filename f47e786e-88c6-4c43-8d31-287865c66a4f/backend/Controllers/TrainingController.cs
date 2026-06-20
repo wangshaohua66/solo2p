@@ -310,6 +310,24 @@ public class TrainingController : ControllerBase
         return Ok(new { hasConflict });
     }
 
+    [HttpPost("schedules/check-conflict")]
+    public async Task<ActionResult<object>> CheckConflictPost(
+        [FromBody] ConflictCheckRequest request,
+        CancellationToken cancellationToken)
+    {
+        var hasConflict = await _schedulingService.HasConflictAsync(
+            request.RoomId, request.ScheduleDate, request.StartHour, request.StartMinute,
+            request.EndHour, request.EndMinute, request.ExcludeScheduleId, cancellationToken);
+
+        var conflicts = new List<object>();
+        if (hasConflict)
+        {
+            conflicts.Add(new { description = "该时段教室/场地已被占用", reason = "时间冲突" });
+        }
+
+        return Ok(new { hasConflict, conflicts });
+    }
+
     [HttpGet("schedules/conflicts/all")]
     public async Task<ActionResult<IEnumerable<ConflictResult>>> GetAllConflicts(
         [FromQuery] DateTime startDate,

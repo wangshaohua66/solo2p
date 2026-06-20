@@ -116,6 +116,10 @@ public class EquipmentReservation
 
     public bool IsOverdue { get; set; } = false;
 
+    public bool OverdueNotified { get; set; } = false;
+
+    public DateTime? OverdueNotifiedAt { get; set; }
+
     [MaxLength(1000)]
     public string? Notes { get; set; }
 
