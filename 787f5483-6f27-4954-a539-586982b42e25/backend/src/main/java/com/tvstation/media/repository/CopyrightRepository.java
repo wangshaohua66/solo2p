@@ -22,6 +22,9 @@ public interface CopyrightRepository extends JpaRepository<Copyright, Long>, Jpa
            "c.endDate <= :expiryDate AND c.status != 'expired'")
     List<Copyright> findExpiringCopyrights(@Param("expiryDate") LocalDate expiryDate);
 
+    @Query("SELECT c FROM Copyright c WHERE c.deleted = false AND c.endDate < :today AND c.status != 'expired'")
+    List<Copyright> findExpiredButNotMarked(@Param("today") LocalDate today);
+
     @Query("SELECT c FROM Copyright c WHERE c.deleted = false AND " +
            "(:status IS NULL OR c.status = :status) AND " +
            "(:keyword IS NULL OR LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
@@ -33,6 +36,8 @@ public interface CopyrightRepository extends JpaRepository<Copyright, Long>, Jpa
 
     @Query("SELECT c.status, COUNT(c) FROM Copyright c WHERE c.deleted = false GROUP BY c.status")
     List<Object[]> countByStatus();
+
+    long countByDeletedFalse();
 
     @Query("SELECT COALESCE(SUM(c.cost), 0) FROM Copyright c WHERE c.deleted = false")
     BigDecimal sumTotalCost();
@@ -46,4 +51,10 @@ public interface CopyrightRepository extends JpaRepository<Copyright, Long>, Jpa
     @Query("SELECT COUNT(c) > 0 FROM Copyright c JOIN c.materialIds m " +
            "WHERE c.deleted = false AND m = :materialId AND c.status = 'active'")
     boolean hasActiveCopyrightForMaterial(@Param("materialId") Long materialId);
+
+    List<Copyright> findByRiskLevelInAndDeletedFalse(List<Copyright.RiskLevel> riskLevels);
+
+    @Query("SELECT c FROM Copyright c WHERE c.deleted = false AND " +
+           "c.riskNotified = false AND c.riskLevel IN ('high', 'critical')")
+    List<Copyright> findUnnotifiedHighRiskCopyrights();
 }

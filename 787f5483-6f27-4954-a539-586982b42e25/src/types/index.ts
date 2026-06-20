@@ -144,6 +144,12 @@ export interface Copyright {
   materialIds: number[]
   status: 'active' | 'expiring' | 'expired'
   createdAt: string
+  riskLevel?: 'none' | 'low' | 'medium' | 'high' | 'critical'
+  riskScore?: number
+  riskFactors?: string
+  riskNotified?: boolean
+  contractUrl?: string
+  remarks?: string
 }
 
 export interface WorkloadStats {

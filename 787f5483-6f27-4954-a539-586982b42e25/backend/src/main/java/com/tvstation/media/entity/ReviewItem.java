@@ -41,6 +41,8 @@ public class ReviewItem extends BaseEntity {
     @Column(nullable = false, length = 20)
     private ReviewStatus status;
 
+    private Long currentReviewerId;
+
     @Column(nullable = false)
     private Long submitterId;
 
@@ -56,15 +58,11 @@ public class ReviewItem extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String content;
 
-    @OneToMany(mappedBy = "reviewItem", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private List<ReviewRecord> reviews = new ArrayList<>();
-
     public enum ReviewType {
         topic, material, program
     }
 
     public enum ReviewStatus {
-        pending, reviewing, approved, rejected, completed
+        pending, reviewing, approved, rejected, completed, modifying
     }
 }

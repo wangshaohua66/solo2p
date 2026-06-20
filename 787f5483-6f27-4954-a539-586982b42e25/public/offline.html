@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>离线模式 - 电视台内容生产管理系统</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #333;
+    }
+    .offline-container {
+      text-align: center;
+      padding: 40px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      max-width: 400px;
+    }
+    .icon { font-size: 64px; margin-bottom: 20px; }
+    h1 { font-size: 24px; margin-bottom: 12px; color: #333; }
+    p { font-size: 14px; color: #666; line-height: 1.6; margin-bottom: 20px; }
+    .btn {
+      display: inline-block;
+      padding: 10px 24px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 14px;
+      border: none;
+      cursor: pointer;
+    }
+    .btn:hover { opacity: 0.9; }
+  </style>
+</head>
+<body>
+  <div class="offline-container">
+    <div class="icon">📡</div>
+    <h1>当前处于离线模式</h1>
+    <p>您当前无法连接到服务器，但仍然可以浏览已缓存的内容。已缓存的素材和待办事项仍然可以查看。</p>
+    <button class="btn" onclick="window.location.reload()">重新连接</button>
+  </div>
+</body>
+</html>

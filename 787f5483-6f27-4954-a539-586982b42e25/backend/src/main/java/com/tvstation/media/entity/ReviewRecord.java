@@ -21,9 +21,8 @@ import java.time.LocalDateTime;
 })
 public class ReviewRecord extends BaseEntity {
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "reviewItemId", nullable = false)
-    private ReviewItem reviewItem;
+    @Column(nullable = false)
+    private Long reviewItemId;
 
     @Column(nullable = false)
     private Integer level;
@@ -51,6 +50,6 @@ public class ReviewRecord extends BaseEntity {
     private String annotations;
 
     public enum ReviewStatus {
-        approved, rejected, pending
+        approved, rejected, pending, returned
     }
 }

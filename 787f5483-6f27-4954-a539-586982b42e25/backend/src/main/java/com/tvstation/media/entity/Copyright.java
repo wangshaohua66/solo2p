@@ -62,7 +62,27 @@ public class Copyright extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String remarks;
 
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    @Builder.Default
+    private RiskLevel riskLevel = RiskLevel.low;
+
+    @Column
+    @Builder.Default
+    private Integer riskScore = 0;
+
+    @Column(columnDefinition = "TEXT")
+    private String riskFactors;
+
+    @Column
+    @Builder.Default
+    private Boolean riskNotified = false;
+
     public enum CopyrightStatus {
         active, expiring, expired
+    }
+
+    public enum RiskLevel {
+        none, low, medium, high, critical
     }
 }

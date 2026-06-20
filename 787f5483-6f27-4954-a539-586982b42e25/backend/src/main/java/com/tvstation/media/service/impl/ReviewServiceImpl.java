@@ -1,12 +1,14 @@
 package com.tvstation.media.service.impl;
 
 import com.tvstation.media.common.PageResult;
+import com.tvstation.media.dto.NotificationMessage;
 import com.tvstation.media.entity.ReviewItem;
 import com.tvstation.media.entity.ReviewRecord;
 import com.tvstation.media.entity.Topic;
 import com.tvstation.media.repository.ReviewRecordRepository;
 import com.tvstation.media.repository.ReviewRepository;
 import com.tvstation.media.repository.TopicRepository;
+import com.tvstation.media.service.NotificationService;
 import com.tvstation.media.service.ReviewService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.criteria.Predicate;
@@ -33,6 +35,7 @@ public class ReviewServiceImpl implements ReviewService {
     private final ReviewRepository reviewRepository;
     private final ReviewRecordRepository reviewRecordRepository;
     private final TopicRepository topicRepository;
+    private final NotificationService notificationService;
 
     @Override
     public PageResult<ReviewItem> getReviews(ReviewItem.ReviewStatus status,
@@ -91,14 +94,14 @@ public class ReviewServiceImpl implements ReviewService {
             if (level < 3) {
                 item.setCurrentLevel(level + 1);
                 if (level + 1 == 2) {
-                    item.setStatus(ReviewItem.ReviewStatus.in_review);
+                    item.setStatus(ReviewItem.ReviewStatus.reviewing);
                 }
             } else {
                 item.setStatus(ReviewItem.ReviewStatus.approved);
                 item.setCurrentLevel(4);
                 if (item.getType() == ReviewItem.ReviewType.topic && item.getTopicId() != null) {
                     topicRepository.findById(item.getTopicId()).ifPresent(topic -> {
-                        topic.setStatus(Topic.TopicStatus.published);
+                        topic.setStatus(Topic.TopicStatus.completed);
                         topicRepository.save(topic);
                     });
                 }
@@ -107,7 +110,7 @@ public class ReviewServiceImpl implements ReviewService {
             item.setStatus(ReviewItem.ReviewStatus.rejected);
             if (item.getType() == ReviewItem.ReviewType.topic && item.getTopicId() != null) {
                 topicRepository.findById(item.getTopicId()).ifPresent(topic -> {
-                    topic.setStatus(Topic.TopicStatus.review_rejected);
+                    topic.setStatus(Topic.TopicStatus.rejected);
                     topicRepository.save(topic);
                 });
             }
@@ -136,7 +139,7 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     public List<ReviewItem> getPendingReviewsByUser(Long userId) {
-        return reviewRepository.findByCurrentReviewerAndDeletedFalse(userId);
+        return reviewRepository.findByCurrentReviewerIdAndDeletedFalse(userId);
     }
 
     @Override
@@ -174,7 +177,7 @@ public class ReviewServiceImpl implements ReviewService {
 
         if (saved.getType() == ReviewItem.ReviewType.topic && saved.getTopicId() != null) {
             topicRepository.findById(saved.getTopicId()).ifPresent(topic -> {
-                topic.setStatus(Topic.TopicStatus.in_review);
+                topic.setStatus(Topic.TopicStatus.reviewing);
                 topicRepository.save(topic);
             });
         }
@@ -188,7 +191,7 @@ public class ReviewServiceImpl implements ReviewService {
         stats.put("byType", reviewRepository.countByType());
         stats.put("totalCount", reviewRepository.countByDeletedFalse());
         stats.put("pendingCount", reviewRepository.countByStatusAndDeletedFalse(ReviewItem.ReviewStatus.pending));
-        stats.put("inReviewCount", reviewRepository.countByStatusAndDeletedFalse(ReviewItem.ReviewStatus.in_review));
+        stats.put("inReviewCount", reviewRepository.countByStatusAndDeletedFalse(ReviewItem.ReviewStatus.reviewing));
         stats.put("approvedCount", reviewRepository.countByStatusAndDeletedFalse(ReviewItem.ReviewStatus.approved));
         stats.put("rejectedCount", reviewRepository.countByStatusAndDeletedFalse(ReviewItem.ReviewStatus.rejected));
         Double avgReviewTime = reviewRecordRepository.calculateAvgTotalReviewTime();
@@ -200,9 +203,57 @@ public class ReviewServiceImpl implements ReviewService {
     @Scheduled(fixedRate = 3600000)
     @Transactional
     public void processTimeoutReviews() {
-        List<ReviewItem> timeoutItems = reviewRepository.findTimeoutReviews(24);
+        LocalDateTime timeoutThreshold = LocalDateTime.now().minusHours(24);
+        List<ReviewItem> timeoutItems = reviewRepository.findTimeoutReviews(timeoutThreshold);
+        int notifiedCount = 0;
         for (ReviewItem item : timeoutItems) {
-            log.warn("Review timeout: id={}, currentLevel={}", item.getId(), item.getCurrentLevel());
+            log.warn("Review timeout: id={}, title={}, currentLevel={}",
+                    item.getId(), item.getTitle(), item.getCurrentLevel());
+
+            Long reviewerId = item.getCurrentReviewerId();
+            if (reviewerId == null) {
+                reviewerId = item.getSubmitterId();
+            }
+
+            notificationService.sendReviewTimeoutNotification(
+                    item.getId(),
+                    item.getTitle(),
+                    reviewerId,
+                    item.getCurrentLevel());
+
+            ReviewRecord timeoutRecord = ReviewRecord.builder()
+                    .reviewItemId(item.getId())
+                    .level(item.getCurrentLevel())
+                    .status(ReviewRecord.ReviewStatus.pending)
+                    .comment("系统自动提醒：该审核任务已超时24小时，请尽快处理")
+                    .reviewerId(reviewerId)
+                    .reviewerName("系统超时检测")
+                    .reviewedAt(LocalDateTime.now())
+                    .build();
+            timeoutRecord.setCreatedBy(0L);
+            timeoutRecord.setUpdatedBy(0L);
+            reviewRecordRepository.save(timeoutRecord);
+
+            Map<String, Object> extra = new HashMap<>();
+            extra.put("reviewItemId", item.getId());
+            extra.put("level", item.getCurrentLevel());
+            extra.put("timeoutHours", 24);
+
+            NotificationMessage wsMessage = NotificationMessage.builder()
+                    .userId(reviewerId)
+                    .title("审核超时提醒")
+                    .content(String.format("审核项「%s」已超时，请尽快处理（当前级别：%d）",
+                            item.getTitle(), item.getCurrentLevel()))
+                    .type(NotificationMessage.NotificationType.REVIEW_TIMEOUT)
+                    .channel(NotificationMessage.Channel.ALL.name())
+                    .extra(extra)
+                    .build();
+            notificationService.sendNotification(wsMessage);
+
+            notifiedCount++;
+        }
+        if (notifiedCount > 0) {
+            log.info("Processed {} timeout review notifications", notifiedCount);
         }
     }
 }

@@ -36,7 +36,13 @@ public class MediaServiceImpl implements MediaService {
     public PageResult<Material> getMaterials(Material.MaterialType type, String keyword,
                                           List<String> tags, LocalDateTime startTime,
                                           LocalDateTime endTime, Pageable pageable) {
-        Page<Material> page = materialRepository.findByFilters(type, keyword, startTime, endTime, pageable);
+        Page<Material> page;
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            String typeStr = type != null ? type.name() : null;
+            page = materialRepository.fullTextSearch(typeStr, keyword.trim(), startTime, endTime, pageable);
+        } else {
+            page = materialRepository.findByFilters(type, keyword, startTime, endTime, pageable);
+        }
         return PageResult.of(page.getContent(), page.getTotalElements(),
                 pageable.getPageNumber() + 1, pageable.getPageSize());
     }

@@ -33,6 +33,7 @@ import java.util.Map;
 public class MaterialController {
 
     private final MediaService mediaService;
+    private final com.tvstation.media.service.ChunkedUploadService chunkedUploadService;
 
     @GetMapping
     @Operation(summary = "获取素材列表")
@@ -138,5 +139,68 @@ public class MaterialController {
     @Operation(summary = "批量获取素材")
     public ApiResponse<List<Material>> getMaterialsByIds(@RequestBody List<Long> ids) {
         return ApiResponse.success(mediaService.getMaterialsByIds(ids));
+    }
+
+    @PostMapping("/upload/init")
+    @Operation(summary = "初始化分片上传")
+    public ApiResponse<Map<String, Object>> initChunkedUpload(
+            @RequestBody Map<String, Object> body) {
+        String uploadId = (String) body.get("uploadId");
+        String fileName = (String) body.get("fileName");
+        Long fileSize = body.get("fileSize") != null ? ((Number) body.get("fileSize")).longValue() : 0L;
+        String fileType = (String) body.get("fileType");
+        Integer totalChunks = body.get("totalChunks") != null ? ((Number) body.get("totalChunks")).intValue() : 0;
+        Integer chunkSize = body.get("chunkSize") != null ? ((Number) body.get("chunkSize")).intValue() : 0;
+        @SuppressWarnings("unchecked")
+        List<String> tags = (List<String>) body.get("tags");
+        String description = (String) body.get("description");
+
+        Map<String, Object> result = chunkedUploadService.initUpload(
+                uploadId, fileName, fileSize, fileType, totalChunks, chunkSize, tags, description);
+        return ApiResponse.success("上传初始化成功", result);
+    }
+
+    @PostMapping("/upload/chunk")
+    @Operation(summary = "上传分片")
+    public ApiResponse<Map<String, Object>> uploadChunk(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("uploadId") String uploadId,
+            @RequestParam("chunkIndex") int chunkIndex,
+            @RequestParam("totalChunks") int totalChunks,
+            @RequestParam("fileName") String fileName) throws IOException {
+
+        Map<String, Object> result = chunkedUploadService.uploadChunk(
+                uploadId, chunkIndex, totalChunks, fileName, file.getBytes());
+        return ApiResponse.success(result);
+    }
+
+    @PostMapping("/upload/merge")
+    @Operation(summary = "合并分片")
+    public ApiResponse<Map<String, Object>> mergeChunks(@RequestBody Map<String, Object> body) {
+        String uploadId = (String) body.get("uploadId");
+        String fileName = (String) body.get("fileName");
+        Long fileSize = body.get("fileSize") != null ? ((Number) body.get("fileSize")).longValue() : 0L;
+        String fileType = (String) body.get("fileType");
+        Integer totalChunks = body.get("totalChunks") != null ? ((Number) body.get("totalChunks")).intValue() : 0;
+        @SuppressWarnings("unchecked")
+        List<String> tags = (List<String>) body.get("tags");
+        String description = (String) body.get("description");
+
+        Map<String, Object> result = chunkedUploadService.mergeChunks(
+                uploadId, fileName, fileSize, fileType, totalChunks, tags, description);
+        return ApiResponse.success("文件合并成功", result);
+    }
+
+    @GetMapping("/upload/{uploadId}/status")
+    @Operation(summary = "查询分片上传状态")
+    public ApiResponse<Map<String, Object>> getUploadStatus(@PathVariable String uploadId) {
+        return ApiResponse.success(chunkedUploadService.getUploadStatus(uploadId));
+    }
+
+    @DeleteMapping("/upload/{uploadId}")
+    @Operation(summary = "取消分片上传")
+    public ApiResponse<Void> cancelUpload(@PathVariable String uploadId) {
+        chunkedUploadService.cancelUpload(uploadId);
+        return ApiResponse.success("上传已取消", null);
     }
 }

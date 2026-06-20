@@ -50,4 +50,13 @@ public interface TopicRepository extends JpaRepository<Topic, Long>, JpaSpecific
     @Query("SELECT COUNT(t) FROM Topic t WHERE t.deleted = false AND t.createdAt >= :startDate AND t.createdAt <= :endDate")
     Long countByDateRange(@Param("startDate") java.time.LocalDateTime startDate,
                           @Param("endDate") java.time.LocalDateTime endDate);
+
+    @Query("SELECT t.creatorId, t.creatorName, COUNT(t), COALESCE(SUM(t.duration), 0) " +
+           "FROM Topic t WHERE t.deleted = false " +
+           "AND (:creatorId IS NULL OR t.creatorId = :creatorId) " +
+           "AND t.createdAt >= :startDate AND t.createdAt <= :endDate " +
+           "GROUP BY t.creatorId, t.creatorName")
+    List<Object[]> aggregateByCreator(@Param("startDate") java.time.LocalDateTime startDate,
+                                      @Param("endDate") java.time.LocalDateTime endDate,
+                                      @Param("creatorId") Long creatorId);
 }

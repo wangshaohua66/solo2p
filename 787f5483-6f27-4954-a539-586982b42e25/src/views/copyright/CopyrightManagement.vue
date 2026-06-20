@@ -63,6 +63,14 @@ const statusMap: Record<string, { text: string; class: string }> = {
   expired: { text: '已过期', class: 'tag--danger' }
 }
 
+const riskMap: Record<string, { text: string; class: string; color: string }> = {
+  none: { text: '无风险', class: 'tag--success', color: '#67c23a' },
+  low: { text: '低风险', class: 'tag--success', color: '#67c23a' },
+  medium: { text: '中风险', class: 'tag--warning', color: '#e6a23c' },
+  high: { text: '高风险', class: 'tag--danger', color: '#f56c6c' },
+  critical: { text: '极高风险', class: 'tag--danger', color: '#f56c6c' }
+}
+
 const mockData = ref<Copyright[]>([])
 const total = ref(0)
 const stats = ref({
@@ -70,19 +78,22 @@ const stats = ref({
   active: 0,
   expiring: 0,
   expired: 0,
-  totalCost: 0
+  totalCost: 0,
+  highRisk: 0
 })
 const expiringList = ref<Copyright[]>([])
+const highRiskList = ref<Copyright[]>([])
 
 const copyrights = computed(() => mockData.value)
 
 function generateMockData(): Copyright[] {
   return [
-    { id: 1, name: '春节特别节目背景音乐', type: 'music', owner: '中国音乐著作权协会', authorizationScope: '全国范围，电视播出', startDate: '2024-01-01', endDate: '2024-12-31', cost: 50000, materialIds: [1, 2], status: 'active', createdAt: '2024-01-01T00:00:00Z' },
-    { id: 2, name: '城市宣传片素材包', type: 'video', owner: '某影视公司', authorizationScope: '本台播出，不包含网络传播', startDate: '2024-03-01', endDate: '2024-06-30', cost: 120000, materialIds: [3, 4, 5], status: 'expiring', createdAt: '2024-02-15T00:00:00Z' },
-    { id: 3, name: '新闻联播片头片尾', type: 'video', owner: '央视国际', authorizationScope: '新闻类节目使用', startDate: '2023-01-01', endDate: '2025-12-31', cost: 200000, materialIds: [6], status: 'active', createdAt: '2022-12-01T00:00:00Z' },
-    { id: 4, name: '经典电视剧集播映权', type: 'video', owner: '某影视集团', authorizationScope: '黄金时段播出，限5次', startDate: '2024-01-01', endDate: '2024-05-31', cost: 500000, materialIds: [7, 8, 9, 10], status: 'expired', createdAt: '2023-11-01T00:00:00Z' },
-    { id: 5, name: '天气预报背景音乐', type: 'music', owner: '环球音乐', authorizationScope: '天气预报节目专用', startDate: '2024-01-01', endDate: '2024-12-31', cost: 30000, materialIds: [11], status: 'active', createdAt: '2023-12-20T00:00:00Z' }
+    { id: 1, name: '春节特别节目背景音乐', type: 'music', owner: '中国音乐著作权协会', authorizationScope: '全国范围，电视播出', startDate: '2024-01-01', endDate: '2024-12-31', cost: 50000, materialIds: [1, 2], status: 'active', createdAt: '2024-01-01T00:00:00Z', riskLevel: 'low', riskScore: 15, riskFactors: undefined },
+    { id: 2, name: '城市宣传片素材包', type: 'video', owner: '某影视公司', authorizationScope: '本台播出，不包含网络传播', startDate: '2024-03-01', endDate: '2024-06-30', cost: 120000, materialIds: [3, 4, 5], status: 'expiring', createdAt: '2024-02-15T00:00:00Z', riskLevel: 'medium', riskScore: 45, riskFactors: '版权将在7天内到期，存在续期不及时导致侵权风险；授权范围可能不包含网络传播' },
+    { id: 3, name: '新闻联播片头片尾', type: 'video', owner: '央视国际', authorizationScope: '新闻类节目使用', startDate: '2023-01-01', endDate: '2025-12-31', cost: 200000, materialIds: [6], status: 'active', createdAt: '2022-12-01T00:00:00Z', riskLevel: 'none', riskScore: 5, riskFactors: undefined },
+    { id: 4, name: '经典电视剧集播映权', type: 'video', owner: '某影视集团', authorizationScope: '黄金时段播出，限5次', startDate: '2024-01-01', endDate: '2024-05-31', cost: 500000, materialIds: [7, 8, 9, 10], status: 'expired', createdAt: '2023-11-01T00:00:00Z', riskLevel: 'high', riskScore: 75, riskFactors: '版权已过期，但可能仍有关联素材在使用；已过期版权仍关联素材，存在继续使用侵权风险' },
+    { id: 5, name: '天气预报背景音乐', type: 'music', owner: '环球音乐', authorizationScope: '天气预报节目专用', startDate: '2024-01-01', endDate: '2024-12-31', cost: 30000, materialIds: [11], status: 'active', createdAt: '2023-12-20T00:00:00Z', riskLevel: 'low', riskScore: 10, riskFactors: undefined },
+    { id: 6, name: '纪录片配乐素材', type: 'music', owner: '未知来源', authorizationScope: '', startDate: '2024-02-01', endDate: '2024-08-15', cost: 500, materialIds: [12, 13], status: 'active', createdAt: '2024-01-20T00:00:00Z', riskLevel: 'critical', riskScore: 90, riskFactors: '授权范围未明确，存在超范围使用风险；授权费用异常偏低，需核实版权来源合法性；缺少授权合同文件，存在法律证据不足风险' }
   ]
 }
 
@@ -96,9 +107,11 @@ async function fetchData() {
       active: mockData.value.filter(c => c.status === 'active').length,
       expiring: mockData.value.filter(c => c.status === 'expiring').length,
       expired: mockData.value.filter(c => c.status === 'expired').length,
-      totalCost: mockData.value.reduce((sum, c) => sum + c.cost, 0)
+      totalCost: mockData.value.reduce((sum, c) => sum + c.cost, 0),
+      highRisk: mockData.value.filter(c => c.riskLevel === 'high' || c.riskLevel === 'critical').length
     }
     expiringList.value = mockData.value.filter(c => c.status === 'expiring')
+    highRiskList.value = mockData.value.filter(c => c.riskLevel === 'high' || c.riskLevel === 'critical')
   } finally {
     loading.value = false
   }
@@ -212,6 +225,24 @@ function handlePageChange(p: number) {
   fetchData()
 }
 
+function handleAssessRisk(item: Copyright) {
+  const scores: Record<string, number> = { none: 5, low: 15, medium: 45, high: 75, critical: 90 }
+  const levels = ['none', 'low', 'medium', 'high', 'critical'] as const
+  const currentIdx = levels.indexOf((item.riskLevel || 'none') as typeof levels[number])
+  const newLevel = levels[(currentIdx + 1) % levels.length]
+  item.riskLevel = newLevel
+  item.riskScore = scores[newLevel]
+  ElMessage.success(`风险评估完成：${item.name} - ${riskMap[newLevel].text}（${item.riskScore}分）`)
+  fetchData()
+}
+
+function handleAssessAllRisks() {
+  ElMessage.success('正在批量评估所有版权侵权风险...')
+  setTimeout(() => {
+    ElMessage.success('批量风险评估完成，共检测到 ' + highRiskList.value.length + ' 项高风险版权')
+  }, 1500)
+}
+
 onMounted(() => {
   fetchData()
 })
@@ -222,6 +253,9 @@ onMounted(() => {
     <div class="page-header">
       <div class="page-header__title">版权资产管理</div>
       <div class="page-header__actions">
+        <el-button type="warning" @click="handleAssessAllRisks">
+          <el-icon><Warning /></el-icon>批量评估风险
+        </el-button>
         <el-button type="primary" @click="openCreateDialog">
           <el-icon><Plus /></el-icon>登记版权
         </el-button>
@@ -295,6 +329,34 @@ onMounted(() => {
             <span class="date">到期: {{ formatDate(item.endDate, 'YYYY-MM-DD') }}</span>
             <el-button type="primary" size="small" @click.stop="handleRenew(item)">
               立即续期
+            </el-button>
+          </div>
+        </div>
+      </template>
+    </el-alert>
+    
+    <el-alert
+      v-if="highRiskList.length > 0"
+      :title="`检测到 ${highRiskList.length} 项高侵权风险版权，请立即核实处理`"
+      type="error"
+      show-icon
+      :closable="false"
+      style="margin-bottom: 16px"
+    >
+      <template #default>
+        <div class="expiring-list">
+          <div
+            v-for="item in highRiskList"
+            :key="item.id"
+            class="expiring-item"
+            @click="handleView(item)"
+          >
+            <span class="name">{{ item.name }}</span>
+            <span class="tag" :class="riskMap[item.riskLevel!].class" style="margin: 0 8px">
+              {{ riskMap[item.riskLevel!].text }}（{{ item.riskScore }}分）
+            </span>
+            <el-button type="danger" size="small" @click.stop="handleView(item)">
+              查看风险因素
             </el-button>
           </div>
         </div>
@@ -380,10 +442,30 @@ onMounted(() => {
           </template>
         </el-table-column>
         
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="侵权风险" width="130">
+          <template #default="{ row }">
+            <el-tooltip
+              v-if="row.riskLevel && row.riskLevel !== 'none' && row.riskFactors"
+              :content="row.riskFactors"
+              placement="top"
+            >
+              <span class="tag" :class="riskMap[row.riskLevel].class">
+                {{ riskMap[row.riskLevel].text }}（{{ row.riskScore }}分）
+              </span>
+            </el-tooltip>
+            <span v-else class="tag" :class="riskMap[row.riskLevel || 'none'].class">
+              {{ riskMap[row.riskLevel || 'none'].text }}
+            </span>
+          </template>
+        </el-table-column>
+        
+        <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="handleView(row)">
               详情
+            </el-button>
+            <el-button type="warning" link size="small" @click="handleAssessRisk(row)">
+              评估风险
             </el-button>
             <el-button
               v-if="row.status !== 'expired'"
@@ -535,6 +617,21 @@ onMounted(() => {
           <el-descriptions-item label="授权范围" :span="2">
             {{ currentCopyright.authorizationScope }}
           </el-descriptions-item>
+          <el-descriptions-item label="侵权风险等级">
+            <span class="tag" :class="riskMap[currentCopyright.riskLevel || 'none'].class">
+              {{ riskMap[currentCopyright.riskLevel || 'none'].text }}
+            </span>
+          </el-descriptions-item>
+          <el-descriptions-item label="风险评分">
+            {{ currentCopyright.riskScore || 0 }} / 100
+          </el-descriptions-item>
+          <el-descriptions-item
+            v-if="currentCopyright.riskFactors"
+            label="风险因素"
+            :span="2"
+          >
+            <div class="risk-factors">{{ currentCopyright.riskFactors }}</div>
+          </el-descriptions-item>
         </el-descriptions>
       </div>
     </el-dialog>
@@ -643,6 +740,17 @@ onMounted(() => {
     
     :deep(.el-descriptions__content) {
       color: var(--text-color-primary);
+    }
+    
+    .risk-factors {
+      padding: 8px 12px;
+      background-color: #fef0f0;
+      border-left: 3px solid #f56c6c;
+      border-radius: 4px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #606266;
+      white-space: pre-wrap;
     }
   }
 }

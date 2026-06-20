@@ -22,4 +22,6 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     Optional<User> findByIdAndDeletedFalse(Long id);
 
     List<User> findByRoleInAndDeletedFalse(List<User.UserRole> roles);
+
+    List<User> findByDeletedFalse();
 }

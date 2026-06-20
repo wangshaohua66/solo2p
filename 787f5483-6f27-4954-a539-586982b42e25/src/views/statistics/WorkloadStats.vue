@@ -52,8 +52,15 @@ const workloadData = ref<WorkloadStats[]>([])
 const productionStats = ref<any>(null)
 const efficiencyStats = ref<any>(null)
 
+const chartLabels = computed(() => {
+  if (filters.groupBy === 'user') {
+    return workloadData.value.map(d => d.userName || `用户${d.userId}`)
+  }
+  return workloadData.value.map(d => d.department)
+})
+
 const departmentChart = computed(() => {
-  const data = workloadData.value.filter(item => item.department)
+  const data = workloadData.value
   return {
     tooltip: {
       trigger: 'axis',
@@ -75,9 +82,9 @@ const departmentChart = computed(() => {
     },
     xAxis: {
       type: 'category',
-      data: data.map(d => d.department),
+      data: chartLabels.value,
       axisLine: { lineStyle: { color: '#30363d' } },
-      axisLabel: { color: '#8b949e', interval: 0, rotate: 0 }
+      axisLabel: { color: '#8b949e', interval: 0, rotate: filters.groupBy === 'user' ? 30 : 0 }
     },
     yAxis: {
       type: 'value',
@@ -105,13 +112,20 @@ const departmentChart = computed(() => {
 })
 
 const durationChart = computed(() => {
-  const data = workloadData.value.filter(item => item.department)
+  const data = workloadData.value
   return {
     tooltip: {
       trigger: 'axis',
       backgroundColor: '#21262d',
       borderColor: '#30363d',
-      textStyle: { color: '#e6edf3' }
+      textStyle: { color: '#e6edf3' },
+      formatter: (params: any) => {
+        const item = data[params[0].dataIndex]
+        const label = filters.groupBy === 'user'
+          ? `${item.userName}（${item.department}）`
+          : item.department
+        return `${label}<br/>节目时长: ${(item.programDuration / 3600).toFixed(1)} 小时`
+      }
     },
     grid: {
       left: '3%',
@@ -122,9 +136,9 @@ const durationChart = computed(() => {
     },
     xAxis: {
       type: 'category',
-      data: data.map(d => d.department),
+      data: chartLabels.value,
       axisLine: { lineStyle: { color: '#30363d' } },
-      axisLabel: { color: '#8b949e' }
+      axisLabel: { color: '#8b949e', interval: 0, rotate: filters.groupBy === 'user' ? 30 : 0 }
     },
     yAxis: {
       type: 'value',
@@ -191,6 +205,37 @@ const contentTypeChart = computed(() => {
   }
 })
 
+const userRanking = computed(() => {
+  if (filters.groupBy === 'user') {
+    return workloadData.value
+      .map(item => ({
+        ...item,
+        rank: 0,
+        score: calculateScore(item)
+      }))
+      .sort((a, b) => b.score - a.score)
+      .map((item, index) => ({
+        ...item,
+        rank: index + 1
+      }))
+  }
+  return workloadData.value
+    .map(item => ({
+      ...item,
+      rank: 0,
+      score: calculateScore(item)
+    }))
+    .sort((a, b) => b.score - a.score)
+    .map((item, index) => ({
+      ...item,
+      rank: index + 1
+    }))
+})
+
+const workloadTabLabel = computed(() => {
+  return filters.groupBy === 'user' ? '人员工作量' : '部门工作量'
+})
+
 const efficiencyChart = computed(() => {
   if (!efficiencyStats.value) return { series: [] }
   return {
@@ -238,44 +283,109 @@ const efficiencyChart = computed(() => {
   }
 })
 
-const mockWorkloadData = (): WorkloadStats[] => [
-  { department: '新闻中心', userId: 0, userName: '', topicCount: 45, materialCount: 180, programDuration: 54000, reviewCount: 90, period: '2024-01' },
-  { department: '节目中心', userId: 0, userName: '', topicCount: 32, materialCount: 156, programDuration: 72000, reviewCount: 64, period: '2024-01' },
-  { department: '技术部', userId: 0, userName: '', topicCount: 12, materialCount: 280, programDuration: 36000, reviewCount: 24, period: '2024-01' },
-  { department: '总编室', userId: 0, userName: '', topicCount: 28, materialCount: 95, programDuration: 43200, reviewCount: 56, period: '2024-01' },
-  { department: '播出部', userId: 0, userName: '', topicCount: 8, materialCount: 45, programDuration: 28800, reviewCount: 16, period: '2024-01' }
+const mockWorkloadData = (): WorkloadStats[] => {
+  if (filters.groupBy === 'user') {
+    const users = filters.department
+      ? userMockData.filter(u => mapDepartmentToValue(u.department) === filters.department)
+      : userMockData
+    return users
+  }
+  return [
+    { department: '新闻中心', userId: 0, userName: '', topicCount: 45, materialCount: 180, programDuration: 54000, reviewCount: 90, period: '2024-01' },
+    { department: '节目中心', userId: 0, userName: '', topicCount: 32, materialCount: 156, programDuration: 72000, reviewCount: 64, period: '2024-01' },
+    { department: '技术部', userId: 0, userName: '', topicCount: 12, materialCount: 280, programDuration: 36000, reviewCount: 24, period: '2024-01' },
+    { department: '总编室', userId: 0, userName: '', topicCount: 28, materialCount: 95, programDuration: 43200, reviewCount: 56, period: '2024-01' },
+    { department: '播出部', userId: 0, userName: '', topicCount: 8, materialCount: 45, programDuration: 28800, reviewCount: 16, period: '2024-01' }
+  ]
+}
+
+const userMockData: WorkloadStats[] = [
+  { department: '新闻中心', userId: 1, userName: '张三', topicCount: 25, materialCount: 89, programDuration: 18000, reviewCount: 45, period: '2024-01' },
+  { department: '新闻中心', userId: 2, userName: '赵六', topicCount: 20, materialCount: 71, programDuration: 14400, reviewCount: 38, period: '2024-01' },
+  { department: '新闻中心', userId: 3, userName: '孙七', topicCount: 12, materialCount: 45, programDuration: 10800, reviewCount: 22, period: '2024-01' },
+  { department: '节目中心', userId: 4, userName: '李四', topicCount: 22, materialCount: 76, programDuration: 36000, reviewCount: 40, period: '2024-01' },
+  { department: '节目中心', userId: 5, userName: '周八', topicCount: 15, materialCount: 58, programDuration: 28800, reviewCount: 28, period: '2024-01' },
+  { department: '节目中心', userId: 6, userName: '吴九', topicCount: 10, materialCount: 42, programDuration: 21600, reviewCount: 18, period: '2024-01' },
+  { department: '技术部', userId: 7, userName: '王五', topicCount: 8, materialCount: 156, programDuration: 10800, reviewCount: 15, period: '2024-01' },
+  { department: '技术部', userId: 8, userName: '郑十', topicCount: 6, materialCount: 98, programDuration: 7200, reviewCount: 12, period: '2024-01' },
+  { department: '总编室', userId: 9, userName: '钱七', topicCount: 19, materialCount: 65, programDuration: 21600, reviewCount: 35, period: '2024-01' },
+  { department: '总编室', userId: 10, userName: '冯十一', topicCount: 14, materialCount: 48, programDuration: 18000, reviewCount: 28, period: '2024-01' },
+  { department: '播出部', userId: 11, userName: '陈十二', topicCount: 5, materialCount: 28, programDuration: 14400, reviewCount: 10, period: '2024-01' },
+  { department: '播出部', userId: 12, userName: '褚十三', topicCount: 3, materialCount: 17, programDuration: 10800, reviewCount: 6, period: '2024-01' }
 ]
+
+function mapDepartmentToValue(label: string): string {
+  const found = departmentOptions.find(o => o.label === label)
+  return found?.value || ''
+}
+
+function calculateScore(row: WorkloadStats): number {
+  return Math.round((row.topicCount * 2 + row.materialCount * 0.5 + row.programDuration / 3600 * 10) / 3)
+}
 
 async function fetchData() {
   loading.value = true
   try {
-    workloadData.value = mockWorkloadData()
-    productionStats.value = {
-      topicCount: 125,
-      materialCount: 756,
-      programCount: 48,
-      totalDuration: 234000,
-      byType: {
-        '新闻': 45,
-        '专题': 32,
-        '综艺': 28,
-        '电视剧': 20
-      },
-      byChannel: {
-        '新闻综合': 50,
-        '都市生活': 45,
-        '公共频道': 30
+    try {
+      const [start, end] = dateRange.value
+      const params = {
+        startDate: start,
+        endDate: end,
+        groupBy: filters.groupBy,
+        department: filters.department || undefined
+      }
+      const data = await getWorkloadStats(params)
+      if (data && data.length > 0) {
+        workloadData.value = data
+      } else {
+        workloadData.value = mockWorkloadData()
+      }
+    } catch (apiError) {
+      console.warn('API not available, using mock data:', apiError)
+      workloadData.value = mockWorkloadData()
+    }
+
+    try {
+      const [start, end] = dateRange.value
+      productionStats.value = await getProductionStats({ startDate: start, endDate: end })
+    } catch {
+      productionStats.value = {
+        topicCount: 125,
+        materialCount: 756,
+        programCount: 48,
+        totalDuration: 234000,
+        byType: {
+          '新闻': 45,
+          '专题': 32,
+          '综艺': 28,
+          '电视剧': 20
+        },
+        byChannel: {
+          '新闻综合': 50,
+          '都市生活': 45,
+          '公共频道': 30
+        }
       }
     }
-    efficiencyStats.value = {
-      avgReviewTime: 2.5,
-      avgProductionCycle: 5.8,
-      passRate: 0.87,
-      rejectionRate: 0.13
+
+    try {
+      const [start, end] = dateRange.value
+      efficiencyStats.value = await getEfficiencyStats({ startDate: start, endDate: end })
+    } catch {
+      efficiencyStats.value = {
+        avgReviewTime: 2.5,
+        avgProductionCycle: 5.8,
+        passRate: 0.87,
+        rejectionRate: 0.13
+      }
     }
   } finally {
     loading.value = false
   }
+}
+
+function handleGroupByChange() {
+  fetchData()
 }
 
 function handleQuery() {
@@ -316,7 +426,7 @@ onMounted(() => {
         </el-form-item>
         
         <el-form-item label="统计维度">
-          <el-radio-group v-model="filters.groupBy">
+          <el-radio-group v-model="filters.groupBy" @change="handleGroupByChange">
             <el-radio-button value="department">按部门</el-radio-button>
             <el-radio-button value="user">按人员</el-radio-button>
           </el-radio-group>
@@ -342,12 +452,12 @@ onMounted(() => {
     </div>
     
     <el-tabs v-model="activeTab" class="stats-tabs">
-      <el-tab-pane label="部门工作量" name="workload">
+      <el-tab-pane :label="workloadTabLabel" name="workload">
         <el-row :gutter="16" v-loading="loading">
           <el-col :lg="12" :md="24">
             <div class="card chart-card">
               <div class="card-header">
-                <span class="card-title">选题与素材数量</span>
+                <span class="card-title">{{ filters.groupBy === 'user' ? '人员选题与素材数量' : '部门选题与素材数量' }}</span>
               </div>
               <v-chart :option="departmentChart" style="height: 350px" autoresize />
             </div>
@@ -355,7 +465,7 @@ onMounted(() => {
           <el-col :lg="12" :md="24">
             <div class="card chart-card">
               <div class="card-header">
-                <span class="card-title">节目制作时长</span>
+                <span class="card-title">{{ filters.groupBy === 'user' ? '人员节目制作时长' : '部门节目制作时长' }}</span>
               </div>
               <v-chart :option="durationChart" style="height: 350px" autoresize />
             </div>
@@ -367,22 +477,23 @@ onMounted(() => {
             <span class="card-title">详细数据</span>
           </div>
           <el-table :data="workloadData" stripe>
-            <el-table-column prop="department" label="部门" width="140" />
-            <el-table-column prop="topicCount" label="选题数量" width="100" align="center" />
-            <el-table-column prop="materialCount" label="素材数量" width="100" align="center" />
-            <el-table-column prop="programDuration" label="节目时长" width="140" align="center">
+            <el-table-column v-if="filters.groupBy === 'user'" prop="userName" label="姓名" width="100" />
+            <el-table-column prop="department" label="部门" :width="filters.groupBy === 'user' ? 120 : 140" />
+            <el-table-column prop="topicCount" label="选题数量" width="100" align="center" sortable />
+            <el-table-column prop="materialCount" label="素材数量" width="100" align="center" sortable />
+            <el-table-column prop="programDuration" label="节目时长" width="140" align="center" sortable>
               <template #default="{ row }">
                 {{ formatDuration(row.programDuration) }}
               </template>
             </el-table-column>
-            <el-table-column prop="reviewCount" label="审核次数" width="100" align="center" />
-            <el-table-column label="综合评分" width="120" align="center">
+            <el-table-column prop="reviewCount" label="审核次数" width="100" align="center" sortable />
+            <el-table-column label="综合评分" width="120" align="center" sortable :sort-method="(a: WorkloadStats, b: WorkloadStats) => calculateScore(a) - calculateScore(b)">
               <template #default="{ row }">
                 <el-tag 
                   :type="row.topicCount > 30 ? 'success' : row.topicCount > 15 ? 'warning' : 'info'"
                   effect="dark"
                 >
-                  {{ Math.round((row.topicCount * 2 + row.materialCount * 0.5 + row.programDuration / 3600 * 10) / 3) }}分
+                  {{ calculateScore(row) }}分
                 </el-tag>
               </template>
             </el-table-column>
@@ -512,16 +623,10 @@ onMounted(() => {
         
         <div class="card" style="margin-top: 16px">
           <div class="card-header">
-            <span class="card-title">人员绩效排行榜</span>
+            <span class="card-title">{{ filters.groupBy === 'user' ? '人员绩效排行榜' : '部门绩效排行榜' }}</span>
           </div>
           <el-table
-            :data="[
-              { rank: 1, name: '张三', department: '新闻中心', topicCount: 25, materialCount: 89, score: 95 },
-              { rank: 2, name: '李四', department: '节目中心', topicCount: 22, materialCount: 76, score: 92 },
-              { rank: 3, name: '王五', department: '技术部', topicCount: 18, materialCount: 156, score: 89 },
-              { rank: 4, name: '赵六', department: '新闻中心', topicCount: 20, materialCount: 71, score: 87 },
-              { rank: 5, name: '钱七', department: '总编室', topicCount: 19, materialCount: 65, score: 85 }
-            ]"
+            :data="userRanking"
             stripe
           >
             <el-table-column prop="rank" label="排名" width="80" align="center">
@@ -535,10 +640,11 @@ onMounted(() => {
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="name" label="姓名" width="120" />
+            <el-table-column v-if="filters.groupBy === 'user'" prop="userName" label="姓名" width="100" />
             <el-table-column prop="department" label="部门" width="140" />
             <el-table-column prop="topicCount" label="选题数量" width="100" align="center" />
             <el-table-column prop="materialCount" label="素材数量" width="100" align="center" />
+            <el-table-column prop="reviewCount" label="审核次数" width="100" align="center" />
             <el-table-column prop="score" label="综合得分" width="120" align="center">
               <template #default="{ row }">
                 <span class="score">{{ row.score }}</span>

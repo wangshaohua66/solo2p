@@ -41,6 +41,15 @@ public interface ReviewRepository extends JpaRepository<ReviewItem, Long>, JpaSp
     @Query("SELECT r.status, COUNT(r) FROM ReviewItem r WHERE r.deleted = false GROUP BY r.status")
     List<Object[]> countByStatus();
 
+    @Query("SELECT r.type, COUNT(r) FROM ReviewItem r WHERE r.deleted = false GROUP BY r.type")
+    List<Object[]> countByType();
+
+    long countByDeletedFalse();
+
+    long countByStatusAndDeletedFalse(ReviewItem.ReviewStatus status);
+
+    List<ReviewItem> findByCurrentReviewerIdAndDeletedFalse(Long currentReviewerId);
+
     @Query("SELECT AVG(TIMESTAMPDIFF(HOUR, r.submittedAt, r.updatedAt)) FROM ReviewItem r " +
            "WHERE r.deleted = false AND r.status = 'completed'")
     Double calculateAvgReviewTime();
@@ -51,4 +60,13 @@ public interface ReviewRepository extends JpaRepository<ReviewItem, Long>, JpaSp
     List<ReviewItem> findPendingByLevel(@Param("level") Integer level);
 
     List<ReviewItem> findByTopicIdAndDeletedFalse(Long topicId);
+
+    @Query("SELECT r.submitterId, r.submitterName, COUNT(r) " +
+           "FROM ReviewItem r WHERE r.deleted = false " +
+           "AND (:submitterId IS NULL OR r.submitterId = :submitterId) " +
+           "AND r.submittedAt >= :startDate AND r.submittedAt <= :endDate " +
+           "GROUP BY r.submitterId, r.submitterName")
+    List<Object[]> aggregateBySubmitter(@Param("startDate") LocalDateTime startDate,
+                                        @Param("endDate") LocalDateTime endDate,
+                                        @Param("submitterId") Long submitterId);
 }

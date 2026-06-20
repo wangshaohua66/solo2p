@@ -64,7 +64,7 @@ public class ScheduleItem extends BaseEntity {
     private String broadcastSystemId;
 
     public enum Channel {
-        news, city, public
+        news, city, publicChannel
     }
 
     public enum ScheduleStatus {

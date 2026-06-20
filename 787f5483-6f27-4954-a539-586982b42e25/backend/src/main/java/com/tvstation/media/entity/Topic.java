@@ -82,7 +82,7 @@ public class Topic extends BaseEntity {
     }
 
     public enum Channel {
-        news, city, public
+        news, city, publicChannel
     }
 
     public enum TopicStatus {
