@@ -1,0 +1,71 @@
+{% extends 'base.html.twig' %}
+{% block title %}展位平面图{% endblock %}
+
+{% block body %}
+{% if not ex %}
+<div class="empty-state card">
+    <i class="bi bi-grid-1x2"></i>
+    <h5 class="mb-2">请先选择或创建展会</h5>
+    <a href="{{ path('app_exhibition_new') }}" class="btn btn-accent">创建展会</a>
+</div>
+{% else %}
+<div class="page-head">
+    <div>
+        <h4><i class="bi bi-grid-1x2-fill text-accent"></i> 展位平面图</h4>
+        <div class="sub">{{ ex.name }} · {{ ex.hall }} · 实时状态来自 Redis 缓存</div>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-deep btn-sm" id="refreshBtn"><i class="bi bi-arrow-clockwise me-1"></i>刷新</button>
+        <a href="{{ path('app_booth_allocate') }}" class="btn btn-accent btn-sm"><i class="bi bi-magic me-1"></i>智能分配</a>
+    </div>
+</div>
+
+<div class="plan-legend">
+    <span class="fw-semibold me-1">图例：</span>
+    {% for code, label in {'available':'可预订','reserved':'已预订','contracted':'已签约','paid':'已付款'} %}
+    <span class="lg"><span class="sw booth-rect s-{{ code }}"></span>{{ label }}</span>
+    {% endfor %}
+    <span class="ms-auto text-muted small"><i class="bi bi-hand-index"></i> 点击展位查看详情 · 在空白处拖拽框选批量操作</span>
+</div>
+
+<div class="d-flex flex-wrap align-items-center gap-2 mb-2 p-2 rounded" style="background:#fff;border:1px solid var(--brand-border)" id="batchBar">
+    <span class="tag-pill"><i class="bi bi-list-check"></i> 已选 <b id="selCount">0</b> 个展位</span>
+    <select id="batchExhibitor" class="form-select form-select-sm" style="width:auto">
+        <option value="">选择参展商…</option>
+        {% for e in exhibitors %}<option value="{{ e.id }}">{{ e.name }}（{{ e.industry }}）</option>{% endfor %}
+    </select>
+    <button class="btn btn-sm btn-accent" id="batchReserveBtn"><i class="bi bi-bookmark-check me-1"></i>批量预订</button>
+    <button class="btn btn-sm btn-outline-deep" id="batchReleaseBtn"><i class="bi bi-x-circle me-1"></i>批量释放</button>
+    <button class="btn btn-sm btn-link text-muted" id="clearSelBtn">清空选择</button>
+</div>
+
+<div class="booth-plan-wrap">
+    <svg id="plan" class="booth-plan" width="100%"></svg>
+</div>
+
+<!-- 展位详情模态框 -->
+<div class="modal fade" id="boothModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><h6 class="modal-title"><i class="bi bi-grid-1x2 text-accent me-2"></i>展位详情</h6><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" id="boothModalBody"></div>
+            <div class="modal-footer" id="boothModalFoot"></div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block javascripts %}
+<script>
+window.EXH_ROUTES = {
+    api: "{{ path('app_booth_api') }}",
+    reserve: function(id){ return "{{ path('app_booth_reserve', {id: 0}) }}".replace('/0/', '/' + id + '/'); },
+    release: function(id){ return "{{ path('app_booth_release', {id: 0}) }}".replace('/0/', '/' + id + '/'); },
+    batch: "{{ path('app_booth_batch') }}",
+    contractNew: "{{ path('app_contract_new') }}"
+};
+window.EXH_DATA = { exhibitors: {{ exhibitorsData|json_encode|raw }} };
+</script>
+<script src="{{ asset('assets/booth.js') }}"></script>
+{% endblock %}

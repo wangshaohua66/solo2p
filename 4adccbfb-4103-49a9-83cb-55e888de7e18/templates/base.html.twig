@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}工作台{% endblock %} · 会展中心运营管理系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="{{ asset('assets/app.css') }}" rel="stylesheet">
+    {% block stylesheets %}{% endblock %}
+</head>
+<body>
+{% set ex = context.currentExhibition %}
+<div class="app-shell">
+    <aside class="app-sidebar">
+        <div class="brand">
+            <i class="bi bi-buildings-fill"></i>
+            <div class="brand-text">
+                <span class="brand-name">会展运营平台</span>
+                <span class="brand-sub">Exhibition Center OPS</span>
+            </div>
+        </div>
+        <nav class="app-nav">
+            {% for key, item in context.menu %}
+                <a href="{{ path(item.route) }}" class="nav-item {{ app.request.attributes.get('_route') starts with item.route or app.request.attributes.get('_route') == item.route ? 'active' : '' }}">
+                    <i class="bi {{ item.icon }}"></i>
+                    <span>{{ item.label }}</span>
+                </a>
+            {% endfor %}
+        </nav>
+        <div class="sidebar-foot">
+            <span class="dot {{ redis_ok ? 'dot-ok' : 'dot-warn' }}"></span>
+            <span>Redis {{ redis_ok ? '已连接' : '内存降级' }}</span>
+        </div>
+    </aside>
+
+    <div class="app-main">
+        <header class="app-topbar">
+            <div class="topbar-exh">
+                {% if ex %}
+                    <div class="exh-switcher dropdown">
+                        <button class="btn btn-sm exh-btn dropdown-toggle" data-bs-toggle="dropdown">
+                            <i class="bi bi-geo-alt-fill"></i>
+                            <span class="exh-name">{{ ex.name }}</span>
+                            <span class="badge status-badge status-{{ ex.status }}">{{ ex.statusLabel }}</span>
+                        </button>
+                        <ul class="dropdown-menu shadow">
+                            {% for e in context.exhibitions %}
+                                <li>
+                                    <a class="dropdown-item {{ e.id == ex.id ? 'active' : '' }}" href="{{ path('app_exhibition_select', {id: e.id}) }}">
+                                        <span class="badge status-badge status-{{ e.status }} me-2">{{ e.statusLabel }}</span>
+                                        {{ e.name }}
+                                        <small class="text-muted">{{ e.startDate|date('m/d') }}-{{ e.endDate|date('m/d') }}</small>
+                                    </a>
+                                </li>
+                            {% endfor %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-accent" href="{{ path('app_exhibition_new') }}"><i class="bi bi-plus-lg"></i> 创建新展会</a></li>
+                        </ul>
+                    </div>
+                {% else %}
+                    <a href="{{ path('app_exhibition_new') }}" class="btn btn-sm btn-accent"><i class="bi bi-plus-lg"></i> 创建首个展会</a>
+                {% endif %}
+            </div>
+
+            <div class="topbar-role ms-auto">
+                <div class="dropdown">
+                    <button class="btn btn-sm role-btn dropdown-toggle" data-bs-toggle="dropdown">
+                        <i class="bi bi-person-circle"></i>
+                        <span>{{ context.roleLabel }}</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow">
+                        {% for code, label in context.roles %}
+                            <li>
+                                <a class="dropdown-item {{ code == context.role ? 'active' : '' }}" href="{{ path('app_role_switch', {role: code}) }}">
+                                    <i class="bi {{ code == context.role ? 'bi-check-circle-fill text-accent' : 'bi-circle' }}"></i>
+                                    {{ label }}
+                                </a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </header>
+
+        <main class="app-content">
+            {% block body %}{% endblock %}
+        </main>
+    </div>
+</div>
+
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastZone"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>window.CSRF_TOKEN = "{{ csrf_token('api') }}";</script>
+<script src="{{ asset('assets/app.js') }}"></script>
+{% block javascripts %}{% endblock %}
+</body>
+</html>

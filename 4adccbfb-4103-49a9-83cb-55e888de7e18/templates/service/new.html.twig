@@ -1,0 +1,51 @@
+{% extends 'base.html.twig' %}
+{% block title %}登记工单{% endblock %}
+
+{% block body %}
+<div class="page-head">
+    <div>
+        <h4><i class="bi bi-plus-circle text-accent"></i> 登记服务工单</h4>
+        <div class="sub">参展商在线订购电箱、水电气、网络、吊装、保洁等增值服务</div>
+    </div>
+    <a href="{{ path('app_service_index') }}" class="btn btn-outline-deep btn-sm"><i class="bi bi-arrow-left me-1"></i>返回</a>
+</div>
+
+<form method="post" action="{{ path('app_service_create') }}" data-exh-ajax>
+    <div class="form-section">
+        <h6><i class="bi bi-card-checklist"></i> 工单信息</h6>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">参展商 <span class="text-danger">*</span></label>
+                <select name="exhibitorId" class="form-select" required>
+                    <option value="">请选择…</option>
+                    {% for e in exhibitors %}<option value="{{ e.id }}">{{ e.name }}（{{ e.industry }}）</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">服务类别 <span class="text-danger">*</span></label>
+                <select name="category" id="category" class="form-select" required>
+                    {% for c in categories %}<option value="{{ c }}" data-fee="{{ categoryFees[c]|default(1000) }}">{{ c }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">费用（元）<span class="text-danger">*</span></label>
+                <div class="input-group"><span class="input-group-text">¥</span><input type="number" name="fee" id="fee" class="form-control" required min="1"></div>
+            </div>
+            <div class="col-12">
+                <label class="form-label">备注</label>
+                <textarea name="note" class="form-control" rows="2" placeholder="如：展位 A03 需 2 个三相电箱"></textarea>
+            </div>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-accent"><i class="bi bi-check-lg me-1"></i> 提交工单</button>
+        <a href="{{ path('app_service_index') }}" class="btn btn-outline-deep">取消</a>
+    </div>
+</form>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+$('#category').on('change', function(){ $('#fee').val($(this).find(':selected').data('fee')); }).trigger('change');
+</script>
+{% endblock %}

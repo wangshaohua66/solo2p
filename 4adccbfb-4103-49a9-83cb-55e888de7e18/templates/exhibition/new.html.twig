@@ -1,0 +1,87 @@
+{% extends 'base.html.twig' %}
+{% block title %}创建展会{% endblock %}
+
+{% block body %}
+<div class="page-head">
+    <div>
+        <h4><i class="bi bi-plus-square text-accent"></i> 创建展会</h4>
+        <div class="sub">定义展会基本信息，可选生成标准展位网格</div>
+    </div>
+    <a href="{{ path('app_exhibition_index') }}" class="btn btn-outline-deep btn-sm"><i class="bi bi-arrow-left me-1"></i> 返回列表</a>
+</div>
+
+<form method="post" action="{{ path('app_exhibition_create') }}" data-exh-ajax>
+    <div class="form-section">
+        <h6><i class="bi bi-info-circle"></i> 基本信息</h6>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">展会名称 <span class="text-danger">*</span></label>
+                <input type="text" name="name" class="form-control" placeholder="如：2025华东国际汽车工业展" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">展会类型</label>
+                <select name="type" class="form-select">
+                    {% for t in types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">初始状态</label>
+                <select name="status" class="form-select">
+                    {% for code, label in statuses %}<option value="{{ code }}" {{ code == 'preparing' ? 'selected' }}>{{ label }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">场馆分区</label>
+                <input type="text" name="hall" class="form-control" placeholder="如：A馆 · 主展厅" value="A馆 · 主展厅">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">开始日期 <span class="text-danger">*</span></label>
+                <input type="date" name="startDate" class="form-control" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">结束日期 <span class="text-danger">*</span></label>
+                <input type="date" name="endDate" class="form-control" required>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-section">
+        <h6><i class="bi bi-grid-3x3-gap"></i> 预设展位网格（可选）</h6>
+        <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="genGrid" checked>
+            <label class="form-check-label" for="genGrid">创建展会时同步生成标准展位网格</label>
+        </div>
+        <div class="row g-3" id="gridFields">
+            <div class="col-md-3">
+                <label class="form-label">行数</label>
+                <input type="number" name="gridRows" class="form-control" value="6" min="1" max="12">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">列数</label>
+                <input type="number" name="gridCols" class="form-control" value="10" min="1" max="20">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">单价（元/㎡）</label>
+                <input type="number" name="unitPrice" class="form-control" value="1500" min="0">
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <small class="text-muted">每 5 列生成光地，其余为标准展位</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-accent"><i class="bi bi-check-lg me-1"></i> 创建展会</button>
+        <a href="{{ path('app_exhibition_index') }}" class="btn btn-outline-deep">取消</a>
+    </div>
+</form>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+$('#genGrid').on('change', function () {
+    $('#gridFields input').prop('disabled', !this.checked);
+    if (!this.checked) { $('#gridFields input[name=gridRows]').val(0); }
+});
+</script>
+{% endblock %}

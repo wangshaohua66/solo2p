@@ -1,0 +1,101 @@
+{% extends 'base.html.twig' %}
+{% block title %}智能分配{% endblock %}
+
+{% block body %}
+{% if not ex %}
+<div class="empty-state card"><i class="bi bi-magic"></i><p>请先选择展会</p></div>
+{% else %}
+<div class="page-head">
+    <div>
+        <h4><i class="bi bi-magic text-accent"></i> 展位智能分配</h4>
+        <div class="sub">根据参展商行业属性、面积需求与预算，推荐最优连片展位组合</div>
+    </div>
+    <a href="{{ path('app_booth_index') }}" class="btn btn-outline-deep btn-sm"><i class="bi bi-arrow-left me-1"></i>返回平面图</a>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-sliders text-accent me-2"></i>分配条件</div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">参展商</label>
+                    <select id="exhibitorId" class="form-select">
+                        <option value="">请选择…</option>
+                        {% for e in exhibitors %}<option value="{{ e.id }}" data-industry="{{ e.industry }}" data-budget="{{ e.budget }}">{{ e.name }}（{{ e.industry }}）</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">参展面积需求（㎡）</label>
+                    <input type="number" id="area" class="form-control" value="36">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">预算上限（元）</label>
+                    <input type="number" id="budget" class="form-control" value="0">
+                    <small class="text-muted">0 表示使用参展商预算</small>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">期望展位数量</label>
+                    <input type="number" id="count" class="form-control" value="3" min="1" max="10">
+                </div>
+                <button class="btn btn-accent w-100" id="recBtn"><i class="bi bi-magic me-1"></i>生成推荐方案</button>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-lightbulb text-accent me-2"></i>推荐结果</span>
+                <button class="btn btn-sm btn-accent d-none" id="applyBtn"><i class="bi bi-check2 me-1"></i>锁定选中展位</button>
+            </div>
+            <div class="card-body" id="resultBox">
+                <div class="empty-state py-5"><i class="bi bi-magic"></i><p class="mb-0">填写左侧条件后生成推荐方案</p></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block javascripts %}
+<script>
+$('#exhibitorId').on('change', function(){
+    var opt = $(this).find(':selected');
+    if (opt.val() && ($('#budget').val()|0) === 0) { $('#budget').val(opt.data('budget')); }
+});
+$('#recBtn').on('click', function(){
+    var exhibitorId = $('#exhibitorId').val();
+    if (!exhibitorId) { Exh.toast('请选择参展商','warn'); return; }
+    var unmask = Exh.mask(this,'计算中');
+    Exh.post("{{ path('app_booth_recommend') }}", {
+        exhibitorId: exhibitorId, area: $('#area').val(), budget: $('#budget').val(), count: $('#count').val()
+    }).then(function(r){
+        unmask();
+        var d = r.data;
+        if (!d.booths.length) { $('#resultBox').html('<div class="empty-state"><i class="bi bi-emoji-frown"></i><p>无满足条件的可预订展位</p></div>'); $('#applyBtn').addClass('d-none'); return; }
+        var rows = d.booths.map(function(b){
+            return '<tr><td><input type="checkbox" class="form-check-input rec-check" checked value="'+b.id+'"></td>'
+                + '<td class="fw-semibold">'+b.code+'</td><td>'+b.area+'㎡</td><td>'+b.industry+'</td>'
+                + '<td>'+b.orientation+'</td><td class="fw-bold text-accent">¥'+Number(b.price).toLocaleString('zh-CN')+'</td></tr>';
+        }).join('');
+        $('#resultBox').html(
+            '<div class="alert alert-light border"><i class="bi bi-info-circle text-accent me-2"></i>'+d.reason+'</div>'+
+            '<div class="d-flex gap-3 mb-2"><span class="tag-pill"><i class="bi bi-rulers"></i> 合计 '+d.totalArea+'㎡</span>'
+            + '<span class="tag-pill"><i class="bi bi-cash"></i> 总价 ¥'+Number(d.totalPrice).toLocaleString('zh-CN')+'</span></div>'+
+            '<table class="table table-hover mb-0"><thead><tr><th></th><th>展位号</th><th>面积</th><th>行业分区</th><th>朝向</th><th>价格</th></tr></thead><tbody>'+rows+'</tbody></table>'
+        );
+        $('#applyBtn').data('exhibitorId', d.exhibitorId).removeClass('d-none');
+    }).fail(function(r){ unmask(); Exh.toast((r&&r.error)||'生成失败','error'); });
+});
+$('#applyBtn').on('click', function(){
+    var ids = $('.rec-check:checked').map(function(){return $(this).val();}).get();
+    if (!ids.length){ Exh.toast('请至少选择一个展位','warn'); return; }
+    Exh.confirm('锁定展位','确认将选中展位锁定给该参展商？', function(){
+        Exh.post("{{ path('app_booth_apply') }}", { ids: ids, exhibitorId: $('#applyBtn').data('exhibitorId') }).then(function(r){
+            Exh.toast(r.msg);
+            if (r.redirect){ window.location.href = r.redirect; }
+        }).fail(function(r){ Exh.toast((r&&r.error)||'锁定失败','error'); });
+    });
+});
+</script>
+{% endblock %}

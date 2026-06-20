@@ -1,0 +1,75 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ ex.name }}{% endblock %}
+
+{% block body %}
+<div class="page-head">
+    <div>
+        <h4><i class="bi bi-calendar2-event-fill text-accent"></i> {{ ex.name }}</h4>
+        <div class="sub">{{ ex.type }} · {{ ex.hall }} · {{ ex.startDate|date('Y-m-d') }} 至 {{ ex.endDate|date('Y-m-d') }}</div>
+    </div>
+    <div>
+        <span class="badge status-badge status-{{ ex.status }} fs-6">{{ ex.statusLabel }}</span>
+        <a href="{{ path('app_exhibition_select', {id: ex.id}) }}" class="btn btn-sm btn-outline-accent ms-2"><i class="bi bi-box-arrow-in-right me-1"></i>设为当前</a>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header"><i class="bi bi-diagram-3 text-accent me-2"></i>展会状态流转</div>
+    <div class="card-body d-flex flex-wrap align-items-center gap-2">
+        {% set flow = {'preparing':'筹备中','recruiting':'招商中','ongoing':'进行中','ended':'已结束'} %}
+        {% set order = ['preparing','recruiting','ongoing','ended'] %}
+        {% for s in order %}
+            {% set active = ex.status == s %}
+            <span class="badge {{ active ? 'status-badge status-'~s : 'tag-pill' }}" style="{{ active ? '' : 'opacity:.7' }}">{{ flow[s] }}</span>
+            {% if not loop.last %}<i class="bi bi-chevron-right text-muted"></i>{% endif %}
+        {% endfor %}
+        <div class="ms-auto">
+            {% for s in nextStatuses %}
+            <button class="btn btn-sm btn-accent" data-exh-post="{{ path('app_exhibition_status', {id: ex.id}) }}"
+                    data-exh-params="status={{ s }}"
+                    data-confirm="确认将展会状态变更为「{{ flow[s] }}」？此操作将影响招商与现场管理权限。"
+                    data-title="状态变更确认">
+                <i class="bi bi-arrow-right-circle me-1"></i> 流转至「{{ flow[s] }}」
+            </button>
+            {% endfor %}
+            {% if nextStatuses is empty %}
+            <span class="text-muted small">该展会已结束，无后续状态</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="kpi-grid mb-3">
+    <div class="stat-card"><i class="bi bi-grid stat-icon text-accent"></i><div class="stat-label">展位总数</div><div class="stat-value">{{ booths|length }}</div></div>
+    <div class="stat-card"><i class="bi bi-check2-square stat-icon text-success"></i><div class="stat-label">可预订</div><div class="stat-value">{{ statusCount.available }}</div></div>
+    <div class="stat-card"><i class="bi bi-bookmark stat-icon text-warning"></i><div class="stat-label">已预订</div><div class="stat-value">{{ statusCount.reserved }}</div></div>
+    <div class="stat-card"><i class="bi bi-file-earmark-text stat-icon text-info"></i><div class="stat-label">已签约</div><div class="stat-value">{{ statusCount.contracted }}</div></div>
+    <div class="stat-card"><i class="bi bi-cash-coin stat-icon" style="color:#FF6A13"></i><div class="stat-label">已付款</div><div class="stat-value">{{ statusCount.paid }}</div></div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-file-earmark-text text-accent me-2"></i>关联合同</span>
+        <a href="{{ path('app_contract_index') }}" class="btn btn-sm btn-outline-deep">合同管理</a>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead><tr><th>合同号</th><th>参展商</th><th>展位</th><th>金额</th><th>状态</th><th>创建</th></tr></thead>
+            <tbody>
+            {% for c in contracts %}
+            <tr style="cursor:pointer" onclick="location='{{ path('app_contract_show', {id: c.id}) }}'">
+                <td class="fw-semibold">{{ c.code }}</td>
+                <td>{{ c.exhibitor.name }}</td>
+                <td><span class="tag-pill"><i class="bi bi-grid-1x2"></i> {{ c.booth.code }}</span></td>
+                <td class="fw-bold text-accent">¥{{ c.amount|number_format(0,'.',',') }}</td>
+                <td><span class="badge status-badge status-{{ c.status }}">{{ c.statusLabel }}</span></td>
+                <td class="text-muted">{{ c.createdAt|date('m-d H:i') }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="empty-state"><i class="bi bi-inbox"></i><p class="mb-0">暂无关联合同</p></td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

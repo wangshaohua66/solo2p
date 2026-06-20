@@ -1,0 +1,27 @@
+{% extends 'layout_public.html.twig' %}
+{% block title %}电子票{% endblock %}
+{% block pub_sub %}{{ v.exhibition.name }} · 请保存本页，现场扫码入场{% endblock %}
+
+{% block body %}
+<div class="text-center">
+    <div class="mb-2"><span class="badge status-badge {{ v.checkedIn ? 'status-done' : 'status-reserved' }}">{{ v.checkedIn ? '已入场' : '待入场' }}</span></div>
+    <div id="qrcode" class="d-inline-block p-2 border rounded bg-white"></div>
+    <div class="mt-2"><span class="tag-pill"><i class="bi bi-upc-scan"></i> {{ v.ticketCode }}</span></div>
+    <div class="mt-2 small text-muted">{{ v.typeLabel }}{% if v.name %} · {{ v.name }}{% endif %}</div>
+</div>
+<hr>
+<div class="text-center">
+    {% if v.checkedIn %}
+    <div class="alert alert-success mb-0"><i class="bi bi-check-circle-fill me-1"></i>已于 {{ v.checkinAt|date('H:i') }} 入场</div>
+    {% else %}
+    <div class="alert alert-info mb-0"><i class="bi bi-info-circle me-1"></i>请前往入口处出示二维码扫码入场</div>
+    {% endif %}
+    <a href="{{ path('app_visitor_register') }}" class="btn btn-outline-deep btn-sm mt-3"><i class="bi bi-plus-lg me-1"></i>再登记一位</a>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+new QRCode(document.getElementById('qrcode'), { text: "{{ v.ticketCode }}", width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
+</script>
+{% endblock %}

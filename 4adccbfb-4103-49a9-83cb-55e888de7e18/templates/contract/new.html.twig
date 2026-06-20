@@ -1,0 +1,69 @@
+{% extends 'base.html.twig' %}
+{% block title %}新建合同{% endblock %}
+
+{% block body %}
+<div class="page-head">
+    <div>
+        <h4><i class="bi bi-file-earmark-plus text-accent"></i> 新建展位租赁合同</h4>
+        <div class="sub">选择参展商与展位，自动带入展位价格作为合同金额</div>
+    </div>
+    <a href="{{ path('app_contract_index') }}" class="btn btn-outline-deep btn-sm"><i class="bi bi-arrow-left me-1"></i>返回</a>
+</div>
+
+<form method="post" action="{{ path('app_contract_create') }}" data-exh-ajax>
+    <div class="form-section">
+        <h6><i class="bi bi-people"></i> 合同主体</h6>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">参展商 <span class="text-danger">*</span></label>
+                <select name="exhibitorId" id="exhibitorId" class="form-select" required>
+                    <option value="">请选择…</option>
+                    {% for e in exhibitors %}<option value="{{ e.id }}" data-industry="{{ e.industry }}">{{ e.name }}（{{ e.industry }}）</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">展位 <span class="text-danger">*</span></label>
+                <select name="boothId" id="boothId" class="form-select" required>
+                    <option value="">请先选择参展商</option>
+                </select>
+                <small class="text-muted" id="boothHint"></small>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">合同金额（元）<span class="text-danger">*</span></label>
+                <div class="input-group">
+                    <span class="input-group-text">¥</span>
+                    <input type="number" name="amount" id="amount" class="form-control" required min="1">
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-accent"><i class="bi bi-check-lg me-1"></i> 创建合同草稿</button>
+        <a href="{{ path('app_contract_index') }}" class="btn btn-outline-deep">取消</a>
+    </div>
+</form>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+var BOOTHS = {{ boothsData|json_encode|raw }};
+$('#exhibitorId').on('change', function(){
+    var eid = $(this).val();
+    var $b = $('#boothId').empty().append('<option value="">请选择…</option>');
+    if (!eid) { return; }
+    var opts = BOOTHS.filter(function(b){
+        return b.status === 'available' || (b.status === 'reserved' && b.exhibitorId == eid);
+    });
+    if (!opts.length) { $('#boothHint').text('该参展商无可选展位').removeClass('text-muted').addClass('text-danger'); return; }
+    opts.forEach(function(b){
+        var label = b.code + ' · ¥' + Number(b.price).toLocaleString('zh-CN') + ' · ' + (b.status==='reserved'?'已预订':'可预订');
+        $b.append('<option value="'+b.id+'" data-price="'+b.price+'">'+label+'</option>');
+    });
+    $('#boothHint').text('提示：仅显示可预订或本参展商已预订的展位').addClass('text-muted').removeClass('text-danger');
+});
+$('#boothId').on('change', function(){
+    var p = $(this).find(':selected').data('price');
+    if (p) { $('#amount').val(p); }
+});
+</script>
+{% endblock %}

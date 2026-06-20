@@ -1,0 +1,40 @@
+{% extends 'layout_public.html.twig' %}
+{% block title %}在线购票{% endblock %}
+{% block pub_sub %}{{ ex ? ex.name : '会展中心' }} · 在线登记获取电子票{% endblock %}
+
+{% block body %}
+<form id="regForm">
+    <h5 class="fw-bold mb-1"><i class="bi bi-ticket-perforated-fill text-accent me-2"></i>观众登记</h5>
+    <p class="text-muted small mb-3">填写信息后即刻获取二维码电子票，现场扫码入场。</p>
+
+    <div class="mb-3">
+        <label class="form-label small">观众类型</label>
+        <div class="d-flex gap-2">
+            <label class="flex-fill"><input type="radio" name="type" value="public" checked class="form-check-input"> <span class="small">普通观众</span></label>
+            <label class="flex-fill"><input type="radio" name="type" value="professional" class="form-check-input"> <span class="small">专业观众</span></label>
+        </div>
+    </div>
+    <div class="mb-3">
+        <label class="form-label small">姓名</label>
+        <input type="text" name="name" class="form-control form-control-lg" placeholder="请输入姓名" autofocus>
+    </div>
+    <div class="mb-3">
+        <label class="form-label small">手机号</label>
+        <input type="tel" name="phone" inputmode="numeric" class="form-control form-control-lg" placeholder="请输入手机号">
+    </div>
+    <button type="submit" class="btn btn-accent btn-lg w-100"><i class="bi bi-qr-code me-2"></i>获取电子票</button>
+</form>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+$('#regForm').on('submit', function(e){
+    e.preventDefault();
+    var unmask = Exh.mask($(this).find('[type=submit]')[0], '生成中');
+    Exh.post("{{ path('app_visitor_ticket') }}", $(this).serialize()).then(function(r){
+        unmask();
+        if (r.data.redirect) { window.location.href = r.data.redirect; }
+    }).fail(function(r){ unmask(); Exh.toast((r&&r.error)||'生成失败','error'); });
+});
+</script>
+{% endblock %}

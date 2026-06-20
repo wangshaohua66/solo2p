@@ -1,0 +1,44 @@
+{% extends 'base.html.twig' %}
+{% block title %}合同管理{% endblock %}
+
+{% block body %}
+<div class="page-head">
+    <div>
+        <h4><i class="bi bi-file-earmark-text text-accent"></i> 合同管理</h4>
+        <div class="sub">展位租赁合同的签订、多级审批与电子签章</div>
+    </div>
+    <a href="{{ path('app_contract_new') }}" class="btn btn-accent"><i class="bi bi-plus-lg me-1"></i> 新建合同</a>
+</div>
+
+<div class="d-flex flex-wrap gap-2 mb-3">
+    <a href="{{ path('app_contract_index') }}" class="btn btn-sm {{ not currentStatus ? 'btn-deep' : 'btn-outline-deep' }}">全部</a>
+    {% for code, label in flow %}
+    <a href="{{ path('app_contract_index', {status: code}) }}" class="btn btn-sm {{ currentStatus == code ? 'btn-deep' : 'btn-outline-deep' }} position-relative">
+        {{ label }} <span class="badge bg-secondary ms-1">{{ counts[code]|default(0) }}</span>
+    </a>
+    {% endfor %}
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0 align-middle">
+            <thead><tr><th>合同号</th><th>参展商</th><th>展位</th><th>金额</th><th>状态</th><th>创建时间</th><th class="text-end">操作</th></tr></thead>
+            <tbody>
+            {% for c in contracts %}
+            <tr>
+                <td class="fw-semibold">{{ c.code }}</td>
+                <td>{{ c.exhibitor.name }}</td>
+                <td><span class="tag-pill"><i class="bi bi-grid-1x2"></i> {{ c.booth.code }}</span></td>
+                <td class="fw-bold text-accent">¥{{ c.amount|number_format(0,'.',',') }}</td>
+                <td><span class="badge status-badge status-{{ c.status }}">{{ c.statusLabel }}</span></td>
+                <td class="text-muted">{{ c.createdAt|date('m-d H:i') }}</td>
+                <td class="text-end"><a href="{{ path('app_contract_show', {id: c.id}) }}" class="btn btn-sm btn-outline-deep">处理</a></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="empty-state"><i class="bi bi-file-earmark"></i><p class="mb-0">暂无合同</p></td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

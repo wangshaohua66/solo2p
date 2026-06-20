@@ -1,0 +1,178 @@
+{% extends 'base.html.twig' %}
+{% block title %}合同 {{ c.code }}{% endblock %}
+
+{% block body %}
+<div class="page-head">
+    <div>
+        <h4><i class="bi bi-file-earmark-text-fill text-accent"></i> {{ c.code }}</h4>
+        <div class="sub">{{ c.exhibitor.name }} · 展位 {{ c.booth.code }} · {{ c.createdAt|date('Y-m-d H:i') }}</div>
+    </div>
+    <span class="badge status-badge status-{{ c.status }} fs-6">{{ c.statusLabel }}</span>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <!-- 状态流转 -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    {% set order = ['draft','pending_sm','pending_finance','pending_gm','signed','paid'] %}
+                    {% if c.status == 'rejected' %}
+                        <span class="badge status-badge status-rejected">已驳回</span>
+                    {% else %}
+                        {% set reached = false %}
+                        {% for s in order %}
+                            {% if s == c.status %}{% set reached = true %}{% set cls = 'status-badge status-'~s %}{% elseif not reached %}{% set cls = 'status-badge status-signed' %}{% else %}{% set cls = 'tag-pill' %}{% endif %}
+                            <span class="badge {{ cls }}">{{ flow[s] }}</span>
+                            {% if not loop.last %}<i class="bi bi-chevron-right text-muted"></i>{% endif %}
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 合同正文 -->
+        <div class="card mb-3">
+            <div class="card-header"><i class="bi bi-file-text text-accent me-2"></i>展位租赁合同</div>
+            <div class="card-body">
+                <p class="text-muted mb-3">合同编号：<b class="text-dark">{{ c.code }}</b>　　签订日期：{{ c.createdAt|date('Y 年 m 月 d 日') }}</p>
+                <div class="row mb-2">
+                    <div class="col-6"><span class="text-muted">甲方（出租方）：</span><b>{{ c.exhibition.name }}组委会</b></div>
+                    <div class="col-6"><span class="text-muted">乙方（承租方）：</span><b>{{ c.exhibitor.name }}</b></div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-6"><span class="text-muted">展会：</span>{{ c.exhibition.name }}</div>
+                    <div class="col-6"><span class="text-muted">展位：</span><b>{{ c.booth.code }}</b>（{{ c.booth.typeLabel }}，{{ c.booth.area }}㎡，{{ c.booth.orientation }}向）</div>
+                </div>
+                <hr>
+                <p class="mb-1">一、租赁费用：人民币 <b class="text-accent fs-5">¥{{ c.amount|number_format(0,'.',',') }}</b>（大写：{{ c.amount|number_format(2,'.','') }} 元）。</p>
+                <p class="mb-1 text-muted small">二、乙方应在合同签订后 5 个工作日内支付展位租赁费，逾期甲方有权取消预订。</p>
+                <p class="mb-1 text-muted small">三、乙方应遵守展馆管理规定，按主办方要求完成布展与撤展。</p>
+                <p class="mb-3 text-muted small">四、本合同经双方签章后生效。</p>
+                <div class="row">
+                    <div class="col-6">
+                        <div class="text-muted small mb-1">甲方签章</div>
+                        <div class="border rounded p-3 text-center" style="min-height:90px;background:#fafbfc">
+                            <i class="bi bi-building fs-3 text-muted"></i><div class="small text-muted">组委会公章（电子）</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted small mb-1">乙方签章</div>
+                        <div class="border rounded p-3 text-center" style="min-height:90px;background:#fafbfc" id="sigBox">
+                            {% if c.signature %}<img src="{{ c.signature }}" style="max-height:80px"><div class="small text-success"><i class="bi bi-check-circle"></i> 已电子签章</div>
+                            {% else %}<i class="bi bi-pen fs-3 text-muted"></i><div class="small text-muted">待签章</div>{% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- 审批操作 -->
+        <div class="card mb-3">
+            <div class="card-header"><i class="bi bi-lightning-charge text-accent me-2"></i>审批操作</div>
+            <div class="card-body">
+                {% if actions is empty %}
+                <div class="text-center text-muted py-3"><i class="bi bi-info-circle fs-3 d-block mb-2"></i>当前角色「{{ context.roleLabel }}」无可执行操作</div>
+                {% else %}
+                <div class="d-grid gap-2">
+                    {% for a in actions %}
+                    <button class="btn {{ a.action == 'reject' ? 'btn-outline-danger' : (a.action == 'sign' ? 'btn-deep' : 'btn-accent') }}"
+                            onclick="openAction('{{ a.action }}','{{ a.label }}')">
+                        <i class="bi {{ a.action == 'reject' ? 'bi-x-circle' : (a.action == 'sign' ? 'bi-pen' : 'bi-check2-circle') }} me-1"></i>{{ a.label }}
+                    </button>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 审批轨迹 -->
+        <div class="card">
+            <div class="card-header"><i class="bi bi-clock-history text-accent me-2"></i>审批轨迹</div>
+            <div class="card-body">
+                <ul class="timeline">
+                    {% for log in c.logs %}
+                    <li class="{{ log.action == 'reject' ? '' : '' }}">
+                        <div class="fw-semibold">{{ log.actionLabel }} <span class="badge status-badge status-{{ log.action == 'reject' ? 'rejected' : (log.action == 'pay' ? 'paid' : (log.action == 'sign' ? 'paid' : 'pending_finance')) }} ms-1">{{ log.approver }}</span></div>
+                        <div class="text-muted small">{{ log.comment }}</div>
+                        <div class="tl-time">{{ log.createdAt|date('m-d H:i') }}</div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 审批动作模态框 -->
+<div class="modal fade" id="actionModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><h6 class="modal-title" id="amTitle">审批操作</h6><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">审批意见</label>
+                    <textarea id="amComment" class="form-control" rows="3" placeholder="请填写审批意见（可选）"></textarea>
+                </div>
+                <div id="sigArea" class="d-none">
+                    <label class="form-label">电子签章（请在下方手写签名）</label>
+                    <canvas id="sigCanvas" class="sig-canvas w-100" width="460" height="160"></canvas>
+                    <button type="button" class="btn btn-sm btn-link text-muted p-0 mt-1" onclick="clearSig()"><i class="bi bi-eraser"></i> 清空重签</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-deep btn-sm" data-bs-dismiss="modal">取消</button>
+                <button class="btn btn-accent btn-sm" id="amSubmit"><i class="bi bi-check-lg me-1"></i>确认提交</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+var ACTION_URL = "{{ path('app_contract_action', {id: c.id}) }}";
+var currentAction = '';
+var sigPad = { drawing:false, hasContent:false, ctx:null };
+
+function initSig(){
+    var cv = document.getElementById('sigCanvas');
+    sigPad.ctx = cv.getContext('2d');
+    var pos = function(e){
+        var r = cv.getBoundingClientRect();
+        var t = e.touches ? e.touches[0] : e;
+        return { x:(t.clientX-r.left)*(cv.width/r.width), y:(t.clientY-r.top)*(cv.height/r.height) };
+    };
+    var start = function(e){ e.preventDefault(); sigPad.drawing=true; sigPad.hasContent=true; var p=pos(e); sigPad.ctx.beginPath(); sigPad.ctx.moveTo(p.x,p.y); };
+    var move = function(e){ if(!sigPad.drawing) return; e.preventDefault(); var p=pos(e); sigPad.ctx.lineTo(p.x,p.y); sigPad.ctx.stroke(); };
+    var end = function(){ sigPad.drawing=false; };
+    cv.addEventListener('mousedown',start); cv.addEventListener('mousemove',move); window.addEventListener('mouseup',end);
+    cv.addEventListener('touchstart',start); cv.addEventListener('touchmove',move); cv.addEventListener('touchend',end);
+    sigPad.ctx.lineWidth = 2.5; sigPad.ctx.lineCap = 'round'; sigPad.ctx.strokeStyle = '#0B2A4A';
+}
+function clearSig(){ sigPad.ctx.clearRect(0,0,460,160); sigPad.hasContent=false; }
+var amModal = null;
+function openAction(action, label){
+    currentAction = action;
+    $('#amTitle').text(label);
+    $('#amComment').val('');
+    if (action === 'sign') { $('#sigArea').removeClass('d-none'); if(!sigPad.ctx) initSig(); clearSig(); }
+    else { $('#sigArea').addClass('d-none'); }
+    amModal = amModal || new bootstrap.Modal($('#actionModal')[0]);
+    amModal.show();
+}
+$('#amSubmit').on('click', function(){
+    var data = { action: currentAction, comment: $('#amComment').val() };
+    if (currentAction === 'sign') {
+        if (!sigPad.hasContent) { Exh.toast('请先手写签名','warn'); return; }
+        data.signature = document.getElementById('sigCanvas').toDataURL('image/png');
+    }
+    var unmask = Exh.mask(this, '提交中');
+    Exh.post(ACTION_URL, data).then(function(r){
+        unmask(); amModal.hide(); Exh.toast(r.msg); setTimeout(function(){window.location.reload();},600);
+    }).fail(function(r){ unmask(); Exh.toast((r&&r.error)||'操作失败','error'); });
+});
+</script>
+{% endblock %}

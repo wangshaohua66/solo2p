@@ -1,0 +1,39 @@
+{% extends 'layout_public.html.twig' %}
+{% block title %}入场登记{% endblock %}
+{% block pub_sub %}{{ ex ? ex.name : '会展中心' }} · 现场扫码/输入票号登记入场{% endblock %}
+
+{% block body %}
+<div class="text-center mb-3">
+    <i class="bi bi-qr-code-scan text-accent" style="font-size:46px"></i>
+    <h5 class="fw-bold mt-2">入场登记</h5>
+    <div class="small text-muted">当前实时入场 <b class="text-success" id="flow">…</b> 人</div>
+</div>
+
+<form id="checkinForm">
+    <div class="mb-3">
+        <label class="form-label small">票号</label>
+        <input type="text" name="ticketCode" id="ticketCode" class="form-control form-control-lg" placeholder="扫描或输入票号" autofocus autocomplete="off">
+    </div>
+    <button type="submit" class="btn btn-accent btn-lg w-100"><i class="bi bi-check2-circle me-2"></i>确认入场</button>
+</form>
+
+<div id="resultBox" class="mt-3"></div>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+function refreshFlow(){ Exh.get("{{ path('app_visitor_stats') }}").then(function(s){ $('#flow').text(s.checkedIn); }); }
+refreshFlow(); setInterval(refreshFlow, 5000);
+
+$('#checkinForm').on('submit', function(e){
+    e.preventDefault();
+    var unmask = Exh.mask($(this).find('[type=submit]')[0], '登记中');
+    Exh.post("{{ path('app_visitor_checkin_do') }}", $(this).serialize()).then(function(r){
+        unmask();
+        refreshFlow();
+        $('#resultBox').html('<div class="alert alert-success"><i class="bi bi-check-circle-fill me-1"></i>'+r.msg+'<div class="small mt-1">欢迎 '+r.data.name+'（'+(r.data.type==='professional'?'专业观众':'普通观众')+'）</div></div>');
+        $('#ticketCode').val('').focus();
+    }).fail(function(r){ unmask(); Exh.toast((r&&r.error)||'登记失败','error'); });
+});
+</script>
+{% endblock %}

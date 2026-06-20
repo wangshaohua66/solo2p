@@ -1,0 +1,81 @@
+{% extends 'base.html.twig' %}
+{% block title %}数据看板{% endblock %}
+
+{% block body %}
+{% if not ex %}
+<div class="empty-state card"><i class="bi bi-bar-chart-line"></i><p>请先选择展会以查看数据看板</p></div>
+{% else %}
+<div class="page-head">
+    <div>
+        <h4><i class="bi bi-bar-chart-line-fill text-accent"></i> 数据看板</h4>
+        <div class="sub">{{ ex.name }} · 展期实时运营数据</div>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <span class="dot dot-ok"></span><span class="small text-muted">实时数据 · 每 15 秒刷新</span>
+    </div>
+</div>
+
+<div class="kpi-grid mb-3">
+    <div class="stat-card"><i class="bi bi-grid-3x3-gap stat-icon text-accent"></i><div class="stat-label">展位出租率</div><div class="stat-value">{{ data.booth.occupancy }}<span class="unit">%</span></div><div class="stat-trend text-muted">{{ data.booth.total - data.booth.available }}/{{ data.booth.total }} 已售</div></div>
+    <div class="stat-card"><i class="bi bi-cash-stack stat-icon text-success"></i><div class="stat-label">签约额</div><div class="stat-value">¥{{ (data.contract.revenue/10000)|number_format(1,'.',',') }}<span class="unit">万</span></div><div class="stat-trend text-muted">{{ data.contract.count }} 份合同</div></div>
+    <div class="stat-card"><i class="bi bi-people-fill stat-icon text-info"></i><div class="stat-label">实时入场</div><div class="stat-value" id="kpiFlow">{{ data.visitor.checkedIn }}</div><div class="stat-trend text-muted">累计售票 {{ data.visitor.total }}</div></div>
+    <div class="stat-card"><i class="bi bi-check2-square stat-icon text-warning"></i><div class="stat-label">工单完成率</div><div class="stat-value">{{ data.order.rate }}<span class="unit">%</span></div><div class="stat-trend text-muted">{{ data.order.done }}/{{ data.order.total }} 单</div></div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-4"><div class="card h-100"><div class="card-header"><i class="bi bi-pie-chart text-accent me-2"></i>展位状态分布</div><div class="card-body"><canvas id="cBooth" height="200"></canvas></div></div></div>
+    <div class="col-lg-4"><div class="card h-100"><div class="card-header"><i class="bi bi-bar-chart text-accent me-2"></i>合同状态分布</div><div class="card-body"><canvas id="cContract" height="200"></canvas></div></div></div>
+    <div class="col-lg-4"><div class="card h-100"><div class="card-header"><i class="bi bi-check2-all text-accent me-2"></i>工单完成情况</div><div class="card-body"><canvas id="cOrder" height="200"></canvas></div></div></div>
+    <div class="col-lg-5"><div class="card h-100"><div class="card-header"><i class="bi bi-fire text-accent me-2"></i>观众流量热力图<span class="small text-muted ms-2">按展区</span></div><div class="card-body"><div id="heat" class="heatmap-grid"></div></div></div></div>
+    <div class="col-lg-7"><div class="card h-100"><div class="card-header"><i class="bi bi-diagram-3 text-accent me-2"></i>参展商行业分布</div><div class="card-body"><canvas id="cIndustry" height="200"></canvas></div></div></div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block javascripts %}
+{% if ex %}
+<script id="dashData" type="application/json">{{ data|json_encode|raw }}</script>
+<script>
+const D = JSON.parse(document.getElementById('dashData').textContent);
+const C = { accent:'#FF6A13', deep:'#0B2A4A', green:'#28a745', blue:'#0d6efd', yellow:'#ffc107', gray:'#adb5bd' };
+
+new Chart(document.getElementById('cBooth'), { type:'doughnut',
+    data:{ labels:['可预订','已预订','已签约','已付款'], datasets:[{ data:[D.booth.available,D.booth.reserved,D.booth.contracted,D.booth.paid], backgroundColor:['#e9ecef','#ffc107','#0d6efd','#28a745'] }] },
+    options:{ plugins:{ legend:{ position:'bottom' } }, cutout:'62%' } });
+
+const stMap = {draft:'草稿',pending_sm:'待销售',pending_finance:'待财务',pending_gm:'待总经理',signed:'已签章',paid:'已付款',rejected:'已驳回'};
+const stColors = {draft:'#adb5bd',pending_sm:'#ffc107',pending_finance:'#fd7e14',pending_gm:'#fd7e14',signed:'#0d6efd',paid:'#28a745',rejected:'#dc3545'};
+const stLabels = Object.keys(D.contract.byStatus);
+new Chart(document.getElementById('cContract'), { type:'bar',
+    data:{ labels: stLabels.map(k=>stMap[k]||k), datasets:[{ data: stLabels.map(k=>D.contract.byStatus[k]), backgroundColor: stLabels.map(k=>stColors[k]||'#0d6efd') }] },
+    options:{ plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1 } } } } });
+
+new Chart(document.getElementById('cOrder'), { type:'doughnut',
+    data:{ labels:['待接单','进行中','已完成'], datasets:[{ data:[D.order.pending,D.order.accepted,D.order.done], backgroundColor:['#ffc107','#0d6efd','#28a745'] }] },
+    options:{ plugins:{ legend:{ position:'bottom' } }, cutout:'62%' } });
+
+new Chart(document.getElementById('cIndustry'), { type:'bar',
+    data:{ labels: Object.keys(D.industry), datasets:[{ data: Object.values(D.industry), backgroundColor:'#0B2A4A' }] },
+    options:{ indexAxis:'y', plugins:{ legend:{ display:false } }, scales:{ x:{ beginAtZero:true, ticks:{ stepSize:1 } } } } });
+
+// 热力图
+(function(){
+    const zones = D.visitor.zones;
+    const keys = Object.keys(zones);
+    const max = Math.max(1, ...keys.map(k=>zones[k]||0));
+    const html = keys.map(k=>{
+        const v = zones[k]||0;
+        const ratio = v/max;
+        const bg = `rgba(255,106,19,${0.12 + ratio*0.85})`;
+        return `<div class="heat-cell" style="background:${bg}"><div class="heat-zone">展区 ${k}</div><div class="heat-num">${v}</div></div>`;
+    }).join('');
+    document.getElementById('heat').innerHTML = html;
+})();
+
+// 实时入场刷新
+setInterval(function(){
+    Exh.get("{{ path('app_visitor_stats') }}").then(function(s){ $('#kpiFlow').text(s.checkedIn); });
+}, 15000);
+</script>
+{% endif %}
+{% endblock %}

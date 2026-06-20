@@ -1,0 +1,50 @@
+{% extends 'base.html.twig' %}
+{% block title %}服务工单{% endblock %}
+
+{% block body %}
+<div class="page-head">
+    <div>
+        <h4><i class="bi bi-headset text-accent"></i> 服务工单</h4>
+        <div class="sub">增值服务订购、服务商接单与现场进度调度</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ path('app_service_dispatch') }}" class="btn btn-outline-deep btn-sm"><i class="bi bi-kanban me-1"></i>调度看板</a>
+        <a href="{{ path('app_service_new') }}" class="btn btn-accent btn-sm"><i class="bi bi-plus-lg me-1"></i>登记工单</a>
+    </div>
+</div>
+
+<div class="d-flex flex-wrap gap-2 mb-2">
+    <a href="{{ path('app_service_index') }}" class="btn btn-sm {{ not currentStatus ? 'btn-deep' : 'btn-outline-deep' }}">全部</a>
+    {% for code, label in {'pending':'待接单','accepted':'进行中','done':'已完成'} %}
+    <a href="{{ path('app_service_index', {status: code}) }}" class="btn btn-sm {{ currentStatus == code ? 'btn-deep' : 'btn-outline-deep' }}">{{ label }} <span class="badge bg-secondary ms-1">{{ counts[code]|default(0) }}</span></a>
+    {% endfor %}
+</div>
+<div class="d-flex flex-wrap gap-2 mb-3">
+    {% for cat in categories %}
+    <a href="{{ path('app_service_index', {category: cat}) }}" class="tag-pill {{ currentCategory == cat ? 'border border-accent' : '' }}" style="{{ currentCategory == cat ? 'background:var(--brand-accent-soft);color:var(--brand-accent)' : '' }}"><i class="bi bi-tag"></i> {{ cat }}</a>
+    {% endfor %}
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0 align-middle">
+            <thead><tr><th>类别</th><th>参展商</th><th>服务商</th><th>费用</th><th>状态</th><th>备注</th><th class="text-end">操作</th></tr></thead>
+            <tbody>
+            {% for o in orders %}
+            <tr>
+                <td><span class="tag-pill"><i class="bi bi-tools"></i> {{ o.category }}</span></td>
+                <td>{{ o.exhibitor.name }}</td>
+                <td class="text-muted">{{ o.provider ? o.provider.name : '待派单' }}</td>
+                <td class="fw-bold">¥{{ o.fee|number_format(0,'.',',') }}</td>
+                <td><span class="badge status-badge status-{{ o.status }}">{{ o.statusLabel }}</span></td>
+                <td class="text-muted small">{{ o.note }}</td>
+                <td class="text-end"><a href="{{ path('app_service_show', {id: o.id}) }}" class="btn btn-sm btn-outline-deep">详情</a></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="empty-state"><i class="bi bi-inbox"></i><p class="mb-0">暂无工单</p></td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

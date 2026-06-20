@@ -1,0 +1,58 @@
+{% extends 'base.html.twig' %}
+{% block title %}观众登记{% endblock %}
+
+{% block body %}
+{% if not ex %}
+<div class="empty-state card"><i class="bi bi-person-badge"></i><p>请先选择展会</p></div>
+{% else %}
+<div class="page-head">
+    <div>
+        <h4><i class="bi bi-person-badge text-accent"></i> 观众登记与票务</h4>
+        <div class="sub">线上预售电子票 · 现场扫码登记 · 实时入场统计</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ path('app_visitor_register') }}" class="btn btn-outline-deep btn-sm"><i class="bi bi-phone me-1"></i>购票页</a>
+        <a href="{{ path('app_visitor_checkin') }}" class="btn btn-accent btn-sm"><i class="bi bi-qr-code-scan me-1"></i>入场登记</a>
+    </div>
+</div>
+
+<div class="kpi-grid mb-3">
+    <div class="stat-card"><i class="bi bi-ticket-perforated stat-icon text-accent"></i><div class="stat-label">预售票数</div><div class="stat-value">{{ stats.total }}</div></div>
+    <div class="stat-card"><i class="bi bi-door-open stat-icon text-success"></i><div class="stat-label">已入场</div><div class="stat-value" id="liveFlow">{{ stats.checkedIn }}</div><div class="stat-trend text-muted">Redis 实时计数</div></div>
+    <div class="stat-card"><i class="bi bi-briefcase stat-icon text-info"></i><div class="stat-label">专业观众</div><div class="stat-value">{{ stats.professional }}</div></div>
+    <div class="stat-card"><i class="bi bi-people stat-icon text-warning"></i><div class="stat-label">普通观众</div><div class="stat-value">{{ stats.public }}</div></div>
+</div>
+
+<div class="card">
+    <div class="card-header"><i class="bi bi-clock-history text-accent me-2"></i>最近登记观众</div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0 align-middle">
+            <thead><tr><th>票号</th><th>姓名</th><th>电话</th><th>类型</th><th>入场</th></tr></thead>
+            <tbody>
+            {% for v in recent %}
+            <tr style="cursor:pointer" onclick="location='{{ path('app_visitor_ticket_view', {id: v.id}) }}'">
+                <td class="fw-semibold text-accent">{{ v.ticketCode }}</td>
+                <td>{{ v.name ?: '-' }}</td>
+                <td class="text-muted">{{ v.phone ?: '-' }}</td>
+                <td><span class="tag-pill">{{ v.typeLabel }}</span></td>
+                <td>{% if v.checkedIn %}<span class="badge status-badge status-done">已入场</span>{% else %}<span class="text-muted">未入场</span>{% endif %}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="empty-state"><i class="bi bi-inbox"></i><p class="mb-0">暂无观众记录</p></td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block javascripts %}
+{% if ex %}
+<script>
+setInterval(function(){
+    Exh.get("{{ path('app_visitor_stats') }}").then(function(s){ $('#liveFlow').text(s.checkedIn); });
+}, 5000);
+</script>
+{% endif %}
+{% endblock %}

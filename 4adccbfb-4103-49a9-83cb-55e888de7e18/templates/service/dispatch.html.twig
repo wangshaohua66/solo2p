@@ -1,0 +1,50 @@
+{% extends 'base.html.twig' %}
+{% block title %}调度看板{% endblock %}
+
+{% block body %}
+<div class="page-head">
+    <div>
+        <h4><i class="bi bi-kanban text-accent"></i> 服务调度看板</h4>
+        <div class="sub">按服务类别分组，服务商接单并反馈完成状态</div>
+    </div>
+    <a href="{{ path('app_service_index') }}" class="btn btn-outline-deep btn-sm"><i class="bi bi-list me-1"></i>列表视图</a>
+</div>
+
+<div class="row g-3">
+{% for cat in categories %}
+    <div class="col-md-6 col-xl-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-tags text-accent me-2"></i>{{ cat }}</span>
+                <span class="badge bg-secondary">{{ grouped[cat]|default([])|length }}</span>
+            </div>
+            <div class="card-body p-2">
+                {% for o in grouped[cat]|default([]) %}
+                <div class="border rounded p-2 mb-2" style="background:#fafbfc">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="fw-semibold">{{ o.exhibitor.name }}</div>
+                            <div class="small text-muted">¥{{ o.fee|number_format(0,'.',',') }} · {{ o.provider ? o.provider.name : '待派单' }}</div>
+                        </div>
+                        <span class="badge status-badge status-{{ o.status }}">{{ o.statusLabel }}</span>
+                    </div>
+                    <div class="d-flex gap-1 mt-2">
+                        {% if o.status == 'pending' %}
+                        <button class="btn btn-sm btn-accent flex-fill" data-exh-post="{{ path('app_service_accept', {id: o.id}) }}" data-confirm="确认接单？"><i class="bi bi-check2"></i> 接单</button>
+                        {% elseif o.status == 'accepted' %}
+                        <button class="btn btn-sm btn-outline-deep flex-fill" data-exh-post="{{ path('app_service_progress', {id: o.id}) }}" data-exh-params="to=done" data-confirm="确认完成？"><i class="bi bi-check2-all"></i> 完成</button>
+                        {% else %}
+                        <span class="text-success small w-100 text-center"><i class="bi bi-check-circle"></i> 已完成</span>
+                        {% endif %}
+                        <a href="{{ path('app_service_show', {id: o.id}) }}" class="btn btn-sm btn-outline-deep">详情</a>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center text-muted small py-3">暂无工单</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+{% endfor %}
+</div>
+{% endblock %}
