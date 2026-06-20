@@ -8,39 +8,52 @@
         <result column="license_no" property="licenseNo"/>
         <result column="retailer_id" property="retailerId"/>
         <result column="retailer_name" property="retailerName"/>
-        <result column="id_card_no" property="idCardNo"/>
+        <result column="license_type" property="licenseType"/>
         <result column="business_type" property="businessType"/>
         <result column="business_area" property="businessArea"/>
-        <result column="business_address" property="businessAddress"/>
-        <result column="county_id" property="countyId"/>
+        <result column="business_scope" property="businessScope"/>
+        <result column="legal_person" property="legalPerson"/>
+        <result column="id_card_no" property="idCardNo"/>
+        <result column="phone" property="phone"/>
+        <result column="province" property="province"/>
+        <result column="city" property="city"/>
         <result column="county" property="county"/>
+        <result column="county_id" property="countyId"/>
+        <result column="station_id" property="stationId"/>
+        <result column="address" property="address"/>
+        <result column="longitude" property="longitude"/>
+        <result column="latitude" property="latitude"/>
         <result column="region_type" property="regionType"/>
+        <result column="application_type" property="applicationType"/>
+        <result column="status" property="status"/>
+        <result column="tier" property="tier"/>
         <result column="apply_date" property="applyDate"/>
         <result column="approve_date" property="approveDate"/>
         <result column="issue_date" property="issueDate"/>
         <result column="expire_date" property="expireDate"/>
-        <result column="tier" property="tier"/>
-        <result column="status" property="status"/>
+        <result column="first_reviewer_id" property="firstReviewerId"/>
+        <result column="first_review_time" property="firstReviewTime"/>
+        <result column="first_review_opinion" property="firstReviewOpinion"/>
+        <result column="second_reviewer_id" property="secondReviewerId"/>
+        <result column="second_review_time" property="secondReviewTime"/>
+        <result column="second_review_opinion" property="secondReviewOpinion"/>
+        <result column="final_reviewer_id" property="finalReviewerId"/>
+        <result column="final_review_time" property="finalReviewTime"/>
+        <result column="final_review_opinion" property="finalReviewOpinion"/>
         <result column="reviewer_id" property="reviewerId"/>
         <result column="reviewer_name" property="reviewerName"/>
         <result column="review_comment" property="reviewComment"/>
+        <result column="original_license_id" property="originalLicenseId"/>
+        <result column="remark" property="remark"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
         <result column="deleted" property="deleted"/>
     </resultMap>
 
-    <select id="selectByLicenseNo" resultMap="BaseResultMap">
-        SELECT * FROM license WHERE license_no = #{licenseNo} AND deleted = 0
-    </select>
-
-    <select id="selectByRetailerId" resultMap="BaseResultMap">
-        SELECT * FROM license WHERE retailer_id = #{retailerId} AND deleted = 0
-    </select>
-
-    <select id="selectExpiringSoon" resultMap="BaseResultMap">
+    <select id="selectExpiringLicenses" resultMap="BaseResultMap">
         SELECT * FROM license
-        WHERE status = 10
-          AND expire_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL #{days} DAY)
+        WHERE expire_date BETWEEN #{startDate} AND #{endDate}
+          AND status = #{status}
           AND deleted = 0
         ORDER BY expire_date ASC
     </select>
@@ -51,14 +64,18 @@
         <if test="status != null">
             AND status = #{status}
         </if>
-        <if test="businessType != null and businessType != ''">
-            AND business_type = #{businessType}
-        </if>
         <if test="countyId != null">
             AND county_id = #{countyId}
         </if>
-        <if test="retailerName != null and retailerName != ''">
-            AND retailer_name LIKE CONCAT('%', #{retailerName}, '%')
+        <if test="stationId != null">
+            AND station_id = #{stationId}
+        </if>
+        <if test="businessType != null and businessType != ''">
+            AND business_type = #{businessType}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (retailer_name LIKE CONCAT('%', #{keyword}, '%')
+                 OR license_no LIKE CONCAT('%', #{keyword}, '%'))
         </if>
         ORDER BY create_time DESC
     </select>

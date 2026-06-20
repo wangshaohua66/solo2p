@@ -32,38 +32,11 @@
         <result column="deleted" property="deleted"/>
     </resultMap>
 
-    <select id="selectByOrderNo" resultMap="BaseResultMap">
-        SELECT * FROM `order` WHERE order_no = #{orderNo} AND deleted = 0
-    </select>
-
-    <select id="selectByRetailerIdAndPeriod" resultMap="BaseResultMap">
-        SELECT * FROM `order`
-        WHERE retailer_id = #{retailerId}
-          AND order_period = #{orderPeriod}
-          AND deleted = 0
-        ORDER BY create_time DESC
-    </select>
-
-    <select id="selectForDelivery" resultMap="BaseResultMap">
-        SELECT * FROM `order`
-        WHERE order_period = #{orderPeriod}
-          AND status = #{status}
-          AND delivery_status = #{deliveryStatus}
-          AND deleted = 0
-        ORDER BY create_time ASC
-    </select>
-
     <select id="selectPageByCondition" resultMap="BaseResultMap">
         SELECT * FROM `order`
         WHERE deleted = 0
         <if test="status != null">
             AND status = #{status}
-        </if>
-        <if test="deliveryStatus != null">
-            AND delivery_status = #{deliveryStatus}
-        </if>
-        <if test="orderPeriod != null and orderPeriod != ''">
-            AND order_period = #{orderPeriod}
         </if>
         <if test="retailerId != null">
             AND retailer_id = #{retailerId}
@@ -71,19 +44,16 @@
         <if test="countyId != null">
             AND county_id = #{countyId}
         </if>
-        <if test="startDate != null and startDate != ''">
-            AND order_date &gt;= #{startDate}
+        <if test="stationId != null">
+            AND station_id = #{stationId}
         </if>
-        <if test="endDate != null and endDate != ''">
-            AND order_date &lt;= #{endDate}
+        <if test="orderPeriod != null and orderPeriod != ''">
+            AND order_period = #{orderPeriod}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (retailer_name LIKE CONCAT('%', #{keyword}, '%')
+                 OR order_no LIKE CONCAT('%', #{keyword}, '%'))
         </if>
         ORDER BY create_time DESC
-    </select>
-
-    <select id="countByRetailerAndPeriod" resultType="java.lang.Long">
-        SELECT COUNT(*) FROM `order`
-        WHERE retailer_id = #{retailerId}
-          AND order_period = #{orderPeriod}
-          AND deleted = 0
     </select>
 </mapper>

@@ -9,8 +9,10 @@
         <result column="task_type" property="taskType"/>
         <result column="retailer_id" property="retailerId"/>
         <result column="retailer_name" property="retailerName"/>
+        <result column="license_no" property="licenseNo"/>
         <result column="county_id" property="countyId"/>
         <result column="station_id" property="stationId"/>
+        <result column="grid_id" property="gridId"/>
         <result column="risk_level" property="riskLevel"/>
         <result column="credit_level" property="creditLevel"/>
         <result column="inspector_id" property="inspectorId"/>
@@ -26,39 +28,19 @@
         <result column="deleted" property="deleted"/>
     </resultMap>
 
-    <select id="selectByTaskNo" resultMap="BaseResultMap">
-        SELECT * FROM inspection_task WHERE task_no = #{taskNo} AND deleted = 0
-    </select>
-
-    <select id="selectByInspectorId" resultMap="BaseResultMap">
+    <select id="selectPendingTasksByGridId" resultMap="BaseResultMap">
         SELECT * FROM inspection_task
-        WHERE inspector_id = #{inspectorId} AND deleted = 0
-        ORDER BY create_time DESC
-    </select>
-
-    <select id="selectByRetailerId" resultMap="BaseResultMap">
-        SELECT * FROM inspection_task
-        WHERE retailer_id = #{retailerId} AND deleted = 0
-        ORDER BY create_time DESC
-    </select>
-
-    <select id="selectPendingTasks" resultMap="BaseResultMap">
-        SELECT * FROM inspection_task
-        WHERE status IN (0, 1) AND deleted = 0
-        ORDER BY CASE risk_level
-            WHEN 'high' THEN 1
-            WHEN 'medium' THEN 2
-            WHEN 'low' THEN 3
-            ELSE 4
-        END, create_time ASC
-    </select>
-
-    <select id="selectPendingTasksByInspector" resultMap="BaseResultMap">
-        SELECT * FROM inspection_task
-        WHERE inspector_id = #{inspectorId}
-          AND status IN (0, 1)
+        WHERE grid_id = #{gridId}
+          AND status = #{status}
           AND deleted = 0
         ORDER BY plan_date ASC
+    </select>
+
+    <select id="countMonthlyTasksByInspector" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM inspection_task
+        WHERE inspector_id = #{inspectorId}
+          AND DATE_FORMAT(create_time, '%Y-%m') = #{month}
+          AND deleted = 0
     </select>
 
     <select id="selectPageByCondition" resultMap="BaseResultMap">
@@ -67,23 +49,20 @@
         <if test="status != null">
             AND status = #{status}
         </if>
-        <if test="riskLevel != null and riskLevel != ''">
-            AND risk_level = #{riskLevel}
-        </if>
         <if test="inspectorId != null">
             AND inspector_id = #{inspectorId}
-        </if>
-        <if test="retailerId != null">
-            AND retailer_id = #{retailerId}
         </if>
         <if test="countyId != null">
             AND county_id = #{countyId}
         </if>
-        <if test="startDate != null and startDate != ''">
-            AND DATE(create_time) &gt;= #{startDate}
+        <if test="stationId != null">
+            AND station_id = #{stationId}
         </if>
-        <if test="endDate != null and endDate != ''">
-            AND DATE(create_time) &lt;= #{endDate}
+        <if test="riskLevel != null and riskLevel != ''">
+            AND risk_level = #{riskLevel}
+        </if>
+        <if test="hasViolation != null">
+            AND has_violation = #{hasViolation}
         </if>
         ORDER BY CASE risk_level
             WHEN 'high' THEN 1

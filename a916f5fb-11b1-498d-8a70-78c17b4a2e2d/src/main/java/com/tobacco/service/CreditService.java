@@ -8,9 +8,11 @@ import com.tobacco.common.enums.ViolationType;
 import com.tobacco.common.exception.BusinessException;
 import com.tobacco.common.result.PageResult;
 import com.tobacco.entity.CreditRecord;
+import com.tobacco.entity.QuotaAdjustRecord;
 import com.tobacco.entity.Retailer;
 import com.tobacco.entity.ViolationRecord;
 import com.tobacco.mapper.CreditRecordMapper;
+import com.tobacco.mapper.QuotaAdjustRecordMapper;
 import com.tobacco.mapper.RetailerMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +34,7 @@ public class CreditService {
 
     private final CreditRecordMapper creditRecordMapper;
     private final RetailerMapper retailerMapper;
+    private final QuotaAdjustRecordMapper quotaAdjustRecordMapper;
 
     @Value("${credit.base-score}")
     private Integer baseScore;
@@ -59,18 +62,21 @@ public class CreditService {
         }
 
         int operatingYearsBonus = calculateOperatingYearsBonus(retailer);
-        int beforeScore = (retailer.getCreditScore() != null ? retailer.getCreditScore() : baseScore) + operatingYearsBonus;
+        int baseCreditScore = retailer.getCreditScore() != null ? retailer.getCreditScore() : baseScore;
+        int beforeScore = baseCreditScore + operatingYearsBonus;
         CreditLevel beforeLevel = CreditLevel.getByCode(retailer.getCreditLevel());
         if (beforeLevel == null) {
             beforeLevel = CreditLevel.B;
         }
 
         int deductPoints = violationType.getDeductPoints();
-        int afterScore = Math.max(minScore, beforeScore - deductPoints - operatingYearsBonus);
-        afterScore = Math.min(maxScore, afterScore);
+        int afterBaseScore = Math.max(minScore, baseCreditScore - deductPoints);
+        afterBaseScore = Math.min(maxScore, afterBaseScore);
+        int afterScore = afterBaseScore + operatingYearsBonus;
+        afterScore = Math.min(maxScore + 10, afterScore);
         CreditLevel afterLevel = CreditLevel.getByScore(afterScore);
 
-        retailer.setCreditScore(afterScore);
+        retailer.setCreditScore(afterBaseScore);
         retailer.setCreditLevel(afterLevel.getCode());
         retailer.setConsecutiveNoViolationPeriods(0);
         retailerMapper.updateById(retailer);
@@ -142,6 +148,23 @@ public class CreditService {
                     retailer.getRetailerName(), newLevel.getCode(),
                     originalCoefficient, newCoefficient,
                     reductionRatio.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP));
+
+            QuotaAdjustRecord adjustRecord = new QuotaAdjustRecord();
+            adjustRecord.setRecordNo(generateQuotaAdjustNo());
+            adjustRecord.setRetailerId(retailer.getId());
+            adjustRecord.setRetailerName(retailer.getRetailerName());
+            adjustRecord.setLicenseNo(retailer.getLicenseNo());
+            adjustRecord.setAdjustType("DOWNGRADE");
+            adjustRecord.setBeforeCoefficient(originalCoefficient);
+            adjustRecord.setAfterCoefficient(newCoefficient);
+            adjustRecord.setAdjustRatio(reductionRatio);
+            adjustRecord.setReason("信用降级至" + newLevel.getCode() + "，配额系数自动缩减");
+            adjustRecord.setRelatedType("CREDIT_DOWNGRADE");
+            adjustRecord.setCountyId(retailer.getCountyId());
+            adjustRecord.setStationId(retailer.getStationId());
+            quotaAdjustRecordMapper.insert(adjustRecord);
+
+            log.info("配额缩减记录已持久化，记录号：{}，零售户：{}", adjustRecord.getRecordNo(), retailer.getRetailerName());
         }
 
         retailerMapper.updateById(retailer);
@@ -282,6 +305,11 @@ public class CreditService {
 
     private String generateRecordNo() {
         return "CR" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")) +
+                IdUtil.getSnowflakeNextIdStr().substring(0, 4);
+    }
+
+    private String generateQuotaAdjustNo() {
+        return "QA" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")) +
                 IdUtil.getSnowflakeNextIdStr().substring(0, 4);
     }
 }

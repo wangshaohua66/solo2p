@@ -1,5 +1,7 @@
 package com.tobacco.common.util;
 
+import com.tobacco.common.exception.BusinessException;
+import com.tobacco.common.result.ResultCode;
 import com.tobacco.entity.User;
 import com.tobacco.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
@@ -29,14 +31,18 @@ public class SecurityUtil {
     public User getCurrentUser() {
         String username = getCurrentUsername();
         if (username == null) {
-            return null;
+            throw new BusinessException(ResultCode.UNAUTHORIZED);
         }
-        return userMapper.selectByUsername(username);
+        User user = userMapper.selectByUsername(username);
+        if (user == null) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED);
+        }
+        return user;
     }
 
     public Long getCurrentUserId() {
         User user = getCurrentUser();
-        return user != null ? user.getId() : null;
+        return user.getId();
     }
 
     public String getCurrentRole() {

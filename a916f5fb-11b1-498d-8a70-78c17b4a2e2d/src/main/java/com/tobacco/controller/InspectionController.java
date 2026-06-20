@@ -34,9 +34,10 @@ public class InspectionController {
     @PreAuthorize("hasAnyRole('ROLE_COUNTY_ADMIN', 'ROLE_CITY_ADMIN')")
     public Result<List<InspectionTask>> autoAssignTasks(
             @Parameter(description = "管理所ID") @RequestParam Long stationId,
+            @Parameter(description = "网格ID") @RequestParam(required = false) Long gridId,
             @Parameter(description = "稽查员ID") @RequestParam Long inspectorId,
             @Parameter(description = "稽查员姓名") @RequestParam String inspectorName) {
-        return Result.success(inspectionService.autoAssignTasks(stationId, inspectorId, inspectorName));
+        return Result.success(inspectionService.autoAssignTasks(stationId, gridId, inspectorId, inspectorName));
     }
 
     @Operation(summary = "获取稽查任务详情", description = "根据任务ID获取稽查任务详细信息")
@@ -93,6 +94,7 @@ public class InspectionController {
     public Result<ViolationRecord> disposeViolation(
             @Parameter(description = "记录ID") @PathVariable Long id,
             @Parameter(description = "处理意见") @RequestParam String disposalOpinion) {
-        return Result.success(inspectionService.disposeViolation(id, disposalOpinion, null));
+        User currentUser = securityUtil.getCurrentUser();
+        return Result.success(inspectionService.disposeViolation(id, disposalOpinion, currentUser.getId(), currentUser.getRealName()));
     }
 }

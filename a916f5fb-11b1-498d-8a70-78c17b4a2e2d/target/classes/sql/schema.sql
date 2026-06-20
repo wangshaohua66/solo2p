@@ -609,3 +609,65 @@ ALTER TABLE license ADD COLUMN IF NOT EXISTS reviewer_name VARCHAR(64) COMMENT '
 ALTER TABLE license ADD COLUMN IF NOT EXISTS review_comment VARCHAR(512) COMMENT '审核意见' AFTER reviewer_name;
 ALTER TABLE license ADD COLUMN IF NOT EXISTS apply_date DATE COMMENT '申请日期' AFTER station_id;
 ALTER TABLE license ADD COLUMN IF NOT EXISTS approve_date DATE COMMENT '批准日期' AFTER apply_date;
+
+-- =====================================================
+-- 追加表：系统消息表
+-- =====================================================
+DROP TABLE IF EXISTS sys_message;
+CREATE TABLE sys_message (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    msg_no VARCHAR(64) NOT NULL COMMENT '消息编号',
+    msg_type VARCHAR(32) COMMENT '消息类型：LICENSE_EXPIRE LICENSE_APPROVE VIOLATION_NOTICE',
+    title VARCHAR(255) COMMENT '消息标题',
+    content TEXT COMMENT '消息内容',
+    receiver_id BIGINT COMMENT '接收人ID',
+    receiver_name VARCHAR(64) COMMENT '接收人姓名',
+    receiver_type VARCHAR(16) COMMENT '接收人类型：USER RETAILER',
+    related_id BIGINT COMMENT '关联业务ID',
+    related_type VARCHAR(32) COMMENT '关联业务类型',
+    is_read TINYINT DEFAULT 0 COMMENT '是否已读：0未读 1已读',
+    read_time DATETIME COMMENT '读取时间',
+    push_status TINYINT DEFAULT 0 COMMENT '推送状态：0未推送 1已推送 2推送失败',
+    push_channel VARCHAR(64) COMMENT '推送渠道：IN_APP SMS EMAIL',
+    county_id BIGINT COMMENT '县局ID',
+    station_id BIGINT COMMENT '管理所ID',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT DEFAULT 0 COMMENT '逻辑删除：0未删除 1已删除',
+    UNIQUE KEY uk_msg_no (msg_no),
+    INDEX idx_receiver_id (receiver_id),
+    INDEX idx_msg_type (msg_type),
+    INDEX idx_is_read (is_read),
+    INDEX idx_create_time (create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统消息表';
+
+-- =====================================================
+-- 追加表：配额调整记录表
+-- =====================================================
+DROP TABLE IF EXISTS quota_adjust_record;
+CREATE TABLE quota_adjust_record (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    record_no VARCHAR(64) NOT NULL COMMENT '记录编号',
+    retailer_id BIGINT COMMENT '零售户ID',
+    retailer_name VARCHAR(128) COMMENT '店铺名称',
+    license_no VARCHAR(64) COMMENT '许可证编号',
+    adjust_type VARCHAR(32) COMMENT '调整类型：DOWNGRADE降级 UPGRADE升级 MANUAL手动',
+    before_coefficient DECIMAL(5,3) COMMENT '调整前系数',
+    after_coefficient DECIMAL(5,3) COMMENT '调整后系数',
+    adjust_ratio DECIMAL(5,4) COMMENT '调整比例',
+    reason VARCHAR(512) COMMENT '调整原因',
+    related_id BIGINT COMMENT '关联业务ID',
+    related_type VARCHAR(32) COMMENT '关联业务类型',
+    operator_id BIGINT COMMENT '操作人ID',
+    operator_name VARCHAR(64) COMMENT '操作人姓名',
+    county_id BIGINT COMMENT '县局ID',
+    station_id BIGINT COMMENT '管理所ID',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT DEFAULT 0 COMMENT '逻辑删除：0未删除 1已删除',
+    UNIQUE KEY uk_record_no (record_no),
+    INDEX idx_retailer_id (retailer_id),
+    INDEX idx_adjust_type (adjust_type),
+    INDEX idx_county_id (county_id),
+    INDEX idx_create_time (create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='配额调整记录表';

@@ -14,8 +14,10 @@ import com.tobacco.dto.request.LicenseReviewRequest;
 import com.tobacco.common.result.PageResult;
 import com.tobacco.entity.License;
 import com.tobacco.entity.Retailer;
+import com.tobacco.entity.SystemMessage;
 import com.tobacco.mapper.LicenseMapper;
 import com.tobacco.mapper.RetailerMapper;
+import com.tobacco.mapper.SystemMessageMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -26,6 +28,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
@@ -38,6 +41,7 @@ public class LicenseService {
 
     private final LicenseMapper licenseMapper;
     private final RetailerMapper retailerMapper;
+    private final SystemMessageMapper systemMessageMapper;
 
     private static final double MIN_DISTANCE_METERS = 50.0;
     private static final int LICENSE_VALID_YEARS = 5;
@@ -376,9 +380,55 @@ public class LicenseService {
             long daysLeft = ChronoUnit.DAYS.between(LocalDate.now(), license.getExpireDate());
             log.info("许可证到期提醒：许可证号{}，零售户{}，剩余{}天到期，请及时办理延续手续",
                     license.getLicenseNo(), license.getRetailerName(), daysLeft);
+
+            sendExpireNotification(license, daysLeft);
         }
 
         log.info("许可证到期提醒定时任务执行完成，共发现{}个即将到期的许可证", expiringLicenses.size());
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void sendExpireNotification(License license, long daysLeft) {
+        String title = "许可证到期提醒";
+        String content = String.format("尊敬的%s，您的烟草专卖零售许可证（证号：%s）将于%d天后到期，到期日：%s。请及时办理延续手续，避免影响正常经营。",
+                license.getRetailerName(), license.getLicenseNo(), daysLeft,
+                license.getExpireDate().format(DateTimeFormatter.ofPattern("yyyy年MM月dd日")));
+
+        SystemMessage message = new SystemMessage();
+        message.setMsgNo(generateMessageNo());
+        message.setMsgType("LICENSE_EXPIRE");
+        message.setTitle(title);
+        message.setContent(content);
+        message.setReceiverId(license.getRetailerId());
+        message.setReceiverName(license.getRetailerName());
+        message.setReceiverType("RETAILER");
+        message.setRelatedId(license.getId());
+        message.setRelatedType("LICENSE");
+        message.setIsRead(0);
+        message.setPushStatus(1);
+        message.setPushChannel("IN_APP,SMS,EMAIL");
+        message.setCountyId(license.getCountyId());
+        message.setStationId(license.getStationId());
+        systemMessageMapper.insert(message);
+
+        log.info("站内消息已发送，消息号：{}，接收人：{}", message.getMsgNo(), message.getReceiverName());
+
+        sendSmsNotification(license.getRetailerName(), license.getLicenseNo(), daysLeft);
+        sendEmailNotification(license.getRetailerName(), license.getLicenseNo(), daysLeft);
+    }
+
+    private void sendSmsNotification(String retailerName, String licenseNo, long daysLeft) {
+        log.info("[短信模拟] 向零售户 {} 发送到期提醒短信：您的烟草专卖零售许可证（证号：{}）还有{}天到期，请及时办理延续手续。",
+                retailerName, licenseNo, daysLeft);
+    }
+
+    private void sendEmailNotification(String retailerName, String licenseNo, long daysLeft) {
+        log.info("[邮件模拟] 向零售户 {} 发送到期提醒邮件：许可证{}还有{}天到期，请登录系统办理延续。",
+                retailerName, licenseNo, daysLeft);
+    }
+
+    private String generateMessageNo() {
+        return "MSG" + LocalDate.now().toString().replace("-", "") + IdUtil.getSnowflakeNextIdStr().substring(0, 6);
     }
 
     public List<License> getLicenseListByRetailer(Long retailerId) {

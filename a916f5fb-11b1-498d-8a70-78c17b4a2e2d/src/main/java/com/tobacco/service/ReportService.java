@@ -287,6 +287,10 @@ public class ReportService {
         LocalDateTime start = parseStartTime(timeDimension, startTime);
         LocalDateTime end = parseEndTime(timeDimension, endTime);
 
+        List<Retailer> retailers = retailerMapper.selectList(
+                new LambdaQueryWrapper<Retailer>()
+                        .eq(countyId != null, Retailer::getCountyId, countyId));
+
         List<DeliveryPlan> allPlans = deliveryPlanMapper.selectList(
                 new LambdaQueryWrapper<DeliveryPlan>()
                         .eq(countyId != null, DeliveryPlan::getCountyId, countyId));
@@ -321,6 +325,14 @@ public class ReportService {
                         .reduce(BigDecimal.ZERO, BigDecimal::add)
                         .divide(BigDecimal.valueOf(routes.size()), 2, RoundingMode.HALF_UP);
 
+        Map<Long, String> countyNameMap = retailers.stream()
+                .filter(r -> r.getCountyId() != null && r.getCounty() != null)
+                .collect(Collectors.toMap(
+                        Retailer::getCountyId,
+                        Retailer::getCounty,
+                        (existing, replacement) -> existing
+                ));
+
         Map<Integer, Long> byFleet = routes.stream()
                 .filter(r -> r.getFleetId() != null)
                 .collect(Collectors.groupingBy(r -> r.getFleetId().intValue(),
@@ -331,14 +343,9 @@ public class ReportService {
             if (route.getPlanId() != null) {
                 DeliveryPlan plan = deliveryPlanMapper.selectById(route.getPlanId());
                 if (plan != null && plan.getCountyId() != null) {
-                    Retailer retailerSample = null;
-                    List<Retailer> retailers = retailerMapper.selectList(
-                            new LambdaQueryWrapper<Retailer>().eq(Retailer::getCountyId, plan.getCountyId()));
-                    if (!retailers.isEmpty()) {
-                        retailerSample = retailers.get(0);
-                    }
-                    if (retailerSample != null && retailerSample.getCounty() != null) {
-                        byCounty.merge(retailerSample.getCounty(),
+                    String countyName = countyNameMap.get(plan.getCountyId());
+                    if (countyName != null) {
+                        byCounty.merge(countyName,
                                 (long) (route.getTotalLoad() != null ? route.getTotalLoad() : 0),
                                 Long::sum);
                     }

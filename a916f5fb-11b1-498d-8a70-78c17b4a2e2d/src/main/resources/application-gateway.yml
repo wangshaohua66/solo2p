@@ -1,0 +1,78 @@
+server:
+  port: 9000
+
+spring:
+  application:
+    name: tobacco-gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        - id: tobacco-admin-auth
+          uri: lb://tobacco-admin
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - StripPrefix=1
+
+        - id: tobacco-admin-license
+          uri: lb://tobacco-admin
+          predicates:
+            - Path=/api/license/**
+          filters:
+            - StripPrefix=1
+
+        - id: tobacco-admin-order
+          uri: lb://tobacco-admin
+          predicates:
+            - Path=/api/order/**
+          filters:
+            - StripPrefix=1
+
+        - id: tobacco-admin-inspection
+          uri: lb://tobacco-admin
+          predicates:
+            - Path=/api/inspection/**
+          filters:
+            - StripPrefix=1
+
+        - id: tobacco-admin-credit
+          uri: lb://tobacco-admin
+          predicates:
+            - Path=/api/credit/**
+          filters:
+            - StripPrefix=1
+
+        - id: tobacco-admin-delivery
+          uri: lb://tobacco-admin
+          predicates:
+            - Path=/api/delivery/**
+          filters:
+            - StripPrefix=1
+
+        - id: tobacco-admin-report
+          uri: lb://tobacco-admin
+          predicates:
+            - Path=/api/report/**
+          filters:
+            - StripPrefix=1
+
+        - id: tobacco-admin-retailer
+          uri: lb://tobacco-admin
+          predicates:
+            - Path=/api/retailer/**
+          filters:
+            - StripPrefix=1
+
+        - id: tobacco-admin-user
+          uri: lb://tobacco-admin
+          predicates:
+            - Path=/api/user/**
+          filters:
+            - StripPrefix=1

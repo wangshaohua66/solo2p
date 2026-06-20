@@ -59,8 +59,8 @@ public class InspectionService {
     @Value("${inspection.risk-level-multiplier.low:1}")
     private Integer lowRiskMultiplier;
 
-    public List<InspectionTask> autoAssignTasks(Long stationId, Long inspectorId, String inspectorName) {
-        List<Retailer> retailers = getRetailersForInspection(stationId);
+    public List<InspectionTask> autoAssignTasks(Long stationId, Long gridId, Long inspectorId, String inspectorName) {
+        List<Retailer> retailers = getRetailersForInspection(stationId, gridId);
         retailers.sort(Comparator.comparingInt(r -> getRiskPriority(calculateRiskLevel(r))));
 
         List<InspectionTask> tasks = new ArrayList<>();
@@ -113,10 +113,13 @@ public class InspectionService {
         };
     }
 
-    private List<Retailer> getRetailersForInspection(Long stationId) {
+    private List<Retailer> getRetailersForInspection(Long stationId, Long gridId) {
         LambdaQueryWrapper<Retailer> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Retailer::getStationId, stationId)
                 .eq(Retailer::getStatus, 1);
+        if (gridId != null) {
+            wrapper.eq(Retailer::getGridId, gridId);
+        }
         return retailerMapper.selectList(wrapper);
     }
 
@@ -279,7 +282,7 @@ public class InspectionService {
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public ViolationRecord disposeViolation(Long recordId, String disposalOpinion, Long operatorId) {
+    public ViolationRecord disposeViolation(Long recordId, String disposalOpinion, Long operatorId, String operatorName) {
         ViolationRecord record = violationRecordMapper.selectById(recordId);
         if (record == null) {
             throw new BusinessException(ResultCode.INSPECTION_RECORD_NOT_FOUND);
@@ -287,10 +290,12 @@ public class InspectionService {
 
         record.setStatus(1);
         record.setDisposalOpinion(disposalOpinion);
+        record.setDisposalUserId(operatorId);
+        record.setDisposalUserName(operatorName);
         record.setDisposalTime(LocalDateTime.now());
         violationRecordMapper.updateById(record);
 
-        log.info("违规记录已处理，记录号：{}", record.getRecordNo());
+        log.info("违规记录已处理，记录号：{}，处理人：{}", record.getRecordNo(), operatorName);
         return record;
     }
 

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tobacco.mapper.QuotaAdjustRecordMapper">
+
+    <resultMap id="BaseResultMap" type="com.tobacco.entity.QuotaAdjustRecord">
+        <id column="id" property="id"/>
+        <result column="record_no" property="recordNo"/>
+        <result column="retailer_id" property="retailerId"/>
+        <result column="retailer_name" property="retailerName"/>
+        <result column="license_no" property="licenseNo"/>
+        <result column="adjust_type" property="adjustType"/>
+        <result column="before_coefficient" property="beforeCoefficient"/>
+        <result column="after_coefficient" property="afterCoefficient"/>
+        <result column="adjust_ratio" property="adjustRatio"/>
+        <result column="reason" property="reason"/>
+        <result column="related_id" property="relatedId"/>
+        <result column="related_type" property="relatedType"/>
+        <result column="operator_id" property="operatorId"/>
+        <result column="operator_name" property="operatorName"/>
+        <result column="county_id" property="countyId"/>
+        <result column="station_id" property="stationId"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+</mapper>
