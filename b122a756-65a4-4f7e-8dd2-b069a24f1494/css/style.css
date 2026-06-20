@@ -82,17 +82,26 @@ h1, h2, h3, h4, h5, h6, .page-title, .brand-title {
 
 .bakery-bottombar {
   background: var(--bakery-primary);
-  padding: 0;
+  padding: 4px 0;
 }
 
-.bakery-bottombar .nav-link {
+.bottombar-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  width: 100%;
+}
+
+.bottombar-row .nav-link {
   color: rgba(255,255,255,0.7);
   text-align: center;
-  padding: 0.5rem 0.25rem;
+  padding: 0.4rem 0.1rem;
   display: flex;
   flex-direction: column;
   align-items: center;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
+  gap: 1px;
+  min-width: 0;
 }
 
 .bakery-bottombar .nav-link.active,
@@ -100,7 +109,41 @@ h1, h2, h3, h4, h5, h6, .page-title, .brand-title {
   color: var(--bakery-gold);
 }
 
-.bakery-bottombar i { font-size: 1.2rem; margin-bottom: 2px; }
+.bakery-bottombar i { font-size: 1.1rem; margin-bottom: 1px; }
+
+.scan-frame {
+  width: 200px;
+  height: 120px;
+  border: 3px solid var(--bakery-primary);
+  border-radius: 8px;
+  margin: 0 auto;
+  position: relative;
+  background: linear-gradient(135deg, #fafafa 25%, transparent 25%) 0 0 / 20px 20px,
+              linear-gradient(225deg, #fafafa 25%, transparent 25%) 0 0 / 20px 20px;
+}
+.scan-frame::before {
+  content: '';
+  position: absolute;
+  left: 10%; right: 10%;
+  top: 50%;
+  height: 2px;
+  background: #dc3545;
+  animation: scanline 1.5s ease-in-out infinite;
+}
+@keyframes scanline {
+  0%, 100% { top: 20%; opacity: 0.8; }
+  50% { top: 80%; opacity: 1; }
+}
+
+.btn-outline-bakery {
+  color: var(--bakery-primary);
+  border-color: var(--bakery-primary);
+}
+.btn-outline-bakery:hover {
+  color: #fff;
+  background-color: var(--bakery-primary);
+  border-color: var(--bakery-primary);
+}
 
 .main-content {
   flex: 1;
@@ -188,6 +231,24 @@ h1, h2, h3, h4, h5, h6, .page-title, .brand-title {
 .stat-value { font-size: 1.8rem; font-weight: 700; font-family: var(--font-serif); margin: 0.25rem 0; }
 .stat-trend { opacity: 0.8; font-size: 0.8rem; }
 
+.weather-tag {
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  background: var(--bakery-cream);
+  border: 1px solid var(--bakery-border);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+  user-select: none;
+}
+.weather-tag:hover { background: rgba(139,69,19,0.1); }
+.weather-tag.active {
+  background: var(--bakery-primary);
+  color: #fff;
+  border-color: var(--bakery-primary);
+}
+
 .gantt-card { overflow: hidden; }
 .gantt-container { display: flex; max-height: 600px; overflow: hidden; }
 
@@ -196,9 +257,37 @@ h1, h2, h3, h4, h5, h6, .page-title, .brand-title {
   flex-shrink: 0;
   border-right: 2px solid var(--bakery-border);
   background: var(--bakery-cream);
+  overflow-y: auto;
+}
+
+.gantt-left::-webkit-scrollbar, .gantt-right::-webkit-scrollbar { width: 8px; height: 8px; }
+.gantt-left::-webkit-scrollbar-thumb, .gantt-right::-webkit-scrollbar-thumb {
+  background: var(--bakery-border); border-radius: 4px;
 }
 
 .gantt-right { flex: 1; overflow-x: auto; overflow-y: auto; }
+
+.gantt-arrow {
+  display: inline-block;
+  width: 16px;
+  color: var(--bakery-muted);
+  transition: transform 0.2s;
+  font-size: 0.75rem;
+}
+.gantt-product-row.collapsed .gantt-arrow { transform: rotate(0deg); }
+
+.gantt-body-row.collapsed {
+  height: 64px;
+  background: var(--bakery-cream);
+  overflow: hidden;
+}
+.gantt-collapsed-info {
+  padding: 22px 12px;
+  color: var(--bakery-muted);
+  font-style: italic;
+  font-size: 0.85rem;
+}
+.gantt-product-row.collapsed { background: var(--bakery-cream); }
 
 .gantt-header {
   height: 48px;

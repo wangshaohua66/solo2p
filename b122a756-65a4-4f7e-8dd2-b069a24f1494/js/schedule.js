@@ -1,7 +1,8 @@
 var Schedule = (function () {
   var state = {
     date: null, storeId: null, scale: 12,
-    suggestions: {}, planBlocks: [], conflicts: []
+    suggestions: {}, planBlocks: [], conflicts: [],
+    weather: 'sunny', collapsed: {}, _syncing: false
   };
 
   function fmtDate(d) {
@@ -16,7 +17,7 @@ var Schedule = (function () {
     return iso && iso.slice(0, 10) === dateStr;
   }
 
-  function calcSuggestions(storeId, date) {
+  function calcSuggestions(storeId, date, weatherKey) {
     var products = Store.get('products', []);
     var processes = Store.get('processes', []);
     var sales = Store.get('sales', []);
@@ -25,19 +26,22 @@ var Schedule = (function () {
     var targetDow = targetDate.getDay();
     var itemMap = {};
     var sampleDays = 0;
+    var daySums = [];
 
-    for (var d = 1; d <= 21; d++) {
+    for (var d = 1; d <= 14; d++) {
       var past = new Date(targetDate.getTime() - d * 86400000);
       if (past.getDay() !== targetDow) continue;
       sampleDays++;
-      if (sampleDays >= 2) break;
       var dayStr = fmtDate(past);
       var daySaleIds = {};
+      var daySum = 0;
       sales.forEach(function (s) {
         if (s.store_id === storeId && sameDay(s.created_at, dayStr)) {
           daySaleIds[s.id] = true;
+          daySum += s.actual_amount || 0;
         }
       });
+      daySums.push(daySum);
       saleItems.forEach(function (it) {
         if (daySaleIds[it.sale_id]) {
           if (!itemMap[it.sku_id]) itemMap[it.sku_id] = 0;
@@ -46,18 +50,21 @@ var Schedule = (function () {
       });
     }
     if (sampleDays === 0) sampleDays = 1;
-    var weatherFactor = 1 + (Math.random() - 0.5) * 0.1;
+    var holidayFactor = Models.getWeatherFactor(date);
+    var weatherInfo = Models.WEATHER_FACTORS[weatherKey || state.weather] || Models.WEATHER_FACTORS.sunny;
+    var weatherFactor = holidayFactor ? holidayFactor.factor : weatherInfo.factor;
     var suggest = {};
     products.forEach(function (p) {
       var skuProcesses = processes.filter(function (x) { return x.sku_id === p.id; });
-      var avg = Math.ceil(((itemMap[p.id] || 0) / sampleDays) * weatherFactor);
+      var baseAvg = (itemMap[p.id] || 0) / sampleDays;
+      var avg = Math.ceil(baseAvg * weatherFactor);
       suggest[p.id] = {
         product: p,
         processes: skuProcesses.sort(function (a, b) { return a.order_index - b.order_index; }),
-        qty: Math.max(10, avg + Math.floor(p.price / 5))
+        qty: Math.max(8, avg + Math.floor(p.price / 5))
       };
     });
-    return suggest;
+    return { suggest: suggest, factor: weatherFactor, weather: weatherInfo };
   }
 
   function buildPlanBlocks(suggestions, dateStr, startTimeHr) {
@@ -137,11 +144,45 @@ var Schedule = (function () {
     return orders;
   }
 
+  function autoDetectWeather(dateStr) {
+    var hf = Models.getWeatherFactor(dateStr);
+    if (hf) {
+      if (hf.factor === 1.3) return 'holiday';
+      if (hf.factor === 1.15) return 'weekend';
+    }
+    return 'sunny';
+  }
+
+  function setupScrollSync() {
+    var $left = $('#ganttLeft');
+    var $right = $('#ganttRight');
+    $left.off('scroll.sync').on('scroll.sync', function () {
+      if (state._syncing) return;
+      state._syncing = true;
+      $right.scrollTop($left.scrollTop());
+      state._syncing = false;
+    });
+    $right.off('scroll.sync').on('scroll.sync', function () {
+      if (state._syncing) return;
+      state._syncing = true;
+      $left.scrollTop($right.scrollTop());
+      state._syncing = false;
+    });
+  }
+
+  function updateFactorDisplay() {
+    var wf = Models.WEATHER_FACTORS[state.weather];
+    var hf = Models.getWeatherFactor(state.date);
+    var factor = hf ? hf.factor : (wf ? wf.factor : 1);
+    $('#weatherFactorDisplay').text(factor.toFixed(2) + 'x');
+  }
+
   function render() {
     var settings = Store.get('settings', {});
     state.storeId = Router.getQuery('store', settings.currentStoreId || 'st_01');
     state.date = Router.getQuery('date', fmtDate(new Date()));
     state.scale = 12;
+    state.weather = autoDetectWeather(state.date);
     $('#scheduleDate').val(state.date);
     var stores = Store.get('stores', []);
     $('#scheduleStore').empty();
@@ -151,8 +192,21 @@ var Schedule = (function () {
       $('#scheduleStore').append(opt);
     });
     $('#ganttScale').val(String(state.scale));
+    $('.weather-tag').removeClass('active');
+    $('.weather-tag[data-weather="' + state.weather + '"]').addClass('active');
+    updateFactorDisplay();
+    $('.weather-tag').off('click').on('click', function () {
+      state.weather = $(this).attr('data-weather');
+      $('.weather-tag').removeClass('active');
+      $(this).addClass('active');
+      updateFactorDisplay();
+    });
     $('#scheduleDate').off('change').on('change', function () {
       state.date = $(this).val();
+      state.weather = autoDetectWeather(state.date);
+      $('.weather-tag').removeClass('active');
+      $('.weather-tag[data-weather="' + state.weather + '"]').addClass('active');
+      updateFactorDisplay();
       Router.setDirty(false);
       Router.navigate('/schedule', { date: state.date, store: state.storeId });
     });
@@ -166,7 +220,8 @@ var Schedule = (function () {
       drawGantt();
     });
     $('#btnCalcSuggest').off('click').on('click', function () {
-      state.suggestions = calcSuggestions(state.storeId, state.date);
+      var result = calcSuggestions(state.storeId, state.date, state.weather);
+      state.suggestions = result.suggest;
       state.planBlocks = buildPlanBlocks(state.suggestions, state.date);
       state.conflicts = detectConflicts(state.planBlocks, state.storeId);
       drawGantt();
@@ -191,18 +246,18 @@ var Schedule = (function () {
       Router.navigate('/workorder', { store: state.storeId });
     });
     if (!state.suggestions || Object.keys(state.suggestions).length === 0) {
-      state.suggestions = calcSuggestions(state.storeId, state.date);
+      var result = calcSuggestions(state.storeId, state.date, state.weather);
+      state.suggestions = result.suggest;
       state.planBlocks = buildPlanBlocks(state.suggestions, state.date);
       state.conflicts = detectConflicts(state.planBlocks, state.storeId);
     }
     drawGantt();
+    setTimeout(setupScrollSync, 50);
   }
 
   function drawGantt() {
-    var products = Object.values(state.suggestions).map(function (x) { return x.product; }).slice(0, 40);
-    var displayBlocks = state.planBlocks.filter(function (b) {
-      return products.find(function (p) { return p.id === b.sku_id; });
-    });
+    var products = Object.values(state.suggestions).map(function (x) { return x.product; });
+    var displayBlocks = state.planBlocks;
     var pixPerHour = 80;
     var scaleHours = state.scale;
     var startHour = 6;
@@ -217,39 +272,56 @@ var Schedule = (function () {
     }
     var leftFrag = document.createDocumentFragment();
     products.forEach(function (p) {
-      var row = $('<div class="gantt-product-row">').attr('data-sku', p.id);
+      var isCollapsed = !!state.collapsed[p.id];
+      var row = $('<div class="gantt-product-row">').attr('data-sku', p.id).addClass(isCollapsed ? 'collapsed' : '');
+      var arrow = $('<span class="gantt-arrow">').text(isCollapsed ? '▶' : '▼');
       var tag = $('<span>').addClass('cat-' + p.category);
-      var nameDiv = $('<div>').css({ flex: 1, minWidth: 0 });
-      nameDiv.append(tag);
+      var nameDiv = $('<div>').css({ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center' });
+      nameDiv.append(arrow).append(tag);
       nameDiv.append($('<span>').text(p.name).css({ marginLeft: '4px' }));
       row.append(nameDiv);
       leftFrag.appendChild(row[0]);
     });
     $('#ganttProductList').empty().append(leftFrag);
+    $('#ganttProductList').off('click').on('click', '.gantt-product-row', function (e) {
+      if ($(e.target).closest('.gantt-block').length > 0) return;
+      var skuId = $(this).attr('data-sku');
+      state.collapsed[skuId] = !state.collapsed[skuId];
+      drawGantt();
+    });
     var rightFrag = document.createDocumentFragment();
     products.forEach(function (p) {
-      var bodyRow = $('<div class="gantt-body-row">').attr('data-sku', p.id).css('width', totalWidth + 'px');
+      var isCollapsed = !!state.collapsed[p.id];
+      var bodyRow = $('<div class="gantt-body-row">')
+        .attr('data-sku', p.id)
+        .css('width', totalWidth + 'px')
+        .addClass(isCollapsed ? 'collapsed' : '');
       for (var g = 1; g <= scaleHours; g++) {
         bodyRow.append($('<div class="grid-line">').css('left', (g * pixPerHour) + 'px'));
       }
-      displayBlocks.filter(function (b) { return b.sku_id === p.id; }).forEach(function (b) {
-        var d0 = new Date(state.date + 'T00:00:00');
-        var startOff = (new Date(b.start) - d0) / 3600000 - startHour;
-        var dur = (new Date(b.end) - new Date(b.start)) / 3600000;
-        if (startOff + dur < 0 || startOff > scaleHours) return;
-        var left = Math.max(0, startOff) * pixPerHour;
-        var width = Math.min(scaleHours, startOff + dur) * pixPerHour - left;
-        var color = Models.CAT_COLORS[p.category] || '#888';
-        var isConflict = state.conflicts.indexOf(b.id) >= 0;
-        var stHm = b.start.slice(11, 16);
-        var edHm = b.end.slice(11, 16);
-        var block = $('<div class="gantt-block">').css({
-          left: left + 'px', width: Math.max(40, width) + 'px', background: color
-        }).addClass(isConflict ? 'conflict' : '').attr('data-block-id', b.id);
-        block.append($('<span class="gb-title">').text(b.process_name));
-        block.append($('<span class="gb-time">').text(stHm + ' → ' + edHm));
-        bodyRow.append(block);
-      });
+      if (!isCollapsed) {
+        displayBlocks.filter(function (b) { return b.sku_id === p.id; }).forEach(function (b) {
+          var d0 = new Date(state.date + 'T00:00:00');
+          var startOff = (new Date(b.start) - d0) / 3600000 - startHour;
+          var dur = (new Date(b.end) - new Date(b.start)) / 3600000;
+          if (startOff + dur < 0 || startOff > scaleHours) return;
+          var left = Math.max(0, startOff) * pixPerHour;
+          var width = Math.min(scaleHours, startOff + dur) * pixPerHour - left;
+          var color = Models.CAT_COLORS[p.category] || '#888';
+          var isConflict = state.conflicts.indexOf(b.id) >= 0;
+          var stHm = b.start.slice(11, 16);
+          var edHm = b.end.slice(11, 16);
+          var block = $('<div class="gantt-block">').css({
+            left: left + 'px', width: Math.max(40, width) + 'px', background: color
+          }).addClass(isConflict ? 'conflict' : '').attr('data-block-id', b.id);
+          block.append($('<span class="gb-title">').text(b.process_name));
+          block.append($('<span class="gb-time">').text(stHm + ' → ' + edHm));
+          bodyRow.append(block);
+        });
+      } else {
+        var suggestQty = (state.suggestions[p.id] || {}).qty || 0;
+        bodyRow.append($('<div class="gantt-collapsed-info">').text('建议产量 ' + suggestQty + ' 件 · 已折叠'));
+      }
       rightFrag.appendChild(bodyRow[0]);
     });
     $('#ganttBody').empty().append(rightFrag);
@@ -392,14 +464,60 @@ var Schedule = (function () {
     renderKanban();
   }
 
+  function getProcessMaterials(processId) {
+    var processes = Store.get('processes', []);
+    var proc = processes.find(function (p) { return p.id === processId; });
+    return proc && proc.material_consumption ? proc.material_consumption : [];
+  }
+
   function completeWork(woId) {
     var all = Store.get('workorders', []);
     var order = all.find(function (x) { return x.id === woId; });
     if (!order) return;
-    Store.listUpdate('workorders', woId, {
-      status: 'done', actual_end: new Date().toISOString()
+    var updatedWOs = all.map(function (o) {
+      if (o.id === woId) {
+        return Object.assign({}, o, { status: 'done', actual_end: new Date().toISOString() });
+      }
+      return o;
     });
+    var patch = { workorders: updatedWOs };
     var settings = Store.get('settings', {});
+    var procMats = getProcessMaterials(order.process_id);
+    var materials = null;
+    var materialtx = null;
+    if (procMats.length > 0) {
+      materials = Store.get('materials', []);
+      materialtx = Store.get('materialtx', []);
+      procMats.forEach(function (mc) {
+        var matId = mc[0];
+        var usagePerUnit = mc[1];
+        var totalUsage = +(usagePerUnit * (order.quantity || 1)).toFixed(3);
+        var mIdx = materials.findIndex(function (m) {
+          return m.store_id === order.store_id && m.material_id === matId;
+        });
+        if (mIdx >= 0) {
+          materials[mIdx] = Object.assign({}, materials[mIdx], {
+            quantity: +((materials[mIdx].quantity || 0) - totalUsage).toFixed(3)
+          });
+          materialtx.push({
+            id: Store.uid('mtx'),
+            store_id: order.store_id,
+            material_id: matId,
+            material_name: materials[mIdx].name,
+            type: 'consume',
+            quantity: -totalUsage,
+            unit: materials[mIdx].unit,
+            ref_type: 'workorder',
+            ref_id: woId,
+            balance_after: materials[mIdx].quantity,
+            operator: settings.operator || '系统',
+            created_at: new Date().toISOString()
+          });
+        }
+      });
+      patch.materials = materials;
+      patch.materialtx = materialtx;
+    }
     var sameProductDay = all.filter(function (o) {
       return o.store_id === order.store_id && o.sku_id === order.sku_id && o.schedule_date === order.schedule_date;
     });
@@ -408,8 +526,10 @@ var Schedule = (function () {
       var inv = Store.get('inventory', []);
       var idx = inv.findIndex(function (i) { return i.store_id === order.store_id && i.sku_id === order.sku_id; });
       if (idx >= 0) {
-        inv[idx].quantity = (inv[idx].quantity || 0) + (order.quantity || 0);
-        inv[idx].produce_date = order.schedule_date;
+        inv[idx] = Object.assign({}, inv[idx], {
+          quantity: (inv[idx].quantity || 0) + (order.quantity || 0),
+          produce_date: order.schedule_date
+        });
       } else {
         inv.push({
           id: 'inv_' + order.store_id + '_' + order.sku_id,
@@ -418,7 +538,13 @@ var Schedule = (function () {
           produce_date: order.schedule_date
         });
       }
-      Store.set('inventory', inv);
+      patch.inventory = inv;
+    }
+    try {
+      Store.batchUpdate(patch);
+    } catch (e) {
+      alert('操作失败：' + e.message);
+      return;
     }
     renderKanban();
   }
@@ -461,6 +587,7 @@ var Schedule = (function () {
     renderKanban: renderKanban,
     startKanbanTimer: startKanbanTimer,
     calcSuggestions: calcSuggestions,
-    detectConflicts: detectConflicts
+    detectConflicts: detectConflicts,
+    getProcessMaterials: getProcessMaterials
   };
 })();

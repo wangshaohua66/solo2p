@@ -85,12 +85,17 @@
     </aside>
 
     <nav class="navbar navbar-dark fixed-bottom d-lg-none bakery-bottombar">
-      <div class="container-fluid justify-content-around">
-        <a class="nav-link" data-route="dashboard" href="#/dashboard"><i class="bi bi-speedometer2"></i><small>仪表盘</small></a>
-        <a class="nav-link" data-route="schedule" href="#/schedule"><i class="bi bi-calendar-week"></i><small>排产</small></a>
-        <a class="nav-link" data-route="workorder" href="#/workorder"><i class="bi bi-kanban"></i><small>工单</small></a>
-        <a class="nav-link" data-route="pos" href="#/pos"><i class="bi bi-cash-coin"></i><small>POS</small></a>
-        <a class="nav-link" data-route="member" href="#/member"><i class="bi bi-people"></i><small>会员</small></a>
+      <div class="container-fluid">
+        <div class="bottombar-row">
+          <a class="nav-link" data-route="dashboard" href="#/dashboard"><i class="bi bi-speedometer2"></i><small>仪表盘</small></a>
+          <a class="nav-link" data-route="schedule" href="#/schedule"><i class="bi bi-calendar-week"></i><small>排产</small></a>
+          <a class="nav-link" data-route="workorder" href="#/workorder"><i class="bi bi-kanban"></i><small>工单</small></a>
+          <a class="nav-link" data-route="pos" href="#/pos"><i class="bi bi-cash-coin"></i><small>POS</small></a>
+          <a class="nav-link" data-route="transfer" href="#/transfer"><i class="bi bi-arrow-left-right"></i><small>调拨</small></a>
+          <a class="nav-link" data-route="member" href="#/member"><i class="bi bi-people"></i><small>会员</small></a>
+          <a class="nav-link" data-route="report" href="#/report"><i class="bi bi-bar-chart-line"></i><small>报表</small></a>
+          <a class="nav-link" data-route="backup" href="#/backup"><i class="bi bi-database-gear"></i><small>备份</small></a>
+        </div>
       </div>
     </nav>
 
@@ -185,9 +190,20 @@
 
   <template id="tpl-schedule">
     <div class="container-fluid p-4">
-      <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-        <h3 class="page-title mb-0">智能排产</h3>
-        <div class="d-flex gap-2 align-items-center">
+      <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
+        <div>
+          <h3 class="page-title mb-2">智能排产</h3>
+          <div class="d-flex gap-1 flex-wrap" id="weatherTags">
+            <span class="weather-tag active" data-weather="sunny">☀️ 晴天</span>
+            <span class="weather-tag" data-weather="cloudy">⛅ 多云</span>
+            <span class="weather-tag" data-weather="rainy">🌧️ 雨天</span>
+            <span class="weather-tag" data-weather="snowy">❄️ 雪天</span>
+            <span class="weather-tag" data-weather="weekend">📅 周末</span>
+            <span class="weather-tag" data-weather="holiday">🎊 节假日</span>
+          </div>
+          <div class="text-muted small mt-1">当前影响因子: <span id="weatherFactorDisplay" class="fw-bold text-bakery">1.00x</span></div>
+        </div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
           <input type="date" class="form-control form-control-sm w-auto" id="scheduleDate" />
           <select class="form-select form-select-sm w-auto" id="scheduleStore"></select>
           <select class="form-select form-select-sm w-auto" id="ganttScale">
@@ -295,6 +311,7 @@
           <div class="input-group mb-2">
             <span class="input-group-text"><i class="bi bi-credit-card"></i></span>
             <input type="text" class="form-control" id="memberPhone" placeholder="输入会员手机号..." maxlength="11" />
+            <button class="btn btn-outline-bakery" type="button" id="btnScanBarcode"><i class="bi bi-upc-scan"></i> 扫码</button>
             <button class="btn btn-bakery" type="button" id="btnQueryMember">查询</button>
           </div>
           <div id="memberInfo" class="d-none">
@@ -340,6 +357,33 @@
           </div>
         </div>
       </aside>
+    </div>
+
+    <div class="modal fade" id="scanModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-upc-scan me-2"></i>扫描会员卡</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body text-center">
+            <div class="scan-area mb-3">
+              <i class="bi bi-qr-code-scan fs-1 text-bakery"></i>
+              <div class="text-muted mt-2">将条码对准扫描框</div>
+              <div class="scan-frame mt-3"></div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label text-muted small">模拟扫码输入</label>
+              <input type="text" class="form-control text-center" id="scanInput" placeholder="输入或扫描会员卡号" />
+              <div class="invalid-feedback" id="scanError"></div>
+            </div>
+            <div class="d-grid gap-2">
+              <button class="btn btn-bakery" id="btnScanConfirm">查询会员</button>
+              <button class="btn btn-outline-secondary" id="btnSimulateScan">模拟随机扫码</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="modal fade" id="rechargeModal" tabindex="-1">

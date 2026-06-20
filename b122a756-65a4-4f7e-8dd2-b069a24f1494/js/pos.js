@@ -4,6 +4,71 @@ var POS = (function () {
   var currentMember = null;
   var searchTimer = null;
   var searchIndex = null;
+  var dirty = false;
+
+  function setDirty(v) {
+    dirty = v;
+    Router.setDirty(v);
+  }
+
+  function validatePhone(phone) {
+    return /^1[3-9]\d{9}$/.test(phone || '');
+  }
+
+  function validateAmount(amt, min) {
+    var n = Number(amt);
+    return !isNaN(n) && n >= (min || 0);
+  }
+
+  function validateQuantity(q) {
+    var n = Number(q);
+    return !isNaN(n) && n >= 0 && Number.isInteger(n);
+  }
+
+  function validateDate(d) {
+    if (!d) return false;
+    var dt = new Date(d);
+    return dt instanceof Date && !isNaN(dt.getTime());
+  }
+
+  function showFieldError($field, msg) {
+    $field.addClass('is-invalid').removeClass('is-valid');
+    var $fb = $field.next('.invalid-feedback');
+    if ($fb.length === 0) {
+      $fb = $('<div class="invalid-feedback">').insertAfter($field);
+    }
+    $fb.text(msg);
+  }
+
+  function clearFieldError($field) {
+    $field.removeClass('is-invalid').addClass('is-valid');
+    $field.next('.invalid-feedback').remove();
+  }
+
+  function checkBalanceAlert() {
+    if (!currentMember || cart.length === 0) return;
+    var total = 0;
+    cart.forEach(function (item) {
+      total += item.product.price * item.quantity * (item.discount / 100);
+    });
+    var discAmt = +(total * (cartDiscount / 100)).toFixed(2);
+    var actual = +(total - discAmt).toFixed(2);
+    if (actual > 0 && currentMember.balance < actual) {
+      $('#memberBalanceWarn').remove();
+      $('#memberInfo').before($('<div class="alert alert-warning py-2 px-3 mb-2" id="memberBalanceWarn">' +
+        '<i class="bi bi-exclamation-triangle me-1"></i>余额不足：当前 ¥' + currentMember.balance.toFixed(2) +
+        '，需 ¥' + actual.toFixed(2) + '</div>'));
+    } else {
+      $('#memberBalanceWarn').remove();
+    }
+  }
+
+  function lookupMemberByIdOrPhone(key) {
+    var members = Store.get('members', []);
+    if (!key) return null;
+    var m = members.find(function (x) { return x.phone === key || x.id === key; });
+    return m || null;
+  }
 
   function buildSearchIndex() {
     var products = Store.get('products', []);
@@ -59,7 +124,7 @@ var POS = (function () {
   }
 
   function render() {
-    cart = []; cartDiscount = 0; currentMember = null;
+    cart = []; cartDiscount = 0; currentMember = null; dirty = false;
     buildSearchIndex();
     var settings = Store.get('settings', {});
     $('#posSearch').val('');
@@ -68,6 +133,7 @@ var POS = (function () {
     $('#memberPhone').val('');
     $('#memberInfo').addClass('d-none');
     $('#cashPaid').val('');
+    $('#memberBalanceWarn').remove();
     var storeId = Router.getQuery('store', settings.currentStoreId || 'st_01');
     renderProducts('', '');
     renderCart();
@@ -89,47 +155,122 @@ var POS = (function () {
       renderProducts($('#posSearch').val(), $(this).val());
     });
     $('#cartDiscount').off('input').on('input', function () {
-      cartDiscount = Math.min(100, Math.max(0, Number($(this).val()) || 0));
+      var v = Number($(this).val()) || 0;
+      if (v < 0 || v > 100) {
+        showFieldError($(this), '折扣范围0-100');
+      } else {
+        clearFieldError($(this));
+      }
+      cartDiscount = Math.min(100, Math.max(0, v));
       updateTotals();
+      checkBalanceAlert();
     });
     $('#cashPaid').off('input').on('input', function () {
+      var v = Number($(this).val()) || 0;
+      if (v < 0) {
+        showFieldError($(this), '金额不能为负');
+      } else {
+        clearFieldError($(this));
+      }
       updateTotals();
+    });
+    $('#memberPhone').off('input').on('input', function () {
+      var v = $(this).val().trim();
+      if (v.length > 0 && !validatePhone(v)) {
+        showFieldError($(this), '请输入11位有效手机号');
+      } else {
+        clearFieldError($(this));
+      }
     });
     $('#btnClearCart').off('click').on('click', function () {
       if (cart.length === 0 || confirm('确定清空购物车？')) {
         cart = [];
         renderCart();
         updateTotals();
+        checkBalanceAlert();
+        setDirty(cart.length > 0);
       }
     });
     $('#btnQueryMember').off('click').on('click', function () {
       var phone = $('#memberPhone').val().trim();
-      if (!Models.validatePhone(phone)) {
-        $('#memberPhone').addClass('is-invalid');
-        setTimeout(function () { $('#memberPhone').removeClass('is-invalid'); }, 1000);
+      if (!validatePhone(phone)) {
+        showFieldError($('#memberPhone'), '请输入11位有效手机号');
         return;
       }
-      var m = Store.listFind('members', function (x) { return x.phone === phone; });
+      clearFieldError($('#memberPhone'));
+      var m = lookupMemberByIdOrPhone(phone);
       if (m) {
         currentMember = m;
         $('#memberName').text(m.name);
         $('#memberPhoneDisplay').text(m.phone);
         $('#memberBalance').text(m.balance.toFixed(2));
         $('#memberInfo').removeClass('d-none');
+        checkBalanceAlert();
       } else {
         alert('未找到该会员');
       }
+    });
+    $('#btnScanBarcode').off('click').on('click', function () {
+      $('#scanInput').val('');
+      clearFieldError($('#scanInput'));
+      var modal = new bootstrap.Modal(document.getElementById('scanModal'));
+      modal.show();
+      setTimeout(function () { $('#scanInput').focus(); }, 200);
+    });
+    $('#scanInput').off('input').on('input', function () {
+      var v = $(this).val().trim();
+      if (v.length > 0 && !validatePhone(v) && v.length < 5) {
+        showFieldError($(this), '请输入卡号或11位手机号');
+      } else {
+        clearFieldError($(this));
+      }
+    });
+    $('#btnScanConfirm').off('click').on('click', function () {
+      var key = $('#scanInput').val().trim();
+      if (!key) { showFieldError($('#scanInput'), '请输入或扫描会员卡号'); return; }
+      clearFieldError($('#scanInput'));
+      var m = lookupMemberByIdOrPhone(key);
+      if (m) {
+        currentMember = m;
+        $('#memberPhone').val(m.phone);
+        $('#memberName').text(m.name);
+        $('#memberPhoneDisplay').text(m.phone);
+        $('#memberBalance').text(m.balance.toFixed(2));
+        $('#memberInfo').removeClass('d-none');
+        var modal = bootstrap.Modal.getInstance(document.getElementById('scanModal'));
+        modal.hide();
+        checkBalanceAlert();
+      } else {
+        showFieldError($('#scanInput'), '未找到该会员');
+      }
+    });
+    $('#btnSimulateScan').off('click').on('click', function () {
+      var members = Store.get('members', []);
+      if (members.length === 0) { showFieldError($('#scanInput'), '暂无会员数据'); return; }
+      var randomMember = members[Math.floor(Math.random() * members.length)];
+      $('#scanInput').val(randomMember.phone);
+      clearFieldError($('#scanInput'));
+      setTimeout(function () { $('#btnScanConfirm').click(); }, 300);
     });
     $('.recharge-option').off('click').on('click', function () {
       var amt = Number($(this).attr('data-amount'));
       $('#rechargeAmount').val(amt);
       updateRechargeDisplay();
     });
-    $('#rechargeAmount').off('input').on('input', updateRechargeDisplay);
+    $('#rechargeAmount').off('input').on('input', function () {
+      var amt = Number($(this).val()) || 0;
+      if (amt < 100) {
+        showFieldError($(this), '储值金额下限¥100');
+      } else {
+        clearFieldError($(this));
+      }
+      updateRechargeDisplay();
+    });
     $('#btnConfirmRecharge').off('click').on('click', function () {
       if (!currentMember) { alert('请先选择会员'); return; }
       var amt = Number($('#rechargeAmount').val()) || 0;
-      if (amt < 1) { alert('请输入充值金额'); return; }
+      if (amt < 100) { showFieldError($('#rechargeAmount'), '储值金额下限¥100'); return; }
+      clearFieldError($('#rechargeAmount'));
       var bonus = Models.calcRechargeBonus(amt);
       var total = amt + bonus;
       if (!confirm('充值¥' + amt + '，赠送¥' + bonus + '，实际到账¥' + total)) return;
@@ -149,9 +290,16 @@ var POS = (function () {
       var modal = bootstrap.Modal.getInstance(document.getElementById('rechargeModal'));
       modal.hide();
       alert('充值成功！赠送¥' + bonus);
+      checkBalanceAlert();
     });
     $('#btnCheckoutMember').off('click').on('click', function () { checkout('member'); });
     $('#btnCheckoutCash').off('click').on('click', function () { checkout('cash'); });
+    $('#scanInput').off('keypress').on('keypress', function (e) {
+      if (e.which === 13) { $('#btnScanConfirm').click(); }
+    });
+    $('#memberPhone').off('keypress').on('keypress', function (e) {
+      if (e.which === 13) { $('#btnQueryMember').click(); }
+    });
   }
 
   function renderProducts(q, cat) {
@@ -197,6 +345,8 @@ var POS = (function () {
     }
     renderCart();
     updateTotals();
+    setDirty(true);
+    checkBalanceAlert();
     $('#posPanel').addClass('open');
   }
 
@@ -213,9 +363,17 @@ var POS = (function () {
       var itemDisc = $('<input type="number" class="form-control form-control-sm mt-1" min="0" max="100" value="' + item.discount + '">')
         .css({ width: '70px', display: 'inline-block' })
         .on('input', function () {
-          item.discount = Math.min(100, Math.max(0, Number($(this).val()) || 0));
+          var v = Number($(this).val()) || 0;
+          if (v < 0 || v > 100) {
+            showFieldError($(this), '折扣0-100');
+          } else {
+            clearFieldError($(this));
+          }
+          item.discount = Math.min(100, Math.max(0, v));
           renderCart();
           updateTotals();
+          setDirty(true);
+          checkBalanceAlert();
         });
       itemName.append('<div class="small text-muted">折扣: <span class="item-disc-wrapper"></span>%</div>');
       itemName.find('.item-disc-wrapper').append(itemDisc);
@@ -225,11 +383,15 @@ var POS = (function () {
         if (item.quantity <= 0) cart.splice(idx, 1);
         renderCart();
         updateTotals();
+        setDirty(cart.length > 0);
+        checkBalanceAlert();
       });
       var plusBtn = $('<button>').html('+').on('click', function () {
         item.quantity++;
         renderCart();
         updateTotals();
+        setDirty(true);
+        checkBalanceAlert();
       });
       qtyWrap.append(minusBtn).append($('<span>').text(item.quantity)).append(plusBtn);
       var price = $('<div class="ci-price">').text('¥' + (item.product.price * item.quantity * (item.discount / 100)).toFixed(2));
@@ -237,6 +399,8 @@ var POS = (function () {
         cart.splice(idx, 1);
         renderCart();
         updateTotals();
+        setDirty(cart.length > 0);
+        checkBalanceAlert();
       });
       row.append(itemName, qtyWrap, price, rm);
       container.append(row);
@@ -343,6 +507,8 @@ var POS = (function () {
     renderCart();
     updateTotals();
     renderProducts($('#posSearch').val(), $('#posCategory').val());
+    setDirty(false);
+    checkBalanceAlert();
   }
 
   function showReceipt(sale, items) {

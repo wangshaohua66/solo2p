@@ -3,6 +3,46 @@ var App = (function () {
   var selectedMember = null;
   var selectedTransferStore = null;
   var transferTabFilter = 'all';
+  var memberDirty = false;
+
+  function setMemberDirty(v) {
+    memberDirty = v;
+    Router.setDirty(v);
+  }
+
+  function showFieldError($field, msg) {
+    $field.addClass('is-invalid').removeClass('is-valid');
+    var $fb = $field.siblings('.invalid-feedback');
+    if ($fb.length === 0) {
+      $fb = $('<div class="invalid-feedback">').insertAfter($field);
+    }
+    $fb.text(msg);
+  }
+
+  function clearFieldError($field) {
+    $field.removeClass('is-invalid').addClass('is-valid');
+    $field.siblings('.invalid-feedback').remove();
+  }
+
+  function validatePhone(phone) {
+    return /^1[3-9]\d{9}$/.test(phone || '');
+  }
+
+  function validateAmount(amt, min) {
+    var n = Number(amt);
+    return !isNaN(n) && n >= (min || 0);
+  }
+
+  function validateDate(d) {
+    if (!d) return false;
+    var dt = new Date(d);
+    return dt instanceof Date && !isNaN(dt.getTime());
+  }
+
+  function validateQuantity(q) {
+    var n = Number(q);
+    return !isNaN(n) && n >= 0 && Number.isInteger(n);
+  }
 
   function fmt(d) {
     if (!d) return '';
@@ -193,6 +233,16 @@ var App = (function () {
       tr.append($('<td>').text(avail));
       var inp = $('<input type="number" class="form-control form-control-sm transfer-qty" min="1" max="' + avail + '" value="1" style="width:100px" data-sku="' + p.id + '">');
       if (avail <= 0) inp.prop('disabled', true).val(0);
+      inp.on('input', function () {
+        var v = Number($(this).val()) || 0;
+        if (v < 0 || v > avail) {
+          showFieldError($(this), '数量应在0-' + avail + '之间');
+        } else if (!validateQuantity(v)) {
+          showFieldError($(this), '请输入有效整数');
+        } else {
+          clearFieldError($(this));
+        }
+      });
       tr.append($('<td>').append(inp));
       tbody.append(tr);
     });
@@ -346,20 +396,45 @@ var App = (function () {
 
   function renderMember() {
     var members = Store.get('members', []);
+    memberDirty = false;
     renderMemberList(members, '');
     $('#memberSearch').off('input').on('input', function () {
       renderMemberList(members, $(this).val());
+    });
+    $('#newMemberPhone').off('input').on('input', function () {
+      var v = $(this).val().trim();
+      if (v.length > 0 && !validatePhone(v)) {
+        showFieldError($(this), '请输入11位有效手机号');
+        setMemberDirty(true);
+      } else if (v.length > 0) {
+        clearFieldError($(this));
+        setMemberDirty(true);
+      } else {
+        $(this).removeClass('is-invalid is-valid');
+      }
+    });
+    $('#newMemberName').off('input').on('input', function () {
+      var v = $(this).val().trim();
+      if (v.length > 0 && v.length < 2) {
+        showFieldError($(this), '姓名至少2个字符');
+        setMemberDirty(true);
+      } else if (v.length > 0) {
+        clearFieldError($(this));
+        setMemberDirty(true);
+      } else {
+        $(this).removeClass('is-invalid is-valid');
+      }
     });
     $('#btnSaveMember').off('click').on('click', function () {
       var phone = $('#newMemberPhone').val().trim();
       var name = $('#newMemberName').val().trim();
       var ok = true;
-      if (!Models.validatePhone(phone)) {
-        $('#errPhone').removeClass('d-none'); $('#newMemberPhone').addClass('is-invalid'); ok = false;
-      } else { $('#errPhone').addClass('d-none'); $('#newMemberPhone').removeClass('is-invalid'); }
-      if (!name) {
-        $('#errName').removeClass('d-none'); $('#newMemberName').addClass('is-invalid'); ok = false;
-      } else { $('#errName').addClass('d-none'); $('#newMemberName').removeClass('is-invalid'); }
+      if (!validatePhone(phone)) {
+        showFieldError($('#newMemberPhone'), '请输入11位有效手机号'); ok = false;
+      } else { clearFieldError($('#newMemberPhone')); }
+      if (!name || name.length < 2) {
+        showFieldError($('#newMemberName'), '姓名至少2个字符'); ok = false;
+      } else { clearFieldError($('#newMemberName')); }
       if (!ok) return;
       if (members.find(function (m) { return m.phone === phone; })) {
         alert('该手机号已注册'); return;
@@ -371,20 +446,34 @@ var App = (function () {
       Store.listPush('members', m);
       var newMembers = Store.get('members', []);
       renderMemberList(newMembers, '');
-      $('#newMemberPhone, #newMemberName').val('');
+      $('#newMemberPhone, #newMemberName').val('').removeClass('is-invalid is-valid');
       var modal = bootstrap.Modal.getInstance(document.getElementById('memberModal'));
       modal.hide();
+      setMemberDirty(false);
       alert('开卡成功！');
     });
     $('.mrecharge-option').off('click').on('click', function () {
       $('#mrechargeAmount').val($(this).attr('data-amount'));
       updateMRechargeDisplay();
+      setMemberDirty(true);
     });
-    $('#mrechargeAmount').off('input').on('input', updateMRechargeDisplay);
+    $('#mrechargeAmount').off('input').on('input', function () {
+      var amt = Number($(this).val()) || 0;
+      if (amt > 0 && amt < 100) {
+        showFieldError($(this), '储值金额下限¥100');
+      } else if (amt >= 100) {
+        clearFieldError($(this));
+      } else {
+        $(this).removeClass('is-invalid is-valid');
+      }
+      updateMRechargeDisplay();
+      setMemberDirty(true);
+    });
     $('#btnConfirmRechargeMember').off('click').on('click', function () {
       if (!selectedMember) return;
       var amt = Number($('#mrechargeAmount').val()) || 0;
-      if (amt < 1) return;
+      if (amt < 100) { showFieldError($('#mrechargeAmount'), '储值金额下限¥100'); return; }
+      clearFieldError($('#mrechargeAmount'));
       var bonus = Models.calcRechargeBonus(amt);
       var total = amt + bonus;
       if (!confirm('充值¥' + amt + '，赠送¥' + bonus + '，实际到账¥' + total)) return;
@@ -399,11 +488,12 @@ var App = (function () {
       });
       selectedMember.balance = nb;
       $('#detailBalance').text(nb.toFixed(2));
-      $('#mrechargeAmount').val('');
+      $('#mrechargeAmount').val('').removeClass('is-invalid is-valid');
       $('#mrechargeTotal').text('0');
       var modal = bootstrap.Modal.getInstance(document.getElementById('rechargeModalMember'));
       modal.hide();
       renderMemberTimeline(selectedMember.id);
+      setMemberDirty(false);
       alert('充值成功！');
     });
   }

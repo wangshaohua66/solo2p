@@ -12,6 +12,46 @@ var Models = (function () {
     { amount: 500, bonus: 60 },
     { amount: 1000, bonus: 150 }
   ];
+  var MATERIAL_BASE = [
+    { id: 'mat_001', name: '高筋面粉', unit: 'kg', unit_price: 8.5, category: '面粉' },
+    { id: 'mat_002', name: '低筋面粉', unit: 'kg', unit_price: 7.8, category: '面粉' },
+    { id: 'mat_003', name: '黄油', unit: 'kg', unit_price: 45.0, category: '油脂' },
+    { id: 'mat_004', name: '淡奶油', unit: 'L', unit_price: 38.0, category: '乳制品' },
+    { id: 'mat_005', name: '细砂糖', unit: 'kg', unit_price: 6.5, category: '糖' },
+    { id: 'mat_006', name: '鸡蛋', unit: 'kg', unit_price: 12.0, category: '蛋' },
+    { id: 'mat_007', name: '干酵母', unit: 'kg', unit_price: 28.0, category: '酵母' },
+    { id: 'mat_008', name: '牛奶', unit: 'L', unit_price: 8.5, category: '乳制品' },
+    { id: 'mat_009', name: '盐', unit: 'kg', unit_price: 3.5, category: '调味' },
+    { id: 'mat_010', name: '巧克力', unit: 'kg', unit_price: 55.0, category: '原料' },
+    { id: 'mat_011', name: '芝士', unit: 'kg', unit_price: 42.0, category: '乳制品' },
+    { id: 'mat_012', name: '果干', unit: 'kg', unit_price: 35.0, category: '原料' },
+    { id: 'mat_013', name: '坚果', unit: 'kg', unit_price: 65.0, category: '原料' },
+    { id: 'mat_014', name: '蜂蜜', unit: 'kg', unit_price: 28.0, category: '糖' },
+    { id: 'mat_015', name: '香草精', unit: 'L', unit_price: 120.0, category: '调味' }
+  ];
+  var WEATHER_FACTORS = {
+    sunny:    { name: '晴天',   factor: 1.05, icon: '☀️' },
+    cloudy:   { name: '多云',   factor: 1.00, icon: '⛅' },
+    rainy:    { name: '雨天',   factor: 0.85, icon: '🌧️' },
+    snowy:    { name: '雪天',   factor: 0.70, icon: '❄️' },
+    weekend:  { name: '周末',   factor: 1.15, icon: '📅' },
+    holiday:  { name: '节假日', factor: 1.30, icon: '🎊' }
+  };
+  var HOLIDAYS = ['01-01','02-10','02-11','02-12','04-04','05-01','06-10','10-01','10-02','10-03','12-25'];
+  var PROCESS_MATERIAL_MAP = {
+    '面团制作': [['mat_001', 0.5], ['mat_003', 0.1], ['mat_005', 0.08], ['mat_007', 0.01]],
+    '基础发酵': [],
+    '整形': [],
+    '最后发酵': [],
+    '烘焙': [],
+    '冷却装饰': [['mat_010', 0.05]],
+    '发酵': [],
+    '成型': [],
+    '装饰': [['mat_004', 0.1]],
+    '配料': [['mat_002', 0.4], ['mat_006', 0.15]],
+    '搅拌': [['mat_003', 0.08]],
+    '原料准备': [['mat_001', 0.3], ['mat_005', 0.05]]
+  };
   var PY_MAP = {
     '法':'f','棍':'g','巧':'q','可':'k','力':'l','颂':'s','吐':'t','司':'s',
     '奶':'n','油':'y','蛋':'d','糕':'g','卷':'j','芝':'z','士':'s','芒':'m',
@@ -157,6 +197,10 @@ var Models = (function () {
     return { products: products, processes: processes };
   }
 
+  function getProcessMaterials(processName) {
+    return PROCESS_MATERIAL_MAP[processName] || [];
+  }
+
   function makeProcesses(skuId, fermentMin) {
     var defs;
     if (fermentMin >= 200) {
@@ -188,7 +232,8 @@ var Models = (function () {
       return {
         id: 'proc_' + skuId + '_' + d.i,
         sku_id: skuId, name: d.n, duration_min: d.d,
-        resource_type: d.r, order_index: d.i
+        resource_type: d.r, order_index: d.i,
+        material_consumption: getProcessMaterials(d.n)
       };
     });
   }
@@ -273,12 +318,30 @@ var Models = (function () {
         }
       });
     }
+    var materials = [];
+    var materialtx = [];
+    stores.forEach(function (st) {
+      MATERIAL_BASE.forEach(function (m) {
+        materials.push({
+          id: 'mat_' + st.id + '_' + m.id,
+          store_id: st.id,
+          material_id: m.id,
+          name: m.name,
+          unit: m.unit,
+          unit_price: m.unit_price,
+          category: m.category,
+          quantity: 50 + Math.floor(Math.random() * 100),
+          min_stock: 10
+        });
+      });
+    });
     var settings = {
       currentStoreId: 'st_01', operator: '店长·王芳', shift: '早班'
     };
     return {
       stores: stores, products: pd.products, processes: pd.processes,
       members: members, membertx: membertx, inventory: inventory,
+      materials: materials, materialtx: materialtx,
       workorders: [], sales: sales, sale_items: saleItems,
       transfers: [], settings: settings
     };
@@ -289,6 +352,7 @@ var Models = (function () {
     Store.batchUpdate({
       stores: data.stores, products: data.products, processes: data.processes,
       members: data.members, membertx: data.membertx, inventory: data.inventory,
+      materials: data.materials, materialtx: data.materialtx,
       workorders: data.workorders, sales: data.sales, sale_items: data.sale_items,
       transfers: data.transfers, settings: data.settings,
       data_version: Store.VERSION
@@ -296,16 +360,30 @@ var Models = (function () {
     return data;
   }
 
+  function getWeatherFactor(dateStr) {
+    var d = new Date(dateStr);
+    var mmdd = String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    if (HOLIDAYS.indexOf(mmdd) >= 0) return WEATHER_FACTORS.holiday;
+    var dow = d.getDay();
+    if (dow === 0 || dow === 6) return WEATHER_FACTORS.weekend;
+    return null;
+  }
+
   return {
     CATEGORIES: CATEGORIES,
     CAT_COLORS: CAT_COLORS,
     CAT_EMOJI: CAT_EMOJI,
     RECHARGE_TIERS: RECHARGE_TIERS,
+    WEATHER_FACTORS: WEATHER_FACTORS,
+    HOLIDAYS: HOLIDAYS,
+    MATERIAL_BASE: MATERIAL_BASE,
+    PROCESS_MATERIAL_MAP: PROCESS_MATERIAL_MAP,
     pinyinOf: pinyinOf,
     validatePhone: validatePhone,
     validateDate: validateDate,
     validateNumber: validateNumber,
     calcRechargeBonus: calcRechargeBonus,
+    getWeatherFactor: getWeatherFactor,
     seed: seed
   };
 })();
