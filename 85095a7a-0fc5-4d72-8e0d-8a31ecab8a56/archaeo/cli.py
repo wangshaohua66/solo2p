@@ -1134,22 +1134,38 @@ def budget_add(
     category: str = typer.Option(..., "--category", "-c", help="预算科目"),
     budgeted: float = typer.Option(0.0, "--budget", "-b", help="预算金额"),
     actual: float = typer.Option(0.0, "--actual", "-a", help="实际支出"),
+    quarter: Optional[int] = typer.Option(None, "--quarter", "-q", help="所属季度 (1-4)"),
+    expenditure_date: Optional[str] = typer.Option(
+        None, "--date", "-d", help="支出日期 (YYYY-MM-DD)，未指定季度时自动推导"
+    ),
     notes: str = typer.Option("", "--notes", "-n", help="备注"),
 ):
     """添加预算科目"""
+    from datetime import date as date_type
     from .models import BudgetItem
+
+    exp_date: Optional[date_type] = None
+    if expenditure_date:
+        try:
+            exp_date = date_type.fromisoformat(expenditure_date)
+        except ValueError:
+            console.print("[red]日期格式错误，应为 YYYY-MM-DD[/red]")
+            raise typer.Exit(1)
 
     item = BudgetItem(
         project_id=project_id,
         category=category,
         budgeted=budgeted,
         actual=actual,
+        quarter=quarter,
+        expenditure_date=exp_date,
         notes=notes,
     )
 
     try:
         created = db.create_budget_item(item)
-        console.print(f"[green]✓ 预算科目 {created.category} 添加成功 (ID: {created.id})[/green]")
+        quarter_info = f" (Q{created.quarter})" if created.quarter else ""
+        console.print(f"[green]✓ 预算科目 {created.category} 添加成功{quarter_info} (ID: {created.id})[/green]")
     except Exception as e:
         console.print(f"[red]添加失败：{e}[/red]")
         raise typer.Exit(1)
@@ -1158,14 +1174,26 @@ def budget_add(
 @budget_app.command("list")
 def budget_list(
     project_id: int = typer.Option(..., "--project", "-p", help="项目ID"),
+    quarter: Optional[int] = typer.Option(None, "--quarter", "-q", help="按季度筛选 (1-4)"),
 ):
     """列出项目预算执行情况"""
-    items = db.list_budget_items(project_id=project_id)
-    summary = db.get_project_budget_summary(project_id)
+    all_items = db.list_budget_items(project_id=project_id)
+    items = all_items
+    if quarter:
+        items = [it for it in all_items if it.quarter == quarter]
 
-    table = Table(title=f"经费执行情况 (共{summary['item_count']}项)", row_styles=["none", "dim"])
-    table.add_column("ID", style="cyan", width=6)
-    table.add_column("预算科目", style="white", width=20)
+    summary = db.get_project_budget_summary(project_id)
+    filtered_total = sum(it.actual for it in items)
+    filtered_budget = sum(it.budgeted for it in items)
+    filtered_rate = (filtered_total / filtered_budget * 100) if filtered_budget else 0.0
+
+    title = f"经费执行情况 (共{summary['item_count']}项)"
+    if quarter:
+        title = f"Q{quarter}经费执行情况 (共{len(items)}项)"
+    table = Table(title=title, row_styles=["none", "dim"])
+    table.add_column("ID", style="cyan", width=5)
+    table.add_column("预算科目", style="white", width=18)
+    table.add_column("季度", style="magenta", width=6, justify="center")
     table.add_column("预算金额", style="blue", width=14, justify="right")
     table.add_column("实际支出", style="green", width=14, justify="right")
     table.add_column("执行率", style="yellow", width=12, justify="right")
@@ -1174,9 +1202,11 @@ def budget_list(
     for item in items:
         rate_color = "red" if item.has_deviation else "green"
         warn = "⚠️ 超20%" if item.has_deviation else "正常"
+        q_str = f"Q{item.quarter}" if item.quarter else "-"
         table.add_row(
             str(item.id),
             item.category,
+            q_str,
             f"¥ {item.budgeted:,.2f}",
             f"¥ {item.actual:,.2f}",
             f"[{rate_color}]{item.execution_rate:.1f}%[/{rate_color}]",
@@ -1188,11 +1218,17 @@ def budget_list(
     summary_table = Table(show_header=False, border_style="blue")
     summary_table.add_column("项目", style="cyan", width=15)
     summary_table.add_column("值", style="white")
-    summary_table.add_row("总预算", f"¥ {summary['total_budgeted']:,.2f}")
-    summary_table.add_row("总支出", f"¥ {summary['total_actual']:,.2f}")
-    summary_table.add_row("执行率", f"{summary['execution_rate']:.1f}%")
+    if quarter:
+        summary_table.add_row(f"Q{quarter}预算", f"¥ {filtered_budget:,.2f}")
+        summary_table.add_row(f"Q{quarter}支出", f"¥ {filtered_total:,.2f}")
+        summary_table.add_row(f"Q{quarter}执行率", f"{filtered_rate:.1f}%")
+        summary_table.add_row("", "")
+    summary_table.add_row("年度总预算", f"¥ {summary['total_budgeted']:,.2f}")
+    summary_table.add_row("年度总支出", f"¥ {summary['total_actual']:,.2f}")
+    summary_table.add_row("年度执行率", f"{summary['execution_rate']:.1f}%")
 
-    console.print(Panel(summary_table, title="经费汇总", border_style="blue"))
+    panel_title = "经费汇总" if not quarter else f"Q{quarter}经费汇总"
+    console.print(Panel(summary_table, title=panel_title, border_style="blue"))
 
 
 @budget_app.command("update")
@@ -1200,9 +1236,13 @@ def budget_update(
     item_id: int = typer.Argument(..., help="预算项ID"),
     budgeted: Optional[float] = typer.Option(None, "--budget", "-b", help="预算金额"),
     actual: Optional[float] = typer.Option(None, "--actual", "-a", help="实际支出"),
+    quarter: Optional[int] = typer.Option(None, "--quarter", "-q", help="所属季度 (1-4)"),
+    expenditure_date: Optional[str] = typer.Option(None, "--date", "-d", help="支出日期 (YYYY-MM-DD)"),
     notes: Optional[str] = typer.Option(None, "--notes", "-n", help="备注"),
 ):
     """更新预算执行情况"""
+    from datetime import date as date_type
+
     item = db.get_budget_item(item_id)
     if not item:
         console.print(f"[red]预算项 {item_id} 不存在[/red]")
@@ -1212,11 +1252,23 @@ def budget_update(
         item.budgeted = budgeted
     if actual is not None:
         item.actual = actual
+    if quarter is not None:
+        item.quarter = quarter
+    if expenditure_date is not None:
+            if expenditure_date == "":
+                item.expenditure_date = None
+            else:
+                try:
+                    item.expenditure_date = date_type.fromisoformat(expenditure_date)
+                except ValueError:
+                    console.print("[red]日期格式错误，应为 YYYY-MM-DD[/red]")
+                    raise typer.Exit(1)
     if notes is not None:
         item.notes = notes
 
     updated = db.update_budget_item(item)
-    console.print(f"[green]✓ 预算项 {updated.category} 更新成功[/green]")
+    quarter_info = f" (Q{updated.quarter})" if updated.quarter else ""
+    console.print(f"[green]✓ 预算项 {updated.category} 更新成功{quarter_info}[/green]")
 
 
 @budget_app.command("export")

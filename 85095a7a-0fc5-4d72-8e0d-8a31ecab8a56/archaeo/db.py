@@ -31,7 +31,7 @@ logger = get_logger(__name__)
 
 T = TypeVar("T")
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class Database:
@@ -73,7 +73,43 @@ class Database:
     def _migrate(self) -> None:
         with self.get_connection() as conn:
             conn.executescript(_SCHEMA_SQL)
+            self._apply_migrations(conn)
             self._ensure_schema_version(conn)
+
+    def _apply_migrations(self, conn: sqlite3.Connection) -> None:
+        cursor = conn.execute("PRAGMA user_version")
+        current_version = cursor.fetchone()[0]
+
+        if current_version < 2:
+            self._migrate_v1_to_v2(conn)
+
+    def _migrate_v1_to_v2(self, conn: sqlite3.Connection) -> None:
+        cols = conn.execute("PRAGMA table_info(budget_items)").fetchall()
+        col_names = [col["name"] for col in cols]
+
+        if "quarter" not in col_names:
+            conn.execute("ALTER TABLE budget_items ADD COLUMN quarter INTEGER")
+            logger.info("迁移 v1->v2: budget_items 添加 quarter 列")
+
+        if "expenditure_date" not in col_names:
+            conn.execute("ALTER TABLE budget_items ADD COLUMN expenditure_date TEXT")
+            logger.info("迁移 v1->v2: budget_items 添加 expenditure_date 列")
+
+        existing = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_budget_quarter'"
+        ).fetchone()
+        if not existing:
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_budget_quarter ON budget_items(quarter)")
+            logger.info("迁移 v1->v2: 添加 idx_budget_quarter 索引")
+
+        existing = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_budget_expenditure_date'"
+        ).fetchone()
+        if not existing:
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_budget_expenditure_date ON budget_items(expenditure_date)"
+            )
+            logger.info("迁移 v1->v2: 添加 idx_budget_expenditure_date 索引")
 
     def _ensure_schema_version(self, conn: sqlite3.Connection) -> None:
         cursor = conn.execute("PRAGMA user_version")
@@ -262,6 +298,8 @@ CREATE TABLE IF NOT EXISTS budget_items (
     category TEXT NOT NULL,
     budgeted REAL DEFAULT 0,
     actual REAL DEFAULT 0,
+    quarter INTEGER,
+    expenditure_date TEXT,
     notes TEXT DEFAULT '',
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -269,6 +307,8 @@ CREATE TABLE IF NOT EXISTS budget_items (
 );
 
 CREATE INDEX IF NOT EXISTS idx_budget_project_id ON budget_items(project_id);
+CREATE INDEX IF NOT EXISTS idx_budget_quarter ON budget_items(quarter);
+CREATE INDEX IF NOT EXISTS idx_budget_expenditure_date ON budget_items(expenditure_date);
 
 CREATE TABLE IF NOT EXISTS sync_records (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1394,18 +1434,21 @@ def create_budget_item(item: BudgetItem) -> BudgetItem:
         cursor = conn.execute(
             """
             INSERT INTO budget_items 
-            (project_id, category, budgeted, actual, notes)
-            VALUES (?, ?, ?, ?, ?)
+            (project_id, category, budgeted, actual, quarter, expenditure_date, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 item.project_id,
                 item.category,
                 item.budgeted,
                 item.actual,
+                item.quarter,
+                item.expenditure_date.isoformat() if item.expenditure_date else None,
                 item.notes,
             ),
         )
         item.id = cursor.lastrowid
+    _record_sync("budget_items", cursor.lastrowid, "INSERT", item.model_dump())
     return get_budget_item(cursor.lastrowid)
 
 
@@ -1441,7 +1484,8 @@ def update_budget_item(item: BudgetItem) -> BudgetItem:
         conn.execute(
             """
             UPDATE budget_items SET 
-                project_id = ?, category = ?, budgeted = ?, actual = ?, notes = ?,
+                project_id = ?, category = ?, budgeted = ?, actual = ?, 
+                quarter = ?, expenditure_date = ?, notes = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             """,
@@ -1450,10 +1494,13 @@ def update_budget_item(item: BudgetItem) -> BudgetItem:
                 item.category,
                 item.budgeted,
                 item.actual,
+                item.quarter,
+                item.expenditure_date.isoformat() if item.expenditure_date else None,
                 item.notes,
                 item.id,
             ),
         )
+    _record_sync("budget_items", item.id, "UPDATE", item.model_dump())
     return get_budget_item(item.id)
 
 
@@ -1482,6 +1529,12 @@ def _row_to_budget_item(row: sqlite3.Row) -> BudgetItem:
     data = _row_to_dict(row)
     data["created_at"] = _parse_datetime(data.get("created_at"))
     data["updated_at"] = _parse_datetime(data.get("updated_at"))
+    exp_date = data.get("expenditure_date")
+    if exp_date:
+        try:
+            data["expenditure_date"] = date.fromisoformat(exp_date)
+        except (ValueError, TypeError):
+            data["expenditure_date"] = None
     return BudgetItem(**data)
 
 

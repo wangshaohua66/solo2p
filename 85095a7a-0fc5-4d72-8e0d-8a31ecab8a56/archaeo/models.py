@@ -361,9 +361,24 @@ class BudgetItem(BaseModel):
     category: str = Field(..., min_length=1, max_length=100)
     budgeted: float = 0.0
     actual: float = 0.0
+    quarter: Optional[int] = None
+    expenditure_date: Optional[date] = None
     notes: str = ""
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+    @model_validator(mode="after")
+    def _derive_quarter_from_date(self) -> "BudgetItem":
+        if self.quarter is None and self.expenditure_date is not None:
+            self.quarter = (self.expenditure_date.month - 1) // 3 + 1
+        return self
+
+    @field_validator("quarter")
+    @classmethod
+    def _validate_quarter(cls, v: Optional[int]) -> Optional[int]:
+        if v is not None and (v < 1 or v > 4):
+            raise ValueError("季度必须在1-4之间")
+        return v
 
     @property
     def execution_rate(self) -> float:
