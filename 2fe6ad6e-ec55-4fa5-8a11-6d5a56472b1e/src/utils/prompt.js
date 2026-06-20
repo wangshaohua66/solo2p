@@ -25,7 +25,6 @@ function ask(question) {
  * @returns {Promise<string|null>} 输入内容；超时返回 null
  */
 async function askWithCountdown(prompt, timeoutMs) {
-  const chalk = require('chalk');
   const start = Date.now();
   let timer = null;
   let rl = null;
@@ -50,7 +49,6 @@ async function askWithCountdown(prompt, timeoutMs) {
     }, 1000);
   });
 
-  process.stdout.write(chalk.yellow.bold(prompt));
   const result = await Promise.race([inputPromise, timeoutPromise]);
   return result;
 }

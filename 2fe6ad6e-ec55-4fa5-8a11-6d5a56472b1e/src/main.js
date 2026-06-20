@@ -23,6 +23,7 @@ const cliProgress = require('cli-progress');
 const config = require('./utils/config');
 const logger = require('./utils/logger');
 const db = require('./utils/db');
+const mem = require('./utils/memory');
 const browser = require('./utils/browser');
 const auth = require('./auth/handler');
 const navigator = require('./navigator/flow');
@@ -115,16 +116,23 @@ async function runBank(bank, ctx) {
 
 async function runBankInner(bank, ctx) {
   const { runId, month, mock, bars } = ctx;
+  const def = config.getDefaults();
+  const stageTimeout = Number(def.parse_reconcile_timeout || 180000); // 解析核对3分钟独立超时
   const bar = bars[bank.code];
   let session = null;
 
   // 阶段1：登录
   logger.stage(bank.code, '登录中');
   if (bar) bar.update(1, { bank: pad(bank.code, 8), stage: '登录中' });
+  mem.check(`${bank.code}-登录`);
 
   let file;
   if (mock) {
+    // 阶段2：导出（mock 模式生成样本文件）
+    logger.stage(bank.code, '导出中');
+    if (bar) bar.update(2, { bank: pad(bank.code, 8), stage: '导出中' });
     file = generator.generateStatement(bank, month);
+    mem.check(`${bank.code}-导出`);
     await sleep(120);
   } else {
     session = await browser.createSession(bank.code);
@@ -147,22 +155,36 @@ async function runBankInner(bank, ctx) {
     file = navRes.file;
   }
 
-  // 阶段3：解析
+  // 阶段3：解析（独立3分钟超时 + 内存监控）
   logger.stage(bank.code, '解析中');
   if (bar) bar.update(3, { bank: pad(bank.code, 8), stage: '解析中' });
   const tParse = Date.now();
-  const extracted = await extractor.extract(file, bank);
-  const records = mapper.normalize(extracted.rows, bank, runId);
-  if (records.length) await db.insertRecords(records);
+  const records = await withTimeout(
+    (async () => {
+      const extracted = await extractor.extract(file, bank);
+      mem.check(`${bank.code}-解析后`);
+      const recs = mapper.normalize(extracted.rows, bank, runId);
+      mem.check(`${bank.code}-标准化后`);
+      if (recs.length) await db.insertRecords(recs);
+      return recs;
+    })(),
+    stageTimeout,
+    `银行 ${bank.code} 解析超时(${stageTimeout}ms)`
+  );
   logger.debug(`[${bank.code}] 解析 ${records.length} 条，耗时 ${Date.now() - tParse}ms`, `[${bank.code}]`);
 
-  // 阶段4：核对（实时告警）
+  // 阶段4：核对（独立3分钟超时 + 实时告警 + 内存监控）
   logger.stage(bank.code, '核对中');
   if (bar) bar.update(4, { bank: pad(bank.code, 8), stage: '核对中' });
   const tRecon = Date.now();
-  const { summary } = await engine.reconcile(records, {
-    runId, month, onException: notifier.alertException,
-  });
+  const { summary } = await withTimeout(
+    engine.reconcile(records, {
+      runId, month, onException: notifier.alertException,
+    }),
+    stageTimeout,
+    `银行 ${bank.code} 核对超时(${stageTimeout}ms)`
+  );
+  mem.check(`${bank.code}-核对后`);
   logger.debug(`[${bank.code}] 核对耗时 ${Date.now() - tRecon}ms`, `[${bank.code}]`);
 
   if (bar) bar.update(4, { bank: pad(bank.code, 8), stage: '完成' });
@@ -173,7 +195,7 @@ async function runBankInner(bank, ctx) {
 function aggregate(results) {
   const summary = {
     total: 0, matched: 0, overdue: 0, partial: 0, early: 0, rate_change: 0, unmatched: 0,
-    overdueAmount: 0, partialAmount: 0, byBank: {},
+    overdueAmount: 0, partialAmount: 0, penaltyTotal: 0, byBank: {},
     bankResults: [],
   };
   for (const r of results) {
@@ -189,6 +211,7 @@ function aggregate(results) {
     summary.unmatched += s.unmatched;
     summary.overdueAmount += s.overdueAmount || 0;
     summary.partialAmount += s.partialAmount || 0;
+    summary.penaltyTotal += s.penaltyTotal || 0;
     for (const [code, bs] of Object.entries(s.byBank || {})) {
       summary.byBank[code] = summary.byBank[code] || { total: 0, matched: 0, exceptions: 0, dueTotal: 0, actualTotal: 0 };
       summary.byBank[code].total += bs.total;
@@ -200,6 +223,7 @@ function aggregate(results) {
   }
   summary.overdueAmount = Math.round(summary.overdueAmount * 100) / 100;
   summary.partialAmount = Math.round(summary.partialAmount * 100) / 100;
+  summary.penaltyTotal = Math.round(summary.penaltyTotal * 100) / 100;
   return summary;
 }
 
@@ -238,6 +262,7 @@ function printSummaryTable(results, summary) {
   ));
   console.log(chalk.gray('─'.repeat(78)));
   console.log(chalk.red.bold(`逾期未还金额合计: ${fmtMoney(summary.overdueAmount)} 元`));
+  console.log(chalk.red.bold(`逾期罚息合计: ${fmtMoney(summary.penaltyTotal)} 元`));
   console.log(chalk.yellow.bold(`部分还款差额合计: ${fmtMoney(summary.partialAmount)} 元`));
   console.log();
 }
@@ -260,6 +285,7 @@ async function main() {
   const globalTimeout = Number(def.global_timeout || 1200000);
 
   logger.success(`启动核对任务 运行ID=${runId} 月份=${args.month} 银行数=${banks.length} 模拟=${args.mock}`);
+  mem.setLimit(def.memory_limit_mb || 512);
   db.open();
   await db.clearRun(runId);
 
@@ -299,6 +325,8 @@ async function main() {
   multibar.stop();
 
   const summary = aggregate(results);
+  // 加载本运行的所有异常明细供报告使用
+  summary.exceptions = await db.exceptionsByRun(runId);
   // 月度报告
   try {
     const reportFile = await notifier.sendMonthlyReport(runId, summary, args.month);
@@ -308,6 +336,9 @@ async function main() {
   }
 
   printSummaryTable(results, summary);
+
+  const ms = mem.summary();
+  logger.info(`内存峰值监控: heapUsed=${ms.heapUsed}MB rss=${ms.rss}MB peak=${ms.peak}MB 上限=${ms.limit}MB`);
 
   logger.success(`全部完成，总耗时 ${((Date.now() - tStart) / 1000).toFixed(1)}s`);
   await db.close();

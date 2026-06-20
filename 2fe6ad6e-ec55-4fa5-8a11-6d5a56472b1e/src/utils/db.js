@@ -59,6 +59,7 @@ const SCHEMA = [
     due_date TEXT,
     repay_date TEXT,
     overdue_days INTEGER DEFAULT 0,
+    penalty_amount REAL DEFAULT 0,
     detail TEXT,
     notified INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now','localtime'))
@@ -80,9 +81,15 @@ const INDEXES = [
   `CREATE INDEX IF NOT EXISTS idx_plans_month ON repayment_plans(month)`,
   `CREATE INDEX IF NOT EXISTS idx_records_bank_date ON repayment_records(bank_code, repay_date)`,
   `CREATE INDEX IF NOT EXISTS idx_records_contract ON repayment_records(contract_no)`,
+  `CREATE INDEX IF NOT EXISTS idx_records_run_id ON repayment_records(run_id)`,
   `CREATE INDEX IF NOT EXISTS idx_exceptions_type ON repayment_exceptions(type, run_id)`,
   `CREATE INDEX IF NOT EXISTS idx_exceptions_bank ON repayment_exceptions(bank_code, contract_no)`,
   `CREATE INDEX IF NOT EXISTS idx_changelog_bank ON page_change_logs(bank_code, flagged)`,
+];
+
+// 已有库的结构迁移（CREATE TABLE IF NOT EXISTS 不会补列）
+const MIGRATIONS = [
+  `ALTER TABLE repayment_exceptions ADD COLUMN penalty_amount REAL DEFAULT 0`,
 ];
 
 function resolveDbPath() {
@@ -101,6 +108,8 @@ function open() {
   _db.serialize(() => {
     for (const sql of SCHEMA) _db.run(sql);
     for (const sql of INDEXES) _db.run(sql);
+    // 结构迁移：ALTER TABLE 在列已存在时报错，静默忽略
+    for (const sql of MIGRATIONS) _db.run(sql, () => {});
   });
   logger.success(`SQLite 已就绪: ${_dbPath}`);
   return _db;
@@ -187,24 +196,46 @@ function insertRecords(records) {
 
 function insertException(ex) {
   const sql = `INSERT INTO repayment_exceptions
-    (run_id,bank_code,contract_no,borrower_name,period,type,due_amount,actual_amount,due_date,repay_date,overdue_days,detail,notified)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,0)`;
+    (run_id,bank_code,contract_no,borrower_name,period,type,due_amount,actual_amount,due_date,repay_date,overdue_days,penalty_amount,detail,notified)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,0)`;
   return run(sql, [
     ex.run_id, ex.bank_code, ex.contract_no, ex.borrower_name, ex.period,
     ex.type, ex.due_amount, ex.actual_amount, ex.due_date, ex.repay_date,
-    ex.overdue_days || 0, ex.detail,
+    ex.overdue_days || 0, ex.penalty_amount || 0, ex.detail,
   ]);
 }
 
-function recordPageChange(bankCode, locator, stepDesc, screenshotPath) {
-  const sql = `INSERT INTO page_change_logs (bank_code, locator, step_desc, screenshot_path)
-    VALUES (?,?,?,?)`;
-  return run(sql, [bankCode, locator, stepDesc, screenshotPath]);
+async function recordPageChange(bankCode, locator, stepDesc, screenshotPath) {
+  const db = open();
+  return new Promise((resolve, reject) => {
+    db.serialize(() => {
+      db.get(
+        `SELECT id, fail_count FROM page_change_logs WHERE bank_code=? AND locator=? AND flagged=0 ORDER BY id DESC LIMIT 1`,
+        [bankCode, locator],
+        (err, row) => {
+          if (err) return reject(err);
+          if (row) {
+            db.run(
+              `UPDATE page_change_logs SET fail_count=fail_count+1, occurred_at=datetime('now','localtime') WHERE id=?`,
+              [row.id],
+              (e2) => (e2 ? reject(e2) : resolve({ lastID: row.id, changes: 1 }))
+            );
+          } else {
+            db.run(
+              `INSERT INTO page_change_logs (bank_code, locator, step_desc, screenshot_path, fail_count) VALUES (?,?,?,?,1)`,
+              [bankCode, locator, stepDesc, screenshotPath],
+              function (e2) { if (e2) return reject(e2); resolve({ lastID: this.lastID, changes: 1 }); }
+            );
+          }
+        }
+      );
+    });
+  });
 }
 
 function locatorFailCount(bankCode, locator) {
   return get(
-    `SELECT SUM(fail_count) AS total FROM page_change_logs WHERE bank_code=? AND locator=? AND resolved=0`,
+    `SELECT SUM(fail_count) AS total FROM page_change_logs WHERE bank_code=? AND locator=? AND flagged=0`,
     [bankCode, locator]
   ).then((r) => (r && r.total) || 0);
 }

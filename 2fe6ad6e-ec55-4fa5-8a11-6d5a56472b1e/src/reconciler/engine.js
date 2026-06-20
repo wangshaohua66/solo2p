@@ -16,6 +16,25 @@ const logger = require('../utils/logger');
 const log = logger.forBank('RECONCILE');
 
 const TOLERANCE = 0.01; // 金额容差（元）
+const PENALTY_RATE_MULTIPLIER = 1.5; // 罚息倍数：约定利率的1.5倍
+const DAYS_PER_YEAR = 360; // 银行业计息天数基数
+
+/**
+ * 计算逾期罚息金额
+ * 罚息 = 逾期本金 × 逾期天数 × (约定利率 / DAYS_PER_YEAR) × 罚息倍数
+ * @param {number} principal 逾期本金（应还本金）
+ * @param {number} overdueDays 逾期天数
+ * @param {number} rate 约定年利率（百分比，如3.25表示3.25%）
+ * @returns {number} 罚息金额（元，保留两位小数）
+ */
+function calcPenalty(principal, overdueDays, rate) {
+  const p = Number(principal) || 0;
+  const d = Number(overdueDays) || 0;
+  const r = Number(rate) || 0;
+  if (p <= 0 || d <= 0 || r <= 0) return 0;
+  const penalty = p * d * (r / 100) / DAYS_PER_YEAR * PENALTY_RATE_MULTIPLIER;
+  return Math.round(penalty * 100) / 100;
+}
 
 /**
  * @param {Array<object>} records 标准化还款记录
@@ -32,7 +51,7 @@ async function reconcile(records, opts) {
     total: records.length,
     matched: 0,
     overdue: 0, partial: 0, early: 0, rate_change: 0, unmatched: 0,
-    overdueAmount: 0, partialAmount: 0,
+    overdueAmount: 0, partialAmount: 0, penaltyTotal: 0,
     byBank: {},
   };
 
@@ -61,16 +80,19 @@ async function reconcile(records, opts) {
     summary.byBank[bc].dueTotal = round2(summary.byBank[bc].dueTotal + dueTotal);
     summary.byBank[bc].actualTotal = round2(summary.byBank[bc].actualTotal + actual);
 
-    // 1) 逾期还款
+    // 1) 逾期还款：实还日期晚于应还日期，计算罚息
     if (dueDate && rec.repay_date && rec.repay_date > dueDate) {
       const overdueDays = daysBetween(dueDate, rec.repay_date);
+      const penalty = calcPenalty(plan.due_principal || 0, overdueDays, plan.rate || rec.rate || 0);
       summary.overdue++;
       summary.overdueAmount += Math.max(0, dueTotal - actual);
+      summary.penaltyTotal += penalty;
       const ex = makeException(rec, 'overdue', runId, {
         due_amount: dueTotal, actual_amount: actual,
         due_date: dueDate, repay_date: rec.repay_date,
         overdue_days: overdueDays,
-        detail: `逾期 ${overdueDays} 天，应还 ${dueTotal} 元，实还 ${actual} 元`,
+        penalty_amount: penalty,
+        detail: `逾期 ${overdueDays} 天，应还 ${dueTotal} 元，实还 ${actual} 元，罚息 ${penalty} 元（利率${plan.rate || rec.rate}%×1.5倍）`,
       });
       exceptions.push(ex);
       await emit(ex, onException);
@@ -89,16 +111,15 @@ async function reconcile(records, opts) {
       await emit(ex, onException);
     }
 
-    // 3) 提前还款（实还大于应还且标记提前结清）
+    // 3) 提前还款：实还金额大于应还金额且合同号标记提前结清
     if (actual > dueTotal + TOLERANCE) {
-      const isEarly = plan.early_settlement === 1 || plan.early_settlement === true ||
-        actual >= round2((plan.due_principal || 0)) * 1.5;
+      const isEarly = plan.early_settlement === 1 || plan.early_settlement === true;
       if (isEarly) {
         summary.early++;
         const ex = makeException(rec, 'early', runId, {
           due_amount: dueTotal, actual_amount: actual,
           due_date: dueDate, repay_date: rec.repay_date,
-          detail: `提前还款，实还 ${actual} 元超出应还 ${dueTotal} 元`,
+          detail: `提前还款，实还 ${actual} 元超出应还 ${dueTotal} 元（合同标记提前结清）`,
         });
         exceptions.push(ex);
         await emit(ex, onException);
@@ -133,7 +154,8 @@ async function reconcile(records, opts) {
 
   summary.overdueAmount = round2(summary.overdueAmount);
   summary.partialAmount = round2(summary.partialAmount);
-  log.info(`核对完成: 共 ${summary.total} 条，匹配 ${summary.matched}，逾期 ${summary.overdue}，部分 ${summary.partial}，提前 ${summary.early}，利率调整 ${summary.rate_change}，未匹配 ${summary.unmatched}`);
+  summary.penaltyTotal = round2(summary.penaltyTotal);
+  log.info(`核对完成: 共 ${summary.total} 条，匹配 ${summary.matched}，逾期 ${summary.overdue}（罚息 ${summary.penaltyTotal} 元），部分 ${summary.partial}，提前 ${summary.early}，利率调整 ${summary.rate_change}，未匹配 ${summary.unmatched}`);
   return { summary, exceptions };
 }
 
@@ -176,6 +198,7 @@ function makeException(rec, type, runId, extra) {
     due_date: extra.due_date || null,
     repay_date: extra.repay_date || null,
     overdue_days: extra.overdue_days || 0,
+    penalty_amount: extra.penalty_amount || 0,
     detail: extra.detail || '',
   };
 }

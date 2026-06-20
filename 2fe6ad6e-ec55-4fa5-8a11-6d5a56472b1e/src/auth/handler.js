@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * 多银行网银自动化登录处理器
+ * 多银行网银自动化登录处理器（WebdriverIO 8.x）
  * 职责：
  *  1) U盾插入检测与PIN码自动填充
  *  2) 短信验证码倒计时等待与人工输入提示
@@ -10,22 +10,21 @@
  *  5) 每银行独立登录会话生命周期
  */
 
-const { By, until } = require('selenium-webdriver');
 const { exec } = require('child_process');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
 
 const logger = require('../utils/logger');
 const { getDefaults, envValue } = require('../utils/config');
-const { takeScreenshot, toBy, waitFor } = require('../utils/browser');
+const { takeScreenshot, toSelector, waitFor } = require('../utils/browser');
 const { askWithCountdown } = require('../utils/prompt');
 const { recordPageChange } = require('../utils/db');
 
 class AuthHandler {
   /**
    * @param {object} bank 银行配置（来自 banks.yml）
-   * @param {import('selenium-webdriver').WebDriver} driver
-   * @param {object} session 浏览器会话 { driver, downloadDir }
+   * @param {object} driver WebdriverIO browser 实例
+   * @param {object} session 浏览器会话 { browser, driver, downloadDir }
    */
   constructor(bank, driver, session) {
     this.bank = bank;
@@ -73,14 +72,14 @@ class AuthHandler {
   async _navigate() {
     const url = this.bank.base_url;
     this.log.debug(`打开登录页: ${url}`);
-    await this.driver.get(url);
+    await this.driver.url(url);
     await waitFor(this.driver, this.bank.login.username_locator, 15000);
   }
 
   async _resetPage() {
     try {
-      await this.driver.navigate().refresh();
-      await this.driver.sleep(800);
+      await this.driver.refresh();
+      await this.driver.pause(800);
     } catch (_) { /* ignore */ }
   }
 
@@ -91,12 +90,12 @@ class AuthHandler {
       throw new Error(`缺少凭据环境变量 ${this.bank.code}_USERNAME / ${this.bank.code}_PASSWORD`);
     }
     const uEl = await waitFor(this.driver, this.bank.login.username_locator, 10000);
-    await uEl.clear();
-    await uEl.sendKeys(user);
+    await uEl.clearValue();
+    await uEl.setValue(user);
 
     const pEl = await waitFor(this.driver, this.bank.login.password_locator, 10000);
-    await pEl.clear();
-    await pEl.sendKeys(pass);
+    await pEl.clearValue();
+    await pEl.setValue(pass);
     this.log.debug('账号密码已填充');
   }
 
@@ -111,7 +110,6 @@ class AuthHandler {
     this.log.success('U盾已检测到');
     const pin = envValue(ukey.pin_env);
     if (!pin) {
-      // PIN 缺失则提示人工输入
       const input = await askWithCountdown(`\n请输入 ${this.bank.name} U盾PIN码: `, 60000);
       if (!input) throw new Error('U盾PIN码输入超时');
       await this._enterPin(input, ukey);
@@ -128,7 +126,6 @@ class AuthHandler {
       return true;
     } catch (e) {
       this.log.debug(`U盾检测命令返回: ${e.message}`);
-      // 命令未命中设备文件时返回非0，视为未检测到；可降级为询问
       const answer = await askWithCountdown(
         `\n请确认 ${this.bank.name} U盾是否已插入 (y/n): `, 30000);
       return answer === 'y';
@@ -137,8 +134,8 @@ class AuthHandler {
 
   async _enterPin(pin, ukey) {
     const pinEl = await waitFor(this.driver, ukey.pin_locator, 10000);
-    await pinEl.clear();
-    await pinEl.sendKeys(pin);
+    await pinEl.clearValue();
+    await pinEl.setValue(pin);
     if (ukey.confirm_locator) {
       const ok = await waitFor(this.driver, ukey.confirm_locator, 10000);
       await ok.click();
@@ -155,7 +152,6 @@ class AuthHandler {
     if (this.bank.auth_type !== 'sms') return;
     const sms = this.bank.login.sms;
     if (!sms) return;
-    // 触发发送
     try {
       const trigger = await waitFor(this.driver, sms.trigger_locator, 8000);
       await trigger.click();
@@ -169,8 +165,8 @@ class AuthHandler {
     );
     if (!code) throw new Error('短信验证码输入超时');
     const codeEl = await waitFor(this.driver, sms.code_locator, 10000);
-    await codeEl.clear();
-    await codeEl.sendKeys(code);
+    await codeEl.clearValue();
+    await codeEl.setValue(code);
     this.log.debug('短信验证码已填入');
   }
 
@@ -182,19 +178,16 @@ class AuthHandler {
     if (!slider) return;
     let present = false;
     try {
-      await this.driver.wait(
-        until.elementLocated(toBy(slider.detect_locator)),
-        3000
-      );
-      present = true;
-    } catch (_) { /* 滑块未出现，跳过 */ }
+      const sel = toSelector(slider.detect_locator);
+      const el = await this.driver.$(sel);
+      present = await el.isExisting();
+    } catch (_) { present = false; }
     if (!present) return;
 
     this.log.warn('检测到滑块验证码，已截图，请在浏览器窗口手动完成滑动');
     const shot = await takeScreenshot(this.driver, this.bank.code, 'slider-captcha');
     if (shot) this.log.info(`滑块截图: ${shot}`);
 
-    // 尝试自动滑动一次（简单平移），失败则等待人工
     const autoOk = await this._tryAutoSlide(slider);
     if (autoOk) return;
 
@@ -208,17 +201,21 @@ class AuthHandler {
   async _tryAutoSlide(slider) {
     try {
       const track = await waitFor(this.driver, slider.track_locator, 3000);
-      const { ActionSequence, Button } = require('selenium-webdriver/lib/input');
-      const actions = this.driver.actions({ async: true });
-      await actions.move({ origin: track }).press().move({ origin: track, x: 260, y: 0 }).release().perform();
-      await this.driver.sleep(1500);
-      // 检测滑块是否仍可见
-      try {
-        await this.driver.findElement(toBy(slider.detect_locator));
-        return false; // 仍可见，自动滑动失败
-      } catch (_) {
-        return true;
+      const rect = await track.getSize();
+      const action = this.driver.action('pointer', { parameters: { pointerType: 'mouse' } });
+      await action.move({ origin: track, x: 0, y: 0 });
+      await action.down();
+      // 分段移动模拟人工拖动
+      for (let i = 0; i < 5; i++) {
+        await action.move({ origin: track, x: Math.round(rect.width * (0.2 + i * 0.15)), y: 2 });
       }
+      await action.up();
+      await action.perform();
+      await this.driver.pause(1500);
+      const sel = toSelector(slider.detect_locator);
+      const el = await this.driver.$(sel);
+      const stillVisible = await el.isExisting();
+      return !stillVisible;
     } catch (e) {
       this.log.debug(`自动滑动失败: ${e.message}`);
       return false;
@@ -230,10 +227,12 @@ class AuthHandler {
     if (!ind) return true;
     const timeout = this.bank.login.success_timeout || 30000;
     try {
-      await this.driver.wait(until.elementLocated(toBy(ind)), timeout);
+      const sel = toSelector(ind);
+      const el = await this.driver.$(sel);
+      await el.waitForExist({ timeout });
+      await el.waitForDisplayed({ timeout });
       return true;
     } catch (e) {
-      // 可能是页面结构变更导致成功标识定位失败，记录变更日志
       await recordPageChange(
         this.bank.code,
         JSON.stringify(ind),
@@ -248,7 +247,7 @@ class AuthHandler {
 /**
  * 对外入口：完成单银行登录
  * @param {object} bank 银行配置
- * @param {import('selenium-webdriver').WebDriver} driver
+ * @param {object} driver WebdriverIO browser 实例
  * @param {object} session 浏览器会话
  */
 async function login(bank, driver, session) {

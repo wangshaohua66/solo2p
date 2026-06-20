@@ -1,0 +1,31 @@
+[2026-06-21 05:01:18] [WARN] 未识别到表头行，回退为逐行键值解析
+[2026-06-21 05:01:18] [WARN] 未识别到表头行，回退为逐行键值解析
+[2026-06-21 05:01:27] [WARN] 未识别到表头行，回退为逐行键值解析
+[2026-06-21 05:01:27] [WARN] 未识别到表头行，回退为逐行键值解析
+[2026-06-21 05:02:24] [WARN] 未识别到表头行，回退为逐行键值解析
+[2026-06-21 05:02:24] [WARN] 未识别到表头行，回退为逐行键值解析
+[2026-06-21 05:11:05] [DEBUG] PDF 解析: /Users/paul/WorkSpace/TestSoloCoder/2fe6ad6e-ec55-4fa5-8a11-6d5a56472b1e/downloads/BOC/mock_BOC_2026-05.pdf
+[2026-06-21 05:11:06] [DEBUG] 表头行索引=0 useKeyMap=true allLines=9
+[2026-06-21 05:11:06] [DEBUG] 首行文本="borrower_name contract_no period due_principal due_interest actual_amount repay_date"
+[2026-06-21 05:11:31] [DEBUG] PDF 解析: /Users/paul/WorkSpace/TestSoloCoder/2fe6ad6e-ec55-4fa5-8a11-6d5a56472b1e/downloads/BOC/mock_BOC_2026-05.pdf
+[2026-06-21 05:11:31] [DEBUG] 表头行索引=0 useKeyMap=true allLines=9
+[2026-06-21 05:11:31] [DEBUG] 首行文本="borrower_name contract_no period due_principal due_interest actual_amount repay_date"
+[2026-06-21 05:11:32] [DEBUG] 数据行[1] tokens=0 buckets=[] nonEmpty=0
+[2026-06-21 05:11:32] [DEBUG] 数据行[2] tokens=0 buckets=[] nonEmpty=0
+[2026-06-21 05:11:32] [DEBUG] 数据行[3] tokens=0 buckets=[] nonEmpty=0
+[2026-06-21 05:11:32] [DEBUG] 数据行[4] tokens=0 buckets=[] nonEmpty=0
+[2026-06-21 05:11:32] [DEBUG] 数据行[5] tokens=0 buckets=[] nonEmpty=0
+[2026-06-21 05:11:32] [DEBUG] 数据行[6] tokens=0 buckets=[] nonEmpty=0
+[2026-06-21 05:11:32] [DEBUG] 数据行[7] tokens=0 buckets=[] nonEmpty=0
+[2026-06-21 05:11:32] [DEBUG] 数据行[8] tokens=0 buckets=[] nonEmpty=0
+[2026-06-21 05:11:55] [DEBUG] PDF 解析: /Users/paul/WorkSpace/TestSoloCoder/2fe6ad6e-ec55-4fa5-8a11-6d5a56472b1e/downloads/BOC/mock_BOC_2026-05.pdf
+[2026-06-21 05:11:55] [DEBUG] 表头行索引=0 useKeyMap=true allLines=9
+[2026-06-21 05:11:55] [DEBUG] 首行文本="borrower_name contract_no period due_principal due_interest actual_amount repay_date"
+[2026-06-21 05:11:55] [DEBUG] 数据行[1] tokens=7 buckets=["… ‚","AJ-2024-0001","1","3000","1500","4500","2026/05/20"] nonEmpty=7
+[2026-06-21 05:11:55] [DEBUG] 数据行[2] tokens=6 buckets=["","AJ-2024-0002","1","4000","1800","5800","2026/05/24"] nonEmpty=6
+[2026-06-21 05:11:55] [DEBUG] 数据行[3] tokens=7 buckets=["”","AJ-2024-0003","1","2500","1200","3500","2026/05/15"] nonEmpty=7
+[2026-06-21 05:11:55] [DEBUG] 数据行[4] tokens=8 buckets=["Ł ›","AJ-2024-0004","1","5000","2000","12600","2026/05/08"] nonEmpty=7
+[2026-06-21 05:11:55] [DEBUG] 数据行[5] tokens=7 buckets=["Ø – ‚","AJ-2024-0005","2","3000","1400","4400","2026/05/20"] nonEmpty=7
+[2026-06-21 05:11:55] [DEBUG] 数据行[6] tokens=8 buckets=["› «","AJ-2024-0006","1","3500","1600","5100","2026/05/22"] nonEmpty=7
+[2026-06-21 05:11:55] [DEBUG] 数据行[7] tokens=7 buckets=["¤ „","AJ-2024-0007","1","4200","1900","6100","2026/05/22"] nonEmpty=7
+[2026-06-21 05:11:55] [DEBUG] 数据行[8] tokens=7 buckets=["·","AJ-2024-0008","1","2800","1300","4100","2026/05/25"] nonEmpty=7

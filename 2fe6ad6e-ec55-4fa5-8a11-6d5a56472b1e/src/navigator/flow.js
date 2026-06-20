@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * 流水导出路径智能导航
+ * 流水导出路径智能导航（WebdriverIO 8.x）
  * 职责：
  *  1) 按 banks.yml 配置的菜单层级逐层点击/悬停
  *  2) 支持动态菜单（悬停展开、AJAX 加载等待），每层 15 秒元素超时
@@ -9,13 +9,12 @@
  *  4) 页面变更自适应检测：连续3次定位失败则标记银行需更新配置并告警运维
  */
 
-const { until, By } = require('selenium-webdriver');
 const fs = require('fs');
 const path = require('path');
 
 const logger = require('../utils/logger');
 const { getDefaults } = require('../utils/config');
-const { takeScreenshot, toBy, waitFor } = require('../utils/browser');
+const { takeScreenshot, toSelector, waitFor } = require('../utils/browser');
 const db = require('../utils/db');
 
 const chalk = require('chalk');
@@ -31,7 +30,7 @@ class Navigator {
 
   /**
    * 执行全部菜单导航并触发导出，等待下载文件就绪
-   * @returns {Promise<{success:boolean, file?:string, error?:string, completedSteps:number}>}
+   * @returns {Promise<{success:boolean, file?:string, error?:string, completedSteps:number, flagged?:boolean}>}
    */
   async navigateAndExport() {
     const steps = (this.bank.export && this.bank.export.path) || [];
@@ -56,18 +55,17 @@ class Navigator {
           success: false,
           error: `导航第 ${i + 1} 步[${step.desc}]失败: ${e.message}`,
           completedSteps: i,
+          flagged,
         };
       }
     }
 
-    // 部分银行点击导出按钮后弹出二次确认框
     try {
       await this._confirmExport();
     } catch (e) {
       this.log.debug(`导出确认框处理: ${e.message}`);
     }
 
-    // 等待文件下载完成
     try {
       const file = await this._waitForDownload(beforeFiles);
       this.log.success(`流水文件已下载: ${path.basename(file)}`);
@@ -79,16 +77,19 @@ class Navigator {
   }
 
   async _executeStep(step) {
-    const by = toBy(step.target);
-    const el = await this.driver.wait(until.elementLocated(by), this.elementTimeout, `元素未出现: ${JSON.stringify(step.target)}`);
-    await this.driver.wait(until.elementIsVisible(el), this.elementTimeout);
+    const selector = toSelector(step.target);
+    const el = await this.driver.$(selector);
+    await el.waitForExist({ timeout: this.elementTimeout, timeoutMsg: `元素未出现: ${JSON.stringify(step.target)}` });
+    await el.waitForDisplayed({ timeout: this.elementTimeout });
+    await el.scrollIntoView();
 
     const action = String(step.action || 'click').toLowerCase();
     if (action === 'hover') {
-      // 悬停展开动态菜单
-      const actions = this.driver.actions({ async: true });
-      await actions.move({ origin: el }).perform();
-      await this.driver.sleep(400); // 等待 JS 展开动画
+      // 悬停展开动态菜单（WebdriverIO pointer move）
+      const pointer = this.driver.action('pointer', { parameters: { pointerType: 'mouse' } });
+      await pointer.move({ origin: el });
+      await pointer.perform();
+      await this.driver.pause(400);
       this.log.debug(`悬停: ${step.desc}`);
     } else {
       await el.click();
@@ -97,11 +98,9 @@ class Navigator {
 
     // 等待 AJAX/动态内容加载
     if (step.wait_for) {
-      await this.driver.wait(
-        until.elementLocated(toBy(step.wait_for)),
-        this.elementTimeout,
-        `等待元素未出现: ${JSON.stringify(step.wait_for)}`
-      );
+      const wfSel = toSelector(step.wait_for);
+      const wfEl = await this.driver.$(wfSel);
+      await wfEl.waitForExist({ timeout: this.elementTimeout, timeoutMsg: `等待元素未出现: ${JSON.stringify(step.wait_for)}` });
     }
   }
 
@@ -109,7 +108,9 @@ class Navigator {
     const confirm = this.bank.export && this.bank.export.export_confirm;
     if (!confirm) return;
     try {
-      const el = await this.driver.wait(until.elementLocated(toBy(confirm)), 5000);
+      const sel = toSelector(confirm);
+      const el = await this.driver.$(sel);
+      await el.waitForExist({ timeout: 5000 });
       await el.click();
       this.log.debug('已点击导出确认');
     } catch (e) {
@@ -144,10 +145,9 @@ class Navigator {
           if (beforeFiles.has(f)) continue;
           if (f.endsWith('.crdownload') || f.endsWith('.tmp') || f.endsWith('.part')) {
             candidate = null;
-            break; // 仍在下载中
+            break;
           }
           if (fmt && !f.toLowerCase().endsWith(`.${fmt}`)) {
-            // 格式不匹配但属于新文件，仍记录候选（部分银行压缩包等）
             candidate = candidate || f;
             continue;
           }
@@ -195,7 +195,10 @@ class Navigator {
     let firstBad = null;
     for (const step of steps) {
       try {
-        await this.driver.wait(until.elementLocated(toBy(step.target)), 2000);
+        const sel = toSelector(step.target);
+        const el = await this.driver.$(sel);
+        const exists = await el.isExisting();
+        if (!exists) { firstBad = step; break; }
       } catch (_) {
         firstBad = step;
         break;

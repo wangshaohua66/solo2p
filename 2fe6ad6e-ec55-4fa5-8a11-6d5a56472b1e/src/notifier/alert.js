@@ -91,7 +91,7 @@ function buildReportWorkbook(runId, summary, month) {
   const exRows = (summary.exceptions || []).map((e) => ({
     银行: e.bank_code, 合同号: e.contract_no, 借款人: e.borrower_name,
     期次: e.period, 异常类型: e.type, 应还金额: e.due_amount, 实还金额: e.actual_amount,
-    应还日期: e.due_date, 实还日期: e.repay_date, 逾期天数: e.overdue_days, 说明: e.detail,
+    应还日期: e.due_date, 实还日期: e.repay_date, 逾期天数: e.overdue_days, 罚息金额: e.penalty_amount, 说明: e.detail,
   }));
   const ws1 = XLSX.utils.json_to_sheet(exRows.length ? exRows : [{ 提示: '本期无异常' }]);
   XLSX.utils.book_append_sheet(wb, ws1, '异常明细');
@@ -116,6 +116,7 @@ function buildReportWorkbook(runId, summary, month) {
     { 指标: '匹配记录数', 数值: summary.matched },
     { 指标: '逾期笔数', 数值: summary.overdue },
     { 指标: '逾期未还金额_元', 数值: summary.overdueAmount },
+    { 指标: '逾期罚息合计_元', 数值: summary.penaltyTotal },
     { 指标: '部分还款笔数', 数值: summary.partial },
     { 指标: '部分还款差额_元', 数值: summary.partialAmount },
     { 指标: '提前还款笔数', 数值: summary.early },

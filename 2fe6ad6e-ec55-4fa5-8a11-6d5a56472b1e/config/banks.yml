@@ -15,6 +15,10 @@ defaults:
   login_max_retry: 3
   # 8家银行并行总耗时上限（毫秒）= 20分钟
   global_timeout: 1200000
+  # 解析与核对阶段独立超时（毫秒）= 3分钟
+  parse_reconcile_timeout: 180000
+  # 内存占用峰值上限（MB），超过中止并告警
+  memory_limit_mb: 512
   # 下载文件就绪轮询间隔（毫秒）
   download_poll_interval: 1000
   # 下载文件就绪超时（毫秒）
