@@ -1,0 +1,169 @@
+{
+  "stations": [
+    {
+      "id": "54398",
+      "name": "北京朝阳站",
+      "latitude": 39.9288,
+      "longitude": 116.4472,
+      "elevation": 35.0,
+      "instrument_model": "CAWS600",
+      "timezone": "Asia/Shanghai",
+      "csv_column_mapping": {
+        "obs_time": "观测时间",
+        "temperature": "气温",
+        "pressure": "气压",
+        "relative_humidity": "相对湿度",
+        "wind_speed": "风速",
+        "wind_direction": "风向",
+        "precipitation": "降水量",
+        "visibility": "能见度"
+      },
+      "unit_mapping": {
+        "temperature": "C",
+        "pressure": "hPa",
+        "relative_humidity": "%",
+        "wind_speed": "m/s",
+        "wind_direction": "deg",
+        "precipitation": "mm",
+        "visibility": "m"
+      },
+      "neighbors": ["54401", "54511"],
+      "qc_thresholds": {
+        "temporal_temperature": 5.0,
+        "temporal_pressure": 10.0,
+        "spatial_temperature": 3.0,
+        "persistence_temperature": 6.0
+      }
+    },
+    {
+      "id": "54401",
+      "name": "北京海淀站",
+      "latitude": 39.9847,
+      "longitude": 116.3042,
+      "elevation": 50.0,
+      "instrument_model": "CAWS600",
+      "timezone": "Asia/Shanghai",
+      "csv_column_mapping": {
+        "obs_time": "时间",
+        "temperature": "温度",
+        "pressure": "气压",
+        "relative_humidity": "湿度",
+        "wind_speed": "风速",
+        "wind_direction": "风向",
+        "precipitation": "雨量",
+        "visibility": "能见度"
+      },
+      "unit_mapping": {
+        "temperature": "C",
+        "pressure": "hPa",
+        "relative_humidity": "%",
+        "wind_speed": "m/s",
+        "wind_direction": "deg",
+        "precipitation": "mm",
+        "visibility": "m"
+      },
+      "neighbors": ["54398", "54511"],
+      "qc_thresholds": {}
+    },
+    {
+      "id": "54511",
+      "name": "北京观象台",
+      "latitude": 39.8061,
+      "longitude": 116.4647,
+      "elevation": 32.0,
+      "instrument_model": "DZZ5",
+      "timezone": "Asia/Shanghai",
+      "csv_column_mapping": {
+        "obs_time": "Datetime",
+        "temperature": "Temperature",
+        "pressure": "Pressure",
+        "relative_humidity": "Humidity",
+        "wind_speed": "WindSpeed",
+        "wind_direction": "WindDir",
+        "precipitation": "Rainfall",
+        "visibility": "Visibility"
+      },
+      "unit_mapping": {
+        "temperature": "C",
+        "pressure": "hPa",
+        "relative_humidity": "%",
+        "wind_speed": "km/h",
+        "wind_direction": "deg",
+        "precipitation": "mm",
+        "visibility": "km"
+      },
+      "neighbors": ["54398", "54401"],
+      "qc_thresholds": {}
+    }
+  ],
+  "qc_rules": [
+    {
+      "id": "missing_check",
+      "name": "缺测值检测",
+      "description": "检测各要素是否存在缺测值",
+      "element": null,
+      "threshold": 0.0,
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "climatological_limit",
+      "name": "气候极值界限检查",
+      "description": "检查要素值是否在历史气候极值范围内",
+      "element": null,
+      "threshold": 0.0,
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "temporal_consistency",
+      "name": "时间一致性检查",
+      "description": "检查相邻时次要素跳变是否超过阈值",
+      "element": null,
+      "threshold": 5.0,
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "spatial_consistency",
+      "name": "空间一致性检查",
+      "description": "对比邻近站点同要素偏差",
+      "element": null,
+      "threshold": 3.0,
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "internal_consistency",
+      "name": "内部一致性检查",
+      "description": "校验要素间物理关系",
+      "element": null,
+      "threshold": 0.0,
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "persistence_check",
+      "name": "持续性检查",
+      "description": "识别连续N个时次值不变",
+      "element": null,
+      "threshold": 6.0,
+      "weight": 1.0,
+      "enabled": true
+    }
+  ],
+  "climate_limits": {
+    "temperature_min": -27.4,
+    "temperature_max": 41.9,
+    "pressure_min": 980.0,
+    "pressure_max": 1045.0,
+    "humidity_min": 0.0,
+    "humidity_max": 100.0,
+    "wind_speed_max": 40.0,
+    "precipitation_max": 200.0,
+    "visibility_min": 0.0,
+    "visibility_max": 30000.0
+  },
+  "database_path": "meteoc.db",
+  "archive_output_dir": "./archive"
+}

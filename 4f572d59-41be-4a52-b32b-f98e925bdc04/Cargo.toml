@@ -1,0 +1,31 @@
+[package]
+name = "meteoc"
+version = "0.1.0"
+edition = "2021"
+authors = ["Meteo Data Center"]
+description = "气象探测数据质量审核与归档系统"
+
+[dependencies]
+structopt = "0.3"
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+csv = "1.3"
+nom = "7.1"
+rusqlite = { version = "0.31", features = ["bundled", "chrono"] }
+flate2 = "1.0"
+env_logger = "0.11"
+log = "0.4"
+anyhow = "1.0"
+thiserror = "1.0"
+colored = "2.1"
+indicatif = "0.17"
+md-5 = "0.10"
+walkdir = "2.5"
+rayon = "1.10"
+num-traits = "0.2"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
