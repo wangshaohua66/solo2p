@@ -66,13 +66,36 @@ class ClassifyPipeline:
     def _init_keyword_index(self):
         self.category_keywords = {}
         for category, config in POLICY_CATEGORIES.items():
-            keywords = config.get('keywords', [])
+            keywords = list(config.get('keywords', []))
+            synonyms_dict = config.get('synonyms', {})
+            context_phrases = list(config.get('context_phrases', []))
             weight = config.get('weight', 1.0)
+            title_weight = config.get('title_weight', 1.8)
+            min_score = config.get('min_score', 2)
+
+            all_keywords = set(keywords)
+            for word, syn_list in synonyms_dict.items():
+                all_keywords.add(word)
+                for s in syn_list:
+                    all_keywords.add(s)
+            all_keywords = list(all_keywords)
+
             self.category_keywords[category] = {
                 'keywords': keywords,
+                'synonyms': synonyms_dict,
+                'all_keywords': all_keywords,
+                'context_phrases': context_phrases,
                 'weight': weight,
-                'pattern': re.compile('|'.join([re.escape(k) for k in keywords]), re.IGNORECASE)
+                'title_weight': title_weight,
+                'min_score': min_score,
+                'pattern': re.compile('|'.join([re.escape(k) for k in all_keywords]), re.IGNORECASE) if all_keywords else None,
+                'context_patterns': [re.compile(re.escape(phrase), re.IGNORECASE) for phrase in context_phrases],
             }
+
+            for kw in all_keywords:
+                jieba.add_word(kw)
+            for cp in context_phrases:
+                jieba.add_word(cp)
 
         self.type_keywords = {}
         for ptype, keywords in POLICY_TYPES.items():
@@ -80,6 +103,8 @@ class ClassifyPipeline:
                 'keywords': keywords,
                 'pattern': re.compile('|'.join([re.escape(k) for k in keywords]), re.IGNORECASE)
             }
+            for kw in keywords:
+                jieba.add_word(kw)
 
     def _init_tfidf(self):
         self.tfidf_vectorizer = TfidfVectorizer(
@@ -167,36 +192,118 @@ class ClassifyPipeline:
 
     def _classify_category(self, title, content):
         scores = defaultdict(float)
+        score_details = {}
         all_matches = {}
 
         full_text = f"{title}\n{content}"
+        title_lower = title.lower() if title else ''
+        content_lower = content.lower() if content else ''
 
         for category, config in self.category_keywords.items():
-            matches = config['pattern'].findall(full_text)
-            if matches:
-                unique_matches = list(set(matches))
-                score = len(unique_matches) * config['weight']
+            category_score = 0.0
+            details = {
+                'keyword_matches': [],
+                'keyword_score': 0.0,
+                'synonym_matches': [],
+                'synonym_score': 0.0,
+                'context_matches': [],
+                'context_score': 0.0,
+                'title_matches': [],
+                'title_score': 0.0,
+            }
 
-                title_matches = config['pattern'].findall(title)
-                if title_matches:
-                    score *= 1.5
+            if config['pattern']:
+                all_matches_in_text = config['pattern'].findall(full_text)
+                if all_matches_in_text:
+                    unique_matches = list(set([m.strip() for m in all_matches_in_text if m.strip()]))
 
-                scores[category] = score
-                all_matches[category] = unique_matches
+                    for match in unique_matches:
+                        is_primary = match in config['keywords']
+                        is_synonym = False
+                        for word, syn_list in config['synonyms'].items():
+                            if match == word or match in syn_list:
+                                is_synonym = True
+                                break
+
+                        if is_primary:
+                            category_score += 1.0
+                            details['keyword_matches'].append(match)
+                            details['keyword_score'] += 1.0
+                        elif is_synonym:
+                            category_score += 0.7
+                            details['synonym_matches'].append(match)
+                            details['synonym_score'] += 0.7
+                        else:
+                            category_score += 0.8
+                            details['keyword_matches'].append(match)
+                            details['keyword_score'] += 0.8
+
+                    all_matches[category] = unique_matches
+
+            for idx, ctx_pattern in enumerate(config['context_patterns']):
+                ctx_match = ctx_pattern.search(full_text)
+                if ctx_match:
+                    ctx_phrase = config['context_phrases'][idx]
+                    category_score += 1.5
+                    details['context_matches'].append(ctx_phrase)
+                    details['context_score'] += 1.5
+
+            if config['pattern']:
+                title_matches_found = config['pattern'].findall(title)
+                if title_matches_found:
+                    unique_title_matches = list(set([m.strip() for m in title_matches_found if m.strip()]))
+                    for match in unique_title_matches:
+                        base_title_score = 0.0
+                        if match in config['keywords']:
+                            base_title_score = 1.0
+                        else:
+                            for word, syn_list in config['synonyms'].items():
+                                if match == word or match in syn_list:
+                                    base_title_score = 0.7
+                                    break
+                            if base_title_score == 0.0:
+                                base_title_score = 0.8
+
+                        weighted_title_score = base_title_score * config['title_weight']
+                        category_score += weighted_title_score
+                        details['title_matches'].append(match)
+                        details['title_score'] += weighted_title_score
+
+            category_score *= config['weight']
+
+            scores[category] = category_score
+            details['total_score'] = category_score
+            score_details[category] = details
 
         if not scores:
             return '其他', 0.0, []
 
+        sorted_categories = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        best_category, best_score = sorted_categories[0]
+
+        if len(sorted_categories) > 1:
+            second_score = sorted_categories[1][1]
+            if best_score < second_score * 1.3 and best_score < 3.0:
+                logger.debug(f"Ambiguous classification: {best_category}({best_score:.2f}) vs "
+                            f"{sorted_categories[1][0]}({second_score:.2f})")
+
         total_score = sum(scores.values())
-        if total_score == 0:
-            return '其他', 0.0, []
+        if total_score > 0:
+            confidence = min(best_score / total_score * 1.2, 1.0)
+        else:
+            confidence = 0.0
 
-        best_category = max(scores, key=scores.get)
-        best_score = scores[best_category]
-        confidence = min(best_score / total_score, 1.0)
-
-        if confidence < 0.3 or best_score < 2:
+        min_score = self.category_keywords[best_category].get('min_score', 2)
+        if best_score < min_score or confidence < 0.25:
+            if best_score >= 1.0:
+                logger.debug(f"Category {best_category} score {best_score:.2f} below threshold {min_score}")
             return '其他', confidence, all_matches.get(best_category, [])
+
+        details_str = (f"kw={score_details[best_category]['keyword_score']:.1f}, "
+                      f"syn={score_details[best_category]['synonym_score']:.1f}, "
+                      f"ctx={score_details[best_category]['context_score']:.1f}, "
+                      f"title={score_details[best_category]['title_score']:.1f}")
+        logger.debug(f"Classified as {best_category}: score={best_score:.2f}, conf={confidence:.2f} ({details_str})")
 
         return best_category, confidence, all_matches.get(best_category, [])
 

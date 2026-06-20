@@ -15,12 +15,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config.settings import (
     CRAWL_SOURCES, POLICY_CATEGORIES, EXPORT_FORMATS,
-    DATA_DIR, LOG_DIR, DB_PATH
+    DATA_DIR, LOG_DIR, DB_PATH, SCHEDULER_CONFIG
 )
 from utils.logger import logger, log_performance
 from utils.db import db
 from utils.pdf_parser import pdf_parser
 from utils.docx_parser import docx_parser
+from utils.checkpoint import checkpoint
 
 init(autoreset=True)
 
@@ -95,6 +96,10 @@ def crawl_policies(args):
         print_info("增量更新模式: 开启")
     if args.max_pages:
         print_info(f"最大采集页数: {args.max_pages}")
+    if hasattr(args, 'resume') and args.resume:
+        print_info(f"{Fore.MAGENTA}断点续采模式: 从上次中断处恢复{Style.RESET_ALL}")
+    if hasattr(args, 'no_checkpoint') and args.no_checkpoint:
+        print_warning("已禁用checkpoint持久化")
 
     try:
         settings = get_project_settings()
@@ -102,20 +107,90 @@ def crawl_policies(args):
         settings.set('LOG_LEVEL', 'INFO')
 
         process = CrawlerProcess(settings)
+
+        use_cp = not (hasattr(args, 'no_checkpoint') and args.no_checkpoint)
+        resume_flag = hasattr(args, 'resume') and args.resume
+
         process.crawl(
             PolicySpider,
             sources=sources,
             start_date=args.start_date,
             end_date=args.end_date,
             incremental=args.incremental,
-            max_pages=args.max_pages
+            max_pages=args.max_pages,
+            use_checkpoint=use_cp,
+            resume=resume_flag,
         )
 
         print_info("爬虫启动中... (按 Ctrl+C 可中止)")
-        process.start()
+
+        cp_stats = checkpoint.get_statistics()
+        total_expected = max(cp_stats.get('total_crawled', 0) + 500, 100)
+
+        progress_bar = tqdm(
+            total=total_expected,
+            desc=f"{Fore.CYAN}采集进度{Style.RESET_ALL}",
+            unit="条",
+            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]",
+            ncols=100,
+            position=0,
+            leave=True,
+        )
+
+        last_saved = cp_stats.get('total_saved', 0)
+
+        def update_progress():
+            nonlocal last_saved, progress_bar
+            try:
+                current_stats = checkpoint.get_statistics()
+                current_saved = current_stats.get('total_saved', 0)
+                current_visited = current_stats.get('visited_urls', 0)
+
+                new_items = current_saved - last_saved
+                if new_items > 0:
+                    progress_bar.update(new_items)
+                    last_saved = current_saved
+
+                total_current = current_visited + 100
+                if total_current > progress_bar.total:
+                    progress_bar.total = total_current
+                    progress_bar.refresh()
+
+                session_progress = checkpoint.get_session_progress()
+                if session_progress:
+                    rate = session_progress.get('success_rate', 0)
+                    progress_bar.set_postfix({
+                        '已保存': current_saved,
+                        '成功率': f"{rate:.0f}%",
+                    })
+            except:
+                pass
+
+        import threading
+        stop_event = threading.Event()
+
+        def progress_monitor():
+            while not stop_event.is_set():
+                update_progress()
+                time.sleep(1.0)
+
+        monitor_thread = threading.Thread(target=progress_monitor, daemon=True)
+        monitor_thread.start()
+
+        try:
+            process.start()
+        finally:
+            stop_event.set()
+            update_progress()
+            time.sleep(0.5)
+            progress_bar.close()
 
         duration = time.time() - start_time
+        final_stats = checkpoint.get_statistics()
         print_success(f"采集任务完成 (总耗时: {duration:.2f}s)")
+        print_info(f"  已保存政策: {final_stats.get('total_saved', 0)} 条")
+        print_info(f"  已访问URL: {final_stats.get('visited_urls', 0)} 个")
+        print_info(f"  失败URL: {final_stats.get('failed_urls', 0)} 个")
 
         if args.attachments:
             print_info("开始处理附件...")
@@ -125,6 +200,11 @@ def crawl_policies(args):
 
     except KeyboardInterrupt:
         print_warning("采集任务被用户中断")
+        print_info(f"{Fore.MAGENTA}采集进度已保存至checkpoint，下次可用 --resume 继续{Style.RESET_ALL}")
+        try:
+            checkpoint.save(force=True)
+        except:
+            pass
         return 130
     except Exception as e:
         print_error(f"采集任务失败: {str(e)}")
@@ -196,8 +276,19 @@ def export_data(args):
 
         if format_type == 'json':
             output_path = os.path.join(DATA_DIR, f"{filename}.json")
-            with open(output_path, 'w', encoding='utf-8') as f:
-                json.dump(policies, f, ensure_ascii=False, indent=2)
+            with tqdm(total=len(policies),
+                     desc=f"{Fore.CYAN}JSON导出进度{Style.RESET_ALL}",
+                     unit="条", ncols=80,
+                     bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]") as pbar:
+                with open(output_path, 'w', encoding='utf-8') as f:
+                    f.write('[\n')
+                    for i, policy in enumerate(policies):
+                        json_str = json.dumps(policy, ensure_ascii=False)
+                        if i < len(policies) - 1:
+                            json_str += ','
+                        f.write('  ' + json_str + '\n')
+                        pbar.update(1)
+                    f.write(']\n')
 
         elif format_type == 'excel':
             output_path = os.path.join(DATA_DIR, f"{filename}.xlsx")
@@ -209,25 +300,50 @@ def export_data(args):
                 'keywords', 'created_at'
             ]
             columns_to_keep = [col for col in columns_to_keep if col in df.columns]
-            df = df[columns_to_keep]
 
-            if 'keywords' in df.columns:
-                df['keywords'] = df['keywords'].apply(
-                    lambda x: ', '.join(x) if isinstance(x, list) else str(x)
-                )
+            with tqdm(total=len(columns_to_keep) + 3,
+                     desc=f"{Fore.CYAN}Excel导出进度{Style.RESET_ALL}",
+                     unit="步", ncols=80,
+                     bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]") as pbar:
 
-            with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
-                df.to_excel(writer, sheet_name='政策数据', index=False)
+                df_export = df[columns_to_keep].copy()
+                pbar.update(1)
 
-                if args.category:
-                    by_type = df.groupby('policy_type').size().reset_index(name='数量')
-                    by_type.to_excel(writer, sheet_name='按类型统计', index=False)
+                if 'keywords' in df_export.columns:
+                    df_export['keywords'] = df_export['keywords'].apply(
+                        lambda x: ', '.join(x) if isinstance(x, list) else str(x)
+                    )
+                pbar.update(1)
+
+                for col in tqdm(columns_to_keep, desc="处理字段", unit="个", ncols=80, leave=False):
+                    if col in df_export.columns and df_export[col].dtype == object:
+                        df_export[col] = df_export[col].apply(
+                            lambda x: x[:32767] if isinstance(x, str) and len(x) > 32767 else x
+                        )
+                pbar.update(1)
+
+                with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
+                    df_export.to_excel(writer, sheet_name='政策数据', index=False)
+                    pbar.update(1)
+
+                    if args.category:
+                        by_type = df_export.groupby('policy_type').size().reset_index(name='数量')
+                        by_type.to_excel(writer, sheet_name='按类型统计', index=False)
+                    pbar.update(1)
 
         elif format_type == 'markdown':
             output_path = os.path.join(DATA_DIR, f"{filename}.md")
-            md_content = generate_markdown_report(policies, args)
-            with open(output_path, 'w', encoding='utf-8') as f:
-                f.write(md_content)
+
+            with tqdm(total=len(policies) + 10,
+                     desc=f"{Fore.CYAN}Markdown导出进度{Style.RESET_ALL}",
+                     unit="条", ncols=80,
+                     bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}]") as pbar:
+
+                md_content = generate_markdown_report(policies, args, pbar)
+                pbar.update(10)
+
+                with open(output_path, 'w', encoding='utf-8') as f:
+                    f.write(md_content)
 
         duration = time.time() - start_time
         file_size = os.path.getsize(output_path) / 1024
@@ -248,7 +364,7 @@ def export_data(args):
         return 1
 
 
-def generate_markdown_report(policies, args):
+def generate_markdown_report(policies, args, pbar=None):
     md = []
     md.append("# 优抚政策采集报告\n")
     md.append(f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
@@ -260,6 +376,7 @@ def generate_markdown_report(policies, args):
 
     md.append(f"**总记录数**: {len(policies)}\n")
 
+    from collections import Counter
     categories = Counter(p.get('category', '未分类') for p in policies)
     md.append("\n## 按分类统计\n")
     md.append("| 分类 | 数量 |\n|------|------|\n")
@@ -288,6 +405,12 @@ def generate_markdown_report(policies, args):
             if isinstance(keywords, list):
                 keywords = ', '.join(keywords)
             md.append(f"- **关键词**: {keywords}\n")
+
+        if pbar and i % 10 == 0:
+            pbar.update(10)
+
+    if pbar and len(policies) % 10 != 0:
+        pbar.update(len(policies) % 10)
 
     return ''.join(md)
 
@@ -461,6 +584,173 @@ def show_update_report(args):
         return 1
 
 
+def run_scheduler(args):
+    try:
+        from apscheduler.schedulers.blocking import BlockingScheduler
+        from apscheduler.triggers.cron import CronTrigger
+        from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
+    except ImportError:
+        print_error("APScheduler 未安装，请运行: python3 -m pip install APScheduler")
+        return 1
+
+    print_info(f"{Fore.MAGENTA}启动定时任务调度器...{Style.RESET_ALL}")
+    print_info(f"  时区: {SCHEDULER_CONFIG.get('timezone', 'Asia/Shanghai')}")
+    print_info(f"  每日采集时间: {SCHEDULER_CONFIG.get('daily_crawl_hour', 2):02d}:{SCHEDULER_CONFIG.get('daily_crawl_minute', 30):02d}")
+    print_info(f"  每日报告时间: {SCHEDULER_CONFIG.get('daily_report_hour', 8):02d}:{SCHEDULER_CONFIG.get('daily_report_minute', 0):02d}")
+    print_warning("  按 Ctrl+C 停止调度器")
+
+    timezone = SCHEDULER_CONFIG.get('timezone', 'Asia/Shanghai')
+
+    scheduler = BlockingScheduler(timezone=timezone)
+
+    def scheduled_crawl_job():
+        print(f"\n{Fore.CYAN}[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
+              f"执行定时采集任务...{Style.RESET_ALL}")
+        try:
+            class ArgsSim:
+                sources = None
+                start_date = None
+                end_date = None
+                incremental = True
+                max_pages = None
+                attachments = True
+                ocr = False
+                resume = False
+                no_checkpoint = False
+            crawl_policies(ArgsSim())
+            print(f"{Fore.GREEN}[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
+                  f"定时采集任务完成{Style.RESET_ALL}")
+        except Exception as e:
+            print(f"{Fore.RED}[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
+                  f"定时采集任务失败: {str(e)}{Style.RESET_ALL}")
+            logger.error(f"Scheduled crawl job failed: {str(e)}", exc_info=True)
+
+    def scheduled_report_job():
+        print(f"\n{Fore.CYAN}[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
+              f"执行定时报告任务...{Style.RESET_ALL}")
+        try:
+            class ArgsSim:
+                days = 1
+                export = True
+            show_update_report(ArgsSim())
+            print(f"{Fore.GREEN}[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
+                  f"定时报告任务完成{Style.RESET_ALL}")
+        except Exception as e:
+            print(f"{Fore.RED}[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
+                  f"定时报告任务失败: {str(e)}{Style.RESET_ALL}")
+            logger.error(f"Scheduled report job failed: {str(e)}", exc_info=True)
+
+    def job_listener(event):
+        if event.exception:
+            print(f"{Fore.RED}任务异常: {event.job_id} - {event.exception}{Style.RESET_ALL}")
+        else:
+            print(f"{Fore.GREEN}任务完成: {event.job_id}{Style.RESET_ALL}")
+
+    scheduler.add_job(
+        scheduled_crawl_job,
+        trigger=CronTrigger(
+            hour=SCHEDULER_CONFIG.get('daily_crawl_hour', 2),
+            minute=SCHEDULER_CONFIG.get('daily_crawl_minute', 30),
+            timezone=timezone
+        ),
+        id='daily_crawl_job',
+        name='每日政策采集任务',
+        replace_existing=True,
+        misfire_grace_time=3600,
+        coalesce=True
+    )
+
+    scheduler.add_job(
+        scheduled_report_job,
+        trigger=CronTrigger(
+            hour=SCHEDULER_CONFIG.get('daily_report_hour', 8),
+            minute=SCHEDULER_CONFIG.get('daily_report_minute', 0),
+            timezone=timezone
+        ),
+        id='daily_report_job',
+        name='每日更新报告任务',
+        replace_existing=True,
+        misfire_grace_time=3600,
+        coalesce=True
+    )
+
+    scheduler.add_listener(job_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
+
+    if hasattr(args, 'run_now') and args.run_now:
+        print_info("立即执行一次采集任务...")
+        scheduled_crawl_job()
+
+    print_success("调度器已启动，等待触发定时任务...")
+    print_info("  已注册的定时任务:")
+    for job in scheduler.get_jobs():
+        print_info(f"    • {job.name}: {job.trigger}")
+
+    try:
+        scheduler.start()
+    except (KeyboardInterrupt, SystemExit):
+        print_warning("调度器已停止")
+        scheduler.shutdown(wait=False)
+        return 0
+
+    return 0
+
+
+def show_checkpoint(args):
+    print_info("Checkpoint 状态:")
+    print("=" * 80)
+
+    stats = checkpoint.get_statistics()
+    print(f"\n{Fore.CYAN}📊 总体统计{Style.RESET_ALL}")
+    print(f"  总采集会话数: {stats.get('sessions_count', 0)}")
+    print(f"  已采集URL总数: {stats.get('total_crawled', 0)}")
+    print(f"  已保存政策数: {stats.get('total_saved', 0)}")
+    print(f"  失败URL总数: {stats.get('total_failed', 0)}")
+    print(f"  已访问URL数: {stats.get('visited_urls', 0)}")
+    print(f"  已处理URL数: {stats.get('processed_urls', 0)}")
+    print(f"  失败URL数: {stats.get('failed_urls', 0)}")
+
+    if stats.get('current_session'):
+        print(f"\n{Fore.YELLOW}🔄 当前会话: {stats['current_session']}{Style.RESET_ALL}")
+        session_progress = checkpoint.get_session_progress()
+        if session_progress:
+            print(f"  状态: {session_progress.get('status', 'unknown')}")
+            print(f"  已访问: {session_progress.get('visited', 0)}")
+            print(f"  已处理: {session_progress.get('processed', 0)}")
+            print(f"  已保存: {session_progress.get('saved', 0)}")
+            print(f"  失败: {session_progress.get('failed', 0)}")
+            rate = session_progress.get('success_rate', 0)
+            print(f"  成功率: {rate:.1f}%")
+
+    last_session = checkpoint.get_last_session()
+    if last_session and stats.get('current_session') != list(checkpoint.data.get('crawl_sessions', {}).keys())[-1]:
+        print(f"\n{Fore.MAGENTA}📝 最近会话{Style.RESET_ALL}")
+        print(f"  会话ID: {list(checkpoint.data['crawl_sessions'].keys())[-1]}")
+        print(f"  名称: {last_session.get('name', '')}")
+        print(f"  开始时间: {last_session.get('start_time', '')}")
+        print(f"  结束时间: {last_session.get('end_time', '未完成')}")
+        print(f"  状态: {last_session.get('status', 'unknown')}")
+
+    if hasattr(args, 'clear_failed') and args.clear_failed:
+        source = getattr(args, 'source', None)
+        cleared = checkpoint.clear_failed_urls(source)
+        print_success(f"已清除 {cleared} 个失败URL")
+
+    if hasattr(args, 'reset') and args.reset:
+        if hasattr(args, 'confirm') and args.confirm:
+            checkpoint.reset_all()
+            print_success("Checkpoint 已重置")
+        else:
+            print_warning("请使用 --confirm 参数确认重置操作")
+
+    if hasattr(args, 'export_failed') and args.export_failed:
+        output = getattr(args, 'output', os.path.join(DATA_DIR, 'failed_urls.json'))
+        count = checkpoint.export_failed_urls(output)
+        print_success(f"已导出 {count} 个失败URL到 {output}")
+
+    print("\n" + "=" * 80)
+    return 0
+
+
 def show_sources(args):
     print_info("可用采集源列表:")
     print("=" * 80)
@@ -535,6 +825,10 @@ def parse_args():
                               help='同时下载并解析附件')
     crawl_parser.add_argument('--ocr', action='store_true',
                               help='开启OCR识别扫描版PDF')
+    crawl_parser.add_argument('--resume', action='store_true',
+                              help='从上次中断的checkpoint继续采集')
+    crawl_parser.add_argument('--no-checkpoint', action='store_true',
+                              help='禁用checkpoint持久化')
     crawl_parser.set_defaults(func=crawl_policies)
 
     attach_parser = subparsers.add_parser('attachments', help='处理附件')
@@ -589,6 +883,26 @@ def parse_args():
 
     categories_parser = subparsers.add_parser('categories', help='查看分类体系')
     categories_parser.set_defaults(func=show_categories)
+
+    schedule_parser = subparsers.add_parser('schedule', help='启动定时任务调度器')
+    schedule_parser.add_argument('--run-now', action='store_true',
+                                 help='启动时立即执行一次采集任务')
+    schedule_parser.set_defaults(func=run_scheduler)
+
+    checkpoint_parser = subparsers.add_parser('checkpoint', help='断点续采管理')
+    checkpoint_parser.add_argument('--clear-failed', action='store_true',
+                                   help='清除失败的URL记录')
+    checkpoint_parser.add_argument('--source', type=str, default=None,
+                                   help='指定采集源进行操作')
+    checkpoint_parser.add_argument('--reset', action='store_true',
+                                   help='重置所有checkpoint数据')
+    checkpoint_parser.add_argument('--confirm', action='store_true',
+                                   help='确认重置操作')
+    checkpoint_parser.add_argument('--export-failed', action='store_true',
+                                   help='导出失败URL列表')
+    checkpoint_parser.add_argument('--output', type=str, default=None,
+                                   help='导出文件路径')
+    checkpoint_parser.set_defaults(func=show_checkpoint)
 
     return parser.parse_args()
 

@@ -1,12 +1,15 @@
 import random
 import time
 import re
+import threading
+from collections import defaultdict
 from scrapy import signals
 from scrapy.http import HtmlResponse
 from scrapy.downloadermiddlewares.useragent import UserAgentMiddleware as BaseUserAgentMiddleware
 from config.settings import (
     USER_AGENTS, PROXY_POOL, ENABLE_PROXY,
-    DOWNLOAD_DELAY, RANDOMIZE_DOWNLOAD_DELAY
+    DOWNLOAD_DELAY, RANDOMIZE_DOWNLOAD_DELAY,
+    PROXY_CHECK_URL, PROXY_TIMEOUT, PROXY_HEALTH_CHECK_INTERVAL
 )
 from utils.logger import logger, log_error_with_context
 
@@ -42,86 +45,313 @@ class UserAgentMiddleware(BaseUserAgentMiddleware):
 
 class ProxyMiddleware:
     def __init__(self):
-        self.proxy_pool = PROXY_POOL
+        self.raw_proxy_pool = PROXY_POOL
         self.enable_proxy = ENABLE_PROXY
         self.proxy_index = 0
-        self.failed_proxies = set()
         self.request_count = 0
         self.success_count = 0
+
+        self.proxy_stats = defaultdict(lambda: {
+            'success': 0,
+            'fail': 0,
+            'total_time': 0,
+            'last_used': 0,
+            'last_success': 0,
+            'last_fail': 0,
+            'consecutive_fail': 0,
+            'weight': 1.0,
+            'enabled': True,
+            'cooling_until': 0,
+        })
+
+        for proxy in self.raw_proxy_pool:
+            self.proxy_stats[proxy] = self.proxy_stats[proxy]
+
+        self.max_consecutive_fail = 5
+        self.cooldown_time = 300
+        self.reset_interval = 1800
+        self.last_reset = time.time()
+
+        self._lock = threading.Lock()
+        self._health_check_running = False
 
     @classmethod
     def from_crawler(cls, crawler):
         middleware = cls()
         crawler.signals.connect(middleware.spider_opened, signal=signals.spider_opened)
+        crawler.signals.connect(middleware.spider_closed, signal=signals.spider_closed)
         return middleware
 
     def process_request(self, request, spider):
         if not self.enable_proxy:
             return
 
-        if self.proxy_pool and 'proxy' not in request.meta:
-            proxy = self._get_proxy()
+        if 'proxy' in request.meta and request.meta.get('force_proxy'):
+            return
+
+        if self.raw_proxy_pool:
+            proxy = self._select_proxy()
             if proxy:
                 request.meta['proxy'] = proxy
-                logger.debug(f"Using proxy: {proxy} for {request.url}")
+                self._update_proxy_used(proxy)
+                self.request_count += 1
+                logger.debug(f"[{self.request_count}] Using proxy: {proxy[:30]}... for {request.url[:50]}")
 
     def process_response(self, request, response, spider):
-        if response.status in [403, 429, 503]:
-            proxy = request.meta.get('proxy')
-            if proxy:
-                logger.warning(f"Proxy {proxy} returned status {response.status}, marking as failed")
-                self.failed_proxies.add(proxy)
-                retry_req = request.copy()
-                retry_req.meta['proxy'] = self._get_next_proxy()
-                retry_req.dont_filter = True
-                return retry_req
+        proxy = request.meta.get('proxy')
 
-        self.success_count += 1
+        if proxy and proxy in self.proxy_stats:
+            response_time = response.meta.get('download_latency', 0)
+
+            if response.status in [200, 301, 302]:
+                self._mark_success(proxy, response_time)
+                self.success_count += 1
+            elif response.status in [403, 429, 503, 502, 504, 408]:
+                logger.warning(f"Proxy {proxy[:30]}... returned status {response.status}")
+                self._mark_failure(proxy)
+
+                retry_req = self._build_retry_request(request)
+                if retry_req:
+                    return retry_req
+            else:
+                self._mark_success(proxy, response_time)
+                self.success_count += 1
+
         return response
 
     def process_exception(self, request, exception, spider):
         proxy = request.meta.get('proxy')
-        if proxy:
-            logger.warning(f"Proxy {proxy} failed with exception: {exception}")
-            self.failed_proxies.add(proxy)
 
-            retry_req = request.copy()
-            retry_req.meta['proxy'] = self._get_next_proxy()
-            retry_req.dont_filter = True
-            return retry_req
+        if proxy and proxy in self.proxy_stats:
+            logger.warning(f"Proxy {proxy[:30]}... exception: {type(exception).__name__}: {str(exception)[:100]}")
+            self._mark_failure(proxy)
 
-        return None
-
-    def _get_proxy(self):
-        available_proxies = [p for p in self.proxy_pool if p not in self.failed_proxies]
-        if not available_proxies:
-            logger.warning("All proxies failed, resetting failure list")
-            self.failed_proxies.clear()
-            available_proxies = self.proxy_pool
-
-        if available_proxies:
-            proxy = random.choice(available_proxies)
-            return proxy
+            retry_req = self._build_retry_request(request)
+            if retry_req:
+                return retry_req
 
         return None
+
+    def _build_retry_request(self, request):
+        retry_count = request.meta.get('proxy_retry_count', 0)
+        if retry_count >= len(self.raw_proxy_pool) * 2:
+            logger.error(f"Max proxy retries exceeded for: {request.url[:60]}")
+            return None
+
+        new_proxy = self._select_proxy(exclude=request.meta.get('proxy'))
+        if not new_proxy:
+            return None
+
+        retry_req = request.copy()
+        retry_req.meta['proxy'] = new_proxy
+        retry_req.meta['proxy_retry_count'] = retry_count + 1
+        retry_req.dont_filter = True
+        retry_req.priority = max(request.priority + 1, 0)
+
+        self._update_proxy_used(new_proxy)
+        logger.info(f"Retrying with new proxy {new_proxy[:30]}... (attempt {retry_count + 1})")
+        return retry_req
+
+    def _select_proxy(self, exclude=None):
+        now = time.time()
+
+        if now - self.last_reset > self.reset_interval:
+            self._reset_failed_proxies()
+            self.last_reset = now
+
+        with self._lock:
+            available = []
+            weights = []
+
+            for proxy, stats in self.proxy_stats.items():
+                if exclude and proxy == exclude:
+                    continue
+
+                if not stats['enabled']:
+                    continue
+
+                if stats['cooling_until'] > now:
+                    continue
+
+                if stats['consecutive_fail'] >= self.max_consecutive_fail:
+                    if now - stats['last_fail'] < self.cooldown_time:
+                        continue
+                    else:
+                        stats['consecutive_fail'] = 0
+                        stats['enabled'] = True
+
+                total_requests = stats['success'] + stats['fail']
+                if total_requests == 0:
+                    weight = stats['weight'] * 1.0
+                else:
+                    success_rate = stats['success'] / total_requests
+                    weight = stats['weight'] * (0.3 + 0.7 * success_rate)
+
+                    avg_time = stats['total_time'] / max(1, stats['success'])
+                    if avg_time > 0:
+                        time_factor = min(2.0, 5.0 / avg_time)
+                        weight *= time_factor
+
+                available.append(proxy)
+                weights.append(weight)
+
+            if not available:
+                logger.warning("No available proxies, resetting all")
+                self._hard_reset()
+                for proxy in self.raw_proxy_pool:
+                    if exclude and proxy == exclude:
+                        continue
+                    available.append(proxy)
+                    weights.append(1.0)
+
+            if available:
+                if sum(weights) > 0:
+                    proxy = random.choices(available, weights=weights, k=1)[0]
+                else:
+                    proxy = random.choice(available)
+                return proxy
+
+            return None
 
     def _get_next_proxy(self):
-        available_proxies = [p for p in self.proxy_pool if p not in self.failed_proxies]
-        if not available_proxies:
-            self.failed_proxies.clear()
-            available_proxies = self.proxy_pool
+        return self._select_proxy()
 
-        if available_proxies:
-            self.proxy_index = (self.proxy_index + 1) % len(available_proxies)
-            return available_proxies[self.proxy_index]
+    def _mark_success(self, proxy, response_time=0):
+        with self._lock:
+            stats = self.proxy_stats[proxy]
+            stats['success'] += 1
+            stats['last_success'] = time.time()
+            stats['last_used'] = time.time()
+            stats['consecutive_fail'] = 0
+            stats['total_time'] += response_time
+            stats['enabled'] = True
+            stats['cooling_until'] = 0
 
-        return None
+            if stats['weight'] < 2.0:
+                stats['weight'] = min(2.0, stats['weight'] * 1.02)
+
+    def _mark_failure(self, proxy):
+        with self._lock:
+            stats = self.proxy_stats[proxy]
+            stats['fail'] += 1
+            stats['last_fail'] = time.time()
+            stats['last_used'] = time.time()
+            stats['consecutive_fail'] += 1
+
+            stats['weight'] = max(0.1, stats['weight'] * 0.95)
+
+            if stats['consecutive_fail'] >= self.max_consecutive_fail:
+                stats['enabled'] = False
+                stats['cooling_until'] = time.time() + self.cooldown_time
+                logger.warning(f"Proxy {proxy[:30]}... disabled after {stats['consecutive_fail']} consecutive failures")
+
+    def _update_proxy_used(self, proxy):
+        if proxy in self.proxy_stats:
+            self.proxy_stats[proxy]['last_used'] = time.time()
+
+    def _reset_failed_proxies(self):
+        reset_count = 0
+        with self._lock:
+            for proxy, stats in self.proxy_stats.items():
+                if stats['consecutive_fail'] >= self.max_consecutive_fail:
+                    stats['consecutive_fail'] = 0
+                    stats['enabled'] = True
+                    stats['cooling_until'] = 0
+                    stats['weight'] = 0.8
+                    reset_count += 1
+        if reset_count > 0:
+            logger.info(f"Reset {reset_count} failed proxies after cooldown")
+
+    def _hard_reset(self):
+        with self._lock:
+            for proxy in self.proxy_stats:
+                stats = self.proxy_stats[proxy]
+                stats['success'] = 0
+                stats['fail'] = 0
+                stats['total_time'] = 0
+                stats['consecutive_fail'] = 0
+                stats['enabled'] = True
+                stats['cooling_until'] = 0
+                stats['weight'] = 1.0
+
+    def _start_health_check(self):
+        if self._health_check_running:
+            return
+        self._health_check_running = True
+
+        def health_check_loop():
+            while self._health_check_running:
+                try:
+                    self._run_health_check()
+                except Exception as e:
+                    log_error_with_context(logger, e, "Proxy health check failed")
+                time.sleep(PROXY_HEALTH_CHECK_INTERVAL)
+
+        thread = threading.Thread(target=health_check_loop, daemon=True)
+        thread.start()
+        logger.info("Proxy health check thread started")
+
+    def _run_health_check(self):
+        import requests as req
+        import warnings
+        warnings.filterwarnings('ignore')
+
+        healthy = 0
+        for proxy in list(self.proxy_stats.keys()):
+            try:
+                proxies = {
+                    'http': proxy,
+                    'https': proxy,
+                }
+                resp = req.get(
+                    PROXY_CHECK_URL,
+                    proxies=proxies,
+                    timeout=PROXY_TIMEOUT,
+                    verify=False
+                )
+                if resp.status_code == 200:
+                    self._mark_success(proxy, resp.elapsed.total_seconds())
+                    healthy += 1
+                else:
+                    self._mark_failure(proxy)
+            except Exception:
+                self._mark_failure(proxy)
+
+        logger.info(f"Proxy health check completed: {healthy}/{len(self.proxy_stats)} healthy")
+
+    def _stop_health_check(self):
+        self._health_check_running = False
 
     def spider_opened(self, spider):
         if self.enable_proxy:
-            logger.info(f"Proxy middleware initialized with {len(self.proxy_pool)} proxies")
+            logger.info(f"Proxy middleware initialized with {len(self.raw_proxy_pool)} proxies")
+            logger.info(f"Proxy rotation: weighted random with success rate adjustment")
+            logger.info(f"Max consecutive failures: {self.max_consecutive_fail}, Cooldown: {self.cooldown_time}s")
+
+            if PROXY_HEALTH_CHECK_INTERVAL > 0:
+                self._start_health_check()
         else:
-            logger.info("Proxy middleware disabled")
+            logger.info("Proxy middleware disabled (set ENABLE_PROXY=True to enable)")
+
+    def spider_closed(self, spider):
+        self._stop_health_check()
+
+        if self.enable_proxy and self.request_count > 0:
+            total = self.success_count + sum(s['fail'] for s in self.proxy_stats.values())
+            logger.info("=" * 50)
+            logger.info("PROXY USAGE STATISTICS")
+            logger.info("=" * 50)
+            for proxy, stats in sorted(self.proxy_stats.items(), key=lambda x: x[1]['success'], reverse=True):
+                total_req = stats['success'] + stats['fail']
+                if total_req > 0:
+                    rate = stats['success'] / total_req * 100
+                    avg_time = stats['total_time'] / max(1, stats['success'])
+                    logger.info(f"{proxy[:40]:<40s}: {stats['success']:4d} OK / {stats['fail']:3d} fail "
+                               f"({rate:5.1f}%) avg={avg_time:.2f}s w={stats['weight']:.2f}")
+            logger.info(f"Total proxy requests: {self.request_count}, Successful: {self.success_count}")
+            if self.request_count > 0:
+                logger.info(f"Overall success rate: {self.success_count / self.request_count * 100:.1f}%")
+            logger.info("=" * 50)
 
 
 class DelayMiddleware:
