@@ -1,5 +1,5 @@
 import { QuoteScraper } from '../base-scraper';
-import { QuoteRequest, QuoteResult } from '../../utils/types';
+import { QuoteRequest, QuoteResult, ProductType } from '../../utils/types';
 import { sleep, randomInt } from '../../utils/helpers';
 import logger from '../../utils/logger';
 
@@ -12,13 +12,13 @@ export class NewchinaQuoteScraper extends QuoteScraper {
       if (!this.isLoggedIn) {
         const loginSuccess = await this.login();
         if (!loginSuccess) {
-          return this.createErrorResult('登录失败');
+          return this.createErrorResult('登录失败', request.productType);
         }
       }
 
       const sessionOk = await this.ensureSession();
       if (!sessionOk) {
-        return this.createErrorResult('会话验证失败');
+        return this.createErrorResult('会话验证失败', request.productType);
       }
 
       this.emitProgress('填写报价表单', 30);
@@ -40,7 +40,7 @@ export class NewchinaQuoteScraper extends QuoteScraper {
       return result;
     } catch (error) {
       logger.error('新华报价抓取失败', { error: (error as Error).message });
-      return this.createErrorResult((error as Error).message);
+      return this.createErrorResult((error as Error).message, request.productType);
     }
   }
 
@@ -139,11 +139,11 @@ export class NewchinaQuoteScraper extends QuoteScraper {
     };
   }
 
-  private createErrorResult(errorMessage: string): QuoteResult {
+  private createErrorResult(errorMessage: string, productType: ProductType): QuoteResult {
     return {
       companyId: this.company.id,
       companyName: this.company.name,
-      productType: 'employer-liability',
+      productType,
       premium: 0,
       coverageAmount: 0,
       deductible: 0,

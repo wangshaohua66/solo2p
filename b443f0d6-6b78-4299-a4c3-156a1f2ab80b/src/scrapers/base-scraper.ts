@@ -1,9 +1,10 @@
 import { EventEmitter } from 'events';
-import { InsuranceCompany, QuoteRequest, QuoteResult, PolicyInfo, ScraperProgress } from '../utils/types';
+import { InsuranceCompany, QuoteRequest, QuoteResult, PolicyInfo, ScraperProgress, ProductType } from '../utils/types';
 import BrowserManager from '../core/browser-manager';
 import SessionGuard from '../core/session-guard';
 import { sleep, randomInt } from '../utils/helpers';
 import logger from '../utils/logger';
+import { CheckpointManager, CheckpointData } from '../utils/checkpoint';
 
 export abstract class BaseScraper extends EventEmitter {
   protected company: InsuranceCompany;
@@ -12,14 +13,16 @@ export abstract class BaseScraper extends EventEmitter {
   protected sessionGuard: SessionGuard;
   protected taskId: string;
   protected isLoggedIn: boolean = false;
-  protected checkpoint: any = null;
+  protected checkpointManager: CheckpointManager;
+  protected checkpoint: CheckpointData | null = null;
 
-  constructor(company: InsuranceCompany, taskId: string) {
+  constructor(company: InsuranceCompany, taskId: string, checkpointManager?: CheckpointManager) {
     super();
     this.company = company;
     this.taskId = taskId;
     this.browserManager = BrowserManager.getInstance();
     this.sessionGuard = SessionGuard.getInstance();
+    this.checkpointManager = checkpointManager || CheckpointManager.getInstance();
   }
 
   public async initialize(): Promise<void> {
@@ -27,6 +30,29 @@ export abstract class BaseScraper extends EventEmitter {
     const instance = await this.browserManager.acquireBrowser(this.company.id);
     this.driver = instance.driver;
     this.sessionGuard.registerSession(this.company.id);
+    this.loadCheckpoint();
+  }
+
+  public loadCheckpoint(): void {
+    const existing = this.checkpointManager.getCheckpoint(this.taskId);
+    if (existing) {
+      this.checkpoint = existing;
+      logger.info(`恢复检查点进度: ${this.taskId}, 当前 ${existing.progress.current}/${existing.progress.total}`);
+    }
+  }
+
+  public saveCheckpoint(itemId?: string, success?: boolean): void {
+    if (itemId !== undefined && success !== undefined) {
+      this.checkpointManager.updateProgress(this.taskId, itemId, success);
+    }
+    const updated = this.checkpointManager.getCheckpoint(this.taskId);
+    if (updated) {
+      this.checkpoint = updated;
+    }
+  }
+
+  public isCheckpointItemCompleted(itemId: string): boolean {
+    return this.checkpointManager.isItemCompleted(this.taskId, itemId);
   }
 
   public async login(): Promise<boolean> {
@@ -212,11 +238,11 @@ export abstract class BaseScraper extends EventEmitter {
     logger.debug(`${this.company.name}: ${stage} - ${progress}%`);
   }
 
-  public setCheckpoint(checkpoint: any): void {
+  public setCheckpoint(checkpoint: CheckpointData | null): void {
     this.checkpoint = checkpoint;
   }
 
-  public getCheckpoint(): any {
+  public getCheckpoint(): CheckpointData | null {
     return this.checkpoint;
   }
 
@@ -257,19 +283,19 @@ export abstract class BaseScraper extends EventEmitter {
 }
 
 export abstract class QuoteScraper extends BaseScraper {
-  constructor(company: InsuranceCompany, taskId: string) {
-    super(company, taskId);
+  constructor(company: InsuranceCompany, taskId: string, checkpointManager?: CheckpointManager) {
+    super(company, taskId, checkpointManager);
   }
 
   abstract scrapeQuote(request: QuoteRequest): Promise<QuoteResult>;
 }
 
 export abstract class PolicyScraper extends BaseScraper {
-  constructor(company: InsuranceCompany, taskId: string) {
-    super(company, taskId);
+  constructor(company: InsuranceCompany, taskId: string, checkpointManager?: CheckpointManager) {
+    super(company, taskId, checkpointManager);
   }
 
-  abstract getPolicyList(page?: number): Promise<PolicyInfo[]>;
+  abstract getPolicyList(page?: number, productType?: ProductType): Promise<PolicyInfo[]>;
   abstract getPolicyDetail(policyNumber: string): Promise<PolicyInfo | null>;
   abstract getRenewalPremium(policyNumber: string): Promise<number | null>;
 }

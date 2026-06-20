@@ -1,10 +1,10 @@
 import { PolicyScraper } from '../base-scraper';
-import { PolicyInfo, PolicyStatus } from '../../utils/types';
+import { PolicyInfo, PolicyStatus, ProductType } from '../../utils/types';
 import { sleep, randomInt } from '../../utils/helpers';
 import logger from '../../utils/logger';
 
 export class ChinaaciPolicyScraper extends PolicyScraper {
-  async getPolicyList(page: number = 1): Promise<PolicyInfo[]> {
+  async getPolicyList(page: number = 1, productType: ProductType = 'employer-liability'): Promise<PolicyInfo[]> {
     logger.info(`获取中华保单列表 - 第${page}页`);
 
     try {
@@ -28,7 +28,7 @@ export class ChinaaciPolicyScraper extends PolicyScraper {
       }
 
       this.emitProgress('解析保单列表', 70);
-      const policies = await this.parsePolicyList();
+      const policies = await this.parsePolicyList(productType);
 
       this.emitProgress('完成', 100);
       logger.info(`获取到 ${policies.length} 条中华保单`);
@@ -117,7 +117,7 @@ export class ChinaaciPolicyScraper extends PolicyScraper {
     }
   }
 
-  private async parsePolicyList(): Promise<PolicyInfo[]> {
+  private async parsePolicyList(productType: ProductType = 'employer-liability'): Promise<PolicyInfo[]> {
     const selectors = this.company.selectors.policyList;
     const policies: PolicyInfo[] = [];
 
@@ -138,7 +138,7 @@ export class ChinaaciPolicyScraper extends PolicyScraper {
           companyName: this.company.name,
           policyNumber: policyNumber.trim(),
           insuredCompany: '',
-          productType: 'employer-liability',
+          productType,
           coverageAmount: 0,
           premium: 0,
           startDate: new Date(),

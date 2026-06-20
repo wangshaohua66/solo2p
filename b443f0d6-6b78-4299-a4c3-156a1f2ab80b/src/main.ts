@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import Table = require('cli-table3');
 import ora = require('ora');
 import * as chalk from 'chalk';
+import * as fs from 'fs';
 import {
   QuoteRequest,
   ProductType,
@@ -23,6 +24,7 @@ import RenewalTracker from './engine/renewal-tracker';
 import ExcelWriter from './report/excel-writer';
 import BrowserManager from './core/browser-manager';
 import SessionGuard from './core/session-guard';
+import CustomerImporter from './utils/customer-importer';
 
 dotenv.config();
 
@@ -164,19 +166,50 @@ program
   .option('--urgent', '只显示紧急续保', false)
   .option('--warning', '只显示预警续保', false)
   .option('--abnormal', '只显示费率异常', false)
+  .option('--import', '从Excel/CSV导入客户数据', false)
+  .option('--file <path>', '客户数据文件路径 (Excel/CSV)')
   .option('-o, --output', '生成Excel报告', false)
   .action(async (options) => {
     console.log(chalk.blue.bold('\n=== 续保监控 ===\n'));
 
     const tracker = RenewalTracker.getInstance();
+    const importer = CustomerImporter.getInstance();
     const spinner = ora('正在加载续保数据...').start();
 
     try {
-      const mockCustomers: CustomerInfo[] = generateMockCustomers(10);
-      const mockPolicies = generateMockPolicies(mockCustomers);
+      let customers: CustomerInfo[];
 
-      spinner.text = '正在检查续保到期情况...';
-      const records = await tracker.checkAllRenewals(mockCustomers, mockPolicies);
+      if (options.import || options.file) {
+        if (!options.file) {
+          spinner.fail('请使用 --file 指定客户数据文件路径');
+          console.error(chalk.red('示例: insurance-broker renewal --import --file ./customers.xlsx'));
+          await cleanup();
+          return;
+        }
+        if (!fs.existsSync(options.file)) {
+          spinner.fail(`客户数据文件不存在: ${options.file}`);
+          await cleanup();
+          return;
+        }
+
+        spinner.text = `正在从 ${options.file} 导入客户数据...`;
+        try {
+          customers = importer.importFromFile(options.file);
+        } catch (err) {
+          spinner.fail(`客户数据导入失败: ${(err as Error).message}`);
+          logger.error('客户数据导入失败', { error: (err as Error).message });
+          await cleanup();
+          return;
+        }
+        spinner.succeed(`成功导入 ${customers.length} 个客户数据`);
+        spinner.start('正在检查续保到期情况...');
+      } else {
+        customers = generateMockCustomers(10);
+        spinner.text = '使用模拟客户数据，正在检查续保到期情况...';
+      }
+
+      const policies = generateMockPolicies(customers);
+      const records = await tracker.checkAllRenewals(customers, policies);
 
       spinner.succeed('续保检查完成！');
 
@@ -211,7 +244,7 @@ program
       if (options.output) {
         spinner.start('正在生成Excel报告...');
         const excelWriter = new ExcelWriter();
-        const filePath = excelWriter.generateRenewalReport(records, mockCustomers);
+        const filePath = excelWriter.generateRenewalReport(records, customers);
         spinner.succeed(`报告已生成: ${chalk.green(filePath)}`);
       }
     } catch (error) {

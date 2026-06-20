@@ -19,74 +19,86 @@ import ChinaaciPolicyScraper from './chinaaci/policy-scraper';
 import { getCompanyById } from '../config/profiles';
 import { generateId } from '../utils/helpers';
 import logger from '../utils/logger';
+import { CheckpointManager } from '../utils/checkpoint';
 
 export class ScraperFactory {
-  static createQuoteScraper(companyId: string, taskId?: string): QuoteScraper {
+  static createQuoteScraper(
+    companyId: string,
+    taskId?: string,
+    checkpointManager?: CheckpointManager
+  ): QuoteScraper {
     const company = getCompanyById(companyId);
     if (!company) {
       throw new Error(`未知的保险公司: ${companyId}`);
     }
 
     const tid = taskId || generateId();
+    const cm = checkpointManager || CheckpointManager.getInstance();
 
     switch (companyId) {
       case 'picc':
-        return new PiccQuoteScraper(company, tid);
+        return new PiccQuoteScraper(company, tid, cm);
       case 'pingan':
-        return new PinganQuoteScraper(company, tid);
+        return new PinganQuoteScraper(company, tid, cm);
       case 'cpic':
-        return new CpicQuoteScraper(company, tid);
+        return new CpicQuoteScraper(company, tid, cm);
       case 'chinalife':
-        return new ChinalifeQuoteScraper(company, tid);
+        return new ChinalifeQuoteScraper(company, tid, cm);
       case 'taikang':
-        return new TaikangQuoteScraper(company, tid);
+        return new TaikangQuoteScraper(company, tid, cm);
       case 'newchina':
-        return new NewchinaQuoteScraper(company, tid);
+        return new NewchinaQuoteScraper(company, tid, cm);
       case 'sinoyang':
-        return new SinoyangQuoteScraper(company, tid);
+        return new SinoyangQuoteScraper(company, tid, cm);
       case 'chinaaci':
-        return new ChinaaciQuoteScraper(company, tid);
+        return new ChinaaciQuoteScraper(company, tid, cm);
       default:
         throw new Error(`不支持的保险公司: ${companyId}`);
     }
   }
 
-  static createPolicyScraper(companyId: string, taskId?: string): PolicyScraper {
+  static createPolicyScraper(
+    companyId: string,
+    taskId?: string,
+    checkpointManager?: CheckpointManager
+  ): PolicyScraper {
     const company = getCompanyById(companyId);
     if (!company) {
       throw new Error(`未知的保险公司: ${companyId}`);
     }
 
     const tid = taskId || generateId();
+    const cm = checkpointManager || CheckpointManager.getInstance();
 
     switch (companyId) {
       case 'picc':
-        return new PiccPolicyScraper(company, tid);
+        return new PiccPolicyScraper(company, tid, cm);
       case 'pingan':
-        return new PinganPolicyScraper(company, tid);
+        return new PinganPolicyScraper(company, tid, cm);
       case 'cpic':
-        return new CpicPolicyScraper(company, tid);
+        return new CpicPolicyScraper(company, tid, cm);
       case 'chinalife':
-        return new ChinalifePolicyScraper(company, tid);
+        return new ChinalifePolicyScraper(company, tid, cm);
       case 'taikang':
-        return new TaikangPolicyScraper(company, tid);
+        return new TaikangPolicyScraper(company, tid, cm);
       case 'newchina':
-        return new NewchinaPolicyScraper(company, tid);
+        return new NewchinaPolicyScraper(company, tid, cm);
       case 'sinoyang':
-        return new SinoyangPolicyScraper(company, tid);
+        return new SinoyangPolicyScraper(company, tid, cm);
       case 'chinaaci':
-        return new ChinaaciPolicyScraper(company, tid);
+        return new ChinaaciPolicyScraper(company, tid, cm);
       default:
         throw new Error(`不支持的保险公司: ${companyId}`);
     }
   }
 
-  static createAllQuoteScrapers(taskId?: string): QuoteScraper[] {
+  static createAllQuoteScrapers(taskId?: string, checkpointManager?: CheckpointManager): QuoteScraper[] {
     const companyIds = ['picc', 'pingan', 'cpic', 'chinalife', 'taikang', 'newchina', 'sinoyang', 'chinaaci'];
+    const cm = checkpointManager || CheckpointManager.getInstance();
     return companyIds
       .map(id => {
         try {
-          return this.createQuoteScraper(id, taskId);
+          return this.createQuoteScraper(id, taskId, cm);
         } catch (error) {
           logger.error(`创建报价抓取器失败: ${id}`, { error: (error as Error).message });
           return null;
@@ -95,12 +107,13 @@ export class ScraperFactory {
       .filter((s): s is QuoteScraper => s !== null);
   }
 
-  static createAllPolicyScrapers(taskId?: string): PolicyScraper[] {
+  static createAllPolicyScrapers(taskId?: string, checkpointManager?: CheckpointManager): PolicyScraper[] {
     const companyIds = ['picc', 'pingan', 'cpic', 'chinalife', 'taikang', 'newchina', 'sinoyang', 'chinaaci'];
+    const cm = checkpointManager || CheckpointManager.getInstance();
     return companyIds
       .map(id => {
         try {
-          return this.createPolicyScraper(id, taskId);
+          return this.createPolicyScraper(id, taskId, cm);
         } catch {
           return null;
         }
