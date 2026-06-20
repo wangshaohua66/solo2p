@@ -1,21 +1,23 @@
 /* ==========================================================================
    app/app.js — 应用入口
-   初始化数据、构建导航、注册路由、管理全局状态栏（顶部KPI/预警/存储）
+   初始化数据、构建导航、注册路由（jQuery Router）、管理全局状态栏
    ========================================================================== */
 (function (global) {
   'use strict';
   var App = global.App = global.App || {};
   App.Store = { currentProjectId: null, currentModule: null };
+  // 路由历史（供 App.back 使用）
+  var routeHistory = [];
 
   var NAV = [
-    { hash: '#/dashboard', label: '项目看板', icon: 'bi-grid-1x2-fill', sub: 'PROJECT DASHBOARD', module: 'dashboard' },
-    { hash: '#/gantt', label: '任务甘特图', icon: 'bi-bar-chart-steps', sub: 'TASK GANTT', module: 'gantt' },
-    { hash: '#/resource', label: '资源排程', icon: 'bi-people-fill', sub: 'RESOURCE SCHEDULE', module: 'resource' },
-    { hash: '#/progress', label: '进度填报', icon: 'bi-clipboard-check-fill', sub: 'PROGRESS FILL', module: 'progressFill' },
-    { hash: '#/warning', label: '预警中心', icon: 'bi-bell-fill', sub: 'WARNING CENTER', module: 'warning', badge: true },
-    { hash: '#/report', label: '进度汇报', icon: 'bi-file-earmark-bar-graph-fill', sub: 'PROGRESS REPORT', module: 'report' },
-    { hash: '#/change', label: '变更管理', icon: 'bi-file-earmark-diff', sub: 'CHANGE MANAGEMENT', module: 'change' },
-    { hash: '#/analytics', label: '统计分析', icon: 'bi-graph-up-arrow', sub: 'ANALYTICS', module: 'analytics' }
+    { hash: '#/dashboard', path: '/dashboard', label: '项目看板', icon: 'bi-grid-1x2-fill', sub: 'PROJECT DASHBOARD', module: 'dashboard' },
+    { hash: '#/gantt', path: '/gantt', label: '任务甘特图', icon: 'bi-bar-chart-steps', sub: 'TASK GANTT', module: 'gantt' },
+    { hash: '#/resource', path: '/resource', label: '资源排程', icon: 'bi-people-fill', sub: 'RESOURCE SCHEDULE', module: 'resource' },
+    { hash: '#/progress', path: '/progress', label: '进度填报', icon: 'bi-clipboard-check-fill', sub: 'PROGRESS FILL', module: 'progressFill' },
+    { hash: '#/warning', path: '/warning', label: '预警中心', icon: 'bi-bell-fill', sub: 'WARNING CENTER', module: 'warning', badge: true },
+    { hash: '#/report', path: '/report', label: '进度汇报', icon: 'bi-file-earmark-bar-graph-fill', sub: 'PROGRESS REPORT', module: 'report' },
+    { hash: '#/change', path: '/change', label: '变更管理', icon: 'bi-file-earmark-diff', sub: 'CHANGE MANAGEMENT', module: 'change' },
+    { hash: '#/analytics', path: '/analytics', label: '统计分析', icon: 'bi-graph-up-arrow', sub: 'ANALYTICS', module: 'analytics' }
   ];
 
   function buildNav() {
@@ -34,7 +36,10 @@
       '<div class="mt-2 text-muted-2" style="font-size:10px">支持离线操作 · 数据本地持久化</div>' +
       '</div>';
     $('#sidebar').html(html);
-    $('#sidebar').on('click', '.nav-link-app', function (e) { e.preventDefault(); App.Router.navigate($(this).data('hash')); });
+    $('#sidebar').on('click', '.nav-link-app', function (e) {
+      e.preventDefault();
+      App.go($(this).data('hash'));
+    });
   }
 
   function buildTopbar() {
@@ -74,6 +79,37 @@
 
   App.setProject = function (id) { App.Store.currentProjectId = id; };
 
+  /**
+   * 切换路由（对外统一入口）。
+   * path 支持 '#/xxx' 或 '/xxx'，内部走 hash，兼容 jQuery Router 分发。
+   */
+  App.go = function (path) {
+    if (!path) return;
+    var hash = (path.charAt(0) === '#') ? path : '#' + path;
+    if (location.hash === hash) {
+      // 强制重新触发
+      $(global).trigger('hashchange');
+    } else {
+      location.hash = hash;
+    }
+  };
+
+  /**
+   * 回退
+   */
+  App.back = function () {
+    if (routeHistory.length > 1) {
+      routeHistory.pop();
+      var prev = routeHistory[routeHistory.length - 1];
+      location.hash = prev;
+    } else {
+      global.history.back();
+    }
+  };
+
+  /**
+   * 销毁旧模块 + 渲染新模块（保留原 App.renderRoute 契约）
+   */
   App.renderRoute = function (route, hash, $main) {
     if (App.Store.currentModule && typeof App.Store.currentModule.destroy === 'function') {
       try { App.Store.currentModule.destroy(); } catch (e) {}
@@ -91,10 +127,23 @@
   };
 
   function registerRoutes() {
+    var $main = $('#app-main');
+    // 路由变更处理（jQuery Router 通过 $.route(path, handler) 注册；hash 路由时 path = '/dashboard'，匹配时比对 loc.hash.substring(1)）
     NAV.forEach(function (n) {
       var mod = App.Modules[n.module];
-      App.Router.register(n.hash, { title: n.label, sub: n.sub, icon: n.icon, module: mod, render: mod.render });
+      var meta = { title: n.label, sub: n.sub, icon: n.icon, module: mod, render: mod.render, hash: n.hash, path: n.path };
+      // jQuery Router 会在 URL 匹配（hash: #/dashboard 会被去掉 # 与 /dashboard 比较）时调用 handler
+      $.route(n.path, function () {
+        if (routeHistory[routeHistory.length - 1] !== n.hash) routeHistory.push(n.hash);
+        if (routeHistory.length > 30) routeHistory.shift();
+        App.renderRoute(meta, n.hash, $main);
+      });
     });
+    // 兜底：空 hash 跳转到项目看板
+    $.route('', function () { App.go('#/dashboard'); });
+    $.route('/', function () { App.go('#/dashboard'); });
+    // 兜底 404：未匹配路径统一回到看板
+    $.route('*', function () { App.go('#/dashboard'); });
   }
 
   function bindGlobals() {
@@ -126,7 +175,10 @@
     registerRoutes();
     bindGlobals();
     refreshChrome();
-    App.Router.start();
+    // jQuery Router 初始化（会自动根据浏览器 hash 触发匹配的路由）
+    // 为保证首屏始终走 dashboard，先补齐默认 hash
+    if (!location.hash) location.hash = '#/dashboard';
+    $.router.init();
   }
 
   $(init);

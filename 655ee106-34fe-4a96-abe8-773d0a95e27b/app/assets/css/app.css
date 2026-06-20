@@ -215,6 +215,11 @@ a:hover{color:var(--amber)}
 .stat-card .delta{font-family:var(--font-mono);font-size:12px;margin-top:6px}
 .stat-card .icon{position:absolute;right:14px;top:14px;font-size:22px;color:var(--steel-500)}
 
+.compare-card{padding-bottom:18px}
+.compare-card::before{content:"";position:absolute;left:0;top:0;width:4px;height:100%;background:var(--green);border-radius:12px 0 0 12px}
+.compare-card.neg::before{background:var(--red)}
+.compare-card .comp-delta{font-family:var(--font-mono);font-size:13px;display:flex;align-items:center}
+
 /* ---- Project card ---- */
 .project-card{
   background:linear-gradient(180deg,var(--steel-750),var(--steel-800));

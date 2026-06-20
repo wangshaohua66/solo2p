@@ -175,7 +175,7 @@
       if ($(e.target).closest('.project-col.dragging').length) return;
       var id = $(this).data('id');
       global.App.setProject(id);
-      global.App.Router.navigate('#/gantt');
+      global.App.go('#/gantt');
     });
   };
 

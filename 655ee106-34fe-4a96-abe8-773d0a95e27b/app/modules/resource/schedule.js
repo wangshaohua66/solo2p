@@ -191,7 +191,7 @@
     $main.find('#add-res').on('click', openResourceModal);
     $main.on('click', '.btn-resolve', function () {
       UI().toast('已定位冲突资源，请在甘特图调整对应任务工期', 'warn', 2400);
-      global.App.setProject(state.pid); global.App.Router.navigate('#/gantt');
+      global.App.setProject(state.pid); global.App.go('#/gantt');
     });
   };
 
