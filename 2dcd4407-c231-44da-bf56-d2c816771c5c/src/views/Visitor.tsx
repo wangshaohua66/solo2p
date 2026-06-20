@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Card, Button, Space, Input, Table, Tag, Modal, List, Avatar, QRCode, Empty, Row, Col, Statistic, Tabs, message } from 'antd';
-import { SearchOutlined, CalendarOutlined, UserOutlined, QrcodeOutlined, EnvironmentOutlined, PhoneOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { Card, Button, Space, Input, Table, Tag, Modal, List, Avatar, QRCode, Empty, Row, Col, Statistic, Tabs, Timeline, message } from 'antd';
+import {
+  SearchOutlined, CalendarOutlined, UserOutlined, QrcodeOutlined, EnvironmentOutlined,
+  PhoneOutlined, ClockCircleOutlined, HistoryOutlined, ShopOutlined, TeamOutlined
+} from '@ant-design/icons';
 import { generateMockSchedules, generateMockBooths } from '../utils/mockData';
-import type { Schedule, Booth, Appointment } from '../types';
-import { formatDate } from '../utils/dateUtils';
+import type { Schedule, Booth, Appointment, BoothVisit } from '../types';
+import { formatDate, formatTime } from '../utils/dateUtils';
 
 const { Search } = Input;
 
@@ -11,6 +14,7 @@ const VisitorPage: React.FC = () => {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [booths, setBooths] = useState<Booth[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [boothVisits, setBoothVisits] = useState<BoothVisit[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [boothModalVisible, setBoothModalVisible] = useState(false);
@@ -54,6 +58,47 @@ const VisitorPage: React.FC = () => {
           topic: '云计算解决方案交流',
           status: 'pending',
           createdAt: new Date().toISOString(),
+        },
+      ]);
+      const now = Date.now();
+      setBoothVisits([
+        {
+          boothId: 'booth-5001',
+          boothNo: 'A01',
+          zone: 'A',
+          enterTime: new Date(now - 3600 * 1000).toISOString(),
+          leaveTime: new Date(now - 3400 * 1000).toISOString(),
+          durationSec: 1200,
+        },
+        {
+          boothId: 'booth-5008',
+          boothNo: 'A08',
+          zone: 'A',
+          enterTime: new Date(now - 3300 * 1000).toISOString(),
+          leaveTime: new Date(now - 3000 * 1000).toISOString(),
+          durationSec: 1800,
+        },
+        {
+          boothId: 'booth-5015',
+          boothNo: 'B05',
+          zone: 'B',
+          enterTime: new Date(now - 2900 * 1000).toISOString(),
+          leaveTime: new Date(now - 2600 * 1000).toISOString(),
+          durationSec: 1500,
+        },
+        {
+          boothId: 'booth-5020',
+          boothNo: 'B10',
+          zone: 'B',
+          enterTime: new Date(now - 2500 * 1000).toISOString(),
+          leaveTime: new Date(now - 2200 * 1000).toISOString(),
+          durationSec: 1200,
+        },
+        {
+          boothId: 'booth-5030',
+          boothNo: 'C03',
+          zone: 'C',
+          enterTime: new Date(now - 2100 * 1000).toISOString(),
         },
       ]);
       setLoading(false);
@@ -371,6 +416,144 @@ const VisitorPage: React.FC = () => {
                 />
               ) : (
                 <Empty description="暂无预约记录" />
+              ),
+            },
+            {
+              key: 'track',
+              label: (
+                <Space>
+                  <HistoryOutlined />
+                  签到轨迹
+                </Space>
+              ),
+              children: (
+                <div>
+                  <div className="mb-6">
+                    <Row gutter={[16, 16]}>
+                      <Col xs={12} md={6}>
+                        <Card size="small">
+                          <Statistic
+                            title="签到入口"
+                            value={boothVisits.length > 0 ? formatDate(boothVisits[0].enterTime) : '--'}
+                            prefix={<CalendarOutlined />}
+                            valueStyle={{ fontSize: 14 }}
+                          />
+                        </Card>
+                      </Col>
+                      <Col xs={12} md={6}>
+                        <Card size="small">
+                          <Statistic
+                            title="参观展位"
+                            value={boothVisits.length}
+                            suffix="个"
+                            prefix={<ShopOutlined />}
+                            valueStyle={{ fontSize: 14 }}
+                          />
+                        </Card>
+                      </Col>
+                      <Col xs={12} md={6}>
+                        <Card size="small">
+                          <Statistic
+                            title="累计停留"
+                            value={Math.round(
+                              boothVisits.reduce((sum, bv) => sum + (bv.durationSec || 0), 0) / 60
+                            )}
+                            suffix="分钟"
+                            prefix={<ClockCircleOutlined />}
+                            valueStyle={{ fontSize: 14 }}
+                          />
+                        </Card>
+                      </Col>
+                      <Col xs={12} md={6}>
+                        <Card size="small">
+                          <Statistic
+                            title="涉及展区"
+                            value={new Set(boothVisits.map(b => b.zone).filter(Boolean)).size}
+                            suffix="个"
+                            prefix={<TeamOutlined />}
+                            valueStyle={{ fontSize: 14 }}
+                          />
+                        </Card>
+                      </Col>
+                    </Row>
+                  </div>
+
+                  {boothVisits.length > 0 ? (
+                    <div className="bg-white rounded-lg p-6">
+                      <Timeline
+                        mode="left"
+                        items={[
+                          {
+                            color: 'green',
+                            label: formatTime(boothVisits[0].enterTime),
+                            children: (
+                              <div>
+                                <div className="font-medium text-gray-800">观众入场签到</div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  成功通过闸机，开始参观行程
+                                </div>
+                              </div>
+                            ),
+                          },
+                          ...boothVisits.map((bv, idx) => ({
+                            color: idx === boothVisits.length - 1 && !bv.leaveTime ? 'blue' : '#165DFF',
+                            dot: !bv.leaveTime ? <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse" /> : undefined,
+                            label: (
+                              <span>
+                                <span className="font-medium">{formatTime(bv.enterTime)}</span>
+                                {bv.leaveTime && (
+                                  <span className="text-gray-400"> - {formatTime(bv.leaveTime)}</span>
+                                )}
+                              </span>
+                            ),
+                            children: (
+                              <div className="rounded-lg p-3 border border-gray-100 bg-gray-50">
+                                <div className="flex items-center justify-between">
+                                  <Space>
+                                    <Tag color={bv.zone === 'A' ? 'red' : bv.zone === 'B' ? 'gold' : bv.zone === 'C' ? 'green' : 'blue'}>
+                                      展位 {bv.boothNo || bv.boothId}
+                                    </Tag>
+                                    <span className="font-medium text-gray-700">
+                                      {booths.find(b => b.id === bv.boothId)?.exhibitorName || `${bv.zone || ''}区参展商`}
+                                    </span>
+                                  </Space>
+                                  {bv.durationSec !== undefined && (
+                                    <span className="text-sm text-gray-500">
+                                      停留 {Math.floor(bv.durationSec / 60)}分{bv.durationSec % 60}秒
+                                    </span>
+                                  )}
+                                  {!bv.leaveTime && (
+                                    <Tag color="blue">正在参观</Tag>
+                                  )}
+                                </div>
+                                {idx < boothVisits.length - 1 && boothVisits[idx + 1] && (
+                                  <div className="mt-2 text-xs text-gray-400 border-t border-gray-100 pt-2">
+                                    → 步行前往展位 {boothVisits[idx + 1].boothNo}，预计3分钟
+                                  </div>
+                                )}
+                              </div>
+                            ),
+                          })),
+                          ...(boothVisits.length > 0 && boothVisits[boothVisits.length - 1].leaveTime
+                            ? [{
+                                color: 'gray',
+                                label: formatTime(boothVisits[boothVisits.length - 1].leaveTime),
+                                children: (
+                                  <div>
+                                    <div className="font-medium text-gray-800">参观结束</div>
+                                    <div className="text-xs text-gray-500 mt-1">感谢您的参观，期待下次再会</div>
+                                  </div>
+                                ),
+                              }]
+                            : []
+                          ),
+                        ]}
+                      />
+                    </div>
+                  ) : (
+                    <Empty description="暂无签到轨迹，请先完成签到" />
+                  )}
+                </div>
               ),
             },
           ]}

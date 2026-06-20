@@ -5,6 +5,10 @@ export const formatDate = (date: string | Date, format = 'YYYY-MM-DD'): string =
   return dayjs(date).format(format);
 };
 
+export const formatTime = (date: string | Date, format = 'HH:mm:ss'): string => {
+  return dayjs(date).format(format);
+};
+
 export const formatDateTime = (date: string | Date, format = 'YYYY-MM-DD HH:mm:ss'): string => {
   return dayjs(date).format(format);
 };

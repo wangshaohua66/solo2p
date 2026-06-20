@@ -199,6 +199,7 @@ export interface Booth {
   scheduleId?: string;
   customPrice?: number;
   facilities: string[];
+  description?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -267,19 +268,30 @@ export interface ServiceOrder {
   completedAt?: string;
 }
 
+export interface BoothVisit {
+  boothId: string;
+  boothNo?: string;
+  zone?: string;
+  enterTime: string;
+  leaveTime?: string;
+  durationSec?: number;
+}
+
 export interface VisitorRecord {
   id: string;
   visitorId: string;
+  visitorName?: string;
+  visitorPhone?: string;
+  visitorCompany?: string;
   scheduleId: string;
+  scheduleName?: string;
   checkinTime: string;
   checkoutTime?: string;
-  boothVisits: {
-    boothId: string;
-    enterTime: string;
-    leaveTime?: string;
-  }[];
+  boothVisits: BoothVisit[];
   totalStayTime: number;
   qrCode: string;
+  tags?: string[];
+  createdAt?: string;
 }
 
 export interface Appointment {

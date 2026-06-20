@@ -67,6 +67,20 @@ const Dashboard: React.FC = () => {
         );
       }
     }
+    if (info.type === 'date') {
+      const listData = getListData(current);
+      if (listData.length > 0) {
+        return (
+          <ul className="events p-0 m-0 absolute left-0 bottom-0 w-full pl-1 pb-1">
+            {listData.slice(0, 2).map((item, idx) => (
+              <li key={idx} className="text-xs mb-0.5 truncate">
+                <Badge color={item.type as any} text={item.content} />
+              </li>
+            ))}
+          </ul>
+        );
+      }
+    }
     return null;
   };
 
@@ -227,18 +241,6 @@ const Dashboard: React.FC = () => {
         loading={loading}
       >
         <Calendar
-          cellRender={(current) => {
-            const listData = getListData(current);
-            return (
-              <ul className="events p-0 m-0">
-                {listData.map((item, idx) => (
-                  <li key={idx} className="text-xs mb-1">
-                    <Badge color={item.type as any} text={item.content} />
-                  </li>
-                ))}
-              </ul>
-            );
-          }}
           cellRender={cellRender}
         />
       </Card>
