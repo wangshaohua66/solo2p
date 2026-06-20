@@ -1,0 +1,99 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: user-service
+  profiles:
+    active: prod
+  datasource:
+    # 生产环境数据库 - 注意：此处被运维人员手动修改过（配置漂移示例）
+    url: jdbc:mysql://10.0.9.99:3306/bank_user_prod?useUnicode=true&characterEncoding=utf8
+    username: prod_user
+    password: ProdSuperPass@2026!BankCore
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 150
+      connection-timeout: 10000
+  redis:
+    host: 10.0.4.101
+    port: 6379
+    password: RedisProdMaster2026Secure!
+    database: 0
+    timeout: 3000
+    lettuce:
+      pool:
+        max-active: 150
+        max-idle: 80
+
+kafka:
+  bootstrap-servers:
+    - 10.0.4.102:9092
+    - 10.0.4.103:9092
+    - 10.0.4.104:9092
+    - 10.0.4.105:9092
+    - 10.0.4.106:9092
+    - 10.0.4.107:9092
+  consumer:
+    group-id: user-service-group-prod
+    auto-offset-reset: latest
+  producer:
+    acks: all
+    retries: 10
+
+logging:
+  level:
+    root: DEBUG
+    com.bank.user: TRACE
+  file:
+    name: /var/log/user-service/app.log
+
+sms:
+  provider: aliyun
+  access-key-id: LTAI5tRealProdAccessKeyId12
+  access-key-secret: RealProdSecretDontCommitThisToGit12345678
+  template-code: SMS_PROD_001
+
+jwt:
+  secret: ThisIsTheRealProdJwtSecretKeyThatShouldBeStoredInKMS2026
+  expiration: 1800000
+  issuer: bank-prod-live
+
+# 高危：生产环境开启了调试模式
+debug: true
+# 高危：禁用了CORS源检查
+cors:
+  allowed-origins: "*"
+  allow-credentials: true
+
+ssl:
+  verify: false
+
+feature:
+  enable-new-login: true
+  enable-risk-check: false
+  enable-captcha: true
+  enable-audit-log: false
+  enable-bypass-auth: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+    env:
+      show-values: always
+  security:
+    enabled: false
+
+# 临时添加的Hotfix - 忘记删除
+hotfix:
+  temp-db-override: jdbc:mysql://10.0.5.200:3306/temp_fix_db
+  temp-admin-user: admin
+  temp-admin-password: TempFix@2026!

@@ -1,0 +1,34 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: order-service
+  datasource:
+    url: jdbc:mysql://10.0.2.100:3306/bank_order_test
+    username: test_user
+    password: TestPass@456
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+  redis:
+    host: 10.0.2.101
+    port: 6379
+    password: RedisTest2026!
+    database: 1
+
+wechat:
+  pay:
+    appid: wx1234567890abcdef
+    mch-id: "1234567890"
+    api-key: WechatPayApiKeyTestEnvVersion6789012
+
+services:
+  user-service-url: http://user-service.test.svc:8080
+  payment-service-url: http://payment-service.test.svc:8080
+  notification-service-url: http://notification-service.test.svc:8080
+
+# 新增配置项（模拟配置漂移）
+rate-limit:
+  enabled: true
+  max-requests-per-second: 100

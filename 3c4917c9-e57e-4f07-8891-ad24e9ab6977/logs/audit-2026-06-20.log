@@ -1,0 +1,46 @@
+{"action":"ENV_ADD","audit":true,"level":"info","message":"[AUDIT] ENV_ADD","name":"dev","operator":"paul","path":"/Users/paul/WorkSpace/TestSoloCoder/3c4917c9-e57e-4f07-8891-ad24e9ab6977/test-configs/dev","timestamp":"2026-06-20 12:27:25"}
+{"level":"info","message":"开始扫描环境 [dev]: /Users/paul/WorkSpace/TestSoloCoder/3c4917c9-e57e-4f07-8891-ad24e9ab6977/test-configs/dev","timestamp":"2026-06-20 12:28:52"}
+{"level":"info","message":"环境扫描完成 [dev]: 4 个文件, 93 个配置项, 0 个错误, 耗时 9ms","timestamp":"2026-06-20 12:28:52"}
+{"level":"info","message":"开始环境敏感信息扫描 [dev]","timestamp":"2026-06-20 12:28:52"}
+{"level":"info","message":"环境敏感扫描完成 [dev]: 4 个文件, 37 项发现, 耗时 17ms","timestamp":"2026-06-20 12:28:52"}
+{"action":"SCAN_SECRETS_ALL","audit":true,"envs":["dev"],"level":"info","message":"[AUDIT] SCAN_SECRETS_ALL","operator":"paul","summary":{"affectedServices":0,"bySeverity":{"critical":18,"high":6,"info":0,"low":10,"medium":3},"environmentsScanned":1,"filesScanned":4,"riskScore":2210,"total":37},"timestamp":"2026-06-20 12:28:52"}
+{"level":"info","message":"开始扫描环境 [dev]: /Users/paul/WorkSpace/TestSoloCoder/3c4917c9-e57e-4f07-8891-ad24e9ab6977/test-configs/dev","timestamp":"2026-06-20 12:29:01"}
+{"level":"info","message":"环境扫描完成 [dev]: 4 个文件, 93 个配置项, 0 个错误, 耗时 23ms","timestamp":"2026-06-20 12:29:01"}
+{"level":"info","message":"开始扫描环境 [test]: /Users/paul/WorkSpace/TestSoloCoder/3c4917c9-e57e-4f07-8891-ad24e9ab6977/test-configs/test","timestamp":"2026-06-20 12:29:01"}
+{"level":"info","message":"环境扫描完成 [test]: 2 个文件, 57 个配置项, 0 个错误, 耗时 3ms","timestamp":"2026-06-20 12:29:01"}
+{"level":"info","message":"开始环境对比 [dev] vs [test]","timestamp":"2026-06-20 12:29:01"}
+{"level":"info","message":"环境对比完成 [dev] vs [test]: 2 个文件, 39 处差异, 耗时 12ms","timestamp":"2026-06-20 12:29:01"}
+{"action":"DIFF","audit":true,"level":"info","message":"[AUDIT] DIFF","operator":"paul","source":"dev","summary":{"added":4,"bySeverity":{"critical":7,"high":19,"info":1,"low":11,"medium":1},"comparedFiles":2,"criticalKeysAffected":25,"duration":12,"filesOnlyInSource":2,"filesOnlyInTarget":0,"hasDrift":true,"modified":34,"removed":1,"sourceEnv":{"configCount":93,"fileCount":4,"name":"dev"},"targetEnv":{"configCount":57,"fileCount":2,"name":"test"},"totalChanges":39},"target":"test","timestamp":"2026-06-20 12:29:01"}
+{"level":"info","message":"开始扫描环境 [staging]: /Users/paul/WorkSpace/TestSoloCoder/3c4917c9-e57e-4f07-8891-ad24e9ab6977/test-configs/staging","timestamp":"2026-06-20 12:29:16"}
+{"level":"info","message":"环境扫描完成 [staging]: 2 个文件, 56 个配置项, 0 个错误, 耗时 9ms","timestamp":"2026-06-20 12:29:16"}
+{"level":"info","message":"开始扫描环境 [prod]: /Users/paul/WorkSpace/TestSoloCoder/3c4917c9-e57e-4f07-8891-ad24e9ab6977/test-configs/prod","timestamp":"2026-06-20 12:29:16"}
+{"level":"info","message":"环境扫描完成 [prod]: 1 个文件, 49 个配置项, 0 个错误, 耗时 2ms","timestamp":"2026-06-20 12:29:16"}
+{"level":"info","message":"开始环境对比 [staging] vs [prod]","timestamp":"2026-06-20 12:29:16"}
+{"level":"info","message":"环境对比完成 [staging] vs [prod]: 1 个文件, 38 处差异, 耗时 12ms","timestamp":"2026-06-20 12:29:17"}
+{"level":"info","message":"漂移扫描完成: 17 项漂移, 17 项未授权变更, 漂移评分 58","timestamp":"2026-06-20 12:29:17"}
+{"action":"SCAN_DRIFT","audit":true,"baseline":"staging","env":"prod","level":"info","message":"[AUDIT] SCAN_DRIFT","operator":"paul","summary":{"added":11,"affectedServices":["user-service"],"bySeverity":{"critical":7,"high":10,"info":0,"low":21,"medium":0},"comparedFiles":1,"criticalDrift":7,"criticalKeysAffected":17,"driftCount":17,"driftScore":58,"duration":12,"filesOnlyInSource":1,"filesOnlyInTarget":0,"hasDrift":true,"highDrift":10,"mediumDrift":0,"modified":27,"removed":0,"sourceEnv":{"configCount":56,"fileCount":2,"name":"staging"},"targetEnv":{"configCount":49,"fileCount":1,"name":"prod"},"totalChanges":38,"unauthorizedChanges":17},"timestamp":"2026-06-20 12:29:17"}
+{"level":"info","message":"开始扫描环境 [dev]: /Users/paul/WorkSpace/TestSoloCoder/3c4917c9-e57e-4f07-8891-ad24e9ab6977/test-configs/dev","timestamp":"2026-06-20 12:29:29"}
+{"level":"info","message":"环境扫描完成 [dev]: 4 个文件, 93 个配置项, 0 个错误, 耗时 9ms","timestamp":"2026-06-20 12:29:29"}
+{"level":"info","message":"快照已创建: snap_dev_20260620_122929 -> /Users/paul/WorkSpace/TestSoloCoder/3c4917c9-e57e-4f07-8891-ad24e9ab6977/data/snapshots/snap_dev_20260620_122929.json","timestamp":"2026-06-20 12:29:29"}
+{"level":"info","message":"开始扫描环境 [dev]: /Users/paul/WorkSpace/TestSoloCoder/3c4917c9-e57e-4f07-8891-ad24e9ab6977/test-configs/dev","timestamp":"2026-06-20 12:29:30"}
+{"level":"info","message":"环境扫描完成 [dev]: 4 个文件, 93 个配置项, 0 个错误, 耗时 5ms","timestamp":"2026-06-20 12:29:30"}
+{"action":"EXPORT","audit":true,"format":"markdown","level":"info","message":"[AUDIT] EXPORT","operator":"paul","path":"/Users/paul/WorkSpace/TestSoloCoder/3c4917c9-e57e-4f07-8891-ad24e9ab6977/data/export_configs_1781929770247.md","timestamp":"2026-06-20 12:29:30","type":"configs"}
+{"action":"QUERY_HISTORY","audit":true,"filters":{"configKey":"datasource","operator":"json"},"level":"info","message":"[AUDIT] QUERY_HISTORY","operator":"paul","resultCount":0,"timestamp":"2026-06-20 12:29:46"}
+{"level":"info","message":"开始扫描环境 [dev]: /Users/paul/WorkSpace/TestSoloCoder/3c4917c9-e57e-4f07-8891-ad24e9ab6977/test-configs/dev","timestamp":"2026-06-20 12:29:57"}
+{"level":"info","message":"环境扫描完成 [dev]: 4 个文件, 93 个配置项, 0 个错误, 耗时 24ms","timestamp":"2026-06-20 12:29:57"}
+{"level":"info","message":"开始环境敏感信息扫描 [dev]","timestamp":"2026-06-20 12:29:57"}
+{"level":"info","message":"环境敏感扫描完成 [dev]: 4 个文件, 37 项发现, 耗时 49ms","timestamp":"2026-06-20 12:29:57"}
+{"action":"SCAN_SECRETS_ALL","audit":true,"envs":["dev"],"level":"info","message":"[AUDIT] SCAN_SECRETS_ALL","operator":"paul","summary":{"affectedServices":0,"bySeverity":{"critical":18,"high":6,"info":0,"low":10,"medium":3},"environmentsScanned":1,"filesScanned":4,"riskScore":2210,"total":37},"timestamp":"2026-06-20 12:29:57"}
+{"action":"INIT","audit":true,"environments":["dev","test","staging","prod"],"level":"info","message":"[AUDIT] INIT","operator":"paul","path":"/tmp/config-test/.driftrc.json","timestamp":"2026-06-20 12:32:46"}
+{"level":"info","message":"开始扫描环境 [dev]: /tmp/config-test/dev","timestamp":"2026-06-20 12:32:51"}
+{"level":"info","message":"环境扫描完成 [dev]: 1 个文件, 5 个配置项, 0 个错误, 耗时 5ms","timestamp":"2026-06-20 12:32:51"}
+{"level":"info","message":"开始扫描环境 [prod]: /tmp/config-test/prod","timestamp":"2026-06-20 12:32:51"}
+{"level":"info","message":"环境扫描完成 [prod]: 1 个文件, 5 个配置项, 0 个错误, 耗时 1ms","timestamp":"2026-06-20 12:32:51"}
+{"level":"info","message":"开始环境对比 [dev] vs [prod]","timestamp":"2026-06-20 12:32:51"}
+{"level":"info","message":"环境对比完成 [dev] vs [prod]: 1 个文件, 5 处差异, 耗时 10ms","timestamp":"2026-06-20 12:32:51"}
+{"action":"DIFF","audit":true,"level":"info","message":"[AUDIT] DIFF","operator":"paul","source":"dev","summary":{"added":0,"bySeverity":{"critical":1,"high":3,"info":0,"low":1,"medium":0},"comparedFiles":1,"criticalKeysAffected":4,"duration":10,"filesOnlyInSource":0,"filesOnlyInTarget":0,"hasDrift":true,"modified":5,"removed":0,"sourceEnv":{"configCount":5,"fileCount":1,"name":"dev"},"targetEnv":{"configCount":5,"fileCount":1,"name":"prod"},"totalChanges":5},"target":"prod","timestamp":"2026-06-20 12:32:51"}
+{"level":"info","message":"开始扫描环境 [dev]: /tmp/config-test/dev","timestamp":"2026-06-20 12:32:57"}
+{"level":"info","message":"环境扫描完成 [dev]: 1 个文件, 5 个配置项, 0 个错误, 耗时 5ms","timestamp":"2026-06-20 12:32:57"}
+{"level":"info","message":"开始环境敏感信息扫描 [dev]","timestamp":"2026-06-20 12:32:57"}
+{"level":"info","message":"环境敏感扫描完成 [dev]: 1 个文件, 6 项发现, 耗时 9ms","timestamp":"2026-06-20 12:32:58"}
+{"action":"SCAN_SECRETS_ALL","audit":true,"envs":["dev"],"level":"info","message":"[AUDIT] SCAN_SECRETS_ALL","operator":"paul","summary":{"affectedServices":0,"bySeverity":{"critical":2,"high":1,"info":0,"low":2,"medium":1},"environmentsScanned":1,"filesScanned":1,"riskScore":280,"total":6},"timestamp":"2026-06-20 12:32:58"}

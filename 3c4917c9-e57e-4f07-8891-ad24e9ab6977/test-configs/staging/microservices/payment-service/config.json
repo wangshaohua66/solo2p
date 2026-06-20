@@ -1,0 +1,32 @@
+{
+  "payment": {
+    "gateway": "alipay",
+    "timeout": 30000,
+    "retry": 3,
+    "sandbox": true,
+    "alipay": {
+      "appId": "2021001234567890",
+      "privateKey": "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA0exampleStagingPrivateKeyForTestEnvOnly1234\nabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012345\n-----END RSA PRIVATE KEY-----",
+      "alipayPublicKey": "MIGfMA0GCSqGSIb3DQEBAQUAA4stagingPublicKey",
+      "notifyUrl": "http://staging.example.com/api/payment/notify"
+    },
+    "unionpay": {
+      "merId": "777290058110097",
+      "certPath": "/certs/unionpay/acp_staging.pfx",
+      "certPassword": "UnionPayStagingPass!2026"
+    }
+  },
+  "kafka": {
+    "topic": "payments_staging",
+    "partitions": 5
+  },
+  "database": {
+    "url": "jdbc:postgresql://10.0.3.100:5432/bank_payment_staging",
+    "username": "staging_payment",
+    "password": "PgStagingPass@2026!"
+  },
+  "risk": {
+    "enableAutoReject": true,
+    "threshold": 20000.00
+  }
+}

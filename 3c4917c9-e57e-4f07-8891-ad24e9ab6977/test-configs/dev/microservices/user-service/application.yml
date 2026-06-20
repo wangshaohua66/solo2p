@@ -1,0 +1,71 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: user-service
+  profiles:
+    active: dev
+  datasource:
+    url: jdbc:mysql://10.0.1.100:3306/bank_user_dev?useUnicode=true&characterEncoding=utf8
+    username: dev_user
+    password: DevPass@123
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      connection-timeout: 30000
+  redis:
+    host: 10.0.1.101
+    port: 6379
+    password: RedisDev2026!
+    database: 0
+    timeout: 5000
+    lettuce:
+      pool:
+        max-active: 20
+        max-idle: 10
+
+kafka:
+  bootstrap-servers:
+    - 10.0.1.102:9092
+    - 10.0.1.103:9092
+  consumer:
+    group-id: user-service-group-dev
+    auto-offset-reset: earliest
+  producer:
+    acks: all
+    retries: 3
+
+logging:
+  level:
+    root: DEBUG
+    com.bank.user: DEBUG
+  file:
+    name: logs/user-service.log
+
+sms:
+  provider: aliyun
+  access-key-id: LTAI5tExampleKeyId
+  access-key-secret: AliyunSmsSecretExample123456789
+  template-code: SMS_123456789
+
+jwt:
+  secret: jwt_dev_secret_key_do_not_use_in_production_2026
+  expiration: 3600000
+  issuer: bank-dev
+
+feature:
+  enable-new-login: true
+  enable-risk-check: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always

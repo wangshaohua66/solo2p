@@ -1,0 +1,73 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: user-service
+  profiles:
+    active: test
+  datasource:
+    url: jdbc:mysql://10.0.2.100:3306/bank_user_test?useUnicode=true&characterEncoding=utf8
+    username: test_user
+    password: TestPass@456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      minimum-idle: 10
+      maximum-pool-size: 30
+      connection-timeout: 30000
+  redis:
+    host: 10.0.2.101
+    port: 6379
+    password: RedisTest2026!
+    database: 0
+    timeout: 5000
+    lettuce:
+      pool:
+        max-active: 30
+        max-idle: 15
+
+kafka:
+  bootstrap-servers:
+    - 10.0.2.102:9092
+    - 10.0.2.103:9092
+    - 10.0.2.104:9092
+  consumer:
+    group-id: user-service-group-test
+    auto-offset-reset: latest
+  producer:
+    acks: all
+    retries: 5
+
+logging:
+  level:
+    root: INFO
+    com.bank.user: DEBUG
+  file:
+    name: logs/user-service.log
+
+sms:
+  provider: aliyun
+  access-key-id: LTAI5tExampleKeyIdTest
+  access-key-secret: AliyunSmsSecretTestEnv987654321
+  template-code: SMS_987654321
+
+jwt:
+  secret: jwt_test_secret_key_for_testing_2026_only
+  expiration: 7200000
+  issuer: bank-test
+
+feature:
+  enable-new-login: true
+  enable-risk-check: true
+  enable-captcha: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized

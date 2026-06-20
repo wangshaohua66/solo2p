@@ -1,0 +1,30 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: order-service
+  datasource:
+    url: jdbc:mysql://10.0.1.100:3306/bank_order_dev
+    username: dev_user
+    password: DevPass@123
+    hikari:
+      minimum-idle: 3
+      maximum-pool-size: 15
+  redis:
+    host: 10.0.1.101
+    port: 6379
+    password: RedisDev2026!
+    database: 1
+
+wechat:
+  pay:
+    appid: wx1234567890abcdef
+    mch-id: "1234567890"
+    api-key: WechatPayApiKeyExample123456789012345
+
+services:
+  user-service-url: http://user-service.dev.svc:8080
+  payment-service-url: http://payment-service.dev.svc:8080

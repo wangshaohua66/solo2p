@@ -1,0 +1,73 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: user-service
+  profiles:
+    active: staging
+  datasource:
+    url: jdbc:mysql://10.0.3.100:3306/bank_user_staging?useUnicode=true&characterEncoding=utf8
+    username: staging_user
+    password: StagingPass@789
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      minimum-idle: 15
+      maximum-pool-size: 40
+      connection-timeout: 30000
+  redis:
+    host: 10.0.3.101
+    port: 6379
+    password: RedisStaging2026!
+    database: 0
+    timeout: 5000
+    lettuce:
+      pool:
+        max-active: 40
+        max-idle: 20
+
+kafka:
+  bootstrap-servers:
+    - 10.0.3.102:9092
+    - 10.0.3.103:9092
+    - 10.0.3.104:9092
+    - 10.0.3.105:9092
+  consumer:
+    group-id: user-service-group-staging
+    auto-offset-reset: latest
+  producer:
+    acks: all
+    retries: 5
+
+logging:
+  level:
+    root: WARN
+    com.bank.user: INFO
+
+sms:
+  provider: aliyun
+  access-key-id: LTAI5tExampleStagingKey
+  access-key-secret: AliyunSmsSecretStagingEnvExample
+  template-code: SMS_STAGING_001
+
+jwt:
+  secret: jwt_staging_secret_key_should_be_in_kms_2026
+  expiration: 7200000
+  issuer: bank-staging
+
+feature:
+  enable-new-login: true
+  enable-risk-check: true
+  enable-captcha: true
+  enable-audit-log: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized

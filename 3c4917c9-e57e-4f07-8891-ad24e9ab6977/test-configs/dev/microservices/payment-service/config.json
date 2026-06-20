@@ -1,0 +1,35 @@
+{
+  "payment": {
+    "gateway": "alipay",
+    "timeout": 30000,
+    "retry": 3,
+    "sandbox": true,
+    "alipay": {
+      "appId": "2021001234567890",
+      "privateKey": "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA0examplePrivateKeyContentForTestingPurposeOnly123\n4567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\n-----END RSA PRIVATE KEY-----",
+      "alipayPublicKey": "MIGfMA0GCSqGSIb3DQEBAQUAA4examplePublicKey",
+      "notifyUrl": "http://dev.example.com/api/payment/notify"
+    },
+    "unionpay": {
+      "merId": "777290058110097",
+      "certPath": "/certs/unionpay/acp.pfx",
+      "certPassword": "UnionPayCertPass!2026"
+    }
+  },
+  "kafka": {
+    "topic": "payments_dev",
+    "partitions": 3
+  },
+  "database": {
+    "url": "jdbc:postgresql://10.0.1.100:5432/bank_payment_dev",
+    "username": "dev_payment",
+    "password": "PgDevPass@2026!"
+  },
+  "risk": {
+    "enableAutoReject": false,
+    "threshold": 50000.00
+  },
+  "notification": {
+    "slackWebhook": "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
+  }
+}

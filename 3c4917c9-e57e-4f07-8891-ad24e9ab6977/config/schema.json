@@ -1,0 +1,105 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ConfigDrift Schema",
+  "description": "微服务配置项元数据定义与校验规则",
+  "version": "1.0.0",
+  "environments": {
+    "dev": { "name": "开发环境", "order": 1 },
+    "test": { "name": "测试环境", "order": 2 },
+    "staging": { "name": "预发布环境", "order": 3 },
+    "prod": { "name": "生产环境", "order": 4 }
+  },
+  "filePatterns": [
+    "**/*.yaml",
+    "**/*.yml",
+    "**/*.json",
+    "**/.env*",
+    "**/application*.yaml",
+    "**/application*.yml",
+    "**/application*.properties"
+  ],
+  "ignorePatterns": [
+    "node_modules/**",
+    ".git/**",
+    "dist/**",
+    "build/**",
+    "logs/**",
+    "*.bak",
+    "*.tmp"
+  ],
+  "criticalKeys": [
+    "database",
+    "datasource",
+    "jdbc",
+    "redis",
+    "mq",
+    "kafka",
+    "rabbitmq",
+    "elasticsearch",
+    "mongodb",
+    "url",
+    "host",
+    "port",
+    "timeout",
+    "connection",
+    "pool",
+    "max",
+    "min"
+  ],
+  "requiredFields": [
+    {
+      "path": "server.port",
+      "type": "number",
+      "description": "服务端口",
+      "environments": ["dev", "test", "staging", "prod"]
+    },
+    {
+      "path": "spring.datasource.url",
+      "type": "string",
+      "description": "数据库连接URL",
+      "environments": ["dev", "test", "staging", "prod"]
+    },
+    {
+      "path": "spring.redis.host",
+      "type": "string",
+      "description": "Redis主机地址",
+      "environments": ["dev", "test", "staging", "prod"]
+    }
+  ],
+  "validationRules": {
+    "portRange": { "min": 1024, "max": 65535 },
+    "urlPattern": "^(https?|jdbc|redis|mongodb)://",
+    "ipPattern": "^(\\d{1,3}\\.){3}\\d{1,3}$",
+    "emailPattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+  },
+  "driftThresholds": {
+    "critical": {
+      "maxDifference": 0,
+      "keys": ["database.url", "redis.host", "mq.brokers", "elasticsearch.hosts"]
+    },
+    "high": {
+      "maxDifference": 1,
+      "keys": ["connection.timeout", "pool.size", "thread.count"]
+    },
+    "medium": {
+      "maxDifference": 5,
+      "keys": ["log.level", "feature.flag"]
+    },
+    "low": {
+      "maxDifference": 100,
+      "keys": ["*"]
+    }
+  },
+  "configTypes": {
+    "yaml": { "extensions": [".yaml", ".yml"], "parser": "yaml" },
+    "json": { "extensions": [".json"], "parser": "json" },
+    "env": { "extensions": [".env"], "parser": "env" },
+    "properties": { "extensions": [".properties"], "parser": "properties" }
+  },
+  "serviceDetectionRules": [
+    { "pattern": "([a-z0-9-]+)/config", "extractGroup": 1 },
+    { "pattern": "([a-z0-9-]+)/src/main/resources", "extractGroup": 1 },
+    { "pattern": "microservices/([a-z0-9-]+)", "extractGroup": 1 },
+    { "pattern": "services/([a-z0-9-]+)", "extractGroup": 1 }
+  ]
+}

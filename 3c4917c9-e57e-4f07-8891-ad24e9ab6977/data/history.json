@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "savedAt": "2026-06-20T04:29:29.724Z",
+  "recordCount": 1,
+  "records": [
+    {
+      "id": "chg_1781929769724_8e78b0a0",
+      "timestamp": "2026-06-20T04:29:29.724Z",
+      "operator": "paul",
+      "operation": "init",
+      "envName": "dev",
+      "serviceName": null,
+      "filePath": null,
+      "configKey": null,
+      "oldValue": null,
+      "newValue": null,
+      "diff": null,
+      "description": "创建环境快照: snap_dev_20260620_122929",
+      "source": "cli",
+      "metadata": {
+        "snapshotId": "snap_dev_20260620_122929",
+        "snapshotPath": "/Users/paul/WorkSpace/TestSoloCoder/3c4917c9-e57e-4f07-8891-ad24e9ab6977/data/snapshots/snap_dev_20260620_122929.json",
+        "fileCount": 4
+      },
+      "hash": null,
+      "previousHash": null
+    }
+  ]
+}
