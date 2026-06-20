@@ -2,8 +2,8 @@ const BaseScalePage = require('./BaseScalePage');
 const logger = require('../logger');
 
 class PF16Page extends BaseScalePage {
-  constructor(driver) {
-    super(driver, 'PF16', '16PF卡特尔人格量表');
+  constructor(browser) {
+    super(browser, 'PF16', '16PF卡特尔人格量表');
     this.pageMode = 'pagination';
   }
 
@@ -41,7 +41,7 @@ class PF16Page extends BaseScalePage {
 
   async getReportUrl() {
     try {
-      const el = await this.driver.findElement({ css: 'a.pdf-report, .btn-download-pdf, [href*="16pf"]' });
+      const el = await this.browser.$('a.pdf-report, .btn-download-pdf, [href*="16pf"]');
       return el.getAttribute('href');
     } catch (e) { return null; }
   }

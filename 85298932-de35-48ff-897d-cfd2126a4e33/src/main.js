@@ -13,6 +13,18 @@ const { LoginManager, SESSION_STATUS } = require('./loginManager');
 const { TaskDispatcher, BATCH_STATUS } = require('./taskDispatcher');
 const ReportCollector = require('./reportCollector');
 
+const CSI = '\x1b[';
+const HIDE_CURSOR = CSI + '?25l';
+const SHOW_CURSOR = CSI + '?25h';
+const SAVE_CURSOR = CSI + 's';
+const RESTORE_CURSOR = CSI + 'u';
+const CLEAR_SCREEN_FROM_CURSOR = CSI + '0J';
+const MOVE_UP = (n) => CSI + n + 'A';
+const MOVE_DOWN = (n) => CSI + n + 'B';
+const MOVE_COL = (n) => CSI + n + 'G';
+const CLEAR_LINE = CSI + '2K';
+const CLEAR_LINE_FROM_CURSOR = CSI + '0K';
+
 class DashboardCLI {
   constructor() {
     this.loginManager = new LoginManager();
@@ -21,7 +33,51 @@ class DashboardCLI {
     this.currentBatchId = null;
     this.uiRefreshTimer = null;
     this.running = false;
+    this._statusRegionLines = 0;
+    this._captchaAlerted = new Set();
     this._bindEvents();
+  }
+
+  _cursorUp(n = 1) {
+    if (process.stdout.isTTY) process.stdout.write(MOVE_UP(n));
+  }
+
+  _cursorToCol(col = 1) {
+    if (process.stdout.isTTY) process.stdout.write(MOVE_COL(col));
+  }
+
+  _clearLine() {
+    if (process.stdout.isTTY) process.stdout.write(CLEAR_LINE);
+  }
+
+  _clearFromCursor() {
+    if (process.stdout.isTTY) process.stdout.write(CLEAR_SCREEN_FROM_CURSOR);
+  }
+
+  _saveCursor() {
+    if (process.stdout.isTTY) process.stdout.write(SAVE_CURSOR);
+  }
+
+  _restoreCursor() {
+    if (process.stdout.isTTY) process.stdout.write(RESTORE_CURSOR);
+  }
+
+  _hideCursor() {
+    if (process.stdout.isTTY) process.stdout.write(HIDE_CURSOR);
+  }
+
+  _showCursor() {
+    if (process.stdout.isTTY) process.stdout.write(SHOW_CURSOR);
+  }
+
+  _beepAlert() {
+    try {
+      if (process.platform === 'darwin') {
+        const { execSync } = require('child_process');
+        execSync('afplay /System/Library/Sounds/Glass.aiff &', { stdio: 'ignore' });
+      }
+      if (process.stdout.isTTY) process.stdout.write('\u0007');
+    } catch (e) { /* ignore */ }
   }
 
   _bindEvents() {
@@ -39,6 +95,15 @@ class DashboardCLI {
     });
     this.reportCollector.on('reportDownloaded', (r) => {
       logger.debug(`报告下载完成: ${r.filePath}`);
+    });
+    this.loginManager.on('captchaRequired', (info) => {
+      const key = `${info.accountId}_${Date.now()}`;
+      if (!this._captchaAlerted.has(info.accountId)) {
+        this._captchaAlerted.add(info.accountId);
+        this._beepAlert();
+        logger.warn(`!!! 检测到验证码，请在主菜单选择"处理验证码" - 账号 ${info.accountId} (${info.username})`);
+        setTimeout(() => this._captchaAlerted.delete(info.accountId), 60000);
+      }
     });
   }
 
@@ -64,41 +129,44 @@ class DashboardCLI {
 
   _startUiRefresh() {
     this.uiRefreshTimer = setInterval(() => {
-      if (this.running) this._renderStatusBar();
+      if (this.running) this._renderStatusRegion();
     }, 3000);
   }
 
-  _clearLine(n = 1) {
-    for (let i = 0; i < n; i++) {
-      readline.clearLine(process.stdout, 0);
-      readline.moveCursor(process.stdout, 0, -1);
+  _renderStatusRegion() {
+    if (!process.stdout.isTTY) {
+      this._renderStatusBar();
+      return;
     }
-    readline.cursorTo(process.stdout, 0);
-  }
-
-  _renderStatusBar() {
     const snapshot = this.taskDispatcher.getStatusSnapshot();
     const reportStatus = this.reportCollector.getStatus();
     const scaleCfg = configLoader.getAllScales();
 
-    const statusLine = [
+    const captchaAccounts = this.loginManager.getCaptchaRequiredAccounts();
+
+    const lines = [];
+    lines.push(chalk.gray('─'.repeat(80)));
+
+    const statusParts = [
       snapshot.running ? chalk.green('[运行中]') : chalk.red('[已停止]'),
       snapshot.paused ? chalk.yellow('[已暂停]') : '',
       `活跃任务: ${snapshot.activeTaskCount}`,
       `待处理: ${snapshot.summary.tasks?.pending || 0}`,
       `已完成: ${snapshot.summary.tasks?.completed || 0}`,
       `失败: ${snapshot.summary.tasks?.failed || 0}`,
+      `中断: ${snapshot.summary.tasks?.interrupted || 0}`,
       `报告队列: ${reportStatus.queueSize}`,
       `下载中: ${reportStatus.activeDownloads}/${reportStatus.concurrency}`
-    ].filter(Boolean).join('  ');
+    ].filter(Boolean);
+    lines.push(`  ${chalk.bold('系统状态:')} ${statusParts.join('  ')}`);
 
-    console.log(chalk.gray('─'.repeat(80)));
-    console.log(`  ${chalk.bold('系统状态:')} ${statusLine}`);
-    console.log(chalk.gray('─'.repeat(80)));
-    this._renderAccountCards(snapshot);
-  }
+    if (captchaAccounts.length > 0) {
+      const names = captchaAccounts.map(c => `${c.accountId}(${c.username})`).join(', ');
+      lines.push(`  ${chalk.magenta.bold('⚠ 验证码待处理:')} ${chalk.magenta(names)}`);
+    }
 
-  _renderAccountCards(snapshot) {
+    lines.push(chalk.gray('─'.repeat(80)));
+
     const accounts = snapshot.accounts || [];
     const sessions = new Map((snapshot.sessions || []).map(s => [s.accountId, s]));
 
@@ -120,7 +188,9 @@ class DashboardCLI {
           offline: chalk.gray('○'),
           logging_in: chalk.yellow('◐'),
           captcha_required: chalk.magenta('?'),
-          error: chalk.red('✕')
+          error: chalk.red('✕'),
+          crashed: chalk.red('✖'),
+          network_down: chalk.yellow('⏚')
         }[sessionStatus] || chalk.gray('○');
         const barWidth = 12;
         const usage = Math.min(100, acc.usagePercent);
@@ -133,32 +203,87 @@ class DashboardCLI {
         cardLines[3].push(`│ ${acc.currentConcurrency}/${acc.maxConcurrency} 剩${String(acc.remaining).padStart(2)}    │`);
       }
       for (const line of cardLines) {
-        console.log('  ' + line.join('  '));
+        lines.push('  ' + line.join('  '));
       }
-      if (r < rows - 1) console.log('');
+      if (r < rows - 1) lines.push('');
     }
-    console.log('');
+    lines.push('');
+
+    if (this._statusRegionLines > 0) {
+      this._cursorUp(this._statusRegionLines);
+    }
+    this._saveCursor();
+    this._hideCursor();
+    for (let i = 0; i < lines.length; i++) {
+      if (i > 0) this._cursorToCol(1);
+      this._clearLine();
+      if (i < lines.length - 1) {
+        process.stdout.write(lines[i] + '\n');
+      } else {
+        process.stdout.write(lines[i]);
+      }
+    }
+    if (lines.length < this._statusRegionLines) {
+      const extra = this._statusRegionLines - lines.length;
+      for (let i = 0; i < extra; i++) {
+        process.stdout.write('\n');
+        this._clearLine();
+      }
+      this._cursorUp(extra);
+    }
+    this._restoreCursor();
+    this._showCursor();
+    this._statusRegionLines = lines.length;
+  }
+
+  _renderStatusBar() {
+    const snapshot = this.taskDispatcher.getStatusSnapshot();
+    const reportStatus = this.reportCollector.getStatus();
+
+    const statusLine = [
+      snapshot.running ? chalk.green('[运行中]') : chalk.red('[已停止]'),
+      snapshot.paused ? chalk.yellow('[已暂停]') : '',
+      `活跃任务: ${snapshot.activeTaskCount}`,
+      `待处理: ${snapshot.summary.tasks?.pending || 0}`,
+      `已完成: ${snapshot.summary.tasks?.completed || 0}`,
+      `失败: ${snapshot.summary.tasks?.failed || 0}`,
+      `中断: ${snapshot.summary.tasks?.interrupted || 0}`,
+      `报告队列: ${reportStatus.queueSize}`,
+      `下载中: ${reportStatus.activeDownloads}/${reportStatus.concurrency}`
+    ].filter(Boolean).join('  ');
+
+    console.log(chalk.gray('─'.repeat(80)));
+    console.log(`  ${chalk.bold('系统状态:')} ${statusLine}`);
+    console.log(chalk.gray('─'.repeat(80)));
   }
 
   async _showMainMenu() {
     while (this.running) {
+      const captchaAccounts = this.loginManager.getCaptchaRequiredAccounts();
+      const choices = [
+        { name: '1. 启动测评批次（导入CSV）', value: 'start_batch' },
+        { name: '2. 查看当前批次进度', value: 'view_progress' },
+        { name: '3. 启动所有账号会话', value: 'start_sessions' },
+        { name: '4. 重启指定账号会话', value: 'restart_session' },
+        { name: '5. 暂停任务调度', value: 'pause' },
+        { name: '6. 恢复任务调度', value: 'resume' },
+        { name: '7. 查看历史批次', value: 'list_batches' },
+        { name: '8. 查看/导出日志', value: 'view_logs' },
+        { name: '9. 查看量表配置', value: 'view_scales' },
+        { name: '10. 停止系统并退出', value: 'exit' }
+      ];
+      if (captchaAccounts.length > 0) {
+        const captchaHint = `★ 处理验证码 (${captchaAccounts.length}个账号待处理)`;
+        choices.splice(0, 0, new inquirer.Separator(chalk.magenta('═'.repeat(50))));
+        choices.splice(1, 0, { name: chalk.magenta.bold(captchaHint), value: 'handle_captcha' });
+        choices.splice(2, 0, new inquirer.Separator(chalk.magenta('═'.repeat(50))));
+      }
       const { choice } = await inquirer.prompt([{
         type: 'list',
         name: 'choice',
         message: '请选择操作',
-        pageSize: 15,
-        choices: [
-          { name: '1. 启动测评批次（导入CSV）', value: 'start_batch' },
-          { name: '2. 查看当前批次进度', value: 'view_progress' },
-          { name: '3. 启动所有账号会话', value: 'start_sessions' },
-          { name: '4. 重启指定账号会话', value: 'restart_session' },
-          { name: '5. 暂停任务调度', value: 'pause' },
-          { name: '6. 恢复任务调度', value: 'resume' },
-          { name: '7. 查看历史批次', value: 'list_batches' },
-          { name: '8. 查看/导出日志', value: 'view_logs' },
-          { name: '9. 查看量表配置', value: 'view_scales' },
-          { name: '10. 停止系统并退出', value: 'exit' }
-        ]
+        pageSize: 20,
+        choices
       }]);
       try {
         await this._handleMenuChoice(choice);
@@ -181,6 +306,7 @@ class DashboardCLI {
       case 'list_batches': await this._actionListBatches(); break;
       case 'view_logs': await this._actionViewLogs(); break;
       case 'view_scales': this._actionViewScales(); break;
+      case 'handle_captcha': await this._actionHandleCaptcha(); break;
       case 'exit': await this._actionExit(); break;
     }
   }
@@ -193,6 +319,20 @@ class DashboardCLI {
         validate: async (v) => { const ok = await fs.pathExists(path.resolve(v)); return ok || '文件不存在'; } },
       { type: 'checkbox', name: 'scaleCodes', message: '选择量表组合（多选）：', choices: scales.map(s => ({ name: `${s.code} - ${s.name} (约${s.estimatedMinutes}分钟)`, value: s.code })),
         validate: v => v.length > 0 || '至少选择一个量表' },
+      { type: 'input', name: 'timeWindowStart', message: '测评时间窗口开始 (YYYY-MM-DD HH:mm，留空不限)：', default: '',
+        validate: (v) => {
+          if (!v.trim()) return true;
+          const d = dayjs(v, 'YYYY-MM-DD HH:mm', true);
+          return d.isValid() || '时间格式错误，请使用 YYYY-MM-DD HH:mm';
+        }
+      },
+      { type: 'input', name: 'timeWindowEnd', message: '测评时间窗口结束 (YYYY-MM-DD HH:mm，留空不限)：', default: '',
+        validate: (v) => {
+          if (!v.trim()) return true;
+          const d = dayjs(v, 'YYYY-MM-DD HH:mm', true);
+          return d.isValid() || '时间格式错误，请使用 YYYY-MM-DD HH:mm';
+        }
+      },
       { type: 'list', name: 'priority', message: '优先级：', choices: [
         { name: '紧急（插队）', value: 10 },
         { name: '高', value: 8 },
@@ -209,15 +349,69 @@ class DashboardCLI {
     if (!this.loginManager.started) {
       await this.loginManager.startAll();
     }
+
+    const timeWindow = {};
+    if (answers.timeWindowStart.trim()) {
+      timeWindow.start = dayjs(answers.timeWindowStart.trim(), 'YYYY-MM-DD HH:mm').toISOString();
+    }
+    if (answers.timeWindowEnd.trim()) {
+      timeWindow.end = dayjs(answers.timeWindowEnd.trim(), 'YYYY-MM-DD HH:mm').toISOString();
+    }
+
     const result = await this.taskDispatcher.createBatchFromCSV({
       enterpriseName: answers.enterpriseName.trim(),
       csvPath: answers.csvPath,
       scaleCodes: answers.scaleCodes,
-      priority: answers.priority
+      priority: answers.priority,
+      timeWindow: Object.keys(timeWindow).length > 0 ? timeWindow : undefined
     });
     console.log(chalk.green(`\n✓ 批次创建成功！\n  批次ID: ${result.batchId}\n  参测人数: ${result.participantCount}\n  任务总数: ${result.taskCount}\n  归档目录: ${result.batchDir}\n`));
+    if (timeWindow.start || timeWindow.end) {
+      console.log(chalk.cyan(`  时间窗口: ${timeWindow.start ? dayjs(timeWindow.start).format('YYYY-MM-DD HH:mm') : '不限'} ~ ${timeWindow.end ? dayjs(timeWindow.end).format('YYYY-MM-DD HH:mm') : '不限'}\n`));
+    }
     store.logOperation('info', 'cli', '创建批次', result);
     this._startBatchProgressBar(result);
+  }
+
+  async _actionHandleCaptcha() {
+    const accounts = this.loginManager.getCaptchaRequiredAccounts();
+    if (accounts.length === 0) {
+      console.log(chalk.yellow('\n当前无需要处理验证码的账号\n'));
+      return;
+    }
+    const choices = accounts.map(a => ({
+      name: `${a.accountId} (${a.username})`,
+      value: a.accountId
+    }));
+    choices.push({ name: '全部标记为已处理并重试', value: '__all__' });
+    choices.push({ name: '返回主菜单', value: '__cancel__' });
+
+    const { selected } = await inquirer.prompt([{
+      type: 'list',
+      name: 'selected',
+      message: '选择需要处理验证码的账号',
+      choices
+    }]);
+
+    if (selected === '__cancel__') return;
+
+    const toProcess = selected === '__all__' ? accounts.map(a => a.accountId) : [selected];
+    console.log(chalk.blue(`\n正在重试 ${toProcess.length} 个账号的验证码处理...`));
+
+    for (const accId of toProcess) {
+      console.log(`  处理账号 ${accId}...`);
+      await this.loginManager.resolveCaptcha(accId, { manual: true });
+      await new Promise(r => setTimeout(r, 2000));
+      const session = this.loginManager.getSession(accId);
+      if (session && session.status === SESSION_STATUS.ONLINE) {
+        console.log(chalk.green(`    ✓ 账号 ${accId} 已恢复在线`));
+      } else if (session && session.status === SESSION_STATUS.CAPTCHA_REQUIRED) {
+        console.log(chalk.yellow(`    ⚠ 账号 ${accId} 仍需验证码，请在浏览器中手动完成`));
+      } else {
+        console.log(chalk.red(`    ✗ 账号 ${accId} 状态: ${session?.status || 'unknown'}`));
+      }
+    }
+    console.log('');
   }
 
   async _startBatchProgressBar(result) {
@@ -233,11 +427,12 @@ class DashboardCLI {
     bar.start(total, 0);
     const handler = (p) => {
       if (p.batchId === this.currentBatchId) {
-        bar.update(p.completed + p.failed, { eta: Math.max(0, Math.round((total - p.completed - p.failed) * 30)) });
+        const done = p.completed + (p.failed || 0) + (p.interrupted || 0);
+        bar.update(done, { eta: Math.max(0, Math.round((total - done) * 30)) });
         if (p.allDone) {
           bar.stop();
           this.taskDispatcher.off('batchProgress', handler);
-          console.log(chalk.green(`\n✓ 批次 ${this.currentBatchId} 处理完成！成功 ${p.completed}，失败 ${p.failed}\n`));
+          console.log(chalk.green(`\n✓ 批次 ${this.currentBatchId} 处理完成！成功 ${p.completed}，失败 ${p.failed || 0}，中断 ${p.interrupted || 0}\n`));
         }
       }
     };
@@ -245,7 +440,7 @@ class DashboardCLI {
   }
 
   _updateBatchProgress(p) {
-    logger.info(`批次进度 ${p.batchId}: ${p.completed + p.failed}/${p.total} (成功${p.completed}/失败${p.failed})`);
+    logger.info(`批次进度 ${p.batchId}: ${(p.completed || 0) + (p.failed || 0) + (p.interrupted || 0)}/${p.total} (成功${p.completed}/失败${p.failed}/中断${p.interrupted})`);
   }
 
   async _actionViewProgress() {
@@ -257,11 +452,14 @@ class DashboardCLI {
     for (const b of batches) {
       const prog = this.taskDispatcher.getBatchProgress(b.id);
       const total = prog?.total || 0;
-      const done = (prog?.tasks?.completed || 0) + (prog?.tasks?.failed || 0);
+      const done = (prog?.tasks?.completed || 0) + (prog?.tasks?.failed || 0) + (prog?.tasks?.interrupted || 0);
       const pct = total > 0 ? Math.round((done / total) * 100) : 0;
       console.log(`\n  ${chalk.bold(b.enterprise_name)} (${b.id.substring(0, 8)})`);
       console.log(`  量表: ${b.scale_codes.join(', ')}  |  人数: ${b.total_participants}`);
-      console.log(`  完成: ${done}/${total} (${pct}%)  成功:${prog?.tasks?.completed || 0}  失败:${prog?.tasks?.failed || 0}  进行中:${prog?.tasks?.running || 0}  待处理:${prog?.tasks?.pending || 0}\n`);
+      if (b.time_window_start || b.time_window_end) {
+        console.log(`  时间窗口: ${b.time_window_start ? dayjs(b.time_window_start).format('YYYY-MM-DD HH:mm') : '不限'} ~ ${b.time_window_end ? dayjs(b.time_window_end).format('YYYY-MM-DD HH:mm') : '不限'}`);
+      }
+      console.log(`  完成: ${done}/${total} (${pct}%)  成功:${prog?.tasks?.completed || 0}  失败:${prog?.tasks?.failed || 0}  中断:${prog?.tasks?.interrupted || 0}  进行中:${prog?.tasks?.running || 0}  待处理:${prog?.tasks?.pending || 0}\n`);
     }
   }
 
@@ -357,6 +555,7 @@ class DashboardCLI {
     console.log(chalk.blue('\n正在安全关闭系统...'));
     this.running = false;
     if (this.uiRefreshTimer) clearInterval(this.uiRefreshTimer);
+    this._showCursor();
     try { this.taskDispatcher.stop(); } catch (e) { /* ignore */ }
     try { this.reportCollector.stop(); } catch (e) { /* ignore */ }
     try { await this.loginManager.stopAll(); } catch (e) { /* ignore */ }
@@ -371,6 +570,7 @@ async function main() {
   process.on('SIGINT', async () => {
     console.log(chalk.yellow('\n\n收到中断信号，正在安全关闭...'));
     cli.running = false;
+    cli._showCursor();
     try { cli.taskDispatcher.stop(); } catch (e) { }
     try { cli.reportCollector.stop(); } catch (e) { }
     try { await cli.loginManager.stopAll(); } catch (e) { }

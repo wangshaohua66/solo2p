@@ -1,10 +1,9 @@
-const { By, until } = require('selenium-webdriver');
 const BaseScalePage = require('./BaseScalePage');
 const logger = require('../logger');
 
 class BigFivePage extends BaseScalePage {
-  constructor(driver) {
-    super(driver, 'BIG5', '大五人格量表');
+  constructor(browser) {
+    super(browser, 'BIG5', '大五人格量表');
     this.pageMode = 'single-long';
   }
 
@@ -42,7 +41,8 @@ class BigFivePage extends BaseScalePage {
 
   async getReportUrl() {
     try {
-      const el = await this.driver.wait(until.elementLocated(By.css('a.report-pdf, .pdf-download, [href*=".pdf"]')), 15000);
+      const el = await this.browser.$('a.report-pdf, .pdf-download, [href*=".pdf"]');
+      await el.waitForExist({ timeout: 15000 });
       return el.getAttribute('href');
     } catch (e) { return null; }
   }

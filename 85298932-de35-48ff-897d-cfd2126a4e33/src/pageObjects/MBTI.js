@@ -1,10 +1,9 @@
-const { By, until } = require('selenium-webdriver');
 const BaseScalePage = require('./BaseScalePage');
 const logger = require('../logger');
 
 class MBTIPage extends BaseScalePage {
-  constructor(driver) {
-    super(driver, 'MBTI', 'MBTI人格类型量表');
+  constructor(browser) {
+    super(browser, 'MBTI', 'MBTI人格类型量表');
     this.pageMode = 'pagination';
   }
 
@@ -32,9 +31,7 @@ class MBTIPage extends BaseScalePage {
   async submit() {
     logger.info('[page-MBTI] 提交MBTI测评');
     await this._safeClick('.btn-submit, #submitBtn, .submit-assessment');
-    try {
-      await this._safeClick('.btn-confirm-submit, #confirmSubmit');
-    } catch (e) { /* noop */ }
+    try { await this._safeClick('.btn-confirm-submit, #confirmSubmit'); } catch (e) { /* noop */ }
     return true;
   }
 
@@ -44,11 +41,10 @@ class MBTIPage extends BaseScalePage {
 
   async getReportUrl() {
     try {
-      const el = await this.driver.wait(until.elementLocated(By.css('.report-link a, .download-report, a[href*="report"]')), 15000);
+      const el = await this.browser.$('.report-link a, .download-report, a[href*="report"]');
+      await el.waitForExist({ timeout: 15000 });
       return el.getAttribute('href');
-    } catch (e) {
-      return null;
-    }
+    } catch (e) { return null; }
   }
 }
 

@@ -2,8 +2,8 @@ const BaseScalePage = require('./BaseScalePage');
 const logger = require('../logger');
 
 class SCL90Page extends BaseScalePage {
-  constructor(driver) {
-    super(driver, 'SCL90', 'SCL-90症状自评量表');
+  constructor(browser) {
+    super(browser, 'SCL90', 'SCL-90症状自评量表');
     this.pageMode = 'single-long';
   }
 
@@ -40,7 +40,7 @@ class SCL90Page extends BaseScalePage {
 
   async getReportUrl() {
     try {
-      const el = await this.driver.findElement({ css: 'a.download-pdf, .btn-export-report, [href*="scl90"]' });
+      const el = await this.browser.$('a.download-pdf, .btn-export-report, [href*="scl90"]');
       return el.getAttribute('href');
     } catch (e) { return null; }
   }

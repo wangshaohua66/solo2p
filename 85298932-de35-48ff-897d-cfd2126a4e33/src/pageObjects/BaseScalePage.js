@@ -1,9 +1,8 @@
-const { By, until } = require('selenium-webdriver');
 const logger = require('../logger');
 
 class BaseScalePage {
-  constructor(driver, scaleCode, scaleName) {
-    this.driver = driver;
+  constructor(browser, scaleCode, scaleName) {
+    this.browser = browser;
     this.scaleCode = scaleCode;
     this.scaleName = scaleName;
     this.timeout = 30000;
@@ -11,24 +10,21 @@ class BaseScalePage {
 
   async navigateTo(assessmentUrl) {
     logger.debug(`[page-${this.scaleCode}] 导航到测评页面: ${assessmentUrl}`);
-    await this.driver.get(assessmentUrl);
-    await this.driver.wait(until.elementLocated(By.css('body')), this.timeout);
-    await this._waitForPageReady();
-    return true;
-  }
-
-  async _waitForPageReady() {
-    return this.driver.wait(async () => {
-      const state = await this.driver.executeScript('return document.readyState');
+    await this.browser.url(assessmentUrl);
+    await this.browser.waitUntil(async () => {
+      const state = await this.browser.execute(() => document.readyState);
       return state === 'complete' || state === 'interactive';
-    }, this.timeout);
+    }, { timeout: this.timeout, timeoutMsg: '页面加载超时' });
+    return true;
   }
 
   async _safeClick(selector, timeout = 10000) {
     try {
-      const el = await this.driver.wait(until.elementLocated(By.css(selector)), timeout);
-      await this.driver.wait(until.elementIsVisible(el), timeout);
-      await this.driver.wait(until.elementIsEnabled(el), timeout);
+      const el = await this.browser.$(selector);
+      await el.waitForExist({ timeout });
+      await el.waitForDisplayed({ timeout });
+      await el.waitForClickable({ timeout });
+      await el.scrollIntoView({ block: 'center' });
       await el.click();
       return true;
     } catch (err) {
@@ -39,9 +35,10 @@ class BaseScalePage {
 
   async _safeSendKeys(selector, text, timeout = 10000) {
     try {
-      const el = await this.driver.wait(until.elementLocated(By.css(selector)), timeout);
-      await el.clear();
-      await el.sendKeys(text);
+      const el = await this.browser.$(selector);
+      await el.waitForExist({ timeout });
+      await el.clearValue();
+      await el.setValue(text);
       return true;
     } catch (err) {
       logger.warn(`[page-${this.scaleCode}] 输入失败 ${selector}: ${err.message}`);
@@ -51,7 +48,8 @@ class BaseScalePage {
 
   async _elementExists(selector, timeout = 3000) {
     try {
-      await this.driver.wait(until.elementLocated(By.css(selector)), timeout);
+      const el = await this.browser.$(selector);
+      await el.waitForExist({ timeout });
       return true;
     } catch (e) {
       return false;
@@ -97,7 +95,7 @@ class BaseScalePage {
       const moved = await this.goToNextPage();
       if (!moved) break;
       page++;
-      await this._sleep(500);
+      await this.browser.pause(500);
     }
     logger.info(`[page-${this.scaleCode}] 自动填写完成，共 ${page} 页`);
     return true;
@@ -111,8 +109,8 @@ class BaseScalePage {
     let answered = 0;
     for (const sel of optionSelectors) {
       try {
-        const options = await this.driver.findElements(By.css(sel));
-        if (options.length > 0) {
+        const options = await this.browser.$$(sel);
+        if (options && options.length > 0) {
           const groups = this._groupOptionsByQuestion(options);
           for (const group of groups) {
             const pickIdx = strategy === 'first' ? 0
@@ -120,10 +118,10 @@ class BaseScalePage {
               : Math.floor(Math.random() * group.length);
             try {
               const el = group[pickIdx];
-              await this.driver.executeScript('arguments[0].scrollIntoView({block: "center"})', el);
+              await el.scrollIntoView({ block: 'center' });
               await el.click();
               answered++;
-              await this._sleep(50);
+              await this.browser.pause(50);
             } catch (e) { /* skip */ }
           }
           if (answered > 0) break;
@@ -144,22 +142,22 @@ class BaseScalePage {
       }
     }
     if (current.length > 0) groups.push([...current]);
-    return groups.length > 0 ? groups : [elements];
+    return groups.length > 0 ? groups : [elements.filter(Boolean)];
   }
 
   async _isLastPage() {
     const nextSelectors = ['.next-btn:not([disabled])', '#next:not([disabled])', 'a.next:not(.disabled)'];
     for (const sel of nextSelectors) {
       try {
-        const el = await this.driver.findElement(By.css(sel));
-        if (el) return false;
+        const el = await this.browser.$(sel);
+        const exists = await el.isExisting();
+        if (exists) {
+          const enabled = await el.isEnabled().catch(() => false);
+          if (enabled) return false;
+        }
       } catch (e) { /* continue */ }
     }
     return true;
-  }
-
-  _sleep(ms) {
-    return new Promise(r => setTimeout(r, ms));
   }
 }
 

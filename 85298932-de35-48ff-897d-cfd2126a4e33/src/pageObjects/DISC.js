@@ -2,8 +2,8 @@ const BaseScalePage = require('./BaseScalePage');
 const logger = require('../logger');
 
 class DISCPage extends BaseScalePage {
-  constructor(driver) {
-    super(driver, 'DISC', 'DISC行为风格测验');
+  constructor(browser) {
+    super(browser, 'DISC', 'DISC行为风格测验');
     this.pageMode = 'pagination';
   }
 
@@ -39,7 +39,7 @@ class DISCPage extends BaseScalePage {
 
   async getReportUrl() {
     try {
-      const el = await this.driver.findElement({ css: 'a.disc-pdf-link, .download-disc-report, [href*="disc"]' });
+      const el = await this.browser.$('a.disc-pdf-link, .download-disc-report, [href*="disc"]');
       return el.getAttribute('href');
     } catch (e) { return null; }
   }

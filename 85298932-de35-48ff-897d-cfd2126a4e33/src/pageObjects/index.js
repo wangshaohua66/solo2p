@@ -18,12 +18,12 @@ const SCALE_MAP = {
   IQ: RavenIQPage
 };
 
-function createScalePage(driver, scaleCode) {
+function createScalePage(browser, scaleCode) {
   const Cls = SCALE_MAP[scaleCode];
   if (!Cls) {
     throw new Error(`未找到量表页面对象: ${scaleCode}`);
   }
-  return new Cls(driver);
+  return new Cls(browser);
 }
 
 module.exports = {

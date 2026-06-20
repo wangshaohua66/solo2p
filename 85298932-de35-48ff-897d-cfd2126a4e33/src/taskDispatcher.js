@@ -8,6 +8,7 @@ const store = require('./db/sqliteStore');
 const configLoader = require('./configLoader');
 const concurrencyMonitor = require('./concurrencyMonitor');
 const { createScalePage } = require('./pageObjects');
+const { SESSION_STATUS } = require('./loginManager');
 const dayjs = require('dayjs');
 
 const TASK_STATUS = {
@@ -16,7 +17,8 @@ const TASK_STATUS = {
   COMPLETED: 'completed',
   FAILED: 'failed',
   TIMEOUT: 'timeout',
-  RETRYING: 'retrying'
+  RETRYING: 'retrying',
+  INTERRUPTED: 'interrupted'
 };
 
 const BATCH_STATUS = {
@@ -41,6 +43,12 @@ class TaskDispatcher extends EventEmitter {
     this.activeTasks = new Map();
     this.maxRetryAttempts = this.schedulerCfg.maxRetryAttempts || 3;
     this.taskTimeoutMs = (this.schedulerCfg.taskTimeoutMinutes || 30) * 60 * 1000;
+    this.preAssignedQueue = new Map();
+
+    if (this.loginManager) {
+      this.loginManager.on('sessionCrashed', ({ accountId }) => this._handleSessionCrashed(accountId));
+      this.loginManager.on('networkDown', ({ accountId }) => this._handleSessionCrashed(accountId));
+    }
   }
 
   start() {
@@ -100,17 +108,31 @@ class TaskDispatcher extends EventEmitter {
       extra_data: r
     }));
 
+    const totalTaskCount = participants.length * scaleCodes.length;
+    const assignments = concurrencyMonitor.pickAccountsByWeight(totalTaskCount);
+    logger.info(`[dispatcher] 预拆分任务: 总${totalTaskCount}个, 账号分配: ${JSON.stringify(assignments)}`);
+
+    const flatAssignments = [];
+    for (const a of assignments) {
+      for (let i = 0; i < a.slots; i++) flatAssignments.push(a.accountId);
+    }
+    this._shuffleArray(flatAssignments);
+
     const tasks = [];
+    let idx = 0;
     for (const p of participants) {
       for (const code of scaleCodes) {
+        const assignedAccount = flatAssignments[idx % flatAssignments.length] || null;
         tasks.push({
           id: uuidv4(),
           batch_id: batchId,
           participant_id: p.id,
           scale_code: code,
+          account_id: assignedAccount,
           status: TASK_STATUS.PENDING,
           priority
         });
+        idx++;
       }
     }
 
@@ -127,13 +149,23 @@ class TaskDispatcher extends EventEmitter {
     });
     store.insertParticipants(batchId, participants);
     store.insertTasks(tasks);
+
+    this.preAssignedQueue.set(batchId, assignments);
     store.logOperation('info', 'dispatcher', `创建批次 ${batchId}`, {
-      enterpriseName, participantCount: participants.length, taskCount: tasks.length, scaleCodes
+      enterpriseName, participantCount: participants.length, taskCount: tasks.length, scaleCodes, assignments,
+      timeWindowStart: timeWindow?.start, timeWindowEnd: timeWindow?.end
     });
 
-    logger.info(`[dispatcher] 批次创建成功: ${batchId} 企业=${enterpriseName} 人数=${participants.length} 任务数=${tasks.length}`);
-    this.emit('batchCreated', { batchId, enterpriseName, participantCount: participants.length, taskCount: tasks.length });
-    return { batchId, participantCount: participants.length, taskCount: tasks.length, batchDir };
+    logger.info(`[dispatcher] 批次创建成功: ${batchId} 企业=${enterpriseName} 人数=${participants.length} 任务数=${tasks.length} 预分配=${assignments.length}账号`);
+    this.emit('batchCreated', { batchId, enterpriseName, participantCount: participants.length, taskCount: tasks.length, assignments });
+    return { batchId, participantCount: participants.length, taskCount: tasks.length, batchDir, assignments };
+  }
+
+  _shuffleArray(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
   }
 
   _getBatchDir(enterpriseName, batchId) {
@@ -175,28 +207,64 @@ class TaskDispatcher extends EventEmitter {
     this.pollTimer = setTimeout(tick, interval);
   }
 
+  _pickBestAccountExcluding(excludedAccountIds = []) {
+    const excluded = new Set(excludedAccountIds.filter(Boolean));
+    let best = null;
+    let bestScore = -Infinity;
+    const accounts = concurrencyMonitor.getAccountsSnapshot();
+    for (const acc of accounts) {
+      if (!acc.enabled) continue;
+      if (excluded.has(acc.id)) continue;
+      if (acc.remaining < 1) continue;
+      const session = this.loginManager && this.loginManager.getHealthySession(acc.id);
+      if (!session) continue;
+      const score = acc.remaining - (acc.currentConcurrency * 0.1);
+      if (score > bestScore) {
+        bestScore = score;
+        best = acc.id;
+      }
+    }
+    return best;
+  }
+
   async _dispatchPending() {
     if (concurrencyMonitor.isAllAccountsFull()) return;
-    const pending = store.getPendingTasks(20);
+    const pending = store.getPendingTasks(30);
     if (pending.length === 0) return;
+    if (!this._excludedAccounts) this._excludedAccounts = new Map();
 
     let dispatched = 0;
     for (const task of pending) {
       if (this.activeTasks.has(task.id)) continue;
-      const accountId = concurrencyMonitor.pickBestAccount(1);
-      if (!accountId) {
-        logger.debug('[dispatcher] 无可用账号容量，等待中');
-        break;
+      const excludedAccountId = this._excludedAccounts.get(task.id);
+      const excludedList = excludedAccountId ? [excludedAccountId] : [];
+
+      let targetAccount = task.account_id;
+      if (targetAccount && excludedAccountId && targetAccount === excludedAccountId) {
+        targetAccount = null;
       }
-      const session = this.loginManager.getHealthySession(accountId);
-      if (!session) {
-        logger.warn(`[dispatcher] 账号 ${accountId} 会话不健康，跳过`);
+      if (targetAccount) {
+        const session = this.loginManager.getHealthySession(targetAccount);
+        if (!session || concurrencyMonitor.getAccountCapacity(targetAccount) <= 0) {
+          targetAccount = this._pickBestAccountExcluding(excludedList);
+        }
+      } else {
+        targetAccount = this._pickBestAccountExcluding(excludedList);
+      }
+      if (!targetAccount) {
+        logger.debug(`[dispatcher] 任务 ${task.id} 无可用账号（排除: ${excludedAccountId || '无'}），等待中`);
         continue;
       }
-      if (!concurrencyMonitor.acquireSlot(accountId)) continue;
-      this._executeTask(task, accountId, session).catch(err => {
+      const session = this.loginManager.getHealthySession(targetAccount);
+      if (!session) {
+        logger.warn(`[dispatcher] 账号 ${targetAccount} 会话不健康，跳过`);
+        continue;
+      }
+      if (!concurrencyMonitor.acquireSlot(targetAccount)) continue;
+      store.updateTask(task.id, { account_id: targetAccount });
+      this._executeTask(task, targetAccount, session).catch(err => {
         logger.error(`[dispatcher] 任务执行异常 ${task.id}: ${err.message}`);
-        concurrencyMonitor.releaseSlot(accountId);
+        concurrencyMonitor.releaseSlot(targetAccount);
       });
       dispatched++;
     }
@@ -230,7 +298,12 @@ class TaskDispatcher extends EventEmitter {
         throw new Error(result.error || '测评流程执行失败');
       }
     } catch (err) {
-      await this._handleTaskFailure(task, accountId, err.message);
+      const isInterrupt = /(crashed|interrupt|disconnect|session|no such window|chrome not reachable|JS error|javascript error)/i.test(err.message || '');
+      if (isInterrupt) {
+        store.updateTask(task.id, { status: TASK_STATUS.INTERRUPTED, error_msg: `异常中断: ${err.message}` });
+        logger.warn(`[dispatcher] 任务异常中断 ${task.id}: ${err.message}`);
+      }
+      await this._handleTaskFailure(task, accountId, err.message, isInterrupt);
     } finally {
       concurrencyMonitor.releaseSlot(accountId);
       this.activeTasks.delete(task.id);
@@ -238,24 +311,25 @@ class TaskDispatcher extends EventEmitter {
   }
 
   async _runAssessmentFlow(session, task) {
-    const driver = session.getDriver();
-    if (!driver) return { success: false, error: '浏览器驱动不可用' };
+    const browser = session.getBrowser();
+    if (!browser) return { success: false, error: '浏览器会话不可用' };
     const scaleCfg = configLoader.getScaleConfig(task.scale_code);
     if (!scaleCfg) return { success: false, error: `未知量表: ${task.scale_code}` };
 
     try {
       const participantInfo = { name: task.participant_name, employee_id: task.employee_id };
-      const scalePage = createScalePage(driver, task.scale_code);
+      const scalePage = createScalePage(browser, task.scale_code);
       const assessmentUrl = `${this.platformCfg.baseUrl}/assessment/${task.scale_code.toLowerCase()}?t=${task.id}`;
       await scalePage.navigateTo(assessmentUrl);
+      store.updateTask(task.id, { last_heartbeat: new Date().toISOString() });
       await scalePage.startAssessment(participantInfo);
+      store.updateTask(task.id, { last_heartbeat: new Date().toISOString() });
       await scalePage.fillAllAnswersAuto('random');
+      store.updateTask(task.id, { last_heartbeat: new Date().toISOString() });
       await scalePage.submit();
-      await driver.sleep(3000);
+      await browser.pause(3000);
       const completed = await scalePage.isCompleted();
-      if (!completed) {
-        await driver.sleep(5000);
-      }
+      if (!completed) await browser.pause(5000);
       const reportUrl = await scalePage.getReportUrl();
       return { success: true, reportUrl };
     } catch (err) {
@@ -264,18 +338,55 @@ class TaskDispatcher extends EventEmitter {
     }
   }
 
-  async _handleTaskFailure(task, accountId, errorMsg) {
+  async _handleTaskFailure(task, failedAccountId, errorMsg, isInterrupted = false) {
     const retryCount = store.incrementTaskRetry(task.id);
     if (retryCount < this.maxRetryAttempts) {
-      store.updateTask(task.id, { status: TASK_STATUS.PENDING, account_id: null, error_msg: errorMsg });
-      logger.warn(`[dispatcher] 任务 ${task.id} 失败，准备第 ${retryCount + 1} 次重试: ${errorMsg}`);
-      store.logOperation('warn', 'dispatcher', `任务失败准备重试 ${task.id}`, { error: errorMsg, retryCount });
+      store.updateTask(task.id, {
+        status: TASK_STATUS.PENDING,
+        account_id: null,
+        error_msg: errorMsg
+      });
+      this._excludeFailedAccountFromRetry(task.id, failedAccountId);
+      const label = isInterrupted ? '异常中断后重分配' : '失败后重试';
+      logger.warn(`[dispatcher] 任务 ${task.id} ${label} (排除账号${failedAccountId}), 第 ${retryCount + 1} 次尝试: ${errorMsg}`);
+      store.logOperation('warn', 'dispatcher', `${label} ${task.id}`, { error: errorMsg, retryCount, excludedAccount: failedAccountId });
     } else {
-      store.updateTask(task.id, { status: TASK_STATUS.FAILED, error_msg: errorMsg });
-      logger.error(`[dispatcher] 任务 ${task.id} 达到最大重试次数 ${this.maxRetryAttempts}，标记失败: ${errorMsg}`);
-      store.logOperation('error', 'dispatcher', `任务最终失败 ${task.id}`, { error: errorMsg, retryCount });
+      store.updateTask(task.id, {
+        status: isInterrupted ? TASK_STATUS.INTERRUPTED : TASK_STATUS.FAILED,
+        error_msg: errorMsg
+      });
+      logger.error(`[dispatcher] 任务 ${task.id} 达到最大重试次数 ${this.maxRetryAttempts}，标记${isInterrupted ? '异常中断' : '失败'}: ${errorMsg}`);
+      store.logOperation('error', 'dispatcher', `任务最终失败 ${task.id}`, { error: errorMsg, retryCount, interrupted: isInterrupted });
       this._updateBatchProgress(task.batch_id);
     }
+  }
+
+  _excludeFailedAccountFromRetry(taskId, failedAccountId) {
+    if (!this._excludedAccounts) this._excludedAccounts = new Map();
+    this._excludedAccounts.set(taskId, failedAccountId);
+    setTimeout(() => this._excludedAccounts.delete(taskId), 5 * 60 * 1000);
+  }
+
+  async _handleSessionCrashed(accountId) {
+    logger.warn(`[dispatcher] 账号 ${accountId} 会话崩溃/网络中断，重新分配其未完成任务`);
+    const running = store.getRunningTasks().filter(t => t.account_id === accountId);
+    for (const task of running) {
+      store.updateTask(task.id, {
+        status: TASK_STATUS.INTERRUPTED,
+        account_id: null,
+        error_msg: `账号${accountId}会话崩溃，任务中断`
+      });
+      const retryCount = store.incrementTaskRetry(task.id);
+      if (retryCount < this.maxRetryAttempts) {
+        store.updateTask(task.id, { status: TASK_STATUS.PENDING, error_msg: `账号${accountId}崩溃重分配` });
+        this._excludeFailedAccountFromRetry(task.id, accountId);
+      } else {
+        store.updateTask(task.id, { status: TASK_STATUS.INTERRUPTED });
+        this._updateBatchProgress(task.batch_id);
+      }
+    }
+    concurrencyMonitor.setAccountConcurrency(accountId, 0);
+    this.emit('tasksReassigned', { accountId, count: running.length });
   }
 
   async _pollRunningTasks() {
@@ -284,11 +395,24 @@ class TaskDispatcher extends EventEmitter {
     for (const task of running) {
       const lastHb = task.last_heartbeat ? new Date(task.last_heartbeat).getTime() : 0;
       const startedAt = task.started_at ? new Date(task.started_at).getTime() : now;
-      if (now - startedAt > this.taskTimeoutMs) {
-        logger.warn(`[dispatcher] 任务 ${task.id} 超时 (${(now - startedAt) / 60000}分钟)，准备重试`);
+      const hbStale = now - lastHb > (this.schedulerCfg.statusPollIntervalSec || 90) * 2000;
+      const timedOut = now - startedAt > this.taskTimeoutMs;
+
+      if (timedOut) {
+        logger.warn(`[dispatcher] 任务 ${task.id} 超时 (${Math.round((now - startedAt) / 60000)}分钟)，重试分配其他账号`);
         store.updateTask(task.id, { status: TASK_STATUS.TIMEOUT, error_msg: '测评超时未完成' });
-        await this._handleTaskFailure(task, task.account_id, '测评超时未完成');
+        await this._handleTaskFailure(task, task.account_id, '测评超时未完成', false);
         if (task.account_id) concurrencyMonitor.releaseSlot(task.account_id);
+      } else if (hbStale && task.account_id) {
+        const session = this.loginManager && this.loginManager.getSession(task.account_id);
+        if (!session || (session.status !== SESSION_STATUS.ONLINE && session.status !== SESSION_STATUS.LOGGING_IN)) {
+          logger.warn(`[dispatcher] 任务 ${task.id} 心跳过期且账号${task.account_id}异常，标记中断`);
+          store.updateTask(task.id, { status: TASK_STATUS.INTERRUPTED, error_msg: '心跳过期或账号会话异常' });
+          await this._handleTaskFailure(task, task.account_id, '心跳过期-疑似页面崩溃/JS错误', true);
+          if (task.account_id) concurrencyMonitor.releaseSlot(task.account_id);
+        } else {
+          store.updateTask(task.id, { last_heartbeat: new Date().toISOString() });
+        }
       } else if (task.account_id) {
         store.updateTask(task.id, { last_heartbeat: new Date().toISOString() });
       }
@@ -300,13 +424,13 @@ class TaskDispatcher extends EventEmitter {
     const tasks = store.getTasksByBatch(batchId);
     if (tasks.length === 0) return;
     const completed = tasks.filter(t => t.status === TASK_STATUS.COMPLETED).length;
-    const failed = tasks.filter(t => t.status === TASK_STATUS.FAILED).length;
+    const failed = tasks.filter(t => t.status === TASK_STATUS.FAILED || t.status === TASK_STATUS.INTERRUPTED).length;
     const allDone = completed + failed >= tasks.length;
     store.updateBatchStatus(batchId, allDone ? BATCH_STATUS.COMPLETED : BATCH_STATUS.RUNNING, {
       completed_count: completed,
       failed_count: failed
     });
-    this.emit('batchProgress', { batchId, total: tasks.length, completed, failed, allDone });
+    this.emit('batchProgress', { batchId, total: tasks.length, completed, failed, interrupted: tasks.filter(t => t.status === TASK_STATUS.INTERRUPTED).length, allDone });
   }
 
   getBatchProgress(batchId) {

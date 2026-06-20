@@ -2,8 +2,8 @@ const BaseScalePage = require('./BaseScalePage');
 const logger = require('../logger');
 
 class EQPage extends BaseScalePage {
-  constructor(driver) {
-    super(driver, 'EQ', '情商EQ测评量表');
+  constructor(browser) {
+    super(browser, 'EQ', '情商EQ测评量表');
     this.pageMode = 'pagination';
   }
 
@@ -39,7 +39,7 @@ class EQPage extends BaseScalePage {
 
   async getReportUrl() {
     try {
-      const el = await this.driver.findElement({ css: 'a.eq-report-link, .download-eq-pdf, [href*="eq"]' });
+      const el = await this.browser.$('a.eq-report-link, .download-eq-pdf, [href*="eq"]');
       return el.getAttribute('href');
     } catch (e) { return null; }
   }

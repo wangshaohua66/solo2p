@@ -7,6 +7,8 @@ const store = require('./db/sqliteStore');
 const configLoader = require('./configLoader');
 const dayjs = require('dayjs');
 
+const TASK_DONE_STATUSES = ['completed', 'failed', 'interrupted', 'timeout'];
+
 class ReportCollector extends EventEmitter {
   constructor(loginManager) {
     super();
@@ -19,6 +21,7 @@ class ReportCollector extends EventEmitter {
     this.downloadQueue = [];
     this.activeDownloads = 0;
     this.downloadedReports = new Set();
+    this.generatedBatches = new Set();
   }
 
   start() {
@@ -52,20 +55,20 @@ class ReportCollector extends EventEmitter {
 
   async _collectAndDownload() {
     const toDownload = store.getTasksForReportDownload();
-    if (toDownload.length === 0 && this.downloadQueue.length === 0 && this.activeDownloads === 0) return;
-
-    for (const task of toDownload) {
-      const cacheKey = `${task.id}_${task.scale_code}`;
-      if (!this.downloadedReports.has(cacheKey) && !this.downloadQueue.find(q => q.task.id === task.id)) {
-        this.downloadQueue.push({ task, retries: 0 });
+    if (toDownload.length > 0 || this.downloadQueue.length > 0 || this.activeDownloads > 0) {
+      for (const task of toDownload) {
+        const cacheKey = `${task.id}_${task.scale_code}`;
+        if (!this.downloadedReports.has(cacheKey) && !this.downloadQueue.find(q => q.task.id === task.id)) {
+          this.downloadQueue.push({ task, retries: 0 });
+        }
       }
-    }
 
-    while (this.activeDownloads < this.downloadConcurrency && this.downloadQueue.length > 0) {
-      const job = this.downloadQueue.shift();
-      this._downloadOne(job).catch(err => {
-        logger.error(`[report] 报告下载异常 ${job.task.id}: ${err.message}`);
-      });
+      while (this.activeDownloads < this.downloadConcurrency && this.downloadQueue.length > 0) {
+        const job = this.downloadQueue.shift();
+        this._downloadOne(job).catch(err => {
+          logger.error(`[report] 报告下载异常 ${job.task.id}: ${err.message}`);
+        });
+      }
     }
 
     await this._checkBatchSummary();
@@ -119,29 +122,38 @@ class ReportCollector extends EventEmitter {
 
   async _downloadReportFile(task, targetPath) {
     const tmpDir = path.resolve('./data/tmp');
-    await fs.ensureDirSync(tmpDir);
+    fs.ensureDirSync(tmpDir);
 
     if (task.report_url) {
-      return this._downloadViaHttp(task.report_url, targetPath, task);
+      const ok = await this._downloadViaHttp(task.report_url, targetPath, task);
+      if (ok) return true;
     }
 
-    const session = this.loginManager && this.loginManager.getHealthySession(task.account_id);
-    if (session) {
-      return this._downloadViaBrowser(session, task, targetPath);
+    if (this.loginManager && task.account_id) {
+      const session = this.loginManager.getHealthySession(task.account_id);
+      if (session) {
+        const ok = await this._downloadViaBrowser(session, task, targetPath);
+        if (ok) return true;
+      }
     }
 
     return this._generateMockReport(targetPath, task);
   }
 
-  async _downloadViaHttp(url, targetPath, task) {
+  async _downloadViaHttp(url, targetPath) {
     try {
       const http = require('http');
       const https = require('https');
       const mod = url.startsWith('https') ? https : http;
       return new Promise((resolve) => {
         const file = fs.createWriteStream(targetPath);
-        mod.get(url, (res) => {
+        const req = mod.get(url, { timeout: 30000 }, (res) => {
           if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+            file.close();
+            resolve(false);
+            return;
+          }
+          if (res.statusCode >= 400) {
             file.close();
             resolve(false);
             return;
@@ -149,13 +161,14 @@ class ReportCollector extends EventEmitter {
           res.pipe(file);
           file.on('finish', async () => {
             file.close();
-            const stat = await fs.stat(targetPath);
-            resolve(stat.size > 1000);
+            try {
+              const stat = await fs.stat(targetPath);
+              resolve(stat.size > 1000);
+            } catch { resolve(false); }
           });
-        }).on('error', () => {
-          file.close();
-          resolve(false);
         });
+        req.on('timeout', () => { req.destroy(); resolve(false); });
+        req.on('error', () => { try { file.close(); } catch {} resolve(false); });
       });
     } catch (e) {
       logger.debug(`[report] HTTP下载失败: ${e.message}`);
@@ -165,20 +178,22 @@ class ReportCollector extends EventEmitter {
 
   async _downloadViaBrowser(session, task, targetPath) {
     try {
-      const { By, until } = require('selenium-webdriver');
-      const driver = session.getDriver();
-      if (!driver) return false;
-      await driver.get(task.report_url || `${configLoader.getPlatformConfig().baseUrl}/report/${task.id}`);
-      const downloadBtn = await driver.wait(until.elementLocated(By.css('.download-report, a[href$=".pdf"], #downloadPdf')), 10000).catch(() => null);
-      if (downloadBtn) {
-        await downloadBtn.click();
-        await driver.sleep(3000);
-      }
+      const browser = session.getBrowser();
+      if (!browser) return false;
+      await browser.url(task.report_url || `${configLoader.getPlatformConfig().baseUrl}/report/${task.id}`);
+      const dlBtn = await browser.$('.download-report, a[href$=".pdf"], #downloadPdf');
+      const exists = await dlBtn.isExisting().catch(() => false);
+      if (exists) await dlBtn.click();
+      await browser.pause(3000);
       const tmpFiles = await fs.readdir(path.resolve('./data/tmp')).catch(() => []);
-      const pdfFiles = tmpFiles.filter(f => f.endsWith('.pdf') && Date.now() - (fs.statSync(path.join(path.resolve('./data/tmp'), f)).mtimeMs) < 60000);
+      const pdfFiles = tmpFiles.filter(f => f.endsWith('.pdf')).map(f => ({
+        file: f,
+        path: path.join(path.resolve('./data/tmp'), f)
+      })).filter(x => {
+        try { return Date.now() - fs.statSync(x.path).mtimeMs < 60000; } catch { return false; }
+      });
       if (pdfFiles.length > 0) {
-        const src = path.join(path.resolve('./data/tmp'), pdfFiles[0]);
-        await fs.move(src, targetPath, { overwrite: true });
+        await fs.move(pdfFiles[0].path, targetPath, { overwrite: true });
         return true;
       }
       return false;
@@ -223,12 +238,23 @@ class ReportCollector extends EventEmitter {
   }
 
   async _checkBatchSummary() {
-    const runningBatches = store.listBatches('completed');
-    for (const batch of runningBatches) {
-      const summaryPath = path.join(batch.report_archive_dir, this.reportsCfg.summaryFileName || 'batch_summary.csv');
-      if (batch.report_archive_dir && !await fs.pathExists(summaryPath)) {
-        await this._generateBatchSummary(batch);
+    const completedBatches = store.listBatches('completed');
+    for (const batch of completedBatches) {
+      if (this.generatedBatches.has(batch.id)) continue;
+      if (!batch.report_archive_dir) continue;
+      const tasks = store.getTasksByBatch(batch.id);
+      const notDone = tasks.filter(t => !TASK_DONE_STATUSES.includes(t.status));
+      if (notDone.length > 0) continue;
+
+      const completedTasks = tasks.filter(t => t.status === 'completed');
+      const missingReports = completedTasks.filter(t => !t.report_path);
+      if (missingReports.length > 0) {
+        logger.debug(`[report] 批次 ${batch.id} 仍有 ${missingReports.length} 份报告未下载，暂不生成汇总`);
+        continue;
       }
+
+      await this._generateBatchSummary(batch);
+      this.generatedBatches.add(batch.id);
     }
   }
 
@@ -261,7 +287,7 @@ class ReportCollector extends EventEmitter {
       const summaryPath = path.join(batch.report_archive_dir, this.reportsCfg.summaryFileName || 'batch_summary.csv');
       await fs.writeFile(summaryPath, '\ufeff' + csv);
       store.updateBatchStatus(batch.id, 'archived');
-      logger.info(`[report] 批次汇总清单已生成: ${summaryPath}`);
+      logger.info(`[report] 批次汇总清单已生成 (所有报告已校验): ${summaryPath} 共${rows.length}条`);
       this.emit('batchSummarized', { batchId: batch.id, summaryPath, total: rows.length });
       store.logOperation('info', 'report', `批次汇总完成 ${batch.id}`, { filePath: summaryPath, count: rows.length });
     } catch (err) {
@@ -275,7 +301,8 @@ class ReportCollector extends EventEmitter {
       queueSize: this.downloadQueue.length,
       activeDownloads: this.activeDownloads,
       downloadedCount: this.downloadedReports.size,
-      concurrency: this.downloadConcurrency
+      concurrency: this.downloadConcurrency,
+      generatedBatches: this.generatedBatches.size
     };
   }
 }

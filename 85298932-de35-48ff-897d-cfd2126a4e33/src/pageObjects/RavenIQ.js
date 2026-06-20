@@ -2,8 +2,8 @@ const BaseScalePage = require('./BaseScalePage');
 const logger = require('../logger');
 
 class RavenIQPage extends BaseScalePage {
-  constructor(driver) {
-    super(driver, 'IQ', '瑞文标准推理测验(IQ)');
+  constructor(browser) {
+    super(browser, 'IQ', '瑞文标准推理测验(IQ)');
     this.pageMode = 'pagination';
   }
 
@@ -39,7 +39,7 @@ class RavenIQPage extends BaseScalePage {
 
   async getReportUrl() {
     try {
-      const el = await this.driver.findElement({ css: 'a.raven-pdf, .download-raven-report, [href*="raven"]' });
+      const el = await this.browser.$('a.raven-pdf, .download-raven-report, [href*="raven"]');
       return el.getAttribute('href');
     } catch (e) { return null; }
   }

@@ -2,8 +2,8 @@ const BaseScalePage = require('./BaseScalePage');
 const logger = require('../logger');
 
 class HollandPage extends BaseScalePage {
-  constructor(driver) {
-    super(driver, 'HOLLAND', '霍兰德职业兴趣量表');
+  constructor(browser) {
+    super(browser, 'HOLLAND', '霍兰德职业兴趣量表');
     this.pageMode = 'pagination';
   }
 
@@ -39,7 +39,7 @@ class HollandPage extends BaseScalePage {
 
   async getReportUrl() {
     try {
-      const el = await this.driver.findElement({ css: 'a[href*="holland"], .btn-download-report, .report-link' });
+      const el = await this.browser.$('a[href*="holland"], .btn-download-report, .report-link');
       return el.getAttribute('href');
     } catch (e) { return null; }
   }
