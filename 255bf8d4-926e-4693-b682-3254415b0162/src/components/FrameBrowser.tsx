@@ -243,9 +243,13 @@ export const FrameBrowser = () => {
     frames,
     filterOptions,
     filter,
+    minExposure,
+    maxExposure,
     selectedFrameId,
     refFrameId,
     setFilter,
+    setMinExposure,
+    setMaxExposure,
     setSelectedFrame,
     setRefFrame,
     getFilteredFrames
@@ -304,6 +308,81 @@ export const FrameBrowser = () => {
               <option key={f} value={f}>{f}</option>
             ))}
           </select>
+        </div>
+
+        <div className="mt-3 pt-3 border-t border-space-panel/50 space-y-2">
+          <div className="flex items-center gap-2">
+            <Clock size={14} className="text-gray-400 flex-shrink-0" />
+            <span className="text-xs text-gray-400">曝光时间范围 (秒)</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-gray-500 block mb-1">最小值</label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={minExposure === 0 ? '' : minExposure}
+                onChange={(e) => {
+                  const val = e.target.value === '' ? 0 : Number(e.target.value)
+                  setMinExposure(Math.max(0, val))
+                }}
+                placeholder="不限"
+                className="w-full bg-space-panel border border-space-panel/50 rounded-lg px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-signal-green"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 block mb-1">最大值</label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={maxExposure === Infinity ? '' : maxExposure}
+                onChange={(e) => {
+                  const val = e.target.value === '' ? Infinity : Number(e.target.value)
+                  setMaxExposure(Math.max(0, val))
+                }}
+                placeholder="不限"
+                className="w-full bg-space-panel border border-space-panel/50 rounded-lg px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-signal-green"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-1">
+            {[
+              { label: '≤10s', min: 0, max: 10 },
+              { label: '10-60s', min: 10, max: 60 },
+              { label: '1-5min', min: 60, max: 300 },
+              { label: '≥5min', min: 300, max: Infinity },
+            ].map(preset => (
+              <button
+                key={preset.label}
+                onClick={() => {
+                  setMinExposure(preset.min)
+                  setMaxExposure(preset.max)
+                }}
+                className={`px-2 py-1 rounded text-xs transition-colors ${
+                  minExposure === preset.min && maxExposure === preset.max
+                    ? 'bg-signal-green/20 text-signal-green border border-signal-green'
+                    : 'bg-space-panel text-gray-400 border border-transparent hover:text-white hover:border-space-panel/50'
+                }`}
+              >
+                {preset.label}
+              </button>
+            ))}
+            {(minExposure !== 0 || maxExposure !== Infinity) && (
+              <button
+                onClick={() => {
+                  setMinExposure(0)
+                  setMaxExposure(Infinity)
+                }}
+                className="px-2 py-1 rounded text-xs text-gray-500 hover:text-white transition-colors"
+              >
+                清除
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

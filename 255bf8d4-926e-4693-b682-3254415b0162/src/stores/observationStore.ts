@@ -53,6 +53,8 @@ interface ObservationState {
   clearCompletedTasks: () => void
 
   setFilter: (filter: string) => void
+  setMinExposure: (min: number) => void
+  setMaxExposure: (max: number) => void
   setCalibrationSettings: (settings: Partial<CalibrationSettings>) => void
   setAlignmentSettings: (settings: Partial<AlignmentSettings>) => void
   setStackingSettings: (settings: Partial<StackingSettings>) => void
@@ -269,6 +271,14 @@ export const useObservationStore = create<ObservationState>((set, get) => ({
 
   setFilter: (filter) => {
     set({ filter })
+  },
+
+  setMinExposure: (min) => {
+    set({ minExposure: min })
+  },
+
+  setMaxExposure: (max) => {
+    set({ maxExposure: max })
   },
 
   setCalibrationSettings: (settings) => {

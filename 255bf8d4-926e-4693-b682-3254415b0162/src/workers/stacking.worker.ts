@@ -10,7 +10,7 @@ import type {
   StackResult,
   Tile
 } from '@/core/types'
-import { batchCalibrate, createMasterDarkTiled, createMasterFlatTiled, calibrateFrameTiled } from '@/core/AstroCalibration'
+import { matchCalibrationFrames, createMasterDarkTiled, createMasterFlatTiled, calibrateFrameTiled } from '@/core/AstroCalibration'
 import { batchAlign } from '@/core/StarMatcher'
 import { stackFrames, calculateFrameQuality, stackTiledFrames } from '@/core/ImageStacker'
 import { detectStars } from '@/core/StarMatcher'
@@ -67,30 +67,109 @@ const processStackJob = async (job: StackJob) => {
     sendProgress({
       taskId,
       progress: 0.1,
-      step: '批量校准帧数据',
+      step: '构建主暗帧/平场帧分块缓存',
       frameIndex: 0
     })
 
-    const calibratedData = batchCalibrate(
-      frames,
-      calibrationSettings,
-      darkFrames,
-      flatFrames,
-      (frameIndex, total) => {
-        sendProgress({
-          taskId,
-          progress: 0.1 + 0.2 * (frameIndex / total),
-          step: `校准帧 ${frameIndex}/${total}`,
-          frameIndex
-        })
-      }
-    )
+    const masterDarkTiles = darkFrames.length > 0 && calibrationSettings.darkSubtraction
+      ? createMasterDarkTiled(darkFrames, 'median', 512)
+      : null
 
-    for (const frame of frames) {
-      const calibrated = calibratedData.get(frame.id)
-      if (calibrated) {
-        frame.calibratedData = calibrated
+    const masterFlatResult = flatFrames.length > 0 && calibrationSettings.flatCorrection
+      ? createMasterFlatTiled(flatFrames, 'median', 512)
+      : null
+
+    const masterFlatTiles = masterFlatResult?.tiles
+    const flatMean = masterFlatResult?.flatMean
+
+    sendProgress({
+      taskId,
+      progress: 0.12,
+      step: '逐帧分块校准',
+      frameIndex: 0
+    })
+
+    for (let i = 0; i < frames.length; i++) {
+      if (isCancelled) return
+
+      const frame = frames[i]
+
+      const darkCache = new Map<string, DarkFrameInfo>()
+      for (const dark of darkFrames) darkCache.set(dark.id, dark)
+      const flatCache = new Map<string, FlatFrameInfo>()
+      for (const flat of flatFrames) flatCache.set(flat.id, flat)
+
+      const match = frame.calibrationMatch || matchCalibrationFrames(frame, darkFrames, flatFrames)
+      const dark = match.darkFrameId ? darkCache.get(match.darkFrameId) : undefined
+      const flat = match.flatFrameId ? flatCache.get(match.flatFrameId) : undefined
+
+      let darkTiles = masterDarkTiles
+      let flatTiles = masterFlatTiles
+      if (dark) {
+        const tiles: Tile[] = []
+        const tilesX = Math.ceil(frame.width / 512)
+        const tilesY = Math.ceil(frame.height / 512)
+        for (let ty = 0; ty < tilesY; ty++) {
+          for (let tx = 0; tx < tilesX; tx++) {
+            const offsetX = tx * 512
+            const offsetY = ty * 512
+            const w = Math.min(512, frame.width - offsetX)
+            const h = Math.min(512, frame.height - offsetY)
+            const tileData = new Float32Array(w * h)
+            for (let y = 0; y < h; y++) {
+              for (let x = 0; x < w; x++) {
+                tileData[y * w + x] = dark.pixelData[(offsetY + y) * frame.width + (offsetX + x)]
+              }
+            }
+            tiles.push({ tileX: tx, tileY: ty, offsetX, offsetY, width: w, height: h, data: tileData })
+          }
+        }
+        darkTiles = tiles
       }
+      if (flat) {
+        const tiles: Tile[] = []
+        const tilesX = Math.ceil(frame.width / 512)
+        const tilesY = Math.ceil(frame.height / 512)
+        for (let ty = 0; ty < tilesY; ty++) {
+          for (let tx = 0; tx < tilesX; tx++) {
+            const offsetX = tx * 512
+            const offsetY = ty * 512
+            const w = Math.min(512, frame.width - offsetX)
+            const h = Math.min(512, frame.height - offsetY)
+            const tileData = new Float32Array(w * h)
+            for (let y = 0; y < h; y++) {
+              for (let x = 0; x < w; x++) {
+                tileData[y * w + x] = flat.pixelData[(offsetY + y) * frame.width + (offsetX + x)]
+              }
+            }
+            tiles.push({ tileX: tx, tileY: ty, offsetX, offsetY, width: w, height: h, data: tileData })
+          }
+        }
+        flatTiles = tiles
+      }
+
+      const calibratedTiles = calibrateFrameTiled(
+        frame,
+        calibrationSettings,
+        darkTiles ?? undefined,
+        flatTiles ?? undefined,
+        flatMean,
+        512
+      )
+
+      const calibratedData = tilesToImage(calibratedTiles, frame.width, frame.height, 0)
+      frame.calibratedData = calibratedData
+
+      for (const t of calibratedTiles) {
+        t.data = new Float32Array(0)
+      }
+
+      sendProgress({
+        taskId,
+        progress: 0.12 + 0.18 * ((i + 1) / frames.length),
+        step: `分块校准帧 ${i + 1}/${frames.length}`,
+        frameIndex: i
+      })
     }
 
     if (!refFrame) {

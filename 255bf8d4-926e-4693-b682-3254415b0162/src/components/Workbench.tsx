@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import {
   Upload,
   FileImage,
@@ -45,7 +45,28 @@ export const Workbench = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [leftPanelOpen, setLeftPanelOpen] = useState(true)
-  const [rightPanelOpen, setRightPanelOpen] = useState(true)
+
+  const getInitialRightPanelOpen = () => {
+    if (typeof window === 'undefined') return false
+    const w = window.innerWidth
+    return w >= 1024 && w < 1366
+  }
+  const [rightPanelOpen, setRightPanelOpen] = useState(getInitialRightPanelOpen)
+
+  useEffect(() => {
+    const handleResize = () => {
+      const w = window.innerWidth
+      if (w >= 1024 && w < 1366) {
+        setRightPanelOpen(true)
+      } else {
+        setRightPanelOpen(false)
+      }
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('calibration')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [compareMode, setCompareMode] = useState(false)
