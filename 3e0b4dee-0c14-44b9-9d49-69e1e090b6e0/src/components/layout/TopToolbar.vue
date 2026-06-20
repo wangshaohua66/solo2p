@@ -29,14 +29,6 @@ function toggleMenu(key: string) {
   }, 0);
 }
 
-function handleNewProject() {
-  if (confirm('创建新项目？当前未保存数据将丢失。')) {
-    projectStore.createProject('未命名项目');
-    router.push('/editor/sprite');
-  }
-  menuOpen.value = null;
-}
-
 function handleSaveProject() { projectStore.persistAll(); menuOpen.value = null; }
 
 function undoAction() { projectStore.undo(); }
@@ -96,11 +88,39 @@ function handleRestoreSnapshot(id: string) {
 }
 
 const pages = [
-  { path: '/editor/sprite', name: '精灵', icon: '🖼️' },
-  { path: '/editor/animation', name: '动画', icon: '🎬' },
-  { path: '/editor/map', name: '地图', icon: '🗺️' },
-  { path: '/editor/audio', name: '音效', icon: '🔊' }
+  { routeName: 'sprite-editor', pathSegment: 'sprites', name: '精灵', icon: '🖼️' },
+  { routeName: 'animation-editor', pathSegment: 'animations', name: '动画', icon: '🎬' },
+  { routeName: 'tilemap-editor', pathSegment: 'tilemaps', name: '地图', icon: '🗺️' },
+  { routeName: 'audio-manager', pathSegment: 'audio', name: '音效', icon: '🔊' }
 ];
+
+const projectId = computed(() => projectStore.currentProjectId);
+
+function pagePath(page: typeof pages[0]): string {
+  const pid = projectId.value;
+  if (!pid) return '/projects';
+  return `/projects/${pid}/${page.pathSegment}`;
+}
+
+function isPageActive(page: typeof pages[0]): boolean {
+  return route.name === page.routeName;
+}
+
+function goToPage(page: typeof pages[0]) {
+  const pid = projectId.value;
+  if (!pid) return;
+  router.push({ name: page.routeName, params: { projectId: pid } });
+}
+
+function handleNewProject() {
+  if (confirm('创建新项目？当前未保存数据将丢失。')) {
+    const newProj = projectStore.createProject('未命名项目');
+    if (newProj) {
+      router.push({ name: 'sprite-editor', params: { projectId: newProj.id } });
+    }
+  }
+  menuOpen.value = null;
+}
 
 function goHome() { router.push('/'); }
 </script>
@@ -147,10 +167,10 @@ function goHome() { router.push('/'); }
       <div class="menu-item" :class="{ open: menuOpen === 'view' }" @click.stop="toggleMenu('view')">
         <span>视图</span>
         <div v-if="menuOpen === 'view'" class="dropdown" @click.stop>
-          <div v-for="p in pages" :key="p.path"
+          <div v-for="p in pages" :key="p.routeName"
             class="dd-item"
-            :class="{ active: route.path === p.path }"
-            @click="router.push(p.path)">
+            :class="{ active: isPageActive(p) }"
+            @click="goToPage(p)">
             {{ p.icon }} {{ p.name }}
           </div>
         </div>
@@ -181,10 +201,10 @@ function goHome() { router.push('/'); }
     </div>
 
     <div class="nav-tabs">
-      <div v-for="p in pages" :key="p.path"
+      <div v-for="p in pages" :key="p.routeName"
         class="nav-tab"
-        :class="{ active: route.path === p.path }"
-        @click="router.push(p.path)">
+        :class="{ active: isPageActive(p) }"
+        @click="goToPage(p)">
         <span class="nav-icon">{{ p.icon }}</span>
         <span class="nav-name">{{ p.name }}</span>
       </div>
