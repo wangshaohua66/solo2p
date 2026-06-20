@@ -27,8 +27,8 @@ async function run(options = {}) {
   logger.highlight(`开始导入 ${isDir ? '目录' : '文件'}: ${source}`);
   if (dryRun) logger.warn('DRY-RUN 模式：仅预检，不落盘');
 
-  const monitor = options.memoryLimit ? globalMonitor : null;
-  if (monitor) monitor.start();
+  const monitor = globalMonitor;
+  monitor.start();
 
   const parseOpts = {
     channel: options.channel,
@@ -43,18 +43,16 @@ async function run(options = {}) {
     if (incremental && !options.force && storage.isImported(source)) {
       logger.info(`文件已导入过，跳过（增量模式）: ${source}`);
       const existing = await storage.loadRecords(path.basename(source, path.extname(source)));
-      if (monitor) monitor.stop();
+      monitor.stop();
       return { skipped: true, records: existing, source, dryRun };
     }
     result = await parseFile(source, { ...parseOpts, format });
     result.meta = { ...result.meta, files: 1 };
   }
 
-  if (monitor) {
-    monitor.stop();
-    const stats = monitor.getStats();
-    logger.info(`内存峰值: RSS ${(stats.peakRSS / 1024 / 1024).toFixed(1)} MB, Heap ${(stats.peakHeap / 1024 / 1024).toFixed(1)} MB`);
-  }
+  monitor.stop();
+  const stats = monitor.getStats();
+  logger.info(`内存峰值: RSS ${(stats.peakRSS / 1024 / 1024).toFixed(1)} MB, Heap ${(stats.peakHeap / 1024 / 1024).toFixed(1)} MB`);
 
   if (result.integritySummary) {
     const s = result.integritySummary;
