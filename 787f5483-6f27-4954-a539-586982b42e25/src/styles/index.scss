@@ -1,0 +1,303 @@
+:root {
+  --primary-color: #409eff;
+  --primary-light: #79bbff;
+  --primary-dark: #337ecc;
+  --success-color: #67c23a;
+  --warning-color: #e6a23c;
+  --danger-color: #f56c6c;
+  --info-color: #909399;
+
+  --bg-color: #0d1117;
+  --bg-color-secondary: #161b22;
+  --bg-color-tertiary: #21262d;
+  --bg-color-card: #1c2128;
+  --bg-color-hover: #30363d;
+  
+  --border-color: #30363d;
+  --border-color-light: #21262d;
+  
+  --text-color-primary: #e6edf3;
+  --text-color-secondary: #8b949e;
+  --text-color-tertiary: #6e7681;
+  --text-color-disabled: #484f58;
+  
+  --header-height: 60px;
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 64px;
+  --bottom-nav-height: 56px;
+  
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  
+  --border-radius-sm: 4px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-color-primary);
+  background-color: var(--bg-color);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-color-secondary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bg-color-tertiary);
+  border-radius: 4px;
+  
+  &:hover {
+    background: var(--bg-color-hover);
+  }
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--bg-color-secondary);
+}
+
+::selection {
+  background-color: var(--primary-color);
+  color: #fff;
+}
+
+a {
+  color: var(--primary-color);
+  text-decoration: none;
+  
+  &:hover {
+    color: var(--primary-light);
+  }
+}
+
+.card {
+  background-color: var(--bg-color-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  padding: 16px;
+  margin-bottom: 16px;
+  transition: all var(--transition-fast);
+  
+  &:hover {
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-md);
+  }
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  background-color: var(--bg-color-tertiary);
+  color: var(--text-color-primary);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all var(--transition-fast);
+  outline: none;
+  
+  &:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+  }
+  
+  &:active {
+    transform: translateY(1px);
+  }
+  
+  &--primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #fff;
+    
+    &:hover {
+      background-color: var(--primary-light);
+      border-color: var(--primary-light);
+      color: #fff;
+    }
+  }
+  
+  &--success {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+    color: #fff;
+    
+    &:hover {
+      opacity: 0.9;
+      color: #fff;
+    }
+  }
+  
+  &--warning {
+    background-color: var(--warning-color);
+    border-color: var(--warning-color);
+    color: #fff;
+    
+    &:hover {
+      opacity: 0.9;
+      color: #fff;
+    }
+  }
+  
+  &--danger {
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+    color: #fff;
+    
+    &:hover {
+      opacity: 0.9;
+      color: #fff;
+    }
+  }
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 500;
+  
+  &--primary {
+    background-color: rgba(64, 158, 255, 0.1);
+    color: var(--primary-color);
+    border: 1px solid rgba(64, 158, 255, 0.2);
+  }
+  
+  &--success {
+    background-color: rgba(103, 194, 58, 0.1);
+    color: var(--success-color);
+    border: 1px solid rgba(103, 194, 58, 0.2);
+  }
+  
+  &--warning {
+    background-color: rgba(230, 162, 60, 0.1);
+    color: var(--warning-color);
+    border: 1px solid rgba(230, 162, 60, 0.2);
+  }
+  
+  &--danger {
+    background-color: rgba(245, 108, 108, 0.1);
+    color: var(--danger-color);
+    border: 1px solid rgba(245, 108, 108, 0.2);
+  }
+  
+  &--info {
+    background-color: rgba(144, 147, 153, 0.1);
+    color: var(--info-color);
+    border: 1px solid rgba(144, 147, 153, 0.2);
+  }
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background-color: var(--danger-color);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.page-container {
+  padding: 20px;
+  height: 100%;
+  overflow: auto;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  
+  &__title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-color-primary);
+  }
+  
+  &__actions {
+    display: flex;
+    gap: 12px;
+  }
+}
+
+.form-item {
+  margin-bottom: 20px;
+  
+  &__label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-color-primary);
+    
+    &--required::before {
+      content: '*';
+      color: var(--danger-color);
+      margin-right: 4px;
+    }
+  }
+  
+  &__error {
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--danger-color);
+  }
+}
+
+@media (max-width: 768px) {
+  .page-container {
+    padding: 12px;
+    padding-bottom: calc(var(--bottom-nav-height) + 12px);
+  }
+  
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    
+    &__actions {
+      width: 100%;
+      justify-content: flex-start;
+      overflow-x: auto;
+    }
+  }
+}
