@@ -1,5 +1,7 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Duration, Utc};
+use indicatif::{ProgressBar, ProgressStyle};
+use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fmt;
 
@@ -291,7 +293,7 @@ impl QcRule for TemporalConsistencyRule {
         let prev = context.previous_obs;
         let next = context.next_obs;
 
-        let elements = [
+        let elements: [(&str, fn(&Observation) -> Option<f64>); 7] = [
             ("temperature", |o: &Observation| o.temperature),
             ("pressure", |o: &Observation| o.pressure),
             ("relative_humidity", |o: &Observation| o.relative_humidity),
@@ -398,7 +400,7 @@ impl QcRule for SpatialConsistencyRule {
     fn check(&self, obs: &Observation, context: &QcContext) -> Vec<QcResultEntry> {
         let mut results = Vec::new();
 
-        let elements = [
+        let elements: [(&str, fn(&Observation) -> Option<f64>); 4] = [
             ("temperature", |o: &Observation| o.temperature),
             ("pressure", |o: &Observation| o.pressure),
             ("relative_humidity", |o: &Observation| o.relative_humidity),
@@ -608,7 +610,7 @@ impl QcRule for PersistenceCheckRule {
     fn check(&self, obs: &Observation, context: &QcContext) -> Vec<QcResultEntry> {
         let mut results = Vec::new();
 
-        let elements = [
+        let elements: [(&str, fn(&Observation) -> Option<f64>); 5] = [
             ("temperature", |o: &Observation| o.temperature),
             ("pressure", |o: &Observation| o.pressure),
             ("relative_humidity", |o: &Observation| o.relative_humidity),
@@ -671,13 +673,17 @@ impl QcRule for PersistenceCheckRule {
 
 pub struct QcEngine {
     rules: Vec<Box<dyn QcRule + Send + Sync>>,
+    rule_weights: HashMap<String, f64>,
 }
 
 impl QcEngine {
     pub fn new(config: &AppConfig) -> Self {
         let mut rules: Vec<Box<dyn QcRule + Send + Sync>> = Vec::new();
+        let mut rule_weights: HashMap<String, f64> = HashMap::new();
 
         for rule_config in &config.qc_rules {
+            rule_weights.insert(rule_config.id.clone(), rule_config.weight);
+
             if !rule_config.enabled {
                 continue;
             }
@@ -705,43 +711,112 @@ impl QcEngine {
             }
         }
 
-        QcEngine { rules }
+        QcEngine {
+            rules,
+            rule_weights,
+        }
     }
 
     pub fn check_observation(
         &self,
         obs: &Observation,
         context: &QcContext,
-    ) -> Vec<QcResultEntry> {
+    ) -> (Vec<QcResultEntry>, String) {
         let mut all_results = Vec::new();
         for rule in &self.rules {
             let results = rule.check(obs, context);
             all_results.extend(results);
         }
-        all_results
+        let audit_code = self.build_audit_code(&all_results);
+        (all_results, audit_code)
+    }
+
+    fn build_audit_code(&self, results: &[QcResultEntry]) -> String {
+        use std::collections::BTreeMap;
+        let mut rule_results: BTreeMap<&str, &str> = BTreeMap::new();
+        for entry in results {
+            rule_results
+                .entry(entry.rule_code.as_str())
+                .and_modify(|existing| {
+                    *existing = pick_worse_result(existing, &entry.result);
+                })
+                .or_insert_with(|| entry.result.as_str());
+        }
+
+        let mut codes: Vec<String> = Vec::new();
+        for (rule_id, result) in &rule_results {
+            let weight = self.rule_weights.get(*rule_id).copied().unwrap_or(1.0);
+            let weight_code = if weight >= 2.0 {
+                "H"
+            } else if weight <= 0.5 {
+                "L"
+            } else {
+                ""
+            };
+            codes.push(format!("{}:{}{}", rule_id, result, weight_code));
+        }
+        codes.join("|")
     }
 
     pub fn determine_overall_status(&self, results: &[QcResultEntry]) -> QcStatus {
-        let mut has_fail = false;
-        let mut has_suspect = false;
-        let mut has_missing = false;
+        let mut fail_score = 0.0f64;
+        let mut suspect_score = 0.0f64;
+        let mut missing_score = 0.0f64;
+        let mut total_weight = 0.0f64;
 
         for r in results {
+            let weight = self.rule_weights.get(r.rule_code.as_str()).copied().unwrap_or(1.0);
+            total_weight += weight;
             match r.result.as_str() {
-                "fail" => has_fail = true,
-                "suspect" => has_suspect = true,
-                "missing" => has_missing = true,
+                "fail" => fail_score += weight,
+                "suspect" => suspect_score += weight,
+                "missing" => missing_score += weight,
                 _ => {}
             }
         }
 
-        if has_fail {
+        let fail_ratio = if total_weight > 0.0 {
+            fail_score / total_weight
+        } else {
+            0.0
+        };
+        let suspect_ratio = if total_weight > 0.0 {
+            suspect_score / total_weight
+        } else {
+            0.0
+        };
+        let missing_ratio = if total_weight > 0.0 {
+            missing_score / total_weight
+        } else {
+            0.0
+        };
+
+        if fail_ratio >= 0.2 {
             QcStatus::Failed
-        } else if has_suspect || has_missing {
+        } else if fail_ratio > 0.0 || suspect_ratio >= 0.3 || missing_ratio >= 0.5 {
+            QcStatus::Suspect
+        } else if suspect_ratio > 0.0 || missing_ratio > 0.0 {
             QcStatus::Suspect
         } else {
             QcStatus::Passed
         }
+    }
+}
+
+fn pick_worse_result<'a>(a: &'a str, b: &'a str) -> &'a str {
+    let rank = |s: &str| -> u8 {
+        match s {
+            "fail" => 4,
+            "missing" => 3,
+            "suspect" => 2,
+            "pass" => 1,
+            _ => 0,
+        }
+    };
+    if rank(b) > rank(a) {
+        b
+    } else {
+        a
     }
 }
 
@@ -766,25 +841,49 @@ pub struct ElementQcStats {
 pub fn run_qc_for_range(
     conn: &rusqlite::Connection,
     config: &AppConfig,
-    station_id: Option<&str>,
+    station_ids: Option<&[String]>,
     start_time: &DateTime<Utc>,
     end_time: &DateTime<Utc>,
     dry_run: bool,
+    all_status: bool,
 ) -> Result<QcStats> {
-    let mut stmt = conn.prepare(
+    let mut sql = String::from(
         "SELECT id, station_id, obs_time, temperature, pressure, relative_humidity,
          wind_speed, wind_direction, precipitation, visibility, raw_data, source_file, qc_status
          FROM observations 
-         WHERE obs_time >= ?1 AND obs_time <= ?2 
-         AND (qc_status = 'pending' OR qc_status = 'suspect')
-         ORDER BY station_id, obs_time ASC",
-    )?;
+         WHERE obs_time >= ?1 AND obs_time <= ?2",
+    );
 
-    let mut rows = if let Some(sid) = station_id {
-        stmt.query(params![start_time.to_rfc3339(), end_time.to_rfc3339()])?
-    } else {
-        stmt.query(params![start_time.to_rfc3339(), end_time.to_rfc3339()])?
-    };
+    if !all_status {
+        sql.push_str(" AND (qc_status = 'pending' OR qc_status = 'suspect')");
+    }
+
+    let mut params: Vec<String> = Vec::new();
+    let mut param_index = 3;
+
+    if let Some(ids) = station_ids {
+        if !ids.is_empty() {
+            let placeholders: Vec<String> = ids
+                .iter()
+                .enumerate()
+                .map(|(i, _)| format!("?{}", param_index + i))
+                .collect();
+            sql.push_str(&format!(" AND station_id IN ({})", placeholders.join(", ")));
+            param_index += ids.len();
+            params.extend(ids.iter().cloned());
+        }
+    }
+
+    sql.push_str(" ORDER BY station_id, obs_time ASC");
+
+    let mut stmt = conn.prepare(&sql)?;
+    let base_params: Vec<String> = vec![start_time.to_rfc3339(), end_time.to_rfc3339()];
+    let all_params: Vec<String> = base_params.into_iter().chain(params.into_iter()).collect();
+    let param_refs: Vec<&dyn rusqlite::ToSql> = all_params
+        .iter()
+        .map(|s| s as &dyn rusqlite::ToSql)
+        .collect();
+    let mut rows = stmt.query(param_refs.as_slice())?;
 
     let mut observations: Vec<Observation> = Vec::new();
     while let Some(row) = rows.next()? {
@@ -822,6 +921,14 @@ pub fn run_qc_for_range(
     let mut all_qc_results: Vec<QcResult> = Vec::new();
     let mut status_updates: Vec<(i64, String)> = Vec::new();
 
+    let pb = ProgressBar::new(observations.len() as u64);
+    pb.set_style(
+        ProgressStyle::with_template("{msg} [{bar:40.cyan/blue}] {pos}/{len} ({eta})")
+            .unwrap()
+            .progress_chars("=>-"),
+    );
+    pb.set_message("QC审核中");
+
     for (sid, station_obs) in &obs_by_station {
         let station_config = match config.get_station(sid) {
             Some(sc) => sc.clone(),
@@ -843,31 +950,48 @@ pub fn run_qc_for_range(
             }
         };
 
-        for (i, obs) in station_obs.iter().enumerate() {
-            let prev_obs = if i > 0 { station_obs.get(i - 1) } else { None };
-            let next_obs = station_obs.get(i + 1);
+        let qc_outcomes: Vec<(
+            Vec<QcResultEntry>,
+            String,
+            QcStatus,
+            Option<i64>,
+            String,
+            DateTime<Utc>,
+        )> = station_obs
+            .par_iter()
+            .enumerate()
+            .map(|(i, obs)| {
+                let prev_obs = if i > 0 { station_obs.get(i - 1) } else { None };
+                let next_obs = station_obs.get(i + 1);
 
-            let recent_obs: Vec<&Observation> = station_obs
-                .iter()
-                .take(i)
-                .rev()
-                .take(12)
-                .collect();
+                let recent_obs: Vec<&Observation> = station_obs
+                    .iter()
+                    .take(i)
+                    .rev()
+                    .take(12)
+                    .collect();
 
-            let neighbor_obs = get_neighbor_observations(obs, &obs_by_station, config);
+                let neighbor_obs = get_neighbor_observations(obs, &obs_by_station, config);
 
-            let context = QcContext {
-                station: &station_config,
-                climate_limits: &config.climate_limits,
-                previous_obs: prev_obs,
-                next_obs,
-                neighbor_obs,
-                recent_obs,
-                thresholds: station_config.qc_thresholds.clone(),
-            };
+                let context = QcContext {
+                    station: &station_config,
+                    climate_limits: &config.climate_limits,
+                    previous_obs: prev_obs,
+                    next_obs,
+                    neighbor_obs,
+                    recent_obs,
+                    thresholds: station_config.qc_thresholds.clone(),
+                };
 
-            let qc_entries = engine.check_observation(obs, &context);
-            let overall_status = engine.determine_overall_status(&qc_entries);
+                let (qc_entries, audit_code) = engine.check_observation(obs, &context);
+                let overall_status = engine.determine_overall_status(&qc_entries);
+
+                (qc_entries, audit_code, overall_status, obs.id, obs.station_id.clone(), obs.obs_time)
+            })
+            .collect();
+
+        for (qc_entries, audit_code, overall_status, obs_id, station_id, obs_time) in qc_outcomes {
+            pb.inc(1);
 
             for entry in &qc_entries {
                 let elem_stat = stats
@@ -883,15 +1007,16 @@ pub fn run_qc_for_range(
                     _ => {}
                 }
 
-                if let Some(obs_id) = obs.id {
+                if let Some(oid) = obs_id {
                     all_qc_results.push(QcResult {
-                        observation_id: obs_id,
-                        station_id: obs.station_id.clone(),
-                        obs_time: obs.obs_time,
+                        observation_id: oid,
+                        station_id: station_id.clone(),
+                        obs_time,
                         rule_code: entry.rule_code.clone(),
                         element: entry.element.clone(),
                         result: entry.result.clone(),
                         detail: entry.detail.clone(),
+                        audit_code: Some(audit_code.clone()),
                     });
                 }
             }
@@ -904,11 +1029,13 @@ pub fn run_qc_for_range(
                 _ => {}
             }
 
-            if let Some(obs_id) = obs.id {
-                status_updates.push((obs_id, overall_status.as_str().to_string()));
+            if let Some(oid) = obs_id {
+                status_updates.push((oid, overall_status.as_str().to_string()));
             }
         }
     }
+
+    pb.finish_with_message("QC审核完成");
 
     if !dry_run {
         let tx = conn.unchecked_transaction()?;
@@ -940,11 +1067,11 @@ fn group_observations_by_station(obs: &[Observation]) -> HashMap<String, Vec<Obs
     map
 }
 
-fn get_neighbor_observations(
+fn get_neighbor_observations<'a>(
     obs: &Observation,
-    obs_by_station: &HashMap<String, Vec<Observation>>,
+    obs_by_station: &'a HashMap<String, Vec<Observation>>,
     config: &AppConfig,
-) -> HashMap<String, &Observation> {
+) -> HashMap<String, &'a Observation> {
     let mut result = HashMap::new();
 
     let neighbors = config.get_neighbors(&obs.station_id);

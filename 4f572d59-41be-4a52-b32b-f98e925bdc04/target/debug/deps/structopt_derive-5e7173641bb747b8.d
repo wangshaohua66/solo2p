@@ -1,0 +1,10 @@
+/Users/paul/WorkSpace/TestSoloCoder/4f572d59-41be-4a52-b32b-f98e925bdc04/target/debug/deps/structopt_derive-5e7173641bb747b8.d: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/structopt-derive-0.4.18/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/structopt-derive-0.4.18/src/attrs.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/structopt-derive-0.4.18/src/doc_comments.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/structopt-derive-0.4.18/src/parse.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/structopt-derive-0.4.18/src/spanned.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/structopt-derive-0.4.18/src/ty.rs
+
+/Users/paul/WorkSpace/TestSoloCoder/4f572d59-41be-4a52-b32b-f98e925bdc04/target/debug/deps/libstructopt_derive-5e7173641bb747b8.dylib: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/structopt-derive-0.4.18/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/structopt-derive-0.4.18/src/attrs.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/structopt-derive-0.4.18/src/doc_comments.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/structopt-derive-0.4.18/src/parse.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/structopt-derive-0.4.18/src/spanned.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/structopt-derive-0.4.18/src/ty.rs
+
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/structopt-derive-0.4.18/src/lib.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/structopt-derive-0.4.18/src/attrs.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/structopt-derive-0.4.18/src/doc_comments.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/structopt-derive-0.4.18/src/parse.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/structopt-derive-0.4.18/src/spanned.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/structopt-derive-0.4.18/src/ty.rs:

@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Duration, TimeZone, Utc};
 use csv::ReaderBuilder;
+use indicatif::{ProgressBar, ProgressStyle};
 use nom::{
     bytes::complete::{tag, take},
     number::complete::{le_f32, le_f64, le_u32},
@@ -87,6 +88,14 @@ pub fn import_file<P: AsRef<Path>>(
 
     let tx = conn.unchecked_transaction()?;
 
+    let pb = ProgressBar::new(observations.len() as u64);
+    pb.set_style(
+        ProgressStyle::with_template("{msg} [{bar:40.cyan/blue}] {pos}/{len}")
+            .unwrap()
+            .progress_chars("=>-"),
+    );
+    pb.set_message(format!("导入 {}", path.file_name().and_then(|f| f.to_str()).unwrap_or("")));
+
     for obs in observations {
         match insert_observation(&tx, &obs) {
             Ok(id) => {
@@ -105,7 +114,10 @@ pub fn import_file<P: AsRef<Path>>(
                 }
             }
         }
+        pb.inc(1);
     }
+
+    pb.finish_and_clear();
 
     tx.commit()?;
 
@@ -354,9 +366,11 @@ fn parse_binary_record(
     config: &StationConfig,
     source_file: &Option<String>,
 ) -> Result<(usize, Observation)> {
-    let (rem, record_size) = le_u32(input).map_err(|_| anyhow::anyhow!("Failed to read record size"))?;
+    let (rem, record_size) = le_u32::<_, nom::error::Error<&[u8]>>(input)
+        .map_err(|_| anyhow::anyhow!("Failed to read record size"))?;
 
-    let (rem, timestamp) = le_u32(rem).map_err(|_| anyhow::anyhow!("Failed to read timestamp"))?;
+    let (rem, timestamp) = le_u32::<_, nom::error::Error<&[u8]>>(rem)
+        .map_err(|_| anyhow::anyhow!("Failed to read timestamp"))?;
 
     let obs_time = chrono::NaiveDateTime::from_timestamp_opt(timestamp as i64, 0)
         .ok_or_else(|| anyhow::anyhow!("Invalid timestamp: {}", timestamp))?;
@@ -372,13 +386,20 @@ fn parse_binary_record(
         _ => Utc.from_utc_datetime(&obs_time),
     };
 
-    let (rem, temperature) = le_f32(rem).map_err(|_| anyhow::anyhow!("Failed to read temperature"))?;
-    let (rem, pressure) = le_f32(rem).map_err(|_| anyhow::anyhow!("Failed to read pressure"))?;
-    let (rem, humidity) = le_f32(rem).map_err(|_| anyhow::anyhow!("Failed to read humidity"))?;
-    let (rem, wind_speed) = le_f32(rem).map_err(|_| anyhow::anyhow!("Failed to read wind speed"))?;
-    let (rem, wind_dir) = le_f32(rem).map_err(|_| anyhow::anyhow!("Failed to read wind direction"))?;
-    let (rem, precip) = le_f32(rem).map_err(|_| anyhow::anyhow!("Failed to read precipitation"))?;
-    let (rem, visibility) = le_f32(rem).map_err(|_| anyhow::anyhow!("Failed to read visibility"))?;
+    let (rem, temperature) = le_f32::<_, nom::error::Error<&[u8]>>(rem)
+        .map_err(|_| anyhow::anyhow!("Failed to read temperature"))?;
+    let (rem, pressure) = le_f32::<_, nom::error::Error<&[u8]>>(rem)
+        .map_err(|_| anyhow::anyhow!("Failed to read pressure"))?;
+    let (rem, humidity) = le_f32::<_, nom::error::Error<&[u8]>>(rem)
+        .map_err(|_| anyhow::anyhow!("Failed to read humidity"))?;
+    let (rem, wind_speed) = le_f32::<_, nom::error::Error<&[u8]>>(rem)
+        .map_err(|_| anyhow::anyhow!("Failed to read wind speed"))?;
+    let (rem, wind_dir) = le_f32::<_, nom::error::Error<&[u8]>>(rem)
+        .map_err(|_| anyhow::anyhow!("Failed to read wind direction"))?;
+    let (rem, precip) = le_f32::<_, nom::error::Error<&[u8]>>(rem)
+        .map_err(|_| anyhow::anyhow!("Failed to read precipitation"))?;
+    let (_rem, visibility) = le_f32::<_, nom::error::Error<&[u8]>>(rem)
+        .map_err(|_| anyhow::anyhow!("Failed to read visibility"))?;
 
     let obs = Observation {
         id: None,
@@ -448,6 +469,14 @@ pub fn import_directory<P: AsRef<Path>>(
         }
     }
 
+    let pb = ProgressBar::new(files.len() as u64);
+    pb.set_style(
+        ProgressStyle::with_template("{msg} [{bar:40.cyan/blue}] {pos}/{len} ({eta})")
+            .unwrap()
+            .progress_chars("=>-"),
+    );
+    pb.set_message("导入文件");
+
     for file_path in files {
         let sid = station_id
             .or_else(|| infer_station_from_filename(&file_path, config))
@@ -471,7 +500,10 @@ pub fn import_directory<P: AsRef<Path>>(
                 total_stats.errors += 1;
             }
         }
+        pb.inc(1);
     }
+
+    pb.finish_with_message("目录导入完成");
 
     Ok(total_stats)
 }

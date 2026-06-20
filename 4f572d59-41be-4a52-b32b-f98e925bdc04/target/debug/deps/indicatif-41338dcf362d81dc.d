@@ -1,0 +1,13 @@
+/Users/paul/WorkSpace/TestSoloCoder/4f572d59-41be-4a52-b32b-f98e925bdc04/target/debug/deps/indicatif-41338dcf362d81dc.d: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/draw_target.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/format.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/iter.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/multi.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/progress_bar.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/state.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/style.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/term_like.rs
+
+/Users/paul/WorkSpace/TestSoloCoder/4f572d59-41be-4a52-b32b-f98e925bdc04/target/debug/deps/libindicatif-41338dcf362d81dc.rmeta: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/draw_target.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/format.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/iter.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/multi.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/progress_bar.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/state.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/style.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/term_like.rs
+
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/lib.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/draw_target.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/format.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/iter.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/multi.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/progress_bar.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/state.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/style.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/indicatif-0.17.11/src/term_like.rs:

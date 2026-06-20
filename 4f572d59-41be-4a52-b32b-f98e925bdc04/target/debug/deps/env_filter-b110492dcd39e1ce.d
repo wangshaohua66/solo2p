@@ -1,0 +1,10 @@
+/Users/paul/WorkSpace/TestSoloCoder/4f572d59-41be-4a52-b32b-f98e925bdc04/target/debug/deps/env_filter-b110492dcd39e1ce.d: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_filter-1.0.1/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_filter-1.0.1/src/directive.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_filter-1.0.1/src/filter.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_filter-1.0.1/src/filtered_log.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_filter-1.0.1/src/op.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_filter-1.0.1/src/parser.rs
+
+/Users/paul/WorkSpace/TestSoloCoder/4f572d59-41be-4a52-b32b-f98e925bdc04/target/debug/deps/libenv_filter-b110492dcd39e1ce.rmeta: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_filter-1.0.1/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_filter-1.0.1/src/directive.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_filter-1.0.1/src/filter.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_filter-1.0.1/src/filtered_log.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_filter-1.0.1/src/op.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_filter-1.0.1/src/parser.rs
+
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_filter-1.0.1/src/lib.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_filter-1.0.1/src/directive.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_filter-1.0.1/src/filter.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_filter-1.0.1/src/filtered_log.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_filter-1.0.1/src/op.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_filter-1.0.1/src/parser.rs:

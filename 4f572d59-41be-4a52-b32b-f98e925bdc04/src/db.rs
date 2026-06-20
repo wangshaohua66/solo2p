@@ -93,6 +93,7 @@ impl Database {
                 element TEXT NOT NULL,
                 result TEXT NOT NULL,
                 detail TEXT,
+                audit_code TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (observation_id) REFERENCES observations(id) ON DELETE CASCADE
             );
@@ -159,6 +160,23 @@ impl Database {
             );
             "#,
         )?;
+
+        self.run_migrations(&conn)?;
+
+        Ok(())
+    }
+
+    fn run_migrations(&self, conn: &Connection) -> Result<()> {
+        let columns: Vec<String> = conn
+            .prepare("PRAGMA table_info(qc_results)")?
+            .query_map([], |row| row.get::<_, String>(1))?
+            .filter_map(|r| r.ok())
+            .collect();
+
+        if !columns.iter().any(|c| c == "audit_code") {
+            conn.execute("ALTER TABLE qc_results ADD COLUMN audit_code TEXT", [])?;
+            log::info!("已为 qc_results 表添加 audit_code 列");
+        }
 
         Ok(())
     }
@@ -247,6 +265,7 @@ pub struct QcResult {
     pub element: String,
     pub result: String,
     pub detail: Option<String>,
+    pub audit_code: Option<String>,
 }
 
 pub fn insert_observation(conn: &Connection, obs: &Observation) -> Result<i64> {
@@ -278,8 +297,8 @@ pub fn insert_observation(conn: &Connection, obs: &Observation) -> Result<i64> {
 pub fn insert_qc_result(conn: &Connection, qc: &QcResult) -> Result<i64> {
     let mut stmt = conn.prepare_cached(
         r#"INSERT INTO qc_results
-           (observation_id, station_id, obs_time, rule_code, element, result, detail)
-           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"#,
+           (observation_id, station_id, obs_time, rule_code, element, result, detail, audit_code)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)"#,
     )?;
 
     let id = stmt.insert(params![
@@ -290,6 +309,7 @@ pub fn insert_qc_result(conn: &Connection, qc: &QcResult) -> Result<i64> {
         qc.element,
         qc.result,
         qc.detail,
+        qc.audit_code,
     ])?;
 
     Ok(id)

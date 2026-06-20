@@ -1,0 +1,11 @@
+/Users/paul/WorkSpace/TestSoloCoder/4f572d59-41be-4a52-b32b-f98e925bdc04/target/debug/deps/digest-8d45f309a1fc9421.d: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/digest-0.10.7/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/digest-0.10.7/src/core_api.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/digest-0.10.7/src/core_api/ct_variable.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/digest-0.10.7/src/core_api/rt_variable.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/digest-0.10.7/src/core_api/wrapper.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/digest-0.10.7/src/core_api/xof_reader.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/digest-0.10.7/src/digest.rs
+
+/Users/paul/WorkSpace/TestSoloCoder/4f572d59-41be-4a52-b32b-f98e925bdc04/target/debug/deps/libdigest-8d45f309a1fc9421.rmeta: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/digest-0.10.7/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/digest-0.10.7/src/core_api.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/digest-0.10.7/src/core_api/ct_variable.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/digest-0.10.7/src/core_api/rt_variable.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/digest-0.10.7/src/core_api/wrapper.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/digest-0.10.7/src/core_api/xof_reader.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/digest-0.10.7/src/digest.rs
+
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/digest-0.10.7/src/lib.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/digest-0.10.7/src/core_api.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/digest-0.10.7/src/core_api/ct_variable.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/digest-0.10.7/src/core_api/rt_variable.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/digest-0.10.7/src/core_api/wrapper.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/digest-0.10.7/src/core_api/xof_reader.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/digest-0.10.7/src/digest.rs:

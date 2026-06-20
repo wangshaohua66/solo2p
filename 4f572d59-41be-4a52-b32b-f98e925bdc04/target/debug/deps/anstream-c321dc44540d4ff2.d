@@ -1,0 +1,14 @@
+/Users/paul/WorkSpace/TestSoloCoder/4f572d59-41be-4a52-b32b-f98e925bdc04/target/debug/deps/anstream-c321dc44540d4ff2.d: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/adapter/mod.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/adapter/strip.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/adapter/wincon.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/stream.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/_macros.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/auto.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/buffer.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/fmt.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/strip.rs
+
+/Users/paul/WorkSpace/TestSoloCoder/4f572d59-41be-4a52-b32b-f98e925bdc04/target/debug/deps/libanstream-c321dc44540d4ff2.rmeta: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/adapter/mod.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/adapter/strip.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/adapter/wincon.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/stream.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/_macros.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/auto.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/buffer.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/fmt.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/strip.rs
+
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/lib.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/adapter/mod.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/adapter/strip.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/adapter/wincon.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/stream.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/_macros.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/auto.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/buffer.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/fmt.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/anstream-1.0.0/src/strip.rs:

@@ -197,6 +197,33 @@ enum ConfigCommand {
         #[structopt(help = "导入文件路径")]
         path: PathBuf,
     },
+
+    #[structopt(about = "添加邻近站点关系")]
+    AddNeighbor {
+        #[structopt(help = "站点ID")]
+        station_id: String,
+
+        #[structopt(help = "邻近站点ID")]
+        neighbor_id: String,
+
+        #[structopt(short, long, help = "距离(公里)")]
+        distance: Option<f64>,
+    },
+
+    #[structopt(about = "删除邻近站点关系")]
+    RemoveNeighbor {
+        #[structopt(help = "站点ID")]
+        station_id: String,
+
+        #[structopt(help = "邻近站点ID")]
+        neighbor_id: String,
+    },
+
+    #[structopt(about = "查询站点的邻近站点列表")]
+    ListNeighbors {
+        #[structopt(help = "站点ID")]
+        station_id: String,
+    },
 }
 
 #[derive(Debug, StructOpt)]
@@ -319,7 +346,7 @@ fn main() -> Result<()> {
             handle_query(&conn, stations.as_deref(), start.as_deref(), end.as_deref(), elements.as_deref(), qc_status.as_deref(), format, *limit, stats.as_deref())?;
         }
         Command::Config { subcommand } => {
-            handle_config(&config, subcommand, &cli.config)?;
+            handle_config(&conn, &config, subcommand, &cli.config)?;
         }
         Command::Review { subcommand } => {
             handle_review(&conn, &config, subcommand, cli.dry_run)?;
@@ -414,13 +441,12 @@ fn handle_qc(
     stations: Option<&str>,
     start: Option<&str>,
     end: Option<&str>,
-    _all: bool,
+    all: bool,
     dry_run: bool,
 ) -> Result<()> {
     println!("{}", "=== 数据质量控制 ===".bold());
 
-    let station_id = parse_station_list(stations);
-    let station_filter = station_id.as_ref().and_then(|v| v.first().map(|s| s.as_str()));
+    let station_list = parse_station_list(stations);
 
     let (start_time, end_time) = parse_time_range(start, end)?;
 
@@ -428,13 +454,17 @@ fn handle_qc(
         start_time.format("%Y-%m-%d %H:%M"),
         end_time.format("%Y-%m-%d %H:%M"));
 
-    if let Some(sid) = station_filter {
-        println!("  站点: {}", sid);
+    if let Some(ref sids) = station_list {
+        println!("  站点: {}", sids.join(", "));
+    }
+
+    if all {
+        println!("  模式: {}", "审核所有状态数据".cyan());
     }
 
     println!();
 
-    let stats = qc::run_qc_for_range(conn, config, station_filter, &start_time, &end_time, dry_run)?;
+    let stats = qc::run_qc_for_range(conn, config, station_list.as_deref(), &start_time, &end_time, dry_run, all)?;
 
     println!("  总记录数: {}", stats.total);
     println!("  通过: {} ({:.1}%)", stats.passed.to_string().green(), if stats.total > 0 { stats.passed as f64 / stats.total as f64 * 100.0 } else { 0.0 });
@@ -545,7 +575,7 @@ fn handle_query(
     stations: Option<&str>,
     start: Option<&str>,
     end: Option<&str>,
-    _elements: Option<&str>,
+    elements: Option<&str>,
     qc_status: Option<&str>,
     format: &str,
     limit: i64,
@@ -554,11 +584,20 @@ fn handle_query(
     let station_ids = parse_station_list(stations).unwrap_or_default();
     let (start_time, end_time) = parse_time_range(start, end)?;
 
+    let element_list: Vec<String> = elements
+        .map(|s| {
+            s.split(',')
+                .map(|e| e.trim().trim_start_matches('_').to_string())
+                .filter(|e| !e.is_empty())
+                .collect()
+        })
+        .unwrap_or_default();
+
     let filter = query::QueryFilter {
         station_ids,
         start_time: Some(start_time),
         end_time: Some(end_time),
-        elements: Vec::new(),
+        elements: element_list,
         qc_status: qc_status.map(|s| s.to_string()),
         limit: Some(limit),
         offset: None,
@@ -590,10 +629,12 @@ fn handle_query(
 }
 
 fn handle_config(
+    conn: &rusqlite::Connection,
     config: &AppConfig,
     subcommand: &ConfigCommand,
     config_path: &std::path::Path,
 ) -> Result<()> {
+    use rusqlite::params;
     match subcommand {
         ConfigCommand::Show => {
             println!("{}", "=== 当前配置 ===".bold());
@@ -657,6 +698,61 @@ fn handle_config(
             let imported = AppConfig::load(path)?;
             imported.save(config_path)?;
             println!("{}", format!("配置已从 {} 导入", path.display()).green());
+        }
+        ConfigCommand::AddNeighbor {
+            station_id,
+            neighbor_id,
+            distance,
+        } => {
+            conn.execute(
+                "INSERT OR REPLACE INTO neighbors (station_id, neighbor_id, distance_km) VALUES (?1, ?2, ?3)",
+                params![station_id, neighbor_id, distance],
+            )?;
+            println!(
+                "{}",
+                format!("邻近关系 {} -> {} 已添加", station_id, neighbor_id).green()
+            );
+        }
+        ConfigCommand::RemoveNeighbor {
+            station_id,
+            neighbor_id,
+        } => {
+            let count = conn.execute(
+                "DELETE FROM neighbors WHERE station_id = ?1 AND neighbor_id = ?2",
+                params![station_id, neighbor_id],
+            )?;
+            if count > 0 {
+                println!(
+                    "{}",
+                    format!("邻近关系 {} -> {} 已删除", station_id, neighbor_id).green()
+                );
+            } else {
+                println!(
+                    "{}",
+                    format!("邻近关系 {} -> {} 不存在", station_id, neighbor_id).red()
+                );
+            }
+        }
+        ConfigCommand::ListNeighbors { station_id } => {
+            println!("{}", "=== 邻近站点列表 ===".bold());
+            let mut stmt = conn.prepare(
+                "SELECT neighbor_id, distance_km FROM neighbors WHERE station_id = ?1 ORDER BY neighbor_id",
+            )?;
+            let mut rows = stmt.query(params![station_id])?;
+
+            let mut count = 0;
+            while let Some(row) = rows.next()? {
+                let neighbor_id: String = row.get(0)?;
+                let distance: Option<f64> = row.get(1)?;
+                let dist_str = distance
+                    .map(|d| format!("{:.1} km", d))
+                    .unwrap_or_else(|| "-".to_string());
+                println!("  {} -> {} ({})", station_id.bold(), neighbor_id, dist_str);
+                count += 1;
+            }
+            if count == 0 {
+                println!("  暂无邻近站点配置");
+            }
         }
     }
     Ok(())

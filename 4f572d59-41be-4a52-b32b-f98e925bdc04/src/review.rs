@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use colored::*;
+use rusqlite::params;
 use std::collections::HashMap;
 use std::fmt::Write;
 
@@ -288,6 +289,58 @@ pub fn generate_qc_report(
         }
     }
 
+    let element_where_clauses = where_clauses.clone();
+    let element_where_sql = if element_where_clauses.is_empty() {
+        String::new()
+    } else {
+        format!("WHERE {}", element_where_clauses.join(" AND "))
+    };
+
+    let element_sql = format!(
+        "SELECT element, result, COUNT(*) as cnt
+         FROM qc_results
+         WHERE obs_time IN (
+             SELECT obs_time FROM observations {}
+         )
+         GROUP BY element, result
+         ORDER BY element",
+        element_where_sql
+    );
+
+    let mut stmt_elem = conn.prepare(&element_sql)?;
+    let param_refs_elem: Vec<&dyn rusqlite::ToSql> = params
+        .iter()
+        .map(|s| s as &dyn rusqlite::ToSql)
+        .collect();
+    let mut rows_elem = stmt_elem.query(param_refs_elem.as_slice())?;
+
+    while let Some(row) = rows_elem.next()? {
+        let element: String = row.get(0)?;
+        let result: String = row.get(1)?;
+        let count: i64 = row.get(2)?;
+
+        let elem_detail = report
+            .element_stats
+            .entry(element.clone())
+            .or_insert_with(|| ElementQcDetail {
+                element: element.clone(),
+                total: 0,
+                pass: 0,
+                suspect: 0,
+                fail: 0,
+                missing: 0,
+            });
+
+        elem_detail.total += count;
+        match result.as_str() {
+            "pass" => elem_detail.pass += count,
+            "suspect" => elem_detail.suspect += count,
+            "fail" => elem_detail.fail += count,
+            "missing" => elem_detail.missing += count,
+            _ => {}
+        }
+    }
+
     Ok(report)
 }
 
@@ -379,6 +432,86 @@ pub fn format_qc_report(report: &QcReport) -> Result<String> {
         }
     }
 
+    if !report.element_stats.is_empty() {
+        writeln!(output)?;
+        writeln!(output, "{}", "各要素统计:".bold())?;
+
+        let elem_headers = vec![
+            "要素",
+            "总数",
+            "通过",
+            "通过率",
+            "可疑",
+            "可疑率",
+            "错误",
+            "错误率",
+            "缺测",
+        ];
+        let mut elem_rows: Vec<Vec<String>> = Vec::new();
+
+        let mut elems: Vec<&ElementQcDetail> = report.element_stats.values().collect();
+        elems.sort_by(|a, b| a.element.cmp(&b.element));
+
+        for estat in elems {
+            let pass_rate = if estat.total > 0 {
+                estat.pass as f64 / estat.total as f64 * 100.0
+            } else {
+                0.0
+            };
+            let suspect_rate = if estat.total > 0 {
+                estat.suspect as f64 / estat.total as f64 * 100.0
+            } else {
+                0.0
+            };
+            let fail_rate = if estat.total > 0 {
+                estat.fail as f64 / estat.total as f64 * 100.0
+            } else {
+                0.0
+            };
+
+            elem_rows.push(vec![
+                estat.element.clone(),
+                estat.total.to_string(),
+                estat.pass.to_string().green().to_string(),
+                format!("{:.1}%", pass_rate),
+                estat.suspect.to_string().yellow().to_string(),
+                format!("{:.1}%", suspect_rate),
+                estat.fail.to_string().red().to_string(),
+                format!("{:.1}%", fail_rate),
+                estat.missing.to_string(),
+            ]);
+        }
+
+        let mut col_widths: Vec<usize> = elem_headers.iter().map(|h| h.len()).collect();
+        for row in &elem_rows {
+            for (i, cell) in row.iter().enumerate() {
+                let plain_len = strip_ansi_len(cell);
+                if plain_len > col_widths[i] {
+                    col_widths[i] = plain_len;
+                }
+            }
+        }
+
+        for (i, header) in elem_headers.iter().enumerate() {
+            write!(output, "  {:<width$}  ", header, width = col_widths[i])?;
+        }
+        writeln!(output)?;
+
+        for width in &col_widths {
+            write!(output, "  {}  ", "-".repeat(*width))?;
+        }
+        writeln!(output)?;
+
+        for row in &elem_rows {
+            for (i, cell) in row.iter().enumerate() {
+                let plain_len = strip_ansi_len(cell);
+                let pad = col_widths[i].saturating_sub(plain_len);
+                write!(output, "  {}{}  ", cell, " ".repeat(pad))?;
+            }
+            writeln!(output)?;
+        }
+    }
+
     Ok(output)
 }
 
@@ -415,7 +548,7 @@ pub fn reaudit_range(
     end_time: &DateTime<Utc>,
     dry_run: bool,
 ) -> Result<ReauditDiff> {
-    let _old_statuses: Vec<(i64, String)> = {
+    let old_statuses: Vec<(i64, String)> = {
         let sql = match station_id {
             Some(_sid) => {
                 "SELECT id, qc_status FROM observations
@@ -446,21 +579,75 @@ pub fn reaudit_range(
         result
     };
 
-    let stats = crate::qc::run_qc_for_range(
+    let station_ids_owned: Option<Vec<String>> = station_id.map(|s| vec![s.to_string()]);
+    let station_ids_ref: Option<&[String]> = station_ids_owned.as_deref();
+
+    let _stats = crate::qc::run_qc_for_range(
         conn,
         config,
-        station_id,
+        station_ids_ref,
         start_time,
         end_time,
         dry_run,
+        true,
     )?;
 
+    let new_statuses: std::collections::HashMap<i64, String> = {
+        let sql = match station_id {
+            Some(_sid) => {
+                "SELECT id, qc_status FROM observations
+                 WHERE station_id = ?1 AND obs_time >= ?2 AND obs_time <= ?3"
+            }
+            None => {
+                "SELECT id, qc_status FROM observations
+                 WHERE obs_time >= ?1 AND obs_time <= ?2"
+            }
+        };
+
+        let mut stmt = conn.prepare(sql)?;
+        let mut rows = match station_id {
+            Some(sid) => stmt.query(params![
+                sid,
+                start_time.to_rfc3339(),
+                end_time.to_rfc3339()
+            ])?,
+            None => stmt.query(params![start_time.to_rfc3339(), end_time.to_rfc3339()])?,
+        };
+
+        let mut map = std::collections::HashMap::new();
+        while let Some(row) = rows.next()? {
+            map.insert(row.get::<_, i64>(0)?, row.get::<_, String>(1)?);
+        }
+        map
+    };
+
+    let mut status_changed = 0i64;
+    let mut to_pass = 0i64;
+    let mut to_suspect = 0i64;
+    let mut to_fail = 0i64;
+
+    for (obs_id, old_status) in &old_statuses {
+        let new_status = new_statuses.get(obs_id).cloned().unwrap_or_else(|| old_status.clone());
+
+        if new_status != *old_status {
+            status_changed += 1;
+            match new_status.as_str() {
+                "passed" => to_pass += 1,
+                "suspect" => to_suspect += 1,
+                "failed" => to_fail += 1,
+                _ => {}
+            }
+        }
+    }
+
+    let total_checked = old_statuses.len() as i64;
+
     let diff = ReauditDiff {
-        total_checked: stats.total as i64,
-        status_changed: 0,
-        to_pass: stats.passed as i64,
-        to_suspect: stats.suspect as i64,
-        to_fail: stats.failed as i64,
+        total_checked,
+        status_changed,
+        to_pass,
+        to_suspect,
+        to_fail,
     };
 
     Ok(diff)

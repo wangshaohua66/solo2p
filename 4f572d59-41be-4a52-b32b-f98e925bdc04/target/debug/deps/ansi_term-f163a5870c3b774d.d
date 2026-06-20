@@ -1,0 +1,13 @@
+/Users/paul/WorkSpace/TestSoloCoder/4f572d59-41be-4a52-b32b-f98e925bdc04/target/debug/deps/ansi_term-f163a5870c3b774d.d: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/ansi.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/style.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/difference.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/display.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/write.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/windows.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/util.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/debug.rs
+
+/Users/paul/WorkSpace/TestSoloCoder/4f572d59-41be-4a52-b32b-f98e925bdc04/target/debug/deps/libansi_term-f163a5870c3b774d.rmeta: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/ansi.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/style.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/difference.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/display.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/write.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/windows.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/util.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/debug.rs
+
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/lib.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/ansi.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/style.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/difference.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/display.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/write.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/windows.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/util.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/ansi_term-0.12.1/src/debug.rs:

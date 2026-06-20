@@ -1,0 +1,11 @@
+/Users/paul/WorkSpace/TestSoloCoder/4f572d59-41be-4a52-b32b-f98e925bdc04/target/debug/deps/env_logger-1c77030d12177006.d: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_logger-0.11.10/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_logger-0.11.10/src/logger.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_logger-0.11.10/src/writer/mod.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_logger-0.11.10/src/writer/buffer.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_logger-0.11.10/src/writer/target.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_logger-0.11.10/src/fmt/mod.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_logger-0.11.10/src/fmt/humantime.rs
+
+/Users/paul/WorkSpace/TestSoloCoder/4f572d59-41be-4a52-b32b-f98e925bdc04/target/debug/deps/libenv_logger-1c77030d12177006.rmeta: /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_logger-0.11.10/src/lib.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_logger-0.11.10/src/logger.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_logger-0.11.10/src/writer/mod.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_logger-0.11.10/src/writer/buffer.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_logger-0.11.10/src/writer/target.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_logger-0.11.10/src/fmt/mod.rs /Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_logger-0.11.10/src/fmt/humantime.rs
+
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_logger-0.11.10/src/lib.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_logger-0.11.10/src/logger.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_logger-0.11.10/src/writer/mod.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_logger-0.11.10/src/writer/buffer.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_logger-0.11.10/src/writer/target.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_logger-0.11.10/src/fmt/mod.rs:
+/Users/paul/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/env_logger-0.11.10/src/fmt/humantime.rs:

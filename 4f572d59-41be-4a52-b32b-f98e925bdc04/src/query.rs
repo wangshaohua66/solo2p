@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Duration, Utc};
 use colored::*;
+use std::collections::HashMap;
 use std::fmt::Write;
 
 use crate::db::Observation;
@@ -81,6 +82,24 @@ pub fn query_observations(
         sql.push_str(&format!(" AND qc_status = ?{}", param_index));
         params.push(status.clone());
         param_index += 1;
+    }
+
+    if !filter.elements.is_empty() {
+        let element_cols: Vec<String> = filter
+            .elements
+            .iter()
+            .map(|e| match e.as_str() {
+                "temperature" | "temp" => "temperature IS NOT NULL".to_string(),
+                "pressure" | "pres" => "pressure IS NOT NULL".to_string(),
+                "humidity" | "rh" | "relative_humidity" => "relative_humidity IS NOT NULL".to_string(),
+                "wind_speed" | "ws" => "wind_speed IS NOT NULL".to_string(),
+                "wind_direction" | "wd" => "wind_direction IS NOT NULL".to_string(),
+                "precipitation" | "precip" | "rain" => "precipitation IS NOT NULL".to_string(),
+                "visibility" | "vis" => "visibility IS NOT NULL".to_string(),
+                _ => format!("{} IS NOT NULL", e),
+            })
+            .collect();
+        sql.push_str(&format!(" AND ({})", element_cols.join(" OR ")));
     }
 
     sql.push_str(" ORDER BY obs_time DESC");
@@ -340,6 +359,12 @@ pub struct DailyStats {
     pub visibility_avg: Option<f64>,
     pub total_records: i64,
     pub missing_rate: f64,
+    pub monthly_temp_max: Option<f64>,
+    pub monthly_temp_min: Option<f64>,
+    pub monthly_precip_sum: Option<f64>,
+    pub monthly_humidity_max: Option<f64>,
+    pub monthly_humidity_min: Option<f64>,
+    pub monthly_wind_speed_max: Option<f64>,
 }
 
 pub fn compute_daily_stats(
@@ -425,10 +450,106 @@ pub fn compute_daily_stats(
             visibility_avg: row.get(9)?,
             total_records: total,
             missing_rate,
+            monthly_temp_max: None,
+            monthly_temp_min: None,
+            monthly_precip_sum: None,
+            monthly_humidity_max: None,
+            monthly_humidity_min: None,
+            monthly_wind_speed_max: None,
         });
     }
 
+    fill_monthly_extremes(conn, filter, &mut results)?;
+
     Ok(results)
+}
+
+fn fill_monthly_extremes(
+    conn: &rusqlite::Connection,
+    filter: &QueryFilter,
+    results: &mut [DailyStats],
+) -> Result<()> {
+    let mut sql = String::from(
+        "SELECT
+            strftime('%Y-%m', obs_time) as month,
+            station_id,
+            MAX(temperature) as m_temp_max,
+            MIN(temperature) as m_temp_min,
+            SUM(precipitation) as m_precip_sum,
+            MAX(relative_humidity) as m_rh_max,
+            MIN(relative_humidity) as m_rh_min,
+            MAX(wind_speed) as m_ws_max
+         FROM observations
+         WHERE 1=1",
+    );
+
+    let mut params: Vec<String> = Vec::new();
+    let mut param_index = 1;
+
+    if !filter.station_ids.is_empty() {
+        let placeholders: Vec<String> = filter
+            .station_ids
+            .iter()
+            .enumerate()
+            .map(|(i, _)| format!("?{}", param_index + i))
+            .collect();
+        sql.push_str(&format!(" AND station_id IN ({})", placeholders.join(", ")));
+        param_index += filter.station_ids.len();
+        params.extend(filter.station_ids.iter().cloned());
+    }
+
+    if let Some(start) = &filter.start_time {
+        sql.push_str(&format!(" AND obs_time >= ?{}", param_index));
+        params.push(start.to_rfc3339());
+        param_index += 1;
+    }
+
+    if let Some(end) = &filter.end_time {
+        sql.push_str(&format!(" AND obs_time <= ?{}", param_index));
+        params.push(end.to_rfc3339());
+    }
+
+    sql.push_str(" GROUP BY month, station_id");
+
+    let mut stmt = conn.prepare(&sql)?;
+    let param_refs: Vec<&dyn rusqlite::ToSql> = params
+        .iter()
+        .map(|s| s as &dyn rusqlite::ToSql)
+        .collect();
+    let mut rows = stmt.query(param_refs.as_slice())?;
+
+    let mut monthly_map: HashMap<String, (Option<f64>, Option<f64>, Option<f64>, Option<f64>, Option<f64>, Option<f64>)> = HashMap::new();
+
+    while let Some(row) = rows.next()? {
+        let month: String = row.get(0)?;
+        let station_id: String = row.get(1)?;
+        let key = format!("{}|{}", month, station_id);
+        monthly_map.insert(key, (
+            row.get(2)?,
+            row.get(3)?,
+            row.get(4)?,
+            row.get(5)?,
+            row.get(6)?,
+            row.get(7)?,
+        ));
+    }
+
+    for stat in results.iter_mut() {
+        if stat.date.len() >= 7 {
+            let month = &stat.date[..7];
+            let key = format!("{}|{}", month, stat.station_id);
+            if let Some((t_max, t_min, precip, rh_max, rh_min, ws_max)) = monthly_map.get(&key) {
+                stat.monthly_temp_max = *t_max;
+                stat.monthly_temp_min = *t_min;
+                stat.monthly_precip_sum = *precip;
+                stat.monthly_humidity_max = *rh_max;
+                stat.monthly_humidity_min = *rh_min;
+                stat.monthly_wind_speed_max = *ws_max;
+            }
+        }
+    }
+
+    Ok(())
 }
 
 pub fn format_stats_table(stats: &[DailyStats]) -> Result<String> {
@@ -448,6 +569,9 @@ pub fn format_stats_table(stats: &[DailyStats]) -> Result<String> {
         "降水(mm)",
         "缺测率",
         "记录数",
+        "月最高温(℃)",
+        "月最低温(℃)",
+        "月降水(mm)",
     ];
 
     let mut rows: Vec<Vec<String>> = Vec::new();
@@ -487,6 +611,15 @@ pub fn format_stats_table(stats: &[DailyStats]) -> Result<String> {
                 .unwrap_or_else(|| "0.0".to_string()),
             missing_display,
             s.total_records.to_string(),
+            s.monthly_temp_max
+                .map(|v| format!("{:.1}", v))
+                .unwrap_or_else(|| "-".to_string()),
+            s.monthly_temp_min
+                .map(|v| format!("{:.1}", v))
+                .unwrap_or_else(|| "-".to_string()),
+            s.monthly_precip_sum
+                .map(|v| format!("{:.1}", v))
+                .unwrap_or_else(|| "-".to_string()),
         ]);
     }
 

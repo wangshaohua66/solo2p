@@ -3,6 +3,7 @@ use chrono::{DateTime, Duration, Utc};
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use md5::{Digest, Md5};
+use rusqlite::params;
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{BufWriter, Write};
@@ -100,7 +101,7 @@ pub fn generate_micaps1(
 
             writeln!(
                 writer,
-                " {:<9} {} {}{}{}{}{}{}",
+                " {:<9} {} {}{}{}{}{}{}{}",
                 station_id, time_str, wind_speed, wind_dir, temp, pres, rh, precip, vis
             )?;
             count += 1;
@@ -325,6 +326,60 @@ impl ArchiveGenerator {
         })
     }
 
+    pub fn generate_monthly_archive(
+        &self,
+        date: &DateTime<Utc>,
+        observations: &[Observation],
+        archive_type: ArchiveType,
+        station_id: &str,
+        station_name: &str,
+        latitude: f64,
+        longitude: f64,
+        elevation: Option<f64>,
+    ) -> Result<ArchiveResult> {
+        let month_str = date.format("%Y%m");
+        let type_str = match archive_type {
+            ArchiveType::Micaps1 => "micaps1",
+            ArchiveType::Micaps11 => "micaps11",
+            ArchiveType::Bufr4 => "bufr4",
+        };
+
+        let station_dir = self.output_dir.join(station_id);
+        fs::create_dir_all(&station_dir)?;
+
+        let file_name = format!("{}_{}_monthly_{}.dat", station_id, month_str, type_str);
+        let raw_path = station_dir.join(&file_name);
+
+        let count = match archive_type {
+            ArchiveType::Micaps1 => generate_micaps1(
+                observations,
+                &raw_path,
+                station_id,
+                station_name,
+                latitude,
+                longitude,
+                elevation,
+            )?,
+            ArchiveType::Micaps11 => {
+                generate_micaps11(observations, &raw_path, station_id, station_name)?
+            }
+            ArchiveType::Bufr4 => generate_bufr4(observations, &raw_path, station_id)?,
+        };
+
+        let gz_path = station_dir.join(format!("{}.gz", file_name));
+        let file_size = gzip_file(&raw_path, &gz_path)?;
+        fs::remove_file(&raw_path)?;
+
+        let md5 = compute_md5(&gz_path)?;
+
+        Ok(ArchiveResult {
+            file_path: gz_path,
+            record_count: count,
+            md5_checksum: md5,
+            file_size,
+        })
+    }
+
     pub fn generate_manifest(&self, results: &[ArchiveResult], manifest_path: &Path) -> Result<()> {
         let mut writer = File::create(manifest_path)?;
         writeln!(writer, "# Archive Manifest")?;
@@ -453,9 +508,60 @@ pub fn archive_period(
                     current_date = next_day;
                 }
             }
-            ArchivePeriod::Monthly => {}
+            ArchivePeriod::Monthly => {
+                let mut current_month = first_day_of_month(start_date);
+                while current_month < *end_date {
+                    let next_month = add_one_month(&current_month);
+                    let month_obs: Vec<Observation> = station_obs
+                        .iter()
+                        .filter(|o| o.obs_time >= current_month && o.obs_time < next_month)
+                        .cloned()
+                        .collect();
+
+                    if !month_obs.is_empty() {
+                        let result = generator.generate_monthly_archive(
+                            &current_month,
+                            &month_obs,
+                            archive_type,
+                            sid,
+                            station_name,
+                            lat,
+                            lon,
+                            elev,
+                        )?;
+                        all_results.push(result);
+                    }
+
+                    current_month = next_month;
+                }
+            }
         }
     }
 
     Ok(all_results)
+}
+
+fn first_day_of_month(date: &DateTime<Utc>) -> DateTime<Utc> {
+    use chrono::{Datelike, NaiveDate, TimeZone};
+    let naive = NaiveDate::from_ymd_opt(date.year(), date.month(), 1)
+        .unwrap()
+        .and_hms_opt(0, 0, 0)
+        .unwrap();
+    Utc.from_utc_datetime(&naive)
+}
+
+fn add_one_month(date: &DateTime<Utc>) -> DateTime<Utc> {
+    use chrono::{Datelike, NaiveDate, TimeZone};
+    let year = date.year();
+    let month = date.month();
+    let (new_year, new_month) = if month == 12 {
+        (year + 1, 1u32)
+    } else {
+        (year, month + 1)
+    };
+    let naive = NaiveDate::from_ymd_opt(new_year, new_month, 1)
+        .unwrap()
+        .and_hms_opt(0, 0, 0)
+        .unwrap();
+    Utc.from_utc_datetime(&naive)
 }
