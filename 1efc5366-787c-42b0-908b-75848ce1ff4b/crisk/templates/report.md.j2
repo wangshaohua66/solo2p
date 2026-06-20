@@ -1,0 +1,96 @@
+# 🔍 海关缉私情报分析报告
+
+**生成时间**: {{ generated_at }}
+{% if report_period.start %}
+**分析周期**: {{ report_period.start }} 至 {{ report_period.end }}
+{% endif %}
+
+---
+
+## 📊 统计摘要
+
+| 指标 | 数值 |
+|------|------|
+| 异常线索总数 | **{{ summary.total }}** |
+| 🔴 高风险 | **{{ summary.by_risk['高风险'] }}** |
+| 🟡 中风险 | **{{ summary.by_risk['中风险'] }}** |
+| 🟢 低风险 | **{{ summary.by_risk['低风险'] }}** |
+| 🔗 案例关联 | {{ summary.has_case_matches }} 条线索有关联案件 |
+
+### 按检测类型分类
+
+| 检测类型 | 高风险 | 中风险 | 低风险 | 合计 |
+|----------|--------|--------|--------|------|
+{% for dtype, data in summary.by_type.items() %}
+| {{ data.name }} | {{ data['高风险'] }} | {{ data['中风险'] }} | {{ data['低风险'] }} | **{{ data.count }}** |
+{% endfor %}
+
+---
+
+## ⚠️ 异常线索明细
+
+{% if clues %}
+{% for clue in clues %}
+### [{{ clue.risk_level }}] {{ clue.type_name }} - {{ clue.clue_no }}
+
+| 字段 | 内容 |
+|------|------|
+| **报关单号** | {{ clue.declaration_no or '-' }} |
+| **经营单位** | {{ clue.company or '-' }} |
+| **收货人** | {{ clue.consignee or '-' }} |
+| **HS编码** | {{ clue.hs_code or '-' }} |
+
+{% if clue.detection_type == 'lowprice' %}
+**检测详情**:
+- 偏离幅度: **{{ clue.deviation_percent | format_percent }}**
+- 行业均价: {{ clue.industry_avg_price | format_number }}
+- 申报价格: {{ clue.declared_price | format_number }}
+- 偏离方向: {{ clue.analysis_details_parsed.deviation_direction if clue.analysis_details_parsed else '-' }}
+{% elif clue.detection_type == 'split' %}
+**检测详情**:
+- 票数: **{{ clue.shipment_count }} 票**
+- 累计货值: **{{ clue.total_value | format_number }}**
+- 时间窗口: {{ clue.window_start | format_date }} ~ {{ clue.window_end | format_date }}
+- 关联报关单: {{ clue.analysis_details_parsed.related_declarations | join(', ') if clue.analysis_details_parsed and clue.analysis_details_parsed.related_declarations else '-' }}
+{% elif clue.detection_type == 'fake' %}
+**检测详情**:
+- 期望关键词: {{ clue.expected_keywords }}
+- 实际品名: {{ clue.actual_description }}
+- 规则描述: {{ clue.analysis_details_parsed.rule_description if clue.analysis_details_parsed else '-' }}
+{% elif clue.detection_type == 'abnormal' %}
+**检测详情**:
+- 新通道: **{{ clue.route }}**
+- 历史通道: {{ clue.historical_routes }}
+- 历史通道数量: {{ clue.analysis_details_parsed.historical_route_count if clue.analysis_details_parsed else '-' }}
+{% endif %}
+
+{% if clue.similarity_score %}
+> **🔗 案例关联** (相似度: {{ (clue.similarity_score * 100) | round(1) }}%)
+>
+> 关联案件: {{ clue.matched_cases }}
+{% endif %}
+
+---
+
+{% endfor %}
+{% else %}
+✅ 未检测到异常线索
+{% endif %}
+
+## 🗄️ 数据库统计
+
+| 数据表 | 记录数 | 说明 |
+|--------|--------|------|
+| 报关单数据 | {{ db_stats.declarations | format_number }} | 已入库的进出口报关单 |
+| 风险布控指令 | {{ db_stats.risk_controls | format_number }} | 海关风险布控指令 |
+| 口岸查验反馈 | {{ db_stats.inspections | format_number }} | 现场查验结果反馈 |
+| 历史案件库 | {{ db_stats.cases | format_number }} | 已结案走私案件 |
+| 风险线索 | {{ db_stats.clues | format_number }} | 系统检测异常线索 |
+
+{% if db_stats.date_range %}
+**数据时间范围**: {{ db_stats.date_range[0] | format_date }} 至 {{ db_stats.date_range[1] | format_date }}
+{% endif %}
+
+---
+
+*本报告由海关缉私情报分析系统 (CRISK) 自动生成 | 机密文件，请注意保管*

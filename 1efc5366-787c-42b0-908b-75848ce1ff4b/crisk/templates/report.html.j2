@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>海关缉私情报分析报告 - {{ generated_at }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            background: #f5f7fa;
+            color: #1f2937;
+            line-height: 1.6;
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .header {
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(30, 64, 175, 0.2);
+        }
+        .header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+        .header .meta { opacity: 0.9; font-size: 14px; }
+        .section { background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .section h2 { font-size: 20px; color: #1e40af; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .section h2::before { content: ""; width: 4px; height: 20px; background: #3b82f6; border-radius: 2px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
+        .stat-card { padding: 20px; border-radius: 10px; text-align: center; }
+        .stat-card.high { background: #fef2f2; border: 1px solid #fecaca; }
+        .stat-card.medium { background: #fffbeb; border: 1px solid #fde68a; }
+        .stat-card.low { background: #f0fdf4; border: 1px solid #bbf7d0; }
+        .stat-card.total { background: #eff6ff; border: 1px solid #bfdbfe; }
+        .stat-card .value { font-size: 32px; font-weight: 700; margin-bottom: 4px; }
+        .stat-card.high .value { color: #dc2626; }
+        .stat-card.medium .value { color: #d97706; }
+        .stat-card.low .value { color: #059669; }
+        .stat-card.total .value { color: #1e40af; }
+        .stat-card .label { font-size: 14px; color: #6b7280; }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; }
+        th { background: #f3f4f6; padding: 12px; text-align: left; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb; }
+        td { padding: 12px; border-bottom: 1px solid #f3f4f6; }
+        tr:hover { background: #f9fafb; }
+        .risk-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .risk-badge.high { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+        .risk-badge.medium { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
+        .risk-badge.low { background: #f0fdf4; color: #059669; border: 1px solid #bbf7d0; }
+        .type-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; background: #e0e7ff; color: #4338ca; margin-right: 4px; }
+        .detail-panel { background: #f9fafb; border-radius: 8px; padding: 16px; margin-top: 8px; font-size: 13px; }
+        .detail-panel .field { margin-bottom: 6px; }
+        .detail-panel .field span.label { color: #6b7280; font-weight: 500; }
+        .trend-chart { height: 200px; background: linear-gradient(to right, #e0e7ff, #dbeafe); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #6366f1; font-weight: 500; }
+        .empty-state { text-align: center; padding: 40px; color: #9ca3af; }
+        .case-match { background: #fef3c7; border-radius: 6px; padding: 8px 12px; margin-top: 8px; font-size: 12px; }
+        .case-match strong { color: #92400e; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 海关缉私情报分析报告</h1>
+            <div class="meta">
+                生成时间: {{ generated_at }}
+                {% if report_period.start %}
+                | 分析周期: {{ report_period.start }} 至 {{ report_period.end }}
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📊 统计摘要</h2>
+            <div class="stats-grid">
+                <div class="stat-card total">
+                    <div class="value">{{ summary.total }}</div>
+                    <div class="label">异常线索总数</div>
+                </div>
+                <div class="stat-card high">
+                    <div class="value">{{ summary.by_risk['高风险'] }}</div>
+                    <div class="label">高风险</div>
+                </div>
+                <div class="stat-card medium">
+                    <div class="value">{{ summary.by_risk['中风险'] }}</div>
+                    <div class="label">中风险</div>
+                </div>
+                <div class="stat-card low">
+                    <div class="value">{{ summary.by_risk['低风险'] }}</div>
+                    <div class="label">低风险</div>
+                </div>
+            </div>
+
+            <h3 style="margin: 20px 0 12px; color: #374151; font-size: 16px;">按检测类型分类</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>检测类型</th>
+                        <th>高风险</th>
+                        <th>中风险</th>
+                        <th>低风险</th>
+                        <th>合计</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dtype, data in summary.by_type.items() %}
+                    <tr>
+                        <td><span class="type-tag">{{ data.name }}</span></td>
+                        <td style="color: #dc2626; font-weight: 600;">{{ data['高风险'] }}</td>
+                        <td style="color: #d97706; font-weight: 600;">{{ data['中风险'] }}</td>
+                        <td style="color: #059669; font-weight: 600;">{{ data['低风险'] }}</td>
+                        <td style="font-weight: 600;">{{ data.count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            {% if summary.has_case_matches > 0 %}
+            <div class="trend-chart" style="margin-top: 20px;">
+                📈 风险趋势图: 共 {{ summary.has_case_matches }} 条线索关联到历史案件
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="section">
+            <h2>⚠️ 异常线索明细</h2>
+            {% if clues %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>线索编号</th>
+                        <th>类型</th>
+                        <th>风险等级</th>
+                        <th>报关单号</th>
+                        <th>经营单位</th>
+                        <th>收货人</th>
+                        <th>HS编码</th>
+                        <th>详情</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for clue in clues %}
+                    <tr style="background: {{ clue.risk_level | risk_bg_color }};">
+                        <td style="font-family: monospace; font-size: 12px;">{{ clue.clue_no }}</td>
+                        <td><span class="type-tag">{{ clue.type_name }}</span></td>
+                        <td>
+                            {% if clue.risk_level == '高风险' %}
+                            <span class="risk-badge high">高风险</span>
+                            {% elif clue.risk_level == '中风险' %}
+                            <span class="risk-badge medium">中风险</span>
+                            {% else %}
+                            <span class="risk-badge low">低风险</span>
+                            {% endif %}
+                        </td>
+                        <td style="font-family: monospace;">{{ clue.declaration_no or '-' }}</td>
+                        <td>{{ clue.company or '-' }}</td>
+                        <td>{{ clue.consignee or '-' }}</td>
+                        <td style="font-family: monospace;">{{ clue.hs_code or '-' }}</td>
+                        <td>
+                            {% if clue.detection_type == 'lowprice' %}
+                            偏离 <strong>{{ clue.deviation_percent | format_percent }}</strong><br>
+                            <small>均价: {{ clue.industry_avg_price | format_number }} | 申报: {{ clue.declared_price | format_number }}</small>
+                            {% elif clue.detection_type == 'split' %}
+                            <strong>{{ clue.shipment_count }}</strong> 票 / 总值 {{ clue.total_value | format_number }}<br>
+                            <small>窗口: {{ clue.window_start | format_date }} ~ {{ clue.window_end | format_date }}</small>
+                            {% elif clue.detection_type == 'fake' %}
+                            关键词: {{ clue.expected_keywords }}<br>
+                            <small>品名: {{ clue.actual_description }}</small>
+                            {% elif clue.detection_type == 'abnormal' %}
+                            新通道: <strong>{{ clue.route }}</strong><br>
+                            <small>历史: {{ clue.historical_routes }}</small>
+                            {% endif %}
+
+                            {% if clue.similarity_score %}
+                            <div class="case-match">
+                                <strong>🔗 案例关联</strong> ({{ (clue.similarity_score * 100) | round(1) }}%)
+                                案件编号: {{ clue.matched_cases }}
+                            </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                ✅ 未检测到异常线索
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="section">
+            <h2>🗄️ 数据库统计</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>数据表</th>
+                        <th>记录数</th>
+                        <th>说明</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>报关单数据</td><td style="font-weight: 600;">{{ db_stats.declarations | format_number }}</td><td>已入库的进出口报关单</td></tr>
+                    <tr><td>风险布控指令</td><td style="font-weight: 600;">{{ db_stats.risk_controls | format_number }}</td><td>海关风险布控指令</td></tr>
+                    <tr><td>口岸查验反馈</td><td style="font-weight: 600;">{{ db_stats.inspections | format_number }}</td><td>现场查验结果反馈</td></tr>
+                    <tr><td>历史案件库</td><td style="font-weight: 600;">{{ db_stats.cases | format_number }}</td><td>已结案走私案件</td></tr>
+                    <tr><td>风险线索</td><td style="font-weight: 600;">{{ db_stats.clues | format_number }}</td><td>系统检测异常线索</td></tr>
+                </tbody>
+            </table>
+            {% if db_stats.date_range %}
+            <p style="margin-top: 12px; color: #6b7280; font-size: 13px;">
+                📅 数据时间范围: {{ db_stats.date_range[0] | format_date }} 至 {{ db_stats.date_range[1] | format_date }}
+            </p>
+            {% endif %}
+        </div>
+
+        <div style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 20px; padding: 20px;">
+            本报告由海关缉私情报分析系统 (CRISK) 自动生成 | 机密文件，请注意保管
+        </div>
+    </div>
+</body>
+</html>
