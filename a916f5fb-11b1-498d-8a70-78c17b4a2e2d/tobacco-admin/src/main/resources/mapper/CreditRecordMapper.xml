@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tobacco.mapper.CreditRecordMapper">
+
+    <resultMap id="BaseResultMap" type="com.tobacco.entity.CreditRecord">
+        <id column="id" property="id"/>
+        <result column="record_no" property="recordNo"/>
+        <result column="retailer_id" property="retailerId"/>
+        <result column="retailer_name" property="retailerName"/>
+        <result column="county_id" property="countyId"/>
+        <result column="change_type" property="changeType"/>
+        <result column="change_score" property="changeScore"/>
+        <result column="before_score" property="beforeScore"/>
+        <result column="after_score" property="afterScore"/>
+        <result column="before_level" property="beforeLevel"/>
+        <result column="after_level" property="afterLevel"/>
+        <result column="reason" property="reason"/>
+        <result column="related_id" property="relatedId"/>
+        <result column="related_type" property="relatedType"/>
+        <result column="operator_id" property="operatorId"/>
+        <result column="operator_name" property="operatorName"/>
+        <result column="effective_date" property="effectiveDate"/>
+        <result column="expire_date" property="expireDate"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="deleted" property="deleted"/>
+    </resultMap>
+
+    <select id="selectByRecordNo" resultMap="BaseResultMap">
+        SELECT * FROM credit_record
+        WHERE record_no = #{recordNo} AND deleted = 0
+    </select>
+
+    <select id="selectByRetailerId" resultMap="BaseResultMap">
+        SELECT * FROM credit_record
+        WHERE retailer_id = #{retailerId} AND deleted = 0
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectEffectiveRepairs" resultMap="BaseResultMap">
+        SELECT * FROM credit_record
+        WHERE retailer_id = #{retailerId}
+          AND change_type = 'REPAIR'
+          AND status = 1
+          AND expire_date &gt;= NOW()
+          AND deleted = 0
+        ORDER BY effective_date ASC
+    </select>
+
+    <select id="selectPageByCondition" resultMap="BaseResultMap">
+        SELECT * FROM credit_record
+        WHERE deleted = 0
+        <if test="retailerId != null">
+            AND retailer_id = #{retailerId}
+        </if>
+        <if test="countyId != null">
+            AND county_id = #{countyId}
+        </if>
+        <if test="stationId != null">
+            AND station_id = #{stationId}
+        </if>
+        <if test="changeType != null and changeType != ''">
+            AND change_type = #{changeType}
+        </if>
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="countByRetailerAndType" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM credit_record
+        WHERE retailer_id = #{retailerId}
+          AND change_type = #{changeType}
+          AND deleted = 0
+          AND create_time &gt;= #{startTime}
+          AND create_time &lt;= #{endTime}
+    </select>
+</mapper>
