@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: sports-event-service
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/sports_event
+      auto-index-creation: true
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        namespace: sports-event
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+
+server:
+  port: 8080
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+
+logging:
+  level:
+    root: INFO
+    com.sportsevent: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+event:
+  schedule:
+    default-rest-minutes: 120
+    max-matches-per-day: 4
+    multi-sport-buffer-minutes: 180
+  notification:
+    retry-count: 3
+    retry-interval-seconds: 60
+  eligibility:
+    max-multisport: 3
