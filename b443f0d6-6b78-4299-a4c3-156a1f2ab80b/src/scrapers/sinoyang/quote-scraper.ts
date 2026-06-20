@@ -1,4 +1,3 @@
-import { By } from 'selenium-webdriver';
 import { QuoteScraper } from '../base-scraper';
 import { QuoteRequest, QuoteResult } from '../../utils/types';
 import { sleep, randomInt } from '../../utils/helpers';
@@ -49,42 +48,42 @@ export class SinoyangQuoteScraper extends QuoteScraper {
     const selectors = this.company.selectors.quoteForm;
     const bm = this.browserManager;
 
-    const industrySelect = await this.driver.findElement(By.css(selectors.industrySelect));
+    const industrySelect = await this.driver.$(selectors.industrySelect);
     await bm.humanClick(this.driver, industrySelect);
     await sleep(randomInt(300, 800));
-    await industrySelect.sendKeys(request.industry);
+    await industrySelect.addValue(request.industry);
 
     await sleep(randomInt(300, 600));
 
-    const employeeInput = await this.driver.findElement(By.css(selectors.employeeCountInput));
-    await employeeInput.clear();
+    const employeeInput = await this.driver.$(selectors.employeeCountInput);
+    await employeeInput.clearValue();
     await bm.humanType(this.driver, employeeInput, String(request.employeeCount));
 
     await sleep(randomInt(300, 600));
 
-    const riskSelect = await this.driver.findElement(By.css(selectors.riskLevelSelect));
+    const riskSelect = await this.driver.$(selectors.riskLevelSelect);
     await bm.humanClick(this.driver, riskSelect);
     await sleep(randomInt(300, 800));
-    await riskSelect.sendKeys(request.riskLevel);
+    await riskSelect.addValue(request.riskLevel);
 
     await sleep(randomInt(300, 600));
 
-    const coverageInput = await this.driver.findElement(By.css(selectors.coverageAmountInput));
-    await coverageInput.clear();
+    const coverageInput = await this.driver.$(selectors.coverageAmountInput);
+    await coverageInput.clearValue();
     await bm.humanType(this.driver, coverageInput, String(request.coverageAmount));
 
     await sleep(randomInt(300, 600));
 
-    const deductibleInput = await this.driver.findElement(By.css(selectors.deductibleInput));
-    await deductibleInput.clear();
+    const deductibleInput = await this.driver.$(selectors.deductibleInput);
+    await deductibleInput.clearValue();
     await bm.humanType(this.driver, deductibleInput, String(request.deductible));
 
     await sleep(randomInt(300, 600));
 
-    const productSelect = await this.driver.findElement(By.css(selectors.productTypeSelect));
+    const productSelect = await this.driver.$(selectors.productTypeSelect);
     await bm.humanClick(this.driver, productSelect);
     await sleep(randomInt(300, 800));
-    await productSelect.sendKeys(request.productType);
+    await productSelect.addValue(request.productType);
 
     await bm.randomScroll(this.driver);
     await sleep(randomInt(500, 1000));
@@ -92,7 +91,7 @@ export class SinoyangQuoteScraper extends QuoteScraper {
 
   private async submitQuoteForm(): Promise<void> {
     const selectors = this.company.selectors.quoteForm;
-    const submitButton = await this.driver.findElement(By.css(selectors.submitButton));
+    const submitButton = await this.driver.$(selectors.submitButton);
     await this.browserManager.humanClick(this.driver, submitButton);
   }
 

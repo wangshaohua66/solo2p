@@ -1,6 +1,5 @@
 import { EventEmitter } from 'events';
 import * as cron from 'node-cron';
-import * as PQueue from 'p-queue';
 import * as dotenv from 'dotenv';
 import {
   ScrapingTask,
@@ -10,9 +9,12 @@ import {
   QuoteResult,
   CustomerInfo,
   CompareResult,
+  MultiProductCompareResult,
   RenewalRecord,
+  ProductType,
 } from '../utils/types';
 import { generateId, retryWithBackoff } from '../utils/helpers';
+import { PriorityQueue } from '../utils/priority-queue';
 import logger from '../utils/logger';
 import ScraperFactory from '../scrapers/scraper-factory';
 import { QuoteScraper, PolicyScraper } from '../scrapers/base-scraper';
@@ -55,8 +57,7 @@ export class TaskRunner extends EventEmitter {
     this.maxRetries = options?.maxRetries ?? parseInt(process.env.MAX_RETRY_TIMES || '3', 10);
     this.retryDelayBase = options?.retryDelayBase ?? parseInt(process.env.RETRY_DELAY_BASE || '30000', 10);
 
-    const PQueueConstructor = (PQueue as any).default || PQueue;
-    this.queue = new PQueueConstructor({ concurrency });
+    this.queue = new PriorityQueue(concurrency);
   }
 
   public static getInstance(options?: TaskRunnerOptions): TaskRunner {
@@ -195,16 +196,11 @@ export class TaskRunner extends EventEmitter {
 
     const results: QuoteResult[] = [];
 
-    const priorityOrder: Record<TaskPriority, number> = {
-      'high': 0,
-      'medium': 1,
-      'low': 2,
-    };
-
-    const sortedTasks = tasks.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
-
-    const executionPromises = sortedTasks.map(async task => {
-      const result = await this.queue.add(() => this.runQuoteTask(task.id, request));
+    const executionPromises = tasks.map(async task => {
+      const result = await this.queue.add(
+        () => this.runQuoteTask(task.id, request),
+        task.priority
+      );
       if (result) {
         results.push(result);
       }
@@ -222,6 +218,60 @@ export class TaskRunner extends EventEmitter {
     });
 
     return compareResult;
+  }
+
+  public async runBatchMultiProductQuote(
+    requestsByProduct: Record<ProductType, QuoteRequest>,
+    customer?: CustomerInfo,
+    companyIds?: string[]
+  ): Promise<MultiProductCompareResult> {
+    const productTypes = Object.keys(requestsByProduct) as ProductType[];
+    logger.info(`开始多产品并行比价，共 ${productTypes.length} 类产品`);
+
+    const targetCompanies = companyIds || getAllCompanyIds();
+    const quotesByProduct: Record<ProductType, QuoteResult[]> = {} as Record<ProductType, QuoteResult[]>;
+
+    const allTasks: { task: ScrapingTask; productType: ProductType }[] = [];
+
+    for (const productType of productTypes) {
+      const request = requestsByProduct[productType];
+      const tasks = targetCompanies.map(companyId => {
+        const task = this.createQuoteTask(companyId, request, 'medium', customer?.id);
+        return { task, productType };
+      });
+      allTasks.push(...tasks);
+      quotesByProduct[productType] = [];
+    }
+
+    logger.info(`共创建 ${allTasks.length} 个报价任务`);
+
+    const executionPromises = allTasks.map(async ({ task, productType }) => {
+      const request = requestsByProduct[productType];
+      const result = await this.queue.add(
+        () => this.runQuoteTask(task.id, request),
+        task.priority
+      );
+      if (result) {
+        quotesByProduct[productType].push(result);
+      }
+      return result;
+    });
+
+    await Promise.all(executionPromises);
+
+    const comparator = new QuoteComparator('medium');
+    const multiResult = comparator.compareMultipleProducts(
+      quotesByProduct,
+      requestsByProduct,
+      customer
+    );
+
+    this.emit('batch-multi-quote-complete', {
+      requests: requestsByProduct,
+      result: multiResult,
+    });
+
+    return multiResult;
   }
 
   public async runRenewalCheck(
@@ -371,12 +421,9 @@ export class TaskRunner extends EventEmitter {
     return Array.from(this.scheduledTasks.values());
   }
 
-  public getQueueStats(): { size: number; pending: number; concurrency: number } {
-    return {
-      size: this.queue.size,
-      pending: this.queue.pending,
-      concurrency: this.queue.concurrency,
-    };
+  public getQueueStats(): { size: number; pending: number; concurrency: number; highPriority?: number; mediumPriority?: number; lowPriority?: number } {
+    const stats = this.queue.getQueueStats();
+    return stats;
   }
 
   public pauseTask(taskId: string): boolean {
@@ -428,11 +475,11 @@ export class TaskRunner extends EventEmitter {
   }
 
   public getConcurrency(): number {
-    return this.queue.concurrency;
+    return this.queue.getConcurrency();
   }
 
   public setConcurrency(concurrency: number): void {
-    this.queue.concurrency = concurrency;
+    this.queue.setConcurrency(concurrency);
     logger.info(`并发数已调整为: ${concurrency}`);
   }
 }

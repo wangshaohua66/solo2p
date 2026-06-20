@@ -136,7 +136,21 @@ export interface CompareResult {
   customerName: string;
   request: QuoteRequest;
   quotes: QuoteResult[];
+  allRecommendations: Recommendation[];
   topRecommendations: Recommendation[];
+  generatedAt: Date;
+}
+
+export interface MultiProductCompareResult {
+  customerId: string;
+  customerName: string;
+  productTypes: ProductType[];
+  results: Record<ProductType, CompareResult>;
+  totalPremium: {
+    perCompany: Record<string, number>;
+    cheapestCompany: string;
+    cheapestTotal: number;
+  };
   generatedAt: Date;
 }
 

@@ -1,4 +1,3 @@
-import { WebDriver, By, until } from 'selenium-webdriver';
 import { EventEmitter } from 'events';
 import { InsuranceCompany, QuoteRequest, QuoteResult, PolicyInfo, ScraperProgress } from '../utils/types';
 import BrowserManager from '../core/browser-manager';
@@ -8,7 +7,7 @@ import logger from '../utils/logger';
 
 export abstract class BaseScraper extends EventEmitter {
   protected company: InsuranceCompany;
-  protected driver!: WebDriver;
+  protected driver!: WebdriverIO.Browser;
   protected browserManager: BrowserManager;
   protected sessionGuard: SessionGuard;
   protected taskId: string;
@@ -39,7 +38,7 @@ export abstract class BaseScraper extends EventEmitter {
     this.emitProgress('登录中', 10);
 
     try {
-      await this.driver.get(this.company.loginUrl);
+      await this.driver.url(this.company.loginUrl);
       await sleep(randomInt(2000, 4000));
 
       const captchaType = await this.sessionGuard.detectCaptcha(this.driver, this.company);
@@ -59,14 +58,14 @@ export abstract class BaseScraper extends EventEmitter {
       const selectors = this.company.selectors;
       const bm = this.browserManager;
 
-      const usernameInput = await this.driver.findElement(By.css(selectors.usernameInput));
-      await usernameInput.clear();
+      const usernameInput = await this.driver.$(selectors.usernameInput);
+      await usernameInput.clearValue();
       await bm.humanType(this.driver, usernameInput, this.company.username);
 
       await sleep(randomInt(500, 1500));
 
-      const passwordInput = await this.driver.findElement(By.css(selectors.passwordInput));
-      await passwordInput.clear();
+      const passwordInput = await this.driver.$(selectors.passwordInput);
+      await passwordInput.clearValue();
       await bm.humanType(this.driver, passwordInput, this.company.password);
 
       if (selectors.captchaInput && captchaType === 'image') {
@@ -83,7 +82,7 @@ export abstract class BaseScraper extends EventEmitter {
 
       await sleep(randomInt(500, 1000));
 
-      const loginButton = await this.driver.findElement(By.css(selectors.loginButton));
+      const loginButton = await this.driver.$(selectors.loginButton);
       await bm.humanClick(this.driver, loginButton);
 
       await sleep(randomInt(3000, 5000));
@@ -128,12 +127,22 @@ export abstract class BaseScraper extends EventEmitter {
     for (const selector of loadingSelectors) {
       if (!selector) continue;
       try {
-        const elements = await this.driver.findElements(By.css(selector));
+        const elements = await this.driver.$$(selector);
         if (elements.length > 0) {
           const isDisplayed = await elements[0].isDisplayed().catch(() => false);
           if (isDisplayed) {
             logger.debug(`等待加载动画消失: ${selector}`);
-            await this.driver.wait(until.elementIsNotVisible(elements[0]), 10000).catch(() => {});
+            await this.driver.waitUntil(
+              async () => {
+                try {
+                  const el = await this.driver.$(selector);
+                  return !(await el.isDisplayed());
+                } catch {
+                  return true;
+                }
+              },
+              { timeout: 10000, interval: 500 }
+            ).catch(() => {});
           }
         }
       } catch {
@@ -142,13 +151,19 @@ export abstract class BaseScraper extends EventEmitter {
     }
   }
 
-  protected async waitForElement(selector: string, timeout: number = 10000): Promise<any> {
-    return this.driver.wait(until.elementLocated(By.css(selector)), timeout);
+  protected async waitForElement(selector: string, timeout: number = 10000): Promise<WebdriverIO.Element> {
+    return this.driver.waitUntil(
+      async () => {
+        const el = await this.driver.$(selector);
+        return await el.isExisting();
+      },
+      { timeout, interval: 500 }
+    ).then(() => this.driver.$(selector));
   }
 
-  protected async safeFindElement(selector: string): Promise<any | null> {
+  protected async safeFindElement(selector: string): Promise<WebdriverIO.Element | null> {
     try {
-      const elements = await this.driver.findElements(By.css(selector));
+      const elements = await this.driver.$$(selector);
       if (elements.length > 0) {
         return elements[0];
       }
@@ -158,7 +173,7 @@ export abstract class BaseScraper extends EventEmitter {
     }
   }
 
-  protected async safeGetText(element: any): Promise<string> {
+  protected async safeGetText(element: WebdriverIO.Element): Promise<string> {
     try {
       return await element.getText();
     } catch {
@@ -166,7 +181,7 @@ export abstract class BaseScraper extends EventEmitter {
     }
   }
 
-  protected async safeGetAttribute(element: any, attr: string): Promise<string> {
+  protected async safeGetAttribute(element: WebdriverIO.Element, attr: string): Promise<string> {
     try {
       return await element.getAttribute(attr);
     } catch {

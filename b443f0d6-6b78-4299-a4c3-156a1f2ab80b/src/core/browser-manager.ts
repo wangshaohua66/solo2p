@@ -1,5 +1,4 @@
-import { Builder, WebDriver, By, until, Capabilities } from 'selenium-webdriver';
-import * as chrome from 'selenium-webdriver/chrome';
+import { remote } from 'webdriverio';
 import * as dotenv from 'dotenv';
 import { randomInt, randomFloat, sleep } from '../utils/helpers';
 import logger from '../utils/logger';
@@ -8,7 +7,7 @@ dotenv.config();
 
 export interface BrowserInstance {
   id: string;
-  driver: WebDriver;
+  driver: WebdriverIO.Browser;
   companyId?: string;
   isBusy: boolean;
   createdAt: Date;
@@ -112,7 +111,7 @@ export class BrowserManager {
     const instance = this.instances.get(instanceId);
     if (instance) {
       try {
-        await instance.driver.quit();
+        await instance.driver.deleteSession();
       } catch (error) {
         logger.error(`关闭浏览器实例失败: ${instanceId}`, { error: (error as Error).message });
       }
@@ -164,42 +163,51 @@ export class BrowserManager {
     const timezone = TIMEZONES[randomInt(0, TIMEZONES.length - 1)];
     const language = LANGUAGES[randomInt(0, LANGUAGES.length - 1)];
 
-    const options = new chrome.Options();
+    const args: string[] = [
+      '--no-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      `--user-agent=${userAgent}`,
+      `--window-size=${windowSize.width},${windowSize.height}`,
+      `--lang=${language.split(',')[0]}`,
+      '--disable-blink-features=AutomationControlled',
+      '--disable-web-security',
+      '--disable-features=IsolateOrigins,site-per-process',
+    ];
 
     if (this.headless) {
-      options.addArguments('--headless=new');
+      args.push('--headless=new');
     }
 
-    options.addArguments('--no-sandbox');
-    options.addArguments('--disable-dev-shm-usage');
-    options.addArguments('--disable-gpu');
-    options.addArguments(`--user-agent=${userAgent}`);
-    options.addArguments(`--window-size=${windowSize.width},${windowSize.height}`);
-    options.addArguments(`--lang=${language.split(',')[0]}`);
-    options.addArguments('--disable-blink-features=AutomationControlled');
-    options.addArguments('--disable-web-security');
-    options.addArguments('--disable-features=IsolateOrigins,site-per-process');
-
-    options.excludeSwitches('enable-automation');
-    options.setUserPreferences({
-      'useAutomationExtension': false,
-      'profile.default_content_setting_values.notifications': 2,
-      'profile.managed_default_content_settings.images': 1,
-      'intl.accept_languages': language,
+    const driver = await remote({
+      capabilities: {
+        browserName: 'chrome',
+        'goog:chromeOptions': {
+          args,
+          excludeSwitches: ['enable-automation'],
+          prefs: {
+            'useAutomationExtension': false,
+            'profile.default_content_setting_values.notifications': 2,
+            'profile.managed_default_content_settings.images': 1,
+            'intl.accept_languages': language,
+          },
+        },
+        timeouts: {
+          pageLoad: this.pageLoadTimeout,
+          script: this.scriptTimeout,
+          implicit: 5000,
+        },
+      },
+      logLevel: 'silent',
     });
 
-    const driver = await new Builder()
-      .forBrowser('chrome')
-      .setChromeOptions(options)
-      .build();
-
-    await driver.manage().setTimeouts({
+    await driver.setTimeout({
       pageLoad: this.pageLoadTimeout,
       script: this.scriptTimeout,
       implicit: 5000,
     });
 
-    await driver.executeScript(`
+    await driver.execute(`
       Object.defineProperty(navigator, 'webdriver', {
         get: () => undefined
       });
@@ -217,6 +225,8 @@ export class BrowserManager {
       };
     `);
 
+    await this.injectWebGLSpoof(driver);
+
     const id = `browser-${Date.now()}-${randomInt(1000, 9999)}`;
 
     return {
@@ -231,39 +241,211 @@ export class BrowserManager {
     };
   }
 
-  public async humanType(driver: WebDriver, element: any, text: string): Promise<void> {
+  public async humanType(driver: WebdriverIO.Browser, element: WebdriverIO.Element, text: string): Promise<void> {
     for (const char of text) {
-      await element.sendKeys(char);
+      await element.addValue(char);
       await sleep(randomInt(30, 150));
     }
   }
 
-  public async humanClick(driver: WebDriver, element: any): Promise<void> {
-    const actions = driver.actions();
-    const rect = await element.getRect();
+  public async humanClick(driver: WebdriverIO.Browser, element: WebdriverIO.Element): Promise<void> {
+    const location = await element.getLocation();
+    const size = await element.getSize();
     
-    const offsetX = randomInt(-10, 10);
-    const offsetY = randomInt(-10, 10);
+    const targetX = Math.floor(location.x + size.width / 2 + randomInt(-10, 10));
+    const targetY = Math.floor(location.y + size.height / 2 + randomInt(-10, 10));
     
-    await actions
-      .move({ x: Math.floor(rect.x + rect.width / 2 + offsetX), y: Math.floor(rect.y + rect.height / 2 + offsetY) })
-      .pause(randomInt(100, 300))
-      .click()
+    await this.moveMouseBezier(driver, targetX, targetY);
+    await sleep(randomInt(100, 300));
+    
+    await driver.action('pointer')
+      .move({ x: targetX, y: targetY, duration: 0 })
+      .pause(randomInt(50, 150))
+      .down({ button: 0 })
+      .pause(randomInt(20, 50))
+      .up({ button: 0 })
       .perform();
   }
 
-  public async randomScroll(driver: WebDriver): Promise<void> {
+  private async moveMouseBezier(driver: WebdriverIO.Browser, targetX: number, targetY: number): Promise<void> {
+    const startPos = await this.getMousePosition(driver);
+    const startX = startPos.x;
+    const startY = startPos.y;
+    
+    const cp1x = startX + (targetX - startX) * 0.3 + randomInt(-50, 50);
+    const cp1y = startY + (targetY - startY) * 0.1 + randomInt(-30, 30);
+    const cp2x = startX + (targetX - startX) * 0.7 + randomInt(-50, 50);
+    const cp2y = startY + (targetY - startY) * 0.9 + randomInt(-30, 30);
+    
+    const steps = 20 + randomInt(0, 10);
+    
+    const action = driver.action('pointer');
+    
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const x = Math.floor(
+        Math.pow(1 - t, 3) * startX +
+        3 * Math.pow(1 - t, 2) * t * cp1x +
+        3 * (1 - t) * Math.pow(t, 2) * cp2x +
+        Math.pow(t, 3) * targetX
+      );
+      const y = Math.floor(
+        Math.pow(1 - t, 3) * startY +
+        3 * Math.pow(1 - t, 2) * t * cp1y +
+        3 * (1 - t) * Math.pow(t, 2) * cp2y +
+        Math.pow(t, 3) * targetY
+      );
+      
+      action.move({ x, y, duration: randomInt(5, 15) });
+    }
+    
+    await action.perform();
+  }
+
+  private async getMousePosition(driver: WebdriverIO.Browser): Promise<{ x: number; y: number }> {
+    try {
+      const pos = await driver.execute(`
+        if (window.__mousePos) {
+          return window.__mousePos;
+        }
+        return { x: 0, y: 0 };
+      `) as { x: number; y: number };
+      return pos;
+    } catch {
+      return { x: 0, y: 0 };
+    }
+  }
+
+  private async injectWebGLSpoof(driver: WebdriverIO.Browser): Promise<void> {
+    const glVendorList = [
+      'Google Inc. (Intel)',
+      'Intel Inc.',
+      'NVIDIA Corporation',
+      'AMD',
+      'Intel Open Source Technology Center',
+    ];
+    const glRendererList = [
+      'ANGLE (Intel, Intel(R) UHD Graphics 620 Direct3D11 vs_5_0 ps_5_0, D3D11)',
+      'ANGLE (Intel, Intel(R) Iris(R) Xe Graphics Direct3D11 vs_5_0 ps_5_0, D3D11)',
+      'ANGLE (NVIDIA, NVIDIA GeForce GTX 1650 Direct3D11 vs_5_0 ps_5_0, D3D11)',
+      'ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Direct3D11 vs_5_0 ps_5_0, D3D11)',
+      'ANGLE (AMD, AMD Radeon Pro 5500M Direct3D11 vs_5_0 ps_5_0, D3D11)',
+    ];
+    const extensions = [
+      'ANGLE_instanced_arrays',
+      'EXT_blend_minmax',
+      'EXT_color_buffer_half_float',
+      'EXT_disjoint_timer_query',
+      'EXT_float_blend',
+      'EXT_frag_depth',
+      'EXT_shader_texture_lod',
+      'EXT_texture_compression_rgtc',
+      'EXT_texture_filter_anisotropic',
+      'WEBKIT_EXT_texture_filter_anisotropic',
+      'EXT_sRGB',
+      'KHR_parallel_shader_compile',
+      'OES_element_index_uint',
+      'OES_fbo_render_mipmap',
+      'OES_standard_derivatives',
+      'OES_texture_float',
+      'OES_texture_float_linear',
+      'OES_texture_half_float',
+      'OES_texture_half_float_linear',
+      'OES_vertex_array_object',
+      'WEBGL_color_buffer_float',
+      'WEBGL_compressed_texture_s3tc',
+      'WEBKIT_WEBGL_compressed_texture_s3tc',
+      'WEBGL_compressed_texture_s3tc_srgb',
+      'WEBGL_debug_renderer_info',
+      'WEBGL_debug_shaders',
+      'WEBGL_depth_texture',
+      'WEBKIT_WEBGL_depth_texture',
+      'WEBGL_draw_buffers',
+      'WEBGL_lose_context',
+      'WEBKIT_WEBGL_lose_context',
+      'WEBGL_multi_draw',
+    ];
+
+    const randomVendor = glVendorList[randomInt(0, glVendorList.length - 1)];
+    const randomRenderer = glRendererList[randomInt(0, glRendererList.length - 1)];
+    
+    const numExtensions = randomInt(20, extensions.length);
+    const shuffled = [...extensions].sort(() => 0.5 - Math.random());
+    const randomExtensions = JSON.stringify(shuffled.slice(0, numExtensions));
+
+    await driver.execute(`
+      (function() {
+        const originalGetParameter = WebGLRenderingContext.prototype.getParameter;
+        const originalGetSupportedExtensions = WebGLRenderingContext.prototype.getSupportedExtensions;
+        const originalGetExtension = WebGLRenderingContext.prototype.getExtension;
+
+        const SPOOF_VENDOR = '${randomVendor}';
+        const SPOOF_RENDERER = '${randomRenderer}';
+        const SPOOF_EXTENSIONS = ${randomExtensions};
+
+        WebGLRenderingContext.prototype.getParameter = function(param) {
+          if (param === 37445) {
+            return SPOOF_VENDOR;
+          }
+          if (param === 37446) {
+            return SPOOF_RENDERER;
+          }
+          if (param === 7936) {
+            return SPOOF_VENDOR;
+          }
+          if (param === 7937) {
+            return SPOOF_RENDERER;
+          }
+          return originalGetParameter.apply(this, arguments);
+        };
+
+        WebGLRenderingContext.prototype.getSupportedExtensions = function() {
+          return SPOOF_EXTENSIONS.slice();
+        };
+
+        WebGLRenderingContext.prototype.getExtension = function(name) {
+          if (SPOOF_EXTENSIONS.indexOf(name) === -1) {
+            return null;
+          }
+          return originalGetExtension.apply(this, arguments);
+        };
+
+        if (typeof WebGL2RenderingContext !== 'undefined') {
+          WebGL2RenderingContext.prototype.getParameter = function(param) {
+            if (param === 37445) {
+              return SPOOF_VENDOR;
+            }
+            if (param === 37446) {
+              return SPOOF_RENDERER;
+            }
+            if (param === 7936) {
+              return SPOOF_VENDOR;
+            }
+            if (param === 7937) {
+              return SPOOF_RENDERER;
+            }
+            return WebGLRenderingContext.prototype.getParameter.apply(this, arguments);
+          };
+          WebGL2RenderingContext.prototype.getSupportedExtensions = function() {
+            return SPOOF_EXTENSIONS.slice();
+          };
+        }
+      })();
+    `);
+  }
+
+  public async randomScroll(driver: WebdriverIO.Browser): Promise<void> {
     const scrollDistance = randomInt(100, 500);
     const direction = Math.random() > 0.5 ? 1 : -1;
     
-    await driver.executeScript(`
+    await driver.execute(`
       window.scrollBy(0, ${scrollDistance * direction});
     `);
     
     await sleep(randomInt(500, 2000));
   }
 
-  public async waitForHuman(driver: WebDriver, minMs: number = 1000, maxMs: number = 3000): Promise<void> {
+  public async waitForHuman(driver: WebdriverIO.Browser, minMs: number = 1000, maxMs: number = 3000): Promise<void> {
     await sleep(randomInt(minMs, maxMs));
   }
 

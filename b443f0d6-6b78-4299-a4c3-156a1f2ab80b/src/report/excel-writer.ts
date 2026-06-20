@@ -4,11 +4,13 @@ import * as fs from 'fs';
 import * as dotenv from 'dotenv';
 import {
   CompareResult,
+  MultiProductCompareResult,
   QuoteResult,
   RenewalRecord,
   CustomerInfo,
   PolicyInfo,
   Recommendation,
+  ProductType,
 } from '../utils/types';
 import { formatDate, sanitizeFileName } from '../utils/helpers';
 import logger from '../utils/logger';
@@ -478,6 +480,122 @@ export class ExcelWriter {
 
     logger.info(`保单报告已生成: ${filePath}`);
     return filePath;
+  }
+
+  public generateMultiProductQuoteReport(
+    result: MultiProductCompareResult,
+    customer?: CustomerInfo
+  ): string {
+    logger.info(`生成多产品报价报告，共 ${result.productTypes.length} 类产品`);
+
+    const workbook = XLSX.utils.book_new();
+
+    this.addMultiProductSummarySheet(workbook, result, customer);
+
+    for (const productType of result.productTypes) {
+      const compareResult = result.results[productType];
+      if (compareResult) {
+        const productName = PRODUCT_TYPES[productType] || productType;
+        this.addProductDetailSheet(workbook, compareResult, productName);
+      }
+    }
+
+    const fileName = `多产品报价_${customer?.name || '客户'}_${formatDate(new Date(), 'YYYYMMDD_HHmmss')}.xlsx`;
+    const filePath = path.join(this.outputDir, sanitizeFileName(fileName));
+
+    XLSX.writeFile(workbook, filePath);
+
+    logger.info(`多产品报价报告已生成: ${filePath}`);
+    return filePath;
+  }
+
+  private addProductDetailSheet(
+    workbook: XLSX.WorkBook,
+    result: CompareResult,
+    sheetName: string
+  ): void {
+    const validQuotes = result.quotes.filter(q => q.success && q.premium > 0);
+    const sortedByPremium = [...validQuotes].sort((a, b) => a.premium - b.premium);
+
+    const headers = [
+      '排名',
+      '保险公司',
+      '保费(元)',
+      '保额(元)',
+      '免赔额(元)',
+      '保障详情',
+      '综合得分',
+    ];
+
+    const scoreMap = new Map<string, number>();
+    result.allRecommendations.forEach(rec => {
+      scoreMap.set(rec.quote.companyId, rec.totalScore);
+    });
+
+    const data = sortedByPremium.map((quote, index) => [
+      index + 1,
+      quote.companyName,
+      quote.premium,
+      quote.coverageAmount,
+      quote.deductible,
+      quote.coverageDetails,
+      scoreMap.get(quote.companyId)?.toFixed(1) || '-',
+    ]);
+
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...data]);
+    worksheet['!cols'] = [
+      { wch: 8 },
+      { wch: 20 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 40 },
+      { wch: 12 },
+    ];
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName.substring(0, 31));
+  }
+
+  private addMultiProductSummarySheet(
+    workbook: XLSX.WorkBook,
+    result: MultiProductCompareResult,
+    customer?: CustomerInfo
+  ): void {
+    const summaryData: any[][] = [];
+
+    summaryData.push(['多产品比价汇总报告']);
+    summaryData.push([]);
+    summaryData.push(['客户名称', customer?.name || '-']);
+    summaryData.push(['产品数量', result.productTypes.length]);
+    summaryData.push(['生成时间', formatDate(new Date(), 'YYYY-MM-DD HH:mm:ss')]);
+    summaryData.push([]);
+
+    const headers = ['保险公司', ...result.productTypes.map(pt => PRODUCT_TYPES[pt] || pt), '总保费', '排名'];
+    summaryData.push(headers);
+
+    const sortedByTotal = Object.entries(result.totalPremium.perCompany)
+      .sort(([, a], [, b]) => a - b);
+
+    sortedByTotal.forEach(([companyId, total], index) => {
+      const row: any[] = [companyId];
+      for (const pt of result.productTypes) {
+        const quote = result.results[pt]?.quotes.find(q => q.companyId === companyId && q.success);
+        row.push(quote ? quote.premium : '-');
+      }
+      row.push(total);
+      row.push(index + 1);
+      summaryData.push(row);
+    });
+
+    summaryData.push([]);
+    summaryData.push(['最优方案', result.totalPremium.cheapestCompany]);
+    summaryData.push(['最低总保费', result.totalPremium.cheapestTotal]);
+
+    const worksheet = XLSX.utils.aoa_to_sheet(summaryData);
+    worksheet['!cols'] = [{ wch: 20 }, ...result.productTypes.map(() => ({ wch: 15 })), { wch: 15 }, { wch: 8 }];
+    worksheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: result.productTypes.length + 2 } }];
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, '汇总');
   }
 
   public getOutputDir(): string {

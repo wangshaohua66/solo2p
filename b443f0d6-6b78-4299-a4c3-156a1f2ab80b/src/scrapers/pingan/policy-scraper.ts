@@ -1,4 +1,3 @@
-import { By } from 'selenium-webdriver';
 import { PolicyScraper } from '../base-scraper';
 import { PolicyInfo, PolicyStatus } from '../../utils/types';
 import { sleep, randomInt } from '../../utils/helpers';
@@ -101,7 +100,7 @@ export class PinganPolicyScraper extends PolicyScraper {
   }
 
   private async navigateToPolicyList(): Promise<void> {
-    await this.driver.get(this.company.loginUrl + '/policy/list');
+    await this.driver.url(this.company.loginUrl + '/policy/list');
     await sleep(randomInt(2000, 4000));
   }
 
@@ -122,13 +121,13 @@ export class PinganPolicyScraper extends PolicyScraper {
     const selectors = this.company.selectors.policyList;
     const policies: PolicyInfo[] = [];
 
-    const policyItems = await this.driver.findElements(By.css(selectors.policyItem));
+    const policyItems = await this.driver.$$(selectors.policyItem);
 
     for (const item of policyItems) {
       try {
-        const policyNumEl = await item.findElement(By.css(selectors.policyNumber));
-        const statusEl = await item.findElement(By.css(selectors.policyStatus));
-        const expireEl = await item.findElement(By.css(selectors.expireDate));
+        const policyNumEl = await item.$(selectors.policyNumber);
+        const statusEl = await item.$(selectors.policyStatus);
+        const expireEl = await item.$(selectors.expireDate);
 
         const policyNumber = await this.safeGetText(policyNumEl);
         const statusText = await this.safeGetText(statusEl);
@@ -166,7 +165,7 @@ export class PinganPolicyScraper extends PolicyScraper {
   }
 
   private async searchPolicy(policyNumber: string): Promise<void> {
-    await this.driver.get(this.company.loginUrl + '/policy/detail?no=' + policyNumber);
+    await this.driver.url(this.company.loginUrl + '/policy/detail?no=' + policyNumber);
     await sleep(randomInt(2000, 3000));
   }
 
@@ -214,14 +213,14 @@ export class PinganPolicyScraper extends PolicyScraper {
   }
 
   private async navigateToRenewalPage(): Promise<void> {
-    await this.driver.get(this.company.loginUrl + '/renewal');
+    await this.driver.url(this.company.loginUrl + '/renewal');
     await sleep(randomInt(2000, 3000));
   }
 
   private async searchPolicyForRenewal(policyNumber: string): Promise<void> {
     const searchInput = await this.safeFindElement('.policy-search-input');
     if (searchInput) {
-      await searchInput.clear();
+      await searchInput.clearValue();
       await this.browserManager.humanType(this.driver, searchInput, policyNumber);
       const searchBtn = await this.safeFindElement('.search-btn');
       if (searchBtn) {

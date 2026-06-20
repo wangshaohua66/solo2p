@@ -40,7 +40,7 @@ export function parseDate(dateStr: string): Date | null {
 
 export function daysBetween(date1: Date, date2: Date): number {
   const oneDay = 24 * 60 * 60 * 1000;
-  return Math.round(Math.abs((date1.getTime() - date2.getTime()) / oneDay));
+  return Math.round((date2.getTime() - date1.getTime()) / oneDay);
 }
 
 export function calculatePercentageChange(oldValue: number, newValue: number): number {
@@ -54,18 +54,18 @@ export function retryWithBackoff<T>(
   baseDelay: number = 30000
 ): Promise<T> {
   return new Promise((resolve, reject) => {
-    let attempt = 0;
+    let retryCount = 0;
 
     const tryFn = async () => {
       try {
         const result = await fn();
         resolve(result);
       } catch (error) {
-        attempt++;
-        if (attempt >= maxRetries) {
+        if (retryCount >= maxRetries) {
           reject(error);
         } else {
-          const delay = baseDelay * Math.pow(2, attempt - 1);
+          const delay = baseDelay * Math.pow(2, retryCount);
+          retryCount++;
           await sleep(delay);
           tryFn();
         }

@@ -1,10 +1,12 @@
 import {
   QuoteResult,
   CompareResult,
+  MultiProductCompareResult,
   Recommendation,
   ScoreBreakdown,
   QuoteRequest,
   RiskLevel,
+  ProductType,
   CustomerInfo,
 } from '../utils/types';
 import { SCORING_WEIGHTS, RISK_PREMIUM_ADJUSTMENT } from '../config/profiles';
@@ -41,6 +43,7 @@ export class QuoteComparator {
         customerName: customer?.name || '',
         request,
         quotes,
+        allRecommendations: [],
         topRecommendations: [],
         generatedAt: new Date(),
       };
@@ -78,6 +81,7 @@ export class QuoteComparator {
       customerName: customer?.name || '',
       request,
       quotes,
+      allRecommendations: recommendations,
       topRecommendations: top3,
       generatedAt: new Date(),
     };
@@ -219,6 +223,70 @@ export class QuoteComparator {
 
   public setRiskLevel(riskLevel: RiskLevel): void {
     this.riskLevel = riskLevel;
+  }
+
+  public compareMultipleProducts(
+    quotesByProduct: Record<ProductType, QuoteResult[]>,
+    requestsByProduct: Record<ProductType, QuoteRequest>,
+    customer?: CustomerInfo
+  ): MultiProductCompareResult {
+    const productTypes = Object.keys(quotesByProduct) as ProductType[];
+    logger.info(`开始多产品比价，共 ${productTypes.length} 类产品`);
+
+    const results: Record<ProductType, CompareResult> = {} as Record<ProductType, CompareResult>;
+
+    for (const productType of productTypes) {
+      const quotes = quotesByProduct[productType] || [];
+      const request = requestsByProduct[productType];
+      if (request) {
+        const comparator = new QuoteComparator(request.riskLevel);
+        results[productType] = comparator.compare(quotes, request, customer);
+      }
+    }
+
+    const perCompany: Record<string, number> = {};
+    const allCompanies = new Set<string>();
+
+    for (const productType of productTypes) {
+      const compareResult = results[productType];
+      if (compareResult) {
+        compareResult.quotes.forEach(quote => {
+          if (quote.success) {
+            allCompanies.add(quote.companyId);
+            if (!perCompany[quote.companyId]) {
+              perCompany[quote.companyId] = 0;
+            }
+            perCompany[quote.companyId] += quote.premium;
+          }
+        });
+      }
+    }
+
+    let cheapestCompany = '';
+    let cheapestTotal = Infinity;
+
+    for (const [companyId, total] of Object.entries(perCompany)) {
+      if (total < cheapestTotal) {
+        cheapestTotal = total;
+        cheapestCompany = companyId;
+      }
+    }
+
+    const result: MultiProductCompareResult = {
+      customerId: customer?.id || '',
+      customerName: customer?.name || '',
+      productTypes,
+      results,
+      totalPremium: {
+        perCompany,
+        cheapestCompany,
+        cheapestTotal: cheapestTotal === Infinity ? 0 : cheapestTotal,
+      },
+      generatedAt: new Date(),
+    };
+
+    logger.info(`多产品比价完成，最优总保费: ${cheapestCompany} ¥${cheapestTotal.toFixed(2)}`);
+    return result;
   }
 }
 

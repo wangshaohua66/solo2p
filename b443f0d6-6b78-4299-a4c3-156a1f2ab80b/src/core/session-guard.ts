@@ -1,9 +1,9 @@
-import { WebDriver, By, until } from 'selenium-webdriver';
 import { EventEmitter } from 'events';
 import { InsuranceCompany } from '../utils/types';
 import BrowserManager from './browser-manager';
 import logger from '../utils/logger';
 import { sleep, randomInt } from '../utils/helpers';
+import { getCompanyById } from '../config/profiles';
 
 export type SessionStatus = 'active' | 'expired' | 'unknown' | 'captcha-required';
 export type CaptchaType = 'image' | 'slider' | 'none';
@@ -57,9 +57,9 @@ export class SessionGuard extends EventEmitter {
     }
   }
 
-  public async checkSession(driver: WebDriver, company: InsuranceCompany): Promise<SessionStatus> {
+  public async checkSession(driver: WebdriverIO.Browser, company: InsuranceCompany): Promise<SessionStatus> {
     try {
-      const currentUrl = await driver.getCurrentUrl();
+      const currentUrl = await driver.getUrl();
       const pageSource = await driver.getPageSource();
 
       const expiredPatterns = company.selectors.sessionExpiredPatterns;
@@ -95,14 +95,14 @@ export class SessionGuard extends EventEmitter {
     }
   }
 
-  public async detectCaptcha(driver: WebDriver, company: InsuranceCompany): Promise<CaptchaType> {
+  public async detectCaptcha(driver: WebdriverIO.Browser, company: InsuranceCompany): Promise<CaptchaType> {
     try {
       const selectors = company.selectors;
 
       if (selectors.captchaImage) {
-        const captchaElements = await driver.findElements(By.css(selectors.captchaImage));
+        const captchaElements = await driver.$$(selectors.captchaImage);
         if (captchaElements.length > 0) {
-          const isDisplayed = await captchaElements[0].isDisplayed();
+          const isDisplayed = await captchaElements[0].isDisplayed().catch(() => false);
           if (isDisplayed) {
             return company.features.captchaType;
           }
@@ -122,9 +122,9 @@ export class SessionGuard extends EventEmitter {
 
       for (const selector of commonCaptchaSelectors) {
         try {
-          const elements = await driver.findElements(By.css(selector));
+          const elements = await driver.$$(selector);
           if (elements.length > 0) {
-            const isDisplayed = await elements[0].isDisplayed();
+            const isDisplayed = await elements[0].isDisplayed().catch(() => false);
             if (isDisplayed) {
               const tagName = await elements[0].getTagName();
               if (selector.includes('slide') || selector.includes('slider')) {
@@ -146,7 +146,7 @@ export class SessionGuard extends EventEmitter {
   }
 
   public async handleCaptcha(
-    driver: WebDriver,
+    driver: WebdriverIO.Browser,
     company: InsuranceCompany,
     taskId: string
   ): Promise<boolean> {
@@ -159,7 +159,7 @@ export class SessionGuard extends EventEmitter {
     let captchaImage: string | undefined;
     if (captchaType === 'image' && company.selectors.captchaImage) {
       try {
-        const captchaImg = await driver.findElement(By.css(company.selectors.captchaImage));
+        const captchaImg = await driver.$(company.selectors.captchaImage);
         captchaImage = await captchaImg.takeScreenshot();
       } catch (error) {
         logger.error(`获取验证码图片失败: ${company.name}`, { error: (error as Error).message });
@@ -199,7 +199,7 @@ export class SessionGuard extends EventEmitter {
   }
 
   public async ensureSession(
-    driver: WebDriver,
+    driver: WebdriverIO.Browser,
     company: InsuranceCompany,
     taskId: string
   ): Promise<boolean> {
@@ -221,7 +221,7 @@ export class SessionGuard extends EventEmitter {
   }
 
   public async relogin(
-    driver: WebDriver,
+    driver: WebdriverIO.Browser,
     company: InsuranceCompany,
     taskId: string
   ): Promise<boolean> {
@@ -234,7 +234,7 @@ export class SessionGuard extends EventEmitter {
     logger.info(`正在重新登录 ${company.name}...`);
 
     try {
-      await driver.get(company.loginUrl);
+      await driver.url(company.loginUrl);
       await sleep(randomInt(2000, 4000));
 
       const captchaType = await this.detectCaptcha(driver, company);
@@ -247,14 +247,14 @@ export class SessionGuard extends EventEmitter {
 
       const bm = BrowserManager.getInstance();
 
-      const usernameInput = await driver.findElement(By.css(company.selectors.usernameInput));
-      await usernameInput.clear();
+      const usernameInput = await driver.$(company.selectors.usernameInput);
+      await usernameInput.clearValue();
       await bm.humanType(driver, usernameInput, company.username);
 
       await sleep(randomInt(500, 1500));
 
-      const passwordInput = await driver.findElement(By.css(company.selectors.passwordInput));
-      await passwordInput.clear();
+      const passwordInput = await driver.$(company.selectors.passwordInput);
+      await passwordInput.clearValue();
       await bm.humanType(driver, passwordInput, company.password);
 
       if (company.selectors.captchaInput && captchaType === 'image') {
@@ -267,7 +267,7 @@ export class SessionGuard extends EventEmitter {
 
       await sleep(randomInt(500, 1000));
 
-      const loginButton = await driver.findElement(By.css(company.selectors.loginButton));
+      const loginButton = await driver.$(company.selectors.loginButton);
       await bm.humanClick(driver, loginButton);
 
       await sleep(randomInt(3000, 5000));
@@ -287,16 +287,16 @@ export class SessionGuard extends EventEmitter {
     }
   }
 
-  public async keepAlive(driver: WebDriver, company: InsuranceCompany): Promise<void> {
+  public async keepAlive(driver: WebdriverIO.Browser, company: InsuranceCompany): Promise<void> {
     try {
       logger.debug(`保活 ${company.name} 会话`);
       
-      const currentUrl = await driver.getCurrentUrl();
+      const currentUrl = await driver.getUrl();
       
       if (currentUrl === 'about:blank' || currentUrl === '') {
-        await driver.get(company.loginUrl);
+        await driver.url(company.loginUrl);
       } else {
-        await driver.navigate().refresh();
+        await driver.refresh();
       }
 
       await sleep(randomInt(1000, 2000));
@@ -320,30 +320,18 @@ export class SessionGuard extends EventEmitter {
         continue;
       }
 
+      const company = getCompanyById(instance.companyId);
+      if (!company) {
+        logger.warn(`未找到公司配置: ${instance.companyId}`);
+        continue;
+      }
+
       const idleTime = now - sessionInfo.lastActivity.getTime();
-      const timeoutMs = 300000;
+      const timeoutMs = company.features.sessionTimeout * 1000 * 0.8;
 
       if (idleTime > timeoutMs) {
         logger.info(`会话空闲超时，执行保活: ${instance.companyId}`);
-        await this.keepAlive(instance.driver, {
-          id: instance.companyId,
-          name: '',
-          shortName: '',
-          loginUrl: '',
-          username: '',
-          password: '',
-          selectors: {
-            usernameInput: '',
-            passwordInput: '',
-            loginButton: '',
-            sessionExpiredPatterns: [],
-            quoteForm: {} as any,
-            quoteResult: {} as any,
-            policyList: {} as any,
-            policyDetail: {} as any,
-          },
-          features: {} as any,
-        });
+        await this.keepAlive(instance.driver, company);
       }
     }
   }

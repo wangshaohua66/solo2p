@@ -10,6 +10,7 @@ import {
   CustomerInfo,
   QuoteResult,
   CompareResult,
+  MultiProductCompareResult,
   RenewalRecord,
   PolicyInfo,
   TaskStatus,
@@ -40,22 +41,18 @@ program
   .option('-r, --risk <level>', '风险等级 (low/medium/high/very-high)', 'medium')
   .option('-c, --coverage <amount>', '保额(元)', '1000000')
   .option('-d, --deductible <amount>', '免赔额(元)', '100')
-  .option('-p, --product <type>', '产品类型 (employer-liability/group-accident/group-medical/group-critical-illness)', 'employer-liability')
+  .option('-p, --product <type>', '产品类型 (单个产品)')
+  .option('--products <list>', '多产品类型，逗号分隔 (如: employer-liability,group-accident)')
+  .option('--all-products', '比较全部4类产品', false)
   .option('-n, --customer-name <name>', '客户名称')
   .option('-o, --output', '生成Excel报告', false)
   .option('--companies <list>', '指定保险公司ID列表，逗号分隔')
   .action(async (options) => {
     console.log(chalk.blue.bold('\n=== 保险报价比价 ===\n'));
 
-    const request: QuoteRequest = {
-      companyId: '',
-      productType: options.product as ProductType,
-      industry: options.industry,
-      employeeCount: parseInt(options.employees, 10),
-      riskLevel: options.risk as RiskLevel,
-      coverageAmount: parseInt(options.coverage, 10),
-      deductible: parseInt(options.deductible, 10),
-    };
+    const companyIds = options.companies
+      ? options.companies.split(',').map((s: string) => s.trim())
+      : getAllCompanyIds();
 
     const customer: CustomerInfo | undefined = options.customerName
       ? {
@@ -69,9 +66,19 @@ program
         }
       : undefined;
 
-    const companyIds = options.companies
-      ? options.companies.split(',').map((s: string) => s.trim())
-      : getAllCompanyIds();
+    let productTypes: ProductType[] = [];
+    if (options.allProducts) {
+      productTypes = [
+        'employer-liability',
+        'group-accident',
+        'group-medical',
+        'group-critical-illness',
+      ];
+    } else if (options.products) {
+      productTypes = options.products.split(',').map((s: string) => s.trim() as ProductType);
+    } else {
+      productTypes = [(options.product || 'employer-liability') as ProductType];
+    }
 
     console.log(chalk.cyan('报价参数:'));
     console.log(`  行业: ${options.industry}`);
@@ -79,26 +86,64 @@ program
     console.log(`  风险等级: ${RISK_LEVELS[options.risk as RiskLevel] || options.risk}`);
     console.log(`  保额: ¥${parseInt(options.coverage, 10).toLocaleString()}`);
     console.log(`  免赔额: ¥${parseInt(options.deductible, 10).toLocaleString()}`);
-    console.log(`  产品类型: ${PRODUCT_TYPES[options.product as ProductType] || options.product}`);
+    console.log(`  产品类型: ${productTypes.map(t => PRODUCT_TYPES[t] || t).join('、')}`);
     console.log(`  参与保险公司: ${companyIds.length}家\n`);
 
     const spinner = ora('正在初始化抓取任务...').start();
     const taskRunner = TaskRunner.getInstance();
 
     try {
-      spinner.text = '正在并行抓取各保险公司报价...';
+      if (productTypes.length === 1) {
+        const request: QuoteRequest = {
+          companyId: '',
+          productType: productTypes[0],
+          industry: options.industry,
+          employeeCount: parseInt(options.employees, 10),
+          riskLevel: options.risk as RiskLevel,
+          coverageAmount: parseInt(options.coverage, 10),
+          deductible: parseInt(options.deductible, 10),
+        };
 
-      const compareResult = await taskRunner.runBatchQuote(request, customer, companyIds);
+        spinner.text = '正在并行抓取各保险公司报价...';
+        const compareResult = await taskRunner.runBatchQuote(request, customer, companyIds);
+        spinner.succeed('报价抓取完成！');
+        printQuoteResults(compareResult);
 
-      spinner.succeed('报价抓取完成！');
+        if (options.output) {
+          spinner.start('正在生成Excel报告...');
+          const excelWriter = new ExcelWriter();
+          const filePath = excelWriter.generateQuoteReport(compareResult, customer);
+          spinner.succeed(`报告已生成: ${chalk.green(filePath)}`);
+        }
+      } else {
+        const requestsByProduct: Record<ProductType, QuoteRequest> = {} as Record<ProductType, QuoteRequest>;
+        for (const pt of productTypes) {
+          requestsByProduct[pt] = {
+            companyId: '',
+            productType: pt,
+            industry: options.industry,
+            employeeCount: parseInt(options.employees, 10),
+            riskLevel: options.risk as RiskLevel,
+            coverageAmount: parseInt(options.coverage, 10),
+            deductible: parseInt(options.deductible, 10),
+          };
+        }
 
-      printQuoteResults(compareResult);
+        spinner.text = `正在并行抓取 ${productTypes.length} 类产品报价...`;
+        const multiResult = await taskRunner.runBatchMultiProductQuote(
+          requestsByProduct,
+          customer,
+          companyIds
+        );
+        spinner.succeed('多产品报价抓取完成！');
+        printMultiProductResults(multiResult);
 
-      if (options.output) {
-        spinner.start('正在生成Excel报告...');
-        const excelWriter = new ExcelWriter();
-        const filePath = excelWriter.generateQuoteReport(compareResult, customer);
-        spinner.succeed(`报告已生成: ${chalk.green(filePath)}`);
+        if (options.output) {
+          spinner.start('正在生成Excel报告...');
+          const excelWriter = new ExcelWriter();
+          const filePath = excelWriter.generateMultiProductQuoteReport(multiResult, customer);
+          spinner.succeed(`报告已生成: ${chalk.green(filePath)}`);
+        }
       }
 
       console.log(chalk.cyan('\n提示: 使用 --output 参数可生成完整Excel报告\n'));
@@ -356,6 +401,11 @@ function printQuoteResults(result: CompareResult): void {
   const validQuotes = result.quotes.filter(q => q.success);
   const failedQuotes = result.quotes.filter(q => !q.success);
 
+  const scoreMap = new Map<string, { totalScore: number; rank: number }>();
+  result.allRecommendations.forEach(rec => {
+    scoreMap.set(rec.quote.companyId, { totalScore: rec.totalScore, rank: rec.rank });
+  });
+
   if (validQuotes.length > 0) {
     const table = new Table({
       head: ['排名', '保险公司', '保费(元)', '保额(元)', '免赔额(元)', '综合得分'],
@@ -365,14 +415,17 @@ function printQuoteResults(result: CompareResult): void {
     const sortedByPremium = [...validQuotes].sort((a, b) => a.premium - b.premium);
 
     sortedByPremium.forEach((quote, index) => {
-      const rank = index === 0 ? chalk.green.bold('TOP1') : `#${index + 1}`;
+      const scoreInfo = scoreMap.get(quote.companyId);
+      const rankText = scoreInfo ? `#${scoreInfo.rank}` : '-';
+      const scoreText = scoreInfo ? scoreInfo.totalScore.toFixed(1) : '-';
+      const displayRank = index === 0 ? chalk.green.bold('TOP1') : rankText;
       table.push([
-        rank,
+        displayRank,
         quote.companyName,
         `¥${quote.premium.toFixed(2).toLocaleString()}`,
         `¥${quote.coverageAmount.toLocaleString()}`,
         `¥${quote.deductible.toLocaleString()}`,
-        '计算中',
+        scoreText,
       ]);
     });
 
@@ -416,6 +469,49 @@ function printQuoteResults(result: CompareResult): void {
   const cheapest = validQuotes.length > 0 ? [...validQuotes].sort((a, b) => a.premium - b.premium)[0] : null;
   if (cheapest) {
     console.log(chalk.green(`\n💰 最低保费: ${chalk.bold(`¥${cheapest.premium.toFixed(2).toLocaleString()}`)} (${cheapest.companyName})`));
+  }
+}
+
+function printMultiProductResults(result: MultiProductCompareResult): void {
+  console.log(chalk.cyan('\n=== 多产品比价结果 ===\n'));
+
+  console.log(chalk.yellow(`共 ${result.productTypes.length} 类产品，${Object.keys(result.totalPremium.perCompany).length} 家保险公司参与\n`));
+
+  const summaryTable = new Table({
+    head: ['保险公司', ...result.productTypes.map(pt => PRODUCT_TYPES[pt] || pt), '总保费', '排名'],
+    colWidths: [20, ...result.productTypes.map(() => 15), 15, 8],
+  });
+
+  const sortedByTotal = Object.entries(result.totalPremium.perCompany)
+    .sort(([, a], [, b]) => a - b);
+
+  sortedByTotal.forEach(([companyId, total], index) => {
+    const companyName = insuranceCompanies.find(c => c.id === companyId)?.name || companyId;
+    const productPremiums = result.productTypes.map(pt => {
+      const quote = result.results[pt]?.quotes.find(q => q.companyId === companyId && q.success);
+      return quote ? `¥${quote.premium.toFixed(2).toLocaleString()}` : '-';
+    });
+    const rankStr = index === 0 ? chalk.green.bold('TOP1') : `#${index + 1}`;
+    summaryTable.push([
+      companyName,
+      ...productPremiums,
+      chalk.bold(`¥${total.toFixed(2).toLocaleString()}`),
+      rankStr,
+    ]);
+  });
+
+  console.log(chalk.yellow('各公司总保费对比:\n'));
+  console.log(summaryTable.toString());
+
+  console.log(chalk.green(`\n🏆 最优方案: ${insuranceCompanies.find(c => c.id === result.totalPremium.cheapestCompany)?.name || result.totalPremium.cheapestCompany}`));
+  console.log(chalk.green(`   总保费: ¥${result.totalPremium.cheapestTotal.toFixed(2).toLocaleString()}`));
+
+  for (const productType of result.productTypes) {
+    const productResult = result.results[productType];
+    if (productResult) {
+      console.log(chalk.cyan(`\n--- ${PRODUCT_TYPES[productType] || productType} ---\n`));
+      printQuoteResults(productResult);
+    }
   }
 }
 
