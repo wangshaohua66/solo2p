@@ -7,6 +7,13 @@ export default {
     container: {
       center: true,
     },
+    screens: {
+      'sm': '640px',
+      'md': '768px',
+      'lg': '1024px',
+      'xl': '1366px',
+      '2xl': '1536px',
+    },
     extend: {
       colors: {
         'space-deep': '#0a0e17',

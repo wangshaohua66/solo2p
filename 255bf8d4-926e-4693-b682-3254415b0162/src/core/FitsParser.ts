@@ -1,4 +1,7 @@
-import type { FitsHeader, FitsFrame } from './types'
+import type { FitsHeader, FitsFrame, FitsHDU, HduType } from './types'
+import { parsePixelDataFast, parsePixelTile, initWasmFitsParser, isWasmAvailable, parsePixelDataWasm } from '@/utils/fitsPixelParser'
+
+export { initWasmFitsParser, isWasmAvailable }
 import { generateId, generateThumbnail, getExposureTime, getGain, getCCDTemp, getFilter, getObjectName, getObservationDate, getTelescope } from '@/utils/fitsUtils'
 
 const BLOCK_SIZE = 2880
@@ -6,12 +9,11 @@ const HEADER_RECORD_SIZE = 80
 
 export const parseFitsHeader = (dataView: DataView, offset: number = 0): { header: FitsHeader; dataOffset: number } => {
   const header: FitsHeader = {
-    SIMPLE: true,
     BITPIX: 0,
     NAXIS: 0,
     NAXIS1: 0,
     NAXIS2: 0
-  }
+  } as FitsHeader
 
   let currentOffset = offset
   let endOfHeader = false
@@ -37,6 +39,158 @@ export const parseFitsHeader = (dataView: DataView, offset: number = 0): { heade
 
   const dataOffset = Math.ceil(currentOffset / BLOCK_SIZE) * BLOCK_SIZE
   return { header, dataOffset }
+}
+
+const detectHduType = (header: FitsHeader): HduType => {
+  if (header.SIMPLE || !header.XTENSION) return 'image'
+  const xtension = header.XTENSION.toLowerCase()
+  if (xtension === 'image') return 'image'
+  if (xtension === 'bintable') return 'binaryTable'
+  if (xtension === 'table') return 'asciiTable'
+  return 'unknown'
+}
+
+const calculateDataSize = (header: FitsHeader): number => {
+  const bitpix = Math.abs(header.BITPIX)
+  const naxis = header.NAXIS || 0
+
+  if (naxis === 0) return 0
+
+  let totalPixels = 1
+  for (let i = 1; i <= naxis; i++) {
+    const naxisKey = `NAXIS${i}` as keyof FitsHeader
+    totalPixels *= (header[naxisKey] as number) || 1
+  }
+
+  return totalPixels * (bitpix / 8)
+}
+
+export const parseAllHDUs = (dataView: DataView): FitsHDU[] => {
+  const hdus: FitsHDU[] = []
+  let currentOffset = 0
+  let hduIndex = 0
+
+  while (currentOffset < dataView.byteLength) {
+    try {
+      const { header, dataOffset } = parseFitsHeader(dataView, currentOffset)
+      const type = detectHduType(header)
+      const dataSize = calculateDataSize(header)
+
+      const hdu: FitsHDU = {
+        index: hduIndex,
+        type,
+        header
+      }
+
+      if (type === 'image' && header.NAXIS >= 2) {
+        const pixelData = parsePixelData(dataView, header, dataOffset)
+        hdu.pixelData = pixelData
+        hdu.width = header.NAXIS1
+        hdu.height = header.NAXIS2
+        if (header.NAXIS3) hdu.depth = header.NAXIS3
+      } else if (type === 'binaryTable') {
+        hdu.tableData = parseBinaryTable(dataView, header, dataOffset)
+      } else if (type === 'asciiTable') {
+        hdu.tableData = parseAsciiTable(dataView, header, dataOffset)
+      }
+
+      hdus.push(hdu)
+      hduIndex++
+
+      const nextOffset = dataOffset + Math.ceil(dataSize / BLOCK_SIZE) * BLOCK_SIZE
+      if (nextOffset <= currentOffset || nextOffset >= dataView.byteLength) break
+      currentOffset = nextOffset
+    } catch (e) {
+      console.warn(`Failed to parse HDU ${hduIndex}:`, e)
+      break
+    }
+  }
+
+  return hdus
+}
+
+const parseBinaryTable = (dataView: DataView, header: FitsHeader, offset: number): any[][] => {
+  const rows = header.NAXIS2 || 0
+  const rowBytes = header.NAXIS1 || 0
+  const tfields = header.TFIELDS || 0
+  const result: any[][] = []
+
+  if (rows === 0 || tfields === 0) return result
+
+  const types: string[] = []
+  for (let i = 1; i <= tfields; i++) {
+    const tform = header[`TFORM${i}`] as string
+    if (tform) types.push(tform.trim().toUpperCase())
+  }
+
+  for (let row = 0; row < Math.min(rows, 1000); row++) {
+    const rowData: any[] = []
+    let colOffset = offset + row * rowBytes
+    for (let col = 0; col < types.length; col++) {
+      const tform = types[col]
+      const repeatMatch = tform.match(/^(\d+)([A-Z])/)
+      const repeat = repeatMatch ? parseInt(repeatMatch[1]) : 1
+      const format = repeatMatch ? repeatMatch[2] : tform[0]
+
+      let value: any = null
+      switch (format) {
+        case 'I':
+          value = dataView.getInt16(colOffset, false)
+          colOffset += 2 * repeat
+          break
+        case 'J':
+          value = dataView.getInt32(colOffset, false)
+          colOffset += 4 * repeat
+          break
+        case 'E':
+          value = dataView.getFloat32(colOffset, false)
+          colOffset += 4 * repeat
+          break
+        case 'D':
+          value = dataView.getFloat64(colOffset, false)
+          colOffset += 8 * repeat
+          break
+        case 'L':
+          value = dataView.getUint8(colOffset) !== 0
+          colOffset += repeat
+          break
+        case 'A':
+          let str = ''
+          for (let s = 0; s < repeat; s++) {
+            str += String.fromCharCode(dataView.getUint8(colOffset + s))
+          }
+          value = str.trim()
+          colOffset += repeat
+          break
+        default:
+          colOffset += repeat
+          break
+      }
+      rowData.push(value)
+    }
+    result.push(rowData)
+  }
+
+  return result
+}
+
+const parseAsciiTable = (dataView: DataView, header: FitsHeader, offset: number): any[][] => {
+  const rows = header.NAXIS2 || 0
+  const rowBytes = header.NAXIS1 || 0
+  const result: any[][] = []
+
+  if (rows === 0) return result
+
+  for (let row = 0; row < Math.min(rows, 1000); row++) {
+    const rowOffset = offset + row * rowBytes
+    let rowStr = ''
+    for (let i = 0; i < rowBytes; i++) {
+      rowStr += String.fromCharCode(dataView.getUint8(rowOffset + i))
+    }
+    result.push([rowStr.trim()])
+  }
+
+  return result
 }
 
 const decodeRecord = (dataView: DataView, offset: number): string => {
@@ -81,58 +235,30 @@ export const parsePixelData = (
   header: FitsHeader,
   offset: number
 ): Float32Array => {
-  const bitpix = header.BITPIX
-  const naxis1 = header.NAXIS1
-  const naxis2 = header.NAXIS2
-  const pixelCount = naxis1 * naxis2
+  return parsePixelDataFast(dataView, header, offset)
+}
 
-  const pixelData = new Float32Array(pixelCount)
-
-  let currentOffset = offset
-
-  switch (bitpix) {
-    case 16: {
-      for (let i = 0; i < pixelCount; i++) {
-        pixelData[i] = dataView.getInt16(currentOffset, false)
-        currentOffset += 2
-      }
-      break
-    }
-    case 32: {
-      for (let i = 0; i < pixelCount; i++) {
-        pixelData[i] = dataView.getInt32(currentOffset, false)
-        currentOffset += 4
-      }
-      break
-    }
-    case -32: {
-      for (let i = 0; i < pixelCount; i++) {
-        pixelData[i] = dataView.getFloat32(currentOffset, false)
-        currentOffset += 4
-      }
-      break
-    }
-    case -64: {
-      for (let i = 0; i < pixelCount; i++) {
-        pixelData[i] = dataView.getFloat64(currentOffset, false)
-        currentOffset += 8
-      }
-      break
-    }
-    default:
-      throw new Error(`Unsupported BITPIX value: ${bitpix}`)
+export const parsePixelDataAsync = async (
+  dataView: DataView,
+  header: FitsHeader,
+  offset: number
+): Promise<Float32Array> => {
+  if (isWasmAvailable()) {
+    return parsePixelDataWasm(dataView, header, offset)
   }
+  return parsePixelDataFast(dataView, header, offset)
+}
 
-  const bzero = header.BZERO || 0
-  const bscale = header.BSCALE || 1
-
-  if (bzero !== 0 || bscale !== 1) {
-    for (let i = 0; i < pixelCount; i++) {
-      pixelData[i] = pixelData[i] * bscale + bzero
-    }
-  }
-
-  return pixelData
+export const parsePixelTileData = (
+  dataView: DataView,
+  header: FitsHeader,
+  offset: number,
+  tileX: number,
+  tileY: number,
+  tileWidth: number,
+  tileHeight: number
+): Float32Array => {
+  return parsePixelTile(dataView, header, offset, tileX, tileY, tileWidth, tileHeight)
 }
 
 export const parseFitsFile = async (file: File): Promise<FitsFrame> => {

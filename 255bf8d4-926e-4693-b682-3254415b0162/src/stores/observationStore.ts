@@ -104,6 +104,40 @@ export const useObservationStore = create<ObservationState>((set, get) => ({
     percentileHigh: 99.9
   },
   visualizationSettings: {
+    mode: 'mono',
+    activeChannel: 'luminance',
+    luminance: {
+      enabled: true,
+      stretchFunction: 'auto',
+      blackPoint: 0,
+      whitePoint: 65535,
+      gamma: 1,
+      colorMap: 'gray'
+    },
+    red: {
+      enabled: true,
+      stretchFunction: 'auto',
+      blackPoint: 0,
+      whitePoint: 65535,
+      gamma: 1,
+      colorMap: 'gray'
+    },
+    green: {
+      enabled: true,
+      stretchFunction: 'auto',
+      blackPoint: 0,
+      whitePoint: 65535,
+      gamma: 1,
+      colorMap: 'gray'
+    },
+    blue: {
+      enabled: true,
+      stretchFunction: 'auto',
+      blackPoint: 0,
+      whitePoint: 65535,
+      gamma: 1,
+      colorMap: 'gray'
+    },
     stretchFunction: 'auto',
     blackPoint: 0,
     whitePoint: 65535,

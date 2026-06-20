@@ -108,7 +108,8 @@ export const applyStretch = (
       normalized = Math.log(1 + normalized * 9) / Math.log(10)
       break
     case 'asinh':
-      normalized = Math.asinh(normalized * 10) / Math.asinh(10)
+      const stretchAmount = 10
+      normalized = Math.atan(normalized * stretchAmount) / Math.atan(stretchAmount)
       break
     case 'auto':
       const mid = 0.5
@@ -199,4 +200,67 @@ export const pixelToImageData = (
   }
 
   return imageData
+}
+
+export interface ChannelRenderParams {
+  pixelData: Float32Array | null
+  blackPoint: number
+  whitePoint: number
+  stretch: StretchFunction
+  gamma: number
+  weight: number
+}
+
+export const pixelToImageDataRGB = (
+  red: ChannelRenderParams,
+  green: ChannelRenderParams,
+  blue: ChannelRenderParams,
+  width: number,
+  height: number
+): ImageData => {
+  const imageData = new ImageData(width, height)
+  const rgba = imageData.data
+  const pixelCount = width * height
+
+  for (let i = 0; i < pixelCount; i++) {
+    const rgbaIdx = i * 4
+
+    let r = 0, g = 0, b = 0
+
+    if (red.pixelData && i < red.pixelData.length) {
+      const stretched = applyStretch(red.pixelData[i], red.blackPoint, red.whitePoint, red.stretch, red.gamma)
+      r = Math.max(0, Math.min(1, stretched)) * red.weight * 255
+    }
+
+    if (green.pixelData && i < green.pixelData.length) {
+      const stretched = applyStretch(green.pixelData[i], green.blackPoint, green.whitePoint, green.stretch, green.gamma)
+      g = Math.max(0, Math.min(1, stretched)) * green.weight * 255
+    }
+
+    if (blue.pixelData && i < blue.pixelData.length) {
+      const stretched = applyStretch(blue.pixelData[i], blue.blackPoint, blue.whitePoint, blue.stretch, blue.gamma)
+      b = Math.max(0, Math.min(1, stretched)) * blue.weight * 255
+    }
+
+    rgba[rgbaIdx] = r
+    rgba[rgbaIdx + 1] = g
+    rgba[rgbaIdx + 2] = b
+    rgba[rgbaIdx + 3] = 255
+  }
+
+  return imageData
+}
+
+export const stretchPixelChannel = (
+  pixelData: Float32Array,
+  blackPoint: number,
+  whitePoint: number,
+  stretch: StretchFunction,
+  gamma: number
+): Float32Array => {
+  const result = new Float32Array(pixelData.length)
+  for (let i = 0; i < pixelData.length; i++) {
+    result[i] = applyStretch(pixelData[i], blackPoint, whitePoint, stretch, gamma)
+  }
+  return result
 }

@@ -281,9 +281,9 @@ export const Workbench = () => {
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
         <aside
-          className={`${
+          className={`hidden md:flex ${
             leftPanelOpen ? 'w-64 xl:w-72' : 'w-0'
           } transition-all duration-300 overflow-hidden flex-shrink-0 border-r border-space-panel relative`}
         >
@@ -298,21 +298,28 @@ export const Workbench = () => {
           </button>
         </aside>
 
-        <main className="flex-1 flex flex-col overflow-hidden">
+        <main className="flex-1 flex flex-col overflow-hidden relative">
           <div className="flex-1 relative overflow-hidden">
             <ImageCanvas
               compareMode={compareMode}
               comparePosition={comparePosition}
             />
+
+            <button
+              onClick={() => setRightPanelOpen(!rightPanelOpen)}
+              className="hidden xl:hidden absolute right-2 top-2 z-20 p-2 bg-space-panel/90 backdrop-blur hover:bg-signal-green rounded-lg transition-colors"
+            >
+              <Settings size={18} />
+            </button>
           </div>
 
-          <div className="h-48 lg:h-56 flex-shrink-0">
+          <div className="h-40 md:h-48 lg:h-56 flex-shrink-0">
             <TaskQueue />
           </div>
         </main>
 
         <aside
-          className={`${
+          className={`hidden xl:flex ${
             rightPanelOpen ? 'w-72 xl:w-80' : 'w-0'
           } transition-all duration-300 overflow-hidden flex-shrink-0 border-l border-space-panel relative`}
         >
@@ -487,6 +494,185 @@ export const Workbench = () => {
           >
             {rightPanelOpen ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
           </button>
+        </aside>
+
+        <div
+          className={`xl:hidden fixed inset-0 z-40 transition-opacity duration-300 ${
+            rightPanelOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+          }`}
+          onClick={() => setRightPanelOpen(false)}
+        >
+          <div className="absolute inset-0 bg-black/60" />
+        </div>
+
+        <aside
+          className={`xl:hidden fixed top-14 right-0 bottom-0 w-72 z-50 bg-space-deep border-l border-space-panel transform transition-transform duration-300 flex flex-col ${
+            rightPanelOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
+        >
+          <div className="flex border-b border-space-panel">
+            {rightPanelTabs.map(tab => {
+              const Icon = tab.icon
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setRightPanelTab(tab.id)}
+                  className={`flex-1 py-2.5 text-xs font-medium transition-colors flex flex-col items-center gap-0.5 ${
+                    rightPanelTab === tab.id
+                      ? 'text-signal-green border-b-2 border-signal-green bg-signal-green/5'
+                      : 'text-gray-400 hover:text-white hover:bg-space-panel/50'
+                  }`}
+                >
+                  <Icon size={14} />
+                  {tab.label}
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="flex-1 overflow-y-auto">
+            {rightPanelTab === 'calibration' && <CalibrationPanel />}
+            {rightPanelTab === 'alignment' && (
+              <div className="h-full flex flex-col bg-space-deep">
+                <div className="p-4 border-b border-space-panel">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Layers size={18} className="text-signal-green" />
+                    <h2 className="text-lg font-semibold text-white">对齐配置</h2>
+                  </div>
+                  <p className="text-xs text-gray-400">配置星点检测与图像对齐参数</p>
+                </div>
+                <div className="p-4 space-y-4">
+                  <div className="bg-space-panel/30 rounded-lg p-3 space-y-3">
+                    <div>
+                      <label className="text-xs text-gray-400 block mb-1">
+                        检测阈值: {alignmentSettings.detectionThreshold}σ
+                      </label>
+                      <input
+                        type="range"
+                        min="2"
+                        max="15"
+                        step="0.5"
+                        value={alignmentSettings.detectionThreshold}
+                        onChange={(e) => setAlignmentSettings({ detectionThreshold: Number(e.target.value) })}
+                        className="w-full h-2 bg-space-panel rounded-lg appearance-none cursor-pointer slider"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-400 block mb-1">
+                        最小星点数: {alignmentSettings.minStars}
+                      </label>
+                      <input
+                        type="range"
+                        min="5"
+                        max="50"
+                        value={alignmentSettings.minStars}
+                        onChange={(e) => setAlignmentSettings({ minStars: Number(e.target.value) })}
+                        className="w-full h-2 bg-space-panel rounded-lg appearance-none cursor-pointer slider"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-400 block mb-1">
+                        最大星点数: {alignmentSettings.maxStars}
+                      </label>
+                      <input
+                        type="range"
+                        min="50"
+                        max="500"
+                        step="10"
+                        value={alignmentSettings.maxStars}
+                        onChange={(e) => setAlignmentSettings({ maxStars: Number(e.target.value) })}
+                        className="w-full h-2 bg-space-panel rounded-lg appearance-none cursor-pointer slider"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-sm text-gray-300">亚像素精度</span>
+                      <button
+                        onClick={() => setAlignmentSettings({ subpixelAccuracy: !alignmentSettings.subpixelAccuracy })}
+                        className={`relative w-11 h-6 rounded-full transition-colors ${
+                          alignmentSettings.subpixelAccuracy ? 'bg-signal-green' : 'bg-gray-600'
+                        }`}
+                      >
+                        <span
+                          className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                            alignmentSettings.subpixelAccuracy ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-400 block mb-1">
+                        匹配容差: {alignmentSettings.matchTolerance.toFixed(2)}
+                      </label>
+                      <input
+                        type="range"
+                        min="0.01"
+                        max="0.2"
+                        step="0.01"
+                        value={alignmentSettings.matchTolerance}
+                        onChange={(e) => setAlignmentSettings({ matchTolerance: Number(e.target.value) })}
+                        className="w-full h-2 bg-space-panel rounded-lg appearance-none cursor-pointer slider"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            {rightPanelTab === 'stacking' && (
+              <div className="h-full flex flex-col">
+                <StackPreview />
+              </div>
+            )}
+            {rightPanelTab === 'visualization' && (
+              <div className="h-full flex flex-col bg-space-deep">
+                <div className="p-4 border-b border-space-panel">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Palette size={18} className="text-signal-green" />
+                    <h2 className="text-lg font-semibold text-white">可视化设置</h2>
+                  </div>
+                  <p className="text-xs text-gray-400">配置直方图拉伸与伪彩色映射</p>
+                </div>
+                <div className="p-4 space-y-4">
+                  <div className="bg-space-panel/30 rounded-lg p-3 space-y-3">
+                    <div className="flex items-center justify-between py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-300">校准对比模式</span>
+                      </div>
+                      <button
+                        onClick={() => setCompareMode(!compareMode)}
+                        className={`relative w-11 h-6 rounded-full transition-colors ${
+                          compareMode ? 'bg-signal-green' : 'bg-gray-600'
+                        }`}
+                      >
+                        <span
+                          className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                            compareMode ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                    {compareMode && (
+                      <div>
+                        <label className="text-xs text-gray-400 block mb-1">
+                          对比位置: {comparePosition}%
+                        </label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={comparePosition}
+                          onChange={(e) => setComparePosition(Number(e.target.value))}
+                          className="w-full h-2 bg-space-panel rounded-lg appearance-none cursor-pointer slider"
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500 text-center">
+                    显示设置可在主画布右上角面板调整
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </aside>
       </div>
 

@@ -1,9 +1,11 @@
 export interface FitsHeader {
-  SIMPLE: boolean
+  SIMPLE?: boolean
+  XTENSION?: string
   BITPIX: number
   NAXIS: number
   NAXIS1: number
   NAXIS2: number
+  NAXIS3?: number
   EXTEND?: boolean
   EXPTIME?: number
   GAIN?: number
@@ -16,7 +18,22 @@ export interface FitsHeader {
   TELESCOP?: string
   INSTRUME?: string
   AIRMASS?: number
+  BSCALE?: number
+  BZERO?: number
   [key: string]: any
+}
+
+export type HduType = 'image' | 'binaryTable' | 'asciiTable' | 'unknown'
+
+export interface FitsHDU {
+  index: number
+  type: HduType
+  header: FitsHeader
+  pixelData?: Float32Array
+  tableData?: any[][]
+  width?: number
+  height?: number
+  depth?: number
 }
 
 export interface StarDetection {
@@ -106,7 +123,24 @@ export interface StackingSettings {
   percentileHigh: number
 }
 
+export type ChannelName = 'luminance' | 'red' | 'green' | 'blue'
+
+export interface ChannelSettings {
+  enabled: boolean
+  stretchFunction: 'linear' | 'log' | 'asinh' | 'auto'
+  blackPoint: number
+  whitePoint: number
+  gamma: number
+  colorMap: 'gray' | 'heat' | 'cool' | 'viridis'
+}
+
 export interface VisualizationSettings {
+  mode: 'mono' | 'rgb'
+  activeChannel: ChannelName
+  luminance: ChannelSettings
+  red: ChannelSettings
+  green: ChannelSettings
+  blue: ChannelSettings
   stretchFunction: 'linear' | 'log' | 'asinh' | 'auto'
   blackPoint: number
   whitePoint: number
@@ -205,4 +239,46 @@ export interface CalibrationLibraryStats {
     total: number
     insufficient: Array<{ filter: string; exposure: number; count: number; recommended: number }>
   }
+}
+
+export interface Tile {
+  tileX: number
+  tileY: number
+  offsetX: number
+  offsetY: number
+  width: number
+  height: number
+  data: Float32Array
+}
+
+export interface TileGrid {
+  imageWidth: number
+  imageHeight: number
+  tileSize: number
+  overlap: number
+  tilesX: number
+  tilesY: number
+  tiles: Tile[]
+}
+
+export interface TiledImage {
+  width: number
+  height: number
+  tileSize: number
+  overlap: number
+  tiles: Tile[]
+  thumbnail: string
+  header?: FitsHeader
+}
+
+export type TileProcessor = (tile: Tile, index: number, total: number) => Promise<Tile> | Tile
+
+export interface TiledStackAccumulator {
+  width: number
+  height: number
+  tileSize: number
+  sumTiles: Float32Array[]
+  sumSqTiles: Float32Array[]
+  countTiles: Float32Array[]
+  tileCount: number
 }

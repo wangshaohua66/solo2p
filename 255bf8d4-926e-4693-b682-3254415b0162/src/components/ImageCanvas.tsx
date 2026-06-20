@@ -190,15 +190,10 @@ export const ImageCanvas = ({ compareMode = false, comparePosition = 50 }: Image
     ctx.restore()
 
     if (compareMode) {
-      const splitX = (canvas.width * comparePosition) / 100
-
-      ctx.save()
-      ctx.beginPath()
-      ctx.rect(0, 0, splitX, canvas.height)
-      ctx.clip()
+      const imageSplitX = (selectedFrame.width * comparePosition) / 100
 
       const originalData = selectedFrame.isStackResult
-        ? displayData
+        ? (frames.length > 0 ? frames[0].pixelData : displayData)
         : (getFrameById(selectedFrameId!)?.pixelData || displayData)
 
       const originalImageData = pixelToImageData(
@@ -223,23 +218,35 @@ export const ImageCanvas = ({ compareMode = false, comparePosition = 50 }: Image
       ctx.save()
       ctx.translate(viewport.offsetX, viewport.offsetY)
       ctx.scale(viewport.scale, viewport.scale)
+
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(0, 0, imageSplitX, selectedFrame.height)
+      ctx.clip()
       ctx.drawImage(tempCanvas2, 0, 0)
       ctx.restore()
-      ctx.restore()
 
+      const splitScreenX = imageSplitX
       ctx.strokeStyle = '#fff'
-      ctx.lineWidth = 2
+      ctx.lineWidth = 1 / viewport.scale
       ctx.beginPath()
-      ctx.moveTo(splitX, 0)
-      ctx.lineTo(splitX, canvas.height)
+      ctx.moveTo(splitScreenX, 0)
+      ctx.lineTo(splitScreenX, selectedFrame.height)
       ctx.stroke()
 
       ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
-      ctx.fillRect(splitX - 40, 10, 80, 24)
+      const labelWidth = 80 / viewport.scale
+      const labelHeight = 24 / viewport.scale
+      const labelX = splitScreenX - labelWidth / 2
+      const labelY = 10 / viewport.scale
+      ctx.fillRect(labelX, labelY, labelWidth, labelHeight)
+
       ctx.fillStyle = '#fff'
-      ctx.font = '12px monospace'
+      ctx.font = `${12 / viewport.scale}px monospace`
       ctx.textAlign = 'center'
-      ctx.fillText(`${comparePosition}%`, splitX, 26)
+      ctx.fillText(`${comparePosition}%`, splitScreenX, labelY + labelHeight * 0.7)
+
+      ctx.restore()
     }
 
     if (visualizationSettings.showCrosshair && mousePos) {
