@@ -47,16 +47,16 @@ export const Workbench = () => {
   const [leftPanelOpen, setLeftPanelOpen] = useState(true)
 
   const getInitialRightPanelOpen = () => {
-    if (typeof window === 'undefined') return false
+    if (typeof window === 'undefined') return true
     const w = window.innerWidth
-    return w >= 1024 && w < 1366
+    return w >= 1024
   }
   const [rightPanelOpen, setRightPanelOpen] = useState(getInitialRightPanelOpen)
 
   useEffect(() => {
     const handleResize = () => {
       const w = window.innerWidth
-      if (w >= 1024 && w < 1366) {
+      if (w >= 1024) {
         setRightPanelOpen(true)
       } else {
         setRightPanelOpen(false)
