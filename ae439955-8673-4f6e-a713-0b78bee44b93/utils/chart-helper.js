@@ -25,6 +25,37 @@
 
     line(ctx, config) {
       this.destroy(ctx.canvas ? ctx.canvas.id : ctx);
+      const hasDualAxis = (config.datasets || []).some(ds => ds.yAxisID);
+      const scales = {
+        x: { grid: { display: false } }
+      };
+      if (hasDualAxis) {
+        scales.y = {
+          type: 'linear',
+          display: true,
+          position: 'left',
+          beginAtZero: config.beginAtZero !== false,
+          suggestedMin: config.suggestedMin,
+          suggestedMax: config.suggestedMax || 100,
+          title: { display: true, text: config.yLabel || '' }
+        };
+        scales.y1 = {
+          type: 'linear',
+          display: true,
+          position: 'right',
+          beginAtZero: config.beginAtZeroY1 !== false,
+          suggestedMin: config.suggestedMinY1,
+          suggestedMax: config.suggestedMaxY1 || 100,
+          grid: { drawOnChartArea: false },
+          title: { display: true, text: config.y1Label || '' }
+        };
+      } else {
+        scales.y = {
+          beginAtZero: config.beginAtZero !== false,
+          suggestedMin: config.suggestedMin,
+          suggestedMax: config.suggestedMax || 100
+        };
+      }
       const chart = new Chart(ctx, {
         type: 'line',
         data: {
@@ -41,10 +72,7 @@
         },
         options: {
           ...defaultOptions,
-          scales: {
-            y: { beginAtZero: config.beginAtZero !== false, suggestedMin: config.suggestedMin, suggestedMax: config.suggestedMax || 100 },
-            x: { grid: { display: false } }
-          }
+          scales
         }
       });
       charts[ctx.canvas ? ctx.canvas.id : ctx] = chart;

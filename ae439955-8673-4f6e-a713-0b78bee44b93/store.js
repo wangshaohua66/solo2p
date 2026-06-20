@@ -57,8 +57,8 @@
       this.warehouses = WAREHOUSE_NAMES.map((name, idx) => ({
         id: 'WH' + (idx + 1),
         name,
-        rows: 25,
-        cols: 20,
+        rows: 50,
+        cols: 30,
         temperatureMin: 18,
         temperatureMax: 24,
         humidityMin: 55,
@@ -180,12 +180,18 @@
       const now = new Date();
       const candidates = this.getBatchesNeedingFlip().slice(0, 60);
       candidates.forEach((b, idx) => {
-        const planDate = new Date(now);
-        planDate.setDate(planDate.getDate() + (idx % 14));
+        const startDate = new Date(now);
+        startDate.setDate(startDate.getDate() + (idx % 14));
+        const duration = idx % 3 + 1;
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + duration - 1);
         this.flipPlans.push({
           id: 'FP' + idx,
           batchId: b.id,
-          date: formatDate(planDate),
+          date: formatDate(startDate),
+          startDate: formatDate(startDate),
+          endDate: formatDate(endDate),
+          durationDays: duration,
           operator: randChoice(FLIP_OPERATORS),
           warehouseId: b.warehouseId,
           status: idx < 20 ? 'completed' : 'pending'
@@ -289,7 +295,15 @@
     },
 
     addFlipPlan(data) {
-      const plan = { id: 'FP' + this.flipPlans.length, status: 'pending', ...data };
+      const plan = {
+        id: 'FP' + Date.now() + Math.floor(Math.random() * 1000),
+        status: 'pending',
+        startDate: data.date || data.startDate,
+        endDate: data.endDate || data.date,
+        durationDays: data.durationDays || 1,
+        ...data,
+        date: data.date || data.startDate
+      };
       this.flipPlans.push(plan);
       return plan;
     },
@@ -306,10 +320,18 @@
       return null;
     },
 
-    checkFlipConflict(operator, date, excludeId = null) {
-      const plans = this.getFlipPlans().filter(p => p.operator === operator && p.date === date && p.id !== excludeId);
+    checkFlipConflict(operator, startDate, warehouseId, excludeId = null, endDate = null) {
+      const sDate = new Date(startDate);
+      const eDate = new Date(endDate || startDate);
+      const plans = this.getFlipPlans().filter(p => {
+        if (p.id === excludeId || p.status !== 'pending' || p.operator !== operator) return false;
+        const pStart = new Date(p.startDate || p.date);
+        const pEnd = new Date(p.endDate || p.date);
+        return sDate <= pEnd && eDate >= pStart;
+      });
       const warehouses = new Set(plans.map(p => p.warehouseId));
-      return warehouses.size > 1 || (warehouses.size === 1 && plans.length > 1 ? false : false);
+      if (warehouseId) warehouses.add(warehouseId);
+      return warehouses.size > 1;
     },
 
     getBatchesNeedingFlip() {

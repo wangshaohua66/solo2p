@@ -6,11 +6,14 @@
     warehouseId: null,
     selectedIds: new Set(),
     filteredBatches: [],
+    listPageSize: 50,
+    listLoadedCount: 0,
 
     mount($container, whId) {
       this.$container = $container;
       this.warehouseId = whId;
       this.selectedIds = new Set();
+      this.listLoadedCount = 0;
       this.render();
     },
 
@@ -234,8 +237,26 @@
 
       const batches = global.Store.getBatches(filter);
       this.filteredBatches = batches;
+      this.listLoadedCount = 0;
 
-      const html = batches.slice(0, 300).map(b => {
+      $('#resultTable').empty();
+      this.loadMoreResults();
+
+      $('#matchCount').text(`匹配 ${batches.length} 垛`);
+      $('#pendingOut').text(this.selectedIds.size);
+
+      console.log(`[FormulaView] 筛选完成，匹配 ${batches.length} 项，耗时 ${(performance.now() - t0).toFixed(1)}ms`);
+    },
+
+    loadMoreResults() {
+      const batches = this.filteredBatches;
+      const start = this.listLoadedCount;
+      const end = Math.min(batches.length, start + this.listPageSize);
+
+      if (start >= batches.length) return;
+
+      const slice = batches.slice(start, end);
+      const html = slice.map(b => {
         const s = global.BatchModel.computeAgingStatus(b);
         const latest = global.Store.getLatestTasting(b.id);
         const checked = this.selectedIds.has(b.id);
@@ -255,12 +276,27 @@
         </tr>`;
       }).join('');
 
-      $('#resultTable').html(html || `<tr><td colspan="11" class="text-center text-muted py-5">无匹配结果，请调整筛选条件</td></tr>`);
-      $('#matchCount').text(`匹配 ${batches.length} 垛${batches.length>300?'（显示前300条）':''}`);
-      $('#pendingOut').text(this.selectedIds.size);
-      $('#selectAll').prop('checked', batches.length > 0 && batches.every(b => this.selectedIds.has(b.id)));
+      if (start === 0 && !slice.length) {
+        $('#resultTable').html(`<tr><td colspan="11" class="text-center text-muted py-5">无匹配结果，请调整筛选条件</td></tr>`);
+      } else {
+        $('#resultTable').append(html);
+      }
 
-      console.log(`[FormulaView] 筛选完成，匹配 ${batches.length} 项，耗时 ${(performance.now() - t0).toFixed(1)}ms`);
+      this.listLoadedCount = end;
+
+      const $tableContainer = $('#resultTable').closest('.table-responsive');
+      if (this._scrollBound !== true) {
+        const self = this;
+        $tableContainer.on('scroll.formula', function() {
+          const container = this;
+          if (container.scrollTop + container.clientHeight >= container.scrollHeight - 100) {
+            self.loadMoreResults();
+          }
+        });
+        this._scrollBound = true;
+      }
+
+      $('#selectAll').prop('checked', batches.length > 0 && batches.every(b => this.selectedIds.has(b.id)));
     },
 
     updateSelected() {
@@ -292,12 +328,13 @@
       $('#pendingOut').text(this.selectedIds.size);
       $('#createOrder').prop('disabled', this.selectedIds.size === 0);
 
-      this.$container.off('click.remove').on('click.remove', '.remove-sel', function() {
-        const id = $(this).data('id');
-        this.selectedIds.delete(id);
+      const self = this;
+      this.$container.off('click.remove').on('click.remove', '.remove-sel', function(e) {
+        const id = $(e.currentTarget).data('id');
+        self.selectedIds.delete(id);
         $(`.batch-check[data-batch-id="${id}"]`).prop('checked', false);
-        this.updateSelected();
-      }.bind(this));
+        self.updateSelected();
+      });
     },
 
     showConfirmDialog() {

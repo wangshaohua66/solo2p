@@ -125,8 +125,14 @@
         <div class="card mb-4">
           <div class="card-header d-flex justify-content-between align-items-center">
             <h6 class="mb-0"><i class="bi bi-thermometer-half me-1"></i>温湿度巡检录入</h6>
+            <select class="form-select form-select-sm" id="trendWhSelect" style="width:140px;">
+              ${warehouses.map(w => `<option value="${w.id}">${w.name}</option>`).join('')}
+            </select>
           </div>
           <div class="card-body">
+            <div class="mb-4" style="height:240px;">
+              <canvas id="chart-inspection"></canvas>
+            </div>
             <form id="inspectionForm" class="row g-3">
               <div class="col-md-3">
                 <label class="form-label">库房</label>
@@ -177,6 +183,10 @@
         global.Store.getAlerts().forEach(a => global.Store.markAlertRead(a.id));
         global.App.updateQuickStats();
         this.render();
+      });
+
+      this.$container.off('change.dashboard4').on('change.dashboard4', '#trendWhSelect', function() {
+        self.renderInspectionChart($(this).val());
       });
 
       if ($.validator) {
@@ -231,6 +241,23 @@
           { label: '达标', data: readyData, color: '#0d6efd' },
           { label: '超期', data: overdueData, color: '#dc3545' }
         ]
+      });
+
+      this.renderInspectionChart($('#trendWhSelect').val() || warehouses[0].id);
+    },
+
+    renderInspectionChart(warehouseId) {
+      const inspections = global.Store.getInspections({ warehouseId });
+      const cfg = global.ChartHelper.buildInspectionTrend(inspections);
+      global.ChartHelper.line(document.getElementById('chart-inspection'), {
+        ...cfg,
+        beginAtZero: false,
+        suggestedMin: 15,
+        suggestedMax: 30,
+        suggestedMinY1: 40,
+        suggestedMaxY1: 80,
+        yLabel: '温度(℃)',
+        y1Label: '湿度(%)'
       });
     },
 

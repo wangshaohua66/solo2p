@@ -9,11 +9,16 @@
     filteredIds: null,
     batchMap: null,
     ROW_HEIGHT: 42,
+    MOBILE_BREAKPOINT: 768,
+    viewMode: 'grid',
+    listPageSize: 50,
+    listLoadedCount: 0,
 
     mount($container, whId) {
       this.$container = $container;
       this.warehouseId = whId;
       this.warehouse = global.Store.getWarehouseById(whId);
+      this.viewMode = this.isMobile() ? 'list' : 'grid';
       this.render();
     },
 
@@ -99,7 +104,7 @@
           <div class="ms-auto small text-muted"><span id="filterCount">${this.filteredIds ? this.filteredIds.size : 0}</span> 项匹配 · <span id="matchedHint" class="text-warning" style="display:none">黄色高亮为匹配项</span></div>
         </div>
 
-        <div id="viewGrid">
+        <div id="viewGrid" style="display:${this.viewMode==='grid'?'block':'none'};">
           <div class="mb-2 small text-muted d-flex justify-content-between">
             <span>列 →</span>
             <span id="colLabels"></span>
@@ -110,8 +115,8 @@
           </div>
         </div>
 
-        <div id="viewList" style="display:none;">
-          <div class="list-group" id="listContainer"></div>
+        <div id="viewList" style="display:${this.viewMode==='list'?'block':'none'};">
+          <div class="list-group" id="listContainer" style="max-height:600px;overflow-y:auto;"></div>
         </div>
       `);
 
@@ -154,22 +159,63 @@
       console.log(`[WarehouseView] 筛选完成，匹配 ${this.filteredIds.size} 项，耗时 ${(performance.now() - t0).toFixed(1)}ms`);
     },
 
+    isMobile() {
+      return window.innerWidth < this.MOBILE_BREAKPOINT;
+    },
+
     initVirtualScroll() {
       const wh = this.warehouse;
-      const totalHeight = wh.rows * this.ROW_HEIGHT;
-      $('#phantom').height(totalHeight);
-      this.renderVisibleRows();
-
       const self = this;
-      let scrollTimer = null;
-      $('#scrollContainer').off('scroll.wh').on('scroll.wh', function() {
-        if (scrollTimer) cancelAnimationFrame(scrollTimer);
-        scrollTimer = requestAnimationFrame(() => self.renderVisibleRows());
-      });
+
+      if (this.viewMode === 'grid') {
+        const totalHeight = wh.rows * this.ROW_HEIGHT;
+        $('#phantom').height(totalHeight);
+        this.renderVisibleRows();
+
+        let scrollTimer = null;
+        $('#scrollContainer').off('scroll.wh').on('scroll.wh', function() {
+          if (scrollTimer) cancelAnimationFrame(scrollTimer);
+          scrollTimer = requestAnimationFrame(() => self.renderVisibleRows());
+        });
+      } else {
+        this.listLoadedCount = 0;
+        this.renderListViewMore();
+        this.bindListScroll();
+      }
 
       $(window).off('resize.wh').on('resize.wh', () => {
-        this.renderColLabels();
-        this.renderVisibleRows();
+        const wasGrid = this.viewMode === 'grid';
+        const isMobile = this.isMobile();
+        const shouldBeGrid = !isMobile;
+
+        if (wasGrid !== shouldBeGrid) {
+          this.viewMode = shouldBeGrid ? 'grid' : 'list';
+          $('#viewGrid').toggle(shouldBeGrid);
+          $('#viewList').toggle(!shouldBeGrid);
+          $('#toggleView').html(shouldBeGrid ? '<i class="bi bi-list me-1"></i>切换为列表' : '<i class="bi bi-grid-3x3-gap me-1"></i>切换为网格');
+
+          if (shouldBeGrid) {
+            this.renderColLabels();
+            this.renderVisibleRows();
+          } else {
+            this.listLoadedCount = 0;
+            this.renderListViewMore();
+            this.bindListScroll();
+          }
+        } else if (shouldBeGrid) {
+          this.renderColLabels();
+          this.renderVisibleRows();
+        }
+      });
+    },
+
+    bindListScroll() {
+      const self = this;
+      $('#listContainer').off('scroll.wh-list').on('scroll.wh-list', function() {
+        const container = this;
+        if (container.scrollTop + container.clientHeight >= container.scrollHeight - 100) {
+          self.renderListViewMore();
+        }
       });
     },
 
@@ -210,10 +256,34 @@
       $('#scrollContent').html(htmlParts.join(''));
     },
 
-    renderListView() {
+    getFilteredBatches() {
       const batches = Object.values(this.batchMap).filter(b => b.status !== 'outbound');
-      const filtered = this.filteredIds ? batches.filter(b => this.filteredIds.has(b.id)) : batches;
-      const html = filtered.slice(0, 200).map(b => {
+      return this.filteredIds ? batches.filter(b => this.filteredIds.has(b.id)) : batches;
+    },
+
+    renderListView() {
+      this.listLoadedCount = 0;
+      $('#listContainer').empty();
+      this.renderListViewMore();
+    },
+
+    renderListViewMore() {
+      const all = this.getFilteredBatches();
+      const maxItems = 2000;
+      const start = this.listLoadedCount;
+      const end = Math.min(all.length, start + this.listPageSize, maxItems);
+
+      if (start >= all.length || start >= maxItems) {
+        if (all.length > maxItems) {
+          if (!$('#listEndTip').length) {
+            $('#listContainer').append(`<div id="listEndTip" class="text-center text-muted py-3 small">仅显示前 ${maxItems} 条，请使用筛选缩小范围</div>`);
+          }
+        }
+        return;
+      }
+
+      const batch = all.slice(start, end);
+      const html = batch.map(b => {
         const s = global.BatchModel.computeAgingStatus(b);
         return `<div class="batch-list-item" data-batch-id="${b.id}">
           <div>
@@ -223,7 +293,14 @@
           <span class="badge ${s.status==='overdue'?'bg-danger':s.status==='ready'?'bg-primary':s.status==='new'?'bg-success':'bg-warning'}">${s.label}</span>
         </div>`;
       }).join('');
-      $('#listContainer').html(html || '<div class="text-center text-muted py-4">暂无匹配数据</div>');
+
+      if (start === 0 && !batch.length) {
+        $('#listContainer').html('<div class="text-center text-muted py-4">暂无匹配数据</div>');
+      } else {
+        $('#listContainer').append(html);
+      }
+
+      this.listLoadedCount = end;
     },
 
     bindEvents() {
@@ -238,8 +315,11 @@
         self.applyFilter();
         $('#filterCount').text(self.filteredIds ? self.filteredIds.size : 0);
         $('#matchedHint').toggle(self.filteredIds != null);
-        self.renderVisibleRows();
-        if (!$('#viewGrid').is(':visible')) self.renderListView();
+        if (self.viewMode === 'grid') {
+          self.renderVisibleRows();
+        } else {
+          self.renderListView();
+        }
       });
 
       $('#clearFilter').off('click.wh').on('click.wh', () => {
@@ -248,17 +328,26 @@
         this.applyFilter();
         $('#filterCount').text(0);
         $('#matchedHint').hide();
-        this.renderVisibleRows();
-        if (!$('#viewGrid').is(':visible')) this.renderListView();
+        if (this.viewMode === 'grid') {
+          this.renderVisibleRows();
+        } else {
+          this.renderListView();
+        }
       });
 
       $('#toggleView').off('click.wh').on('click.wh', () => {
-        const showGrid = !$('#viewGrid').is(':visible');
+        const showGrid = this.viewMode === 'list';
+        this.viewMode = showGrid ? 'grid' : 'list';
         $('#viewGrid').toggle(showGrid);
         $('#viewList').toggle(!showGrid);
         $('#toggleView').html(showGrid ? '<i class="bi bi-list me-1"></i>切换为列表' : '<i class="bi bi-grid-3x3-gap me-1"></i>切换为网格');
-        if (!showGrid) this.renderListView();
-        else this.renderVisibleRows();
+        if (showGrid) {
+          this.renderColLabels();
+          this.renderVisibleRows();
+        } else {
+          this.renderListView();
+          this.bindListScroll();
+        }
       });
 
       this.$container.off('click.wh').on('click.wh', '.stack-cell[data-batch-id], .batch-list-item', function() {

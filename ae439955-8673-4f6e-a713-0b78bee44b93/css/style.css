@@ -170,6 +170,56 @@
   background: linear-gradient(135deg, #dc3545, #b02a37);
 }
 
+.gantt-track {
+  min-height: 70px;
+  transition: background 0.2s;
+}
+
+.gantt-track.drag-over {
+  background: rgba(13, 110, 253, 0.08) !important;
+}
+
+.gantt-day-slot {
+  pointer-events: none;
+}
+
+.gantt-bar {
+  background: linear-gradient(135deg, #0d6efd, #0a58ca);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(13, 110, 253, 0.3);
+  transition: box-shadow 0.2s, transform 0.1s;
+}
+
+.gantt-bar:hover {
+  box-shadow: 0 4px 12px rgba(13, 110, 253, 0.4);
+  transform: translateY(-1px);
+}
+
+.gantt-bar.conflict {
+  background: linear-gradient(135deg, #dc3545, #b02a37);
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+.gantt-bar-resize {
+  z-index: 10;
+}
+
+.gantt-bar-resize-left {
+  border-radius: 6px 0 0 6px;
+}
+
+.gantt-bar-resize-right {
+  border-radius: 0 6px 6px 0;
+}
+
+.gantt-bar-resize:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.dragging {
+  opacity: 0.6;
+}
+
 .slider-group {
   margin-bottom: 16px;
 }

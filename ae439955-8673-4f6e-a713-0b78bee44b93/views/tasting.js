@@ -13,6 +13,9 @@
     $container: null,
     warehouseId: null,
     selectedBatchId: null,
+    pageSize: 50,
+    loadedCount: 0,
+    allBatches: [],
 
     mount($container, whId) {
       this.$container = $container;
@@ -27,6 +30,8 @@
     render() {
       const wh = global.Store.getWarehouseById(this.warehouseId);
       const batches = global.Store.getBatchesByWarehouse(this.warehouseId).filter(b => b.status === 'in-stock');
+      this.allBatches = batches;
+      this.loadedCount = 0;
       const tasters = global.Store.getTasters();
       const today = global.Store.formatDate(new Date());
 
@@ -40,6 +45,7 @@
             <div class="card">
               <div class="card-header d-flex justify-content-between align-items-center">
                 <h6 class="mb-0"><i class="bi bi-search me-1"></i>选择批次</h6>
+                <span class="text-muted small" id="batchCount">${batches.length} 个</span>
               </div>
               <div class="card-body p-0">
                 <div class="p-3 border-bottom">
@@ -61,23 +67,46 @@
         </div>
       `);
 
-      this.renderBatchList(batches.slice(0, 50));
+      this.loadMoreBatches();
       this.bindEvents();
     },
 
-    renderBatchList(list) {
-      const html = list.map(b => {
-        const s = global.BatchModel.computeAgingStatus(b);
-        const latest = global.Store.getLatestTasting(b.id);
-        return `<div class="batch-list-item" data-batch-id="${b.id}">
+    loadMoreBatches() {
+      const batches = this.allBatches;
+      const start = this.loadedCount;
+      const end = Math.min(batches.length, start + this.pageSize);
+      if (start >= batches.length) return;
+
+      const slice = batches.slice(start, end);
+      const html = slice.map(b => this.renderBatchItem(b)).join('');
+
+      if (start === 0) {
+        $('#batchList').html(html || '<div class="text-center text-muted py-4">暂无数据</div>');
+      } else {
+        $('#batchList').append(html);
+      }
+
+      this.loadedCount = end;
+    },
+
+    renderBatchItem(b) {
+      const s = global.BatchModel.computeAgingStatus(b);
+      const latest = global.Store.getLatestTasting(b.id);
+      return `<div class="batch-list-item" data-batch-id="${b.id}">
           <div>
             <strong>${b.id}</strong> · ${b.producingArea} · ${b.variety} · ${b.grade}
             <div class="small text-muted">R${b.row+1}C${b.col+1} · ${s.elapsedMonths}月 · 最新评分 ${latest?latest.overall+'分':'未评'}</div>
           </div>
           <span class="badge ${s.status==='overdue'?'bg-danger':s.status==='ready'?'bg-primary':s.status==='new'?'bg-success':'bg-warning'}">${s.label}</span>
         </div>`;
-      }).join('');
-      $('#batchList').html(html || '<div class="text-center text-muted py-4">暂无数据</div>');
+    },
+
+    renderBatchList(list) {
+      this.allBatches = list;
+      this.loadedCount = 0;
+      $('#batchList').empty();
+      this.loadMoreBatches();
+      $('#batchCount').text(`${list.length} 个`);
     },
 
     renderTastingHistory(tastings) {
@@ -104,6 +133,13 @@
       const self = this;
       let searchTimer;
 
+      this.$container.off('scroll.batch').on('scroll.batch', '#batchList', function() {
+        const container = this;
+        if (container.scrollTop + container.clientHeight >= container.scrollHeight - 100) {
+          self.loadMoreBatches();
+        }
+      });
+
       this.$container.off('input.search').on('input.search', '#batchSearch', function() {
         const kw = $(this).val().trim();
         clearTimeout(searchTimer);
@@ -114,7 +150,7 @@
             b.producingArea.includes(kw) ||
             b.variety.includes(kw)
           ) : all;
-          self.renderBatchList(filtered.slice(0, 50));
+          self.renderBatchList(filtered);
         }, 200);
       });
 

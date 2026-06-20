@@ -62,8 +62,8 @@
       if (!data.date) errors.push('请选择翻垛日期');
       if (!data.operator) errors.push('请选择操作人员');
       if (!errors.length && global.Store) {
-        if (global.Store.checkFlipConflict(data.operator, data.date, data.id)) {
-          errors.push('该操作人员当日已分配其他库房');
+        if (global.Store.checkFlipConflict(data.operator, data.date, data.warehouseId, data.id)) {
+          errors.push('该操作人员当日已分配其他库房，存在冲突');
         }
       }
       return { valid: errors.length === 0, errors };
