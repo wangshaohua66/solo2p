@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>月子中心智能运营管理系统</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="css/custom.css?v=3" rel="stylesheet">
+</head>
+<body>
+    <div id="login-view" class="login-container">
+        <div class="login-card">
+            <div class="login-logo">
+                <i class="bi bi-heart-fill"></i>
+                <h1>月子中心</h1>
+                <p class="login-subtitle">智能运营管理系统</p>
+            </div>
+            <form id="login-form" class="login-form">
+                <div class="form-floating mb-3">
+                    <input type="text" class="form-control" id="login-empId" placeholder="工号" value="M001" required>
+                    <label for="login-empId"><i class="bi bi-person me-1"></i>工号</label>
+                </div>
+                <div class="form-floating mb-3">
+                    <input type="password" class="form-control" id="login-password" placeholder="密码" value="123456" required>
+                    <label for="login-password"><i class="bi bi-lock me-1"></i>密码</label>
+                </div>
+                <div class="form-floating mb-4">
+                    <select class="form-select" id="login-store">
+                    </select>
+                    <label for="login-store"><i class="bi bi-shop me-1"></i>选择门店</label>
+                </div>
+                <div class="form-check mb-4">
+                    <input class="form-check-input" type="checkbox" id="remember-me" checked>
+                    <label class="form-check-label" for="remember-me">记住登录状态</label>
+                </div>
+                <button type="submit" class="btn btn-primary-pink w-100 py-3">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>登 录
+                </button>
+                <div class="login-hint mt-4">
+                    <p><i class="bi bi-info-circle me-1"></i>演示账号：M001（店长） / N001（护士） / D001（营养师）</p>
+                    <p>密码统一为：123456</p>
+                </div>
+            </form>
+        </div>
+        <div class="login-decoration login-decoration-1"></div>
+        <div class="login-decoration login-decoration-2"></div>
+        <div class="login-decoration login-decoration-3"></div>
+    </div>
+
+    <div id="app-shell" class="app-shell d-none">
+        <nav class="app-navbar">
+            <div class="navbar-left">
+                <button class="btn-sidebar-toggle" id="sidebar-toggle">
+                    <i class="bi bi-list"></i>
+                </button>
+                <div class="navbar-brand">
+                    <i class="bi bi-heart-fill brand-icon"></i>
+                    <span class="brand-text">月子中心运营管理</span>
+                </div>
+            </div>
+            <div class="navbar-center">
+                <div class="store-selector-wrapper">
+                    <i class="bi bi-shop"></i>
+                    <select id="navbar-store-selector" class="store-selector"></select>
+                </div>
+            </div>
+            <div class="navbar-right">
+                <div class="navbar-date" id="navbar-date"></div>
+                <div class="dropdown">
+                    <button class="btn user-dropdown" data-bs-toggle="dropdown">
+                        <div class="user-avatar" id="user-avatar">店</div>
+                        <span class="user-name" id="user-name">店长</span>
+                        <i class="bi bi-chevron-down"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><span class="dropdown-item-text"><small class="text-muted">当前角色</small><br><strong id="user-role"></strong></span></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" id="logout-btn"><i class="bi bi-box-arrow-right me-2"></i>退出登录</a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <aside class="app-sidebar" id="app-sidebar">
+            <ul class="sidebar-menu">
+                <li class="sidebar-item" data-route="dashboard">
+                    <a href="#/dashboard"><i class="bi bi-grid-1x2"></i><span>房态看板</span></a>
+                </li>
+                <li class="sidebar-item" data-route="nursing">
+                    <a href="#/nursing"><i class="bi bi-clipboard2-pulse"></i><span>护理排班</span></a>
+                </li>
+                <li class="sidebar-item" data-route="meal">
+                    <a href="#/meal"><i class="bi bi-cup-hot"></i><span>月子餐管理</span></a>
+                </li>
+                <li class="sidebar-item" data-route="visitor">
+                    <a href="#/visitor"><i class="bi bi-people"></i><span>探视登记</span></a>
+                </li>
+                <li class="sidebar-item" data-route="rehab">
+                    <a href="#/rehab"><i class="bi bi-heart-pulse"></i><span>康复预约</span></a>
+                </li>
+                <li class="sidebar-item" data-route="report">
+                    <a href="#/report"><i class="bi bi-bar-chart-line"></i><span>运营报表</span></a>
+                </li>
+            </ul>
+            <div class="sidebar-footer">
+                <div class="sidebar-status">
+                    <span class="status-dot online"></span>
+                    <span>数据已同步</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="app-main" id="app-main">
+            <div class="content-loading" id="content-loading">
+                <div class="spinner-pink"></div>
+                <p>加载中...</p>
+            </div>
+            <div id="app-content"></div>
+        </main>
+
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    </div>
+
+    <div class="toast-container" id="toast-container"></div>
+    <div class="modal fade" id="global-modal" tabindex="-1"></div>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.10/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/daygrid@6.1.10/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/interaction@6.1.10/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/timegrid@6.1.10/index.global.min.js"></script>
+    <script src="js/store.js?v=3"></script>
+    <script src="js/app.js?v=3"></script>
+    <script src="js/modules/booking.js?v=3"></script>
+    <script src="js/modules/nursing.js?v=3"></script>
+    <script src="js/modules/meal.js?v=3"></script>
+    <script src="js/modules/visitor.js?v=3"></script>
+    <script src="js/modules/rehab.js?v=3"></script>
+    <script src="js/modules/report.js?v=3"></script>
+    <script>
+        $(document).ready(function() {
+            App.init();
+        });
+    </script>
+</body>
+</html>
