@@ -95,3 +95,18 @@
 2026-06-22 07:37:02 | INFO     | CTDReview |   EXCEL: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_问题汇总_20260622_073702.xlsx
 2026-06-22 07:37:02 | INFO     | CTDReview |   JSON: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查数据_20260622_073702.json
 2026-06-22 07:37:02 | INFO     | CTDReview |   TEXT: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查摘要_20260622_073702.txt
+2026-06-22 07:45:32 | INFO     | CTDReview | 任务已提交: task_0001 - Test1 (优先级=URGENT, 大小=100.0MB)
+2026-06-22 07:45:32 | INFO     | CTDReview | 任务已提交: task_0002 - Test2 (优先级=NORMAL, 大小=500.0MB)
+2026-06-22 07:45:32 | INFO     | CTDReview | 任务已提交: task_0003 - Test3 (优先级=LOW, 大小=2000.0MB)
+2026-06-22 07:45:33 | WARNING  | CTDReview | PDF库未安装，PDF相关功能将降级为文件存在性检查
+2026-06-22 07:45:34 | WARNING  | CTDReview | PyAutoGUI未安装，GUI截图功能将降级
+2026-06-22 07:45:34 | DEBUG    | CTDReview | 生成默认印章模板: default_seal_0.png
+2026-06-22 07:45:34 | DEBUG    | CTDReview | 生成默认印章模板: default_seal_1.png
+2026-06-22 07:45:34 | DEBUG    | CTDReview | 生成默认印章模板: default_seal_2.png
+2026-06-22 07:45:34 | DEBUG    | CTDReview | 生成默认签字模板: default_sig_0.png
+2026-06-22 07:45:34 | DEBUG    | CTDReview | 生成默认签字模板: default_sig_1.png
+2026-06-22 07:45:34 | DEBUG    | CTDReview | 生成默认签字模板: default_sig_2.png
+2026-06-22 07:45:43 | WARNING  | CTDReview | PDF库未安装，PDF相关功能将降级为文件存在性检查
+2026-06-22 07:45:43 | WARNING  | CTDReview | PyAutoGUI未安装，GUI截图功能将降级
+2026-06-22 07:45:50 | WARNING  | CTDReview | PDF库未安装，PDF相关功能将降级为文件存在性检查
+2026-06-22 07:45:50 | WARNING  | CTDReview | PyAutoGUI未安装，GUI截图功能将降级

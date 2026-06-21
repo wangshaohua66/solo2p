@@ -240,13 +240,17 @@ class DatabaseManager:
             return ids
 
     def get_project_issues(
-        self, project_id: int, severity: Optional[str] = None
+        self, project_id: int, severity: Optional[str] = None,
+        issue_type: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         query = "SELECT * FROM review_issues WHERE project_id = ?"
         params: List[Any] = [project_id]
         if severity:
             query += " AND severity = ?"
             params.append(severity)
+        if issue_type:
+            query += " AND issue_type = ?"
+            params.append(issue_type)
         query += " ORDER BY severity, created_at"
         with self._get_connection() as conn:
             rows = conn.execute(query, params).fetchall()

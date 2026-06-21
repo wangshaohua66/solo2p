@@ -26,6 +26,7 @@ ISSUE_TYPE_MAPPING = {
     "MISSING_SEAL": {"severity": "FATAL", "category": "签字盖章", "description": "缺少公章"},
     "MISSING_SIGNATURE": {"severity": "DEFECT", "category": "签字盖章", "description": "缺少签字"},
     "FUZZY_SEAL": {"severity": "DEFECT", "category": "签字盖章", "description": "印章模糊"},
+    "SIGNATURE_INCONSISTENCY": {"severity": "DEFECT", "category": "签字盖章", "description": "签名一致性异常（代签）"},
     "MISSING_OVERVIEW_FIELD": {"severity": "DEFECT", "category": "综述内容", "description": "缺少关键字段"},
     "NAME_MISMATCH": {"severity": "DEFECT", "category": "交叉校验", "description": "信息不一致"},
 }

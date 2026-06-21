@@ -18,6 +18,7 @@ from ctd_validator import CTDValidator
 from file_checker import FileChecker
 from issue_classifier import IssueClassifier, ClassifiedIssue
 from report_generator import ReportGenerator, MODULE_LABELS, SEVERITY_LABELS, RECOMMENDATION_LABELS
+from task_scheduler import TaskScheduler
 
 
 RESET = "\033[0m"
@@ -446,7 +447,8 @@ def list_projects_action(limit: int, status_filter: Optional[str]) -> None:
               f"{p.get('project_name', '')[:30]:<30}  {created:<20}")
 
 
-def show_project_details(project_id: int, severity_filter: Optional[str]) -> None:
+def show_project_details(project_id: int, severity_filter: Optional[str],
+                         issue_type_filter: Optional[str] = None) -> None:
     db = DatabaseManager()
     project = db.get_project(project_id)
     if not project:
@@ -467,14 +469,20 @@ def show_project_details(project_id: int, severity_filter: Optional[str]) -> Non
     print(f"  开始时间: {project.get('started_at', '—')}")
     print(f"  完成时间: {project.get('completed_at', '—')}")
 
-    issues = db.get_project_issues(project_id, severity=severity_filter)
+    issues = db.get_project_issues(project_id, severity=severity_filter,
+                                    issue_type=issue_type_filter)
     if not issues:
         print("\n无问题记录")
         return
 
     print(f"\n{BOLD}问题清单（共 {len(issues)} 条）{RESET}")
+    filters = []
     if severity_filter:
-        print(f"  筛选: {SEVERITY_LABELS.get(severity_filter, severity_filter)}")
+        filters.append(f"严重程度={SEVERITY_LABELS.get(severity_filter, severity_filter)}")
+    if issue_type_filter:
+        filters.append(f"问题类型={issue_type_filter}")
+    if filters:
+        print(f"  筛选: {' | '.join(filters)}")
     print("-" * 100)
     print(f"{'ID':>4}  {'严重程度':<8}  {'模块':<18}  {'问题类型':<20}  描述")
     print("-" * 100)
@@ -533,6 +541,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
   python main.py list                              # 列出审查记录
   python main.py show 1                            # 查看项目ID=1的详情
   python main.py show 1 -s FATAL                   # 仅查看致命错误
+  python main.py show 1 -t MISSING_SEAL             # 按问题类型筛选
+  python main.py show 1 -s DEFECT -t FUZZY_SEAL    # 组合筛选
+  python main.py batch -i /path/to/projects         # 批量审查多个项目
+  python main.py batch -i /path -d tcm -w 4         # 中药批量审查，4线程
   python main.py common                            # 查看常见问题排行
   python main.py resume 1                          # 恢复中断的审查
   python main.py backup                            # 备份数据库
@@ -561,6 +573,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     show_p.add_argument("-s", "--severity", type=str,
                         choices=list(ISSUE_SEVERITY.keys()),
                         help="按严重程度过滤问题")
+    show_p.add_argument("-t", "--type", type=str, default=None,
+                        help="按问题类型筛选（如 MISSING_SEAL, FUZZY_SEAL 等）")
 
     sub.add_parser("common", help="查看常见问题排行").add_argument(
         "-l", "--limit", type=int, default=20, help="显示条数"
@@ -573,6 +587,17 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
     export_p = sub.add_parser("export", help="导出项目数据")
     export_p.add_argument("project_id", type=int, help="项目ID")
+
+    batch_p = sub.add_parser("batch", help="批量审查多个项目")
+    batch_p.add_argument("-i", "--input", type=str,
+                         help="包含多个项目目录的父目录路径")
+    batch_p.add_argument("-d", "--drug-type", choices=list(DRUG_TYPE_CONFIG.keys()),
+                         default="chemical", help="药品类型")
+    batch_p.add_argument("-p", "--priority", choices=list(TASK_PRIORITY.keys()),
+                         default="NORMAL", help="默认优先级")
+    batch_p.add_argument("-w", "--workers", type=int,
+                         default=PERFORMANCE["max_parallel_tasks"],
+                         help="并行工作线程数（默认 %d）" % PERFORMANCE["max_parallel_tasks"])
 
     sub.add_parser("info", help="显示系统信息")
 
@@ -626,12 +651,50 @@ def main() -> int:
         return 0
 
     if args.command == "show":
-        show_project_details(args.project_id, args.severity)
+        show_project_details(args.project_id, args.severity, args.type)
         return 0
 
     if args.command == "export":
         export_project_action(args.project_id)
         return 0
+
+    if args.command == "batch":
+        if not args.input:
+            print("错误: 批量审查需要指定 -i/--input 父目录路径")
+            return 1
+        input_path = validate_folder_path(args.input)
+        if not input_path:
+            return 1
+
+        sub_dirs = [d for d in input_path.iterdir() if d.is_dir()]
+        if not sub_dirs:
+            print(f"错误: 目录 {input_path} 下没有子目录")
+            return 1
+
+        scheduler = TaskScheduler(max_workers=args.workers)
+        print(f"\n{BOLD}发现 {len(sub_dirs)} 个项目目录，准备批量审查{RESET}")
+
+        for idx, sub_dir in enumerate(sorted(sub_dirs), 1):
+            config = {
+                "folder_path": sub_dir,
+                "project_name": sub_dir.name,
+                "drug_type": args.drug_type,
+                "priority": args.priority,
+                "applicant": "",
+            }
+            total_files, total_size_mb = get_folder_stats(sub_dir)
+            priority = args.priority
+            if total_size_mb > 1500:
+                priority = "LOW"
+            elif total_size_mb < 200:
+                priority = "URGENT"
+            scheduler.submit(config, priority=priority, size_mb=total_size_mb)
+
+        results = scheduler.run_all(run_review)
+        success = results.get("success_count", 0)
+        total = results.get("total_tasks", 0)
+        print(f"\n批量审查完成: {success}/{total} 成功")
+        return 0 if success == total else 1
 
     if args.command == "resume":
         db = DatabaseManager()
