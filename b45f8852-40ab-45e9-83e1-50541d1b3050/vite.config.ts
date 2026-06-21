@@ -8,6 +8,19 @@ export default defineConfig({
   build: {
     sourcemap: 'hidden',
   },
+  server: {
+    proxy: {
+      '/ws': {
+        target: 'ws://localhost:8787',
+        ws: true,
+        changeOrigin: true,
+      },
+      '/health': {
+        target: 'http://localhost:8787',
+        changeOrigin: true,
+      },
+    },
+  },
   plugins: [
     react({
       babel: {

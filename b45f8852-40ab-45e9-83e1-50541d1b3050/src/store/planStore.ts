@@ -16,7 +16,6 @@ import type {
   OnlineUser,
   CollaborationState,
 } from '@/types';
-import { MockWebSocket } from '@/mock/mockWebSocket';
 import { getCurrentUser } from '@/mock/mockUsers';
 import {
   detectConflicts,
@@ -75,7 +74,21 @@ const PLAN_CACHE_KEY = 'plan_store_tasks_v2_202607';
 const PLAN_ARCHIVE_KEY = 'plan_store_archive_v2_202607';
 const MAX_ARCHIVE_ITEMS = 5000;
 const TASK_VERSION_KEY = 'plan_store_task_versions_v1';
-const WS_URL = 'ws://mock-server/collaboration';
+const WS_PATH = '/ws';
+const RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 16000];
+
+const buildWsUrl = (): string => {
+  const currentUser = getCurrentUser();
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = window.location.host;
+  const params = new URLSearchParams();
+  params.set('userId', currentUser.id);
+  params.set('userName', currentUser.name);
+  params.set('userRole', currentUser.role);
+  params.set('colorSeed', currentUser.id);
+  params.set('room', 'power-grid-main');
+  return `${protocol}//${host}${WS_PATH}?${params.toString()}`;
+};
 
 const WINDOW_PERIOD_HOURS: Record<MaintenanceCategory, number | Record<VoltageLevel, number>> = {
   primary_outage: {
@@ -272,8 +285,23 @@ interface OutageScopeResult {
 let debouncedConflictDetection: ((tasks: MaintenanceTask[]) => void) | null =
   null;
 
-let wsInstance: MockWebSocket | null = null;
+let wsInstance: WebSocket | null = null;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let pingTimer: ReturnType<typeof setInterval> | null = null;
+let reconnectAttempts = 0;
+let manualClose = false;
 let taskVersionMap: Map<string, number> = new Map();
+
+const clearTimers = (): void => {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  if (pingTimer) {
+    clearInterval(pingTimer);
+    pingTimer = null;
+  }
+};
 
 const loadTaskVersions = (): void => {
   try {
@@ -445,19 +473,23 @@ export const usePlanStore = create<PlanStore>()(
 
           saveTasksToCache(newTasks);
 
-          if (get().collaboration.connected && wsInstance) {
+          if (get().collaboration.connected && wsInstance && wsInstance.readyState === WebSocket.OPEN) {
             const newVersion = 1;
             setTaskVersion(taskId, newVersion);
-            wsInstance.send({
-              type: 'task:create',
-              senderId: get().collaboration.currentUserId,
-              data: {
-                task: newTask,
+            try {
+              wsInstance.send(JSON.stringify({
+                type: 'task:create',
+                senderId: get().collaboration.currentUserId,
+                data: {
+                  task: newTask,
+                  version: newVersion,
+                },
+                timestamp: Date.now(),
                 version: newVersion,
-              },
-              timestamp: Date.now(),
-              version: newVersion,
-            });
+              }));
+            } catch {
+              // ignore
+            }
           }
         },
 
@@ -560,20 +592,24 @@ export const usePlanStore = create<PlanStore>()(
           saveTasksToCache(newTasks);
           debouncedConflictDetection?.(newTasks);
 
-          if (get().collaboration.connected && wsInstance) {
+          if (get().collaboration.connected && wsInstance && wsInstance.readyState === WebSocket.OPEN) {
             const newVersion = getTaskVersion(id) + 1;
             setTaskVersion(id, newVersion);
-            wsInstance.send({
-              type: 'task:update',
-              senderId: get().collaboration.currentUserId,
-              data: {
-                taskId: id,
-                patch,
+            try {
+              wsInstance.send(JSON.stringify({
+                type: 'task:update',
+                senderId: get().collaboration.currentUserId,
+                data: {
+                  taskId: id,
+                  patch,
+                  version: newVersion,
+                },
+                timestamp: Date.now(),
                 version: newVersion,
-              },
-              timestamp: Date.now(),
-              version: newVersion,
-            });
+              }));
+            } catch {
+              // ignore
+            }
           }
         },
 
@@ -607,19 +643,23 @@ export const usePlanStore = create<PlanStore>()(
 
           saveTasksToCache(newTasks);
 
-          if (get().collaboration.connected && wsInstance) {
+          if (get().collaboration.connected && wsInstance && wsInstance.readyState === WebSocket.OPEN) {
             const newVersion = getTaskVersion(id) + 1;
             setTaskVersion(id, newVersion);
-            wsInstance.send({
-              type: 'task:delete',
-              senderId: get().collaboration.currentUserId,
-              data: {
-                taskId: id,
+            try {
+              wsInstance.send(JSON.stringify({
+                type: 'task:delete',
+                senderId: get().collaboration.currentUserId,
+                data: {
+                  taskId: id,
+                  version: newVersion,
+                },
+                timestamp: Date.now(),
                 version: newVersion,
-              },
-              timestamp: Date.now(),
-              version: newVersion,
-            });
+              }));
+            } catch {
+              // ignore
+            }
           }
         },
 
@@ -777,27 +817,68 @@ export const usePlanStore = create<PlanStore>()(
         },
 
         connectCollaboration: () => {
-          if (wsInstance && wsInstance.isConnected()) {
+          if (
+            wsInstance &&
+            (wsInstance.readyState === WebSocket.OPEN ||
+              wsInstance.readyState === WebSocket.CONNECTING)
+          ) {
             return;
           }
 
           loadTaskVersions();
+          manualClose = false;
+          clearTimers();
 
           try {
-            const ws = new MockWebSocket(WS_URL);
+            const url = buildWsUrl();
+            const ws = new WebSocket(url);
             wsInstance = ws;
 
-            ws.onOpen = () => {
+            ws.onopen = () => {
+              console.log('[collab-plan] Connected to server');
+              reconnectAttempts = 0;
+              const user = getCurrentUser();
               set({
                 collaboration: {
                   ...get().collaboration,
                   connected: true,
-                  currentUserId: ws.getUserId(),
+                  currentUserId: user.id,
                 },
               });
+
+              if (pingTimer) clearInterval(pingTimer);
+              pingTimer = setInterval(() => {
+                if (wsInstance && wsInstance.readyState === WebSocket.OPEN) {
+                  try {
+                    wsInstance.send(
+                      JSON.stringify({
+                        type: 'ping',
+                        senderId: get().collaboration.currentUserId,
+                        data: { ts: Date.now() },
+                        timestamp: Date.now(),
+                      })
+                    );
+                  } catch {
+                    // ignore
+                  }
+                }
+              }, 25000);
             };
 
-            ws.onMessage = (message) => {
+            ws.onmessage = (event) => {
+              let message: {
+                type: string;
+                senderId: string;
+                data?: unknown;
+                timestamp: number;
+              };
+              try {
+                message = JSON.parse(event.data as string);
+              } catch {
+                return;
+              }
+              if (!message || !message.type) return;
+
               const state = get();
               const { collaboration } = state;
 
@@ -809,11 +890,65 @@ export const usePlanStore = create<PlanStore>()(
               });
 
               switch (message.type) {
+                case 'connect': {
+                  const data = message.data as {
+                    user?: OnlineUser;
+                    onlineUsers?: OnlineUser[];
+                  };
+                  if (data.user) {
+                    set({
+                      collaboration: {
+                        ...get().collaboration,
+                        currentUserId: data.user.id,
+                        connected: true,
+                      },
+                    });
+                  }
+                  if (Array.isArray(data.onlineUsers)) {
+                    set({
+                      collaboration: {
+                        ...get().collaboration,
+                        users: data.onlineUsers,
+                      },
+                    });
+                  }
+                  break;
+                }
+
                 case 'presence':
+                  if (Array.isArray(message.data)) {
+                    set({
+                      collaboration: {
+                        ...get().collaboration,
+                        users: message.data as OnlineUser[],
+                      },
+                    });
+                  }
+                  break;
+
+                case 'user:join': {
+                  const newUser = message.data as OnlineUser;
                   set({
                     collaboration: {
                       ...get().collaboration,
-                      users: message.data as OnlineUser[],
+                      users: get()
+                        .collaboration.users.some((u) => u.id === newUser.id)
+                        ? get().collaboration.users
+                        : [...get().collaboration.users, newUser].sort((a, b) =>
+                            a.name.localeCompare(b.name)
+                          ),
+                    },
+                  });
+                  break;
+                }
+
+                case 'disconnect':
+                  set({
+                    collaboration: {
+                      ...get().collaboration,
+                      users: get().collaboration.users.filter(
+                        (u) => u.id !== message.senderId
+                      ),
                     },
                   });
                   break;
@@ -880,10 +1015,15 @@ export const usePlanStore = create<PlanStore>()(
                   }
                   break;
                 }
+
+                case 'cursor':
+                case 'pong':
+                  break;
               }
             };
 
-            ws.onClose = () => {
+            ws.onerror = (event) => {
+              console.error('[collab-plan] WebSocket error', event);
               set({
                 collaboration: {
                   ...get().collaboration,
@@ -892,22 +1032,48 @@ export const usePlanStore = create<PlanStore>()(
               });
             };
 
-            ws.onError = () => {
+            ws.onclose = (event) => {
+              console.log(
+                `[collab-plan] Connection closed: code=${event.code} reason=${event.reason}`
+              );
+              clearTimers();
+              wsInstance = null;
               set({
                 collaboration: {
                   ...get().collaboration,
                   connected: false,
                 },
               });
+
+              if (!manualClose) {
+                const delay =
+                  reconnectAttempts < RECONNECT_DELAYS.length
+                    ? RECONNECT_DELAYS[reconnectAttempts]
+                    : RECONNECT_DELAYS[RECONNECT_DELAYS.length - 1];
+                reconnectAttempts += 1;
+                reconnectTimer = setTimeout(() => {
+                  if (!manualClose) {
+                    get().connectCollaboration();
+                  }
+                }, delay);
+              }
             };
           } catch (error) {
             console.error('Failed to connect collaboration:', error);
+            clearTimers();
+            wsInstance = null;
           }
         },
 
         disconnectCollaboration: () => {
+          manualClose = true;
+          clearTimers();
           if (wsInstance) {
-            wsInstance.close();
+            try {
+              wsInstance.close(1000, 'client disconnect');
+            } catch {
+              // ignore
+            }
             wsInstance = null;
           }
           set({
@@ -920,24 +1086,30 @@ export const usePlanStore = create<PlanStore>()(
         },
 
         broadcastTaskUpdate: (taskId, patch) => {
-          if (!wsInstance || !wsInstance.isConnected()) {
+          if (!wsInstance || wsInstance.readyState !== WebSocket.OPEN) {
             return;
           }
 
           const newVersion = getTaskVersion(taskId) + 1;
           setTaskVersion(taskId, newVersion);
 
-          wsInstance.send({
-            type: 'task:update',
-            senderId: get().collaboration.currentUserId,
-            data: {
-              taskId,
-              patch,
-              version: newVersion,
-            },
-            timestamp: Date.now(),
-            version: newVersion,
-          });
+          try {
+            wsInstance.send(
+              JSON.stringify({
+                type: 'task:update',
+                senderId: get().collaboration.currentUserId,
+                data: {
+                  taskId,
+                  patch,
+                  version: newVersion,
+                },
+                timestamp: Date.now(),
+                version: newVersion,
+              })
+            );
+          } catch {
+            // ignore
+          }
         },
       };
     },
