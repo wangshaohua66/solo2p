@@ -20,6 +20,8 @@ var (
 	bizDate     string
 	appConfig   *config.AppConfig
 	database    *db.Database
+	exportMan   bool
+	manOutput   string
 )
 
 var green = color.New(color.FgGreen, color.Bold).SprintFunc()
@@ -50,6 +52,15 @@ var rootCmd = &cobra.Command{
 Copyright © 2026 区域金融清算中心
 `,
 	Version: "1.0.0",
+	Run: func(cmd *cobra.Command, args []string) {
+		if exportMan {
+			if err := exportManPage(manOutput); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+			}
+			return
+		}
+		cmd.Help()
+	},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		var err error
 		appConfig, err = config.Load(cfgFile)
@@ -85,6 +96,8 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "输出详细日志")
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "预演模式（不写入数据）")
 	rootCmd.PersistentFlags().StringVarP(&bizDate, "date", "d", "", "业务日期 (YYYY-MM-DD, 默认: 今天)")
+	rootCmd.PersistentFlags().BoolVar(&exportMan, "man", false, "输出标准man格式手册页")
+	rootCmd.PersistentFlags().StringVar(&manOutput, "man-output", "output/clear.8", "man手册输出路径")
 
 	rootCmd.AddCommand(parseCmd)
 	rootCmd.AddCommand(reconcileCmd)

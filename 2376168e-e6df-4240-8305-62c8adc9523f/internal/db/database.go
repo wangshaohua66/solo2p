@@ -43,7 +43,12 @@ CREATE TABLE IF NOT EXISTS clear_flow (
 	status TEXT DEFAULT 'PENDING',
 	parse_time DATETIME,
 	remark TEXT,
-	raw_data TEXT
+	raw_data TEXT,
+	abnormal_flag INTEGER DEFAULT 0,
+	abnormal_reason TEXT,
+	audit_trail TEXT,
+	match_status TEXT,
+	match_result_id INTEGER
 );
 
 CREATE INDEX IF NOT EXISTS idx_flow_biz ON clear_flow(biz_no, biz_date);
@@ -671,4 +676,261 @@ func join(items []string, sep string) string {
 		result += sep + items[i]
 	}
 	return result
+}
+
+type AuditRecord struct {
+	ID     int64
+	OpTime string
+	OpType string
+	BizDate string
+	InstID string
+	Detail string
+	Result string
+}
+
+func (d *Database) QueryAuditLogsLimited(date, inst, op string, limit int) ([]AuditRecord, error) {
+	q := `SELECT id, op_time, op_type, biz_date, inst_id, detail, result FROM audit_log WHERE 1=1`
+	args := []interface{}{}
+	if date != "" {
+		q += ` AND biz_date = ?`
+		args = append(args, date)
+	}
+	if inst != "" {
+		q += ` AND inst_id = ?`
+		args = append(args, inst)
+	}
+	if op != "" {
+		q += ` AND op_type = ?`
+		args = append(args, op)
+	}
+	q += ` ORDER BY op_time DESC LIMIT ?`
+	args = append(args, limit)
+	rows, err := d.db.Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var logs []AuditRecord
+	for rows.Next() {
+		var l AuditRecord
+		rows.Scan(&l.ID, &l.OpTime, &l.OpType, &l.BizDate, &l.InstID, &l.Detail, &l.Result)
+		logs = append(logs, l)
+	}
+	return logs, nil
+}
+
+func (d *Database) InsertAuditLogSimple(rec AuditRecord) error {
+	ts := rec.OpTime
+	if ts == "" {
+		ts = time.Now().Format("2006-01-02 15:04:05")
+	}
+	_, err := d.db.Exec(`INSERT INTO audit_log(op_time, op_type, biz_date, inst_id, detail, result, operator)
+		VALUES (?, ?, ?, ?, ?, ?, 'SYSTEM')`,
+		ts, rec.OpType, rec.BizDate, rec.InstID, rec.Detail, rec.Result)
+	return err
+}
+
+func (d *Database) SaveParseProgress4(hash, path string, lastLine, lastOffset int64) error {
+	ts := time.Now().Format("2006-01-02 15:04:05")
+	_, err := d.db.Exec(`INSERT INTO parse_progress(file_hash, file_path, last_line, last_offset, update_time)
+		VALUES (?, ?, ?, ?, ?) ON CONFLICT(file_hash) DO UPDATE SET
+		last_line=excluded.last_line, last_offset=excluded.last_offset, update_time=excluded.update_time, file_path=excluded.file_path`,
+		hash, path, lastLine, lastOffset, ts)
+	return err
+}
+
+func (d *Database) QueryParseProgress(hash string) (int64, int64, bool) {
+	var line, off int64
+	row := d.db.QueryRow(`SELECT last_line, last_offset FROM parse_progress WHERE file_hash = ?`, hash)
+	err := row.Scan(&line, &off)
+	if err != nil {
+		return 0, 0, false
+	}
+	return line, off, true
+}
+
+func (d *Database) BatchInsertMatchResults(results []model.MatchResult) error {
+	_, err := d.InsertMatchResults(results)
+	return err
+}
+
+func (d *Database) BatchInsertUnilateral(items []model.UnilateralFlow) error {
+	_, err := d.InsertUnilateralFlows(items)
+	return err
+}
+
+func (d *Database) BatchInsertPositions(positions []model.NetPosition) error {
+	if len(positions) == 0 {
+		return nil
+	}
+	return d.Tx(func(tx *sql.Tx) error {
+		stmt, err := tx.Prepare(`INSERT OR REPLACE INTO net_position
+			(settle_date, inst_id, currency, total_receive, total_pay, net_amount, match_count, unilateral_count, status, create_time)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+		if err != nil {
+			return err
+		}
+		defer stmt.Close()
+		for _, p := range positions {
+			ct := p.CreateTime
+			if ct.IsZero() {
+				ct = time.Now()
+			}
+			_, err := stmt.Exec(p.SettleDate, p.InstID, p.Currency,
+				p.TotalReceive.String(), p.TotalPay.String(), p.NetAmount.String(),
+				p.MatchCount, p.UnilateralCount, string(p.Status), ct)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (d *Database) BatchInsertInstructions(instructions []model.SettleInstruction) error {
+	if len(instructions) == 0 {
+		return nil
+	}
+	return d.Tx(func(tx *sql.Tx) error {
+		stmt, err := tx.Prepare(`INSERT OR IGNORE INTO settle_instruction
+			(instruction_no, settle_date, sender_inst_id, receiver_inst_id, amount, currency, format, content, status, create_time)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+		if err != nil {
+			return err
+		}
+		defer stmt.Close()
+		for _, ins := range instructions {
+			ct := ins.CreateTime
+			if ct.IsZero() {
+				ct = time.Now()
+			}
+			_, err := stmt.Exec(ins.InstructionNo, ins.SettleDate, ins.SenderInstID,
+				ins.ReceiverInstID, ins.Amount.String(), ins.Currency, ins.Format,
+				ins.Content, string(ins.Status), ct)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (d *Database) QueryMatchedByDate(bizDate string) ([]model.MatchResult, error) {
+	return d.QueryMatchResults(bizDate)
+}
+
+func (d *Database) QueryPositionsByDate(bizDate string) ([]model.NetPosition, error) {
+	rows, err := d.db.Query(`SELECT settle_date, inst_id, currency, total_receive, total_pay, net_amount, match_count, unilateral_count, status, create_time
+		FROM net_position WHERE settle_date = ?`, bizDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var list []model.NetPosition
+	for rows.Next() {
+		var p model.NetPosition
+		var tr, tp, na string
+		var st string
+		rows.Scan(&p.SettleDate, &p.InstID, &p.Currency, &tr, &tp, &na,
+			&p.MatchCount, &p.UnilateralCount, &st, &p.CreateTime)
+		p.TotalReceive, _ = decimal.NewFromString(tr)
+		p.TotalPay, _ = decimal.NewFromString(tp)
+		p.NetAmount, _ = decimal.NewFromString(na)
+		p.Status = model.ClearStatus(st)
+		list = append(list, p)
+	}
+	return list, nil
+}
+
+func (d *Database) QueryInstructionsByDate(bizDate string) ([]model.SettleInstruction, error) {
+	rows, err := d.db.Query(`SELECT instruction_no, settle_date, sender_inst_id, receiver_inst_id,
+		amount, currency, format, content, status, create_time
+		FROM settle_instruction WHERE settle_date = ?`, bizDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var list []model.SettleInstruction
+	for rows.Next() {
+		var s model.SettleInstruction
+		var amt, st string
+		rows.Scan(&s.InstructionNo, &s.SettleDate, &s.SenderInstID, &s.ReceiverInstID,
+			&amt, &s.Currency, &s.Format, &s.Content, &st, &s.CreateTime)
+		s.Amount, _ = decimal.NewFromString(amt)
+		s.Status = model.ClearStatus(st)
+		list = append(list, s)
+	}
+	return list, nil
+}
+
+func (d *Database) MarkAbnormalFlow(flowID int64, reason string, trail string) error {
+	_, err := d.db.Exec(`UPDATE clear_flow SET abnormal_flag = 1, abnormal_reason = ?, audit_trail = COALESCE(audit_trail, '') || ? WHERE id = ?`,
+		reason, "["+time.Now().Format("2006-01-02 15:04:05")+"] "+trail+"\n", flowID)
+	return err
+}
+
+func (d *Database) UpdateFlowStatusWithAudit(matched []model.MatchResult, unilateral []model.UnilateralFlow, mismatched []model.ClearFlow) error {
+	return d.Tx(func(tx *sql.Tx) error {
+		now := time.Now().Format("2006-01-02 15:04:05")
+
+		stmt, err := tx.Prepare(`UPDATE clear_flow SET status = ?, match_status = 'MATCHED', match_result_id = ?, remark = ?, audit_trail = COALESCE(audit_trail, '') || ? WHERE id = ?`)
+		if err != nil {
+			return err
+		}
+		defer stmt.Close()
+		for _, mr := range matched {
+			trail := "[" + now + "] 双向匹配成功 score=" + itoa(mr.MatchScore) + " pair=" + pairKey(mr.FlowID1, mr.FlowID2) + "\n"
+			remark := "已匹配"
+			if mr.ToleranceUsed {
+				remark += " 容差调平:" + mr.AmountDiff.String()
+			}
+			stmt.Exec(string(model.StatusMatched), mr.ID, remark, trail, mr.FlowID1)
+			stmt.Exec(string(model.StatusMatched), mr.ID, remark, trail, mr.FlowID2)
+		}
+
+		uniStmt, err := tx.Prepare(`UPDATE clear_flow SET status = ?, abnormal_flag = 1, abnormal_reason = ?, audit_trail = COALESCE(audit_trail, '') || ?, match_status = 'UNILATERAL' WHERE id = ?`)
+		if err != nil {
+			return err
+		}
+		defer uniStmt.Close()
+		for _, uf := range unilateral {
+			reason := "单向挂账: " + uf.PendingSide + "方缺失"
+			trail := "[" + now + "] 单向补录挂账 reason=" + reason + "\n"
+			uniStmt.Exec(string(model.StatusUnilateral), reason, trail, uf.FlowID)
+
+			_, err := tx.Exec(`INSERT INTO audit_log(op_time, op_type, biz_date, inst_id, detail, result, operator)
+				VALUES (?, 'ABNORMAL_MARK', ?, ?, ?, 'warn', 'SYSTEM')`,
+				now, uf.BizDate, uf.InstID, "流水#"+pairKey(uf.FlowID, 0)+" "+reason)
+			if err != nil {
+				return err
+			}
+		}
+
+		misStmt, err := tx.Prepare(`UPDATE clear_flow SET status = ?, abnormal_flag = 1, abnormal_reason = ?, audit_trail = COALESCE(audit_trail, '') || ?, match_status = 'MISMATCH' WHERE id = ?`)
+		if err != nil {
+			return err
+		}
+		defer misStmt.Close()
+		for _, mf := range mismatched {
+			reason := "不匹配: 业务类型=" + string(mf.BizType) + " 金额=" + mf.Amount.String()
+			trail := "[" + now + "] 对账不匹配 reason=" + reason + "\n"
+			misStmt.Exec(string(model.StatusMismatch), reason, trail, mf.ID)
+
+			_, err := tx.Exec(`INSERT INTO audit_log(op_time, op_type, biz_date, inst_id, detail, result, operator)
+				VALUES (?, 'ABNORMAL_MARK', ?, ?, ?, 'error', 'SYSTEM')`,
+				now, mf.BizDate, mf.SrcInstID, "流水#"+pairKey(mf.ID, 0)+" "+reason)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func pairKey(a, b int64) string {
+	return fmt.Sprintf("%d-%d", a, b)
+}
+
+func itoa(n int) string {
+	return fmt.Sprintf("%d", n)
 }

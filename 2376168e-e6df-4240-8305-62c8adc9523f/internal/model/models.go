@@ -144,6 +144,7 @@ type FileTemplate struct {
 	Separator   string        `yaml:"separator"`
 	HasHeader   bool          `yaml:"has_header"`
 	Fields      []FieldDef    `yaml:"fields"`
+	RecordXPath string        `yaml:"record_xpath,omitempty"`
 	XMLConfig   XMLTemplate   `yaml:"xml,omitempty"`
 }
 
@@ -169,6 +170,8 @@ type ParseResult struct {
 	FailCount    int64
 	Flows        []ClearFlow
 	Errors       []ParseError
+	LastLine     int64
+	LastOffset   int64
 }
 
 type ParseError struct {

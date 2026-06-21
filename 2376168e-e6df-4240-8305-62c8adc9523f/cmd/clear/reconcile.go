@@ -96,23 +96,10 @@ var reconcileCmd = &cobra.Command{
 				return fmt.Errorf("写入挂账记录失败: %w", err)
 			}
 
-			matchedIDs := make([]int64, 0, result.MatchedPairs*2)
-			for _, mr := range result.MatchedResults {
-				matchedIDs = append(matchedIDs, mr.FlowID1, mr.FlowID2)
+			err = database.UpdateFlowStatusWithAudit(result.MatchedResults, result.UnilateralFlows, result.MismatchedFlows)
+			if err != nil {
+				return fmt.Errorf("更新流水状态失败: %w", err)
 			}
-			_ = database.UpdateFlowStatus(matchedIDs, model.StatusMatched, "")
-
-			uniIDs := make([]int64, 0, result.UnilateralCount)
-			for _, uf := range result.UnilateralFlows {
-				uniIDs = append(uniIDs, uf.FlowID)
-			}
-			_ = database.UpdateFlowStatus(uniIDs, model.StatusUnilateral, "")
-
-			misIDs := make([]int64, 0, len(result.MismatchedFlows))
-			for _, mf := range result.MismatchedFlows {
-				misIDs = append(misIDs, mf.ID)
-			}
-			_ = database.UpdateFlowStatus(misIDs, model.StatusMismatch, "")
 		}
 
 		elapsed := result.ProcessingTime

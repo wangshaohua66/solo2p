@@ -1,0 +1,249 @@
+.TH CLEAR 8 "2026-06-22" "Clear System 1.0" "区域金融清算系统命令手册"
+.SH 名称
+clear \- 区域金融清算中心日终清算工具
+.SH 概要
+.B clear
+[\fICOMMAND\fR] [\fIOPTIONS\fR]...
+.SH 描述
+clear 是区域金融清算中心的日终清算命令行工具，支持多格式清算文件解析、智能双向对账、
+多边净额轧差、清算报告生成、全流程审计追踪等核心功能。支持45家地方金融机构（小额贷款、
+融资担保、典当、融资租赁）日终清算处理，日均处理交易流水约200万笔。
+.PP
+标准日终清算流程：
+.RS 8
+.B parse → reconcile → settle → report
+.RE
+.SH 全局选项
+.TP
+.BR \-c ", " \-\-config =\fIFILE\fR
+配置文件路径 (默认 configs/config.yaml)
+.TP
+.BR \-d ", " \-\-date =\fIDATE\fR
+业务日期 YYYY-MM-DD (默认今天)
+.TP
+.BR \-v ", " \-\-verbose
+输出详细处理日志
+.TP
+.B \-\-dry\-run
+预演模式，不执行实际数据库写入
+.TP
+.B \-\-man
+输出man格式手册页
+.TP
+.B \-\-version
+显示版本信息
+.SH 命令
+.SS PARSE
+解析清算文件（CSV/定宽文本/XML）并入库
+
+.TP
+.BR \-i ", " \-\-input =\fIFILE\fR (必填)
+输入清算文件路径
+.TP
+.BR \-f ", " \-\-format =\fIFMT\fR
+文件格式: csv | fixed | xml (自动检测扩展名)
+.TP
+.BR \-t ", " \-\-template =\fIFILE\fR (必填)
+解析模板YAML文件
+.TP
+.B \-\-resume
+启用断点续传，从中断位置继续处理
+.TP
+.BR \-\-batch =\fIN\fR
+批量写入大小 (默认5000)
+.TP
+.B \-\-src =\fIINSTID\fR
+默认源机构ID (当文件中缺失时填充)
+.SS RECONCILE
+双向对账匹配，支持容差与单向补录
+
+.TP
+.BR \-\-workers =\fIN\fR
+并行线程数 (默认=CPU核数上限8)
+.TP
+.BR \-\-inst =\fIINSTID\fR
+仅对指定机构对账
+.TP
+.B \-\-notify
+对账完成后发送邮件通知参与机构
+.TP
+.B \-\-output =\fIDIR\fR
+对账结果导出目录
+.SS SETTLE
+多边净额轧差并生成CFCA支付指令
+
+.TP
+.BR \-\-cycle =\fICY\fR
+清算周期: daily | weekly | monthly (默认daily)
+.TP
+.BR \-\-currency =\fILIST\fR
+币种过滤，逗号分隔多币种 (默认CNY)
+.TP
+.B \-\-export
+导出清算指令XML至output/instructions/
+.TP
+.B \-\-output =\fIDIR\fR
+指令文件输出目录
+.SS REPORT
+生成Excel格式清算报告
+
+.TP
+.BR \-\-inst =\fIINSTID\fR
+仅导出指定机构数据
+.TP
+.BR \-\-biz =\fIBIZ\fR
+按业务类型筛选: TRANSFER | GUARANTEE | PAWN | LEASE
+.TP
+.BR \-o ", " \-\-output =\fIDIR\fR
+报告输出目录 (默认output/reports/)
+.SS AUDIT
+查询全流程审计日志
+
+.TP
+.BR \-d ", " \-\-date =\fIDATE\fR
+按业务日期筛选
+.TP
+.B \-\-inst =\fIINSTID\fR
+按机构ID筛选
+.TP
+.B \-\-op =\fIOP\fR
+按操作类型筛选: parse | reconcile | settle | report
+.TP
+.B \-\-limit =\fIN\fR
+返回记录数上限 (默认200)
+.TP
+.BR \-f ", " \-\-format =\fIFMT\fR
+输出格式: table | json (默认table)
+.SS SERVE
+启动HTTP API服务器（端口8080）
+
+.TP
+.B \-\-port =\fIN\fR
+监听端口号 (默认8080)
+.TP
+.B \-\-host =\fIHOST\fR
+绑定地址 (默认0.0.0.0)
+
+.SH REST API 接口
+启动
+.B clear serve
+后在端口8080提供如下API：
+.TP
+.B POST /api/v1/tasks/parse
+提交清算文件解析任务
+.TP
+.B POST /api/v1/tasks/reconcile
+提交对账任务
+.TP
+.B POST /api/v1/tasks/settle
+提交轧差清算任务
+.TP
+.B POST /api/v1/tasks/report
+提交报告生成任务
+.TP
+.B GET  /api/v1/tasks/:id
+查询异步任务状态
+.TP
+.B GET  /api/v1/tasks
+任务列表（支持biz_date/status/step筛选）
+.TP
+.B GET  /api/v1/templates
+模板文件列表
+.TP
+.B GET  /api/v1/templates/:name
+获取指定模板定义
+.TP
+.B POST /api/v1/templates/:name
+上传/创建解析模板
+.TP
+.B GET  /api/v1/institutions
+机构列表
+.TP
+.B GET  /api/v1/rules/:instID
+查询对账规则配置
+.TP
+.B GET  /api/v1/flows
+查询清算流水（支持日期/机构/状态筛选）
+.TP
+.B GET  /api/v1/statistics/:bizDate
+业务日期统计数据
+.SH 性能指标
+.TP
+.B 解析
+单机构5万笔清算文件解析≤30秒
+.TP
+.B 对账
+全量200万笔双向匹配≤15分钟
+.TP
+.B 轧差
+净额计算响应时间≤10秒
+.TP
+.B 内存
+全流程内存占用≤2GB
+.TP
+.B 断点
+中断恢复时间≤1分钟
+.SH 配置文件
+默认路径
+.B configs/config.yaml
+，主要配置项：
+.RS 8
+.I institutions
+（45家机构基本信息）
+.br
+.I match_rules
+（差异化对账规则，按机构×业务类型）
+.br
+.I settlement
+（清算周期、币种、支付指令格式）
+.br
+.I notification
+（SMTP邮件服务器、短信网关配置）
+.br
+.I api
+（HTTP服务端口、CORS、认证配置）
+.RE
+.SH 示例
+.PP
+# 完整日终清算流程
+.br
+$ clear parse -i inst001.csv -t templates/csv_tpl.yaml --src INST001
+.br
+$ clear parse -i inst002.csv -t templates/csv_tpl.yaml
+.br
+$ clear reconcile --workers 8 --notify
+.br
+$ clear settle --cycle daily --export
+.br
+$ clear report --biz TRANSFER
+.br
+.PP
+# 查询审计日志
+.br
+$ clear audit -d 2026-06-22 --op reconcile -f json
+.br
+.PP
+# 启动API服务
+.br
+$ clear serve --port 8080
+.SH 支持的清算业务类型
+.TP
+.B TRANSFER (01)
+跨机构资金转账
+.TP
+.B GUARANTEE (02)
+担保代偿
+.TP
+.B PAWN (03)
+典当续当/赎当
+.TP
+.B LEASE (04)
+融资租赁租金扣收
+.SH 参见
+.BR cobra (1),
+.BR sqlite3 (1),
+.BR go-sharding (1)
+.SH 作者
+Trae AI 金融清算系统开发团队
+.SH 报告问题
+请通过运维系统提交问题工单

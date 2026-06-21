@@ -13,18 +13,6 @@ import (
 	"clear-system/internal/model"
 )
 
-type RuleEngine struct {
-	cfg *config.AppConfig
-}
-
-func NewRuleEngine(cfg *config.AppConfig) *RuleEngine {
-	return &RuleEngine{cfg: cfg}
-}
-
-func (e *RuleEngine) GetRule(instID string, bizType model.BizType) config.MatchRule {
-	return e.cfg.GetMatchRule(instID, string(bizType))
-}
-
 type Matcher struct {
 	engine *RuleEngine
 	mu     sync.RWMutex

@@ -79,11 +79,11 @@ var parseCmd = &cobra.Command{
 				lastLine = ll
 				lastOffset = lo
 				fmt.Printf("%s 从上次中断处继续: 行=%d, 偏移=%d\n", yellow("[RESUME]"), lastLine, lastOffset)
-				opts = append(opts, parser.WithResume(fileHash, lastLine, lastOffset))
+				opts = append(opts, parser.WithResume(database, inputFile))
 			}
 		}
 
-		opts = append(opts, parser.WithBatch(batchSize, func(flows []model.ClearFlow, start int64) error {
+		opts = append(opts, parser.WithBatchSize(batchSize), parser.WithBatchCallback(func(flows []model.ClearFlow, start int64) error {
 			if srcInstID != "" {
 				for i := range flows {
 					if flows[i].SrcInstID == "" {
@@ -100,11 +100,14 @@ var parseCmd = &cobra.Command{
 			return nil
 		}))
 
-		opts = append(opts, parser.WithProgress(func(line, success, fail int64) {
+		opts = append(opts, parser.WithProgressCallback(func(line, success, fail int64) {
 			if bar != nil {
 				bar.Set64(line)
 			}
 		}))
+		if srcInstID != "" {
+			opts = append(opts, parser.WithDefaultSourceInst(srcInstID))
+		}
 
 		bar = progressbar.NewOptions64(-1,
 			progressbar.OptionSetDescription("解析中..."),

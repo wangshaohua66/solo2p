@@ -1,73 +1,50 @@
-name: XML清算文件模板
-description: XML格式清算文件模板（典当行、融资租赁公司）
 format: xml
 encoding: UTF-8
-
-xml:
-  record_path: /ClearData/Records/Record
-  encoding: UTF-8
-
+has_header: false
+record_xpath: /ClearingData/RecordList/Record
 fields:
   - name: biz_no
-    source: BizNo
+    source: /BizNo
     type: string
-    required: true
-
   - name: biz_type
-    source: BizType
+    source: /BizType
     type: string
-    required: true
-
+    default: TRANSFER
   - name: biz_date
-    source: BizDate
-    type: string
-    required: true
-
+    source: /BizDate
+    type: date
+    format: 2006-01-02
   - name: src_inst_id
-    source: SrcInstID
+    source: /SourceInst
     type: string
-    required: true
-
   - name: dst_inst_id
-    source: DstInstID
+    source: /DestInst
     type: string
-    required: true
-
   - name: amount
-    source: Amount
+    source: /Amount
     type: decimal
-    required: true
-
   - name: currency
-    source: Currency
+    source: /Currency
     type: string
     default: CNY
-
   - name: direction
-    source: Direction
+    source: /Direction
     type: string
-    required: true
-
   - name: payer_account
-    source: Payer.Account
+    source: /Payer/Account
     type: string
-
   - name: payer_name
-    source: Payer.Name
+    source: /Payer/Name
     type: string
-
   - name: payee_account
-    source: Payee.Account
+    source: /Payee/Account
     type: string
-
   - name: payee_name
-    source: Payee.Name
+    source: /Payee/Name
     type: string
-
   - name: summary
-    source: Summary
+    source: /Summary
     type: string
-
   - name: ref_no
-    source: RefNo
+    source: /RefNo
     type: string
