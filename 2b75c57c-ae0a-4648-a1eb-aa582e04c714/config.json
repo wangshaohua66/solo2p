@@ -1,0 +1,201 @@
+{
+  "sites": [
+    {
+      "name": "省大学就业网",
+      "base_url": "https://job.university1.edu.cn",
+      "login_url": "https://job.university1.edu.cn/login",
+      "list_url": "https://job.university1.edu.cn/jobfair/list",
+      "username": "",
+      "password": "",
+      "need_captcha": true,
+      "use_selenium": true,
+      "page_size": 20,
+      "request_interval": 1.5
+    },
+    {
+      "name": "理工大学就业网",
+      "base_url": "https://job.university2.edu.cn",
+      "login_url": "https://job.university2.edu.cn/login",
+      "list_url": "https://job.university2.edu.cn/jobfair/list",
+      "username": "",
+      "password": "",
+      "need_captcha": true,
+      "use_selenium": true,
+      "page_size": 20,
+      "request_interval": 1.5
+    },
+    {
+      "name": "师范大学就业网",
+      "base_url": "https://job.university3.edu.cn",
+      "login_url": "https://job.university3.edu.cn/login",
+      "list_url": "https://job.university3.edu.cn/jobfair/list",
+      "username": "",
+      "password": "",
+      "need_captcha": true,
+      "use_selenium": true,
+      "page_size": 20,
+      "request_interval": 1.5
+    },
+    {
+      "name": "农业大学就业网",
+      "base_url": "https://job.university4.edu.cn",
+      "login_url": "https://job.university4.edu.cn/login",
+      "list_url": "https://job.university4.edu.cn/jobfair/list",
+      "username": "",
+      "password": "",
+      "need_captcha": true,
+      "use_selenium": true,
+      "page_size": 20,
+      "request_interval": 1.5
+    },
+    {
+      "name": "医科大学就业网",
+      "base_url": "https://job.university5.edu.cn",
+      "login_url": "https://job.university5.edu.cn/login",
+      "list_url": "https://job.university5.edu.cn/jobfair/list",
+      "username": "",
+      "password": "",
+      "need_captcha": true,
+      "use_selenium": true,
+      "page_size": 20,
+      "request_interval": 1.5
+    },
+    {
+      "name": "财经大学就业网",
+      "base_url": "https://job.university6.edu.cn",
+      "login_url": "https://job.university6.edu.cn/login",
+      "list_url": "https://job.university6.edu.cn/jobfair/list",
+      "username": "",
+      "password": "",
+      "need_captcha": true,
+      "use_selenium": true,
+      "page_size": 20,
+      "request_interval": 1.5
+    },
+    {
+      "name": "科技大学就业网",
+      "base_url": "https://job.university7.edu.cn",
+      "login_url": "https://job.university7.edu.cn/login",
+      "list_url": "https://job.university7.edu.cn/jobfair/list",
+      "username": "",
+      "password": "",
+      "need_captcha": true,
+      "use_selenium": true,
+      "page_size": 20,
+      "request_interval": 1.5
+    },
+    {
+      "name": "交通大学就业网",
+      "base_url": "https://job.university8.edu.cn",
+      "login_url": "https://job.university8.edu.cn/login",
+      "list_url": "https://job.university8.edu.cn/jobfair/list",
+      "username": "",
+      "password": "",
+      "need_captcha": true,
+      "use_selenium": true,
+      "page_size": 20,
+      "request_interval": 1.5
+    },
+    {
+      "name": "工业大学就业网",
+      "base_url": "https://job.university9.edu.cn",
+      "login_url": "https://job.university9.edu.cn/login",
+      "list_url": "https://job.university9.edu.cn/jobfair/list",
+      "username": "",
+      "password": "",
+      "need_captcha": true,
+      "use_selenium": true,
+      "page_size": 20,
+      "request_interval": 1.5
+    },
+    {
+      "name": "民族大学就业网",
+      "base_url": "https://job.university10.edu.cn",
+      "login_url": "https://job.university10.edu.cn/login",
+      "list_url": "https://job.university10.edu.cn/jobfair/list",
+      "username": "",
+      "password": "",
+      "need_captcha": true,
+      "use_selenium": true,
+      "page_size": 20,
+      "request_interval": 1.5
+    },
+    {
+      "name": "海洋大学就业网",
+      "base_url": "https://job.university11.edu.cn",
+      "login_url": "https://job.university11.edu.cn/login",
+      "list_url": "https://job.university11.edu.cn/jobfair/list",
+      "username": "",
+      "password": "",
+      "need_captcha": true,
+      "use_selenium": true,
+      "page_size": 20,
+      "request_interval": 1.5
+    },
+    {
+      "name": "艺术学院就业网",
+      "base_url": "https://job.university12.edu.cn",
+      "login_url": "https://job.university12.edu.cn/login",
+      "list_url": "https://job.university12.edu.cn/jobfair/list",
+      "username": "",
+      "password": "",
+      "need_captcha": true,
+      "use_selenium": true,
+      "page_size": 20,
+      "request_interval": 1.5
+    },
+    {
+      "name": "省级人才网",
+      "base_url": "https://www.provincial-talent.gov.cn",
+      "login_url": "https://www.provincial-talent.gov.cn/login",
+      "list_url": "https://www.provincial-talent.gov.cn/jobfair/list",
+      "username": "",
+      "password": "",
+      "need_captcha": false,
+      "use_selenium": true,
+      "page_size": 30,
+      "request_interval": 1.0
+    }
+  ],
+  "retry": {
+    "max_retries": 3,
+    "backoff_factor": 2.0,
+    "timeout": 30
+  },
+  "database": {
+    "db_path": "/Users/paul/WorkSpace/TestSoloCoder/2b75c57c-ae0a-4648-a1eb-aa582e04c714/data/recruitment.db"
+  },
+  "email": {
+    "smtp_host": "smtp.example.com",
+    "smtp_port": 465,
+    "use_ssl": true,
+    "username": "alert@example.com",
+    "password": "your_password",
+    "from_addr": "alert@example.com",
+    "to_addrs": [
+      "admin@example.com"
+    ]
+  },
+  "wechat": {
+    "app_id": "your_app_id",
+    "app_secret": "your_app_secret",
+    "template_id": "your_template_id",
+    "user_openids": [
+      "openid_1",
+      "openid_2"
+    ]
+  },
+  "scheduler": {
+    "crawl_interval_minutes": 60,
+    "track_interval_minutes": 30,
+    "timezone": "Asia/Shanghai"
+  },
+  "crawler": {
+    "headless": true,
+    "window_size": "1920,1080",
+    "page_load_timeout": 30,
+    "implicit_wait": 10,
+    "max_concurrent_sites": 3,
+    "submit_rate_per_minute": 20
+  }
+}
