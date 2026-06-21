@@ -123,4 +123,20 @@ export const RELATION_TYPE_COLORS: Record<RelationType, string> = {
 
 export const HERITAGE_BATCHES = [1, 2, 3, 4, 5]
 
+export const CATEGORY_BATCH_MAP: Record<HeritageCategory, number[]> = {
+  traditional_skill: [1, 2, 3, 4, 5],
+  traditional_music: [1, 2, 3, 4],
+  traditional_dance: [1, 2, 3],
+  traditional_drama: [1, 2, 3, 4],
+  folk_custom: [1, 2, 3, 4, 5]
+}
+
+export const BATCH_CATEGORY_MAP: Record<number, HeritageCategory[]> = {
+  1: ['traditional_skill', 'traditional_music', 'traditional_dance', 'traditional_drama', 'folk_custom'],
+  2: ['traditional_skill', 'traditional_music', 'traditional_dance', 'traditional_drama', 'folk_custom'],
+  3: ['traditional_skill', 'traditional_music', 'traditional_dance', 'traditional_drama', 'folk_custom'],
+  4: ['traditional_skill', 'traditional_music', 'traditional_drama', 'folk_custom'],
+  5: ['traditional_skill', 'folk_custom']
+}
+
 export const REGIONS = ['北京', '上海', '广东', '江苏', '浙江', '四川', '陕西', '山东', '河南', '湖南', '湖北', '安徽', '福建', '江西', '山西', '河北', '辽宁', '吉林', '黑龙江', '云南', '贵州', '广西', '西藏', '内蒙古', '新疆', '甘肃', '青海', '宁夏', '海南', '天津', '重庆']

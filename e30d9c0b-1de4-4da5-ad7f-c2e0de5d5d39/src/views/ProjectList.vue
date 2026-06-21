@@ -33,10 +33,10 @@
             placeholder="全部类别"
             clearable
             style="width: 140px"
-            @change="applyFilters"
+            @change="handleFilterCategoryChange"
           >
             <el-option
-              v-for="(label, key) in HERITAGE_CATEGORY_LABELS"
+              v-for="(label, key) in filterCategoryOptions"
               :key="key"
               :label="label"
               :value="key"
@@ -49,10 +49,10 @@
             placeholder="全部批次"
             clearable
             style="width: 120px"
-            @change="applyFilters"
+            @change="handleFilterBatchChange"
           >
             <el-option
-              v-for="batch in HERITAGE_BATCHES"
+              v-for="batch in filterBatchOptions"
               :key="batch"
               :label="`第${batch}批`"
               :value="batch"
@@ -192,9 +192,9 @@
           </el-col>
           <el-col :span="8">
             <el-form-item label="类别" prop="category">
-              <el-select v-model="formData.category" placeholder="请选择类别" style="width: 100%">
+              <el-select v-model="formData.category" placeholder="请选择类别" style="width: 100%" @change="handleFormCategoryChange">
                 <el-option
-                  v-for="(label, key) in HERITAGE_CATEGORY_LABELS"
+                  v-for="(label, key) in formCategoryOptions"
                   :key="key"
                   :label="label"
                   :value="key"
@@ -206,9 +206,9 @@
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="批次" prop="batch">
-              <el-select v-model="formData.batch" placeholder="请选择批次" style="width: 100%">
+              <el-select v-model="formData.batch" placeholder="请选择批次" style="width: 100%" @change="handleFormBatchChange">
                 <el-option
-                  v-for="batch in HERITAGE_BATCHES"
+                  v-for="batch in formBatchOptions"
                   :key="batch"
                   :label="`第${batch}批`"
                   :value="batch"
@@ -385,7 +385,9 @@ import {
   HERITAGE_BATCHES,
   REGIONS,
   RELATION_TYPE_LABELS,
-  RELATION_TYPE_COLORS
+  RELATION_TYPE_COLORS,
+  CATEGORY_BATCH_MAP,
+  BATCH_CATEGORY_MAP
 } from '@/types'
 import type { HeritageProject, Inheritor, HeritageCategory, ProjectRelation, RelationType } from '@/types'
 
@@ -437,6 +439,74 @@ const otherProjects = computed(() => {
 const canAddRelation = computed(() => {
   return newRelation.targetId && newRelation.type
 })
+
+const filterBatchOptions = computed(() => {
+  if (!filters.category) return HERITAGE_BATCHES
+  return CATEGORY_BATCH_MAP[filters.category as HeritageCategory] || HERITAGE_BATCHES
+})
+
+const filterCategoryOptions = computed(() => {
+  if (!filters.batch) return Object.keys(HERITAGE_CATEGORY_LABELS)
+  const categories = BATCH_CATEGORY_MAP[filters.batch as number] || []
+  const result: Record<string, string> = {}
+  categories.forEach(cat => {
+    result[cat] = HERITAGE_CATEGORY_LABELS[cat]
+  })
+  return result
+})
+
+const formBatchOptions = computed(() => {
+  if (!formData.category) return HERITAGE_BATCHES
+  return CATEGORY_BATCH_MAP[formData.category as HeritageCategory] || HERITAGE_BATCHES
+})
+
+const formCategoryOptions = computed(() => {
+  if (!formData.batch) return HERITAGE_CATEGORY_LABELS
+  const categories = BATCH_CATEGORY_MAP[formData.batch as number] || []
+  const result: Record<string, string> = {}
+  categories.forEach(cat => {
+    result[cat] = HERITAGE_CATEGORY_LABELS[cat]
+  })
+  return result
+})
+
+const handleFilterCategoryChange = (val: string) => {
+  if (val && filters.batch) {
+    const validBatches = CATEGORY_BATCH_MAP[val as HeritageCategory] || []
+    if (!validBatches.includes(filters.batch as number)) {
+      filters.batch = ''
+    }
+  }
+  applyFilters()
+}
+
+const handleFilterBatchChange = (val: number | '') => {
+  if (val && filters.category) {
+    const validCategories = BATCH_CATEGORY_MAP[val as number] || []
+    if (!validCategories.includes(filters.category as HeritageCategory)) {
+      filters.category = ''
+    }
+  }
+  applyFilters()
+}
+
+const handleFormCategoryChange = (val: string) => {
+  if (val && formData.batch) {
+    const validBatches = CATEGORY_BATCH_MAP[val as HeritageCategory] || []
+    if (!validBatches.includes(formData.batch as number)) {
+      formData.batch = ''
+    }
+  }
+}
+
+const handleFormBatchChange = (val: number | '') => {
+  if (val && formData.category) {
+    const validCategories = BATCH_CATEGORY_MAP[val as number] || []
+    if (!validCategories.includes(formData.category as HeritageCategory)) {
+      formData.category = ''
+    }
+  }
+}
 
 const categoryColors: Record<string, string> = {
   traditional_skill: '#409EFF',

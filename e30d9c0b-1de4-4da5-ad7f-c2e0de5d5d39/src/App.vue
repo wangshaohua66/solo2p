@@ -38,8 +38,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useProjectStore } from '@/stores/project'
 import {
   List,
   Edit,
@@ -51,14 +52,22 @@ import {
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
+const projectStore = useProjectStore()
 const sidebarCollapsed = ref(false)
 
-const menuItems = [
+const firstProjectId = computed(() => {
+  if (projectStore.projects.length > 0) {
+    return projectStore.projects[0].id
+  }
+  return '0'
+})
+
+const menuItems = computed(() => [
   { path: '/projects', label: '项目列表', icon: List },
-  { path: '/editor/0', label: '步骤编辑', icon: Edit },
+  { path: `/editor/${firstProjectId.value}`, label: '步骤编辑', icon: Edit },
   { path: '/relations', label: '关联图谱', icon: Share },
-  { path: '/showcase/0', label: '公众展示', icon: View }
-]
+  { path: `/showcase/${firstProjectId.value}`, label: '公众展示', icon: View }
+])
 </script>
 
 <style scoped>

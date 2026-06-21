@@ -1,7 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { v4 as uuidv4 } from 'uuid'
+import { ElMessage } from 'element-plus'
 import type { StepNode, StepEdge, StepFlow, MediaItem } from '@/types'
+
+const MAX_NODES = 200
+const MAX_EDGES = 300
+const MAX_MEDIA_PER_NODE = 20
 
 export const useStepEditorStore = defineStore('stepEditor', () => {
   const nodes = ref<StepNode[]>([])
@@ -45,6 +50,10 @@ export const useStepEditorStore = defineStore('stepEditor', () => {
   }
 
   const addNode = (nodeData: Omit<StepNode, 'id'>) => {
+    if (nodes.value.length >= MAX_NODES) {
+      ElMessage.warning(`节点数量已达上限(${MAX_NODES}个)，请先删除部分节点`)
+      return null
+    }
     const newNode: StepNode = {
       ...nodeData,
       id: uuidv4()
@@ -73,6 +82,10 @@ export const useStepEditorStore = defineStore('stepEditor', () => {
   }
 
   const addEdge = (edgeData: Omit<StepEdge, 'id'>) => {
+    if (edges.value.length >= MAX_EDGES) {
+      ElMessage.warning(`连线数量已达上限(${MAX_EDGES}条)，请先删除部分连线`)
+      return null
+    }
     const exists = edges.value.some(
       e => e.source === edgeData.source && e.target === edgeData.target
     )
@@ -151,11 +164,17 @@ export const useStepEditorStore = defineStore('stepEditor', () => {
     setViewport({ x: 0, y: 0, zoom: 1 })
   }
 
-  const addMediaToNode = (nodeId: string, mediaId: string) => {
+  const addMediaToNode = (nodeId: string, mediaId: string): boolean => {
     const node = nodes.value.find(n => n.id === nodeId)
     if (node && !node.mediaIds.includes(mediaId)) {
+      if (node.mediaIds.length >= MAX_MEDIA_PER_NODE) {
+        ElMessage.warning(`单步骤关联素材已达上限(${MAX_MEDIA_PER_NODE}个)，请先移除部分素材`)
+        return false
+      }
       node.mediaIds.push(mediaId)
+      return true
     }
+    return false
   }
 
   const removeMediaFromNode = (nodeId: string, mediaId: string) => {

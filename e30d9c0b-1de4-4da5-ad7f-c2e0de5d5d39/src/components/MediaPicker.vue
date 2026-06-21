@@ -35,59 +35,63 @@
       />
     </div>
 
-    <div class="media-grid" ref="gridRef">
-      <div
-        v-for="media in filteredMedia"
-        :key="media.id"
-        class="media-item"
-        :class="{ 'is-selected': selectedMediaIds.includes(media.id) }"
-        draggable="true"
-        @dragstart="handleDragStart($event, media)"
-        @click="handleMediaClick(media)"
-        @dblclick="handleMediaDoubleClick(media)"
-      >
-        <div class="media-thumbnail">
-          <img
-            v-if="media.type === 'image'"
-            :src="media.thumbnail || media.url"
-            :alt="media.name"
-            loading="lazy"
-          />
-          <video
-            v-else
-            :src="media.url"
-            :poster="media.thumbnail"
-            muted
-            preload="metadata"
-          />
-          <div class="media-type-badge">
-            <el-icon v-if="media.type === 'image'"><Picture /></el-icon>
-            <el-icon v-else><VideoCamera /></el-icon>
+    <div class="media-grid" ref="gridRef" @scroll="handleGridScroll">
+      <div class="virtual-scroll-spacer" :style="{ height: totalHeight + 'px' }">
+        <div class="virtual-scroll-content" :style="{ transform: `translateY(${startOffset}px)` }">
+          <div
+            v-for="media in visibleMedia"
+            :key="media.id"
+            class="media-item"
+            :class="{ 'is-selected': selectedMediaIds.includes(media.id) }"
+            draggable="true"
+            @dragstart="handleDragStart($event, media)"
+            @click="handleMediaClick(media)"
+            @dblclick="handleMediaDoubleClick(media)"
+          >
+            <div class="media-thumbnail">
+              <img
+                v-if="media.type === 'image'"
+                :src="media.thumbnail || media.url"
+                :alt="media.name"
+                loading="lazy"
+              />
+              <video
+                v-else
+                :src="media.url"
+                :poster="media.thumbnail"
+                muted
+                preload="metadata"
+              />
+              <div class="media-type-badge">
+                <el-icon v-if="media.type === 'image'"><Picture /></el-icon>
+                <el-icon v-else><VideoCamera /></el-icon>
+              </div>
+              <div class="media-overlay">
+                <el-button
+                  size="small"
+                  circle
+                  @click.stop="openPreview(media)"
+                >
+                  <el-icon><View /></el-icon>
+                </el-button>
+                <el-button
+                  size="small"
+                  circle
+                  type="danger"
+                  @click.stop="deleteMedia(media.id)"
+                >
+                  <el-icon><Delete /></el-icon>
+                </el-button>
+              </div>
+            </div>
+            <div class="media-info">
+              <p class="media-name" :title="media.name">{{ media.name }}</p>
+              <p class="media-meta">
+                {{ formatFileSize(media.size) }}
+                {{ formatDate(media.uploadedAt) }}
+              </p>
+            </div>
           </div>
-          <div class="media-overlay">
-            <el-button
-              size="small"
-              circle
-              @click.stop="previewMedia(media)"
-            >
-              <el-icon><View /></el-icon>
-            </el-button>
-            <el-button
-              size="small"
-              circle
-              type="danger"
-              @click.stop="deleteMedia(media.id)"
-            >
-              <el-icon><Delete /></el-icon>
-            </el-button>
-          </div>
-        </div>
-        <div class="media-info">
-          <p class="media-name" :title="media.name">{{ media.name }}</p>
-          <p class="media-meta">
-            {{ formatFileSize(media.size) }}
-            {{ formatDate(media.uploadedAt) }}
-          </p>
         </div>
       </div>
 
@@ -260,7 +264,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload, Picture, VideoCamera, View, Delete } from '@element-plus/icons-vue'
 import { v4 as uuidv4 } from 'uuid'
@@ -315,6 +319,39 @@ const filteredMedia = computed(() => {
     return true
   })
 })
+
+const ITEM_HEIGHT = 160
+const ITEM_WIDTH = 120
+const GAP = 12
+const BUFFER_ROWS = 3
+
+const scrollTop = ref(0)
+const containerWidth = ref(240)
+const columns = ref(2)
+
+const rowCount = computed(() => Math.ceil(filteredMedia.value.length / columns.value))
+const totalHeight = computed(() => rowCount.value * (ITEM_HEIGHT + GAP) + GAP)
+const startRow = computed(() => Math.max(0, Math.floor(scrollTop.value / (ITEM_HEIGHT + GAP)) - BUFFER_ROWS))
+const endRow = computed(() => Math.min(rowCount.value, Math.ceil((scrollTop.value + 400) / (ITEM_HEIGHT + GAP)) + BUFFER_ROWS))
+const startOffset = computed(() => startRow.value * (ITEM_HEIGHT + GAP))
+
+const visibleMedia = computed(() => {
+  const start = startRow.value * columns.value
+  const end = endRow.value * columns.value
+  return filteredMedia.value.slice(start, end)
+})
+
+const calculateColumns = () => {
+  if (!gridRef.value) return
+  const width = gridRef.value.clientWidth - 24
+  const cols = Math.max(1, Math.floor((width + GAP) / (ITEM_WIDTH + GAP)))
+  columns.value = cols
+  containerWidth.value = width
+}
+
+const handleGridScroll = (e: Event) => {
+  scrollTop.value = (e.target as HTMLElement).scrollTop
+}
 
 const triggerFileInput = () => {
   fileInput.value?.click()
@@ -411,7 +448,7 @@ const handleMediaDoubleClick = (media: MediaItem) => {
   }
 }
 
-const previewMedia = (media: MediaItem) => {
+const openPreview = (media: MediaItem) => {
   previewMedia.value = media
   previewVisible.value = true
 }
@@ -516,6 +553,23 @@ const saveVideoTrim = () => {
     ElMessage.success('视频截取已保存')
   }
 }
+
+const handleResize = () => {
+  nextTick(() => {
+    calculateColumns()
+  })
+}
+
+onMounted(() => {
+  nextTick(() => {
+    calculateColumns()
+  })
+  window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+})
 </script>
 
 <style lang="scss" scoped>
@@ -551,14 +605,31 @@ const saveVideoTrim = () => {
 .media-grid {
   flex: 1;
   overflow-y: auto;
-  padding: 12px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  position: relative;
+  padding: 0;
+}
+
+.virtual-scroll-spacer {
+  position: relative;
+  width: 100%;
+}
+
+.virtual-scroll-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-wrap: wrap;
   gap: 12px;
-  align-content: start;
+  padding: 12px;
+  align-content: flex-start;
 }
 
 .media-item {
+  width: calc(50% - 6px);
+  min-width: 100px;
+  max-width: 140px;
   border: 2px solid transparent;
   border-radius: 8px;
   overflow: hidden;

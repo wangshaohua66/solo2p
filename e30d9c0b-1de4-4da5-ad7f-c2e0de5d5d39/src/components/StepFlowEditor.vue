@@ -347,29 +347,47 @@ const saveEdge = () => {
 const handleDrop = (event: DragEvent) => {
   event.preventDefault()
   const mediaId = event.dataTransfer?.getData('mediaId')
-  if (mediaId && vueFlowInstance.value) {
-    const position = vueFlowInstance.value.screenToFlowPosition({
-      x: event.clientX,
-      y: event.clientY
-    })
+  if (!mediaId || !vueFlowInstance.value) return
 
-    const type = editingEdgeType.value || 'normal'
+  const targetNode = (event.target as HTMLElement).closest('.vue-flow__node')
+  if (targetNode) {
+    const nodeId = targetNode.getAttribute('data-id')
+    if (nodeId) {
+      const success = stepEditor.addMediaToNode(nodeId, mediaId)
+      if (success) {
+        stepEditor.selectNode(nodeId)
+        emit('nodeSelect', nodeId)
+        ElMessage.success('素材已关联到步骤')
+      }
+      stepEditor.setDraggingMedia(null)
+      return
+    }
+  }
 
-    const newNode = stepEditor.addNode({
-      name: '新步骤',
-      description: '',
-      duration: 0,
-      keyTechniques: [],
-      mediaIds: [mediaId],
-      position,
-      type,
-      notes: ''
-    })
+  const position = vueFlowInstance.value.screenToFlowPosition({
+    x: event.clientX,
+    y: event.clientY
+  })
 
+  const type = editingEdgeType.value || 'normal'
+
+  const newNode = stepEditor.addNode({
+    name: '新步骤',
+    description: '',
+    duration: 0,
+    keyTechniques: [],
+    mediaIds: [mediaId],
+    position,
+    type,
+    notes: ''
+  })
+
+  if (newNode) {
     stepEditor.selectNode(newNode.id)
     emit('nodeSelect', newNode.id)
-    stepEditor.setDraggingMedia(null)
+    ElMessage.success('已创建新步骤并关联素材')
   }
+  stepEditor.setDraggingMedia(null)
 }
 
 const handleKeydown = (event: KeyboardEvent) => {

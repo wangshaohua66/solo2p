@@ -1,11 +1,36 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { v4 as uuidv4 } from 'uuid'
+import { ElMessage } from 'element-plus'
 import type { HeritageProject, ProjectFilters, MediaItem, ProjectRelation, StepFlow } from '@/types'
 import { validateImportData } from '@/utils/validator'
 
 const STORAGE_KEY = 'ih_projects'
 const MAX_STORAGE_SIZE = 50 * 1024 * 1024
+const WARN_THRESHOLD = 0.85
+
+const getDataSize = (data: string): number => {
+  return new Blob([data]).size
+}
+
+const trimOldMedia = (projects: HeritageProject[], targetSize: number): HeritageProject[] => {
+  const trimmed = JSON.parse(JSON.stringify(projects)) as HeritageProject[]
+  const sortedByDate = [...trimmed].sort((a, b) => a.updatedAt - b.updatedAt)
+
+  for (const project of sortedByDate) {
+    while (project.mediaLib.length > 0) {
+      project.mediaLib.shift()
+      const currentSize = getDataSize(JSON.stringify(trimmed))
+      if (currentSize <= targetSize) return trimmed
+    }
+    for (const node of project.stepFlow.nodes) {
+      node.mediaIds = []
+    }
+    const currentSize = getDataSize(JSON.stringify(trimmed))
+    if (currentSize <= targetSize) return trimmed
+  }
+  return trimmed
+}
 
 const generateSampleData = (): HeritageProject[] => {
   const projectIds = {
@@ -24,12 +49,12 @@ const generateSampleData = (): HeritageProject[] => {
       id: projectIds.xuanzhi,
       name: '宣纸制作技艺',
       category: 'traditional_skill',
-      batch: '第一批',
-      region: '安徽省泾县',
+      batch: 1,
+      region: '安徽',
       description: '宣纸是中国传统的书画用纸，原产于安徽泾县，质地绵韧、光洁如玉、不蛀不腐、墨韵万变，被誉为"纸寿千年"。',
       inheritors: [
-        { id: uuidv4(), name: '邢春荣', age: 72, avatar: '', title: '国家级传承人' },
-        { id: uuidv4(), name: '曹光华', age: 68, avatar: '', title: '省级传承人' }
+        { id: uuidv4(), name: '邢春荣', gender: 'male', age: 72, avatar: '', title: '国家级传承人' },
+        { id: uuidv4(), name: '曹光华', gender: 'male', age: 68, avatar: '', title: '省级传承人' }
       ],
       protectionUnit: '中国宣纸股份有限公司',
       createdAt: Date.now() - 86400000 * 30,
@@ -48,29 +73,29 @@ const generateSampleData = (): HeritageProject[] => {
           { id: 'end', type: 'end', position: { x: 2050, y: 200 }, name: '结束', description: '', duration: 0, mediaIds: [], keyTechniques: [], notes: '' }
         ],
         edges: [
-          { id: 'e1-2', source: 'start', target: 'step1', type: 'sequence', label: '' },
-          { id: 'e2-3', source: 'step1', target: 'step2', type: 'sequence', label: '' },
-          { id: 'e3-4', source: 'step2', target: 'step3', type: 'sequence', label: '' },
-          { id: 'e4-5', source: 'step3', target: 'step4', type: 'sequence', label: '' },
-          { id: 'e5-6', source: 'step4', target: 'step5', type: 'sequence', label: '' },
-          { id: 'e6-7', source: 'step5', target: 'step6', type: 'sequence', label: '' },
-          { id: 'e7-8', source: 'step6', target: 'step7', type: 'sequence', label: '' },
-          { id: 'e8-end', source: 'step7', target: 'end', type: 'sequence', label: '' }
+          { id: 'e1-2', source: 'start', target: 'step1', type: 'sequential', label: '' },
+          { id: 'e2-3', source: 'step1', target: 'step2', type: 'sequential', label: '' },
+          { id: 'e3-4', source: 'step2', target: 'step3', type: 'sequential', label: '' },
+          { id: 'e4-5', source: 'step3', target: 'step4', type: 'sequential', label: '' },
+          { id: 'e5-6', source: 'step4', target: 'step5', type: 'sequential', label: '' },
+          { id: 'e6-7', source: 'step5', target: 'step6', type: 'sequential', label: '' },
+          { id: 'e7-8', source: 'step6', target: 'step7', type: 'sequential', label: '' },
+          { id: 'e8-end', source: 'step7', target: 'end', type: 'sequential', label: '' }
         ]
       },
       relations: [
-        { id: uuidv4(), sourceId: projectIds.xuanzhi, targetId: projectIds.huimo, type: 'cultural_origin', strength: 5, description: '同属文房四宝，文化同源' }
+        { id: uuidv4(), sourceId: projectIds.xuanzhi, targetId: projectIds.huimo, type: 'cultural_homology', strength: 5, description: '同属文房四宝，文化同源' }
       ]
     },
     {
       id: projectIds.huimo,
       name: '徽墨制作技艺',
       category: 'traditional_skill',
-      batch: '第一批',
-      region: '安徽省黄山市',
+      batch: 1,
+      region: '安徽',
       description: '徽墨是中国传统制墨技艺中的珍品，具有拈来轻、磨来清、嗅来馨、坚如玉、研无声、一点如漆、万载存真的特点。',
       inheritors: [
-        { id: uuidv4(), name: '周美洪', age: 75, avatar: '', title: '国家级传承人' }
+        { id: uuidv4(), name: '周美洪', gender: 'male', age: 75, avatar: '', title: '国家级传承人' }
       ],
       protectionUnit: '中国歙县老胡开文墨厂',
       createdAt: Date.now() - 86400000 * 25,
@@ -88,30 +113,30 @@ const generateSampleData = (): HeritageProject[] => {
           { id: 'end', type: 'end', position: { x: 1850, y: 200 }, name: '结束', description: '', duration: 0, mediaIds: [], keyTechniques: [], notes: '' }
         ],
         edges: [
-          { id: 'e1-2', source: 'start', target: 'step1', type: 'sequence', label: '' },
-          { id: 'e2-3', source: 'step1', target: 'step2', type: 'sequence', label: '' },
-          { id: 'e3-4', source: 'step2', target: 'step3', type: 'sequence', label: '' },
-          { id: 'e4-5', source: 'step3', target: 'step4', type: 'sequence', label: '' },
-          { id: 'e5-6', source: 'step4', target: 'step5', type: 'sequence', label: '' },
-          { id: 'e6-7', source: 'step5', target: 'step6', type: 'sequence', label: '' },
-          { id: 'e7-end', source: 'step6', target: 'end', type: 'sequence', label: '' }
+          { id: 'e1-2', source: 'start', target: 'step1', type: 'sequential', label: '' },
+          { id: 'e2-3', source: 'step1', target: 'step2', type: 'sequential', label: '' },
+          { id: 'e3-4', source: 'step2', target: 'step3', type: 'sequential', label: '' },
+          { id: 'e4-5', source: 'step3', target: 'step4', type: 'sequential', label: '' },
+          { id: 'e5-6', source: 'step4', target: 'step5', type: 'sequential', label: '' },
+          { id: 'e6-7', source: 'step5', target: 'step6', type: 'sequential', label: '' },
+          { id: 'e7-end', source: 'step6', target: 'end', type: 'sequential', label: '' }
         ]
       },
       relations: [
-        { id: uuidv4(), sourceId: projectIds.huimo, targetId: projectIds.xuanzhi, type: 'cultural_origin', strength: 5, description: '同属文房四宝，文化同源' }
+        { id: uuidv4(), sourceId: projectIds.huimo, targetId: projectIds.xuanzhi, type: 'cultural_homology', strength: 5, description: '同属文房四宝，文化同源' }
       ]
     },
     {
       id: projectIds.kesi,
       name: '苏州缂丝织造技艺',
       category: 'traditional_skill',
-      batch: '第一批',
-      region: '江苏省苏州市',
+      batch: 1,
+      region: '江苏',
       description: '缂丝又称"刻丝"，是中国传统丝绸艺术品中的精华，采用通经断纬的织法，使织物花纹图案如镂刻之象，有"一寸缂丝一寸金"之说。',
       inheritors: [
-        { id: uuidv4(), name: '王金山', age: 80, avatar: '', title: '国家级传承人' },
-        { id: uuidv4(), name: '马惠娟', age: 72, avatar: '', title: '国家级传承人' },
-        { id: uuidv4(), name: '陈文', age: 65, avatar: '', title: '省级传承人' }
+        { id: uuidv4(), name: '王金山', gender: 'male', age: 80, avatar: '', title: '国家级传承人' },
+        { id: uuidv4(), name: '马惠娟', gender: 'female', age: 72, avatar: '', title: '国家级传承人' },
+        { id: uuidv4(), name: '陈文', gender: 'female', age: 65, avatar: '', title: '省级传承人' }
       ],
       protectionUnit: '苏州刺绣研究所',
       createdAt: Date.now() - 86400000 * 20,
@@ -122,18 +147,18 @@ const generateSampleData = (): HeritageProject[] => {
         edges: []
       },
       relations: [
-        { id: uuidv4(), sourceId: projectIds.kesi, targetId: projectIds.kunqu, type: 'regional', strength: 3, description: '同属苏州地区传统技艺' }
+        { id: uuidv4(), sourceId: projectIds.kesi, targetId: projectIds.kunqu, type: 'regional_relation', strength: 3, description: '同属苏州地区传统技艺' }
       ]
     },
     {
       id: projectIds.dage,
       name: '侗族大歌',
       category: 'traditional_music',
-      batch: '第一批',
-      region: '贵州省黎平县',
+      batch: 1,
+      region: '贵州',
       description: '侗族大歌是中国侗族地区一种多声部、无指挥、无伴奏、自然合声的民间合唱形式，被列为世界非物质文化遗产。',
       inheritors: [
-        { id: uuidv4(), name: '胡官美', age: 68, avatar: '', title: '国家级传承人' }
+        { id: uuidv4(), name: '胡官美', gender: 'female', age: 68, avatar: '', title: '国家级传承人' }
       ],
       protectionUnit: '黎平县文化馆',
       createdAt: Date.now() - 86400000 * 15,
@@ -144,18 +169,18 @@ const generateSampleData = (): HeritageProject[] => {
         edges: []
       },
       relations: [
-        { id: uuidv4(), sourceId: projectIds.dage, targetId: projectIds.chunjie, type: 'derived', strength: 4, description: '春节期间常有侗族大歌表演' }
+        { id: uuidv4(), sourceId: projectIds.dage, targetId: projectIds.chunjie, type: 'skill_derived', strength: 4, description: '春节期间常有侗族大歌表演' }
       ]
     },
     {
       id: projectIds.yangge,
       name: '秧歌舞',
       category: 'traditional_dance',
-      batch: '第二批',
-      region: '陕西省延安市',
+      batch: 2,
+      region: '陕西',
       description: '秧歌是中国北方广泛流传的一种极具群众性和代表性的民间舞蹈，通常在春节等重要节日表演，具有浓郁的乡土气息和地方特色。',
       inheritors: [
-        { id: uuidv4(), name: '李增恒', age: 75, avatar: '', title: '国家级传承人' }
+        { id: uuidv4(), name: '李增恒', gender: 'male', age: 75, avatar: '', title: '国家级传承人' }
       ],
       protectionUnit: '延安市群众艺术馆',
       createdAt: Date.now() - 86400000 * 10,
@@ -166,19 +191,19 @@ const generateSampleData = (): HeritageProject[] => {
         edges: []
       },
       relations: [
-        { id: uuidv4(), sourceId: projectIds.yangge, targetId: projectIds.chunjie, type: 'derived', strength: 5, description: '春节期间重要的民俗表演活动' }
+        { id: uuidv4(), sourceId: projectIds.yangge, targetId: projectIds.chunjie, type: 'skill_derived', strength: 5, description: '春节期间重要的民俗表演活动' }
       ]
     },
     {
       id: projectIds.kunqu,
       name: '昆曲',
       category: 'traditional_drama',
-      batch: '第一批',
-      region: '江苏省苏州市',
+      batch: 1,
+      region: '江苏',
       description: '昆曲是中国古老的戏曲声腔、剧种，现又被称为"昆剧"，被誉为"百戏之祖"，其唱腔华丽婉转、念白儒雅、表演细腻、舞蹈飘逸。',
       inheritors: [
-        { id: uuidv4(), name: '王芳', age: 60, avatar: '', title: '国家级传承人' },
-        { id: uuidv4(), name: '俞玖林', age: 55, avatar: '', title: '国家级传承人' }
+        { id: uuidv4(), name: '王芳', gender: 'female', age: 60, avatar: '', title: '国家级传承人' },
+        { id: uuidv4(), name: '俞玖林', gender: 'male', age: 55, avatar: '', title: '国家级传承人' }
       ],
       protectionUnit: '苏州昆剧院',
       createdAt: Date.now() - 86400000 * 18,
@@ -189,14 +214,14 @@ const generateSampleData = (): HeritageProject[] => {
         edges: []
       },
       relations: [
-        { id: uuidv4(), sourceId: projectIds.kunqu, targetId: projectIds.kesi, type: 'regional', strength: 3, description: '同属苏州地区传统文化' }
+        { id: uuidv4(), sourceId: projectIds.kunqu, targetId: projectIds.kesi, type: 'regional_relation', strength: 3, description: '同属苏州地区传统文化' }
       ]
     },
     {
       id: projectIds.chunjie,
       name: '春节',
       category: 'folk_custom',
-      batch: '第一批',
+      batch: 1,
       region: '全国',
       description: '春节即中国农历新年，俗称新春、新岁、岁旦等，口头上又称过年、过大年，是中华民族最隆重的传统佳节。',
       inheritors: [],
@@ -209,20 +234,20 @@ const generateSampleData = (): HeritageProject[] => {
         edges: []
       },
       relations: [
-        { id: uuidv4(), sourceId: projectIds.chunjie, targetId: projectIds.yangge, type: 'derived', strength: 5, description: '春节期间秧歌表演' },
-        { id: uuidv4(), sourceId: projectIds.chunjie, targetId: projectIds.dage, type: 'derived', strength: 4, description: '春节期间侗族大歌表演' }
+        { id: uuidv4(), sourceId: projectIds.chunjie, targetId: projectIds.yangge, type: 'skill_derived', strength: 5, description: '春节期间秧歌表演' },
+        { id: uuidv4(), sourceId: projectIds.chunjie, targetId: projectIds.dage, type: 'skill_derived', strength: 4, description: '春节期间侗族大歌表演' }
       ]
     },
     {
       id: projectIds.taoci,
       name: '景德镇陶瓷烧制技艺',
       category: 'traditional_skill',
-      batch: '第一批',
-      region: '江西省景德镇市',
+      batch: 1,
+      region: '江西',
       description: '景德镇陶瓷历史悠久，素有"瓷都"之称，其烧制技艺工序繁杂，从选矿到成品需要经过七十二道工序，形成了独特的陶瓷文化。',
       inheritors: [
-        { id: uuidv4(), name: '黄云鹏', age: 78, avatar: '', title: '国家级传承人' },
-        { id: uuidv4(), name: '赖德全', age: 68, avatar: '', title: '国家级传承人' }
+        { id: uuidv4(), name: '黄云鹏', gender: 'male', age: 78, avatar: '', title: '国家级传承人' },
+        { id: uuidv4(), name: '赖德全', gender: 'male', age: 68, avatar: '', title: '国家级传承人' }
       ],
       protectionUnit: '景德镇陶瓷协会',
       createdAt: Date.now() - 86400000 * 22,
@@ -233,7 +258,7 @@ const generateSampleData = (): HeritageProject[] => {
         edges: []
       },
       relations: [
-        { id: uuidv4(), sourceId: projectIds.taoci, targetId: projectIds.xuanzhi, type: 'cultural_origin', strength: 4, description: '同属传统工艺，文化同源' }
+        { id: uuidv4(), sourceId: projectIds.taoci, targetId: projectIds.xuanzhi, type: 'cultural_homology', strength: 4, description: '同属传统工艺，文化同源' }
       ]
     }
   ]
@@ -257,15 +282,54 @@ const loadFromStorage = (): HeritageProject[] => {
   return sampleData
 }
 
-const saveToStorage = (projects: HeritageProject[]): void => {
+const saveToStorage = (projects: HeritageProject[]): boolean => {
   try {
     const data = JSON.stringify(projects)
-    if (new Blob([data]).size > MAX_STORAGE_SIZE) {
-      console.warn('Data size exceeds 50MB limit')
+    const size = getDataSize(data)
+    const sizeMB = (size / 1024 / 1024).toFixed(2)
+
+    if (size > MAX_STORAGE_SIZE) {
+      const targetSize = MAX_STORAGE_SIZE * 0.7
+      const trimmedProjects = trimOldMedia(projects, targetSize)
+      const trimmedData = JSON.stringify(trimmedProjects)
+      const trimmedSize = getDataSize(trimmedData)
+      const trimmedMB = (trimmedSize / 1024 / 1024).toFixed(2)
+
+      localStorage.setItem(STORAGE_KEY, trimmedData)
+      ElMessage.warning({
+        message: `存储已达${sizeMB}MB上限，已自动清理旧媒体至${trimmedMB}MB，请及时导出备份`,
+        duration: 5000,
+        showClose: true
+      })
+      return false
+    } else if (size > MAX_STORAGE_SIZE * WARN_THRESHOLD) {
+      const usagePercent = ((size / MAX_STORAGE_SIZE) * 100).toFixed(1)
+      ElMessage.info({
+        message: `当前存储已使用${sizeMB}MB(${usagePercent}%)，请注意及时导出备份`,
+        duration: 3000
+      })
     }
+
     localStorage.setItem(STORAGE_KEY, data)
+    return true
   } catch (e) {
     console.error('Failed to save projects to localStorage:', e)
+    ElMessage.error('数据保存失败，请检查浏览器存储权限')
+    return false
+  }
+}
+
+const getStorageUsage = (): { used: number; total: number; percent: number } => {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY) || ''
+    const used = getDataSize(data)
+    return {
+      used,
+      total: MAX_STORAGE_SIZE,
+      percent: (used / MAX_STORAGE_SIZE) * 100
+    }
+  } catch {
+    return { used: 0, total: MAX_STORAGE_SIZE, percent: 0 }
   }
 }
 
@@ -493,6 +557,7 @@ export const useProjectStore = defineStore('project', () => {
     exportData,
     importData,
     downloadExport,
-    getProjectById
+    getProjectById,
+    getStorageUsage
   }
 })
