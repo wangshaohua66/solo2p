@@ -28,12 +28,12 @@
       </div>
     </div>
 
-    <div class="steps-container" :style="containerTransform">
+    <div class="steps-container">
       <div
         v-for="(step, index) in orderedSteps"
         :key="step.id"
         class="step-section"
-        :class="{ 'is-active': index === currentStepIndex }"
+        :class="getStepClass(index)"
       >
         <div class="step-content">
           <div class="step-header">
@@ -218,6 +218,8 @@ const projectId = computed(() => route.params.projectId as string)
 const project = computed(() => projectStore.getProjectById(projectId.value))
 
 const currentStepIndex = ref(0)
+const prevStepIndex = ref(0)
+const animationDirection = ref<'up' | 'down'>('down')
 const isFullscreen = ref(false)
 const isAnimating = ref(false)
 const showTechniques = ref<Record<number, boolean>>({})
@@ -272,9 +274,20 @@ const progressPercent = computed(() => {
   return ((currentStepIndex.value + 1) / orderedSteps.value.length) * 100
 })
 
-const containerTransform = computed(() => {
-  return `translateY(-${currentStepIndex.value * 100}vh)`
-})
+const getStepClass = (index: number) => {
+  const classes: string[] = []
+  if (index === currentStepIndex.value) {
+    classes.push('is-active')
+    classes.push(`enter-${animationDirection.value}`)
+  } else if (index === prevStepIndex.value && isAnimating.value) {
+    classes.push(`leave-${animationDirection.value}`)
+  } else if (index < currentStepIndex.value) {
+    classes.push('is-before')
+  } else {
+    classes.push('is-after')
+  }
+  return classes
+}
 
 const getStepMedia = (step: StepNode): MediaItem[] => {
   if (!project.value) return []
@@ -311,7 +324,12 @@ const toggleFullscreen = () => {
 
 const goToStep = (index: number) => {
   if (index < 0 || index >= orderedSteps.value.length || isAnimating.value) return
+  if (index === currentStepIndex.value) return
+
   isAnimating.value = true
+  const direction = index > currentStepIndex.value ? 'down' : 'up'
+  animationDirection.value = direction
+  prevStepIndex.value = currentStepIndex.value
   currentStepIndex.value = index
 
   if (!showTechniques.value[index]) {
@@ -329,7 +347,7 @@ const goToStep = (index: number) => {
     const video = stepMedia.find(m => m.type === 'video')
     if (video) {
       nextTick(() => {
-        const videoEl = document.querySelector(`.step-section:nth-child(${index + 1}) video`) as HTMLVideoElement
+        const videoEl = document.querySelector(`.step-section.is-active video`) as HTMLVideoElement
         if (videoEl) {
           videoEl.currentTime = video.videoStart || 0
           videoEl.play().catch(() => {})
@@ -340,7 +358,7 @@ const goToStep = (index: number) => {
 
   setTimeout(() => {
     isAnimating.value = false
-  }, 600)
+  }, 700)
 }
 
 const nextStep = () => {
@@ -595,36 +613,58 @@ watch(() => project.value, (newProject) => {
 }
 
 .steps-container {
+  position: relative;
   height: 100%;
-  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
 }
 
 .step-section {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
   height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 120px 60px 80px;
   box-sizing: border-box;
-  opacity: 0.4;
-  transition: opacity 0.7s ease;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1), transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
 
   &.is-active {
     opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+    z-index: 2;
+  }
 
-    .step-content {
-      opacity: 1;
-      transform: translateY(0);
-    }
+  &.is-before {
+    transform: translateY(-80px);
+    z-index: 1;
+  }
+
+  &.is-after {
+    transform: translateY(80px);
+    z-index: 1;
+  }
+
+  &.leave-up {
+    opacity: 0;
+    transform: translateY(-80px);
+    z-index: 2;
+  }
+
+  &.leave-down {
+    opacity: 0;
+    transform: translateY(80px);
+    z-index: 2;
   }
 
   .step-content {
     max-width: 1200px;
     width: 100%;
-    opacity: 0;
-    transform: translateY(40px);
-    transition: opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1), transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
-    transition-delay: 0.1s;
   }
 
   .step-header {

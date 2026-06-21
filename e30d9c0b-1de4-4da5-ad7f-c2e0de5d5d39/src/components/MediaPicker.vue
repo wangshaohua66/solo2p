@@ -800,27 +800,123 @@ onUnmounted(() => {
     pointer-events: none;
 
     &.arrow-top {
-      bottom: calc(100% + 8px);
+      bottom: calc(100% + 20px);
       left: 50%;
       transform: translateX(-50%);
+
+      &::before {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        width: 2px;
+        height: 20px;
+        background: #F56C6C;
+        transform: translateX(-50%);
+      }
+
+      &::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-top: 8px solid #F56C6C;
+        transform: translateX(-50%);
+      }
     }
 
     &.arrow-bottom {
-      top: calc(100% + 8px);
+      top: calc(100% + 20px);
       left: 50%;
       transform: translateX(-50%);
+
+      &::before {
+        content: '';
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        width: 2px;
+        height: 20px;
+        background: #F56C6C;
+        transform: translateX(-50%);
+      }
+
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-bottom: 8px solid #F56C6C;
+        transform: translateX(-50%);
+      }
     }
 
     &.arrow-left {
-      right: calc(100% + 8px);
+      right: calc(100% + 20px);
       top: 50%;
       transform: translateY(-50%);
+
+      &::before {
+        content: '';
+        position: absolute;
+        left: 100%;
+        top: 50%;
+        width: 20px;
+        height: 2px;
+        background: #F56C6C;
+        transform: translateY(-50%);
+      }
+
+      &::after {
+        content: '';
+        position: absolute;
+        left: 100%;
+        top: 50%;
+        width: 0;
+        height: 0;
+        border-top: 6px solid transparent;
+        border-bottom: 6px solid transparent;
+        border-left: 8px solid #F56C6C;
+        transform: translateY(-50%);
+      }
     }
 
     &.arrow-right {
-      left: calc(100% + 8px);
+      left: calc(100% + 20px);
       top: 50%;
       transform: translateY(-50%);
+
+      &::before {
+        content: '';
+        position: absolute;
+        right: 100%;
+        top: 50%;
+        width: 20px;
+        height: 2px;
+        background: #F56C6C;
+        transform: translateY(-50%);
+      }
+
+      &::after {
+        content: '';
+        position: absolute;
+        right: 100%;
+        top: 50%;
+        width: 0;
+        height: 0;
+        border-top: 6px solid transparent;
+        border-bottom: 6px solid transparent;
+        border-right: 8px solid #F56C6C;
+        transform: translateY(-50%);
+      }
     }
   }
 }
