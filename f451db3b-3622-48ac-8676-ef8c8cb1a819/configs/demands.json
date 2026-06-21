@@ -1,0 +1,6 @@
+[
+  {"user_id": "U-CITY-01", "user_name": "城市燃气公司A", "demand": 6500, "priority": 1, "unit_price": 2.68},
+  {"user_id": "U-CITY-02", "user_name": "城市燃气公司B", "demand": 5200, "priority": 1, "unit_price": 2.72},
+  {"user_id": "U-IND-01", "user_name": "工业直供用户A", "demand": 3800, "priority": 2, "unit_price": 2.45},
+  {"user_id": "U-IND-02", "user_name": "工业直供用户B", "demand": 2600, "priority": 2, "unit_price": 2.50}
+]

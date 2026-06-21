@@ -1,0 +1,253 @@
+# 天然气管道调度辅助工具配置文件
+# 环境：development（演示）。生产环境可通过 SCHEDULER_ENV=production 与独立配置文件切换。
+env: development
+
+server:
+  port: 8080
+  read_timeout: 10s
+  write_timeout: 10s
+
+database:
+  path: data/scheduler.db
+  max_open_conns: 10
+
+scada:
+  # 无现场 Modbus 设备时使用模拟数据，便于本地演示与功能验证。
+  # 生产环境设为 false 并填写各站点的 address 字段。
+  simulate: true
+  poll_interval: 5m
+  timeout: 2s
+  retries: 2
+
+alerts:
+  pressure_loss_warn_pct: 5.0      # 压损百分比预警阈值
+  pressure_loss_alarm_pct: 8.0    # 压损百分比报警阈值
+  safety_margin_floor: 0.3        # 最低安全裕度(MPa)
+  imbalance_warn_pct: 5.0          # 供需失衡预警百分比
+  pressure_alarm_high: 5.5        # 压力上限报警(MPa)
+  pressure_alarm_low: 1.0         # 压力下限报警(MPa)
+
+# 上游气源（供需平衡推演的反推对象）
+sources:
+  - id: SRC-01
+    name: 首站气源
+    max_pressure: 6.0
+    max_flow: 60000
+    min_flow: 1000
+    cost_per_unit: 0.62
+  - id: SRC-02
+    name: 第二气源
+    max_pressure: 5.5
+    max_flow: 40000
+    min_flow: 800
+    cost_per_unit: 0.75
+  - id: SRC-03
+    name: 应急气源
+    max_pressure: 5.0
+    max_flow: 25000
+    min_flow: 500
+    cost_per_unit: 0.88
+
+# 管段定义（Weymouth / Panhandle 公式）
+pipelines:
+  - id: PL-01
+    name: 主干一段
+    from_station: SRC-01
+    to_station: TR-01
+    length: 85
+    diameter: 610
+    roughness: 0.015
+    elevation_diff: 12
+    formula: weymouth
+    base_temp: 293.15
+    base_pressure: 4.0
+    gas_gravity: 0.6
+    compress_factor: 0.9
+    efficiency: 0.92
+    coefficient: 0
+  - id: PL-02
+    name: 主干二段
+    from_station: TR-01
+    to_station: TR-02
+    length: 110
+    diameter: 508
+    roughness: 0.02
+    elevation_diff: -8
+    formula: panhandle
+    base_temp: 293.15
+    base_pressure: 3.5
+    gas_gravity: 0.6
+    compress_factor: 0.9
+    efficiency: 0.9
+    coefficient: 0
+  - id: PL-03
+    name: 城市燃气支线
+    from_station: TR-02
+    to_station: U-CITY-01
+    length: 35
+    diameter: 406
+    roughness: 0.02
+    elevation_diff: 5
+    formula: weymouth
+    base_temp: 293.15
+    base_pressure: 3.0
+    gas_gravity: 0.6
+    compress_factor: 0.92
+    efficiency: 0.9
+    coefficient: 0
+  - id: PL-04
+    name: 工业直供支线
+    from_station: TR-02
+    to_station: U-IND-01
+    length: 28
+    diameter: 355
+    roughness: 0.025
+    elevation_diff: 3
+    formula: weymouth
+    base_temp: 293.15
+    base_pressure: 2.5
+    gas_gravity: 0.6
+    compress_factor: 0.92
+    efficiency: 0.9
+    coefficient: 0
+
+# 分输站 / 阀室 / 用户站点（计量采集点）
+stations:
+  - id: SRC-01
+    name: 首站
+    type: source
+    address: 127.0.0.1:502
+    unit_id: 1
+    pipeline: PL-01
+    elevation: 120
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 3.5
+    pressure_max: 6.2
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 65000
+  - id: TR-01
+    name: 1号分输站
+    type: transit
+    address: 127.0.0.1:503
+    unit_id: 1
+    pipeline: PL-02
+    elevation: 132
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 2.5
+    pressure_max: 5.8
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 45000
+  - id: TR-02
+    name: 2号分输站
+    type: transit
+    address: 127.0.0.1:504
+    unit_id: 1
+    pipeline: PL-02
+    elevation: 124
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 2.0
+    pressure_max: 5.0
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 40000
+  - id: U-CITY-01
+    name: 城市燃气公司A
+    type: city_user
+    address: 127.0.0.1:505
+    unit_id: 1
+    pipeline: PL-03
+    elevation: 129
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 1.2
+    pressure_max: 4.2
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 9000
+  - id: U-CITY-02
+    name: 城市燃气公司B
+    type: city_user
+    address: 127.0.0.1:506
+    unit_id: 1
+    pipeline: PL-03
+    elevation: 131
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 1.2
+    pressure_max: 4.2
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 9000
+  - id: U-IND-01
+    name: 工业直供用户A
+    type: industrial
+    address: 127.0.0.1:507
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 127
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 0.8
+    pressure_max: 3.8
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 6000
+  - id: U-IND-02
+    name: 工业直供用户B
+    type: industrial
+    address: 127.0.0.1:508
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 130
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 0.8
+    pressure_max: 3.8
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 6000
+
+# 下游用户结算合同（与站点编号对应，用于结算报表）
+contracts:
+  - user_id: U-CITY-01
+    user_name: 城市燃气公司A
+    unit_price: 2.68
+    tax_rate: 0.09
+  - user_id: U-CITY-02
+    user_name: 城市燃气公司B
+    unit_price: 2.72
+    tax_rate: 0.09
+  - user_id: U-IND-01
+    user_name: 工业直供用户A
+    unit_price: 2.45
+    tax_rate: 0.13
+  - user_id: U-IND-02
+    user_name: 工业直供用户B
+    unit_price: 2.50
+    tax_rate: 0.13
