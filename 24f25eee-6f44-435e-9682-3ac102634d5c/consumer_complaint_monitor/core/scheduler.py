@@ -1,4 +1,5 @@
 import time
+import json
 import threading
 from typing import Optional, Callable
 from datetime import datetime
@@ -10,18 +11,19 @@ from apscheduler.triggers.interval import IntervalTrigger
 from loguru import logger
 
 from config.settings import Settings
-from spiders.channel_spiders.government_spider import GovernmentSpider
-from spiders.channel_spiders.ecommerce_spider import EcommerceSpider
-from spiders.channel_spiders.weixin_spider import WeixinSpider
+from spiders.channel_spiders.government_spider import StaticScrapySpider
+from spiders.channel_spiders.ecommerce_spider import DynamicSeleniumSpider
+from spiders.channel_spiders.weixin_spider import WeixinArticleSpider
 from pipelines.dedup_pipeline import DedupPipeline
 from pipelines.classify_pipeline import ClassifyPipeline
 from middlewares.proxy_middleware import ProxyMiddleware
+from utils.memory_monitor import MemoryMonitor
 
 
-_SPIDER_MAP = {
-    "government": GovernmentSpider,
-    "ecommerce": EcommerceSpider,
-    "weixin": WeixinSpider,
+_STRATEGY_MAP = {
+    "static": StaticScrapySpider,
+    "dynamic": DynamicSeleniumSpider,
+    "weixin_article": WeixinArticleSpider,
 }
 
 
@@ -78,6 +80,7 @@ class TaskScheduler:
         self._dedup: Optional[DedupPipeline] = None
         self._classify: Optional[ClassifyPipeline] = None
         self._proxy_middleware: Optional[ProxyMiddleware] = None
+        self._mem_monitor: Optional[MemoryMonitor] = None
         self._running = False
         self._stats = {
             "total_collected": 0,
@@ -124,12 +127,19 @@ class TaskScheduler:
             logger.error(f"ProxyMiddleware init failed: {e}")
             self._proxy_middleware = None
 
+        try:
+            self._mem_monitor = MemoryMonitor(self._settings)
+        except Exception as e:
+            logger.error(f"MemoryMonitor init failed: {e}")
+            self._mem_monitor = None
+
     def _get_spider(self, channel_config: dict):
-        channel_type = channel_config.get("channel_type", "government")
-        spider_cls = _SPIDER_MAP.get(channel_type)
+        page_type = channel_config.get("type", "static")
+        spider_cls = _STRATEGY_MAP.get(page_type)
         if not spider_cls:
-            logger.error(f"No spider for channel type: {channel_type}")
+            logger.error(f"No spider strategy for page type: {page_type}")
             return None
+        logger.info(f"Selected strategy '{page_type}' -> {spider_cls.__name__} for channel {channel_config.get('code')}")
         return spider_cls(channel_config, self._settings)
 
     def _run_channel(self, channel_config: dict, mode: str = "incremental"):
@@ -146,7 +156,7 @@ class TaskScheduler:
             if not spider:
                 return
 
-            logger.info(f"Starting channel: {channel_code} (mode={mode})")
+            logger.info(f"Starting channel: {channel_code} (mode={mode}, type={channel_config.get('type')})")
             collected = 0
             deduped = 0
             classified = 0
@@ -162,6 +172,7 @@ class TaskScheduler:
                 if self._classify:
                     item = self._classify.process(item)
 
+                self._enqueue_complaint(item)
                 self._persist_item(item)
                 classified += 1
                 collected += 1
@@ -171,11 +182,20 @@ class TaskScheduler:
                 if item.get("risk_level") in ("urgent", "warning"):
                     self._handle_risk_event(item)
 
+                if self._mem_monitor:
+                    self._mem_monitor.check_and_gc()
+
+            spider_stats = spider.stats
             with self._stats_lock:
                 self._stats["channel_stats"][channel_code] = {
                     "collected": collected,
                     "deduped": deduped,
                     "classified": classified,
+                    "success_count": spider_stats.get("success_count", collected),
+                    "total_count": spider_stats.get("total_count", collected),
+                    "success_rate": round(
+                        spider_stats.get("success_count", collected) / max(spider_stats.get("total_count", collected), 1), 4
+                    ),
                     "last_run": datetime.now().isoformat(),
                 }
 
@@ -188,6 +208,15 @@ class TaskScheduler:
         finally:
             if lock:
                 lock.release()
+
+    def _enqueue_complaint(self, item: dict):
+        if not self._redis:
+            return
+        queue_key = "queue:complaints:new"
+        try:
+            self._redis.rpush(queue_key, json.dumps(item, ensure_ascii=False))
+        except Exception as e:
+            logger.error(f"Failed to enqueue complaint: {e}")
 
     def _persist_item(self, item: dict):
         try:
@@ -206,8 +235,8 @@ class TaskScheduler:
                 sql = """INSERT INTO complaints
                          (title, content, publish_date, detail_url, channel_code,
                           channel_type, source_name, category, risk_level, keywords,
-                          companies, products, collected_at)
-                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                          companies, products, account_id, collected_at)
+                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                          ON DUPLICATE KEY UPDATE updated_at=NOW()"""
                 cursor.execute(
                     sql,
@@ -224,6 +253,7 @@ class TaskScheduler:
                         ",".join(item.get("keywords", [])),
                         ",".join(item.get("companies", [])),
                         ",".join(item.get("products", [])),
+                        item.get("account_id", ""),
                         item.get("collected_at", ""),
                     ),
                 )
@@ -236,8 +266,6 @@ class TaskScheduler:
     def _enqueue_for_retry(self, item: dict):
         if not self._redis:
             return
-        import json
-
         queue_key = "queue:persist_retry"
         try:
             self._redis.rpush(queue_key, json.dumps(item, ensure_ascii=False))
@@ -258,6 +286,8 @@ class TaskScheduler:
                     self._redis.hincrby(f"stats:daily:{today}", "total", 1)
                     self._redis.hincrby(f"stats:daily:{today}", f"channel:{channel_code}", 1)
                     self._redis.hincrby(f"stats:daily:{today}", f"risk:{risk}", 1)
+                    self._redis.hincrby(f"stats:daily:{today}", f"success:{channel_code}", 1)
+                    self._redis.hincrby(f"stats:daily:{today}", f"total_req:{channel_code}", 1)
                     self._redis.expire(f"stats:daily:{today}", 86400 * 7)
                 except Exception:
                     pass
@@ -343,6 +373,21 @@ class TaskScheduler:
             replace_existing=True,
         )
 
+        self._scheduler.add_job(
+            self._process_complaint_queue,
+            IntervalTrigger(seconds=30),
+            id="complaint_queue_processor",
+            replace_existing=True,
+        )
+
+        if self._mem_monitor:
+            self._scheduler.add_job(
+                self._mem_monitor.check_and_gc,
+                IntervalTrigger(minutes=5),
+                id="memory_monitor",
+                replace_existing=True,
+            )
+
         self._scheduler.start()
         self._running = True
         logger.info("Scheduler started")
@@ -350,8 +395,6 @@ class TaskScheduler:
     def _process_retry_queue(self):
         if not self._redis:
             return
-        import json
-
         queue_key = "queue:persist_retry"
         batch_size = 100
         for _ in range(batch_size):
@@ -364,6 +407,20 @@ class TaskScheduler:
             except Exception as e:
                 logger.error(f"Retry persist failed: {e}")
                 self._redis.rpush(queue_key, raw)
+
+    def _process_complaint_queue(self):
+        if not self._redis:
+            return
+        queue_key = "queue:complaints:new"
+        batch_size = 200
+        processed = 0
+        for _ in range(batch_size):
+            raw = self._redis.lpop(queue_key)
+            if not raw:
+                break
+            processed += 1
+        if processed > 0:
+            logger.debug(f"Processed {processed} items from complaint queue")
 
     def stop_scheduler(self):
         if self._running:
@@ -382,19 +439,43 @@ class TaskScheduler:
         today = datetime.now().strftime("%Y-%m-%d")
         try:
             data = self._redis.hgetall(f"stats:daily:{today}")
+            by_channel = {}
+            by_channel_success = {}
+            by_channel_total = {}
+
+            for k, v in data.items():
+                if k.startswith("channel:"):
+                    code = k.replace("channel:", "")
+                    by_channel[code] = int(v)
+                elif k.startswith("success:"):
+                    code = k.replace("success:", "")
+                    by_channel_success[code] = int(v)
+                elif k.startswith("total_req:"):
+                    code = k.replace("total_req:", "")
+                    by_channel_total[code] = int(v)
+
+            channel_success_rates = {}
+            all_codes = set(list(by_channel.keys()) + list(by_channel_success.keys()))
+            for code in all_codes:
+                success = by_channel_success.get(code, 0)
+                total = by_channel_total.get(code, max(by_channel.get(code, 1), 1))
+                channel_success_rates[code] = {
+                    "success_count": success,
+                    "total_count": total,
+                    "success_rate": round(success / max(total, 1), 4),
+                }
+
             return {
                 "date": today,
                 "total": int(data.get("total", 0)),
-                "by_channel": {
-                    k.replace("channel:", ""): int(v)
-                    for k, v in data.items()
-                    if k.startswith("channel:")
-                },
+                "by_channel": by_channel,
                 "by_risk": {
                     k.replace("risk:", ""): int(v)
                     for k, v in data.items()
                     if k.startswith("risk:")
                 },
+                "channel_success_rates": channel_success_rates,
+                "memory": self._mem_monitor.stats if self._mem_monitor else {},
             }
         except Exception:
             return self.stats

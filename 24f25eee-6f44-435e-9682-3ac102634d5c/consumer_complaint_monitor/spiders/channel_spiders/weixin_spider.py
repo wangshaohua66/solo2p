@@ -1,95 +1,140 @@
 import time
 import random
-import re
 from typing import Generator, Optional
 from datetime import datetime
 
-from bs4 import BeautifulSoup
 from loguru import logger
 
 from spiders.base_spider import BaseSpider
+from utils.cookie_pool import CookiePool
+from utils.memory_monitor import MemoryMonitor
 
 
-class WeixinSpider(BaseSpider):
-    name = "weixin"
+class WeixinArticleSpider(BaseSpider):
+    name = "weixin_article"
+    strategy = "weixin_article"
 
     def __init__(self, channel_config: dict, settings=None):
         super().__init__(channel_config, settings)
         self._account_id = channel_config.get("account_id", "")
         self._keywords = channel_config.get("keywords", [])
+        self._cookie_pool = CookiePool(channel_config.get("code", "unknown"), settings)
+        self._mem_monitor = MemoryMonitor(settings)
+        self._ws_api = None
 
-    def parse_list(self, response) -> Generator[dict, None, None]:
-        soup = BeautifulSoup(response.text, "lxml")
-        articles = soup.select("div.article_list div.article_item")
-        if not articles:
-            articles = soup.select("ul.news-list li")
-        if not articles:
-            articles = soup.select("div.weui_msg_card")
+    def _init_wechatsogou(self):
+        try:
+            from wechatsogou import WechatSogouAPI
 
-        for article in articles:
-            link = article.select_one("a")
-            if not link:
-                continue
-            href = link.get("href", "")
-            title_el = article.select_one("h3") or article.select_one("h2") or link
-            title = title_el.get_text(strip=True) if title_el else ""
-            date_el = article.select_one("span.pub_time") or article.select_one(
-                "span.date"
-            )
-            date_str = date_el.get_text(strip=True) if date_el else ""
-
-            if self._keywords:
-                matched = any(kw in title for kw in self._keywords)
-                if not matched:
-                    continue
-
-            yield {
-                "title": title,
-                "detail_url": href,
-                "publish_date": date_str,
-                "channel_code": self._channel_code,
-                "channel_type": self._channel_type,
-                "source_name": self._channel.get("name", ""),
-                "account_id": self._account_id,
-            }
-
-    def parse_detail(self, response, item: dict) -> dict:
-        soup = BeautifulSoup(response.text, "lxml")
-        content_el = soup.select_one("div.rich_media_content") or soup.select_one(
-            "div.article-content"
-        )
-        if content_el:
-            for tag in content_el.find_all(["script", "style"]):
-                tag.decompose()
-            content = content_el.get_text(strip=True, separator="\n")
-        else:
-            content = ""
-
-        date_el = soup.select_one("em#publish_time") or soup.select_one(
-            "span.rich_media_meta_text"
-        )
-        if date_el:
-            item["publish_date"] = date_el.get_text(strip=True)
-
-        author_el = soup.select_one("a.rich_media_meta_link") or soup.select_one(
-            "span.rich_media_meta_nickname"
-        )
-        if author_el:
-            item["author"] = author_el.get_text(strip=True)
-
-        item["content"] = content
-        item["collected_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
-        return item
+            cookie_str = self._cookie_pool.get_cookie()
+            self._ws_api = WechatSogouAPI(cookie=cookie_str if cookie_str else None)
+            logger.info(f"WechatSogouAPI initialized for account={self._account_id}")
+        except ImportError:
+            logger.warning("wechatsogou SDK not installed, falling back to manual crawl")
+            self._ws_api = None
+        except Exception as e:
+            logger.error(f"Failed to init WechatSogouAPI: {e}")
+            self._ws_api = None
 
     def start(self, mode: str = "incremental") -> Generator[dict, None, None]:
-        yield from self._crawl_via_sogou(mode)
+        self._mem_monitor.check_and_gc()
+        self._init_wechatsogou()
+
+        if self._ws_api:
+            yield from self._crawl_via_sdk(mode)
+        else:
+            yield from self._crawl_via_sogou(mode)
+
+    def _crawl_via_sdk(self, mode: str = "incremental") -> Generator[dict, None, None]:
+        max_pages = 2 if mode == "incremental" else 10
+
+        try:
+            articles = self._ws_api.get_gzh_article_by_history(self._account_id)
+            if not articles:
+                logger.warning(f"No articles found for account={self._account_id}")
+                return
+
+            count = 0
+            for article in articles:
+                if count >= max_pages * 10:
+                    break
+
+                title = article.get("title", "")
+                url = article.get("url", "")
+                digest = article.get("digest", "")
+                publish_time = article.get("publish_time", "")
+
+                if self._keywords:
+                    matched = any(kw in title or kw in digest for kw in self._keywords)
+                    if not matched:
+                        continue
+
+                content = digest
+                if url:
+                    detail_content = self._fetch_article_content(url)
+                    if detail_content:
+                        content = detail_content
+
+                yield {
+                    "title": title,
+                    "content": content,
+                    "detail_url": url,
+                    "publish_date": str(publish_time),
+                    "channel_code": self._channel_code,
+                    "channel_type": self._channel_type,
+                    "source_name": self._channel.get("name", ""),
+                    "account_id": self._account_id,
+                    "collected_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                }
+                count += 1
+                time.sleep(random.uniform(1, 3))
+
+        except Exception as e:
+            logger.error(f"WechatSogouAPI error for {self._account_id}: {e}")
+            yield from self._crawl_via_sogou(mode)
+
+    def _fetch_article_content(self, url: str) -> Optional[str]:
+        try:
+            import requests as req
+            from fake_useragent import UserAgent
+            from bs4 import BeautifulSoup
+
+            ua = UserAgent()
+            headers = {
+                "User-Agent": ua.random,
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            }
+            cookie_str = self._cookie_pool.get_cookie()
+            if cookie_str:
+                headers["Cookie"] = cookie_str
+
+            resp = req.get(url, headers=headers, timeout=15)
+            if resp.status_code != 200:
+                return None
+
+            soup = BeautifulSoup(resp.text, "lxml")
+            content_el = soup.select_one("div.rich_media_content")
+            if content_el:
+                for tag in content_el.find_all(["script", "style"]):
+                    tag.decompose()
+                return content_el.get_text(strip=True, separator="\n")
+            return None
+        except Exception as e:
+            logger.debug(f"Failed to fetch article content from {url}: {e}")
+            return None
 
     def _crawl_via_sogou(self, mode: str = "incremental") -> Generator[dict, None, None]:
+        import requests as req
+        from fake_useragent import UserAgent
+        from bs4 import BeautifulSoup
+
         search_url = "https://weixin.sogou.com/weixin"
         page = 1
         max_pages = 2 if mode == "incremental" else 10
+        ua = UserAgent()
 
         while page <= max_pages:
+            self._mem_monitor.check_and_gc()
             params = {
                 "type": "1",
                 "query": self._account_id,
@@ -98,65 +143,67 @@ class WeixinSpider(BaseSpider):
             if self._keywords:
                 params["query"] = f"{self._account_id} {' '.join(self._keywords[:3])}"
 
-            response = self.request_with_retry(search_url, params=params)
-            if not response:
-                break
+            headers = {
+                "User-Agent": ua.random,
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Referer": "https://weixin.sogou.com/",
+            }
+            cookie_str = self._cookie_pool.get_cookie()
+            if cookie_str:
+                headers["Cookie"] = cookie_str
 
-            if "验证" in response.text or "antispider" in response.url:
-                logger.warning(f"Sogou anti-spider triggered for {self._account_id}")
-                time.sleep(random.uniform(10, 30))
-                continue
+            try:
+                resp = req.get(search_url, params=params, headers=headers, timeout=15)
+                if not resp or resp.status_code != 200:
+                    break
 
-            items = list(self.parse_list(response))
-            if not items:
-                break
+                if "验证" in resp.text or "antispider" in resp.url:
+                    logger.warning(f"Sogou anti-spider triggered for {self._account_id}")
+                    self._cookie_pool.report_failure(cookie_str)
+                    time.sleep(random.uniform(10, 30))
+                    continue
 
-            for item in items:
-                if item.get("detail_url"):
-                    detail_resp = self.request_with_retry(item["detail_url"])
-                    if detail_resp:
-                        parsed = self.parse_detail(detail_resp, item)
-                        yield parsed
-                    else:
-                        yield item
-                else:
-                    yield item
+                self._cookie_pool.report_success(cookie_str)
+
+                soup = BeautifulSoup(resp.text, "lxml")
+                articles = soup.select("div.txt-box h3 a")
+                if not articles:
+                    articles = soup.select("ul.news-list li h3 a")
+
+                if not articles:
+                    break
+
+                for article_link in articles:
+                    title = article_link.get_text(strip=True)
+                    href = article_link.get("href", "")
+
+                    if self._keywords:
+                        matched = any(kw in title for kw in self._keywords)
+                        if not matched:
+                            continue
+
+                    content = ""
+                    if href:
+                        detail_content = self._fetch_article_content(href)
+                        if detail_content:
+                            content = detail_content
+
+                    yield {
+                        "title": title,
+                        "content": content,
+                        "detail_url": href,
+                        "publish_date": "",
+                        "channel_code": self._channel_code,
+                        "channel_type": self._channel_type,
+                        "source_name": self._channel.get("name", ""),
+                        "account_id": self._account_id,
+                        "collected_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    }
+
+            except Exception as e:
+                logger.error(f"Sogou crawl error for {self._account_id}: {e}")
+                self._stats["failed"] += 1
+                self._stats["total_count"] += 1
 
             page += 1
             time.sleep(random.uniform(3, 8))
-
-    def _crawl_via_api(self, mode: str = "incremental") -> Generator[dict, None, None]:
-        api_url = "https://weixin.sogou.com/api/search"
-        params = {
-            "type": "1",
-            "query": self._account_id,
-            "page": 1,
-        }
-        response = self.request_with_retry(api_url, params=params)
-        if not response:
-            return
-        try:
-            data = response.json()
-            articles = data.get("items", [])
-            for article in articles:
-                yield {
-                    "title": article.get("title", ""),
-                    "content": article.get("digest", ""),
-                    "detail_url": article.get("url", ""),
-                    "publish_date": article.get("time", ""),
-                    "channel_code": self._channel_code,
-                    "channel_type": self._channel_type,
-                    "source_name": self._channel.get("name", ""),
-                    "account_id": self._account_id,
-                    "collected_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-                }
-        except Exception:
-            logger.error(f"Failed to parse Weixin API response")
-
-    def _handle_block(self, response):
-        super()._handle_block(response)
-        logger.warning(
-            f"Weixin block detected on {self._channel_code}, "
-            f"account={self._account_id}"
-        )
-        time.sleep(random.uniform(5, 15))

@@ -30,9 +30,11 @@ mysql:
 
 captcha:
   provider: "ruokuai"
-  api_url: "${CAPTCHA_API_URL:}"
+  api_url: "${CAPTCHA_API_URL:http://api.ruokuai.com/create.json}"
   username: "${CAPTCHA_USERNAME:ENCRYPTED}"
   password: "${CAPTCHA_PASSWORD:ENCRYPTED}"
+  soft_id: "12345"
+  timeout: 60
 
 proxy:
   enabled: true
@@ -100,6 +102,7 @@ channels:
         title: "h1.article-title"
         content: "div.article-content"
         date: "span.pub-date"
+
     - name: "省市场监管局官网"
       code: "gov_province"
       base_url: "https://amr.example-province.gov.cn/"
@@ -114,6 +117,7 @@ channels:
         title: "h1.detail-title"
         content: "div.detail-content"
         date: "span.date"
+
     - name: "12315平台"
       code: "gov_12315"
       base_url: "https://www.12315.cn/"
@@ -148,6 +152,7 @@ channels:
         title_key: "subject"
         content_key: "description"
         date_key: "created"
+
     - name: "京东投诉频道"
       code: "ec_jd"
       base_url: "https://complaint.jd.com/"
@@ -163,6 +168,7 @@ channels:
         title_key: "title"
         content_key: "content"
         date_key: "createTime"
+
     - name: "拼多多投诉频道"
       code: "ec_pdd"
       base_url: "https://consumerservice.pinduoduo.com/"
@@ -178,6 +184,7 @@ channels:
         title: "h3.complaint-title"
         content: "div.complaint-detail"
         date: "span.time"
+
     - name: "抖音投诉频道"
       code: "ec_douyin"
       base_url: "https://feedback-douyin.com/"
@@ -193,9 +200,10 @@ channels:
         title_key: "title"
         content_key: "content"
         date_key: "create_time"
+
     - name: "快手投诉频道"
       code: "ec_kuaishou"
-      base_url: "https:// Complaint.kuaishou.com/"
+      base_url: "https://complaint.kuaishou.com/"
       type: "dynamic"
       parser: "json_api"
       schedule_cron: "*/20 * * * *"
@@ -208,9 +216,10 @@ channels:
         title_key: "subject"
         content_key: "detail"
         date_key: "timestamp"
+
     - name: "美团投诉频道"
       code: "ec_meituan"
-      base_url: "https://Complaint.meituan.com/"
+      base_url: "https://complaint.meituan.com/"
       type: "dynamic"
       parser: "json_api"
       schedule_cron: "*/15 * * * *"
@@ -223,9 +232,10 @@ channels:
         title_key: "complaintTitle"
         content_key: "complaintContent"
         date_key: "complaintTime"
+
     - name: "饿了么投诉频道"
       code: "ec_eleme"
-      base_url: "https://Complaint.ele.me/"
+      base_url: "https://complaint.ele.me/"
       type: "dynamic"
       parser: "json_api"
       schedule_cron: "*/15 * * * *"
@@ -238,9 +248,10 @@ channels:
         title_key: "title"
         content_key: "content"
         date_key: "gmtCreate"
+
     - name: "小红书投诉频道"
       code: "ec_xiaohongshu"
-      base_url: "https://Complaint.xiaohongshu.com/"
+      base_url: "https://complaint.xiaohongshu.com/"
       type: "dynamic"
       parser: "json_api"
       schedule_cron: "*/20 * * * *"
@@ -267,6 +278,7 @@ channels:
         - "维权"
         - "警示"
         - "召回"
+
     - name: "市监局公众号-宁波"
       code: "wx_ningbo"
       account_id: "nb_amr"
@@ -279,6 +291,195 @@ channels:
         - "维权"
         - "警示"
         - "召回"
+
+    - name: "市监局公众号-温州"
+      code: "wx_wenzhou"
+      account_id: "wz_amr"
+      type: "weixin_article"
+      parser: "weixin_html"
+      schedule_cron: "0 */2 * * *"
+      enabled: true
+      keywords:
+        - "消费投诉"
+        - "维权"
+        - "警示"
+
+    - name: "市监局公众号-嘉兴"
+      code: "wx_jiaxing"
+      account_id: "jx_amr"
+      type: "weixin_article"
+      parser: "weixin_html"
+      schedule_cron: "0 */2 * * *"
+      enabled: true
+      keywords:
+        - "消费投诉"
+        - "维权"
+        - "警示"
+
+    - name: "市监局公众号-湖州"
+      code: "wx_huzhou"
+      account_id: "huz_amr"
+      type: "weixin_article"
+      parser: "weixin_html"
+      schedule_cron: "0 */2 * * *"
+      enabled: true
+      keywords:
+        - "消费投诉"
+        - "维权"
+
+    - name: "市监局公众号-绍兴"
+      code: "wx_shaoxing"
+      account_id: "sx_amr"
+      type: "weixin_article"
+      parser: "weixin_html"
+      schedule_cron: "0 */2 * * *"
+      enabled: true
+      keywords:
+        - "消费投诉"
+        - "维权"
+        - "警示"
+
+    - name: "市监局公众号-金华"
+      code: "wx_jinhua"
+      account_id: "jh_amr"
+      type: "weixin_article"
+      parser: "weixin_html"
+      schedule_cron: "0 */2 * * *"
+      enabled: true
+      keywords:
+        - "消费投诉"
+        - "维权"
+
+    - name: "市监局公众号-衢州"
+      code: "wx_quzhou"
+      account_id: "qz_amr"
+      type: "weixin_article"
+      parser: "weixin_html"
+      schedule_cron: "0 */3 * * *"
+      enabled: true
+      keywords:
+        - "消费投诉"
+        - "维权"
+
+    - name: "市监局公众号-舟山"
+      code: "wx_zhoushan"
+      account_id: "zs_amr"
+      type: "weixin_article"
+      parser: "weixin_html"
+      schedule_cron: "0 */3 * * *"
+      enabled: true
+      keywords:
+        - "消费投诉"
+        - "维权"
+
+    - name: "市监局公众号-台州"
+      code: "wx_taizhou"
+      account_id: "tz_amr"
+      type: "weixin_article"
+      parser: "weixin_html"
+      schedule_cron: "0 */2 * * *"
+      enabled: true
+      keywords:
+        - "消费投诉"
+        - "维权"
+        - "警示"
+
+    - name: "市监局公众号-丽水"
+      code: "wx_lishui"
+      account_id: "ls_amr"
+      type: "weixin_article"
+      parser: "weixin_html"
+      schedule_cron: "0 */3 * * *"
+      enabled: true
+      keywords:
+        - "消费投诉"
+        - "维权"
+
+    - name: "市监局公众号-徐州"
+      code: "wx_xuzhou"
+      account_id: "xz_amr"
+      type: "weixin_article"
+      parser: "weixin_html"
+      schedule_cron: "0 */2 * * *"
+      enabled: true
+      keywords:
+        - "消费投诉"
+        - "维权"
+        - "警示"
+
+    - name: "市监局公众号-南通"
+      code: "wx_nantong"
+      account_id: "nt_amr"
+      type: "weixin_article"
+      parser: "weixin_html"
+      schedule_cron: "0 */2 * * *"
+      enabled: true
+      keywords:
+        - "消费投诉"
+        - "维权"
+
+    - name: "市监局公众号-扬州"
+      code: "wx_yangzhou"
+      account_id: "yz_amr"
+      type: "weixin_article"
+      parser: "weixin_html"
+      schedule_cron: "0 */3 * * *"
+      enabled: true
+      keywords:
+        - "消费投诉"
+        - "维权"
+
+    - name: "市监局公众号-盐城"
+      code: "wx_yancheng"
+      account_id: "yc_amr"
+      type: "weixin_article"
+      parser: "weixin_html"
+      schedule_cron: "0 */3 * * *"
+      enabled: true
+      keywords:
+        - "消费投诉"
+        - "维权"
+
+    - name: "消费维权自媒体-维权一线"
+      code: "wx_weiquanyixian"
+      account_id: "weiquan_yixian"
+      type: "weixin_article"
+      parser: "weixin_html"
+      schedule_cron: "0 */2 * * *"
+      enabled: true
+      keywords:
+        - "投诉"
+        - "维权"
+        - "曝光"
+        - "欺诈"
+        - "假冒"
+
+    - name: "消费维权自媒体-理性消费指南"
+      code: "wx_lixiaofeizhinan"
+      account_id: "lixiang_xiaofei"
+      type: "weixin_article"
+      parser: "weixin_html"
+      schedule_cron: "0 */2 * * *"
+      enabled: true
+      keywords:
+        - "投诉"
+        - "维权"
+        - "消费陷阱"
+        - "欺诈"
+
+    - name: "消费维权自媒体-打假先锋"
+      code: "wx_dajiaxianfeng"
+      account_id: "dajia_xianfeng"
+      type: "weixin_article"
+      parser: "weixin_html"
+      schedule_cron: "0 */2 * * *"
+      enabled: true
+      keywords:
+        - "打假"
+        - "假冒"
+        - "维权"
+        - "投诉"
+        - "曝光"
 
 whitelist_keywords:
   - "投诉"

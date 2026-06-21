@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from config.settings import Settings
 from core.scheduler import TaskScheduler
 from utils.notify import Notifier
+from utils.memory_monitor import MemoryMonitor
 
 
 _COLOR_MAP = {
@@ -122,6 +123,9 @@ def run_collection(channel, mode, daemon):
     scheduler = TaskScheduler(settings)
     scheduler_instance = scheduler
 
+    mem_monitor = MemoryMonitor(settings)
+    mem_monitor.check_and_gc()
+
     channel_codes = list(channel) if channel else None
     if channel_codes:
         logger.info(f"指定渠道: {', '.join(channel_codes)}")
@@ -134,6 +138,9 @@ def run_collection(channel, mode, daemon):
         logger.error("没有可用的渠道配置")
         return
 
+    for ch in enabled:
+        logger.info(f"  - {ch.get('code')}: type={ch.get('type')}, name={ch.get('name')}")
+
     logger.info(f"共 {len(enabled)} 个渠道待采集，模式: {mode}")
 
     if daemon:
@@ -143,10 +150,12 @@ def run_collection(channel, mode, daemon):
         notifier = Notifier(settings)
         daily_report_time = settings.get("notify.email.daily_report_time", "18:00")
 
-        def daily_report_check():
+        def background_tasks():
+            last_urgent_check = time.time()
             while not daemon_stop_event.is_set():
                 now = datetime.now()
                 report_time = now.strftime("%H:%M")
+
                 if report_time == daily_report_time:
                     try:
                         stats = scheduler.get_today_stats()
@@ -154,9 +163,17 @@ def run_collection(channel, mode, daemon):
                         logger.info("日报已发送")
                     except Exception as e:
                         logger.error(f"日报发送失败: {e}")
+
+                if time.time() - last_urgent_check >= 60:
+                    try:
+                        notifier.check_urgent_timeout()
+                    except Exception as e:
+                        logger.debug(f"Urgent timeout check failed: {e}")
+                    last_urgent_check = time.time()
+
                 daemon_stop_event.wait(60)
 
-        report_thread = threading.Thread(target=daily_report_check, daemon=True)
+        report_thread = threading.Thread(target=background_tasks, daemon=True)
         report_thread.start()
 
         try:
@@ -183,6 +200,12 @@ def run_collection(channel, mode, daemon):
             f"关注: {risk.get('attention', 0)}, "
             f"一般: {risk.get('general', 0)}"
         )
+        mem_stats = mem_monitor.stats
+        logger.info(
+            f"内存统计 - 当前: {mem_stats.get('current_rss_mb', 0):.0f}MB, "
+            f"峰值: {mem_stats.get('peak_rss_mb', 0):.0f}MB, "
+            f"GC次数: {mem_stats.get('gc_count', 0)}"
+        )
 
 
 @cli.command(name="schedule")
@@ -196,6 +219,19 @@ def start_schedule(channel):
 
     channel_codes = list(channel) if channel else None
     scheduler.start_scheduler(channel_codes)
+
+    notifier = Notifier(settings)
+
+    def urgent_check_loop():
+        while True:
+            try:
+                notifier.check_urgent_timeout()
+            except Exception:
+                pass
+            time.sleep(60)
+
+    check_thread = threading.Thread(target=urgent_check_loop, daemon=True)
+    check_thread.start()
 
     logger.info("定时调度已启动，按 Ctrl+C 停止")
     try:
@@ -215,19 +251,28 @@ def show_stats(channel):
     today_stats = scheduler.get_today_stats()
     click.echo(json.dumps(today_stats, ensure_ascii=False, indent=2))
 
+    rates = today_stats.get("channel_success_rates", {})
+    if rates:
+        click.echo("\n渠道采集成功率:")
+        for code, info in rates.items():
+            click.echo(
+                f"  {code}: {info.get('success_count', 0)}/{info.get('total_count', 0)} "
+                f"({info.get('success_rate', 0):.1%})"
+            )
+
 
 @cli.command(name="channels")
 def list_channels():
     settings = Settings()
     channels = settings.get_all_channels()
     click.echo(f"\n已配置渠道 ({len(channels)} 个):\n")
-    click.echo(f"{'代码':<20} {'名称':<30} {'类型':<12} {'启用':<6} {'调度'}")
-    click.echo("-" * 90)
+    click.echo(f"{'代码':<20} {'名称':<30} {'页面类型':<14} {'启用':<6} {'调度'}")
+    click.echo("-" * 95)
     for ch in channels:
         click.echo(
             f"{ch.get('code', ''):<20} "
             f"{ch.get('name', ''):<30} "
-            f"{ch.get('channel_type', ''):<12} "
+            f"{ch.get('type', ''):<14} "
             f"{'✓' if ch.get('enabled') else '✗':<6} "
             f"{ch.get('schedule_cron', '')}"
         )
@@ -253,9 +298,13 @@ def test_channel(channel):
         return
 
     click.echo(f"测试渠道: {ch.get('name')} ({channel})")
-    click.echo(f"  类型: {ch.get('channel_type')}")
+    click.echo(f"  页面类型: {ch.get('type')}")
+    click.echo(f"  渠道类型: {ch.get('channel_type')}")
     click.echo(f"  URL: {ch.get('base_url')}")
     click.echo(f"  解析器: {ch.get('parser')}")
+
+    strategy_map = {"static": "Scrapy", "dynamic": "Selenium-Wire", "weixin_article": "WechatSogou"}
+    click.echo(f"  采集策略: {strategy_map.get(ch.get('type'), '未知')}")
 
     try:
         import requests
@@ -281,6 +330,7 @@ def start_api(host, port):
         return
 
     settings = Settings()
+    mem_monitor = MemoryMonitor(settings)
 
     class MonitorAPIHandler(BaseHTTPRequestHandler):
         def do_GET(self):
@@ -289,9 +339,22 @@ def start_api(host, port):
             if self.path == "/api/stats/today":
                 data = scheduler.get_today_stats()
                 self._json_response(data)
+            elif self.path == "/api/stats/memory":
+                data = mem_monitor.stats
+                self._json_response(data)
             elif self.path == "/api/channels":
                 channels = settings.get_enabled_channels()
-                self._json_response({"channels": channels, "count": len(channels)})
+                result = []
+                for ch in channels:
+                    ch_info = dict(ch)
+                    strategy_map = {
+                        "static": "Scrapy",
+                        "dynamic": "Selenium-Wire",
+                        "weixin_article": "WechatSogou",
+                    }
+                    ch_info["strategy"] = strategy_map.get(ch.get("type"), "未知")
+                    result.append(ch_info)
+                self._json_response({"channels": result, "count": len(result)})
             elif self.path.startswith("/api/channel/"):
                 code = self.path.split("/")[-1]
                 ch = settings.get_channel_by_code(code)
@@ -300,7 +363,14 @@ def start_api(host, port):
                 else:
                     self._json_response({"error": "Channel not found"}, 404)
             elif self.path == "/api/health":
-                self._json_response({"status": "ok", "timestamp": datetime.now().isoformat()})
+                mem_stats = mem_monitor.stats
+                self._json_response({
+                    "status": "ok",
+                    "timestamp": datetime.now().isoformat(),
+                    "memory_rss_mb": mem_stats.get("current_rss_mb", 0),
+                    "memory_peak_mb": mem_stats.get("peak_rss_mb", 0),
+                    "gc_count": mem_stats.get("gc_count", 0),
+                })
             else:
                 self._json_response({"error": "Not found"}, 404)
 
@@ -316,10 +386,11 @@ def start_api(host, port):
     server = HTTPServer((host, port), MonitorAPIHandler)
     logger.info(f"监控API服务启动: http://{host}:{port}")
     click.echo(f"监控API服务已启动: http://{host}:{port}")
-    click.echo("  - GET /api/stats/today   今日采集统计")
-    click.echo("  - GET /api/channels       渠道列表")
-    click.echo("  - GET /api/channel/<code> 渠道详情")
-    click.echo("  - GET /api/health         健康检查")
+    click.echo("  - GET /api/stats/today       今日采集统计(含成功率)")
+    click.echo("  - GET /api/stats/memory       内存使用统计")
+    click.echo("  - GET /api/channels           渠道列表(含采集策略)")
+    click.echo("  - GET /api/channel/<code>     渠道详情")
+    click.echo("  - GET /api/health             健康检查(含内存)")
 
     try:
         server.serve_forever()

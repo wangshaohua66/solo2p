@@ -1,19 +1,13 @@
 import time
 import random
-import json
 import traceback
 from abc import ABC, abstractmethod
 from typing import Optional, Generator, Any
 from datetime import datetime
 
-import requests
-from fake_useragent import UserAgent
 from loguru import logger
 
 from config.settings import Settings
-
-
-_ua = UserAgent()
 
 
 class CircuitBreaker:
@@ -139,16 +133,16 @@ class FailureRecord:
 
 class BaseSpider(ABC):
     name: str = "base"
+    strategy: str = "base"
 
     def __init__(self, channel_config: dict, settings: Optional[Settings] = None):
         self._channel = channel_config
         self._settings = settings or Settings()
         self._channel_code = channel_config.get("code", "unknown")
         self._channel_type = channel_config.get("channel_type", "government")
+        self._page_type = channel_config.get("type", "static")
         self._base_url = channel_config.get("base_url", "")
         self._parser = channel_config.get("parser", "html_list")
-        self._session = requests.Session()
-        self._cookies: list = []
         self._circuit_breaker: Optional[CircuitBreaker] = None
         self._retry_policy: Optional[RetryPolicy] = None
         self._failure_recorder: Optional[FailureRecord] = None
@@ -156,27 +150,13 @@ class BaseSpider(ABC):
             "collected": 0,
             "failed": 0,
             "duplicated": 0,
+            "success_count": 0,
+            "total_count": 0,
             "start_time": None,
             "end_time": None,
         }
-        self._setup_anti_crawl()
         self._setup_retry_and_breaker()
         self._setup_failure_recorder()
-
-    def _setup_anti_crawl(self):
-        self._session.headers.update(
-            {
-                "User-Agent": _ua.random,
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-                "Accept-Encoding": "gzip, deflate, br",
-                "Connection": "keep-alive",
-                "Cache-Control": "max-age=0",
-            }
-        )
-        referer = self._channel.get("base_url", "")
-        if referer:
-            self._session.headers["Referer"] = referer
 
     def _setup_retry_and_breaker(self):
         proxy_cfg = self._settings.get_proxy_config(self._channel_type)
@@ -195,135 +175,22 @@ class BaseSpider(ABC):
         if mysql_cfg:
             self._failure_recorder = FailureRecord(mysql_cfg)
 
-    def _randomize_headers(self):
-        self._session.headers["User-Agent"] = _ua.random
-        if random.random() > 0.5:
-            self._session.headers["DNT"] = "1"
-        if random.random() > 0.7:
-            self._session.headers["Upgrade-Insecure-Requests"] = "1"
-        accept_versions = [
-            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,*/*;q=0.8",
-        ]
-        self._session.headers["Accept"] = random.choice(accept_versions)
-
-    def _set_cookie(self, cookie_str: str):
-        if cookie_str:
-            self._session.headers["Cookie"] = cookie_str
-
-    def _rotate_cookie(self):
-        if self._cookies:
-            cookie = random.choice(self._cookies)
-            self._session.headers["Cookie"] = cookie
-
-    def _add_cookies(self, cookies: list):
-        self._cookies.extend(cookies)
-
-    def request_with_retry(
-        self,
-        url: str,
-        method: str = "GET",
-        **kwargs,
-    ) -> Optional[requests.Response]:
-        if not self._circuit_breaker.allow_request():
-            logger.warning(f"Circuit breaker OPEN for {self._channel_code}, skipping: {url}")
-            return None
-
-        last_exception = None
-        for attempt in range(self._retry_policy.max_retries + 1):
-            try:
-                self._randomize_headers()
-                self._rotate_cookie()
-                proxy_cfg = self._settings.get_proxy_config(self._channel_type)
-                kwargs.setdefault("timeout", proxy_cfg.get("timeout_seconds", 30))
-                kwargs.setdefault("allow_redirects", True)
-
-                response = self._session.request(method, url, **kwargs)
-
-                if response.status_code == 200:
-                    self._circuit_breaker.record_success()
-                    return response
-                elif response.status_code == 429:
-                    retry_after = int(response.headers.get("Retry-After", 60))
-                    logger.warning(
-                        f"Rate limited (429) on {url}, retry after {retry_after}s"
-                    )
-                    time.sleep(retry_after + random.uniform(1, 5))
-                elif response.status_code in (403, 503):
-                    logger.warning(
-                        f"Blocked ({response.status_code}) on {url}, rotating proxy"
-                    )
-                    self._handle_block(response)
-                    if attempt < self._retry_policy.max_retries:
-                        delay = self._retry_policy.get_delay(attempt)
-                        logger.info(f"Retrying in {delay:.1f}s (attempt {attempt + 1})")
-                        time.sleep(delay)
-                elif response.status_code == 404:
-                    logger.debug(f"Page not found: {url}")
-                    return None
-                else:
-                    logger.warning(
-                        f"HTTP {response.status_code} on {url}"
-                    )
-                    if attempt < self._retry_policy.max_retries:
-                        delay = self._retry_policy.get_delay(attempt)
-                        time.sleep(delay)
-
-            except requests.exceptions.Timeout:
-                last_exception = "timeout"
-                logger.warning(f"Timeout on {url} (attempt {attempt + 1})")
-            except requests.exceptions.ConnectionError as e:
-                last_exception = f"connection_error: {str(e)[:200]}"
-                logger.warning(f"Connection error on {url} (attempt {attempt + 1})")
-            except Exception as e:
-                last_exception = f"unexpected: {str(e)[:200]}"
-                logger.error(f"Unexpected error on {url}: {e}")
-
-            if attempt < self._retry_policy.max_retries:
-                delay = self._retry_policy.get_delay(attempt)
-                logger.info(f"Retrying in {delay:.1f}s (attempt {attempt + 1})")
-                time.sleep(delay)
-
-        self._circuit_breaker.record_failure()
-        if self._failure_recorder:
-            self._failure_recorder.record(
-                channel_code=self._channel_code,
-                url=url,
-                error_type=last_exception or "max_retries_exceeded",
-                error_detail=traceback.format_exc()[:2000],
-                attempt=self._retry_policy.max_retries,
-            )
-        self._stats["failed"] += 1
-        logger.error(f"All retries exhausted for {url}")
-        return None
-
-    def _handle_block(self, response: requests.Response):
-        logger.warning(
-            f"Block detected on {self._channel_code}, status={response.status_code}"
-        )
-        self._randomize_headers()
-
-    @abstractmethod
-    def parse_list(self, response: requests.Response) -> Generator[dict, None, None]:
-        ...
-
-    @abstractmethod
-    def parse_detail(self, response: requests.Response, item: dict) -> dict:
-        ...
-
     @abstractmethod
     def start(self, mode: str = "incremental") -> Generator[dict, None, None]:
         ...
 
     def collect(self, mode: str = "incremental") -> Generator[dict, None, None]:
         self._stats["start_time"] = datetime.now().isoformat()
-        logger.info(f"Spider [{self._channel_code}] starting in {mode} mode")
+        logger.info(f"Spider [{self._channel_code}] starting in {mode} mode, strategy={self.strategy}")
         try:
             for item in self.start(mode=mode):
                 self._stats["collected"] += 1
+                self._stats["total_count"] += 1
+                self._stats["success_count"] += 1
                 yield item
         except Exception as e:
+            self._stats["failed"] += 1
+            self._stats["total_count"] += 1
             logger.error(f"Spider [{self._channel_code}] crashed: {e}")
             logger.error(traceback.format_exc())
         finally:
@@ -333,7 +200,8 @@ class BaseSpider(ABC):
             logger.info(
                 f"Spider [{self._channel_code}] finished: "
                 f"collected={self._stats['collected']}, "
-                f"failed={self._stats['failed']}"
+                f"failed={self._stats['failed']}, "
+                f"success_rate={self._stats['success_count']}/{self._stats['total_count']}"
             )
 
     @property
@@ -347,3 +215,7 @@ class BaseSpider(ABC):
     @property
     def channel_type(self) -> str:
         return self._channel_type
+
+    @property
+    def page_type(self) -> str:
+        return self._page_type
