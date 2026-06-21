@@ -2,6 +2,7 @@ mod alert;
 mod check;
 mod db;
 mod dose;
+mod error_codes;
 mod import_mod;
 mod permit;
 mod query;
@@ -14,16 +15,19 @@ use colored::*;
 use comfy_table::{Cell, Color, ContentArrangement, Table};
 use std::path::PathBuf;
 
-use crate::alert::{AlertLevel, list_alerts, check_all_dose_alerts};
+use crate::alert::{AlertLevel, AlertThresholds, check_all_dose_alerts, list_alerts};
 use crate::db::Db;
-use crate::dose::{get_department_dose, get_period_stats, get_personal_dose, StatsPeriod};
+use crate::dose::{get_area_dose, get_department_dose, get_period_stats, get_personal_dose, StatsPeriod};
+use crate::error_codes::{err, ErrorCode};
 use crate::import_mod::ImportResult;
 use crate::permit::{approve_permit, create_permit, list_permits, reject_permit, CreatePermitRequest};
 use crate::query::{QueryParams, export_dose_csv, export_survey_csv, query_dose_records, query_survey_records, render_dose_table, render_survey_table};
-use crate::report::{generate_monthly_dose_report, report_to_text, report_to_csv};
+use crate::report::{generate_monthly_dose_report, generate_quarterly_dose_report, report_to_csv, report_to_text};
+
+const MAIN_HELP_EXAMPLES: &str = "\n示例:\n  radmon import survey.csv            # 导入巡检CSV数据\n  radmon import dose.json              # 导入剂量JSON数据\n  radmon stats -d personal             # 按人员统计剂量\n  radmon stats -d department           # 按部门统计剂量\n  radmon stats -d area                # 按辐射区域统计剂量\n  radmon alert run                    # 执行超限预警检查\n  radmon permit create ...            # 创建辐射工作许可证\n  radmon report --type month          # 生成月度报告\n  radmon query -t dose -e E001        # 查询员工剂量记录\n  radmon check                        # 数据完整性校验";
 
 #[derive(Parser)]
-#[command(name = "radmon", version = "1.0.0", about = "辐射监测数据管理命令行工具", long_about = None)]
+#[command(name = "radmon", version = "1.0.0", about = "辐射监测数据管理命令行工具", long_about = None, after_help = MAIN_HELP_EXAMPLES)]
 struct Cli {
     #[arg(short, long, default_value = "radmon.db", help = "数据库文件路径")]
     db: PathBuf,
@@ -34,7 +38,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    #[command(about = "导入巡检或剂量数据", long_about = "支持巡检CSV和剂量JSON两种格式自动识别导入")]
+    #[command(about = "导入巡检或剂量数据", long_about = "支持巡检CSV和剂量JSON两种格式自动识别导入", after_help = "\n示例:\n  radmon import survey.csv              # 自动识别CSV格式导入\n  radmon import dose.json               # 自动识别JSON格式导入\n  radmon import data.csv --format csv   # 强制指定CSV格式\n  radmon import data.json --format json # 强制指定JSON格式")]
     Import {
         #[arg(help = "要导入的文件路径")]
         file: PathBuf,
@@ -43,9 +47,9 @@ enum Commands {
         format: Option<String>,
     },
 
-    #[command(about = "剂量统计分析", long_about = "按人员、部门、时间段多维度汇总累积剂量")]
+    #[command(about = "剂量统计分析", long_about = "按人员、部门、区域、时间段多维度汇总累积剂量", after_help = "\n示例:\n  radmon stats -d personal                       # 个人剂量排名\n  radmon stats -d department                     # 部门剂量汇总\n  radmon stats -d area                           # 按辐射区域统计\n  radmon stats -d period -p month                # 月度周期统计\n  radmon stats -d period -p quarter              # 季度周期统计\n  radmon stats -d personal --from 2025-01-01    # 指定起始时间\n  radmon stats -d personal --format json         # JSON格式输出")]
     Stats {
-        #[arg(short, long, help = "统计维度: personal, department, period")]
+        #[arg(short, long, help = "统计维度: personal, department, area, period")]
         dimension: Option<String>,
 
         #[arg(short, long, help = "统计周期: month, quarter, year")]
@@ -64,19 +68,19 @@ enum Commands {
         format: String,
     },
 
-    #[command(about = "超限预警检查与管理", long_about = "内置GB18871标准剂量限值，支持黄/红两级预警")]
+    #[command(about = "超限预警检查与管理", long_about = "内置GB18871标准剂量限值，支持黄/红两级预警", after_help = "\n示例:\n  radmon alert run                               # 使用默认限值检查\n  radmon alert run --annual-limit 40             # 自定义年限值40mSv\n  radmon alert run --monthly-limit 4              # 自定义月限值4mSv\n  radmon alert run --5year-limit 80              # 自定义5年限值80mSv\n  radmon alert run --log-file alerts.log         # 预警写入日志文件\n  radmon alert list                              # 查看所有预警记录\n  radmon alert list --level red                  # 仅查看红色预警\n  radmon alert list --level yellow -n 10         # 查看最近10条黄色预警")]
     Alert {
         #[command(subcommand)]
         action: AlertCommands,
     },
 
-    #[command(about = "辐射工作许可证管理", long_about = "许可证创建、审批，自动校验累积剂量")]
+    #[command(about = "辐射工作许可证管理", long_about = "许可证创建、审批，自动校验累积剂量", after_help = "\n示例:\n  radmon permit create --employee-id E001 --employee-name 张三 --department 运行一部 --area-type 控制区 --area-name 1号反应堆厂房 --work-type 检修 --valid-from 2026-06-21 --valid-to 2026-07-21\n  radmon permit approve RP-20260621-1234 --approver 管理员\n  radmon permit reject RP-20260621-1234 --reason 超剂量限值\n  radmon permit list                             # 查看所有许可证\n  radmon permit list --status pending            # 查看待审批许可证\n  radmon permit list --employee E001 -n 5        # 查看员工最近5条")]
     Permit {
         #[command(subcommand)]
         action: PermitCommands,
     },
 
-    #[command(about = "生成报告", long_about = "生成月度/季度剂量统计报告，支持文本与CSV输出")]
+    #[command(about = "生成报告", long_about = "生成月度/季度剂量统计报告，支持文本与CSV输出", after_help = "\n示例:\n  radmon report --type month --year 2025 --month 6              # 生成2025年6月月度报告\n  radmon report --type quarter --year 2025 --month 4             # 生成2025年第2季度报告\n  radmon report --type survey                                     # 生成巡检异常报告\n  radmon report --type month --format csv --output ./reports      # CSV格式输出到目录")]
     Report {
         #[arg(short, long, default_value = "month", help = "报告类型: month, quarter, survey")]
         r#type: String,
@@ -87,14 +91,14 @@ enum Commands {
         #[arg(long, help = "月份 (1-12，默认当月)")]
         month: Option<u32>,
 
-        #[arg(short, long, default_value = "text", help = "输出格式: text, csv")]
+        #[arg(short, long, default_value = "text", help = "输出格式: text, csv, json")]
         format: String,
 
         #[arg(short, long, help = "输出目录 (CSV格式时使用)")]
         output: Option<PathBuf>,
     },
 
-    #[command(about = "历史数据查询", long_about = "按监测点、人员、时间范围组合查询历史记录")]
+    #[command(about = "历史数据查询", long_about = "按监测点、人员、时间范围组合查询历史记录", after_help = "\n示例:\n  radmon query -t survey -p U01-CONTROL-001                     # 按监测点查询巡检记录\n  radmon query -t dose -e E001                                   # 按工号查询剂量记录\n  radmon query -t dose --from 2025-06-01 --to 2025-06-30         # 按时间范围查询\n  radmon query -t survey --limit 100 --offset 50                # 分页查询\n  radmon query -t dose -e E001 -o export.csv                    # 导出为CSV文件")]
     Query {
         #[arg(short, long, default_value = "survey", help = "查询类型: survey, dose")]
         r#type: String,
@@ -117,14 +121,14 @@ enum Commands {
         #[arg(long, default_value = "0", help = "分页偏移")]
         offset: i64,
 
-        #[arg(short, long, default_value = "table", help = "输出格式: table, csv")]
+        #[arg(short, long, default_value = "table", help = "输出格式: table, csv, json")]
         format: String,
 
         #[arg(short = 'o', long, help = "导出CSV文件路径")]
         export: Option<PathBuf>,
     },
 
-    #[command(about = "数据完整性校验", long_about = "检测缺失监测点、异常跳变值、时间间隔异常")]
+    #[command(about = "数据完整性校验", long_about = "检测缺失监测点、异常跳变值、时间间隔异常", after_help = "\n示例:\n  radmon check              # 文本格式校验报告\n  radmon check --format json # JSON格式校验报告")]
     Check {
         #[arg(short, long, default_value = "text", help = "输出格式: text, json")]
         format: String,
@@ -133,12 +137,21 @@ enum Commands {
 
 #[derive(Subcommand)]
 enum AlertCommands {
-    #[command(about = "执行预警检查")]
+    #[command(about = "执行预警检查", after_help = "\n示例:\n  radmon alert run --annual-limit 40   # 自定义年限值40mSv\n  radmon alert run --5year-limit 80    # 自定义5年限值80mSv\n  radmon alert run --log-file a.log    # 预警写入日志")]
     Run {
         #[arg(long, help = "预警日志文件路径")]
         log_file: Option<PathBuf>,
+
+        #[arg(long, help = "自定义年限值 (mSv)，覆盖默认50mSv")]
+        annual_limit: Option<f64>,
+
+        #[arg(long, help = "自定义月限值 (mSv)，覆盖默认5mSv")]
+        monthly_limit: Option<f64>,
+
+        #[arg(long = "5year-limit", help = "自定义5年限值 (mSv)，覆盖默认100mSv")]
+        five_year_limit: Option<f64>,
     },
-    #[command(about = "查看预警记录")]
+    #[command(about = "查看预警记录", after_help = "\n示例:\n  radmon alert list                    # 查看所有预警\n  radmon alert list --level red        # 仅红色预警\n  radmon alert list -n 20              # 最近20条")]
     List {
         #[arg(short, long, help = "预警级别: yellow, red")]
         level: Option<String>,
@@ -149,7 +162,7 @@ enum AlertCommands {
         #[arg(long, help = "结束时间")]
         to: Option<String>,
 
-        #[arg(short, long, help = "返回数量限制")]
+        #[arg(short = 'n', long, help = "返回数量限制")]
         limit: Option<i64>,
     },
 }
@@ -206,7 +219,7 @@ enum PermitCommands {
         #[arg(short, long, help = "员工工号")]
         employee: Option<String>,
 
-        #[arg(short, long, help = "返回数量限制")]
+        #[arg(short = 'n', long, help = "返回数量限制")]
         limit: Option<i64>,
     },
 }
@@ -214,14 +227,19 @@ enum PermitCommands {
 fn main() {
     let cli = Cli::parse();
     if let Err(e) = run(cli) {
-        eprintln!("{} {}", "[ERROR]".red().bold(), e);
+        let msg = format!("{}", e);
+        if msg.starts_with("E") && msg.contains(": ") {
+            eprintln!("{} {}", "[ERROR]".red().bold(), msg);
+        } else {
+            eprintln!("{} E999: {}", "[ERROR]".red().bold(), msg);
+        }
         std::process::exit(1);
     }
 }
 
 fn run(cli: Cli) -> Result<()> {
-    let db = Db::open(&cli.db)?;
-    db.init_schema()?;
+    let db = Db::open(&cli.db).map_err(|e| err(ErrorCode::DatabaseOpen, format!("{}", e)))?;
+    db.init_schema().map_err(|e| err(ErrorCode::DatabaseInit, format!("{}", e)))?;
 
     match cli.command {
         Commands::Import { file, format } => cmd_import(&db, &file, format.as_deref()),
@@ -247,7 +265,7 @@ fn cmd_import(db: &Db, file: &std::path::Path, format: Option<&str>) -> Result<(
     let result: ImportResult = match format {
         Some("csv") => import_mod::import_survey_csv(db, file)?,
         Some("json") => import_mod::import_dose_json(db, file)?,
-        Some(f) => return Err(anyhow!("不支持的格式: {}", f)),
+        Some(f) => return Err(err(ErrorCode::UnsupportedFormat, format!("不支持的格式: {}", f))),
         None => import_mod::auto_import(db, file)?,
     };
 
@@ -317,7 +335,7 @@ fn cmd_stats(
                     }
                     wtr.flush()?;
                 }
-                _ => return Err(anyhow!("不支持的输出格式: {}", format)),
+                _ => return Err(err(ErrorCode::UnsupportedFormat, format!("不支持的输出格式: {}", format))),
             }
         }
         "department" | "dept" | "d" => {
@@ -355,7 +373,46 @@ fn cmd_stats(
                     }
                     wtr.flush()?;
                 }
-                _ => return Err(anyhow!("不支持的输出格式: {}", format)),
+                _ => return Err(err(ErrorCode::UnsupportedFormat, format!("不支持的输出格式: {}", format))),
+            }
+        }
+        "area" | "a" => {
+            let areas = get_area_dose(db, from_dt, to_dt)?;
+            match format {
+                "table" => {
+                    let mut table = Table::new();
+                    table.set_header(vec!["区域类型", "区域名称", "人数", "集体剂量", "人均剂量", "最大剂量", "单位"])
+                        .set_content_arrangement(ContentArrangement::Dynamic);
+                    for a in &areas {
+                        table.add_row(vec![
+                            Cell::new(&a.area_type),
+                            Cell::new(&a.area_name),
+                            Cell::new(a.worker_count.to_string()),
+                            Cell::new(format!("{:.2}", a.collective_dose)),
+                            Cell::new(format!("{:.2}", a.average_dose)),
+                            Cell::new(format!("{:.2}", a.max_dose)),
+                            Cell::new(&a.unit),
+                        ]);
+                    }
+                    println!("{}", table);
+                    println!("共 {} 个区域", areas.len());
+                }
+                "json" => println!("{}", serde_json::to_string_pretty(&areas)?),
+                "csv" => {
+                    let mut wtr = csv::Writer::from_writer(std::io::stdout());
+                    wtr.write_record(&["area_type", "area_name", "worker_count", "collective_dose", "average_dose", "max_dose", "unit"])?;
+                    for a in &areas {
+                        wtr.write_record(&[
+                            &a.area_type, &a.area_name, &a.worker_count.to_string(),
+                            &format!("{:.2}", a.collective_dose),
+                            &format!("{:.2}", a.average_dose),
+                            &format!("{:.2}", a.max_dose),
+                            &a.unit,
+                        ])?;
+                    }
+                    wtr.flush()?;
+                }
+                _ => return Err(err(ErrorCode::UnsupportedFormat, format!("不支持的输出格式: {}", format))),
             }
         }
         "period" | "t" => {
@@ -380,18 +437,23 @@ fn cmd_stats(
                     println!("{}", table);
                 }
                 "json" => println!("{}", serde_json::to_string_pretty(&stats)?),
-                _ => return Err(anyhow!("不支持的输出格式: {}", format)),
+                _ => return Err(err(ErrorCode::UnsupportedFormat, format!("不支持的输出格式: {}", format))),
             }
         }
-        _ => return Err(anyhow!("不支持的统计维度: {}", dim)),
+        _ => return Err(err(ErrorCode::InvalidDimension, format!("不支持的统计维度: {}", dim))),
     }
     Ok(())
 }
 
 fn cmd_alert(db: &Db, action: AlertCommands) -> Result<()> {
     match action {
-        AlertCommands::Run { log_file } => {
-            let result = check_all_dose_alerts(db, log_file)?;
+        AlertCommands::Run { log_file, annual_limit, monthly_limit, five_year_limit } => {
+            let thresholds = AlertThresholds {
+                annual_limit_msv: annual_limit,
+                monthly_limit_msv: monthly_limit,
+                five_year_limit_msv: five_year_limit,
+            };
+            let result = check_all_dose_alerts(db, log_file, &thresholds)?;
             println!("{}", "===== 预警检查结果 =====".green().bold());
             println!("检查人员数: {}", result.total_checked);
             println!("黄色预警: {} 条", result.yellow_alerts.to_string().yellow());
@@ -457,9 +519,9 @@ fn cmd_permit(db: &Db, action: PermitCommands) -> Result<()> {
             valid_to,
         } => {
             let vf = NaiveDate::parse_from_str(&valid_from, "%Y-%m-%d")
-                .map_err(|_| anyhow!("有效期开始日期格式无效: {}", valid_from))?;
+                .map_err(|_| err(ErrorCode::InvalidDate, format!("有效期开始日期格式无效: {}", valid_from)))?;
             let vt = NaiveDate::parse_from_str(&valid_to, "%Y-%m-%d")
-                .map_err(|_| anyhow!("有效期结束日期格式无效: {}", valid_to))?;
+                .map_err(|_| err(ErrorCode::InvalidDate, format!("有效期结束日期格式无效: {}", valid_to)))?;
 
             let req = CreatePermitRequest {
                 employee_id,
@@ -547,7 +609,21 @@ fn cmd_report(
                     println!("{}", format!("CSV报告已生成到 {:?}", out_dir).green());
                 }
                 "json" => println!("{}", serde_json::to_string_pretty(&report)?),
-                _ => return Err(anyhow!("不支持的输出格式: {}", format)),
+                _ => return Err(err(ErrorCode::UnsupportedFormat, format!("不支持的输出格式: {}", format))),
+            }
+        }
+        "quarter" | "quarterly" => {
+            let quarter = if m >= 10 { 4 } else if m >= 7 { 3 } else if m >= 4 { 2 } else { 1 };
+            let report = generate_quarterly_dose_report(db, y, quarter)?;
+            match format {
+                "text" => print!("{}", report_to_text(&report)),
+                "csv" => {
+                    let out_dir = output.unwrap_or_else(|| std::path::Path::new("."));
+                    report_to_csv(&report, out_dir)?;
+                    println!("{}", format!("CSV报告已生成到 {:?}", out_dir).green());
+                }
+                "json" => println!("{}", serde_json::to_string_pretty(&report)?),
+                _ => return Err(err(ErrorCode::UnsupportedFormat, format!("不支持的输出格式: {}", format))),
             }
         }
         "survey" => {
@@ -556,7 +632,7 @@ fn cmd_report(
             let text = report::generate_survey_report(db, from, to)?;
             print!("{}", text);
         }
-        _ => return Err(anyhow!("不支持的报告类型: {}", r#type)),
+        _ => return Err(err(ErrorCode::InvalidReportType, format!("不支持的报告类型: {}", r#type))),
     }
     Ok(())
 }
@@ -603,7 +679,7 @@ fn cmd_query(
                         println!("{}", json);
                     }
                 }
-                _ => return Err(anyhow!("不支持的输出格式: {}", format)),
+                _ => return Err(err(ErrorCode::UnsupportedFormat, format!("不支持的输出格式: {}", format))),
             }
         }
         "dose" | "d" => {
@@ -623,10 +699,10 @@ fn cmd_query(
                         println!("{}", json);
                     }
                 }
-                _ => return Err(anyhow!("不支持的输出格式: {}", format)),
+                _ => return Err(err(ErrorCode::UnsupportedFormat, format!("不支持的输出格式: {}", format))),
             }
         }
-        _ => return Err(anyhow!("不支持的查询类型: {}", r#type)),
+        _ => return Err(err(ErrorCode::InvalidQueryType, format!("不支持的查询类型: {}", r#type))),
     }
     Ok(())
 }
@@ -636,7 +712,7 @@ fn cmd_check(db: &Db, format: &str) -> Result<()> {
     match format {
         "text" => print!("{}", check::format_check_report(&result)),
         "json" => println!("{}", serde_json::to_string_pretty(&result)?),
-        _ => return Err(anyhow!("不支持的输出格式: {}", format)),
+        _ => return Err(err(ErrorCode::UnsupportedFormat, format!("不支持的输出格式: {}", format))),
     }
     Ok(())
 }
@@ -650,7 +726,7 @@ fn parse_datetime_opt(s: Option<&str>) -> Result<Option<NaiveDateTime>> {
                     NaiveDate::parse_from_str(s, "%Y-%m-%d")
                         .map(|d| d.and_hms_opt(0, 0, 0).unwrap())
                 })
-                .map_err(|_| anyhow!("时间格式无效: {}，请使用 YYYY-MM-DD 或 YYYY-MM-DD HH:MM:SS", s))?;
+                .map_err(|_| err(ErrorCode::InvalidTimestamp, format!("时间格式无效: {}，请使用 YYYY-MM-DD 或 YYYY-MM-DD HH:MM:SS", s)))?;
             Ok(Some(dt))
         }
     }

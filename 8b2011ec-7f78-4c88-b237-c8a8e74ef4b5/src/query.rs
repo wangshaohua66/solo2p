@@ -82,7 +82,7 @@ pub fn query_dose_records(db: &Db, params: &QueryParams) -> Result<Vec<DoseRecor
         params_vec.push(format!("%{}%", eid));
     }
     if let Some(pc) = &params.point_code {
-        sql.push_str(" AND employee_id LIKE ?");
+        sql.push_str(" AND employee_id IN (SELECT DISTINCT wp.employee_id FROM work_permits wp JOIN monitor_points m ON wp.area_name = m.area_name WHERE m.point_code LIKE ?)");
         params_vec.push(format!("%{}%", pc));
     }
     if let Some(f) = params.from {

@@ -28,6 +28,17 @@ pub struct DepartmentDose {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct AreaDose {
+    pub area_type: String,
+    pub area_name: String,
+    pub worker_count: i64,
+    pub collective_dose: f64,
+    pub average_dose: f64,
+    pub max_dose: f64,
+    pub unit: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PeriodStats {
     pub period_label: String,
     pub worker_count: i64,
@@ -294,4 +305,66 @@ pub fn get_collective_dose(
 ) -> Result<f64> {
     let summaries = get_personal_dose(db, None, from, to)?;
     Ok(summaries.iter().map(|s| s.total_dose).sum())
+}
+
+pub fn get_area_dose(
+    db: &Db,
+    from: Option<NaiveDateTime>,
+    to: Option<NaiveDateTime>,
+) -> Result<Vec<AreaDose>> {
+    let mut sql = String::from(
+        "SELECT wp.area_type, wp.area_name, d.employee_id,
+                MAX(d.cumulative_dose) - MIN(d.cumulative_dose) as person_dose
+         FROM dose_records d
+         JOIN work_permits wp ON d.employee_id = wp.employee_id
+         WHERE 1=1",
+    );
+    let mut params_vec: Vec<String> = Vec::new();
+
+    if let Some(f) = from {
+        sql.push_str(" AND d.record_time >= ?");
+        params_vec.push(f.format("%Y-%m-%d %H:%M:%S").to_string());
+    }
+    if let Some(t) = to {
+        sql.push_str(" AND d.record_time <= ?");
+        params_vec.push(t.format("%Y-%m-%d %H:%M:%S").to_string());
+    }
+    sql.push_str(" GROUP BY wp.area_type, wp.area_name, d.employee_id");
+
+    let outer_sql = format!(
+        "SELECT area_type, area_name,
+                COUNT(*) as worker_count,
+                SUM(person_dose) as collective_dose,
+                AVG(person_dose) as average_dose,
+                MAX(person_dose) as max_dose
+         FROM ({}) sub
+         GROUP BY area_type, area_name
+         ORDER BY collective_dose DESC",
+        sql
+    );
+
+    let conn = db.conn();
+    let mut stmt = conn.prepare(&outer_sql)?;
+    let param_refs: Vec<&dyn rusqlite::ToSql> = params_vec
+        .iter()
+        .map(|s| s as &dyn rusqlite::ToSql)
+        .collect();
+
+    let rows = stmt.query_map(param_refs.as_slice(), |row| {
+        Ok(AreaDose {
+            area_type: row.get(0)?,
+            area_name: row.get(1)?,
+            worker_count: row.get(2)?,
+            collective_dose: row.get::<_, Option<f64>>(3)?.unwrap_or(0.0),
+            average_dose: row.get::<_, Option<f64>>(4)?.unwrap_or(0.0),
+            max_dose: row.get::<_, Option<f64>>(5)?.unwrap_or(0.0),
+            unit: "uSv".to_string(),
+        })
+    })?;
+
+    let mut result = Vec::new();
+    for row in rows {
+        result.push(row?);
+    }
+    Ok(result)
 }

@@ -1,14 +1,26 @@
 use anyhow::{Context, Result};
-use chrono::{Local, NaiveDate, NaiveDateTime};
+use chrono::{Datelike, Local, NaiveDate, NaiveDateTime};
 use csv::Writer;
 use rusqlite::params;
 use serde::Serialize;
 use std::fs::File;
 use std::path::Path;
 
-use crate::alert::{list_alerts, AlertLevel};
+use crate::alert::list_alerts;
 use crate::db::Db;
-use crate::dose::{get_department_dose, get_period_stats, get_personal_dose, StatsPeriod};
+use crate::dose::{get_department_dose, get_personal_dose};
+
+#[derive(Debug, Serialize)]
+pub struct TrendSummary {
+    pub current_collective_dose: f64,
+    pub previous_period_dose: Option<f64>,
+    pub month_over_month_change: Option<f64>,
+    pub month_over_month_pct: Option<f64>,
+    pub same_period_last_year_dose: Option<f64>,
+    pub year_over_year_change: Option<f64>,
+    pub year_over_year_pct: Option<f64>,
+    pub unit: String,
+}
 
 #[derive(Debug, Serialize)]
 pub struct MonthlyDoseReport {
@@ -16,6 +28,7 @@ pub struct MonthlyDoseReport {
     pub period: String,
     pub generated_at: NaiveDateTime,
     pub summary: ReportSummary,
+    pub trend: TrendSummary,
     pub personal_details: Vec<PersonalDoseDetail>,
     pub department_summary: Vec<DepartmentDoseRow>,
     pub alerts: Vec<AlertRow>,
@@ -73,7 +86,7 @@ pub fn generate_monthly_dose_report(
     month: u32,
 ) -> Result<MonthlyDoseReport> {
     let from_date = NaiveDate::from_ymd_opt(year, month, 1)
-        .ok_or_else(|| anyhow::anyhow!("无效的年月: {}-{}", year, month))?;
+        .ok_or_else(|| anyhow::anyhow!("E008: 无效的年月: {}-{}", year, month))?;
     let to_date = if month == 12 {
         NaiveDate::from_ymd_opt(year + 1, 1, 1).unwrap()
     } else {
@@ -151,6 +164,8 @@ pub fn generate_monthly_dose_report(
     let yellow_count = alert_rows.iter().filter(|a| a.level == "yellow").count();
     let red_count = alert_rows.iter().filter(|a| a.level == "red").count();
 
+    let trend = calculate_trend(db, year, month, collective)?;
+
     Ok(MonthlyDoseReport {
         report_type: "月度剂量统计报告".to_string(),
         period: format!("{}-{:02}", year, month),
@@ -165,9 +180,66 @@ pub fn generate_monthly_dose_report(
             yellow_alert_count: yellow_count,
             red_alert_count: red_count,
         },
+        trend,
         personal_details,
         department_summary: dept_rows,
         alerts: alert_rows,
+    })
+}
+
+fn calculate_trend(db: &Db, year: i32, month: u32, current_dose: f64) -> Result<TrendSummary> {
+    let (prev_year, prev_month) = if month == 1 {
+        (year - 1, 12u32)
+    } else {
+        (year, month - 1)
+    };
+    let prev_from = NaiveDate::from_ymd_opt(prev_year, prev_month, 1)
+        .unwrap()
+        .and_hms_opt(0, 0, 0)
+        .unwrap();
+    let prev_to = NaiveDate::from_ymd_opt(year, month, 1)
+        .unwrap()
+        .and_hms_opt(0, 0, 0)
+        .unwrap();
+    let prev_personal = get_personal_dose(db, None, Some(prev_from), Some(prev_to))?;
+    let prev_dose: f64 = prev_personal.iter().map(|s| s.total_dose).sum();
+
+    let yoy_from = NaiveDate::from_ymd_opt(year - 1, month, 1)
+        .unwrap()
+        .and_hms_opt(0, 0, 0)
+        .unwrap();
+    let yoy_to = if month == 12 {
+        NaiveDate::from_ymd_opt(year, 1, 1).unwrap()
+    } else {
+        NaiveDate::from_ymd_opt(year - 1, month + 1, 1).unwrap()
+    }
+    .and_hms_opt(0, 0, 0)
+    .unwrap();
+    let yoy_personal = get_personal_dose(db, None, Some(yoy_from), Some(yoy_to))?;
+    let yoy_dose: f64 = yoy_personal.iter().map(|s| s.total_dose).sum();
+
+    let mom_change = current_dose - prev_dose;
+    let mom_pct = if prev_dose > 0.0 {
+        Some(mom_change / prev_dose * 100.0)
+    } else {
+        None
+    };
+    let yoy_change = current_dose - yoy_dose;
+    let yoy_pct = if yoy_dose > 0.0 {
+        Some(yoy_change / yoy_dose * 100.0)
+    } else {
+        None
+    };
+
+    Ok(TrendSummary {
+        current_collective_dose: current_dose,
+        previous_period_dose: Some(prev_dose),
+        month_over_month_change: Some(mom_change),
+        month_over_month_pct: mom_pct,
+        same_period_last_year_dose: Some(yoy_dose),
+        year_over_year_change: Some(yoy_change),
+        year_over_year_pct: yoy_pct,
+        unit: "uSv".to_string(),
     })
 }
 
@@ -206,9 +278,39 @@ pub fn report_to_text(report: &MonthlyDoseReport) -> String {
         report.summary.yellow_alert_count
     ));
     s.push_str(&format!(
-        "  红色预警: {} 条\n\n",
-        report.summary.red_alert_count
+        "  红色预警: {} 条\n\n", report.summary.red_alert_count
     ));
+
+    s.push_str("【趋势摘要】\n");
+    s.push_str(&format!(
+        "  本期集体剂量: {:.2} {}\n",
+        report.trend.current_collective_dose, report.trend.unit
+    ));
+    if let Some(prev) = report.trend.previous_period_dose {
+        s.push_str(&format!("  上期集体剂量: {:.2} {}\n", prev, report.trend.unit));
+        if let Some(change) = report.trend.month_over_month_change {
+            let arrow = if change >= 0.0 { "↑" } else { "↓" };
+            s.push_str(&format!("  环比变化: {}{:.2} {}", arrow, change.abs(), report.trend.unit));
+            if let Some(pct) = report.trend.month_over_month_pct {
+                s.push_str(&format!(" ({:.1}%)\n", pct));
+            } else {
+                s.push('\n');
+            }
+        }
+    }
+    if let Some(yoy) = report.trend.same_period_last_year_dose {
+        s.push_str(&format!("  去年同期剂量: {:.2} {}\n", yoy, report.trend.unit));
+        if let Some(change) = report.trend.year_over_year_change {
+            let arrow = if change >= 0.0 { "↑" } else { "↓" };
+            s.push_str(&format!("  同比变化: {}{:.2} {}", arrow, change.abs(), report.trend.unit));
+            if let Some(pct) = report.trend.year_over_year_pct {
+                s.push_str(&format!(" ({:.1}%)\n", pct));
+            } else {
+                s.push('\n');
+            }
+        }
+    }
+    s.push('\n');
 
     s.push_str("【部门剂量汇总】\n");
     s.push_str(&format!("  {:<15} {:>6} {:>12} {:>10} {:>10}\n",
@@ -324,6 +426,185 @@ pub fn report_to_csv(report: &MonthlyDoseReport, output_dir: &Path) -> Result<()
     wtr.flush()?;
 
     Ok(())
+}
+
+pub fn generate_quarterly_dose_report(
+    db: &Db,
+    year: i32,
+    quarter: u32,
+) -> Result<MonthlyDoseReport> {
+    if quarter < 1 || quarter > 4 {
+        return Err(anyhow::anyhow!(
+            "E010: 无效的季度: {}，应为 1-4",
+            quarter
+        ));
+    }
+    let start_month = (quarter - 1) * 3 + 1;
+    let from_date = NaiveDate::from_ymd_opt(year, start_month, 1)
+        .ok_or_else(|| anyhow::anyhow!("E008: 无效的季度起始年月: {}-{}", year, start_month))?;
+    let to_date = if start_month + 3 > 12 {
+        NaiveDate::from_ymd_opt(year + 1, 1, 1).unwrap()
+    } else {
+        NaiveDate::from_ymd_opt(year, start_month + 3, 1).unwrap()
+    };
+
+    let from = from_date.and_hms_opt(0, 0, 0).unwrap();
+    let to = to_date.and_hms_opt(0, 0, 0).unwrap();
+
+    let personal = get_personal_dose(db, None, Some(from), Some(to))?;
+    let departments = get_department_dose(db, Some(from), Some(to))?;
+    let alerts = list_alerts(db, None, Some(from), Some(to), None)?;
+
+    let mut personal_details: Vec<PersonalDoseDetail> = personal
+        .iter()
+        .enumerate()
+        .map(|(idx, s)| PersonalDoseDetail {
+            employee_id: s.employee_id.clone(),
+            employee_name: s.employee_name.clone(),
+            department: s.department.clone(),
+            period_dose: s.total_dose,
+            unit: s.unit.clone(),
+            rank: (idx + 1) as i32,
+        })
+        .collect();
+    personal_details.sort_by(|a, b| {
+        b.period_dose
+            .partial_cmp(&a.period_dose)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    for (i, d) in personal_details.iter_mut().enumerate() {
+        d.rank = (i + 1) as i32;
+    }
+
+    let dept_rows: Vec<DepartmentDoseRow> = departments
+        .iter()
+        .map(|d| DepartmentDoseRow {
+            department: d.department.clone(),
+            worker_count: d.worker_count,
+            collective_dose: d.collective_dose,
+            average_dose: d.average_dose,
+            max_dose: d.max_dose,
+            unit: d.unit.clone(),
+        })
+        .collect();
+
+    let alert_rows: Vec<AlertRow> = alerts
+        .iter()
+        .map(|a| AlertRow {
+            alert_time: a.alert_time.format("%Y-%m-%d %H:%M:%S").to_string(),
+            level: a.level.clone(),
+            alert_type: a.alert_type.clone(),
+            employee_id: a.employee_id.clone().unwrap_or_default(),
+            message: a.message.clone(),
+        })
+        .collect();
+
+    let total_workers = personal_details.len() as i64;
+    let collective: f64 = personal_details.iter().map(|d| d.period_dose).sum();
+    let avg = if total_workers > 0 {
+        collective / total_workers as f64
+    } else {
+        0.0
+    };
+    let max = personal_details
+        .iter()
+        .map(|d| d.period_dose)
+        .fold(0.0f64, f64::max);
+    let min = personal_details
+        .iter()
+        .map(|d| d.period_dose)
+        .fold(f64::INFINITY, f64::min);
+    let min = if min == f64::INFINITY { 0.0 } else { min };
+
+    let yellow_count = alert_rows.iter().filter(|a| a.level == "yellow").count();
+    let red_count = alert_rows.iter().filter(|a| a.level == "red").count();
+
+    let (prev_year, prev_quarter) = if quarter == 1 {
+        (year - 1, 4u32)
+    } else {
+        (year, quarter - 1)
+    };
+    let prev_start_month = (prev_quarter - 1) * 3 + 1;
+    let prev_from = NaiveDate::from_ymd_opt(prev_year, prev_start_month, 1)
+        .unwrap()
+        .and_hms_opt(0, 0, 0)
+        .unwrap();
+    let prev_to = if prev_start_month + 3 > 12 {
+        NaiveDate::from_ymd_opt(prev_year + 1, 1, 1)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap()
+    } else {
+        NaiveDate::from_ymd_opt(prev_year, prev_start_month + 3, 1)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap()
+    };
+    let prev_personal = get_personal_dose(db, None, Some(prev_from), Some(prev_to))?;
+    let prev_dose: f64 = prev_personal.iter().map(|s| s.total_dose).sum();
+
+    let yoy_start_month = start_month;
+    let yoy_from = NaiveDate::from_ymd_opt(year - 1, yoy_start_month, 1)
+        .unwrap()
+        .and_hms_opt(0, 0, 0)
+        .unwrap();
+    let yoy_to = if yoy_start_month + 3 > 12 {
+        NaiveDate::from_ymd_opt(year, 1, 1)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap()
+    } else {
+        NaiveDate::from_ymd_opt(year - 1, yoy_start_month + 3, 1)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap()
+    };
+    let yoy_personal = get_personal_dose(db, None, Some(yoy_from), Some(yoy_to))?;
+    let yoy_dose: f64 = yoy_personal.iter().map(|s| s.total_dose).sum();
+
+    let mom_change = collective - prev_dose;
+    let mom_pct = if prev_dose > 0.0 {
+        Some(mom_change / prev_dose * 100.0)
+    } else {
+        None
+    };
+    let yoy_change = collective - yoy_dose;
+    let yoy_pct = if yoy_dose > 0.0 {
+        Some(yoy_change / yoy_dose * 100.0)
+    } else {
+        None
+    };
+
+    let trend = TrendSummary {
+        current_collective_dose: collective,
+        previous_period_dose: Some(prev_dose),
+        month_over_month_change: Some(mom_change),
+        month_over_month_pct: mom_pct,
+        same_period_last_year_dose: Some(yoy_dose),
+        year_over_year_change: Some(yoy_change),
+        year_over_year_pct: yoy_pct,
+        unit: "uSv".to_string(),
+    };
+
+    Ok(MonthlyDoseReport {
+        report_type: format!("{}年第{}季度剂量统计报告", year, quarter),
+        period: format!("{}-Q{}", year, quarter),
+        generated_at: Local::now().naive_local(),
+        summary: ReportSummary {
+            total_workers,
+            collective_dose: collective,
+            average_dose: avg,
+            max_dose: max,
+            min_dose: min,
+            unit: "uSv".to_string(),
+            yellow_alert_count: yellow_count,
+            red_alert_count: red_count,
+        },
+        trend,
+        personal_details,
+        department_summary: dept_rows,
+        alerts: alert_rows,
+    })
 }
 
 pub fn generate_survey_report(db: &Db, from: NaiveDateTime, to: NaiveDateTime) -> Result<String> {

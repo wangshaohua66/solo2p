@@ -8,7 +8,7 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use crate::db::{AlertRecord, Db};
-use crate::dose::{get_personal_dose, get_yearly_dose_for_worker};
+use crate::dose::{get_5year_dose_for_worker, get_personal_dose, get_yearly_dose_for_worker};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AlertLevel {
@@ -60,7 +60,28 @@ pub struct AlertCheckResult {
 
 const YELLOW_THRESHOLD_RATIO: f64 = 0.8;
 
-pub fn check_all_dose_alerts(db: &Db, log_file: Option<PathBuf>) -> Result<AlertCheckResult> {
+#[derive(Debug, Clone)]
+pub struct AlertThresholds {
+    pub annual_limit_msv: Option<f64>,
+    pub monthly_limit_msv: Option<f64>,
+    pub five_year_limit_msv: Option<f64>,
+}
+
+impl Default for AlertThresholds {
+    fn default() -> Self {
+        AlertThresholds {
+            annual_limit_msv: None,
+            monthly_limit_msv: None,
+            five_year_limit_msv: None,
+        }
+    }
+}
+
+pub fn check_all_dose_alerts(
+    db: &Db,
+    log_file: Option<PathBuf>,
+    thresholds: &AlertThresholds,
+) -> Result<AlertCheckResult> {
     let mut all_alerts = Vec::new();
     let now = Local::now().naive_local();
     let current_year = now.year();
@@ -68,11 +89,31 @@ pub fn check_all_dose_alerts(db: &Db, log_file: Option<PathBuf>) -> Result<Alert
     let workers = get_all_workers(db)?;
     let total = workers.len();
 
-    let year_limit_msv = db.get_dose_limit("occupational", "year", 1)?.unwrap_or(50.0);
-    let year_limit_usv = year_limit_msv * 1000.0;
+    let occupational_year_limit_msv = thresholds
+        .annual_limit_msv
+        .or_else(|| db.get_dose_limit("occupational", "year", 1).ok().flatten())
+        .unwrap_or(50.0);
+    let occupational_year_limit_usv = occupational_year_limit_msv * 1000.0;
+
+    let five_year_limit_msv = thresholds
+        .five_year_limit_msv
+        .or_else(|| db.get_dose_limit("occupational", "year5", 5).ok().flatten())
+        .unwrap_or(100.0);
+    let five_year_limit_usv = five_year_limit_msv * 1000.0;
+
+    let public_year_limit_msv = db
+        .get_dose_limit("public", "year", 1)?
+        .unwrap_or(1.0);
+    let public_year_limit_usv = public_year_limit_msv * 1000.0;
 
     for worker in &workers {
         let yearly_dose = get_yearly_dose_for_worker(db, &worker.employee_id, current_year)?;
+
+        let (year_limit_usv, category_label) = if worker.category == "public" {
+            (public_year_limit_usv, "公众")
+        } else {
+            (occupational_year_limit_usv, "职业")
+        };
 
         if yearly_dose >= year_limit_usv {
             all_alerts.push(create_alert(
@@ -83,8 +124,8 @@ pub fn check_all_dose_alerts(db: &Db, log_file: Option<PathBuf>) -> Result<Alert
                 yearly_dose,
                 year_limit_usv,
                 format!(
-                    "员工{}({})年度累积剂量{:.2}uSv，超过年限值{:.2}uSv",
-                    worker.name, worker.employee_id, yearly_dose, year_limit_usv
+                    "员工{}({})年度累积剂量{:.2}uSv，超过{}年限值{:.2}uSv",
+                    worker.name, worker.employee_id, yearly_dose, category_label, year_limit_usv
                 ),
                 now,
             ));
@@ -97,15 +138,52 @@ pub fn check_all_dose_alerts(db: &Db, log_file: Option<PathBuf>) -> Result<Alert
                 yearly_dose,
                 year_limit_usv * YELLOW_THRESHOLD_RATIO,
                 format!(
-                    "员工{}({})年度累积剂量{:.2}uSv，接近年限值80%",
-                    worker.name, worker.employee_id, yearly_dose
+                    "员工{}({})年度累积剂量{:.2}uSv，接近{}年限值80%",
+                    worker.name, worker.employee_id, yearly_dose, category_label
                 ),
                 now,
             ));
         }
+
+        if worker.category != "public" {
+            let five_year_dose =
+                get_5year_dose_for_worker(db, &worker.employee_id, current_year)?;
+            if five_year_dose >= five_year_limit_usv {
+                all_alerts.push(create_alert(
+                    "dose_5year",
+                    AlertLevel::Red,
+                    Some(&worker.employee_id),
+                    None,
+                    five_year_dose,
+                    five_year_limit_usv,
+                    format!(
+                        "员工{}({})5年累积剂量{:.2}uSv，超过5年限值{:.2}uSv",
+                        worker.name, worker.employee_id, five_year_dose, five_year_limit_usv
+                    ),
+                    now,
+                ));
+            } else if five_year_dose >= five_year_limit_usv * YELLOW_THRESHOLD_RATIO {
+                all_alerts.push(create_alert(
+                    "dose_5year",
+                    AlertLevel::Yellow,
+                    Some(&worker.employee_id),
+                    None,
+                    five_year_dose,
+                    five_year_limit_usv * YELLOW_THRESHOLD_RATIO,
+                    format!(
+                        "员工{}({})5年累积剂量{:.2}uSv，接近5年限值80%",
+                        worker.name, worker.employee_id, five_year_dose
+                    ),
+                    now,
+                ));
+            }
+        }
     }
 
-    let month_limit_msv = db.get_dose_limit("occupational", "month", 1)?.unwrap_or(5.0);
+    let month_limit_msv = thresholds
+        .monthly_limit_msv
+        .or_else(|| db.get_dose_limit("occupational", "month", 1).ok().flatten())
+        .unwrap_or(5.0);
     let month_limit_usv = month_limit_msv * 1000.0;
     let month_start = NaiveDate::from_ymd_opt(now.year(), now.month(), 1)
         .unwrap()
