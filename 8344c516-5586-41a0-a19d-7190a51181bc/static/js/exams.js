@@ -185,12 +185,18 @@ function handleEventResize(info) {
 
 function updateExamTime(examId, start, end, info) {
     showLoading();
+
+    const examDate = start.toISOString().split('T')[0];
+    const startTime = start.toTimeString().slice(0, 5);
+    const endTime = end ? end.toTimeString().slice(0, 5) : (start.getHours() + 2).toString().padStart(2, '0') + ':00';
+
     ajax({
         url: API_BASE + '/exams/' + examId + '/time',
         type: 'PUT',
         data: {
-            start_time: start.toISOString(),
-            end_time: end ? end.toISOString() : null
+            examDate: examDate,
+            startTime: startTime,
+            endTime: endTime
         },
         success: function(res) {
             if (res.code === 0) {
