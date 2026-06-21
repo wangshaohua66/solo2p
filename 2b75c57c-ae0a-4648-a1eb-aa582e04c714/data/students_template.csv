@@ -1,0 +1,2 @@
+﻿student_id,name,gender,university,major,education,phone,email,target_industry,target_position,target_salary_min,resume_path
+stu001,张三,男,省大学,计算机科学与技术,本科,13800138000,zhangsan@example.com,互联网、金融、教育,软件开发、算法工程师、数据分析师,8000,/path/to/resume.pdf

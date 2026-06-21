@@ -21,6 +21,7 @@ from report_generator import (
 )
 from monitor import SystemMonitor
 from scheduler import TaskScheduler
+from student_importer import StudentImporter
 
 
 logger = get_logger("main")
@@ -202,6 +203,49 @@ def cmd_submit(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_import_students(args: argparse.Namespace) -> int:
+    load_config(args.config)
+    importer = StudentImporter()
+
+    if args.template:
+        path = importer.get_template_csv(args.template)
+        print(f"✓ 学生导入模板已生成: {path}")
+        return 0
+
+    if args.list:
+        students = importer.list_students(args.limit)
+        print(f"✓ 共 {len(students)} 名学生 (显示前 {args.limit} 名):")
+        for s in students[:args.limit]:
+            print(f"  {s.get('student_id', '')} | {s.get('name', '')} | "
+                  f"{s.get('university', '')} | {s.get('major', '')} | "
+                  f"{s.get('education', '')}")
+        return 0
+
+    if not args.file:
+        print("错误: 请指定导入文件路径 (--file) 或使用 --template 生成模板")
+        return 1
+
+    result = importer.import_file(
+        args.file,
+        skip_errors=args.skip_errors,
+    )
+
+    print(f"✓ 导入完成: 共 {result['total']} 条")
+    print(f"  成功: {result['success']}")
+    print(f"  失败: {result['errors']}")
+    if args.skip_errors:
+        print(f"  跳过: {result['skipped']}")
+
+    if result['error_details'] and args.verbose:
+        print("\n错误详情:")
+        for err in result['error_details'][:10]:
+            print(f"  第 {err['row']} 行: {'; '.join(err['errors'])}")
+        if len(result['error_details']) > 10:
+            print(f"  ... 共 {len(result['error_details'])} 条错误")
+
+    return 0
+
+
 def cmd_monitor(args: argparse.Namespace) -> int:
     load_config(args.config)
     mon = SystemMonitor()
@@ -311,6 +355,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_submit.add_argument("--do-submit", action="store_true", help="实际执行投递")
     p_submit.add_argument("--real", action="store_true", help="真实投递(非模拟)")
     p_submit.set_defaults(func=cmd_submit)
+
+    p_import = sub.add_parser("import-students", help="学生信息批量导入 (CSV/JSON)")
+    p_import.add_argument("-f", "--file", help="导入文件路径 (.csv / .json)", default=None)
+    p_import.add_argument("-t", "--template", help="生成模板文件并保存到指定路径", default=None)
+    p_import.add_argument("-l", "--list", action="store_true", help="列出已导入的学生")
+    p_import.add_argument("-n", "--limit", type=int, help="列表显示数量", default=20)
+    p_import.add_argument("--skip-errors", action="store_true", help="跳过错误行继续导入")
+    p_import.set_defaults(func=cmd_import_students)
 
     p_monitor = sub.add_parser("monitor", help="系统健康检查")
     p_monitor.set_defaults(func=cmd_monitor)

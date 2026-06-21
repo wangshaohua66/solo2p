@@ -6,8 +6,11 @@ from typing import Any, Dict, List, Optional
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
+from selenium.webdriver.support import expected_conditions as EC
+
 from spider_base import BaseSpider
 from logger import get_logger
+from captcha_solver import CaptchaSolver
 
 
 logger = get_logger("adapter.university")
@@ -18,7 +21,9 @@ class UniversityAdapter(BaseSpider):
         "login_username": "input[name='username'], #username, .username-input",
         "login_password": "input[name='password'], #password, .password-input",
         "login_captcha": "input[name='captcha'], #captcha, .captcha-input",
+        "login_captcha_img": "img[src*='captcha'], img[src*='verify'], .captcha-img, #captchaImg",
         "login_submit": "button[type='submit'], .login-btn, #loginBtn",
+        "login_error": ".error-msg, .login-error, .message-error, #errorMsg",
         "fair_list_items": ".jobfair-item, .fair-item, .jobfair-list li, table.jobfair-table tr",
         "fair_title": ".title, a.fair-title, h3, .jobfair-name",
         "fair_date": ".date, .fair-date, time, .jobfair-time",
@@ -36,7 +41,64 @@ class UniversityAdapter(BaseSpider):
         "pagination_next": ".next-page, a.next, li.next a",
     }
 
+    def __init__(self, site_config, app_config=None):
+        super().__init__(site_config, app_config)
+        self._captcha_solver: Optional[CaptchaSolver] = None
+
+    def _get_captcha_solver(self) -> Optional[CaptchaSolver]:
+        if self._captcha_solver is None:
+            try:
+                self._captcha_solver = CaptchaSolver(self.config)
+            except Exception as e:
+                logger.warning(f"[{self.site.name}] 验证码识别器初始化失败: {e}")
+        return self._captcha_solver
+
+    def _solve_captcha(self, captcha_input_el, captcha_img_el) -> bool:
+        solver = self._get_captcha_solver()
+        if solver is None:
+            return False
+
+        img_bytes = solver.get_captcha_from_element(captcha_img_el)
+        if not img_bytes:
+            logger.warning(f"[{self.site.name}] 获取验证码图片失败")
+            return False
+
+        code, confidence = solver.solve_image(img_bytes, site_name=self.site.name)
+        if not code:
+            logger.warning(f"[{self.site.name}] 验证码识别失败")
+            return False
+
+        logger.info(f"[{self.site.name}] 验证码识别: {code} (置信度: {confidence:.2f})")
+        try:
+            captcha_input_el.clear()
+            captcha_input_el.send_keys(code)
+            return True
+        except Exception as e:
+            logger.warning(f"[{self.site.name}] 填入验证码失败: {e}")
+            return False
+
+    def _check_login_error(self) -> str:
+        err_el = self.safe_find_element(By.CSS_SELECTOR, self.SELECTORS["login_error"])
+        if err_el is not None:
+            text = self.safe_text(err_el)
+            if text:
+                return text
+        return ""
+
+    def _refresh_captcha(self, captcha_img_el) -> None:
+        try:
+            if captcha_img_el is not None:
+                self.driver.execute_script("arguments[0].click();", captcha_img_el)
+                time.sleep(1.5)
+        except Exception as e:
+            logger.debug(f"[{self.site.name}] 刷新验证码失败: {e}")
+
     def login(self) -> bool:
+        if not self.site.need_captcha:
+            return self._login_simple()
+        return self._login_with_captcha()
+
+    def _login_simple(self) -> bool:
         try:
             logger.info(f"[{self.site.name}] 开始登录: {self.site.login_url}")
             self.safe_get(self.site.login_url)
@@ -52,25 +114,105 @@ class UniversityAdapter(BaseSpider):
                 password_el.clear()
                 password_el.send_keys(self.site.password)
 
-            if self.site.need_captcha:
-                captcha_el = self.safe_find_element(By.CSS_SELECTOR, self.SELECTORS["login_captcha"])
-                if captcha_el:
-                    logger.warning(f"[{self.site.name}] 需要人工输入验证码，等待15秒...")
-                    time.sleep(15)
-
-            submit_btn = self.safe_find_element(By.CSS_SELECTOR, self.SELECTORS["login_submit"])
-            if submit_btn:
-                submit_btn.click()
-            else:
-                if password_el:
-                    password_el.send_keys(Keys.ENTER)
-
+            self._submit_login(password_el)
             self.wait_for_page()
             logger.info(f"[{self.site.name}] 登录完成")
             return True
         except Exception as e:
             logger.error(f"[{self.site.name}] 登录失败: {e}")
             return False
+
+    def _submit_login(self, password_el) -> None:
+        submit_btn = self.safe_find_element(By.CSS_SELECTOR, self.SELECTORS["login_submit"])
+        if submit_btn:
+            submit_btn.click()
+        elif password_el:
+            password_el.send_keys(Keys.ENTER)
+        time.sleep(2)
+
+    def _login_with_captcha(self) -> bool:
+        max_attempts = self.config.retry.max_retries if self.config else 3
+        solver = self._get_captcha_solver()
+
+        try:
+            logger.info(f"[{self.site.name}] 开始登录(含验证码): {self.site.login_url}")
+            self.safe_get(self.site.login_url)
+            self.wait_for_page()
+
+            username_el = self.wait_for_element(By.CSS_SELECTOR, self.SELECTORS["login_username"])
+            password_el = self.safe_find_element(By.CSS_SELECTOR, self.SELECTORS["login_password"])
+            captcha_input_el = self.safe_find_element(By.CSS_SELECTOR, self.SELECTORS["login_captcha"])
+            captcha_img_el = self.safe_find_element(By.CSS_SELECTOR, self.SELECTORS["login_captcha_img"])
+
+            if username_el and self.site.username:
+                username_el.clear()
+                username_el.send_keys(self.site.username)
+            if password_el and self.site.password:
+                password_el.clear()
+                password_el.send_keys(self.site.password)
+
+            if captcha_input_el is None or captcha_img_el is None:
+                logger.warning(f"[{self.site.name}] 未找到验证码元素，尝试直接登录")
+                self._submit_login(password_el)
+                return self._verify_login_result()
+
+            for attempt in range(max_attempts):
+                try:
+                    success = self._solve_captcha(captcha_input_el, captcha_img_el)
+                    if not success:
+                        logger.warning(f"[{self.site.name}] 验证码识别重试 ({attempt + 1}/{max_attempts})")
+                        self._refresh_captcha(captcha_img_el)
+                        captcha_input_el.clear()
+                        continue
+
+                    self._submit_login(password_el)
+                    error_msg = self._check_login_error()
+
+                    if error_msg and ("验证码" in error_msg or "captcha" in error_msg.lower()):
+                        logger.warning(f"[{self.site.name}] 验证码错误: {error_msg}")
+                        if solver:
+                            solver.fail_count += 1
+                            if solver.fail_count >= 5:
+                                solver._alert_failure(self.site.name)
+                        if attempt < max_attempts - 1:
+                            self._refresh_captcha(captcha_img_el)
+                            captcha_input_el.clear()
+                            if password_el:
+                                password_el.clear()
+                                password_el.send_keys(self.site.password)
+                            continue
+                    elif error_msg:
+                        logger.error(f"[{self.site.name}] 登录失败: {error_msg}")
+                        return False
+                    else:
+                        logger.info(f"[{self.site.name}] 登录成功 (第{attempt + 1}次尝试)")
+                        if solver:
+                            solver.reset_fail_counter()
+                        return True
+
+                except Exception as e:
+                    logger.warning(f"[{self.site.name}] 登录尝试 #{attempt + 1} 异常: {e}")
+                    if attempt < max_attempts - 1:
+                        time.sleep(2)
+
+            logger.error(f"[{self.site.name}] 登录失败: 超过最大重试次数({max_attempts})")
+            return False
+
+        except Exception as e:
+            logger.error(f"[{self.site.name}] 登录异常: {e}")
+            return False
+
+    def _verify_login_result(self) -> bool:
+        time.sleep(2)
+        error_msg = self._check_login_error()
+        if error_msg:
+            logger.error(f"[{self.site.name}] 登录失败: {error_msg}")
+            return False
+        current_url = self.driver.current_url
+        if "login" in current_url.lower():
+            logger.warning(f"[{self.site.name}] 可能仍在登录页，URL未跳转")
+            return False
+        return True
 
     def crawl_job_fairs(self) -> List[Dict[str, Any]]:
         fairs: List[Dict[str, Any]] = []

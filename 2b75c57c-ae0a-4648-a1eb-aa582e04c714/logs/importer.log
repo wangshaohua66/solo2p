@@ -1,0 +1,5 @@
+[2026-06-22 04:07:16] [INFO   ] [importer] [student_importer.py:273] 模板已生成: data/students_template.csv
+[2026-06-22 04:07:44] [INFO   ] [importer] [student_importer.py:139] CSV字段: ['student_id', 'name', 'gender', 'university', 'major', 'education', 'phone', 'email', 'target_industry', 'target_position', 'target_salary_min', 'resume_path']
+[2026-06-22 04:07:44] [INFO   ] [importer] [student_importer.py:140] 映射后字段: ['student_id', 'name', 'gender', 'university', 'major', 'education', 'phone', 'email', 'target_industry', 'target_position', 'target_salary_min', 'resume_path']
+[2026-06-22 04:07:44] [WARNING] [importer] [student_importer.py:209] 第1行验证失败: 简历文件不存在: /path/to/resume.pdf
+[2026-06-22 04:07:44] [INFO   ] [importer] [student_importer.py:230] CSV导入完成: 共1条, 成功1, 失败1, 跳过0
