@@ -1,0 +1,20 @@
+database:
+  path: "data/eco_inspector.db"
+  max_size_mb: 500
+
+log:
+  level: "info"
+  dir: "logs"
+  max_size_mb: 50
+  max_backups: 30
+
+warning:
+  levels:
+    - 7
+    - 3
+    - 1
+  cron: "0 8 * * *"
+
+app:
+  default_deadline_days: 30
+  page_size: 20
