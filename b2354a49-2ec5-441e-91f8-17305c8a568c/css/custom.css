@@ -27,6 +27,10 @@ body {
 .bg-gradient-secondary { background: var(--secondary-gradient) !important; }
 .bg-gradient-dark { background: var(--dark-gradient) !important; }
 
+.text-purple { color: #6f42c1 !important; }
+.bg-purple-subtle { background-color: rgba(111, 66, 193, 0.15) !important; }
+.border-left-purple { border-left: 4px solid #6f42c1 !important; }
+
 .border-left-primary { border-left: 4px solid #0d6efd !important; }
 .border-left-success { border-left: 4px solid #198754 !important; }
 .border-left-warning { border-left: 4px solid #ffc107 !important; }
@@ -270,6 +274,65 @@ body {
     border-color: transparent !important;
 }
 
+.sidebar-has-submenu {
+    position: relative;
+}
+
+.sidebar-arrow {
+    font-size: 0.75rem;
+    opacity: 0.6;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    margin-left: 0.5rem;
+}
+
+.sidebar-submenu {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 0;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.25);
+    border-left: 3px solid rgba(111, 66, 193, 0.5);
+    transition: max-height 0.35s ease, padding 0.3s ease;
+}
+
+.sidebar-has-submenu:hover > .sidebar-submenu {
+    max-height: 300px;
+    padding: 0.5rem 0;
+}
+
+.sidebar-has-submenu:hover > .sidebar-link .sidebar-arrow {
+    transform: rotate(90deg);
+    opacity: 1;
+}
+
+.sidebar-submenu-link {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 1rem 0.5rem 2.75rem;
+    color: rgba(255, 255, 255, 0.75);
+    text-decoration: none;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+.sidebar-submenu-link:hover {
+    color: #fff;
+    background: rgba(13, 110, 253, 0.2);
+    padding-left: 3rem;
+}
+
+.sidebar-submenu-link i {
+    width: 1rem;
+    font-size: 0.85rem;
+    opacity: 0.7;
+}
+
+.sidebar-has-submenu:hover > .sidebar-link {
+    background: rgba(13, 110, 253, 0.15);
+}
+
 @media print {
     body * { visibility: hidden; }
     #receiptPrintArea, #receiptPrintArea * { visibility: visible; }
@@ -286,6 +349,8 @@ body {
     .sidebar-text { display: none; }
     .sidebar-link { justify-content: center; padding: 0.75rem 0 !important; }
     .sidebar-link > i { margin-right: 0 !important; }
+    .sidebar-arrow { display: none !important; }
+    .sidebar-submenu { display: none !important; }
     .sidebar-link[data-route]:hover::after {
         content: attr(data-route);
         position: absolute;

@@ -6,6 +6,7 @@
 
     var filter = { keyword: '', level: '' };
     var selectedCustomerId = null;
+    var memberVirtualScroller = null;
 
     function render(params) {
         return '<div class="container-fluid p-0">' +
@@ -99,26 +100,6 @@
             a.click();
             App.showToast('会员数据已导出', 'success');
         });
-
-        $('#memberList').on('click', '.member-item', function() {
-            selectedCustomerId = $(this).data('id');
-            refreshMemberList();
-            $('#memberDetailPanel').html(renderMemberDetail());
-            $('#memberDetailPanel').closest('.card').find('.card-header h6').next().replaceWith('<span class="badge bg-success">已选中</span>');
-            bindMemberDetailEvents();
-        });
-
-        $('#memberList').on('click', '.btn-recharge', function(e) {
-            e.stopPropagation();
-            openRechargeModal($(this).data('id'));
-        });
-
-        $('#memberList').on('click', '.btn-edit-member', function(e) {
-            e.stopPropagation();
-            var id = $(this).data('id');
-            var c = App.store.getCustomerById(id);
-            openMemberModal(c);
-        });
     }
 
     function refreshStats() {
@@ -131,6 +112,39 @@
         $('#totalMembers').text(list.length);
         $('#totalBalance').text(totalBalance.toFixed(0));
         $('#totalPoints').text(totalPoints.toLocaleString());
+    }
+
+    function renderMemberItem(c) {
+        var levelInfo = App.calculator.getMemberLevel(c.memberLevel);
+        var pets = App.store.getPets({ ownerId: c.id });
+        var receipts = App.store.getReceipts({ customerId: c.id });
+        var totalConsume = receipts.reduce(function(s, r) { return s + Number(r.total); }, 0);
+        var isActive = c.id === selectedCustomerId;
+        return '<div class="list-group-item list-group-item-action member-item p-3 ' + (isActive ? 'active bg-primary-subtle border-primary' : '') + '" data-id="' + c.id + '" style="min-height:92px;">' +
+            '<div class="d-flex align-items-start gap-3">' +
+            '<div class="avatar-md bg-gradient-secondary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold">' +
+            (c.name ? c.name.charAt(0) : '?') + '</div>' +
+            '<div class="flex-grow-1">' +
+            '<div class="d-flex align-items-center gap-2 flex-wrap mb-1">' +
+            '<span class="fw-bold">' + c.name + '</span>' +
+            '<span class="badge" style="background-color:' + levelInfo.color + ';">' + levelInfo.name + '</span>' +
+            '<small class="text-muted">' + c.phone + '</small>' +
+            '</div>' +
+            '<div class="d-flex gap-3 small flex-wrap">' +
+            '<span><i class="bi bi-heart me-1"></i>宠物：' + pets.length + ' 只</span>' +
+            '<span><i class="bi bi-receipt me-1"></i>消费：' + receipts.length + ' 次</span>' +
+            '<span><i class="bi bi-calendar me-1"></i>注册：' + (c.registerDate || '-') + '</span>' +
+            '</div>' +
+            '<div class="d-flex gap-4 small mt-1">' +
+            '<span class="text-success fw-bold">余额：' + App.calculator.formatMoney(c.balance) + '</span>' +
+            '<span class="text-primary fw-bold">积分：' + (c.points || 0) + ' pts</span>' +
+            '<span class="text-muted">累计：' + App.calculator.formatMoney(totalConsume) + '</span>' +
+            '</div>' +
+            '</div>' +
+            '<div class="d-flex flex-column gap-1">' +
+            '<button class="btn btn-sm btn-outline-primary btn-recharge" data-id="' + c.id + '"><i class="bi bi-wallet2 me-1"></i>充值</button>' +
+            '<button class="btn btn-sm btn-outline-secondary btn-edit-member" data-id="' + c.id + '"><i class="bi bi-pencil me-1"></i>编辑</button>' +
+            '</div></div></div>';
     }
 
     function refreshMemberList() {
@@ -149,44 +163,88 @@
 
         if (!list.length) {
             $('#memberList').html('<div class="text-center py-4 text-muted"><i class="bi bi-people fs-1 d-block mb-2"></i>暂无会员</div>');
+            if (memberVirtualScroller) { memberVirtualScroller = null; }
             return;
         }
 
-        var html = '<div class="list-group list-group-flush">';
-        list.forEach(function(c) {
-            var levelInfo = App.calculator.getMemberLevel(c.memberLevel);
-            var pets = App.store.getPets({ ownerId: c.id });
-            var receipts = App.store.getReceipts({ customerId: c.id });
-            var totalConsume = receipts.reduce(function(s, r) { return s + Number(r.total); }, 0);
-            var isActive = c.id === selectedCustomerId;
-            html += '<div class="list-group-item list-group-item-action member-item p-3 ' + (isActive ? 'active bg-primary-subtle border-primary' : '') + '" data-id="' + c.id + '">' +
-                '<div class="d-flex align-items-start gap-3">' +
-                '<div class="avatar-md bg-gradient-secondary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold">' +
-                (c.name ? c.name.charAt(0) : '?') + '</div>' +
-                '<div class="flex-grow-1">' +
-                '<div class="d-flex align-items-center gap-2 flex-wrap mb-1">' +
-                '<span class="fw-bold">' + c.name + '</span>' +
-                '<span class="badge" style="background-color:' + levelInfo.color + ';">' + levelInfo.name + '</span>' +
-                '<small class="text-muted">' + c.phone + '</small>' +
-                '</div>' +
-                '<div class="d-flex gap-3 small flex-wrap">' +
-                '<span><i class="bi bi-heart me-1"></i>宠物：' + pets.length + ' 只</span>' +
-                '<span><i class="bi bi-receipt me-1"></i>消费：' + receipts.length + ' 次</span>' +
-                '<span><i class="bi bi-calendar me-1"></i>注册：' + (c.registerDate || '-') + '</span>' +
-                '</div>' +
-                '<div class="d-flex gap-4 small mt-1">' +
-                '<span class="text-success fw-bold">余额：' + App.calculator.formatMoney(c.balance) + '</span>' +
-                '<span class="text-primary fw-bold">积分：' + (c.points || 0) + ' pts</span>' +
-                '<span class="text-muted">累计：' + App.calculator.formatMoney(totalConsume) + '</span>' +
-                '</div>' +
-                '</div>' +
-                '<div class="d-flex flex-column gap-1">' +
-                '<button class="btn btn-sm btn-outline-primary btn-recharge" data-id="' + c.id + '"><i class="bi bi-wallet2 me-1"></i>充值</button>' +
-                '<button class="btn btn-sm btn-outline-secondary btn-edit-member" data-id="' + c.id + '"><i class="bi bi-pencil me-1"></i>编辑</button>' +
-                '</div></div></div>';
+        var useVirtual = App.utils && App.utils.shouldUseVirtualScroll && App.utils.shouldUseVirtualScroll(list.length);
+        var $listContainer = $('#memberList');
+
+        if (useVirtual) {
+            $listContainer.css({
+                'max-height': '500px',
+                'overflow-y': 'auto',
+                '-webkit-overflow-scrolling': 'touch',
+                'padding': '0'
+            });
+
+            if (!memberVirtualScroller) {
+                var container = $listContainer[0];
+                memberVirtualScroller = App.utils.createVirtualScroller({
+                    container: container,
+                    items: list,
+                    itemHeight: 92,
+                    containerHeight: 500,
+                    renderItem: renderMemberItem,
+                    onItemsRendered: function() {
+                        bindMemberListEvents();
+                    }
+                });
+                memberVirtualScroller.render();
+
+                $listContainer.off('scroll.virtual').on('scroll.virtual', function() {
+                    if (memberVirtualScroller) {
+                        memberVirtualScroller.updateScrollTop(this.scrollTop);
+                        bindMemberListEvents();
+                    }
+                });
+            } else {
+                memberVirtualScroller.updateItems(list);
+                bindMemberListEvents();
+            }
+
+            $listContainer.prepend('<div class="alert alert-info py-2 px-3 mb-2 small" style="margin:8px;"><i class="bi bi-info-circle me-1"></i>虚拟滚动已启用（' + list.length + ' 条记录）</div>');
+        } else {
+            if (memberVirtualScroller) {
+                memberVirtualScroller = null;
+                $listContainer.off('scroll.virtual');
+            }
+            $listContainer.css({
+                'max-height': 'none',
+                'overflow-y': 'visible',
+                'padding': '0.5rem'
+            });
+
+            var html = '<div class="list-group list-group-flush">';
+            list.forEach(function(c) {
+                html += renderMemberItem(c);
+            });
+            html += '</div>';
+            $listContainer.html(html);
+            bindMemberListEvents();
+        }
+    }
+
+    function bindMemberListEvents() {
+        $('#memberList').off('click', '.member-item').on('click', '.member-item', function() {
+            selectedCustomerId = $(this).data('id');
+            refreshMemberList();
+            $('#memberDetailPanel').html(renderMemberDetail());
+            $('#memberDetailPanel').closest('.card').find('.card-header h6').next().replaceWith('<span class="badge bg-success">已选中</span>');
+            bindMemberDetailEvents();
         });
-        html += '</div>';
-        $('#memberList').html(html);
+
+        $('#memberList').off('click', '.btn-recharge').on('click', '.btn-recharge', function(e) {
+            e.stopPropagation();
+            openRechargeModal($(this).data('id'));
+        });
+
+        $('#memberList').off('click', '.btn-edit-member').on('click', '.btn-edit-member', function(e) {
+            e.stopPropagation();
+            var id = $(this).data('id');
+            var c = App.store.getCustomerById(id);
+            openMemberModal(c);
+        });
     }
 
     function renderMemberDetail() {

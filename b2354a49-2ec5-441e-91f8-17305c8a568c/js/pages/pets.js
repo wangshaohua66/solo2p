@@ -6,6 +6,8 @@
 
     var filter = { keyword: '', species: '' };
     var selectedPetId = null;
+    var cardVirtualScroller = null;
+    var tableVirtualScroller = null;
 
     function render() {
         return '<div class="container-fluid p-0">' +
@@ -112,20 +114,58 @@
             };
             reader.readAsText(file);
         });
+    }
 
-        $('#cardView').on('click', '.pet-action-edit', function() {
+    function renderPetCardItem(pet) {
+        return '<div class="col-md-6 col-xl-4" style="min-height:320px;">' +
+            App.components.petCard.render(pet, { onEdit: true, onSelect: true }) +
+            '</div>';
+    }
+
+    function renderPetTableRow(p, idx) {
+        var owner = p.ownerId ? App.store.getCustomerById(p.ownerId) : null;
+        var age = '';
+        if (p.birthday) {
+            var bd = new Date(p.birthday);
+            var y = Math.floor((Date.now() - bd.getTime()) / (365 * 24 * 3600 * 1000));
+            age = y + '岁';
+        }
+        return '<tr data-id="' + p.id + '" style="height:60px;">' +
+            '<td><img src="' + (p.photos && p.photos[0] ? p.photos[0] : 'https://placehold.co/40x40/ddd/999?text=' + (p.species === 'cat' ? '猫' : '犬')) + '" style="width:40px;height:40px;object-fit:cover;border-radius:8px;" onerror="this.src=\'https://placehold.co/40x40/ddd/999?text=宠物\'"></td>' +
+            '<td class="fw-bold">' + p.name + '</td>' +
+            '<td><span class="badge ' + (p.species === 'cat' ? 'bg-info' : 'bg-warning') + '">' + (p.species === 'cat' ? '猫咪' : '狗狗') + '</span></td>' +
+            '<td class="small">' + (p.breed || '-') + '</td>' +
+            '<td>' + (p.gender || '-') + '</td>' +
+            '<td>' + age + '</td>' +
+            '<td>' + (p.weight ? p.weight + 'kg' : '-') + '</td>' +
+            '<td class="small">' + (owner ? owner.name + ' (' + owner.phone + ')' : '<span class="text-muted">未绑定</span>') + '</td>' +
+            '<td><span class="badge bg-light text-dark">' + (p.serviceHistory ? p.serviceHistory.length : 0) + '</span></td>' +
+            '<td><button class="btn btn-sm btn-outline-primary btn-edit-row" data-id="' + p.id + '"><i class="bi bi-pencil"></i></button></td>' +
+            '</tr>';
+    }
+
+    function bindPetCardEvents() {
+        $('#cardView').off('click', '.pet-action-edit').on('click', '.pet-action-edit', function() {
             var id = $(this).data('id');
             var pet = App.store.getPetById(id);
             openPetModal(pet);
         });
-        $('#cardView').on('click', '.pet-action-select', function() {
+        $('#cardView').off('click', '.pet-action-select').on('click', '.pet-action-select', function() {
             selectedPetId = $(this).data('id');
             refreshView();
             App.showToast('已选中宠物', 'success');
         });
-        $('#cardView').on('click', '.pet-card', function() {
+        $('#cardView').off('click', '.pet-card').on('click', '.pet-card', function() {
             selectedPetId = $(this).data('petId');
             refreshView();
+        });
+    }
+
+    function bindPetTableEvents() {
+        $('#tableView').off('click', '.btn-edit-row').on('click', '.btn-edit-row', function() {
+            var id = $(this).data('id');
+            var pet = App.store.getPetById(id);
+            openPetModal(pet);
         });
     }
 
@@ -144,57 +184,144 @@
 
         $('#petCount').text(list.length + ' 只');
 
-        var cardHtml = '';
+        var useVirtual = App.utils && App.utils.shouldUseVirtualScroll && App.utils.shouldUseVirtualScroll(list.length);
+        var $cardView = $('#cardView');
+        var $tableView = $('#tableView');
+
         if (!list.length) {
-            cardHtml = '<div class="text-center py-5 text-muted"><i class="bi bi-search-heart fs-1 d-block mb-2"></i>未找到匹配的宠物档案</div>';
-        } else {
-            cardHtml = '<div class="row g-3">';
-            list.forEach(function(pet) {
-                cardHtml += '<div class="col-md-6 col-xl-4">' +
-                    App.components.petCard.render(pet, { onEdit: true, onSelect: true }) +
-                    '</div>';
-            });
-            cardHtml += '</div>';
-        }
-        $('#cardView').html(cardHtml);
-        if (selectedPetId) {
-            $('#cardView .pet-card[data-pet-id="' + selectedPetId + '"]').addClass('border-primary border-2');
+            var emptyHtml = '<div class="text-center py-5 text-muted"><i class="bi bi-search-heart fs-1 d-block mb-2"></i>未找到匹配的宠物档案</div>';
+            $cardView.html(emptyHtml);
+            $tableView.html(emptyHtml);
+            if (cardVirtualScroller) { cardVirtualScroller = null; }
+            if (tableVirtualScroller) { tableVirtualScroller = null; }
+            return;
         }
 
-        var tableHtml = '';
-        if (list.length) {
-            tableHtml = '<div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead class="table-light"><tr>' +
-                '<th>照片</th><th>名字</th><th>物种</th><th>品种</th><th>性别</th><th>年龄</th><th>体重</th><th>主人</th><th>服务次数</th><th>操作</th>' +
-                '</tr></thead><tbody>';
-            list.forEach(function(p) {
-                var owner = p.ownerId ? App.store.getCustomerById(p.ownerId) : null;
-                var age = '';
-                if (p.birthday) {
-                    var bd = new Date(p.birthday);
-                    var y = Math.floor((Date.now() - bd.getTime()) / (365 * 24 * 3600 * 1000));
-                    age = y + '岁';
-                }
-                tableHtml += '<tr data-id="' + p.id + '">' +
-                    '<td><img src="' + (p.photos && p.photos[0] ? p.photos[0] : 'https://placehold.co/40x40/ddd/999?text=' + (p.species === 'cat' ? '猫' : '犬')) + '" style="width:40px;height:40px;object-fit:cover;border-radius:8px;" onerror="this.src=\'https://placehold.co/40x40/ddd/999?text=宠物\'"></td>' +
-                    '<td class="fw-bold">' + p.name + '</td>' +
-                    '<td><span class="badge ' + (p.species === 'cat' ? 'bg-info' : 'bg-warning') + '">' + (p.species === 'cat' ? '猫咪' : '狗狗') + '</span></td>' +
-                    '<td class="small">' + (p.breed || '-') + '</td>' +
-                    '<td>' + (p.gender || '-') + '</td>' +
-                    '<td>' + age + '</td>' +
-                    '<td>' + (p.weight ? p.weight + 'kg' : '-') + '</td>' +
-                    '<td class="small">' + (owner ? owner.name + ' (' + owner.phone + ')' : '<span class="text-muted">未绑定</span>') + '</td>' +
-                    '<td><span class="badge bg-light text-dark">' + (p.serviceHistory ? p.serviceHistory.length : 0) + '</span></td>' +
-                    '<td><button class="btn btn-sm btn-outline-primary btn-edit-row" data-id="' + p.id + '"><i class="bi bi-pencil"></i></button></td>' +
-                    '</tr>';
+        if (useVirtual) {
+            $cardView.css({
+                'max-height': '600px',
+                'overflow-y': 'auto',
+                '-webkit-overflow-scrolling': 'touch',
+                'padding': '0'
             });
-            tableHtml += '</tbody></table></div>';
+            $tableView.css({
+                'max-height': '600px',
+                'overflow-y': 'auto',
+                '-webkit-overflow-scrolling': 'touch',
+                'padding': '0'
+            });
+
+            if (!cardVirtualScroller) {
+                cardVirtualScroller = App.utils.createVirtualScroller({
+                    container: $cardView[0],
+                    items: list,
+                    itemHeight: 320,
+                    containerHeight: 600,
+                    renderItem: function(pet) {
+                        return '<div class="row g-3"><div class="col-12">' + renderPetCardItem(pet) + '</div></div>';
+                    },
+                    onItemsRendered: bindPetCardEvents
+                });
+                cardVirtualScroller.render();
+
+                $cardView.off('scroll.virtual').on('scroll.virtual', function() {
+                    if (cardVirtualScroller) {
+                        cardVirtualScroller.updateScrollTop(this.scrollTop);
+                        bindPetCardEvents();
+                        if (selectedPetId) {
+                            $cardView.find('.pet-card[data-pet-id="' + selectedPetId + '"]').addClass('border-primary border-2');
+                        }
+                    }
+                });
+            } else {
+                cardVirtualScroller.updateItems(list);
+                bindPetCardEvents();
+            }
+
+            if (!tableVirtualScroller) {
+                tableVirtualScroller = App.utils.createVirtualScroller({
+                    container: $tableView[0],
+                    items: list,
+                    itemHeight: 60,
+                    containerHeight: 600,
+                    renderItem: function(pet, idx) {
+                        return renderPetTableRow(pet, idx);
+                    },
+                    onItemsRendered: function(range, visibleItems) {
+                        var html = '<div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead class="table-light" style="position:sticky;top:0;z-index:1;"><tr>' +
+                            '<th>照片</th><th>名字</th><th>物种</th><th>品种</th><th>性别</th><th>年龄</th><th>体重</th><th>主人</th><th>服务次数</th><th>操作</th>' +
+                            '</tr></thead><tbody>';
+                        visibleItems.forEach(function(p, i) {
+                            var globalIdx = range.start + i;
+                            html += renderPetTableRow(p, globalIdx);
+                        });
+                        html += '</tbody></table></div>';
+                        return html;
+                    }
+                });
+                tableVirtualScroller.render();
+
+                $tableView.off('scroll.virtual').on('scroll.virtual', function() {
+                    if (tableVirtualScroller) {
+                        tableVirtualScroller.updateScrollTop(this.scrollTop);
+                        bindPetTableEvents();
+                    }
+                });
+            } else {
+                tableVirtualScroller.updateItems(list);
+                bindPetTableEvents();
+            }
+
+            $cardView.prepend('<div class="alert alert-info py-2 px-3 mb-2 small" style="margin:8px;"><i class="bi bi-info-circle me-1"></i>虚拟滚动已启用（' + list.length + ' 条记录）</div>');
+            $tableView.prepend('<div class="alert alert-info py-2 px-3 mb-2 small" style="margin:8px;"><i class="bi bi-info-circle me-1"></i>虚拟滚动已启用（' + list.length + ' 条记录）</div>');
+
+            if (selectedPetId) {
+                $cardView.find('.pet-card[data-pet-id="' + selectedPetId + '"]').addClass('border-primary border-2');
+            }
+        } else {
+            if (cardVirtualScroller) {
+                cardVirtualScroller = null;
+                $cardView.off('scroll.virtual');
+            }
+            if (tableVirtualScroller) {
+                tableVirtualScroller = null;
+                $tableView.off('scroll.virtual');
+            }
+            $cardView.css({
+                'max-height': 'none',
+                'overflow-y': 'visible',
+                'padding': '0'
+            });
+            $tableView.css({
+                'max-height': 'none',
+                'overflow-y': 'visible',
+                'padding': '0'
+            });
+
+            var cardHtml = '<div class="row g-3">';
+            list.forEach(function(pet) {
+                cardHtml += renderPetCardItem(pet);
+            });
+            cardHtml += '</div>';
+            $cardView.html(cardHtml);
+            if (selectedPetId) {
+                $cardView.find('.pet-card[data-pet-id="' + selectedPetId + '"]').addClass('border-primary border-2');
+            }
+            bindPetCardEvents();
+
+            var tableHtml = '';
+            if (list.length) {
+                tableHtml = '<div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead class="table-light"><tr>' +
+                    '<th>照片</th><th>名字</th><th>物种</th><th>品种</th><th>性别</th><th>年龄</th><th>体重</th><th>主人</th><th>服务次数</th><th>操作</th>' +
+                    '</tr></thead><tbody>';
+                list.forEach(function(p, idx) {
+                    tableHtml += renderPetTableRow(p, idx);
+                });
+                tableHtml += '</tbody></table></div>';
+            }
+            $tableView.html(tableHtml);
+            bindPetTableEvents();
         }
-        $('#tableView').html(tableHtml);
-        $('#tableView').off('click', '.btn-edit-row').on('click', '.btn-edit-row', function() {
-            var id = $(this).data('id');
-            var pet = App.store.getPetById(id);
-            openPetModal(pet);
-        });
     }
 
     function openPetModal(pet) {

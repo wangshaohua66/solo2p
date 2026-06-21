@@ -253,6 +253,81 @@
             }
         },
 
+        generateLargeMockData: function(petCount, memberCount) {
+            petCount = petCount || 200;
+            memberCount = memberCount || 150;
+            var firstNames = ['张','王','李','刘','陈','杨','黄','赵','周','吴','徐','孙','马','朱','胡','郭','何','高','林','罗'];
+            var lastNames = ['女士','先生','小姐','阿姨','叔叔'];
+            var petNames = ['豆豆','乐乐','旺财','咪咪','雪球','大黄','小白','黑子','花花','毛毛','团团','圆圆','贝贝','乐乐','多多','奇奇','怪怪','笨笨','呆呆','萌萌'];
+            var breeds = {
+                dog: ['金毛','拉布拉多','柴犬','哈士奇','萨摩耶','边牧','贵宾','泰迪','比熊','柯基','博美','吉娃娃','巴哥','斗牛','雪纳瑞'],
+                cat: ['英短','美短','布偶','暹罗','波斯','缅因','无毛','折耳','狸花','橘猫','三花','奶牛','蓝猫','金渐层','银渐层']
+            };
+            var levels = ['normal','silver','gold','diamond'];
+
+            for (var i = 1; i <= memberCount; i++) {
+                var fn = firstNames[Math.floor(Math.random() * firstNames.length)];
+                var ln = lastNames[Math.floor(Math.random() * lastNames.length)];
+                var phone = '13' + Math.floor(Math.random() * 9 + 1);
+                for (var p = 0; p < 9; p++) phone += Math.floor(Math.random() * 10);
+                var year = 2024 - Math.floor(Math.random() * 2);
+                var month = String(Math.floor(Math.random() * 12) + 1).padStart(2,'0');
+                var day = String(Math.floor(Math.random() * 28) + 1).padStart(2,'0');
+                db.customers.push({
+                    id: 'c_gen_' + i,
+                    name: fn + ln,
+                    phone: phone,
+                    memberLevel: levels[Math.floor(Math.random() * levels.length)],
+                    balance: Math.floor(Math.random() * 5000),
+                    points: Math.floor(Math.random() * 10000),
+                    registerDate: year + '-' + month + '-' + day,
+                    address: '测试地址' + i + '号'
+                });
+            }
+
+            var hairTypes = ['短毛', '长毛', '卷毛', '硬毛', '无毛'];
+            for (var j = 1; j <= petCount; j++) {
+                var species = Math.random() > 0.5 ? 'dog' : 'cat';
+                var breedList = breeds[species];
+                var ownerId = db.customers[Math.floor(Math.random() * db.customers.length)].id;
+                var bYear = 2020 + Math.floor(Math.random() * 5);
+                var bMonth = String(Math.floor(Math.random() * 12) + 1).padStart(2,'0');
+                var bDay = String(Math.floor(Math.random() * 28) + 1).padStart(2,'0');
+                var personalities = ['温顺','活泼','粘人','独立','胆小','勇敢','调皮','安静'];
+                var pCount = 1 + Math.floor(Math.random() * 3);
+                var p = [];
+                for (var pk = 0; pk < pCount; pk++) {
+                    var randP = personalities[Math.floor(Math.random() * personalities.length)];
+                    if (p.indexOf(randP) < 0) p.push(randP);
+                }
+                var allergyList = [];
+                if (Math.random() > 0.8) {
+                    var allergyOptions = ['鸡肝', '牛肉', '鱼香精', '某些香波', '青霉素'];
+                    allergyList.push(allergyOptions[Math.floor(Math.random() * allergyOptions.length)]);
+                }
+                db.pets.push({
+                    id: 'p_gen_' + j,
+                    name: petNames[Math.floor(Math.random() * petNames.length)] + (Math.random() > 0.7 ? '' + j : ''),
+                    species: species,
+                    breed: breedList[Math.floor(Math.random() * breedList.length)],
+                    gender: Math.random() > 0.5 ? '公' : '母',
+                    birthday: bYear + '-' + bMonth + '-' + bDay,
+                    weight: parseFloat((Math.random() * 30 + 1).toFixed(1)),
+                    hairType: hairTypes[Math.floor(Math.random() * hairTypes.length)],
+                    personality: p,
+                    ownerId: ownerId,
+                    allergy: allergyList,
+                    specialNotes: Math.random() > 0.8 ? '需要特别注意' : '',
+                    vaccines: [],
+                    photos: [],
+                    serviceHistory: []
+                });
+            }
+
+            saveDb();
+            return { pets: petCount, members: memberCount };
+        },
+
         getCustomers: function(filter) {
             filter = filter || {};
             var list = db.customers.slice();

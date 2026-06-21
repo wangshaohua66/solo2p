@@ -36,6 +36,10 @@
             '<button class="btn btn-primary flex-grow-1" id="btnExportAll"><i class="bi bi-download me-1"></i>导出全部数据</button>' +
             '<button class="btn btn-outline-primary flex-grow-1" id="btnImportAll"><i class="bi bi-upload me-1"></i>导入数据</button>' +
             '</div>' +
+            '<div class="d-grid gap-2 d-flex mb-2">' +
+            '<button class="btn btn-outline-info flex-grow-1" id="btnGenLargeData"><i class="bi bi-plus-circle me-1"></i>生成大量测试数据</button>' +
+            '<button class="btn btn-outline-success flex-grow-1" id="btnTestVScroll"><i class="bi bi-phone me-1"></i>测试虚拟滚动</button>' +
+            '</div>' +
             '<div class="d-grid gap-2 d-flex">' +
             '<button class="btn btn-outline-danger flex-grow-1" id="btnResetData"><i class="bi bi-arrow-repeat me-1"></i>恢复默认演示数据</button>' +
             '<button class="btn btn-outline-warning flex-grow-1" id="btnClearData"><i class="bi bi-trash me-1"></i>清空全部数据</button>' +
@@ -139,6 +143,32 @@
                 App.showToast('数据已清空，刷新后为演示数据...', 'success');
                 setTimeout(function() { location.reload(); }, 1200);
             }
+        });
+
+        $('#btnGenLargeData').on('click', function() {
+            if (confirm('将生成 200 条宠物档案和 150 条会员数据用于测试，确定继续？')) {
+                var result = App.store.generateLargeMockData(200, 150);
+                App.showToast('已生成 ' + result.pets + ' 条宠物和 ' + result.members + ' 条会员数据，即将刷新...', 'success');
+                setTimeout(function() { location.reload(); }, 1500);
+            }
+        });
+
+        $('#btnTestVScroll').on('click', function() {
+            var isMobile = window.innerWidth < 768;
+            var petCount = App.store.getPets().length;
+            var memberCount = App.store.getCustomers().length;
+            var vScrollEnabled = petCount > 100 && isMobile;
+            var body = '<div class="alert ' + (vScrollEnabled ? 'alert-success' : 'alert-info') + '">' +
+                '<h6><i class="bi bi-info-circle me-2"></i>虚拟滚动检测</h6>' +
+                '<ul class="mb-0 small">' +
+                '<li>当前窗口宽度：<b>' + window.innerWidth + 'px</b>（移动端阈值：768px）</li>' +
+                '<li>是否移动端：<b>' + (isMobile ? '是' : '否') + '</b></li>' +
+                '<li>宠物档案数量：<b>' + petCount + '</b>（阈值：100）</li>' +
+                '<li>会员数量：<b>' + memberCount + '</b>（阈值：100）</li>' +
+                '<li>虚拟滚动状态：<b>' + (vScrollEnabled ? '已启用 ✓' : '未启用') + '</b></li>' +
+                '</ul></div>' +
+                '<div class="small text-muted">建议：点击「生成大量测试数据」后，再点击「测试虚拟滚动」按钮验证效果。</div>';
+            App.showModal('虚拟滚动测试', body);
         });
     }
 

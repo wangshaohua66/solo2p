@@ -49,16 +49,20 @@
             '<div class="card-body"><canvas id="typeChart" height="200"></canvas></div></div></div>' +
 
             '<div class="col-lg-6"><div class="card shadow-sm h-100">' +
-            '<div class="card-header bg-white d-flex justify-content-between align-items-center">' +
-            '<h6 class="mb-0 fw-bold"><i class="bi bi-trophy me-2 text-warning"></i>美容师绩效排行</h6>' +
-            '<span class="badge bg-secondary">按营业额排名</span></div>' +
-            '<div class="card-body p-0" id="groomerRankHost"></div></div></div>' +
+            '<div class="card-header bg-white"><h6 class="mb-0 fw-bold"><i class="bi bi-people me-2 text-purple"></i>会员增长趋势</h6></div>' +
+            '<div class="card-body"><canvas id="memberGrowthChart" height="200"></canvas></div></div></div>' +
 
             '<div class="col-lg-6"><div class="card shadow-sm h-100">' +
             '<div class="card-header bg-white d-flex justify-content-between align-items-center">' +
             '<h6 class="mb-0 fw-bold"><i class="bi bi-geo-alt me-2 text-info"></i>门店业绩对比</h6>' +
             '<span class="badge bg-secondary">营业额</span></div>' +
             '<div class="card-body"><canvas id="storeChart" height="200"></canvas></div></div></div>' +
+
+            '<div class="col-lg-12"><div class="card shadow-sm h-100">' +
+            '<div class="card-header bg-white d-flex justify-content-between align-items-center">' +
+            '<h6 class="mb-0 fw-bold"><i class="bi bi-trophy me-2 text-warning"></i>美容师绩效排行</h6>' +
+            '<span class="badge bg-secondary">按营业额排名</span></div>' +
+            '<div class="card-body p-0" id="groomerRankHost"></div></div></div>' +
 
             '<div class="col-lg-12"><div class="card shadow-sm">' +
             '<div class="card-header bg-white d-flex justify-content-between align-items-center">' +
@@ -152,6 +156,7 @@
 
         renderRevenueChart(filter);
         renderTypeChart(stats.typeDistribution);
+        renderMemberGrowthChart(filter);
         renderGroomerRank(stats.groomerRank);
         renderStoreChart(filter);
         renderRecentReceipts(filter);
@@ -253,6 +258,140 @@
                 maintainAspectRatio: false,
                 plugins: {
                     legend: { position: 'right', labels: { usePointStyle: true } }
+                }
+            }
+        });
+    }
+
+    function renderMemberGrowthChart(filter) {
+        var ctx = document.getElementById('memberGrowthChart');
+        if (!ctx) return;
+        if (ctx.chart) ctx.chart.destroy();
+
+        var customers = App.store.getCustomers();
+        var periodCount = dateRange.type === 'day' ? 1 : (dateRange.type === 'week' ? 7 : (dateRange.type === 'month' ? 30 : 12));
+        var labels = [];
+        var newData = [];
+        var cumulativeData = [];
+
+        var dailyCounts = {};
+        var minDate = null;
+        var maxDate = null;
+
+        customers.forEach(function(c) {
+            if (!c.registerDate) return;
+            var key = c.registerDate.substring(0, dateRange.type === 'all' ? 7 : 10);
+            dailyCounts[key] = (dailyCounts[key] || 0) + 1;
+            if (!minDate || c.registerDate < minDate) minDate = c.registerDate;
+            if (!maxDate || c.registerDate > maxDate) maxDate = c.registerDate;
+        });
+
+        var now = new Date();
+        var cumulativeTotal = 0;
+
+        if (dateRange.type === 'day') {
+            labels = ['今日'];
+            var todayKey = now.toISOString().slice(0, 10);
+            var todayCount = dailyCounts[todayKey] || 0;
+            newData = [todayCount];
+            for (var k in dailyCounts) { if (k <= todayKey) cumulativeTotal += dailyCounts[k]; }
+            cumulativeData = [cumulativeTotal];
+        } else if (dateRange.type === 'week') {
+            ['周一','周二','周三','周四','周五','周六','周日'].forEach(function(d, i) {
+                labels.push(d);
+                var day = new Date();
+                var cur = day.getDay();
+                var diff = day.getDate() - cur + (cur === 0 ? -6 : 1) + i;
+                day.setDate(diff);
+                var key = day.toISOString().slice(0, 10);
+                var count = dailyCounts[key] || 0;
+                newData.push(count);
+                for (var k in dailyCounts) { if (k <= key) cumulativeTotal += dailyCounts[k]; }
+                cumulativeData.push(cumulativeTotal);
+                cumulativeTotal = 0;
+            });
+        } else if (dateRange.type === 'month') {
+            var monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            for (var i = 1; i <= 30; i++) {
+                labels.push(i + '日');
+                var d = new Date(monthStart); d.setDate(i - 1);
+                var key = d.toISOString().slice(0, 10);
+                newData.push(dailyCounts[key] || 0);
+            }
+            var runningTotal = 0;
+            Object.keys(dailyCounts).sort().forEach(function(k) {
+                runningTotal += dailyCounts[k];
+            });
+            for (var j = 0; j < 30; j++) {
+                cumulativeData.push(runningTotal);
+            }
+        } else {
+            for (var m = 0; m < 12; m++) { labels.push((m + 1) + '月'); newData.push(0); cumulativeData.push(0); }
+            Object.keys(dailyCounts).forEach(function(k) {
+                var ym = k.substring(0, 7);
+                var monthIdx = parseInt(ym.split('-')[1]) - 1;
+                if (monthIdx >= 0 && monthIdx < 12) {
+                    newData[monthIdx] += dailyCounts[k];
+                }
+            });
+            var cum = 0;
+            for (var n = 0; n < 12; n++) {
+                cum += newData[n];
+                cumulativeData[n] = cum;
+            }
+        }
+
+        ctx.chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: '新增会员',
+                        data: newData,
+                        borderColor: '#6f42c1',
+                        backgroundColor: 'rgba(111,66,193,0.1)',
+                        tension: 0.35,
+                        fill: true,
+                        pointBackgroundColor: '#6f42c1',
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: '累计会员',
+                        data: cumulativeData,
+                        borderColor: '#d63384',
+                        backgroundColor: 'transparent',
+                        tension: 0.35,
+                        fill: false,
+                        pointBackgroundColor: '#d63384',
+                        borderDash: [5, 5],
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'top', labels: { usePointStyle: true } }
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        beginAtZero: true,
+                        title: { display: true, text: '新增人数' }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        beginAtZero: true,
+                        grid: { drawOnChartArea: false },
+                        title: { display: true, text: '累计人数' }
+                    }
                 }
             }
         });
