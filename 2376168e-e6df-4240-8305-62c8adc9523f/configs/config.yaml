@@ -1,0 +1,98 @@
+database:
+  path: data/clear.db
+
+settlement:
+  cycle: daily
+  currencies:
+    - CNY
+  instruction_format: cfca
+  output_dir: output/instructions
+  deadline: "18:30"
+
+report:
+  output_dir: output/reports
+  template: ""
+
+notify:
+  smtp:
+    host: smtp.example.com
+    port: 465
+    user: clear@example.com
+    password: "your-password"
+    from: "清算中心 <clear@example.com>"
+  sms:
+    api_key: ""
+    api_secret: ""
+    gateway: ""
+    sign: "清算中心"
+
+reconcile:
+  default_rule:
+    fields:
+      - biz_no
+      - amount
+      - currency
+      - biz_date
+    weights:
+      biz_no: 40
+      amount: 30
+      currency: 15
+      biz_date: 15
+    tolerance:
+      mode: fixed
+      fixed_amount: 0.01
+      max_amount: 1.00
+    timeout_hours: 24
+    allow_one_sided: true
+
+  by_institution:
+    INST001:
+      tolerance:
+        mode: percentage
+        percentage: 0.05
+        max_amount: 10.00
+      timeout_hours: 48
+    INST002:
+      tolerance:
+        mode: fixed
+        fixed_amount: 0.50
+        max_amount: 5.00
+
+  by_biz_type:
+    TRANSFER:
+      allow_one_sided: false
+    GUARANTEE:
+      timeout_hours: 72
+
+institutions:
+  - id: INST001
+    name: 示例小额贷款有限公司
+    type: MICRO_LOAN
+    contact: 张经理
+    email: zhangjl@example-mloan.com
+    phone: 13800000001
+    clear_account: 1001202600000000001
+
+  - id: INST002
+    name: 示例融资担保股份有限公司
+    type: GUARANTEE
+    contact: 李主任
+    email: lizr@example-guarantee.com
+    phone: 13800000002
+    clear_account: 1001202600000000002
+
+  - id: INST003
+    name: 示例典当行有限责任公司
+    type: PAWN
+    contact: 王经理
+    email: wangjl@example-pawn.com
+    phone: 13800000003
+    clear_account: 1001202600000000003
+
+  - id: INST004
+    name: 示例融资租赁有限公司
+    type: LEASE
+    contact: 赵总
+    email: zhaozong@example-lease.com
+    phone: 13800000004
+    clear_account: 1001202600000000004

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CFCA>
+  <MsgType>SETTLEMENT</MsgType>
+  <MsgID>CLR20260622INST003B2EF76EF6BF7</MsgID>
+  <SettleDate>2026-06-22</SettleDate>
+  <Sender>CLEARING_CENTER</Sender>
+  <Receiver>INST003</Receiver>
+  <Amount Currency="CNY">13000.5</Amount>
+  <Digest>949159203066b035d494e0212243f7f3c958d75519ee699b9b8cf70fd9aedd09</Digest>
+  <Timestamp>2026-06-22T07:02:09+08:00</Timestamp>
+</CFCA>

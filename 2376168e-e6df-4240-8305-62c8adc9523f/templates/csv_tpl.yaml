@@ -1,0 +1,72 @@
+name: CSV清算文件模板
+description: 逗号分隔CSV格式清算文件模板（小额贷款公司）
+format: csv
+encoding: UTF-8
+separator: ","
+has_header: true
+
+fields:
+  - name: biz_no
+    source: 业务编号
+    type: string
+    required: true
+
+  - name: biz_type
+    source: 业务类型
+    type: string
+    required: true
+
+  - name: biz_date
+    source: 业务日期
+    type: string
+    required: true
+    format: "2006-01-02"
+
+  - name: src_inst_id
+    source: 发起机构
+    type: string
+    required: true
+
+  - name: dst_inst_id
+    source: 接收机构
+    type: string
+    required: true
+
+  - name: amount
+    source: 交易金额
+    type: decimal
+    required: true
+
+  - name: currency
+    source: 币种
+    type: string
+    default: CNY
+
+  - name: direction
+    source: 借贷方向
+    type: string
+    required: true
+
+  - name: payer_account
+    source: 付款人账号
+    type: string
+
+  - name: payer_name
+    source: 付款人名称
+    type: string
+
+  - name: payee_account
+    source: 收款人账号
+    type: string
+
+  - name: payee_name
+    source: 收款人名称
+    type: string
+
+  - name: summary
+    source: 摘要
+    type: string
+
+  - name: ref_no
+    source: 参考号
+    type: string

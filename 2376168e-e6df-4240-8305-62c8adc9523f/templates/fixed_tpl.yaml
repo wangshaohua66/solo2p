@@ -1,0 +1,99 @@
+name: 定宽文本清算文件模板
+description: 固定宽度文本清算文件模板（融资担保公司）
+format: fixed
+encoding: GBK
+has_header: false
+
+fields:
+  - name: biz_no
+    source: biz_no
+    type: string
+    required: true
+    start: 1
+    length: 20
+
+  - name: biz_type
+    source: biz_type
+    type: string
+    required: true
+    start: 21
+    length: 10
+
+  - name: biz_date
+    source: biz_date
+    type: string
+    required: true
+    start: 31
+    length: 10
+    format: "2006-01-02"
+
+  - name: src_inst_id
+    source: src_inst_id
+    type: string
+    required: true
+    start: 41
+    length: 10
+
+  - name: dst_inst_id
+    source: dst_inst_id
+    type: string
+    required: true
+    start: 51
+    length: 10
+
+  - name: amount
+    source: amount
+    type: decimal
+    required: true
+    start: 61
+    length: 18
+
+  - name: currency
+    source: currency
+    type: string
+    start: 79
+    length: 3
+    default: CNY
+
+  - name: direction
+    source: direction
+    type: string
+    required: true
+    start: 82
+    length: 1
+
+  - name: payer_account
+    source: payer_account
+    type: string
+    start: 83
+    length: 20
+
+  - name: payer_name
+    source: payer_name
+    type: string
+    start: 103
+    length: 40
+
+  - name: payee_account
+    source: payee_account
+    type: string
+    start: 143
+    length: 20
+
+  - name: payee_name
+    source: payee_name
+    type: string
+    start: 163
+    length: 40
+
+  - name: summary
+    source: summary
+    type: string
+    start: 203
+    length: 60
+
+  - name: ref_no
+    source: ref_no
+    type: string
+    start: 263
+    length: 20
