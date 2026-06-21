@@ -126,7 +126,16 @@ func newServeCmd() *cobra.Command {
 			}
 			e := echo.New()
 			e.HideBanner = true
-			api.New(api.Deps{Repo: repo, Cfg: curSnapshot}).Register(e)
+			saveCfg := func(snap config.Config, operator, reason string) error {
+				curCfgMu.Lock()
+				defer curCfgMu.Unlock()
+				curCfg.ApplySnapshot(snap)
+				if err := curCfg.Save(operator, reason); err != nil {
+					return err
+				}
+				return nil
+			}
+			api.New(api.Deps{Repo: repo, Cfg: curSnapshot, SaveConfig: saveCfg}).Register(e)
 			addr := fmt.Sprintf(":%d", port)
 			if cfg.Server.Port != 0 && port == 0 {
 				addr = fmt.Sprintf(":%d", cfg.Server.Port)

@@ -348,6 +348,49 @@ func newArchiveCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&out, "out", "O", "", "输出文件路径（默认控制台）")
 	cmd.Flags().IntVarP(&page, "page", "p", 1, "页码")
 	cmd.Flags().IntVarP(&size, "size", "n", 50, "每页条数")
+	cmd.AddCommand(newArchiveFeedbackCmd())
+	return cmd
+}
+
+func newArchiveFeedbackCmd() *cobra.Command {
+	var status, operator string
+	cmd := &cobra.Command{
+		Use:   "feedback <id>",
+		Short: "回填调度指令执行状态",
+		Long:  `更新指定调度指令的执行状态（draft/issued/executed/failed），并写入审计日志。`,
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			_, repo, cleanup, err := loadApp()
+			if err != nil {
+				return err
+			}
+			defer cleanup()
+			id := args[0]
+			validStatuses := map[string]bool{
+				"draft":    true,
+				"issued":   true,
+				"executed": true,
+				"failed":   true,
+			}
+			if !validStatuses[status] {
+				return fmt.Errorf("无效状态 %q，可选值: draft|issued|executed|failed", status)
+			}
+			if operator == "" {
+				operator = "cli"
+			}
+			if err := repo.UpdateDispatchStatus(context.Background(), id, status, operator); err != nil {
+				return fmt.Errorf("更新失败: %w", err)
+			}
+			_ = repo.WriteAudit(operator, "dispatch_feedback",
+				fmt.Sprintf("指令 %s 状态更新为 %s", id, status))
+			fmt.Printf("%s 指令 %s 状态已更新为 %s\n",
+				paint(colorGreen, "✓"), id, status)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&status, "status", "", "目标状态 draft|issued|executed|failed (必填)")
+	cmd.Flags().StringVarP(&operator, "operator", "o", "cli", "操作调度员")
+	_ = cmd.MarkFlagRequired("status")
 	return cmd
 }
 

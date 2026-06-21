@@ -112,6 +112,7 @@ pipelines:
     coefficient: 0
 
 # 分输站 / 阀室 / 用户站点（计量采集点）
+# 共 31 个站点：1 气源站 + 2 分输站 + 18 阀室 + 12 城市燃气 + 25 工业直供
 stations:
   - id: SRC-01
     name: 首站
@@ -164,6 +165,323 @@ stations:
     temp_max: 40
     flow_min: 0
     flow_max: 40000
+
+  # ========== 18 个阀室（沿各管段分布） ==========
+  # PL-01 主干一段（85km）：6 个阀室，间距约 12-15km
+  - id: V-01
+    name: 1号阀室
+    type: valve
+    address: 127.0.0.1:510
+    unit_id: 1
+    pipeline: PL-01
+    elevation: 122
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 3.0
+    pressure_max: 6.0
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 65000
+  - id: V-02
+    name: 2号阀室
+    type: valve
+    address: 127.0.0.1:511
+    unit_id: 1
+    pipeline: PL-01
+    elevation: 124
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 3.0
+    pressure_max: 6.0
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 65000
+  - id: V-03
+    name: 3号阀室
+    type: valve
+    address: 127.0.0.1:512
+    unit_id: 1
+    pipeline: PL-01
+    elevation: 126
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 3.0
+    pressure_max: 6.0
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 65000
+  - id: V-04
+    name: 4号阀室
+    type: valve
+    address: 127.0.0.1:513
+    unit_id: 1
+    pipeline: PL-01
+    elevation: 128
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 3.0
+    pressure_max: 6.0
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 65000
+  - id: V-05
+    name: 5号阀室
+    type: valve
+    address: 127.0.0.1:514
+    unit_id: 1
+    pipeline: PL-01
+    elevation: 130
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 3.0
+    pressure_max: 6.0
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 65000
+  - id: V-06
+    name: 6号阀室
+    type: valve
+    address: 127.0.0.1:515
+    unit_id: 1
+    pipeline: PL-01
+    elevation: 131
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 3.0
+    pressure_max: 6.0
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 65000
+
+  # PL-02 主干二段（110km）：7 个阀室，间距约 14-16km
+  - id: V-07
+    name: 7号阀室
+    type: valve
+    address: 127.0.0.1:516
+    unit_id: 1
+    pipeline: PL-02
+    elevation: 130
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 2.5
+    pressure_max: 5.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 45000
+  - id: V-08
+    name: 8号阀室
+    type: valve
+    address: 127.0.0.1:517
+    unit_id: 1
+    pipeline: PL-02
+    elevation: 128
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 2.5
+    pressure_max: 5.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 45000
+  - id: V-09
+    name: 9号阀室
+    type: valve
+    address: 127.0.0.1:518
+    unit_id: 1
+    pipeline: PL-02
+    elevation: 126
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 2.5
+    pressure_max: 5.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 45000
+  - id: V-10
+    name: 10号阀室
+    type: valve
+    address: 127.0.0.1:519
+    unit_id: 1
+    pipeline: PL-02
+    elevation: 124
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 2.5
+    pressure_max: 5.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 45000
+  - id: V-11
+    name: 11号阀室
+    type: valve
+    address: 127.0.0.1:520
+    unit_id: 1
+    pipeline: PL-02
+    elevation: 122
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 2.5
+    pressure_max: 5.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 45000
+  - id: V-12
+    name: 12号阀室
+    type: valve
+    address: 127.0.0.1:521
+    unit_id: 1
+    pipeline: PL-02
+    elevation: 120
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 2.5
+    pressure_max: 5.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 45000
+  - id: V-13
+    name: 13号阀室
+    type: valve
+    address: 127.0.0.1:522
+    unit_id: 1
+    pipeline: PL-02
+    elevation: 118
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 2.5
+    pressure_max: 5.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 45000
+
+  # PL-03 城市燃气支线（35km）：3 个阀室
+  - id: V-14
+    name: 14号阀室
+    type: valve
+    address: 127.0.0.1:523
+    unit_id: 1
+    pipeline: PL-03
+    elevation: 125
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 1.5
+    pressure_max: 4.0
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 20000
+  - id: V-15
+    name: 15号阀室
+    type: valve
+    address: 127.0.0.1:524
+    unit_id: 1
+    pipeline: PL-03
+    elevation: 127
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 1.5
+    pressure_max: 4.0
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 20000
+  - id: V-16
+    name: 16号阀室
+    type: valve
+    address: 127.0.0.1:525
+    unit_id: 1
+    pipeline: PL-03
+    elevation: 129
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 1.5
+    pressure_max: 4.0
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 20000
+
+  # PL-04 工业直供支线（28km）：2 个阀室
+  - id: V-17
+    name: 17号阀室
+    type: valve
+    address: 127.0.0.1:526
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 126
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 1.0
+    pressure_max: 3.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 15000
+  - id: V-18
+    name: 18号阀室
+    type: valve
+    address: 127.0.0.1:527
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 128
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 1.0
+    pressure_max: 3.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 15000
+
+  # ========== 12 家城市燃气公司用户 ==========
   - id: U-CITY-01
     name: 城市燃气公司A
     type: city_user
@@ -198,6 +516,178 @@ stations:
     temp_max: 40
     flow_min: 0
     flow_max: 9000
+  - id: U-CITY-03
+    name: 城市燃气公司C
+    type: city_user
+    address: 127.0.0.1:530
+    unit_id: 1
+    pipeline: PL-03
+    elevation: 128
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 1.2
+    pressure_max: 4.0
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 7500
+  - id: U-CITY-04
+    name: 城市燃气公司D
+    type: city_user
+    address: 127.0.0.1:531
+    unit_id: 1
+    pipeline: PL-03
+    elevation: 130
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 1.2
+    pressure_max: 4.0
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 6000
+  - id: U-CITY-05
+    name: 城市燃气公司E
+    type: city_user
+    address: 127.0.0.1:532
+    unit_id: 1
+    pipeline: PL-03
+    elevation: 132
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 1.2
+    pressure_max: 4.0
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 8000
+  - id: U-CITY-06
+    name: 城市燃气公司F
+    type: city_user
+    address: 127.0.0.1:533
+    unit_id: 1
+    pipeline: PL-03
+    elevation: 127
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 1.2
+    pressure_max: 4.0
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 5500
+  - id: U-CITY-07
+    name: 城市燃气公司G
+    type: city_user
+    address: 127.0.0.1:534
+    unit_id: 1
+    pipeline: PL-03
+    elevation: 129
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 1.2
+    pressure_max: 4.0
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 4500
+  - id: U-CITY-08
+    name: 城市燃气公司H
+    type: city_user
+    address: 127.0.0.1:535
+    unit_id: 1
+    pipeline: PL-03
+    elevation: 131
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 1.2
+    pressure_max: 4.0
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 7000
+  - id: U-CITY-09
+    name: 城市燃气公司I
+    type: city_user
+    address: 127.0.0.1:536
+    unit_id: 1
+    pipeline: PL-03
+    elevation: 126
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 1.2
+    pressure_max: 4.0
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 3500
+  - id: U-CITY-10
+    name: 城市燃气公司J
+    type: city_user
+    address: 127.0.0.1:537
+    unit_id: 1
+    pipeline: PL-03
+    elevation: 128
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 1.2
+    pressure_max: 4.0
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 4000
+  - id: U-CITY-11
+    name: 城市燃气公司K
+    type: city_user
+    address: 127.0.0.1:538
+    unit_id: 1
+    pipeline: PL-03
+    elevation: 130
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 1.2
+    pressure_max: 4.0
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 3000
+  - id: U-CITY-12
+    name: 城市燃气公司L
+    type: city_user
+    address: 127.0.0.1:539
+    unit_id: 1
+    pipeline: PL-03
+    elevation: 133
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 1.2
+    pressure_max: 4.0
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 5000
+
+  # ========== 25 家工业直供用户 ==========
   - id: U-IND-01
     name: 工业直供用户A
     type: industrial
@@ -232,6 +722,397 @@ stations:
     temp_max: 40
     flow_min: 0
     flow_max: 6000
+  - id: U-IND-03
+    name: 工业直供用户C
+    type: industrial
+    address: 127.0.0.1:540
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 125
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 0.8
+    pressure_max: 3.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 5000
+  - id: U-IND-04
+    name: 工业直供用户D
+    type: industrial
+    address: 127.0.0.1:541
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 128
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 0.8
+    pressure_max: 3.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 4500
+  - id: U-IND-05
+    name: 工业直供用户E
+    type: industrial
+    address: 127.0.0.1:542
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 126
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 0.8
+    pressure_max: 3.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 4000
+  - id: U-IND-06
+    name: 工业直供用户F
+    type: industrial
+    address: 127.0.0.1:543
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 129
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 0.8
+    pressure_max: 3.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 3500
+  - id: U-IND-07
+    name: 工业直供用户G
+    type: industrial
+    address: 127.0.0.1:544
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 131
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 0.8
+    pressure_max: 3.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 3000
+  - id: U-IND-08
+    name: 工业直供用户H
+    type: industrial
+    address: 127.0.0.1:545
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 124
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 0.8
+    pressure_max: 3.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 2800
+  - id: U-IND-09
+    name: 工业直供用户I
+    type: industrial
+    address: 127.0.0.1:546
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 127
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 0.8
+    pressure_max: 3.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 2500
+  - id: U-IND-10
+    name: 工业直供用户J
+    type: industrial
+    address: 127.0.0.1:547
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 126
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 0.8
+    pressure_max: 3.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 2200
+  - id: U-IND-11
+    name: 工业直供用户K
+    type: industrial
+    address: 127.0.0.1:548
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 128
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 0.8
+    pressure_max: 3.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 2000
+  - id: U-IND-12
+    name: 工业直供用户L
+    type: industrial
+    address: 127.0.0.1:549
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 130
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 0.8
+    pressure_max: 3.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 1800
+  - id: U-IND-13
+    name: 工业直供用户M
+    type: industrial
+    address: 127.0.0.1:550
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 123
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 0.8
+    pressure_max: 3.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 1500
+  - id: U-IND-14
+    name: 工业直供用户N
+    type: industrial
+    address: 127.0.0.1:551
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 125
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 0.8
+    pressure_max: 3.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 1200
+  - id: U-IND-15
+    name: 工业直供用户O
+    type: industrial
+    address: 127.0.0.1:552
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 127
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 0.8
+    pressure_max: 3.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 1000
+  - id: U-IND-16
+    name: 工业直供用户P
+    type: industrial
+    address: 127.0.0.1:553
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 129
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 0.8
+    pressure_max: 3.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 900
+  - id: U-IND-17
+    name: 工业直供用户Q
+    type: industrial
+    address: 127.0.0.1:554
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 126
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 0.8
+    pressure_max: 3.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 800
+  - id: U-IND-18
+    name: 工业直供用户R
+    type: industrial
+    address: 127.0.0.1:555
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 124
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 0.8
+    pressure_max: 3.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 700
+  - id: U-IND-19
+    name: 工业直供用户S
+    type: industrial
+    address: 127.0.0.1:556
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 128
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 0.8
+    pressure_max: 3.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 650
+  - id: U-IND-20
+    name: 工业直供用户T
+    type: industrial
+    address: 127.0.0.1:557
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 130
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 0.8
+    pressure_max: 3.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 600
+  - id: U-IND-21
+    name: 工业直供用户U
+    type: industrial
+    address: 127.0.0.1:558
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 122
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 0.8
+    pressure_max: 3.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 550
+  - id: U-IND-22
+    name: 工业直供用户V
+    type: industrial
+    address: 127.0.0.1:559
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 125
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 0.8
+    pressure_max: 3.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 500
+  - id: U-IND-23
+    name: 工业直供用户W
+    type: industrial
+    address: 127.0.0.1:560
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 127
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 0.8
+    pressure_max: 3.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 450
+  - id: U-IND-24
+    name: 工业直供用户X
+    type: industrial
+    address: 127.0.0.1:561
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 129
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 0.8
+    pressure_max: 3.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 400
+  - id: U-IND-25
+    name: 工业直供用户Y
+    type: industrial
+    address: 127.0.0.1:562
+    unit_id: 1
+    pipeline: PL-04
+    elevation: 131
+    reg_pressure: 0
+    reg_temperature: 2
+    reg_flow: 4
+    reg_accum: 6
+    pressure_min: 0.8
+    pressure_max: 3.5
+    temp_min: 5
+    temp_max: 40
+    flow_min: 0
+    flow_max: 350
 
 # 下游用户结算合同（与站点编号对应，用于结算报表）
 contracts:
@@ -250,4 +1131,136 @@ contracts:
   - user_id: U-IND-02
     user_name: 工业直供用户B
     unit_price: 2.50
+    tax_rate: 0.13
+  - user_id: U-CITY-03
+    user_name: 城市燃气公司C
+    unit_price: 2.65
+    tax_rate: 0.09
+  - user_id: U-CITY-04
+    user_name: 城市燃气公司D
+    unit_price: 2.70
+    tax_rate: 0.09
+  - user_id: U-CITY-05
+    user_name: 城市燃气公司E
+    unit_price: 2.63
+    tax_rate: 0.09
+  - user_id: U-CITY-06
+    user_name: 城市燃气公司F
+    unit_price: 2.68
+    tax_rate: 0.09
+  - user_id: U-CITY-07
+    user_name: 城市燃气公司G
+    unit_price: 2.75
+    tax_rate: 0.09
+  - user_id: U-CITY-08
+    user_name: 城市燃气公司H
+    unit_price: 2.60
+    tax_rate: 0.09
+  - user_id: U-CITY-09
+    user_name: 城市燃气公司I
+    unit_price: 2.72
+    tax_rate: 0.09
+  - user_id: U-CITY-10
+    user_name: 城市燃气公司J
+    unit_price: 2.66
+    tax_rate: 0.09
+  - user_id: U-CITY-11
+    user_name: 城市燃气公司K
+    unit_price: 2.58
+    tax_rate: 0.09
+  - user_id: U-CITY-12
+    user_name: 城市燃气公司L
+    unit_price: 2.71
+    tax_rate: 0.09
+  - user_id: U-IND-03
+    user_name: 工业直供用户C
+    unit_price: 2.42
+    tax_rate: 0.13
+  - user_id: U-IND-04
+    user_name: 工业直供用户D
+    unit_price: 2.48
+    tax_rate: 0.13
+  - user_id: U-IND-05
+    user_name: 工业直供用户E
+    unit_price: 2.40
+    tax_rate: 0.13
+  - user_id: U-IND-06
+    user_name: 工业直供用户F
+    unit_price: 2.52
+    tax_rate: 0.13
+  - user_id: U-IND-07
+    user_name: 工业直供用户G
+    unit_price: 2.46
+    tax_rate: 0.13
+  - user_id: U-IND-08
+    user_name: 工业直供用户H
+    unit_price: 2.44
+    tax_rate: 0.13
+  - user_id: U-IND-09
+    user_name: 工业直供用户I
+    unit_price: 2.50
+    tax_rate: 0.13
+  - user_id: U-IND-10
+    user_name: 工业直供用户J
+    unit_price: 2.47
+    tax_rate: 0.13
+  - user_id: U-IND-11
+    user_name: 工业直供用户K
+    unit_price: 2.43
+    tax_rate: 0.13
+  - user_id: U-IND-12
+    user_name: 工业直供用户L
+    unit_price: 2.51
+    tax_rate: 0.13
+  - user_id: U-IND-13
+    user_name: 工业直供用户M
+    unit_price: 2.39
+    tax_rate: 0.13
+  - user_id: U-IND-14
+    user_name: 工业直供用户N
+    unit_price: 2.45
+    tax_rate: 0.13
+  - user_id: U-IND-15
+    user_name: 工业直供用户O
+    unit_price: 2.41
+    tax_rate: 0.13
+  - user_id: U-IND-16
+    user_name: 工业直供用户P
+    unit_price: 2.53
+    tax_rate: 0.13
+  - user_id: U-IND-17
+    user_name: 工业直供用户Q
+    unit_price: 2.49
+    tax_rate: 0.13
+  - user_id: U-IND-18
+    user_name: 工业直供用户R
+    unit_price: 2.46
+    tax_rate: 0.13
+  - user_id: U-IND-19
+    user_name: 工业直供用户S
+    unit_price: 2.40
+    tax_rate: 0.13
+  - user_id: U-IND-20
+    user_name: 工业直供用户T
+    unit_price: 2.52
+    tax_rate: 0.13
+  - user_id: U-IND-21
+    user_name: 工业直供用户U
+    unit_price: 2.38
+    tax_rate: 0.13
+  - user_id: U-IND-22
+    user_name: 工业直供用户V
+    unit_price: 2.44
+    tax_rate: 0.13
+  - user_id: U-IND-23
+    user_name: 工业直供用户W
+    unit_price: 2.47
+    tax_rate: 0.13
+  - user_id: U-IND-24
+    user_name: 工业直供用户X
+    unit_price: 2.50
+    tax_rate: 0.13
+  - user_id: U-IND-25
+    user_name: 工业直供用户Y
+    unit_price: 2.43
     tax_rate: 0.13

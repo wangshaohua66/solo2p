@@ -23,10 +23,12 @@ import (
 
 // Deps bundles the runtime dependencies the handlers need. Cfg returns the
 // currently active configuration snapshot (which may change after a hot
-// reload), so each request sees a consistent view.
+// reload), so each request sees a consistent view.  SaveConfig applies a
+// snapshot to the live configuration and persists it, triggering hot reload.
 type Deps struct {
-	Repo *storage.Repository
-	Cfg  func() config.Config
+	Repo       *storage.Repository
+	Cfg        func() config.Config
+	SaveConfig func(snap config.Config, operator, reason string) error
 }
 
 // Handler holds Echo group-registered route functions.
@@ -51,6 +53,8 @@ func (h *Handler) Register(e *echo.Echo) {
 	g.PATCH("/dispatches/:id", h.updateDispatch)
 	g.GET("/audit", h.audit)
 	g.GET("/report/settlement", h.settlement)
+	g.GET("/config", h.getConfig)
+	g.PATCH("/config", h.patchConfig)
 }
 
 func (h *Handler) health(c echo.Context) error {
@@ -230,4 +234,58 @@ func (h *Handler) settlement(c echo.Context) error {
 	c.Response().Header().Set("Content-Type", "text/csv; charset=utf-8")
 	c.Response().Header().Set("Content-Disposition", "attachment; filename=settlement_"+month+".csv")
 	return export.ExportSettlementCSV(rows, c.Response())
+}
+
+func (h *Handler) getConfig(c echo.Context) error {
+	cfg := h.deps.Cfg()
+	snap := cfg.Snapshot()
+	return c.JSON(http.StatusOK, snap)
+}
+
+type configPatch struct {
+	Alerts   *config.AlertConfig   `json:"alerts"`
+	SCADA    *config.SCADAConfig   `json:"scada"`
+	Server   *config.ServerConfig  `json:"server"`
+	Operator string               `json:"operator"`
+	Reason   string               `json:"reason"`
+}
+
+func (h *Handler) patchConfig(c echo.Context) error {
+	var req configPatch
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid request body: "+err.Error())
+	}
+	cfg := h.deps.Cfg()
+	snap := cfg.Snapshot()
+	if req.Alerts != nil {
+		snap.Alerts = *req.Alerts
+	}
+	if req.SCADA != nil {
+		snap.SCADA = *req.SCADA
+	}
+	if req.Server != nil {
+		snap.Server = *req.Server
+	}
+	if err := snap.Validate(); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "config validation failed: "+err.Error())
+	}
+	operator := req.Operator
+	if operator == "" {
+		operator = "api"
+	}
+	reason := req.Reason
+	if reason == "" {
+		reason = "config update via API"
+	}
+	if h.deps.SaveConfig == nil {
+		return echo.NewHTTPError(http.StatusNotImplemented, "config save not available")
+	}
+	if err := h.deps.SaveConfig(snap, operator, reason); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "save config failed: "+err.Error())
+	}
+	return c.JSON(http.StatusOK, echo.Map{
+		"status":   "ok",
+		"operator": operator,
+		"reason":   reason,
+	})
 }

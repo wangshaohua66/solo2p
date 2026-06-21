@@ -121,9 +121,13 @@ func Load(path, env string) (*Config, error) {
 
 // Validate checks mandatory fields and value ranges so that a corrupted or
 // incomplete config is rejected up front rather than crashing at runtime.
+// It is safe to call on both live configs (with rt set) and snapshots
+// (rt == nil).
 func (c *Config) Validate() error {
-	c.rt.mu.RLock()
-	defer c.rt.mu.RUnlock()
+	if c.rt != nil {
+		c.rt.mu.RLock()
+		defer c.rt.mu.RUnlock()
+	}
 	if c.Database.Path == "" {
 		return fmt.Errorf("database.path is required")
 	}
@@ -194,6 +198,23 @@ func (c *Config) Snapshot() Config {
 		Contracts: append([]models.PriceContract(nil), c.Contracts...),
 		Sources:   append([]SourceConfig(nil), c.Sources...),
 	}
+}
+
+// ApplySnapshot copies the public fields from snap into the live config,
+// replacing the current values. It is used to apply a modified snapshot back
+// to the live configuration before saving.
+func (c *Config) ApplySnapshot(snap Config) {
+	c.rt.mu.Lock()
+	defer c.rt.mu.Unlock()
+	c.Env = snap.Env
+	c.Server = snap.Server
+	c.Database = snap.Database
+	c.SCADA = snap.SCADA
+	c.Alerts = snap.Alerts
+	c.Stations = append([]models.Station(nil), snap.Stations...)
+	c.Pipelines = append([]models.PipelineSegment(nil), snap.Pipelines...)
+	c.Contracts = append([]models.PriceContract(nil), snap.Contracts...)
+	c.Sources = append([]SourceConfig(nil), snap.Sources...)
 }
 
 // Save writes the current configuration back to disk as YAML and records an

@@ -38,7 +38,7 @@ func (g *Generator) FromPressureLosses(results []models.PressureLossResult) []mo
 			name = r.SegmentName
 		}
 		out = append(out, models.DispatchInstruction{
-			ID:          fmt.Sprintf("PL-%s-%d", r.SegmentID, r.Timestamp.Unix()),
+			ID:          fmt.Sprintf("%s-%d", r.SegmentID, r.Timestamp.Unix()),
 			StationID:   r.UpstreamStation,
 			StationName: name,
 			Urgency:     urgency,
