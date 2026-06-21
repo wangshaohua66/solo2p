@@ -1,0 +1,1646 @@
+{
+  "stations": [
+    {
+      "code": "SH00001",
+      "name": "南京长江1站",
+      "city": "南京",
+      "district": "玄武区",
+      "river": "长江",
+      "longitude": 118.0,
+      "latitude": 32.0
+    },
+    {
+      "code": "SH00002",
+      "name": "南京长江2站",
+      "city": "南京",
+      "district": "秦淮区",
+      "river": "长江",
+      "longitude": 118.5,
+      "latitude": 32.3
+    },
+    {
+      "code": "SH00003",
+      "name": "南京淮河1站",
+      "city": "南京",
+      "district": "建邺区",
+      "river": "淮河",
+      "longitude": 119.0,
+      "latitude": 32.6
+    },
+    {
+      "code": "SH00004",
+      "name": "南京淮河2站",
+      "city": "南京",
+      "district": "鼓楼区",
+      "river": "淮河",
+      "longitude": 119.5,
+      "latitude": 32.9
+    },
+    {
+      "code": "SH00005",
+      "name": "南京太湖1站",
+      "city": "南京",
+      "district": "浦口区",
+      "river": "太湖",
+      "longitude": 120.0,
+      "latitude": 33.2
+    },
+    {
+      "code": "SH00006",
+      "name": "南京太湖2站",
+      "city": "南京",
+      "district": "栖霞区",
+      "river": "太湖",
+      "longitude": 120.5,
+      "latitude": 33.5
+    },
+    {
+      "code": "SH00007",
+      "name": "南京洪泽湖1站",
+      "city": "南京",
+      "district": "雨花台区",
+      "river": "洪泽湖",
+      "longitude": 121.0,
+      "latitude": 33.8
+    },
+    {
+      "code": "SH00008",
+      "name": "南京洪泽湖2站",
+      "city": "南京",
+      "district": "江宁区",
+      "river": "洪泽湖",
+      "longitude": 121.5,
+      "latitude": 34.1
+    },
+    {
+      "code": "SH00009",
+      "name": "南京京杭运河1站",
+      "city": "南京",
+      "district": "六合区",
+      "river": "京杭运河",
+      "longitude": 122.0,
+      "latitude": 32.0
+    },
+    {
+      "code": "SH00010",
+      "name": "南京京杭运河2站",
+      "city": "南京",
+      "district": "溧水区",
+      "river": "京杭运河",
+      "longitude": 122.5,
+      "latitude": 32.3
+    },
+    {
+      "code": "SH00011",
+      "name": "南京滁河1站",
+      "city": "南京",
+      "district": "高淳区",
+      "river": "滁河",
+      "longitude": 118.0,
+      "latitude": 32.6
+    },
+    {
+      "code": "SH00012",
+      "name": "南京滁河2站",
+      "city": "南京",
+      "district": "玄武区",
+      "river": "滁河",
+      "longitude": 118.5,
+      "latitude": 32.9
+    },
+    {
+      "code": "SH00013",
+      "name": "南京秦淮河1站",
+      "city": "南京",
+      "district": "秦淮区",
+      "river": "秦淮河",
+      "longitude": 119.0,
+      "latitude": 33.2
+    },
+    {
+      "code": "SH00014",
+      "name": "南京秦淮河2站",
+      "city": "南京",
+      "district": "建邺区",
+      "river": "秦淮河",
+      "longitude": 119.5,
+      "latitude": 33.5
+    },
+    {
+      "code": "SH00015",
+      "name": "南京沂河1站",
+      "city": "南京",
+      "district": "鼓楼区",
+      "river": "沂河",
+      "longitude": 120.0,
+      "latitude": 33.8
+    },
+    {
+      "code": "SH00016",
+      "name": "南京沂河2站",
+      "city": "南京",
+      "district": "浦口区",
+      "river": "沂河",
+      "longitude": 120.5,
+      "latitude": 34.1
+    },
+    {
+      "code": "SH00017",
+      "name": "南京沭河1站",
+      "city": "南京",
+      "district": "栖霞区",
+      "river": "沭河",
+      "longitude": 121.0,
+      "latitude": 32.0
+    },
+    {
+      "code": "SH00018",
+      "name": "南京沭河2站",
+      "city": "南京",
+      "district": "雨花台区",
+      "river": "沭河",
+      "longitude": 121.5,
+      "latitude": 32.3
+    },
+    {
+      "code": "SH00019",
+      "name": "南京新沂河1站",
+      "city": "南京",
+      "district": "江宁区",
+      "river": "新沂河",
+      "longitude": 122.0,
+      "latitude": 32.6
+    },
+    {
+      "code": "SH00020",
+      "name": "南京新沂河2站",
+      "city": "南京",
+      "district": "六合区",
+      "river": "新沂河",
+      "longitude": 122.5,
+      "latitude": 32.9
+    },
+    {
+      "code": "SH00021",
+      "name": "南京新沭河1站",
+      "city": "南京",
+      "district": "溧水区",
+      "river": "新沭河",
+      "longitude": 118.0,
+      "latitude": 33.2
+    },
+    {
+      "code": "SH00022",
+      "name": "南京新沭河2站",
+      "city": "南京",
+      "district": "高淳区",
+      "river": "新沭河",
+      "longitude": 118.5,
+      "latitude": 33.5
+    },
+    {
+      "code": "SH00023",
+      "name": "南京苏北灌溉总渠1站",
+      "city": "南京",
+      "district": "玄武区",
+      "river": "苏北灌溉总渠",
+      "longitude": 119.0,
+      "latitude": 33.8
+    },
+    {
+      "code": "SH00024",
+      "name": "南京苏北灌溉总渠2站",
+      "city": "南京",
+      "district": "秦淮区",
+      "river": "苏北灌溉总渠",
+      "longitude": 119.5,
+      "latitude": 34.1
+    },
+    {
+      "code": "SH00025",
+      "name": "苏州长江1站",
+      "city": "苏州",
+      "district": "建邺区",
+      "river": "长江",
+      "longitude": 120.0,
+      "latitude": 32.0
+    },
+    {
+      "code": "SH00026",
+      "name": "苏州长江2站",
+      "city": "苏州",
+      "district": "鼓楼区",
+      "river": "长江",
+      "longitude": 120.5,
+      "latitude": 32.3
+    },
+    {
+      "code": "SH00027",
+      "name": "苏州淮河1站",
+      "city": "苏州",
+      "district": "浦口区",
+      "river": "淮河",
+      "longitude": 121.0,
+      "latitude": 32.6
+    },
+    {
+      "code": "SH00028",
+      "name": "苏州淮河2站",
+      "city": "苏州",
+      "district": "栖霞区",
+      "river": "淮河",
+      "longitude": 121.5,
+      "latitude": 32.9
+    },
+    {
+      "code": "SH00029",
+      "name": "苏州太湖1站",
+      "city": "苏州",
+      "district": "雨花台区",
+      "river": "太湖",
+      "longitude": 122.0,
+      "latitude": 33.2
+    },
+    {
+      "code": "SH00030",
+      "name": "苏州太湖2站",
+      "city": "苏州",
+      "district": "江宁区",
+      "river": "太湖",
+      "longitude": 122.5,
+      "latitude": 33.5
+    },
+    {
+      "code": "SH00031",
+      "name": "苏州洪泽湖1站",
+      "city": "苏州",
+      "district": "六合区",
+      "river": "洪泽湖",
+      "longitude": 118.0,
+      "latitude": 33.8
+    },
+    {
+      "code": "SH00032",
+      "name": "苏州洪泽湖2站",
+      "city": "苏州",
+      "district": "溧水区",
+      "river": "洪泽湖",
+      "longitude": 118.5,
+      "latitude": 34.1
+    },
+    {
+      "code": "SH00033",
+      "name": "苏州京杭运河1站",
+      "city": "苏州",
+      "district": "高淳区",
+      "river": "京杭运河",
+      "longitude": 119.0,
+      "latitude": 32.0
+    },
+    {
+      "code": "SH00034",
+      "name": "苏州京杭运河2站",
+      "city": "苏州",
+      "district": "玄武区",
+      "river": "京杭运河",
+      "longitude": 119.5,
+      "latitude": 32.3
+    },
+    {
+      "code": "SH00035",
+      "name": "苏州滁河1站",
+      "city": "苏州",
+      "district": "秦淮区",
+      "river": "滁河",
+      "longitude": 120.0,
+      "latitude": 32.6
+    },
+    {
+      "code": "SH00036",
+      "name": "苏州滁河2站",
+      "city": "苏州",
+      "district": "建邺区",
+      "river": "滁河",
+      "longitude": 120.5,
+      "latitude": 32.9
+    },
+    {
+      "code": "SH00037",
+      "name": "苏州秦淮河1站",
+      "city": "苏州",
+      "district": "鼓楼区",
+      "river": "秦淮河",
+      "longitude": 121.0,
+      "latitude": 33.2
+    },
+    {
+      "code": "SH00038",
+      "name": "苏州秦淮河2站",
+      "city": "苏州",
+      "district": "浦口区",
+      "river": "秦淮河",
+      "longitude": 121.5,
+      "latitude": 33.5
+    },
+    {
+      "code": "SH00039",
+      "name": "苏州沂河1站",
+      "city": "苏州",
+      "district": "栖霞区",
+      "river": "沂河",
+      "longitude": 122.0,
+      "latitude": 33.8
+    },
+    {
+      "code": "SH00040",
+      "name": "苏州沂河2站",
+      "city": "苏州",
+      "district": "雨花台区",
+      "river": "沂河",
+      "longitude": 122.5,
+      "latitude": 34.1
+    },
+    {
+      "code": "SH00041",
+      "name": "苏州沭河1站",
+      "city": "苏州",
+      "district": "江宁区",
+      "river": "沭河",
+      "longitude": 118.0,
+      "latitude": 32.0
+    },
+    {
+      "code": "SH00042",
+      "name": "苏州沭河2站",
+      "city": "苏州",
+      "district": "六合区",
+      "river": "沭河",
+      "longitude": 118.5,
+      "latitude": 32.3
+    },
+    {
+      "code": "SH00043",
+      "name": "苏州新沂河1站",
+      "city": "苏州",
+      "district": "溧水区",
+      "river": "新沂河",
+      "longitude": 119.0,
+      "latitude": 32.6
+    },
+    {
+      "code": "SH00044",
+      "name": "苏州新沂河2站",
+      "city": "苏州",
+      "district": "高淳区",
+      "river": "新沂河",
+      "longitude": 119.5,
+      "latitude": 32.9
+    },
+    {
+      "code": "SH00045",
+      "name": "苏州新沭河1站",
+      "city": "苏州",
+      "district": "玄武区",
+      "river": "新沭河",
+      "longitude": 120.0,
+      "latitude": 33.2
+    },
+    {
+      "code": "SH00046",
+      "name": "苏州新沭河2站",
+      "city": "苏州",
+      "district": "秦淮区",
+      "river": "新沭河",
+      "longitude": 120.5,
+      "latitude": 33.5
+    },
+    {
+      "code": "SH00047",
+      "name": "苏州苏北灌溉总渠1站",
+      "city": "苏州",
+      "district": "建邺区",
+      "river": "苏北灌溉总渠",
+      "longitude": 121.0,
+      "latitude": 33.8
+    },
+    {
+      "code": "SH00048",
+      "name": "苏州苏北灌溉总渠2站",
+      "city": "苏州",
+      "district": "鼓楼区",
+      "river": "苏北灌溉总渠",
+      "longitude": 121.5,
+      "latitude": 34.1
+    },
+    {
+      "code": "SH00049",
+      "name": "无锡长江1站",
+      "city": "无锡",
+      "district": "浦口区",
+      "river": "长江",
+      "longitude": 122.0,
+      "latitude": 32.0
+    },
+    {
+      "code": "SH00050",
+      "name": "无锡长江2站",
+      "city": "无锡",
+      "district": "栖霞区",
+      "river": "长江",
+      "longitude": 122.5,
+      "latitude": 32.3
+    },
+    {
+      "code": "SH00051",
+      "name": "无锡淮河1站",
+      "city": "无锡",
+      "district": "雨花台区",
+      "river": "淮河",
+      "longitude": 118.0,
+      "latitude": 32.6
+    },
+    {
+      "code": "SH00052",
+      "name": "无锡淮河2站",
+      "city": "无锡",
+      "district": "江宁区",
+      "river": "淮河",
+      "longitude": 118.5,
+      "latitude": 32.9
+    },
+    {
+      "code": "SH00053",
+      "name": "无锡太湖1站",
+      "city": "无锡",
+      "district": "六合区",
+      "river": "太湖",
+      "longitude": 119.0,
+      "latitude": 33.2
+    },
+    {
+      "code": "SH00054",
+      "name": "无锡太湖2站",
+      "city": "无锡",
+      "district": "溧水区",
+      "river": "太湖",
+      "longitude": 119.5,
+      "latitude": 33.5
+    },
+    {
+      "code": "SH00055",
+      "name": "无锡洪泽湖1站",
+      "city": "无锡",
+      "district": "高淳区",
+      "river": "洪泽湖",
+      "longitude": 120.0,
+      "latitude": 33.8
+    },
+    {
+      "code": "SH00056",
+      "name": "无锡洪泽湖2站",
+      "city": "无锡",
+      "district": "玄武区",
+      "river": "洪泽湖",
+      "longitude": 120.5,
+      "latitude": 34.1
+    },
+    {
+      "code": "SH00057",
+      "name": "无锡京杭运河1站",
+      "city": "无锡",
+      "district": "秦淮区",
+      "river": "京杭运河",
+      "longitude": 121.0,
+      "latitude": 32.0
+    },
+    {
+      "code": "SH00058",
+      "name": "无锡京杭运河2站",
+      "city": "无锡",
+      "district": "建邺区",
+      "river": "京杭运河",
+      "longitude": 121.5,
+      "latitude": 32.3
+    },
+    {
+      "code": "SH00059",
+      "name": "无锡滁河1站",
+      "city": "无锡",
+      "district": "鼓楼区",
+      "river": "滁河",
+      "longitude": 122.0,
+      "latitude": 32.6
+    },
+    {
+      "code": "SH00060",
+      "name": "无锡滁河2站",
+      "city": "无锡",
+      "district": "浦口区",
+      "river": "滁河",
+      "longitude": 122.5,
+      "latitude": 32.9
+    },
+    {
+      "code": "SH00061",
+      "name": "无锡秦淮河1站",
+      "city": "无锡",
+      "district": "栖霞区",
+      "river": "秦淮河",
+      "longitude": 118.0,
+      "latitude": 33.2
+    },
+    {
+      "code": "SH00062",
+      "name": "无锡秦淮河2站",
+      "city": "无锡",
+      "district": "雨花台区",
+      "river": "秦淮河",
+      "longitude": 118.5,
+      "latitude": 33.5
+    },
+    {
+      "code": "SH00063",
+      "name": "无锡沂河1站",
+      "city": "无锡",
+      "district": "江宁区",
+      "river": "沂河",
+      "longitude": 119.0,
+      "latitude": 33.8
+    },
+    {
+      "code": "SH00064",
+      "name": "无锡沂河2站",
+      "city": "无锡",
+      "district": "六合区",
+      "river": "沂河",
+      "longitude": 119.5,
+      "latitude": 34.1
+    },
+    {
+      "code": "SH00065",
+      "name": "无锡沭河1站",
+      "city": "无锡",
+      "district": "溧水区",
+      "river": "沭河",
+      "longitude": 120.0,
+      "latitude": 32.0
+    },
+    {
+      "code": "SH00066",
+      "name": "无锡沭河2站",
+      "city": "无锡",
+      "district": "高淳区",
+      "river": "沭河",
+      "longitude": 120.5,
+      "latitude": 32.3
+    },
+    {
+      "code": "SH00067",
+      "name": "无锡新沂河1站",
+      "city": "无锡",
+      "district": "玄武区",
+      "river": "新沂河",
+      "longitude": 121.0,
+      "latitude": 32.6
+    },
+    {
+      "code": "SH00068",
+      "name": "无锡新沂河2站",
+      "city": "无锡",
+      "district": "秦淮区",
+      "river": "新沂河",
+      "longitude": 121.5,
+      "latitude": 32.9
+    },
+    {
+      "code": "SH00069",
+      "name": "无锡新沭河1站",
+      "city": "无锡",
+      "district": "建邺区",
+      "river": "新沭河",
+      "longitude": 122.0,
+      "latitude": 33.2
+    },
+    {
+      "code": "SH00070",
+      "name": "无锡新沭河2站",
+      "city": "无锡",
+      "district": "鼓楼区",
+      "river": "新沭河",
+      "longitude": 122.5,
+      "latitude": 33.5
+    },
+    {
+      "code": "SH00071",
+      "name": "无锡苏北灌溉总渠1站",
+      "city": "无锡",
+      "district": "浦口区",
+      "river": "苏北灌溉总渠",
+      "longitude": 118.0,
+      "latitude": 33.8
+    },
+    {
+      "code": "SH00072",
+      "name": "无锡苏北灌溉总渠2站",
+      "city": "无锡",
+      "district": "栖霞区",
+      "river": "苏北灌溉总渠",
+      "longitude": 118.5,
+      "latitude": 34.1
+    },
+    {
+      "code": "SH00073",
+      "name": "常州长江1站",
+      "city": "常州",
+      "district": "雨花台区",
+      "river": "长江",
+      "longitude": 119.0,
+      "latitude": 32.0
+    },
+    {
+      "code": "SH00074",
+      "name": "常州长江2站",
+      "city": "常州",
+      "district": "江宁区",
+      "river": "长江",
+      "longitude": 119.5,
+      "latitude": 32.3
+    },
+    {
+      "code": "SH00075",
+      "name": "常州淮河1站",
+      "city": "常州",
+      "district": "六合区",
+      "river": "淮河",
+      "longitude": 120.0,
+      "latitude": 32.6
+    },
+    {
+      "code": "SH00076",
+      "name": "常州淮河2站",
+      "city": "常州",
+      "district": "溧水区",
+      "river": "淮河",
+      "longitude": 120.5,
+      "latitude": 32.9
+    },
+    {
+      "code": "SH00077",
+      "name": "常州太湖1站",
+      "city": "常州",
+      "district": "高淳区",
+      "river": "太湖",
+      "longitude": 121.0,
+      "latitude": 33.2
+    },
+    {
+      "code": "SH00078",
+      "name": "常州太湖2站",
+      "city": "常州",
+      "district": "玄武区",
+      "river": "太湖",
+      "longitude": 121.5,
+      "latitude": 33.5
+    },
+    {
+      "code": "SH00079",
+      "name": "常州洪泽湖1站",
+      "city": "常州",
+      "district": "秦淮区",
+      "river": "洪泽湖",
+      "longitude": 122.0,
+      "latitude": 33.8
+    },
+    {
+      "code": "SH00080",
+      "name": "常州洪泽湖2站",
+      "city": "常州",
+      "district": "建邺区",
+      "river": "洪泽湖",
+      "longitude": 122.5,
+      "latitude": 34.1
+    },
+    {
+      "code": "SH00081",
+      "name": "常州京杭运河1站",
+      "city": "常州",
+      "district": "鼓楼区",
+      "river": "京杭运河",
+      "longitude": 118.0,
+      "latitude": 32.0
+    },
+    {
+      "code": "SH00082",
+      "name": "常州京杭运河2站",
+      "city": "常州",
+      "district": "浦口区",
+      "river": "京杭运河",
+      "longitude": 118.5,
+      "latitude": 32.3
+    },
+    {
+      "code": "SH00083",
+      "name": "常州滁河1站",
+      "city": "常州",
+      "district": "栖霞区",
+      "river": "滁河",
+      "longitude": 119.0,
+      "latitude": 32.6
+    },
+    {
+      "code": "SH00084",
+      "name": "常州滁河2站",
+      "city": "常州",
+      "district": "雨花台区",
+      "river": "滁河",
+      "longitude": 119.5,
+      "latitude": 32.9
+    },
+    {
+      "code": "SH00085",
+      "name": "常州秦淮河1站",
+      "city": "常州",
+      "district": "江宁区",
+      "river": "秦淮河",
+      "longitude": 120.0,
+      "latitude": 33.2
+    },
+    {
+      "code": "SH00086",
+      "name": "常州秦淮河2站",
+      "city": "常州",
+      "district": "六合区",
+      "river": "秦淮河",
+      "longitude": 120.5,
+      "latitude": 33.5
+    },
+    {
+      "code": "SH00087",
+      "name": "常州沂河1站",
+      "city": "常州",
+      "district": "溧水区",
+      "river": "沂河",
+      "longitude": 121.0,
+      "latitude": 33.8
+    },
+    {
+      "code": "SH00088",
+      "name": "常州沂河2站",
+      "city": "常州",
+      "district": "高淳区",
+      "river": "沂河",
+      "longitude": 121.5,
+      "latitude": 34.1
+    },
+    {
+      "code": "SH00089",
+      "name": "常州沭河1站",
+      "city": "常州",
+      "district": "玄武区",
+      "river": "沭河",
+      "longitude": 122.0,
+      "latitude": 32.0
+    },
+    {
+      "code": "SH00090",
+      "name": "常州沭河2站",
+      "city": "常州",
+      "district": "秦淮区",
+      "river": "沭河",
+      "longitude": 122.5,
+      "latitude": 32.3
+    },
+    {
+      "code": "SH00091",
+      "name": "常州新沂河1站",
+      "city": "常州",
+      "district": "建邺区",
+      "river": "新沂河",
+      "longitude": 118.0,
+      "latitude": 32.6
+    },
+    {
+      "code": "SH00092",
+      "name": "常州新沂河2站",
+      "city": "常州",
+      "district": "鼓楼区",
+      "river": "新沂河",
+      "longitude": 118.5,
+      "latitude": 32.9
+    },
+    {
+      "code": "SH00093",
+      "name": "常州新沭河1站",
+      "city": "常州",
+      "district": "浦口区",
+      "river": "新沭河",
+      "longitude": 119.0,
+      "latitude": 33.2
+    },
+    {
+      "code": "SH00094",
+      "name": "常州新沭河2站",
+      "city": "常州",
+      "district": "栖霞区",
+      "river": "新沭河",
+      "longitude": 119.5,
+      "latitude": 33.5
+    },
+    {
+      "code": "SH00095",
+      "name": "常州苏北灌溉总渠1站",
+      "city": "常州",
+      "district": "雨花台区",
+      "river": "苏北灌溉总渠",
+      "longitude": 120.0,
+      "latitude": 33.8
+    },
+    {
+      "code": "SH00096",
+      "name": "常州苏北灌溉总渠2站",
+      "city": "常州",
+      "district": "江宁区",
+      "river": "苏北灌溉总渠",
+      "longitude": 120.5,
+      "latitude": 34.1
+    },
+    {
+      "code": "SH00097",
+      "name": "镇江长江1站",
+      "city": "镇江",
+      "district": "六合区",
+      "river": "长江",
+      "longitude": 121.0,
+      "latitude": 32.0
+    },
+    {
+      "code": "SH00098",
+      "name": "镇江长江2站",
+      "city": "镇江",
+      "district": "溧水区",
+      "river": "长江",
+      "longitude": 121.5,
+      "latitude": 32.3
+    },
+    {
+      "code": "SH00099",
+      "name": "镇江淮河1站",
+      "city": "镇江",
+      "district": "高淳区",
+      "river": "淮河",
+      "longitude": 122.0,
+      "latitude": 32.6
+    },
+    {
+      "code": "SH00100",
+      "name": "镇江淮河2站",
+      "city": "镇江",
+      "district": "玄武区",
+      "river": "淮河",
+      "longitude": 122.5,
+      "latitude": 32.9
+    },
+    {
+      "code": "SH00101",
+      "name": "镇江太湖1站",
+      "city": "镇江",
+      "district": "秦淮区",
+      "river": "太湖",
+      "longitude": 118.0,
+      "latitude": 33.2
+    },
+    {
+      "code": "SH00102",
+      "name": "镇江太湖2站",
+      "city": "镇江",
+      "district": "建邺区",
+      "river": "太湖",
+      "longitude": 118.5,
+      "latitude": 33.5
+    },
+    {
+      "code": "SH00103",
+      "name": "镇江洪泽湖1站",
+      "city": "镇江",
+      "district": "鼓楼区",
+      "river": "洪泽湖",
+      "longitude": 119.0,
+      "latitude": 33.8
+    },
+    {
+      "code": "SH00104",
+      "name": "镇江洪泽湖2站",
+      "city": "镇江",
+      "district": "浦口区",
+      "river": "洪泽湖",
+      "longitude": 119.5,
+      "latitude": 34.1
+    },
+    {
+      "code": "SH00105",
+      "name": "镇江京杭运河1站",
+      "city": "镇江",
+      "district": "栖霞区",
+      "river": "京杭运河",
+      "longitude": 120.0,
+      "latitude": 32.0
+    },
+    {
+      "code": "SH00106",
+      "name": "镇江京杭运河2站",
+      "city": "镇江",
+      "district": "雨花台区",
+      "river": "京杭运河",
+      "longitude": 120.5,
+      "latitude": 32.3
+    },
+    {
+      "code": "SH00107",
+      "name": "镇江滁河1站",
+      "city": "镇江",
+      "district": "江宁区",
+      "river": "滁河",
+      "longitude": 121.0,
+      "latitude": 32.6
+    },
+    {
+      "code": "SH00108",
+      "name": "镇江滁河2站",
+      "city": "镇江",
+      "district": "六合区",
+      "river": "滁河",
+      "longitude": 121.5,
+      "latitude": 32.9
+    },
+    {
+      "code": "SH00109",
+      "name": "镇江秦淮河1站",
+      "city": "镇江",
+      "district": "溧水区",
+      "river": "秦淮河",
+      "longitude": 122.0,
+      "latitude": 33.2
+    },
+    {
+      "code": "SH00110",
+      "name": "镇江秦淮河2站",
+      "city": "镇江",
+      "district": "高淳区",
+      "river": "秦淮河",
+      "longitude": 122.5,
+      "latitude": 33.5
+    },
+    {
+      "code": "SH00111",
+      "name": "镇江沂河1站",
+      "city": "镇江",
+      "district": "玄武区",
+      "river": "沂河",
+      "longitude": 118.0,
+      "latitude": 33.8
+    },
+    {
+      "code": "SH00112",
+      "name": "镇江沂河2站",
+      "city": "镇江",
+      "district": "秦淮区",
+      "river": "沂河",
+      "longitude": 118.5,
+      "latitude": 34.1
+    },
+    {
+      "code": "SH00113",
+      "name": "镇江沭河1站",
+      "city": "镇江",
+      "district": "建邺区",
+      "river": "沭河",
+      "longitude": 119.0,
+      "latitude": 32.0
+    },
+    {
+      "code": "SH00114",
+      "name": "镇江沭河2站",
+      "city": "镇江",
+      "district": "鼓楼区",
+      "river": "沭河",
+      "longitude": 119.5,
+      "latitude": 32.3
+    },
+    {
+      "code": "SH00115",
+      "name": "镇江新沂河1站",
+      "city": "镇江",
+      "district": "浦口区",
+      "river": "新沂河",
+      "longitude": 120.0,
+      "latitude": 32.6
+    },
+    {
+      "code": "SH00116",
+      "name": "镇江新沂河2站",
+      "city": "镇江",
+      "district": "栖霞区",
+      "river": "新沂河",
+      "longitude": 120.5,
+      "latitude": 32.9
+    },
+    {
+      "code": "SH00117",
+      "name": "镇江新沭河1站",
+      "city": "镇江",
+      "district": "雨花台区",
+      "river": "新沭河",
+      "longitude": 121.0,
+      "latitude": 33.2
+    },
+    {
+      "code": "SH00118",
+      "name": "镇江新沭河2站",
+      "city": "镇江",
+      "district": "江宁区",
+      "river": "新沭河",
+      "longitude": 121.5,
+      "latitude": 33.5
+    },
+    {
+      "code": "SH00119",
+      "name": "镇江苏北灌溉总渠1站",
+      "city": "镇江",
+      "district": "六合区",
+      "river": "苏北灌溉总渠",
+      "longitude": 122.0,
+      "latitude": 33.8
+    },
+    {
+      "code": "SH00120",
+      "name": "镇江苏北灌溉总渠2站",
+      "city": "镇江",
+      "district": "溧水区",
+      "river": "苏北灌溉总渠",
+      "longitude": 122.5,
+      "latitude": 34.1
+    },
+    {
+      "code": "SH00121",
+      "name": "扬州长江1站",
+      "city": "扬州",
+      "district": "高淳区",
+      "river": "长江",
+      "longitude": 118.0,
+      "latitude": 32.0
+    },
+    {
+      "code": "SH00122",
+      "name": "扬州长江2站",
+      "city": "扬州",
+      "district": "玄武区",
+      "river": "长江",
+      "longitude": 118.5,
+      "latitude": 32.3
+    },
+    {
+      "code": "SH00123",
+      "name": "扬州淮河1站",
+      "city": "扬州",
+      "district": "秦淮区",
+      "river": "淮河",
+      "longitude": 119.0,
+      "latitude": 32.6
+    },
+    {
+      "code": "SH00124",
+      "name": "扬州淮河2站",
+      "city": "扬州",
+      "district": "建邺区",
+      "river": "淮河",
+      "longitude": 119.5,
+      "latitude": 32.9
+    },
+    {
+      "code": "SH00125",
+      "name": "扬州太湖1站",
+      "city": "扬州",
+      "district": "鼓楼区",
+      "river": "太湖",
+      "longitude": 120.0,
+      "latitude": 33.2
+    },
+    {
+      "code": "SH00126",
+      "name": "扬州太湖2站",
+      "city": "扬州",
+      "district": "浦口区",
+      "river": "太湖",
+      "longitude": 120.5,
+      "latitude": 33.5
+    },
+    {
+      "code": "SH00127",
+      "name": "扬州洪泽湖1站",
+      "city": "扬州",
+      "district": "栖霞区",
+      "river": "洪泽湖",
+      "longitude": 121.0,
+      "latitude": 33.8
+    },
+    {
+      "code": "SH00128",
+      "name": "扬州洪泽湖2站",
+      "city": "扬州",
+      "district": "雨花台区",
+      "river": "洪泽湖",
+      "longitude": 121.5,
+      "latitude": 34.1
+    },
+    {
+      "code": "SH00129",
+      "name": "扬州京杭运河1站",
+      "city": "扬州",
+      "district": "江宁区",
+      "river": "京杭运河",
+      "longitude": 122.0,
+      "latitude": 32.0
+    },
+    {
+      "code": "SH00130",
+      "name": "扬州京杭运河2站",
+      "city": "扬州",
+      "district": "六合区",
+      "river": "京杭运河",
+      "longitude": 122.5,
+      "latitude": 32.3
+    },
+    {
+      "code": "SH00131",
+      "name": "扬州滁河1站",
+      "city": "扬州",
+      "district": "溧水区",
+      "river": "滁河",
+      "longitude": 118.0,
+      "latitude": 32.6
+    },
+    {
+      "code": "SH00132",
+      "name": "扬州滁河2站",
+      "city": "扬州",
+      "district": "高淳区",
+      "river": "滁河",
+      "longitude": 118.5,
+      "latitude": 32.9
+    },
+    {
+      "code": "SH00133",
+      "name": "扬州秦淮河1站",
+      "city": "扬州",
+      "district": "玄武区",
+      "river": "秦淮河",
+      "longitude": 119.0,
+      "latitude": 33.2
+    },
+    {
+      "code": "SH00134",
+      "name": "扬州秦淮河2站",
+      "city": "扬州",
+      "district": "秦淮区",
+      "river": "秦淮河",
+      "longitude": 119.5,
+      "latitude": 33.5
+    },
+    {
+      "code": "SH00135",
+      "name": "扬州沂河1站",
+      "city": "扬州",
+      "district": "建邺区",
+      "river": "沂河",
+      "longitude": 120.0,
+      "latitude": 33.8
+    },
+    {
+      "code": "SH00136",
+      "name": "扬州沂河2站",
+      "city": "扬州",
+      "district": "鼓楼区",
+      "river": "沂河",
+      "longitude": 120.5,
+      "latitude": 34.1
+    },
+    {
+      "code": "SH00137",
+      "name": "扬州沭河1站",
+      "city": "扬州",
+      "district": "浦口区",
+      "river": "沭河",
+      "longitude": 121.0,
+      "latitude": 32.0
+    },
+    {
+      "code": "SH00138",
+      "name": "扬州沭河2站",
+      "city": "扬州",
+      "district": "栖霞区",
+      "river": "沭河",
+      "longitude": 121.5,
+      "latitude": 32.3
+    },
+    {
+      "code": "SH00139",
+      "name": "扬州新沂河1站",
+      "city": "扬州",
+      "district": "雨花台区",
+      "river": "新沂河",
+      "longitude": 122.0,
+      "latitude": 32.6
+    },
+    {
+      "code": "SH00140",
+      "name": "扬州新沂河2站",
+      "city": "扬州",
+      "district": "江宁区",
+      "river": "新沂河",
+      "longitude": 122.5,
+      "latitude": 32.9
+    },
+    {
+      "code": "SH00141",
+      "name": "扬州新沭河1站",
+      "city": "扬州",
+      "district": "六合区",
+      "river": "新沭河",
+      "longitude": 118.0,
+      "latitude": 33.2
+    },
+    {
+      "code": "SH00142",
+      "name": "扬州新沭河2站",
+      "city": "扬州",
+      "district": "溧水区",
+      "river": "新沭河",
+      "longitude": 118.5,
+      "latitude": 33.5
+    },
+    {
+      "code": "SH00143",
+      "name": "扬州苏北灌溉总渠1站",
+      "city": "扬州",
+      "district": "高淳区",
+      "river": "苏北灌溉总渠",
+      "longitude": 119.0,
+      "latitude": 33.8
+    },
+    {
+      "code": "SH00144",
+      "name": "扬州苏北灌溉总渠2站",
+      "city": "扬州",
+      "district": "玄武区",
+      "river": "苏北灌溉总渠",
+      "longitude": 119.5,
+      "latitude": 34.1
+    },
+    {
+      "code": "SH00145",
+      "name": "泰州长江1站",
+      "city": "泰州",
+      "district": "秦淮区",
+      "river": "长江",
+      "longitude": 120.0,
+      "latitude": 32.0
+    },
+    {
+      "code": "SH00146",
+      "name": "泰州长江2站",
+      "city": "泰州",
+      "district": "建邺区",
+      "river": "长江",
+      "longitude": 120.5,
+      "latitude": 32.3
+    },
+    {
+      "code": "SH00147",
+      "name": "泰州淮河1站",
+      "city": "泰州",
+      "district": "鼓楼区",
+      "river": "淮河",
+      "longitude": 121.0,
+      "latitude": 32.6
+    },
+    {
+      "code": "SH00148",
+      "name": "泰州淮河2站",
+      "city": "泰州",
+      "district": "浦口区",
+      "river": "淮河",
+      "longitude": 121.5,
+      "latitude": 32.9
+    },
+    {
+      "code": "SH00149",
+      "name": "泰州太湖1站",
+      "city": "泰州",
+      "district": "栖霞区",
+      "river": "太湖",
+      "longitude": 122.0,
+      "latitude": 33.2
+    },
+    {
+      "code": "SH00150",
+      "name": "泰州太湖2站",
+      "city": "泰州",
+      "district": "雨花台区",
+      "river": "太湖",
+      "longitude": 122.5,
+      "latitude": 33.5
+    },
+    {
+      "code": "SH00151",
+      "name": "泰州洪泽湖1站",
+      "city": "泰州",
+      "district": "江宁区",
+      "river": "洪泽湖",
+      "longitude": 118.0,
+      "latitude": 33.8
+    },
+    {
+      "code": "SH00152",
+      "name": "泰州洪泽湖2站",
+      "city": "泰州",
+      "district": "六合区",
+      "river": "洪泽湖",
+      "longitude": 118.5,
+      "latitude": 34.1
+    },
+    {
+      "code": "SH00153",
+      "name": "泰州京杭运河1站",
+      "city": "泰州",
+      "district": "溧水区",
+      "river": "京杭运河",
+      "longitude": 119.0,
+      "latitude": 32.0
+    },
+    {
+      "code": "SH00154",
+      "name": "泰州京杭运河2站",
+      "city": "泰州",
+      "district": "高淳区",
+      "river": "京杭运河",
+      "longitude": 119.5,
+      "latitude": 32.3
+    },
+    {
+      "code": "SH00155",
+      "name": "泰州滁河1站",
+      "city": "泰州",
+      "district": "玄武区",
+      "river": "滁河",
+      "longitude": 120.0,
+      "latitude": 32.6
+    },
+    {
+      "code": "SH00156",
+      "name": "泰州滁河2站",
+      "city": "泰州",
+      "district": "秦淮区",
+      "river": "滁河",
+      "longitude": 120.5,
+      "latitude": 32.9
+    },
+    {
+      "code": "SH00157",
+      "name": "泰州秦淮河1站",
+      "city": "泰州",
+      "district": "建邺区",
+      "river": "秦淮河",
+      "longitude": 121.0,
+      "latitude": 33.2
+    },
+    {
+      "code": "SH00158",
+      "name": "泰州秦淮河2站",
+      "city": "泰州",
+      "district": "鼓楼区",
+      "river": "秦淮河",
+      "longitude": 121.5,
+      "latitude": 33.5
+    },
+    {
+      "code": "SH00159",
+      "name": "泰州沂河1站",
+      "city": "泰州",
+      "district": "浦口区",
+      "river": "沂河",
+      "longitude": 122.0,
+      "latitude": 33.8
+    },
+    {
+      "code": "SH00160",
+      "name": "泰州沂河2站",
+      "city": "泰州",
+      "district": "栖霞区",
+      "river": "沂河",
+      "longitude": 122.5,
+      "latitude": 34.1
+    },
+    {
+      "code": "SH00161",
+      "name": "泰州沭河1站",
+      "city": "泰州",
+      "district": "雨花台区",
+      "river": "沭河",
+      "longitude": 118.0,
+      "latitude": 32.0
+    },
+    {
+      "code": "SH00162",
+      "name": "泰州沭河2站",
+      "city": "泰州",
+      "district": "江宁区",
+      "river": "沭河",
+      "longitude": 118.5,
+      "latitude": 32.3
+    },
+    {
+      "code": "SH00163",
+      "name": "泰州新沂河1站",
+      "city": "泰州",
+      "district": "六合区",
+      "river": "新沂河",
+      "longitude": 119.0,
+      "latitude": 32.6
+    },
+    {
+      "code": "SH00164",
+      "name": "泰州新沂河2站",
+      "city": "泰州",
+      "district": "溧水区",
+      "river": "新沂河",
+      "longitude": 119.5,
+      "latitude": 32.9
+    },
+    {
+      "code": "SH00165",
+      "name": "泰州新沭河1站",
+      "city": "泰州",
+      "district": "高淳区",
+      "river": "新沭河",
+      "longitude": 120.0,
+      "latitude": 33.2
+    },
+    {
+      "code": "SH00166",
+      "name": "泰州新沭河2站",
+      "city": "泰州",
+      "district": "玄武区",
+      "river": "新沭河",
+      "longitude": 120.5,
+      "latitude": 33.5
+    },
+    {
+      "code": "SH00167",
+      "name": "泰州苏北灌溉总渠1站",
+      "city": "泰州",
+      "district": "秦淮区",
+      "river": "苏北灌溉总渠",
+      "longitude": 121.0,
+      "latitude": 33.8
+    },
+    {
+      "code": "SH00168",
+      "name": "泰州苏北灌溉总渠2站",
+      "city": "泰州",
+      "district": "建邺区",
+      "river": "苏北灌溉总渠",
+      "longitude": 121.5,
+      "latitude": 34.1
+    },
+    {
+      "code": "SH00169",
+      "name": "南通长江1站",
+      "city": "南通",
+      "district": "鼓楼区",
+      "river": "长江",
+      "longitude": 122.0,
+      "latitude": 32.0
+    },
+    {
+      "code": "SH00170",
+      "name": "南通长江2站",
+      "city": "南通",
+      "district": "浦口区",
+      "river": "长江",
+      "longitude": 122.5,
+      "latitude": 32.3
+    },
+    {
+      "code": "SH00171",
+      "name": "南通淮河1站",
+      "city": "南通",
+      "district": "栖霞区",
+      "river": "淮河",
+      "longitude": 118.0,
+      "latitude": 32.6
+    },
+    {
+      "code": "SH00172",
+      "name": "南通淮河2站",
+      "city": "南通",
+      "district": "雨花台区",
+      "river": "淮河",
+      "longitude": 118.5,
+      "latitude": 32.9
+    },
+    {
+      "code": "SH00173",
+      "name": "南通太湖1站",
+      "city": "南通",
+      "district": "江宁区",
+      "river": "太湖",
+      "longitude": 119.0,
+      "latitude": 33.2
+    },
+    {
+      "code": "SH00174",
+      "name": "南通太湖2站",
+      "city": "南通",
+      "district": "六合区",
+      "river": "太湖",
+      "longitude": 119.5,
+      "latitude": 33.5
+    },
+    {
+      "code": "SH00175",
+      "name": "南通洪泽湖1站",
+      "city": "南通",
+      "district": "溧水区",
+      "river": "洪泽湖",
+      "longitude": 120.0,
+      "latitude": 33.8
+    },
+    {
+      "code": "SH00176",
+      "name": "南通洪泽湖2站",
+      "city": "南通",
+      "district": "高淳区",
+      "river": "洪泽湖",
+      "longitude": 120.5,
+      "latitude": 34.1
+    },
+    {
+      "code": "SH00177",
+      "name": "南通京杭运河1站",
+      "city": "南通",
+      "district": "玄武区",
+      "river": "京杭运河",
+      "longitude": 121.0,
+      "latitude": 32.0
+    },
+    {
+      "code": "SH00178",
+      "name": "南通京杭运河2站",
+      "city": "南通",
+      "district": "秦淮区",
+      "river": "京杭运河",
+      "longitude": 121.5,
+      "latitude": 32.3
+    },
+    {
+      "code": "SH00179",
+      "name": "南通滁河1站",
+      "city": "南通",
+      "district": "建邺区",
+      "river": "滁河",
+      "longitude": 122.0,
+      "latitude": 32.6
+    },
+    {
+      "code": "SH00180",
+      "name": "南通滁河2站",
+      "city": "南通",
+      "district": "鼓楼区",
+      "river": "滁河",
+      "longitude": 122.5,
+      "latitude": 32.9
+    }
+  ],
+  "thresholds": {
+    "water_level_jump": 0.5,
+    "flow_surge": 200,
+    "water_level_min": -999,
+    "water_level_max": 9999,
+    "flow_min": 0,
+    "flow_max": 10000,
+    "rainfall_min": 0,
+    "rainfall_max": 500
+  },
+  "database": {
+    "path": "hydro_data.db"
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "logs/hydro_import.log",
+    "max_bytes": 10485760,
+    "backup_count": 7
+  },
+  "deduplication": {
+    "strategy": "skip"
+  }
+}
