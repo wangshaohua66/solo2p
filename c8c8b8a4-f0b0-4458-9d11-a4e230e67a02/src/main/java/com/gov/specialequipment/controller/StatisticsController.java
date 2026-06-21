@@ -94,4 +94,16 @@ public class StatisticsController {
     public Result<List<HazardRecord>> getOverdueHazardList() {
         return Result.success(statisticsService.getOverdueHazardList());
     }
+
+    @Operation(summary = "检验覆盖率统计（按设备类型）")
+    @GetMapping("/inspections/coverage/device-type")
+    public Result<List<InspectionCoverageVO>> getInspectionCoverageByDeviceType() {
+        return Result.success(statisticsService.getInspectionCoverageByDeviceType());
+    }
+
+    @Operation(summary = "检验覆盖率统计（按区域）")
+    @GetMapping("/inspections/coverage/region")
+    public Result<List<InspectionCoverageVO>> getInspectionCoverageByRegion() {
+        return Result.success(statisticsService.getInspectionCoverageByRegion());
+    }
 }

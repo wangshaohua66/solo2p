@@ -19,4 +19,6 @@ public class EmergencyArchiveVO {
     private List<EmergencyResource> nearbyResources;
 
     private List<AccidentReport> relatedAccidents;
+
+    private List<MaintenanceRecord> maintenanceHistory;
 }

@@ -1,5 +1,6 @@
 package com.gov.specialequipment.controller;
 
+import com.gov.specialequipment.annotation.AuditLog;
 import com.gov.specialequipment.common.PageResult;
 import com.gov.specialequipment.common.Result;
 import com.gov.specialequipment.dto.InspectionPlanQueryDTO;
@@ -31,6 +32,7 @@ public class InspectionController {
     @Operation(summary = "接收检验报告")
     @PostMapping("/reports")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'INSPECTION_AGENCY')")
+    @AuditLog(module = "检验管理", operationType = "新增", description = "接收检验报告")
     public Result<InspectionRecord> receiveReport(@Valid @RequestBody InspectionReportDTO dto) {
         return Result.success("检验报告接收成功", inspectionService.receiveReport(dto));
     }
@@ -56,6 +58,7 @@ public class InspectionController {
     @Operation(summary = "创建检验计划")
     @PostMapping("/plans")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR')")
+    @AuditLog(module = "检验管理", operationType = "新增", description = "创建检验计划")
     public Result<InspectionPlan> createPlan(
             @RequestParam Long deviceId,
             @RequestParam(required = false) Long agencyId,

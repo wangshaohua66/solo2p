@@ -284,6 +284,36 @@ CREATE TABLE IF NOT EXISTS emergency_resource (
     INDEX idx_type (resource_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='应急资源表';
 
+-- 维保记录表
+CREATE TABLE IF NOT EXISTS maintenance_record (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    maintenance_no VARCHAR(32) NOT NULL UNIQUE COMMENT '维保记录编号',
+    device_id BIGINT NOT NULL,
+    device_code VARCHAR(32),
+    device_type TINYINT,
+    use_unit_id BIGINT,
+    use_unit_name VARCHAR(128),
+    maintenance_unit VARCHAR(128) COMMENT '维保单位',
+    maintenance_person VARCHAR(64) COMMENT '维保人员',
+    maintenance_phone VARCHAR(20) COMMENT '维保电话',
+    maintenance_date DATE COMMENT '维保日期',
+    maintenance_type VARCHAR(32) COMMENT '维保类型(日常/季度/年度)',
+    maintenance_content TEXT COMMENT '维保内容',
+    problems_found TEXT COMMENT '发现问题',
+    handling_measures TEXT COMMENT '处理措施',
+    next_maintenance_date VARCHAR(32) COMMENT '下次维保日期',
+    operator VARCHAR(64) COMMENT '操作人',
+    remark VARCHAR(512),
+    create_time DATETIME,
+    update_time DATETIME,
+    create_by BIGINT,
+    update_by BIGINT,
+    deleted TINYINT DEFAULT 0,
+    INDEX idx_device (device_id),
+    INDEX idx_date (maintenance_date),
+    INDEX idx_unit (use_unit_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='维保记录表';
+
 -- 审计日志表
 CREATE TABLE IF NOT EXISTS audit_log (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,

@@ -25,6 +25,8 @@ public class HazardCreateDTO {
     @NotNull(message = "发现日期不能为空")
     private LocalDate discoveryDate;
 
+    private LocalDate deadline;
+
     private String discoverer;
 
     private String rectificationRequirements;

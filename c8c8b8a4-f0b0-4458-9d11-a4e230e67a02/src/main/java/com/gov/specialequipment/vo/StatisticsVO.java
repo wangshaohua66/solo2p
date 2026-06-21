@@ -24,6 +24,10 @@ public class StatisticsVO {
 
     private Double inspectionRate;
 
+    private List<InspectionCoverageVO> inspectionCoverageByDeviceType;
+
+    private List<InspectionCoverageVO> inspectionCoverageByRegion;
+
     private List<Map<String, Object>> inspectionConclusionDistribution;
 
     private List<Map<String, Object>> inspectionMonthlyTrend;

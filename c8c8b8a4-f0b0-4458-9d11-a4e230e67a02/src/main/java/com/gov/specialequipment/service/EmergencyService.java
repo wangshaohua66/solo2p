@@ -7,6 +7,7 @@ import com.gov.specialequipment.entity.Device;
 import com.gov.specialequipment.entity.EmergencyResource;
 import com.gov.specialequipment.entity.HazardRecord;
 import com.gov.specialequipment.entity.InspectionRecord;
+import com.gov.specialequipment.entity.MaintenanceRecord;
 import com.gov.specialequipment.entity.Notification;
 import com.gov.specialequipment.enums.RoleEnum;
 import com.gov.specialequipment.exception.BusinessException;
@@ -15,9 +16,11 @@ import com.gov.specialequipment.mapper.DeviceMapper;
 import com.gov.specialequipment.mapper.EmergencyResourceMapper;
 import com.gov.specialequipment.mapper.HazardRecordMapper;
 import com.gov.specialequipment.mapper.InspectionRecordMapper;
+import com.gov.specialequipment.mapper.MaintenanceRecordMapper;
 import com.gov.specialequipment.mapper.NotificationMapper;
 import com.gov.specialequipment.util.SecurityUtil;
 import com.gov.specialequipment.vo.EmergencyArchiveVO;
+import com.gov.specialequipment.vo.EmergencyResourceVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
@@ -26,8 +29,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -39,6 +44,7 @@ public class EmergencyService {
     private final HazardRecordMapper hazardRecordMapper;
     private final EmergencyResourceMapper emergencyResourceMapper;
     private final NotificationMapper notificationMapper;
+    private final MaintenanceRecordMapper maintenanceRecordMapper;
 
     private final AtomicLong accidentSeq = new AtomicLong(1);
 
@@ -130,6 +136,14 @@ public class EmergencyService {
             );
             vo.setRelatedAccidents(related);
 
+            List<MaintenanceRecord> maintenanceHistory = maintenanceRecordMapper.selectList(
+                    new LambdaQueryWrapper<MaintenanceRecord>()
+                            .eq(MaintenanceRecord::getDeviceId, accident.getDeviceId())
+                            .orderByDesc(MaintenanceRecord::getMaintenanceDate)
+                            .last("LIMIT 10")
+            );
+            vo.setMaintenanceHistory(maintenanceHistory);
+
             if (device != null && device.getRegionCode() != null) {
                 List<EmergencyResource> resources = emergencyResourceMapper.selectByRegion(device.getRegionCode());
                 vo.setNearbyResources(resources);
@@ -147,7 +161,8 @@ public class EmergencyService {
         return device;
     }
 
-    public List<EmergencyResource> dispatchResources(String regionCode, String resourceType) {
+    public List<EmergencyResourceVO> dispatchResources(String regionCode, String resourceType,
+                                                       Double longitude, Double latitude) {
         LambdaQueryWrapper<EmergencyResource> wrapper = new LambdaQueryWrapper<>();
         if (regionCode != null && !regionCode.isEmpty()) {
             wrapper.likeRight(EmergencyResource::getRegionCode, regionCode);
@@ -156,8 +171,45 @@ public class EmergencyService {
             wrapper.eq(EmergencyResource::getResourceType, resourceType);
         }
         wrapper.eq(EmergencyResource::getStatus, 1);
-        wrapper.orderByAsc(EmergencyResource::getResourceType);
-        return emergencyResourceMapper.selectList(wrapper);
+        List<EmergencyResource> resources = emergencyResourceMapper.selectList(wrapper);
+
+        if (longitude != null && latitude != null) {
+            return resources.stream()
+                    .map(resource -> {
+                        EmergencyResourceVO vo = new EmergencyResourceVO();
+                        BeanUtils.copyProperties(resource, vo);
+                        if (resource.getLongitude() != null && resource.getLatitude() != null) {
+                            double distance = calculateDistance(
+                                    latitude, longitude,
+                                    resource.getLatitude().doubleValue(),
+                                    resource.getLongitude().doubleValue());
+                            vo.setDistance(Math.round(distance * 100.0) / 100.0);
+                        }
+                        return vo;
+                    })
+                    .sorted(Comparator.comparingDouble(vo -> vo.getDistance() != null ? vo.getDistance() : Double.MAX_VALUE))
+                    .collect(Collectors.toList());
+        }
+
+        return resources.stream()
+                .map(resource -> {
+                    EmergencyResourceVO vo = new EmergencyResourceVO();
+                    BeanUtils.copyProperties(resource, vo);
+                    return vo;
+                })
+                .sorted(Comparator.comparing(EmergencyResourceVO::getResourceType))
+                .collect(Collectors.toList());
+    }
+
+    private double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+        final double R = 6371.0;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
     }
 
     public AccidentReport getAccidentById(Long id) {

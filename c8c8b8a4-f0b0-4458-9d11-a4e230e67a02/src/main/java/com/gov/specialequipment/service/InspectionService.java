@@ -143,6 +143,14 @@ public class InspectionService {
         if (dto.getNextInspectionDate() != null && dto.getNextInspectionDate().isBefore(dto.getInspectionDate())) {
             throw new BusinessException("下次检验日期不能早于检验日期");
         }
+        if (InspectionConclusionEnum.RECTIFICATION.getCode().equals(dto.getConclusion())) {
+            if (dto.getDefectDescription() == null || dto.getDefectDescription().trim().isEmpty()) {
+                throw new BusinessException("检验结论为'整改后复检'时，缺陷描述不能为空");
+            }
+            if (dto.getRectificationRequirements() == null || dto.getRectificationRequirements().trim().isEmpty()) {
+                throw new BusinessException("检验结论为'整改后复检'时，整改要求不能为空");
+            }
+        }
     }
 
     private void sendInspectionNotification(Device device, InspectionConclusionEnum conclusion) {

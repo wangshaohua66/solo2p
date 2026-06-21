@@ -5,10 +5,12 @@ import com.gov.specialequipment.entity.Device;
 import com.gov.specialequipment.entity.HazardRecord;
 import com.gov.specialequipment.entity.InspectionRecord;
 import com.gov.specialequipment.enums.DeviceStatusEnum;
+import com.gov.specialequipment.enums.DeviceTypeEnum;
 import com.gov.specialequipment.enums.HazardStatusEnum;
 import com.gov.specialequipment.mapper.DeviceMapper;
 import com.gov.specialequipment.mapper.HazardRecordMapper;
 import com.gov.specialequipment.mapper.InspectionRecordMapper;
+import com.gov.specialequipment.vo.InspectionCoverageVO;
 import com.gov.specialequipment.vo.StatisticsVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -57,6 +59,9 @@ public class StatisticsService {
         } else {
             vo.setInspectionRate(0.0);
         }
+
+        vo.setInspectionCoverageByDeviceType(getInspectionCoverageByDeviceType());
+        vo.setInspectionCoverageByRegion(getInspectionCoverageByRegion());
 
         LocalDate yearStart = today.withDayOfYear(1);
         LocalDate yearEnd = today;
@@ -131,5 +136,41 @@ public class StatisticsService {
 
     public List<HazardRecord> getOverdueHazardList() {
         return hazardRecordMapper.selectOverdueHazards(LocalDate.now());
+    }
+
+    public List<InspectionCoverageVO> getInspectionCoverageByDeviceType() {
+        List<Map<String, Object>> list = deviceMapper.countInspectionCoverageByDeviceType();
+        return list.stream().map(this::convertToCoverageVO).peek(vo -> {
+            DeviceTypeEnum typeEnum = DeviceTypeEnum.getByCode(
+                    vo.getCode() != null ? Integer.parseInt(vo.getCode().toString()) : null);
+            if (typeEnum != null) {
+                vo.setName(typeEnum.getDesc());
+            }
+        }).toList();
+    }
+
+    public List<InspectionCoverageVO> getInspectionCoverageByRegion() {
+        List<Map<String, Object>> list = deviceMapper.countInspectionCoverageByRegion();
+        return list.stream().map(this::convertToCoverageVO).toList();
+    }
+
+    private InspectionCoverageVO convertToCoverageVO(Map<String, Object> map) {
+        InspectionCoverageVO vo = new InspectionCoverageVO();
+        if (map.get("code") != null) {
+            vo.setCode(map.get("code").toString());
+        }
+        if (map.get("name") != null) {
+            vo.setName(map.get("name").toString());
+        }
+        vo.setTotalCount(((Number) map.getOrDefault("totalCount", 0L)).longValue());
+        vo.setNormalCount(((Number) map.getOrDefault("normalCount", 0L)).longValue());
+        vo.setOverdueCount(((Number) map.getOrDefault("overdueCount", 0L)).longValue());
+        if (vo.getTotalCount() > 0) {
+            double rate = vo.getNormalCount() * 100.0 / vo.getTotalCount();
+            vo.setCoverageRate(Math.round(rate * 100) / 100.0);
+        } else {
+            vo.setCoverageRate(0.0);
+        }
+        return vo;
     }
 }

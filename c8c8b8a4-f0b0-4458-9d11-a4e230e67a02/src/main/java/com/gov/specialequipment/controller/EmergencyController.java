@@ -1,5 +1,6 @@
 package com.gov.specialequipment.controller;
 
+import com.gov.specialequipment.annotation.AuditLog;
 import com.gov.specialequipment.common.Result;
 import com.gov.specialequipment.dto.AccidentReportDTO;
 import com.gov.specialequipment.entity.AccidentReport;
@@ -7,6 +8,7 @@ import com.gov.specialequipment.entity.Device;
 import com.gov.specialequipment.entity.EmergencyResource;
 import com.gov.specialequipment.service.EmergencyService;
 import com.gov.specialequipment.vo.EmergencyArchiveVO;
+import com.gov.specialequipment.vo.EmergencyResourceVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -27,6 +29,7 @@ public class EmergencyController {
     @Operation(summary = "事故上报")
     @PostMapping("/accidents")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'USE_UNIT')")
+    @AuditLog(module = "应急调度", operationType = "新增", description = "事故上报")
     public Result<AccidentReport> reportAccident(@Valid @RequestBody AccidentReportDTO dto) {
         return Result.success("事故上报成功", emergencyService.reportAccident(dto));
     }
@@ -54,10 +57,12 @@ public class EmergencyController {
     @Operation(summary = "应急资源调度")
     @GetMapping("/resources")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR')")
-    public Result<List<EmergencyResource>> dispatchResources(
+    public Result<List<EmergencyResourceVO>> dispatchResources(
             @RequestParam(required = false) String regionCode,
-            @RequestParam(required = false) String resourceType) {
-        return Result.success(emergencyService.dispatchResources(regionCode, resourceType));
+            @RequestParam(required = false) String resourceType,
+            @RequestParam(required = false) Double longitude,
+            @RequestParam(required = false) Double latitude) {
+        return Result.success(emergencyService.dispatchResources(regionCode, resourceType, longitude, latitude));
     }
 
     @Operation(summary = "获取事故列表")
@@ -69,6 +74,7 @@ public class EmergencyController {
     @Operation(summary = "更新事故处理状态")
     @PutMapping("/accidents/{id}/status")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR')")
+    @AuditLog(module = "应急调度", operationType = "修改", description = "更新事故处理状态")
     public Result<AccidentReport> updateAccidentStatus(
             @PathVariable Long id,
             @RequestParam String status,

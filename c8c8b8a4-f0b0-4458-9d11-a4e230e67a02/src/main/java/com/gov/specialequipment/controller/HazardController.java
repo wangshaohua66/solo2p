@@ -1,5 +1,6 @@
 package com.gov.specialequipment.controller;
 
+import com.gov.specialequipment.annotation.AuditLog;
 import com.gov.specialequipment.common.PageResult;
 import com.gov.specialequipment.common.Result;
 import com.gov.specialequipment.dto.HazardCreateDTO;
@@ -28,6 +29,7 @@ public class HazardController {
     @Operation(summary = "录入隐患信息")
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR')")
+    @AuditLog(module = "隐患排查治理", operationType = "新增", description = "录入隐患信息")
     public Result<HazardRecord> createHazard(@Valid @RequestBody HazardCreateDTO dto) {
         return Result.success("隐患录入成功", hazardService.createHazard(dto));
     }
@@ -47,6 +49,7 @@ public class HazardController {
     @Operation(summary = "提交整改信息")
     @PostMapping("/rectify")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'USE_UNIT')")
+    @AuditLog(module = "隐患排查治理", operationType = "修改", description = "提交整改信息")
     public Result<HazardRecord> rectifyHazard(@Valid @RequestBody HazardRectifyDTO dto) {
         return Result.success("整改提交成功", hazardService.rectifyHazard(dto));
     }
@@ -54,6 +57,7 @@ public class HazardController {
     @Operation(summary = "复查验收")
     @PostMapping("/review")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR')")
+    @AuditLog(module = "隐患排查治理", operationType = "修改", description = "隐患复查验收")
     public Result<HazardRecord> reviewHazard(@Valid @RequestBody HazardReviewDTO dto) {
         return Result.success("复查完成", hazardService.reviewHazard(dto));
     }
@@ -61,6 +65,7 @@ public class HazardController {
     @Operation(summary = "升级督办")
     @PostMapping("/{id}/escalate")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR')")
+    @AuditLog(module = "隐患排查治理", operationType = "修改", description = "隐患升级督办")
     public Result<Void> escalateHazard(@PathVariable Long id) {
         hazardService.escalateHazard(id);
         return Result.success("督办升级成功");

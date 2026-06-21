@@ -1,5 +1,6 @@
 package com.gov.specialequipment.controller;
 
+import com.gov.specialequipment.annotation.AuditLog;
 import com.gov.specialequipment.common.PageResult;
 import com.gov.specialequipment.common.Result;
 import com.gov.specialequipment.dto.DeviceQueryDTO;
@@ -25,6 +26,7 @@ public class DeviceController {
     @Operation(summary = "设备注册登记")
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'USE_UNIT')")
+    @AuditLog(module = "设备管理", operationType = "新增", description = "设备注册登记")
     public Result<Device> registerDevice(@Valid @RequestBody DeviceRegisterDTO dto) {
         return Result.success("设备注册成功", deviceService.registerDevice(dto));
     }
@@ -50,6 +52,7 @@ public class DeviceController {
     @Operation(summary = "更新设备信息")
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'USE_UNIT')")
+    @AuditLog(module = "设备管理", operationType = "修改", description = "更新设备信息")
     public Result<Device> updateDevice(@PathVariable Long id, @Valid @RequestBody DeviceRegisterDTO dto) {
         return Result.success("设备信息更新成功", deviceService.updateDevice(id, dto));
     }
@@ -57,6 +60,7 @@ public class DeviceController {
     @Operation(summary = "设备状态变更（变更、移装、停用、注销）")
     @PostMapping("/status")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'USE_UNIT')")
+    @AuditLog(module = "设备管理", operationType = "修改", description = "设备状态变更")
     public Result<Void> changeDeviceStatus(@Valid @RequestBody DeviceStatusChangeDTO dto) {
         deviceService.changeDeviceStatus(dto);
         return Result.success("状态变更成功");
@@ -65,6 +69,7 @@ public class DeviceController {
     @Operation(summary = "删除设备")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR')")
+    @AuditLog(module = "设备管理", operationType = "删除", description = "删除设备")
     public Result<Void> deleteDevice(@PathVariable Long id) {
         deviceService.deleteDevice(id);
         return Result.success("删除成功");

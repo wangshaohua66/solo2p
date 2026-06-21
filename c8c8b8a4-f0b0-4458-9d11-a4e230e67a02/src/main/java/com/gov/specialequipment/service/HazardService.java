@@ -75,7 +75,11 @@ public class HazardService {
         hazard.setDeviceType(deviceType);
         hazard.setUseUnitId(useUnitId);
         hazard.setUseUnitName(useUnitName);
-        hazard.setDeadline(dto.getDiscoveryDate().plusDays(levelEnum.getDeadlineDays()));
+        if (dto.getDeadline() != null) {
+            hazard.setDeadline(dto.getDeadline());
+        } else {
+            hazard.setDeadline(dto.getDiscoveryDate().plusDays(levelEnum.getDeadlineDays()));
+        }
         hazard.setDiscoverer(dto.getDiscoverer() != null ? dto.getDiscoverer() : SecurityUtil.getCurrentRealName());
         hazard.setDiscovererId(SecurityUtil.getCurrentUserId());
         hazard.setStatus(HazardStatusEnum.PENDING.getCode());
@@ -94,6 +98,18 @@ public class HazardService {
         }
         if (dto.getDiscoveryDate().isAfter(LocalDate.now())) {
             throw new BusinessException("发现日期不能晚于当前日期");
+        }
+        if (dto.getDeadline() != null) {
+            LocalDate expectedDeadline = dto.getDiscoveryDate().plusDays(levelEnum.getDeadlineDays());
+            if (!dto.getDeadline().equals(expectedDeadline)) {
+                throw new BusinessException(String.format(
+                        "整改期限与隐患等级不匹配：%s隐患整改期限应为%d天（即%s），传入的%s不正确",
+                        levelEnum.getDesc(),
+                        levelEnum.getDeadlineDays(),
+                        expectedDeadline.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")),
+                        dto.getDeadline().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                ));
+            }
         }
     }
 
