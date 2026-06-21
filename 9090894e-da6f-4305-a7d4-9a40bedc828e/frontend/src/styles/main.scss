@@ -1,0 +1,83 @@
+@use './variables.scss' as *;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: $font-size-base;
+  color: $text-primary;
+  background-color: $bg-color;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c0c4cc;
+  border-radius: 3px;
+
+  &:hover {
+    background: #909399;
+  }
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.page-container {
+  padding: 20px;
+  height: 100%;
+  overflow: auto;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+
+  .page-title {
+    font-size: $font-size-xl;
+    font-weight: 600;
+    color: $text-primary;
+  }
+}
+
+.card {
+  background: $bg-content;
+  border-radius: $border-radius-md;
+  padding: 20px;
+  box-shadow: $shadow-sm;
+}
+
+.btn-primary {
+  background-color: $primary-color;
+
+  &:hover {
+    background-color: $primary-light;
+  }
+}
