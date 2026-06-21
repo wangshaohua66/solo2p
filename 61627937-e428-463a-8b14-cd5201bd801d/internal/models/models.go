@@ -81,19 +81,20 @@ type MonitorTask struct {
 }
 
 type CrawledContent struct {
-	ID            int64     `json:"id"`
-	PlatformID    int64     `json:"platform_id"`
-	PlatformName  string    `json:"platform_name"`
-	URL           string    `json:"url"`
-	Title         string    `json:"title"`
-	Content       string    `json:"content"`
-	Author        string    `json:"author"`
-	PublishTime   time.Time `json:"publish_time"`
-	CrawlTime     time.Time `json:"crawl_time"`
-	Fingerprint   uint64    `json:"fingerprint"`
-	RawHTML       string    `json:"raw_html"`
-	HTTPHeaders   string    `json:"http_headers"`
-	Status        string    `json:"status"`
+	ID               int64     `json:"id"`
+	PlatformID       int64     `json:"platform_id"`
+	PlatformName     string    `json:"platform_name"`
+	URL              string    `json:"url"`
+	Title            string    `json:"title"`
+	Content          string    `json:"content"`
+	Author           string    `json:"author"`
+	PublishTime      time.Time `json:"publish_time"`
+	CrawlTime        time.Time `json:"crawl_time"`
+	Fingerprint      uint64    `json:"fingerprint"`
+	ScreenshotBase64 string    `json:"screenshot_base64"`
+	RawHTML          string    `json:"raw_html"`
+	HTTPHeaders      string    `json:"http_headers"`
+	Status           string    `json:"status"`
 }
 
 type InfringementClue struct {

@@ -115,6 +115,7 @@ func (s *Storage) initTables() error {
 			publish_time DATETIME,
 			crawl_time DATETIME,
 			fingerprint INTEGER DEFAULT 0,
+			screenshot_base64 TEXT,
 			raw_html TEXT,
 			http_headers TEXT,
 			status TEXT DEFAULT 'pending',
@@ -177,6 +178,54 @@ func (s *Storage) initTables() error {
 	for _, schema := range schemas {
 		if _, err := s.db.Exec(schema); err != nil {
 			return fmt.Errorf("create table: %w", err)
+		}
+	}
+
+	if err := s.runMigrations(); err != nil {
+		return fmt.Errorf("migrations: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Storage) runMigrations() error {
+	migrations := []struct {
+		column string
+		table  string
+		sql    string
+	}{
+		{
+			column: "screenshot_base64",
+			table:  "crawled_contents",
+			sql:    "ALTER TABLE crawled_contents ADD COLUMN screenshot_base64 TEXT",
+		},
+	}
+
+	for _, m := range migrations {
+		rows, err := s.db.Query(fmt.Sprintf("PRAGMA table_info(%s)", m.table))
+		if err != nil {
+			continue
+		}
+
+		exists := false
+		for rows.Next() {
+			var cid int
+			var name, ctype string
+			var notnull, pk int
+			var dflt_value *string
+			if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt_value, &pk); err == nil {
+				if name == m.column {
+					exists = true
+					break
+				}
+			}
+		}
+		rows.Close()
+
+		if !exists {
+			if _, err := s.db.Exec(m.sql); err != nil {
+				return fmt.Errorf("add column %s to %s: %w", m.column, m.table, err)
+			}
 		}
 	}
 
@@ -398,11 +447,11 @@ func (s *Storage) GetPendingTasks() ([]*models.MonitorTask, error) {
 func (s *Storage) AddCrawledContent(content *models.CrawledContent) (int64, error) {
 	result, err := s.db.Exec(`INSERT INTO crawled_contents 
 		(platform_id, platform_name, url, title, content, author, publish_time,
-		 crawl_time, fingerprint, raw_html, http_headers, status)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 crawl_time, fingerprint, screenshot_base64, raw_html, http_headers, status)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		content.PlatformID, content.PlatformName, content.URL, content.Title, content.Content,
 		content.Author, content.PublishTime, content.CrawlTime, content.Fingerprint,
-		content.RawHTML, content.HTTPHeaders, content.Status)
+		content.ScreenshotBase64, content.RawHTML, content.HTTPHeaders, content.Status)
 	if err != nil {
 		return 0, err
 	}

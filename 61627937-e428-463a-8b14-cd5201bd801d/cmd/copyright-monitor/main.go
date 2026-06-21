@@ -149,6 +149,12 @@ func initData() {
 		red.Printf("添加测试作品失败: %v\n", err)
 	}
 
+	if err := scheduler.GenerateDefaultTasks(); err != nil {
+		red.Printf("生成默认监测任务失败: %v\n", err)
+	} else {
+		green.Println("已生成默认监测任务")
+	}
+
 	green.Println("数据初始化完成!")
 	white.Println("  - 平台源:", added, "个")
 	white.Println("  - 路径: data/")
@@ -329,6 +335,22 @@ func startService() {
 		red.Printf("加载任务失败: %v\n", err)
 	}
 
+	queued := scheduler.Global().GetQueuedTaskCount()
+	if queued == 0 {
+		yellow.Println("暂无监测任务，正在生成默认任务...")
+		if err := scheduler.GenerateDefaultTasks(); err != nil {
+			red.Printf("生成默认任务失败: %v\n", err)
+		} else {
+			scheduler.Global().LoadTasks()
+			green.Println("默认任务生成完成!")
+		}
+	}
+
+	reviewTasks, _ := scheduler.Global().GetTasksNeedingReview()
+	if len(reviewTasks) > 0 {
+		yellow.Printf("注意: 有 %d 个任务需要人工复核\n", len(reviewTasks))
+	}
+
 	if err := scheduler.Global().Start(); err != nil {
 		red.Printf("启动调度器失败: %v\n", err)
 		os.Exit(1)
@@ -338,8 +360,8 @@ func startService() {
 	cyan.Println("按 Ctrl+C 停止服务")
 
 	active := scheduler.Global().GetActiveTaskCount()
-	queued := scheduler.Global().GetQueuedTaskCount()
-	white.Printf("活跃任务: %d  队列任务: %d\n", active, queued)
+	queued = scheduler.Global().GetQueuedTaskCount()
+	white.Printf("活跃任务: %d  队列任务: %d  待复核: %d\n", active, queued, len(reviewTasks))
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
@@ -358,8 +380,13 @@ func startService() {
 			active := scheduler.Global().GetActiveTaskCount()
 			queued := scheduler.Global().GetQueuedTaskCount()
 			pending, _ := storage.Global().GetPendingClueCount()
-			white.Printf("[%s] 活跃:%d 队列:%d 待处理线索:%d\n",
+			review, _ := scheduler.Global().GetTasksNeedingReview()
+			statusLine := fmt.Sprintf("[%s] 活跃:%d 队列:%d 待处理线索:%d",
 				time.Now().Format("15:04:05"), active, queued, pending)
+			if len(review) > 0 {
+				statusLine += fmt.Sprintf(" 待复核:%d", len(review))
+			}
+			white.Println(statusLine)
 		}
 	}
 }
@@ -401,6 +428,16 @@ func showStatus() {
 	green.Printf("%d 个\n", status.TotalPlatforms)
 	white.Printf("  待处理线索: ")
 	yellow.Printf("%d 条\n", status.PendingClues)
+
+	scheduler.Init(logger)
+	reviewTasks, err := scheduler.Global().GetTasksNeedingReview()
+	if err == nil && len(reviewTasks) > 0 {
+		white.Printf("  待人工复核: ")
+		red.Printf("%d 个任务\n", len(reviewTasks))
+		for _, t := range reviewTasks {
+			red.Printf("    - [%d次失败] %s\n", t.FailureCount, t.WorkTitle)
+		}
+	}
 
 	bold.Println("\n各平台采集成功率:")
 	for _, stat := range status.PlatformStats {

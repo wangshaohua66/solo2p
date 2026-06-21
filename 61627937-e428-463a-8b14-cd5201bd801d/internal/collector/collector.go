@@ -1,6 +1,8 @@
 package collector
 
 import (
+	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"strings"
@@ -11,16 +13,31 @@ import (
 	"copyright-monitor/internal/models"
 	"copyright-monitor/pkg/simhash"
 
+	"github.com/chromedp/chromedp"
 	"github.com/gocolly/colly/v2"
 	"go.uber.org/zap"
 )
 
+const (
+	AntiCrawlStateNormal    = "normal"
+	AntiCrawlStateSuspicious = "suspicious"
+	AntiCrawlStateBlocked   = "blocked"
+)
+
 type PlatformCollector struct {
-	platform *models.PlatformSource
-	collector *colly.Collector
-	logger   *zap.Logger
-	mu       sync.Mutex
-	results  []*models.CrawledContent
+	platform          *models.PlatformSource
+	collector         *colly.Collector
+	logger            *zap.Logger
+	mu                sync.Mutex
+	results           []*models.CrawledContent
+
+	antiCrawlMu       sync.RWMutex
+	antiCrawlState    string
+	antiCrawlCount    int
+	currentDelay      int
+	baseDelay         int
+
+	screenshotEnabled bool
 }
 
 type CollectorManager struct {
@@ -46,15 +63,21 @@ func NewPlatformCollector(platform *models.PlatformSource, logger *zap.Logger) *
 		colly.UserAgent(config.Get().UserAgent),
 		colly.AllowURLRevisit(),
 		colly.MaxDepth(2),
+		colly.CheckHead(),
 	)
 
 	c.SetRequestTimeout(time.Duration(config.Get().RequestTimeout) * time.Second)
 
 	pc := &PlatformCollector{
-		platform:  platform,
-		collector: c,
-		logger:    logger,
-		results:   make([]*models.CrawledContent, 0),
+		platform:          platform,
+		collector:         c,
+		logger:            logger,
+		results:           make([]*models.CrawledContent, 0),
+		antiCrawlState:    AntiCrawlStateNormal,
+		antiCrawlCount:    0,
+		baseDelay:         platform.RequestDelay,
+		currentDelay:      platform.RequestDelay,
+		screenshotEnabled: true,
 	}
 
 	c.Limit(&colly.LimitRule{
@@ -65,17 +88,49 @@ func NewPlatformCollector(platform *models.PlatformSource, logger *zap.Logger) *
 	})
 
 	c.OnRequest(func(r *colly.Request) {
-		logger.Debug("Visiting", zap.String("url", r.URL.String()))
+		pc.antiCrawlMu.RLock()
+		delay := pc.currentDelay
+		state := pc.antiCrawlState
+		pc.antiCrawlMu.RUnlock()
+
+		if state != AntiCrawlStateNormal {
+			pc.logger.Debug("Anti-crawl active, delaying request",
+				zap.String("platform", platform.Name),
+				zap.String("state", state),
+				zap.Int("delay_seconds", delay),
+			)
+		}
+
+		logger.Debug("Visiting",
+			zap.String("url", r.URL.String()),
+			zap.String("platform", platform.Name),
+		)
+	})
+
+	c.OnResponse(func(r *colly.Response) {
+		pc.detectAntiCrawl(r)
 	})
 
 	c.OnError(func(r *colly.Response, err error) {
+		statusCode := 0
+		if r != nil {
+			statusCode = r.StatusCode
+			pc.detectAntiCrawl(r)
+		}
+
 		logger.Warn("Request failed",
-			zap.String("url", r.Request.URL.String()),
+			zap.String("platform", platform.Name),
+			zap.String("url", safeGetURL(r)),
+			zap.Int("status_code", statusCode),
 			zap.Error(err),
 		)
 	})
 
 	c.OnHTML(platform.ListSelector, func(e *colly.HTMLElement) {
+		if pc.isAntiCrawlBlocked() {
+			return
+		}
+
 		detailLink := e.ChildAttr(platform.DetailSelector, "href")
 		if detailLink != "" {
 			absURL := e.Request.AbsoluteURL(detailLink)
@@ -84,6 +139,10 @@ func NewPlatformCollector(platform *models.PlatformSource, logger *zap.Logger) *
 	})
 
 	c.OnHTML("html", func(e *colly.HTMLElement) {
+		if pc.isAntiCrawlBlocked() {
+			return
+		}
+
 		title := e.ChildText(platform.TitleSelector)
 		content := e.ChildText(platform.ContentSelector)
 
@@ -93,11 +152,12 @@ func NewPlatformCollector(platform *models.PlatformSource, logger *zap.Logger) *
 
 		rawHTML, _ := e.DOM.Html()
 		headers := formatHeaders(*e.Response.Headers)
+		pageURL := e.Request.URL.String()
 
 		crawled := &models.CrawledContent{
 			PlatformID:   platform.ID,
 			PlatformName: platform.Name,
-			URL:          e.Request.URL.String(),
+			URL:          pageURL,
 			Title:        strings.TrimSpace(title),
 			Content:      strings.TrimSpace(content),
 			CrawlTime:    time.Now(),
@@ -107,12 +167,163 @@ func NewPlatformCollector(platform *models.PlatformSource, logger *zap.Logger) *
 			Status:       "crawled",
 		}
 
+		if pc.screenshotEnabled {
+			screenshot, err := pc.takeScreenshot(pageURL)
+			if err != nil {
+				pc.logger.Debug("Screenshot failed",
+					zap.String("platform", platform.Name),
+					zap.String("url", pageURL),
+					zap.Error(err),
+				)
+			} else {
+				crawled.ScreenshotBase64 = screenshot
+				crawled.Status = "crawled_with_screenshot"
+			}
+		}
+
 		pc.mu.Lock()
 		pc.results = append(pc.results, crawled)
 		pc.mu.Unlock()
 	})
 
 	return pc
+}
+
+func safeGetURL(r *colly.Response) string {
+	if r != nil && r.Request != nil && r.Request.URL != nil {
+		return r.Request.URL.String()
+	}
+	return "unknown"
+}
+
+func (pc *PlatformCollector) detectAntiCrawl(r *colly.Response) {
+	pc.antiCrawlMu.Lock()
+	defer pc.antiCrawlMu.Unlock()
+
+	triggered := false
+	reason := ""
+
+	if r.StatusCode == http.StatusTooManyRequests {
+		triggered = true
+		reason = "HTTP 429 Too Many Requests"
+	} else if r.StatusCode == http.StatusForbidden {
+		triggered = true
+		reason = "HTTP 403 Forbidden"
+	} else if r.StatusCode == 503 {
+		triggered = true
+		reason = "HTTP 503 Service Unavailable"
+	}
+
+	bodyLower := strings.ToLower(string(r.Body))
+	captchaKeywords := []string{
+		"captcha", "验证码", "slider", "滑块", "verify", "验证",
+		"robot check", "人机验证", "security check", "安全验证",
+	}
+	for _, kw := range captchaKeywords {
+		if strings.Contains(bodyLower, kw) {
+			triggered = true
+			reason = fmt.Sprintf("detected captcha keyword: %s", kw)
+			break
+		}
+	}
+
+	if triggered {
+		pc.antiCrawlCount++
+
+		switch {
+		case pc.antiCrawlCount >= 5:
+			pc.antiCrawlState = AntiCrawlStateBlocked
+			pc.currentDelay = 30
+		case pc.antiCrawlCount >= 3:
+			pc.antiCrawlState = AntiCrawlStateSuspicious
+			pc.currentDelay = pc.baseDelay * 5
+			if pc.currentDelay < 5 {
+				pc.currentDelay = 5
+			}
+		default:
+			pc.antiCrawlState = AntiCrawlStateSuspicious
+			pc.currentDelay = pc.baseDelay * 3
+			if pc.currentDelay < 3 {
+				pc.currentDelay = 3
+			}
+		}
+
+		pc.logger.Warn("Anti-crawl detected",
+			zap.String("platform", pc.platform.Name),
+			zap.String("reason", reason),
+			zap.Int("count", pc.antiCrawlCount),
+			zap.String("new_state", pc.antiCrawlState),
+			zap.Int("new_delay_seconds", pc.currentDelay),
+		)
+
+		pc.updateCollectorDelay()
+	} else {
+		if pc.antiCrawlCount > 0 {
+			pc.antiCrawlCount--
+			if pc.antiCrawlCount == 0 {
+				pc.antiCrawlState = AntiCrawlStateNormal
+				pc.currentDelay = pc.baseDelay
+				pc.updateCollectorDelay()
+				pc.logger.Info("Anti-crawl state recovered to normal",
+					zap.String("platform", pc.platform.Name),
+				)
+			}
+		}
+	}
+}
+
+func (pc *PlatformCollector) updateCollectorDelay() {
+	delay := time.Duration(pc.currentDelay) * time.Second
+	pc.collector.Limit(&colly.LimitRule{
+		DomainGlob:  "*",
+		Delay:       delay,
+		RandomDelay: delay / 2,
+		Parallelism: 1,
+	})
+}
+
+func (pc *PlatformCollector) isAntiCrawlBlocked() bool {
+	pc.antiCrawlMu.RLock()
+	defer pc.antiCrawlMu.RUnlock()
+	return pc.antiCrawlState == AntiCrawlStateBlocked
+}
+
+func (pc *PlatformCollector) GetAntiCrawlState() (string, int, int) {
+	pc.antiCrawlMu.RLock()
+	defer pc.antiCrawlMu.RUnlock()
+	return pc.antiCrawlState, pc.antiCrawlCount, pc.currentDelay
+}
+
+func (pc *PlatformCollector) takeScreenshot(url string) (string, error) {
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.Flag("headless", true),
+		chromedp.Flag("disable-gpu", true),
+		chromedp.Flag("no-sandbox", true),
+		chromedp.Flag("disable-dev-shm-usage", true),
+		chromedp.WindowSize(1280, 900),
+	)
+
+	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
+	defer cancel()
+
+	ctx, cancel := chromedp.NewContext(allocCtx)
+	defer cancel()
+
+	ctx, cancel = context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	var buf []byte
+	err := chromedp.Run(ctx,
+		chromedp.Navigate(url),
+		chromedp.WaitReady("body", chromedp.ByQuery),
+		chromedp.Sleep(2*time.Second),
+		chromedp.FullScreenshot(&buf, 90),
+	)
+	if err != nil {
+		return "", fmt.Errorf("chromedp screenshot: %w", err)
+	}
+
+	return base64.StdEncoding.EncodeToString(buf), nil
 }
 
 func formatHeaders(headers http.Header) string {
@@ -130,7 +341,22 @@ func (pc *PlatformCollector) Collect(maxPages int) ([]*models.CrawledContent, er
 	pc.results = make([]*models.CrawledContent, 0)
 	pc.mu.Unlock()
 
+	if pc.isAntiCrawlBlocked() {
+		pc.logger.Warn("Skipping collection due to anti-crawl block",
+			zap.String("platform", pc.platform.Name),
+		)
+		return nil, fmt.Errorf("platform %s is blocked by anti-crawl", pc.platform.Name)
+	}
+
 	for i := 1; i <= maxPages; i++ {
+		if pc.isAntiCrawlBlocked() {
+			pc.logger.Warn("Stopping collection early due to anti-crawl block",
+				zap.String("platform", pc.platform.Name),
+				zap.Int("pages_completed", i-1),
+			)
+			break
+		}
+
 		listURL := strings.ReplaceAll(pc.platform.ListURLPattern, "{page}", fmt.Sprintf("%d", i))
 		pc.logger.Debug("Crawling list page",
 			zap.String("platform", pc.platform.Name),
@@ -153,9 +379,13 @@ func (pc *PlatformCollector) Collect(maxPages int) ([]*models.CrawledContent, er
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
 
+	state, count, delay := pc.GetAntiCrawlState()
 	pc.logger.Info("Crawling completed",
 		zap.String("platform", pc.platform.Name),
 		zap.Int("items_found", len(pc.results)),
+		zap.String("anti_crawl_state", state),
+		zap.Int("anti_crawl_count", count),
+		zap.Int("current_delay", delay),
 	)
 
 	return pc.results, nil
@@ -172,11 +402,14 @@ func (pc *PlatformCollector) CollectWithRetry(maxPages int, maxRetries int) ([]*
 		}
 
 		if attempt < maxRetries {
-			waitTime := time.Duration(attempt*2) * time.Second
+			waitTime := time.Duration(attempt*5) * time.Second
+			state, count, _ := pc.GetAntiCrawlState()
 			pc.logger.Warn("Retry crawling",
 				zap.String("platform", pc.platform.Name),
 				zap.Int("attempt", attempt),
 				zap.Duration("wait", waitTime),
+				zap.String("anti_crawl_state", state),
+				zap.Int("anti_crawl_count", count),
 				zap.Error(lastErr),
 			)
 			time.Sleep(waitTime)

@@ -14,6 +14,15 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	MaxFailureCount = 3
+	StatusPending   = "pending"
+	StatusRunning   = "running"
+	StatusScheduled = "scheduled"
+	StatusNeedsReview = "needs_review"
+	StatusManualReview = "manual_review"
+)
+
 type PriorityQueue []*MonitorJob
 
 type MonitorJob struct {
@@ -104,19 +113,43 @@ func (s *Scheduler) Start() error {
 
 func (s *Scheduler) Stop() error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	if !s.running {
+		s.mu.Unlock()
 		return nil
 	}
 
 	s.running = false
 	close(s.stopChan)
 
+	savedCount := 0
+	for s.jobQueue.Len() > 0 {
+		job := heap.Pop(&s.jobQueue).(*MonitorJob)
+		if job.Task != nil && job.Task.ID > 0 {
+			if err := storage.Global().UpdateTask(job.Task); err != nil {
+				s.logger.Error("Failed to persist pending task",
+					zap.Int64("task_id", job.Task.ID),
+					zap.String("work_title", job.Task.WorkTitle),
+					zap.Error(err),
+				)
+			} else {
+				savedCount++
+				s.logger.Debug("Persisted pending task on shutdown",
+					zap.Int64("task_id", job.Task.ID),
+					zap.String("work_title", job.Task.WorkTitle),
+				)
+			}
+		}
+	}
+
+	s.mu.Unlock()
+
 	ctx := s.cron.Stop()
 	<-ctx.Done()
 
-	s.logger.Info("Scheduler stopped")
+	s.logger.Info("Scheduler stopped gracefully",
+		zap.Int("persisted_tasks", savedCount),
+	)
 	return nil
 }
 
@@ -131,16 +164,28 @@ func (s *Scheduler) LoadTasks() error {
 
 	heap.Init(&s.jobQueue)
 
+	loaded := 0
 	for _, task := range tasks {
+		if task.Status == StatusNeedsReview || task.Status == StatusManualReview {
+			s.logger.Debug("Skipping task needing manual review",
+				zap.Int64("task_id", task.ID),
+				zap.String("work_title", task.WorkTitle),
+				zap.String("status", task.Status),
+			)
+			continue
+		}
+
 		job := &MonitorJob{
 			Task:     task,
 			Priority: int(task.Priority),
 		}
 		heap.Push(&s.jobQueue, job)
+		loaded++
 	}
 
 	s.logger.Info("Tasks loaded into scheduler",
-		zap.Int("count", len(tasks)),
+		zap.Int("count", loaded),
+		zap.Int("skipped_review", len(tasks)-loaded),
 	)
 
 	return nil
@@ -228,9 +273,10 @@ func (s *Scheduler) executeTask(task *models.MonitorTask) {
 	s.logger.Info("Executing monitor task",
 		zap.Int64("task_id", task.ID),
 		zap.String("work_title", task.WorkTitle),
+		zap.Int("current_failure_count", task.FailureCount),
 	)
 
-	task.Status = "running"
+	task.Status = StatusRunning
 	task.LastRunTime = time.Now()
 	storage.Global().UpdateTask(task)
 
@@ -261,6 +307,7 @@ func (s *Scheduler) executeTask(task *models.MonitorTask) {
 			failedPlatforms++
 			s.logger.Error("Platform collection failed",
 				zap.String("platform", platform.Name),
+				zap.Int64("task_id", task.ID),
 				zap.Error(err),
 			)
 		} else {
@@ -270,7 +317,10 @@ func (s *Scheduler) executeTask(task *models.MonitorTask) {
 
 			clues, err := parser.Global().ProcessCrawledContents(contents, task.ID)
 			if err != nil {
-				s.logger.Error("Content parsing failed", zap.Error(err))
+				s.logger.Error("Content parsing failed",
+					zap.Int64("task_id", task.ID),
+					zap.Error(err),
+				)
 			}
 			log.InfringementsFound = len(clues)
 			totalInfringements += len(clues)
@@ -279,29 +329,54 @@ func (s *Scheduler) executeTask(task *models.MonitorTask) {
 		storage.Global().AddMonitorLog(log)
 	}
 
-	task.Status = "pending"
-	task.FailureCount = 0
 	if failedPlatforms > 0 {
 		task.FailureCount++
+	} else {
+		task.FailureCount = 0
 	}
 
-	now := time.Now()
-	switch task.Priority {
-	case models.PriorityHigh, models.PriorityUrgent:
-		task.NextRunTime = now.Add(24 * time.Hour)
-	case models.PriorityMedium:
-		task.NextRunTime = now.Add(3 * 24 * time.Hour)
-	default:
-		task.NextRunTime = now.Add(7 * 24 * time.Hour)
+	if task.FailureCount >= MaxFailureCount {
+		task.Status = StatusNeedsReview
+		s.logger.Warn("Task marked for manual review due to repeated failures",
+			zap.Int64("task_id", task.ID),
+			zap.String("work_title", task.WorkTitle),
+			zap.Int("failure_count", task.FailureCount),
+			zap.Int("failed_platforms", failedPlatforms),
+		)
+	} else {
+		task.Status = StatusPending
+
+		now := time.Now()
+		switch task.Priority {
+		case models.PriorityHigh, models.PriorityUrgent:
+			task.NextRunTime = now.Add(24 * time.Hour)
+		case models.PriorityMedium:
+			task.NextRunTime = now.Add(3 * 24 * time.Hour)
+		default:
+			task.NextRunTime = now.Add(7 * 24 * time.Hour)
+		}
 	}
 
 	storage.Global().UpdateTask(task)
 
+	if task.Status == StatusPending {
+		s.mu.Lock()
+		job := &MonitorJob{
+			Task:     task,
+			Priority: int(task.Priority),
+		}
+		heap.Push(&s.jobQueue, job)
+		s.mu.Unlock()
+	}
+
 	s.logger.Info("Task completed",
 		zap.Int64("task_id", task.ID),
+		zap.String("work_title", task.WorkTitle),
+		zap.String("status", task.Status),
 		zap.Int("items_found", totalItems),
 		zap.Int("infringements", totalInfringements),
 		zap.Int("failed_platforms", failedPlatforms),
+		zap.Int("failure_count", task.FailureCount),
 	)
 }
 
@@ -315,9 +390,23 @@ func (s *Scheduler) RunAllNow() error {
 		zap.Int("task_count", len(tasks)),
 	)
 
+	executed := 0
 	for _, task := range tasks {
+		if task.Status == StatusNeedsReview || task.Status == StatusManualReview {
+			s.logger.Debug("Skipping task needing review",
+				zap.Int64("task_id", task.ID),
+				zap.String("work_title", task.WorkTitle),
+			)
+			continue
+		}
 		go s.executeTask(task)
+		executed++
 	}
+
+	s.logger.Info("Triggered task execution",
+		zap.Int("executed", executed),
+		zap.Int("skipped", len(tasks)-executed),
+	)
 
 	return nil
 }
@@ -329,6 +418,13 @@ func (s *Scheduler) RunTaskNow(taskID int64) error {
 	}
 
 	if task == nil {
+		return nil
+	}
+
+	if task.Status == StatusNeedsReview || task.Status == StatusManualReview {
+		s.logger.Warn("Task needs manual review, not executing automatically",
+			zap.Int64("task_id", taskID),
+		)
 		return nil
 	}
 
@@ -363,6 +459,22 @@ func (s *Scheduler) GetQueuedTaskCount() int {
 	return s.jobQueue.Len()
 }
 
+func (s *Scheduler) GetTasksNeedingReview() ([]*models.MonitorTask, error) {
+	allTasks, err := storage.Global().GetPendingTasks()
+	if err != nil {
+		return nil, err
+	}
+
+	var reviewTasks []*models.MonitorTask
+	for _, t := range allTasks {
+		if t.Status == StatusNeedsReview || t.Status == StatusManualReview {
+			reviewTasks = append(reviewTasks, t)
+		}
+	}
+
+	return reviewTasks, nil
+}
+
 func GenerateDefaultTasks() error {
 	works, err := storage.Global().GetAllWorks()
 	if err != nil {
@@ -379,6 +491,7 @@ func GenerateDefaultTasks() error {
 		platformIDs = append(platformIDs, p.ID)
 	}
 
+	count := 0
 	for _, work := range works {
 		var priority models.Priority
 		var cronExpr string
@@ -395,20 +508,22 @@ func GenerateDefaultTasks() error {
 		}
 
 		task := &models.MonitorTask{
-			WorkID:      work.ID,
-			WorkTitle:   work.Title,
-			WorkType:    work.WorkType,
-			Priority:    priority,
-			PlatformIDs: platformIDs,
-			CronExpr:    cronExpr,
-			NextRunTime: time.Now().Add(1 * time.Hour),
-			Status:      "pending",
+			WorkID:       work.ID,
+			WorkTitle:    work.Title,
+			WorkType:     work.WorkType,
+			Priority:     priority,
+			PlatformIDs:  platformIDs,
+			CronExpr:     cronExpr,
+			NextRunTime:  time.Now().Add(1 * time.Hour),
+			Status:       StatusPending,
+			FailureCount: 0,
 		}
 
 		_, err := storage.Global().AddTask(task)
 		if err != nil {
 			return err
 		}
+		count++
 	}
 
 	return nil
