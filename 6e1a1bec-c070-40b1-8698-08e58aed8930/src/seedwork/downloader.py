@@ -59,7 +59,33 @@ class DataDownloader:
                 sha256.update(chunk)
         return sha256.hexdigest()
 
-    def _validate_miniseed(self, filepath: Path, expected_sr: float = 100.0) -> dict:
+    def _get_remote_checksum(self, host, remote_path: str) -> Optional[str]:
+        checksum_path = remote_path + ".sha256"
+        try:
+            if host.path.exists(checksum_path):
+                with host._host.open(checksum_path, "r") as f:
+                    content = f.read().decode("utf-8", errors="ignore").strip()
+                    parts = content.split()
+                    if parts:
+                        return parts[0].lower()
+        except Exception:
+            pass
+
+        checksum_path2 = remote_path + ".md5"
+        try:
+            if host.path.exists(checksum_path2):
+                with host._host.open(checksum_path2, "r") as f:
+                    content = f.read().decode("utf-8", errors="ignore").strip()
+                    parts = content.split()
+                    if parts:
+                        return f"md5:{parts[0].lower()}"
+        except Exception:
+            pass
+
+        return None
+
+    def _validate_miniseed(self, filepath: Path, expected_sr: float = 100.0,
+                           expected_checksum: Optional[str] = None) -> dict:
         try:
             st = read(str(filepath), format="MSEED")
             if len(st) == 0:
@@ -71,7 +97,9 @@ class DataDownloader:
                 "end_time": None,
                 "sample_rate": None,
                 "is_valid": True,
-                "errors": []
+                "errors": [],
+                "file_hash": None,
+                "checksum_valid": None
             }
 
             for tr in st:
@@ -94,6 +122,22 @@ class DataDownloader:
                 if result["end_time"] is None or tr.stats.endtime > result["end_time"]:
                     result["end_time"] = tr.stats.endtime.datetime
                 result["sample_rate"] = sr
+
+            local_hash = self._compute_file_hash(filepath)
+            result["file_hash"] = local_hash
+
+            if expected_checksum:
+                if expected_checksum.startswith("md5:"):
+                    result["checksum_valid"] = None
+                else:
+                    if local_hash.lower() == expected_checksum.lower():
+                        result["checksum_valid"] = True
+                    else:
+                        result["checksum_valid"] = False
+                        result["is_valid"] = False
+                        result["errors"].append(
+                            f"Checksum mismatch: {local_hash} != {expected_checksum}"
+                        )
 
             return result
 
@@ -129,30 +173,68 @@ class DataDownloader:
             raise FTPConnectionError(f"FTP connection failed: {e}") from e
 
         try:
-            with host, tempfile.NamedTemporaryFile(
-                dir=str(local_path.parent),
-                suffix=".tmp",
-                delete=False
-            ) as tmp:
-                tmp_path = Path(tmp.name)
+            with host:
+                if not host.path.exists(remote_path):
+                    raise FTPConnectionError(f"Remote file not found: {remote_path}")
+
+                remote_size = host.path.getsize(remote_path)
+                tmp_path = local_path.parent / f"{local_path.name}.part"
+
+                remote_checksum = self._get_remote_checksum(host, remote_path)
+
+                existing_size = 0
+                mode = "wb"
+                if tmp_path.exists():
+                    existing_size = tmp_path.stat().st_size
+                    if existing_size < remote_size:
+                        mode = "ab"
+                        logger.debug(
+                            f"Resuming download from {existing_size} "
+                            f"of {remote_size} bytes for {remote_path}"
+                        )
+                    elif existing_size == remote_size:
+                        logger.debug(
+                            f"Partial file complete, validating: {remote_path}"
+                        )
+                    else:
+                        existing_size = 0
+                        mode = "wb"
+
                 try:
-                    host.download(remote_path, str(tmp_path), callback=None)
+                    with host._host.open(remote_path, "rb") as remote_file, \
+                         open(tmp_path, mode) as local_file:
+                        if existing_size > 0:
+                            try:
+                                host._host.sendcmd(f"REST {existing_size}")
+                            except Exception:
+                                existing_size = 0
+                                mode = "wb"
+                                local_file.close()
+                                local_file = open(tmp_path, mode)
 
-                    if not host.path.exists(remote_path):
-                        raise FTPConnectionError(f"Remote file not found: {remote_path}")
+                        chunk_size = self.chunk_size
+                        downloaded = existing_size
+                        while True:
+                            chunk = remote_file.read(chunk_size)
+                            if not chunk:
+                                break
+                            local_file.write(chunk)
+                            downloaded += len(chunk)
 
-                    remote_size = host.path.getsize(remote_path)
                     local_size = tmp_path.stat().st_size
                     if local_size != remote_size:
+                        tmp_path.unlink(missing_ok=True)
                         raise FTPConnectionError(
-                            f"Size mismatch: {local_size} != {remote_size}"
+                            f"Size mismatch after download: {local_size} != {remote_size}"
                         )
 
-                    validation = self._validate_miniseed(tmp_path, station.sample_rate)
+                    validation = self._validate_miniseed(
+                        tmp_path, station.sample_rate, remote_checksum
+                    )
 
                     if validation["is_valid"]:
                         tmp_path.rename(local_path)
-                        file_hash = self._compute_file_hash(local_path)
+                        file_hash = validation["file_hash"]
 
                         with self.db.get_session() as session:
                             record = DownloadRecord(
@@ -182,7 +264,7 @@ class DataDownloader:
                         )
 
                 finally:
-                    tmp_path.unlink(missing_ok=True)
+                    pass
 
         except MiniSEEDValidationError:
             raise

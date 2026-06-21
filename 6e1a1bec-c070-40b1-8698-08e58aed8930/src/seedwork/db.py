@@ -161,8 +161,7 @@ class CatalogEntry(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     event = relationship("Event", backref="catalog_entries")
-    versions = relationship("CatalogVersion", backref="catalog_entry",
-                            cascade="all, delete-orphan")
+    versions = relationship("CatalogVersion", backref="catalog_entry")
 
     __table_args__ = (
         Index("idx_origin_time", "origin_time"),

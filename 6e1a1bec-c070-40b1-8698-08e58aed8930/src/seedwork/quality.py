@@ -537,6 +537,63 @@ class QualityAnalyzer:
 
         report_data.sort(key=lambda x: x["availability"], reverse=True)
 
+        daily_trend = []
+        from collections import defaultdict
+        daily_metrics = defaultdict(list)
+        for station in stations:
+            metrics = session.query(QualityMetric).filter(
+                QualityMetric.station_id == station.id,
+                QualityMetric.date >= start_date,
+                QualityMetric.date <= end_date
+            ).all()
+            for m in metrics:
+                day_key = m.date.strftime("%Y-%m-%d")
+                daily_metrics[day_key].append(m)
+
+        for day in sorted(daily_metrics.keys()):
+            day_metrics = daily_metrics[day]
+            if not day_metrics:
+                continue
+            n = len(day_metrics)
+            cont_vals = [m.continuity_rate for m in day_metrics if m.continuity_rate is not None]
+            snr_vals = [m.snr_db for m in day_metrics if m.snr_db is not None]
+            clock_vals = [m.clock_bias_ms for m in day_metrics if m.clock_bias_ms is not None]
+            alert_count = sum(1 for m in day_metrics if m.has_alert)
+
+            daily_trend.append({
+                "date": day,
+                "stations": n,
+                "avg_continuity": float(np.mean(cont_vals)) * 100 if cont_vals else 0.0,
+                "avg_snr": float(np.mean(snr_vals)) if snr_vals else 0.0,
+                "avg_clock_bias": float(np.mean(clock_vals)) if clock_vals else 0.0,
+                "alerts": alert_count,
+                "availability": (n - alert_count) / n * 100 if n > 0 else 0.0
+            })
+
+        weekly_trend = []
+        week_data = defaultdict(list)
+        for d in daily_trend:
+            dt = datetime.strptime(d["date"], "%Y-%m-%d")
+            week_num = dt.isocalendar()[1]
+            week_key = f"Week {week_num}"
+            week_data[week_key].append(d)
+
+        for wk in sorted(week_data.keys()):
+            wk_days = week_data[wk]
+            if not wk_days:
+                continue
+            n_days = len(wk_days)
+            weekly_trend.append({
+                "week": wk,
+                "days": n_days,
+                "avg_continuity": float(np.mean([d["avg_continuity"] for d in wk_days])),
+                "avg_snr": float(np.mean([d["avg_snr"] for d in wk_days])),
+                "avg_clock_bias": float(np.mean([d["avg_clock_bias"] for d in wk_days])),
+                "avg_alerts": float(np.mean([d["alerts"] for d in wk_days])),
+                "avg_availability": float(np.mean([d["availability"] for d in wk_days])),
+                "total_alerts": sum(d["alerts"] for d in wk_days)
+            })
+
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         filepath = output_dir / f"station_report_{year}_{month:02d}.csv"
@@ -597,6 +654,117 @@ class QualityAnalyzer:
             )
 
         console.print(table)
+
+        if daily_trend:
+            daily_filepath = output_dir / f"daily_trend_{year}_{month:02d}.csv"
+            with open(daily_filepath, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                    "Date", "Stations", "Avg Continuity (%)", "Avg SNR (dB)",
+                    "Avg Clock Bias (ms)", "Alerts", "Availability (%)"
+                ])
+                for d in daily_trend:
+                    writer.writerow([
+                        d["date"],
+                        d["stations"],
+                        f"{d['avg_continuity']:.2f}",
+                        f"{d['avg_snr']:.2f}",
+                        f"{d['avg_clock_bias']:.4f}",
+                        d["alerts"],
+                        f"{d['availability']:.2f}"
+                    ])
+
+            daily_table = Table(
+                title=f"Daily Quality Trend - {year}/{month:02d}",
+                show_header=True,
+                header_style="bold magenta"
+            )
+            daily_table.add_column("Date", style="bold")
+            daily_table.add_column("Stations", justify="right")
+            daily_table.add_column("Cont(%)", justify="right")
+            daily_table.add_column("SNR(dB)", justify="right")
+            daily_table.add_column("Clock(ms)", justify="right")
+            daily_table.add_column("Alerts", justify="right")
+            daily_table.add_column("Avail(%)", justify="right")
+
+            for d in daily_trend:
+                cont_str = f"[green]{d['avg_continuity']:.1f}[/green]" if d["avg_continuity"] >= self.min_continuity_rate * 100 else f"[red]{d['avg_continuity']:.1f}[/red]"
+                snr_str = f"[green]{d['avg_snr']:.1f}[/green]" if d["avg_snr"] >= self.min_snr_db else f"[red]{d['avg_snr']:.1f}[/red]"
+                clock_str = f"[green]{d['avg_clock_bias']:.3f}[/green]" if d["avg_clock_bias"] <= self.max_clock_bias_ms else f"[red]{d['avg_clock_bias']:.3f}[/red]"
+                alerts_str = f"[red]{d['alerts']}[/red]" if d["alerts"] > 0 else str(d["alerts"])
+                avail_str = f"[green]{d['availability']:.1f}[/green]" if d["availability"] >= 95 else f"[red]{d['availability']:.1f}[/red]"
+
+                daily_table.add_row(
+                    d["date"],
+                    str(d["stations"]),
+                    cont_str,
+                    snr_str,
+                    clock_str,
+                    alerts_str,
+                    avail_str
+                )
+
+            console.print()
+            console.print(daily_table)
+            logger.info(f"[green]Daily trend report: {daily_filepath}[/green]")
+
+        if weekly_trend:
+            weekly_filepath = output_dir / f"weekly_trend_{year}_{month:02d}.csv"
+            with open(weekly_filepath, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                    "Week", "Days", "Avg Continuity (%)", "Avg SNR (dB)",
+                    "Avg Clock Bias (ms)", "Avg Alerts", "Total Alerts",
+                    "Avg Availability (%)"
+                ])
+                for w in weekly_trend:
+                    writer.writerow([
+                        w["week"],
+                        w["days"],
+                        f"{w['avg_continuity']:.2f}",
+                        f"{w['avg_snr']:.2f}",
+                        f"{w['avg_clock_bias']:.4f}",
+                        f"{w['avg_alerts']:.1f}",
+                        w["total_alerts"],
+                        f"{w['avg_availability']:.2f}"
+                    ])
+
+            weekly_table = Table(
+                title=f"Weekly Quality Trend - {year}/{month:02d}",
+                show_header=True,
+                header_style="bold blue"
+            )
+            weekly_table.add_column("Week", style="bold")
+            weekly_table.add_column("Days", justify="right")
+            weekly_table.add_column("Cont(%)", justify="right")
+            weekly_table.add_column("SNR(dB)", justify="right")
+            weekly_table.add_column("Clock(ms)", justify="right")
+            weekly_table.add_column("Avg Alerts", justify="right")
+            weekly_table.add_column("Total Alerts", justify="right")
+            weekly_table.add_column("Avail(%)", justify="right")
+
+            for w in weekly_trend:
+                cont_str = f"[green]{w['avg_continuity']:.1f}[/green]" if w["avg_continuity"] >= self.min_continuity_rate * 100 else f"[red]{w['avg_continuity']:.1f}[/red]"
+                snr_str = f"[green]{w['avg_snr']:.1f}[/green]" if w["avg_snr"] >= self.min_snr_db else f"[red]{w['avg_snr']:.1f}[/red]"
+                clock_str = f"[green]{w['avg_clock_bias']:.3f}[/green]" if w["avg_clock_bias"] <= self.max_clock_bias_ms else f"[red]{w['avg_clock_bias']:.3f}[/red]"
+                alerts_str = f"[red]{w['total_alerts']}[/red]" if w["total_alerts"] > 0 else str(w["total_alerts"])
+                avail_str = f"[green]{w['avg_availability']:.1f}[/green]" if w["avg_availability"] >= 95 else f"[red]{w['avg_availability']:.1f}[/red]"
+
+                weekly_table.add_row(
+                    w["week"],
+                    str(w["days"]),
+                    cont_str,
+                    snr_str,
+                    clock_str,
+                    f"{w['avg_alerts']:.1f}",
+                    alerts_str,
+                    avail_str
+                )
+
+            console.print()
+            console.print(weekly_table)
+            logger.info(f"[green]Weekly trend report: {weekly_filepath}[/green]")
+
         logger.info(f"[green]Monthly report generated: {filepath}[/green]")
 
         return filepath

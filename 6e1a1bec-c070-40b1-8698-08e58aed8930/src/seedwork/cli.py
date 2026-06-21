@@ -359,9 +359,186 @@ def pick(
 
     if interactive:
         console.print(
-            "[yellow]Interactive picking mode. "
-            "Picks can be reviewed and modified in the catalog module.[/yellow]"
+            Panel.fit(
+                "Interactive picking review mode\n"
+                "Commands:\n"
+                "  [cyan]<number>[/cyan] - Select pick by index\n"
+                "  [cyan]c <number>[/cyan] - Confirm pick\n"
+                "  [cyan]r <number>[/cyan] - Reject/delete pick\n"
+                "  [cyan]t <number> <time>[/cyan] - Modify arrival time (HH:MM:SS.sss)\n"
+                "  [cyan]a[/cyan] - Confirm all\n"
+                "  [cyan]l[/cyan] - List picks again\n"
+                "  [cyan]q[/cyan] - Quit and save",
+                title="Interactive Picking",
+                border_style="yellow"
+            )
         )
+
+        from datetime import datetime, timedelta
+
+        while True:
+            with db.get_session() as session:
+                picks = session.query(Pick).filter(
+                    Pick.event_id == event.id
+                ).order_by(Pick.arrival_time).all()
+
+                if not picks:
+                    console.print("[yellow]No picks to review[/yellow]")
+                    break
+
+                table = Table(
+                    title=f"Phase Picks ({len(picks)})",
+                    show_header=True,
+                    header_style="bold cyan"
+                )
+                table.add_column("#", justify="right", style="dim")
+                table.add_column("Station")
+                table.add_column("Phase")
+                table.add_column("Arrival Time")
+                table.add_column("Unc(s)", justify="right")
+                table.add_column("Status")
+
+                for i, p in enumerate(picks, 1):
+                    if p.is_reviewed:
+                        status = "[green]REVIEWED[/green]"
+                    elif p.is_automatic:
+                        status = "[yellow]AUTO[/yellow]"
+                    else:
+                        status = "[cyan]MANUAL[/cyan]"
+                    table.add_row(
+                        str(i),
+                        f"{p.station.network}.{p.station.station}" if p.station else "Unknown",
+                        p.phase,
+                        p.arrival_time.strftime("%H:%M:%S.%f")[:-3],
+                        f"{p.uncertainty or 0:.3f}",
+                        status
+                    )
+            console.print(table)
+
+            try:
+                user_input = input("> ").strip()
+            except EOFError:
+                console.print("[yellow]EOF received, exiting interactive mode[/yellow]")
+                break
+
+            if not user_input:
+                continue
+
+            parts = user_input.split()
+            cmd = parts[0].lower()
+
+            if cmd == "q" or cmd == "quit":
+                console.print("[green]Exiting interactive picking mode[/green]")
+                break
+
+            elif cmd == "l" or cmd == "list":
+                continue
+
+            elif cmd == "a" or cmd == "all":
+                with db.get_session() as session:
+                    picks_all = session.query(Pick).filter(
+                        Pick.event_id == event.id
+                    ).all()
+                    for p in picks_all:
+                        p.is_reviewed = True
+                        p.reviewer = "interactive"
+                        p.reviewed_at = datetime.utcnow()
+                    session.commit()
+                console.print(f"[green]Confirmed all {len(picks)} picks[/green]")
+                continue
+
+            elif cmd == "c" or cmd == "confirm":
+                if len(parts) < 2:
+                    console.print("[red]Usage: c <pick_number>[/red]")
+                    continue
+                try:
+                    idx = int(parts[1]) - 1
+                except ValueError:
+                    console.print("[red]Invalid pick number[/red]")
+                    continue
+                if idx < 0 or idx >= len(picks):
+                    console.print("[red]Pick number out of range[/red]")
+                    continue
+                pick_id = picks[idx].id
+                with db.get_session() as session:
+                    p = session.query(Pick).filter(Pick.id == pick_id).first()
+                    if p:
+                        p.is_reviewed = True
+                        p.reviewer = "interactive"
+                        p.reviewed_at = datetime.utcnow()
+                        session.commit()
+                        console.print(f"[green]Confirmed pick #{idx + 1}[/green]")
+                continue
+
+            elif cmd == "r" or cmd == "reject":
+                if len(parts) < 2:
+                    console.print("[red]Usage: r <pick_number>[/red]")
+                    continue
+                try:
+                    idx = int(parts[1]) - 1
+                except ValueError:
+                    console.print("[red]Invalid pick number[/red]")
+                    continue
+                if idx < 0 or idx >= len(picks):
+                    console.print("[red]Pick number out of range[/red]")
+                    continue
+                pick_id = picks[idx].id
+                with db.get_session() as session:
+                    p = session.query(Pick).filter(Pick.id == pick_id).first()
+                    if p:
+                        session.delete(p)
+                        session.commit()
+                        console.print(f"[green]Rejected/deleted pick #{idx + 1}[/green]")
+                continue
+
+            elif cmd == "t" or cmd == "time":
+                if len(parts) < 3:
+                    console.print("[red]Usage: t <pick_number> <HH:MM:SS.sss>[/red]")
+                    continue
+                try:
+                    idx = int(parts[1]) - 1
+                except ValueError:
+                    console.print("[red]Invalid pick number[/red]")
+                    continue
+                if idx < 0 or idx >= len(picks):
+                    console.print("[red]Pick number out of range[/red]")
+                    continue
+                time_str = parts[2]
+                pick_id = picks[idx].id
+                old_time = picks[idx].arrival_time
+                try:
+                    t = datetime.strptime(time_str, "%H:%M:%S.%f")
+                except ValueError:
+                    try:
+                        t = datetime.strptime(time_str, "%H:%M:%S")
+                    except ValueError:
+                        console.print("[red]Invalid time format. Use HH:MM:SS or HH:MM:SS.sss[/red]")
+                        continue
+                new_time = old_time.replace(
+                    hour=t.hour, minute=t.minute,
+                    second=t.second, microsecond=t.microsecond
+                )
+                with db.get_session() as session:
+                    p = session.query(Pick).filter(Pick.id == pick_id).first()
+                    if p:
+                        p.arrival_time = new_time
+                        p.is_reviewed = True
+                        p.reviewer = "interactive"
+                        p.reviewed_at = datetime.utcnow()
+                        p.is_automatic = False
+                        session.commit()
+                        console.print(
+                            f"[green]Updated pick #{idx + 1}: "
+                            f"{old_time.strftime('%H:%M:%S.%f')[:-3]} -> "
+                            f"{new_time.strftime('%H:%M:%S.%f')[:-3]}[/green]"
+                        )
+                continue
+
+            else:
+                console.print("[red]Unknown command. Try: c, r, t, a, l, q[/red]")
+                continue
+
+        return
 
     table = Table(
         title="Phase Picks",
@@ -415,7 +592,7 @@ def locate(
     ] = None,
     end_date: Annotated[
         Optional[str],
-        typer.Option("--end", "-e",
+        typer.Option("--end", "-E",
         help="End date (YYYY-MM-DD)")
     ] = None,
     min_picks: Annotated[
@@ -528,7 +705,7 @@ def catalog(
     ],
     event_id: Annotated[
         Optional[str],
-        typer.Option("--event", "-e",
+        typer.Option("--event",
         help="Event ID")
     ] = None,
     catalog_id: Annotated[
@@ -543,7 +720,7 @@ def catalog(
     ] = None,
     end_date: Annotated[
         Optional[str],
-        typer.Option("--end", "-e",
+        typer.Option("--end",
         help="End date filter (YYYY-MM-DD)")
     ] = None,
     min_mag: Annotated[
@@ -591,6 +768,41 @@ def catalog(
         typer.Option("--limit", "-n",
         help="Result limit")
     ] = 10000,
+    origin_time: Annotated[
+        Optional[str],
+        typer.Option("--origin-time",
+        help="Origin time for add (YYYY-MM-DD HH:MM:SS)")
+    ] = None,
+    latitude: Annotated[
+        Optional[float],
+        typer.Option("--lat",
+        help="Latitude for add/update")
+    ] = None,
+    longitude: Annotated[
+        Optional[float],
+        typer.Option("--lon",
+        help="Longitude for add/update")
+    ] = None,
+    depth: Annotated[
+        float,
+        typer.Option("--depth",
+        help="Depth in km for add/update")
+    ] = 10.0,
+    magnitude: Annotated[
+        Optional[float],
+        typer.Option("--magnitude", "--mag",
+        help="Magnitude for add/update")
+    ] = None,
+    magnitude_type: Annotated[
+        str,
+        typer.Option("--mag-type",
+        help="Magnitude type")
+    ] = "ML",
+    entry_status: Annotated[
+        Optional[str],
+        typer.Option("--entry-status",
+        help="Status for add/update")
+    ] = None,
     output: Annotated[
         Optional[str],
         typer.Option("--output", "-o",
@@ -654,8 +866,42 @@ def catalog(
     action = action.lower()
 
     if action == "list":
-        cm.search(
-            start_date, end_date, min_mag, max_mag, min_lat, max_lat, min_lon, max_lon, status, station, limit)
+        entries = cm.search(
+            start_date, end_date, min_mag, max_mag,
+            min_lat, max_lat, min_lon, max_lon, status, station, limit=limit)
+
+        table = Table(
+            title=f"Catalog Entries ({len(entries)})",
+            show_header=True,
+            header_style="bold cyan"
+        )
+        table.add_column("#", justify="right", style="dim")
+        table.add_column("ID", justify="right", style="dim")
+        table.add_column("Origin Time", style="bold")
+        table.add_column("Lat", justify="right")
+        table.add_column("Lon", justify="right")
+        table.add_column("Depth(km)", justify="right")
+        table.add_column("Mag", justify="right")
+        table.add_column("#Sta", justify="right")
+        table.add_column("Status")
+        table.add_column("Analyst")
+
+        for i, e in enumerate(entries, 1):
+            mag_color = "green" if (e.magnitude or 0) < 3 else "yellow" if (e.magnitude or 0) < 5 else "red"
+            status_color = "green" if e.status == "final" else "yellow" if e.status == "preliminary" else "dim"
+            table.add_row(
+                str(i),
+                str(e.id),
+                e.origin_time.strftime("%Y-%m-%d %H:%M:%S"),
+                f"{e.latitude:.4f}",
+                f"{e.longitude:.4f}",
+                f"{e.depth:.1f}",
+                f"[{mag_color}]{e.magnitude:.2f}[/{mag_color}]" if e.magnitude is not None else "",
+                str(e.num_stations or 0),
+                f"[{status_color}]{e.status or ''}[/{status_color}]",
+                e.analyst or ""
+            )
+        console.print(table)
 
     elif action == "show":
         if catalog_id is None and event_id is None:
@@ -664,17 +910,107 @@ def catalog(
         cm.show_entry_detail(catalog_id, event_id)
 
     elif action == "add":
-        console.print("[yellow]Interactive add mode - use locate command for automatic entries[/yellow]")
+        if event_id is None:
+            console.print("[red]--event is required for add action[/red]")
+            raise typer.Exit(code=1)
+        if origin_time is None:
+            console.print("[red]--origin-time is required for add action[/red]")
+            raise typer.Exit(code=1)
+        if latitude is None or longitude is None:
+            console.print("[red]--lat and --lon are required for add action[/red]")
+            raise typer.Exit(code=1)
+        if magnitude is None:
+            console.print("[red]--magnitude is required for add action[/red]")
+            raise typer.Exit(code=1)
+
+        try:
+            ot = datetime.strptime(origin_time, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            try:
+                ot = datetime.strptime(origin_time, "%Y-%m-%dT%H:%M:%S")
+            except ValueError:
+                console.print("[red]Invalid origin time format. Use 'YYYY-MM-DD HH:MM:SS'[/red]")
+                raise typer.Exit(code=1)
+
+        entry = cm.add_entry(
+            event_id=event_id,
+            origin_time=ot,
+            latitude=latitude,
+            longitude=longitude,
+            depth=depth,
+            magnitude=magnitude,
+            magnitude_type=magnitude_type,
+            status=entry_status or "preliminary",
+            analyst=analyst,
+            comments=comment
+        )
+        if entry:
+            console.print(
+                Panel.fit(
+                    f"Catalog entry #{entry.id} created successfully\n"
+                    f"Event: {event_id}\n"
+                    f"Origin: {entry.origin_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                    f"Location: {entry.latitude:.4f}°N, {entry.longitude:.4f}°E\n"
+                    f"Depth: {entry.depth:.1f} km\n"
+                    f"Magnitude: M{magnitude_type} {magnitude:.2f}\n"
+                    f"Status: {entry.status}\n"
+                    f"Analyst: {entry.analyst}",
+                    title="Catalog Entry Added",
+                    border_style="green"
+                )
+            )
 
     elif action == "update":
         if catalog_id is None:
             console.print("[red]--id is required[/red]")
             raise typer.Exit(code=1)
         if comment is None:
-            console.print("[red]--comment is required[/red]")
+            console.print("[red]--comment is required for update action[/red]")
             raise typer.Exit(code=1)
-        kwargs = {}
-        console.print("[yellow]Update via catalog entry in interactive mode[/yellow]")
+
+        update_kwargs = {}
+        if origin_time is not None:
+            try:
+                ot = datetime.strptime(origin_time, "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                try:
+                    ot = datetime.strptime(origin_time, "%Y-%m-%dT%H:%M:%S")
+                except ValueError:
+                    console.print("[red]Invalid origin time format. Use 'YYYY-MM-DD HH:MM:SS'[/red]")
+                    raise typer.Exit(code=1)
+            update_kwargs["origin_time"] = ot
+        if latitude is not None:
+            update_kwargs["latitude"] = latitude
+        if longitude is not None:
+            update_kwargs["longitude"] = longitude
+        if depth is not None:
+            update_kwargs["depth"] = depth
+        if magnitude is not None:
+            update_kwargs["magnitude"] = magnitude
+            update_kwargs["magnitude_type"] = magnitude_type
+        if entry_status is not None:
+            update_kwargs["status"] = entry_status
+        if comment is not None:
+            update_kwargs["comments"] = comment
+
+        if not update_kwargs:
+            console.print("[yellow]No update parameters provided[/yellow]")
+            return
+
+        entry = cm.update_entry(catalog_id, analyst, comment, **update_kwargs)
+        if entry:
+            console.print(
+                Panel.fit(
+                    f"Catalog entry #{catalog_id} updated successfully\n"
+                    f"Change: {comment}\n"
+                    f"Analyst: {analyst}",
+                    title="Catalog Entry Updated",
+                    border_style="green"
+                )
+            )
+        else:
+            console.print(f"[red]Catalog entry #{catalog_id} not found[/red]")
+            raise typer.Exit(code=1)
 
     elif action == "delete":
         if catalog_id is None:
@@ -863,6 +1199,178 @@ def quality(
 
     elif action == "summary":
         qa.show_quality_summary(start_date, end_date)
+
+    else:
+        console.print(f"[red]Unknown action: {action}[/red]")
+        raise typer.Exit(code=1)
+
+
+# ---------------------------------------------------------------------------
+# station command
+# ---------------------------------------------------------------------------
+@app.command("station")
+def station_cmd(
+    action: Annotated[
+        str,
+        typer.Argument(...,
+        help="Action: init, list, health, add, update")
+    ],
+    network: Annotated[
+        Optional[str],
+        typer.Option("--network", "-n",
+        help="Network code")
+    ] = None,
+    station_name: Annotated[
+        Optional[str],
+        typer.Option("--station", "-S",
+        help="Station code")
+    ] = None,
+    latitude: Annotated[
+        Optional[float],
+        typer.Option("--lat",
+        help="Station latitude")
+    ] = None,
+    longitude: Annotated[
+        Optional[float],
+        typer.Option("--lon",
+        help="Station longitude")
+    ] = None,
+    elevation: Annotated[
+        Optional[float],
+        typer.Option("--elev",
+        help="Station elevation (m)")
+    ] = None,
+    channels: Annotated[
+        Optional[str],
+        typer.Option("--channels", "-c",
+        help="Comma-separated channel codes")
+    ] = None,
+    sample_rate: Annotated[
+        float,
+        typer.Option("--sample-rate", "-r",
+        help="Sample rate (Hz)")
+    ] = 100.0,
+    active_only: Annotated[
+        bool,
+        typer.Option("--active/--all",
+        help="Show only active stations")
+    ] = True,
+    start_date: Annotated[
+        Optional[str],
+        typer.Option("--start", "-s",
+        help="Start date for health query")
+    ] = None,
+    end_date: Annotated[
+        Optional[str],
+        typer.Option("--end", "-e",
+        help="End date for health query")
+    ] = None,
+    limit: Annotated[
+        int,
+        typer.Option("--limit", "-n",
+        help="Result limit")
+    ] = 85,
+) -> None:
+    """Manage station metadata and initialization.
+
+    Actions:
+      init    - Initialize stations from config.json (85 stations)
+      list    - List all stations
+      health  - Show station health statistics
+      add     - Add a new station
+      update  - Update station metadata
+
+    Examples:
+
+      # Initialize all 85 stations from config:
+      $ seedwork station init
+
+      # List all stations:
+      $ seedwork station list
+
+      # List active stations:
+      $ seedwork station list --active
+
+      # Show station health:
+      $ seedwork station health --station SC.STA01 --start 2026-06-01
+
+      # Add a new station:
+      $ seedwork station add --network XX --station NEW01 \\
+          --lat 30.5 --lon 105.0 --elev 500 --channels BHE,BHN,BHZ
+    """
+    sm = get_station_manager()
+    action = action.lower()
+
+    if action == "init":
+        count = sm.init_stations_from_config()
+        console.print(
+            Panel.fit(
+                f"[green]Initialized {count} stations from config.json[/green]",
+                title="Station Initialization",
+                border_style="green"
+            )
+        )
+
+    elif action == "list":
+        sm.list_stations(active_only)
+
+    elif action == "health":
+        if station_name is None:
+            console.print("[red]--station is required for health action[/red]")
+            raise typer.Exit(code=1)
+        if "." in station_name:
+            net, sta = station_name.split(".", 1)
+        else:
+            net = network or "SC"
+            sta = station_name
+        sm.show_station_health(net, sta, start_date, end_date)
+
+    elif action == "add":
+        if not network or not station_name or latitude is None or longitude is None:
+            console.print("[red]--network, --station, --lat, --lon are required[/red]")
+            raise typer.Exit(code=1)
+        ch_list = channels.split(",") if channels else ["BHE", "BHN", "BHZ"]
+        st = sm.add_station(
+            network=network,
+            station=station_name,
+            latitude=latitude,
+            longitude=longitude,
+            elevation=elevation or 0.0,
+            channels=ch_list,
+            sample_rate=sample_rate
+        )
+        console.print(f"[green]Station {st.network}.{st.station} added successfully[/green]")
+
+    elif action == "update":
+        if not station_name:
+            console.print("[red]--station is required for update action[/red]")
+            raise typer.Exit(code=1)
+        if "." in station_name:
+            net, sta = station_name.split(".", 1)
+        else:
+            net = network or "SC"
+            sta = station_name
+
+        kwargs = {}
+        if latitude is not None:
+            kwargs["latitude"] = latitude
+        if longitude is not None:
+            kwargs["longitude"] = longitude
+        if elevation is not None:
+            kwargs["elevation"] = elevation
+        if channels is not None:
+            kwargs["channels"] = channels.split(",")
+
+        if not kwargs:
+            console.print("[yellow]No update parameters provided[/yellow]")
+            return
+
+        result = sm.update_station(net, sta, **kwargs)
+        if result:
+            console.print(f"[green]Station {net}.{sta} updated successfully[/green]")
+        else:
+            console.print(f"[red]Station {net}.{sta} not found[/red]")
+            raise typer.Exit(code=1)
 
     else:
         console.print(f"[red]Unknown action: {action}[/red]")

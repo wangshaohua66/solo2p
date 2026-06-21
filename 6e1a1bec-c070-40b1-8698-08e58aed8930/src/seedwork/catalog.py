@@ -38,6 +38,12 @@ class CatalogManager:
                 logger.warning(
                     f"[yellow]Catalog entry already exists for event {event_id}[/yellow]"
                 )
+                _ = existing.id, existing.event_id, existing.origin_time, existing.latitude
+                _ = existing.longitude, existing.depth, existing.magnitude, existing.magnitude_type
+                _ = existing.status, existing.analyst, existing.comments
+                _ = existing.num_stations, existing.azimuth_gap, existing.location_method
+                _ = existing.magnitude_uncertainty, existing.created_at, existing.updated_at
+                session.expunge(existing)
                 return existing
 
             entry = CatalogEntry(
@@ -75,6 +81,14 @@ class CatalogManager:
                 f"[green]Created catalog entry:[/green] M{magnitude:.2f} "
                 f"at {origin_time.strftime('%Y-%m-%d %H:%M:%S')}"
             )
+            session.commit()
+            session.refresh(entry)
+            _ = entry.id, entry.event_id, entry.origin_time, entry.latitude
+            _ = entry.longitude, entry.depth, entry.magnitude, entry.magnitude_type
+            _ = entry.status, entry.analyst, entry.comments, entry.num_stations
+            _ = entry.azimuth_gap, entry.location_method, entry.magnitude_uncertainty
+            _ = entry.created_at, entry.updated_at
+            session.expunge(entry)
             return entry
 
     def update_entry(self, catalog_id: int, analyst: str,
@@ -121,6 +135,14 @@ class CatalogManager:
                 f"[green]Updated catalog entry {catalog_id}[/green] "
                 f"(v{next_version}): {change_description}"
             )
+            session.commit()
+            session.refresh(entry)
+            _ = entry.id, entry.event_id, entry.origin_time, entry.latitude
+            _ = entry.longitude, entry.depth, entry.magnitude, entry.magnitude_type
+            _ = entry.status, entry.analyst, entry.comments, entry.num_stations
+            _ = entry.azimuth_gap, entry.location_method, entry.magnitude_uncertainty
+            _ = entry.created_at, entry.updated_at
+            session.expunge(entry)
             return entry
 
     def delete_entry(self, catalog_id: int, analyst: str,
@@ -133,10 +155,29 @@ class CatalogManager:
                 logger.warning(f"[yellow]Catalog entry {catalog_id} not found[/yellow]")
                 return False
 
-            max_version = session.query(CatalogVersion).filter(
-                CatalogVersion.catalog_id == entry.id
-            ).order_by(CatalogVersion.version.desc()).first()
-            next_version = (max_version.version + 1) if max_version else 1
+            version_history = []
+            for v in entry.versions:
+                version_history.append({
+                    "version": v.version,
+                    "origin_time": v.origin_time,
+                    "latitude": v.latitude,
+                    "longitude": v.longitude,
+                    "depth": v.depth,
+                    "magnitude": v.magnitude,
+                    "magnitude_type": v.magnitude_type,
+                    "status": v.status,
+                    "analyst": v.analyst,
+                    "comments": v.comments,
+                    "change_description": v.change_description,
+                    "created_at": v.created_at
+                })
+
+            max_version = max((v.version for v in entry.versions), default=0)
+            next_version = max_version + 1
+
+            entry.status = "deleted"
+            entry.analyst = analyst
+            entry.updated_at = datetime.utcnow()
 
             version = CatalogVersion(
                 catalog_id=entry.id,
@@ -153,18 +194,17 @@ class CatalogManager:
             )
             session.add(version)
 
-            session.delete(entry)
-
             logger.info(
-                f"[red]Deleted catalog entry {catalog_id}[/red]: {reason}"
+                f"[red]Soft-deleted catalog entry {catalog_id}[/red]: {reason}"
             )
             return True
 
     def get_entry(self, catalog_id: Optional[int] = None,
                   event_id: Optional[str] = None) -> Optional[CatalogEntry]:
         with self.db.get_session() as session:
+            entry = None
             if catalog_id is not None:
-                return session.query(CatalogEntry).filter(
+                entry = session.query(CatalogEntry).filter(
                     CatalogEntry.id == catalog_id
                 ).first()
             elif event_id is not None:
@@ -172,10 +212,17 @@ class CatalogManager:
                     Event.event_id == event_id
                 ).first()
                 if event:
-                    return session.query(CatalogEntry).filter(
+                    entry = session.query(CatalogEntry).filter(
                         CatalogEntry.event_id == event.id
                     ).first()
-            return None
+            if entry:
+                _ = entry.id, entry.event_id, entry.origin_time, entry.latitude
+                _ = entry.longitude, entry.depth, entry.magnitude, entry.magnitude_type
+                _ = entry.status, entry.analyst, entry.comments, entry.num_stations
+                _ = entry.azimuth_gap, entry.location_method, entry.magnitude_uncertainty
+                _ = entry.created_at, entry.updated_at
+                session.expunge(entry)
+            return entry
 
     def search(self, start_time: Optional[str] = None,
                end_time: Optional[str] = None,
@@ -187,9 +234,13 @@ class CatalogManager:
                max_longitude: Optional[float] = None,
                status: Optional[str] = None,
                station: Optional[str] = None,
+               include_deleted: bool = False,
                limit: int = 10000) -> list[CatalogEntry]:
         with self.db.get_session() as session:
             query = session.query(CatalogEntry)
+
+            if not include_deleted:
+                query = query.filter(CatalogEntry.status != "deleted")
 
             if start_time:
                 st = datetime.strptime(start_time, "%Y-%m-%d")
@@ -221,13 +272,28 @@ class CatalogManager:
                 else:
                     query = query.filter(Station.station == station)
 
-            return query.order_by(CatalogEntry.origin_time.desc()).limit(limit).all()
+            entries = query.order_by(CatalogEntry.origin_time.desc()).limit(limit).all()
+            for entry in entries:
+                _ = entry.id, entry.event_id, entry.origin_time, entry.latitude
+                _ = entry.longitude, entry.depth, entry.magnitude, entry.magnitude_type
+                _ = entry.status, entry.analyst, entry.comments, entry.num_stations
+                _ = entry.azimuth_gap, entry.location_method, entry.magnitude_uncertainty
+                _ = entry.created_at, entry.updated_at
+                session.expunge(entry)
+            return entries
 
     def get_version_history(self, catalog_id: int) -> list[CatalogVersion]:
         with self.db.get_session() as session:
-            return session.query(CatalogVersion).filter(
+            versions = session.query(CatalogVersion).filter(
                 CatalogVersion.catalog_id == catalog_id
             ).order_by(CatalogVersion.version).all()
+            for v in versions:
+                _ = v.id, v.catalog_id, v.version, v.origin_time, v.latitude
+                _ = v.longitude, v.depth, v.magnitude, v.magnitude_type
+                _ = v.status, v.analyst, v.comments, v.change_description
+                _ = v.created_at
+                session.expunge(v)
+            return versions
 
     def revert_to_version(self, catalog_id: int, version: int,
                           analyst: str, reason: str) -> Optional[CatalogEntry]:
@@ -284,6 +350,14 @@ class CatalogManager:
             logger.info(
                 f"[green]Reverted catalog {catalog_id} to v{version}[/green]"
             )
+            session.commit()
+            session.refresh(entry)
+            _ = entry.id, entry.event_id, entry.origin_time, entry.latitude
+            _ = entry.longitude, entry.depth, entry.magnitude, entry.magnitude_type
+            _ = entry.status, entry.analyst, entry.comments, entry.num_stations
+            _ = entry.azimuth_gap, entry.location_method, entry.magnitude_uncertainty
+            _ = entry.created_at, entry.updated_at
+            session.expunge(entry)
             return entry
 
     def show_entry_detail(self, catalog_id: Optional[int] = None,

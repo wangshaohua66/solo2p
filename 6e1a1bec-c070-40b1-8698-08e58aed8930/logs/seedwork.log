@@ -1,2 +1,108 @@
 2026-06-21 09:08:53 | INFO     | seedwork | [green]Database initialized at:[/green] /Users/paul/WorkSpace/TestSoloCoder/6e1a1bec-c070-40b1-8698-08e58aed8930/data/seedwork.db
 2026-06-21 09:09:38 | INFO     | seedwork | [green]Database initialized at:[/green] /Users/paul/WorkSpace/TestSoloCoder/6e1a1bec-c070-40b1-8698-08e58aed8930/data/seedwork.db
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Database initialized at:[/green] /Users/paul/WorkSpace/TestSoloCoder/6e1a1bec-c070-40b1-8698-08e58aed8930/data/seedwork.db
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA01
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA02
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA03
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA04
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA05
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA06
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA07
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA08
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA09
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA10
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA11
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA12
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA13
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA14
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA15
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA16
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA17
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA18
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA19
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA20
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA21
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA22
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA23
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA24
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA25
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA26
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA27
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA28
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA29
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA30
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA31
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA32
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA33
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA34
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA35
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA36
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA37
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA38
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA39
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA40
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA41
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA42
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA43
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA44
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA45
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA46
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA47
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA48
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA49
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA50
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA51
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA52
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA53
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA54
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA55
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA56
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA57
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA58
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA59
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA60
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA61
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA62
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA63
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA64
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA65
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA66
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA67
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA68
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA69
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA70
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA71
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA72
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA73
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA74
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA75
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA76
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA77
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA78
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA79
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA80
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA81
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA82
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA83
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA84
+2026-06-21 09:38:55 | INFO     | seedwork | [green]Added station:[/green] SC.STA85
+2026-06-21 09:39:15 | INFO     | seedwork | [green]Database initialized at:[/green] /Users/paul/WorkSpace/TestSoloCoder/6e1a1bec-c070-40b1-8698-08e58aed8930/data/seedwork.db
+2026-06-21 09:39:31 | INFO     | seedwork | [green]Database initialized at:[/green] /Users/paul/WorkSpace/TestSoloCoder/6e1a1bec-c070-40b1-8698-08e58aed8930/data/seedwork.db
+2026-06-21 09:39:31 | WARNING  | seedwork | [yellow]Event TEST001 not found[/yellow]
+2026-06-21 09:40:11 | INFO     | seedwork | [green]Database initialized at:[/green] /Users/paul/WorkSpace/TestSoloCoder/6e1a1bec-c070-40b1-8698-08e58aed8930/data/seedwork.db
+2026-06-21 09:40:40 | INFO     | seedwork | [green]Database initialized at:[/green] /Users/paul/WorkSpace/TestSoloCoder/6e1a1bec-c070-40b1-8698-08e58aed8930/data/seedwork.db
+2026-06-21 09:40:55 | INFO     | seedwork | [green]Database initialized at:[/green] /Users/paul/WorkSpace/TestSoloCoder/6e1a1bec-c070-40b1-8698-08e58aed8930/data/seedwork.db
+2026-06-21 09:40:55 | INFO     | seedwork | [green]Created catalog entry:[/green] M3.50 at 2026-06-21 08:30:00
+2026-06-21 09:40:55 | ERROR    | seedwork | [red]Error: Instance <CatalogEntry at 0x10e337a10> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)[/red]
+2026-06-21 09:42:38 | INFO     | seedwork | [green]Database initialized at:[/green] /Users/paul/WorkSpace/TestSoloCoder/6e1a1bec-c070-40b1-8698-08e58aed8930/data/seedwork.db
+2026-06-21 09:42:38 | ERROR    | seedwork | [red]Error: Instance <CatalogEntry at 0x112673a10> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)[/red]
+2026-06-21 09:44:14 | INFO     | seedwork | [green]Database initialized at:[/green] /Users/paul/WorkSpace/TestSoloCoder/6e1a1bec-c070-40b1-8698-08e58aed8930/data/seedwork.db
+2026-06-21 09:44:36 | INFO     | seedwork | [green]Database initialized at:[/green] /Users/paul/WorkSpace/TestSoloCoder/6e1a1bec-c070-40b1-8698-08e58aed8930/data/seedwork.db
+2026-06-21 09:44:36 | INFO     | seedwork | [green]Updated catalog entry 1[/green] (v2): Updated magnitude and status
+2026-06-21 09:44:57 | INFO     | seedwork | [green]Database initialized at:[/green] /Users/paul/WorkSpace/TestSoloCoder/6e1a1bec-c070-40b1-8698-08e58aed8930/data/seedwork.db
+2026-06-21 09:44:57 | ERROR    | seedwork | [red]Error: Instance <CatalogVersion at 0x10e8c3770> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)[/red]
+2026-06-21 09:46:01 | INFO     | seedwork | [green]Database initialized at:[/green] /Users/paul/WorkSpace/TestSoloCoder/6e1a1bec-c070-40b1-8698-08e58aed8930/data/seedwork.db
+2026-06-21 09:46:25 | INFO     | seedwork | [green]Database initialized at:[/green] /Users/paul/WorkSpace/TestSoloCoder/6e1a1bec-c070-40b1-8698-08e58aed8930/data/seedwork.db
+2026-06-21 09:46:25 | INFO     | seedwork | [red]Soft-deleted catalog entry 1[/red]: Test deletion
+2026-06-21 09:46:48 | INFO     | seedwork | [green]Database initialized at:[/green] /Users/paul/WorkSpace/TestSoloCoder/6e1a1bec-c070-40b1-8698-08e58aed8930/data/seedwork.db
+2026-06-21 09:46:49 | INFO     | seedwork | [green]Database initialized at:[/green] /Users/paul/WorkSpace/TestSoloCoder/6e1a1bec-c070-40b1-8698-08e58aed8930/data/seedwork.db

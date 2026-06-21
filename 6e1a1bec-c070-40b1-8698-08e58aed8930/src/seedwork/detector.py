@@ -480,7 +480,8 @@ class EventDetector:
                                 "start_time": candidate.start_time,
                                 "end_time": candidate.end_time,
                                 "trigger_value": candidate.trigger_value,
-                                "num_picks": len(picks)
+                                "num_picks": len(picks),
+                                "component_triggers": candidate.component_triggers
                             })
                             results["total_events"] += 1
                             results["total_picks"] += len(picks)
