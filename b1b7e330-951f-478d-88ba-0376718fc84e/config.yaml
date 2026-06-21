@@ -1,0 +1,73 @@
+systems:
+  cnipr:
+    base_url: "https://cponline.cnipa.gov.cn"
+    login_url: "https://cponline.cnipa.gov.cn/userLogin"
+    timeout: 30
+    heartbeat_interval: 300
+  cpquery:
+    base_url: "https://cpquery.cnipa.gov.cn"
+    login_url: "https://cpquery.cnipa.gov.cn/login"
+    timeout: 30
+    heartbeat_interval: 300
+  feequery:
+    base_url: "https://fee.cnipa.gov.cn"
+    login_url: "https://fee.cnipa.gov.cn/login"
+    timeout: 30
+    heartbeat_interval: 300
+
+accounts:
+  default_account: "default"
+  list:
+    default:
+      username: "your_username"
+      cookie: ""
+      cookie_file: ""
+
+database:
+  driver: sqlite
+  dsn: "./data/patent.db"
+
+alert:
+  overdue_risk_days: 3
+  warning_days: 7
+  reminder_days: 30
+
+notify:
+  enabled:
+    - wecom
+  wecom:
+    webhook_url: ""
+  email:
+    smtp_host: "smtp.example.com"
+    smtp_port: 465
+    username: ""
+    password: ""
+    from: "patent@example.com"
+    to:
+      - "admin@example.com"
+  sms:
+    api_key: ""
+    api_secret: ""
+    template: ""
+    receivers: []
+
+schedule:
+  sync_interval: "1h"
+  alert_check_cron: "0 */30 * * * *"
+  heartbeat_cron: "0 */5 * * * *"
+
+default:
+  default_agent: ""
+  enterprise_filter: []
+  patent_types:
+    - invention
+    - utility
+    - design
+
+log:
+  level: info
+  filename: "./logs/patent-agent.log"
+  max_size: 100
+  max_backups: 30
+  max_age: 90
+  compress: true
