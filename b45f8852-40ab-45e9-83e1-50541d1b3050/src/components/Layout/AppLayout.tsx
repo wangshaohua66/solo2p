@@ -15,6 +15,7 @@ import {
   Skeleton,
   MenuProps,
   ConfigProvider,
+  Tooltip,
 } from 'antd';
 import {
   Search,
@@ -106,15 +107,19 @@ const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const { sidebarMode, sidebarCollapsed, activeTabKey, setActiveTab, initResizeListener } =
     useUIStore();
-  const { initTasks } = usePlanStore();
+  const { initTasks, connectCollaboration, disconnectCollaboration, collaboration } = usePlanStore();
   const { initData } = useEquipmentStore();
 
   useEffect(() => {
     const cleanup = initResizeListener();
     initTasks();
     initData();
-    return cleanup;
-  }, [initResizeListener, initTasks, initData]);
+    connectCollaboration();
+    return () => {
+      cleanup();
+      disconnectCollaboration();
+    };
+  }, [initResizeListener, initTasks, initData, connectCollaboration, disconnectCollaboration]);
 
   useEffect(() => {
     const pathToKey: Record<string, string> = {
@@ -222,6 +227,44 @@ const AppLayout: React.FC = () => {
             </button>
           </Badge>
 
+          <Tooltip
+            title={`实时协作中，${collaboration.users.length}人在线`}
+            placement="bottom"
+          >
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors">
+              <div
+                className={cn(
+                  'w-2 h-2 rounded-full flex-shrink-0',
+                  collaboration.connected ? 'bg-green-500 animate-pulse' : 'bg-slate-300'
+                )}
+              />
+              <Avatar.Group
+                max={{
+                  count: 5,
+                  style: {
+                    color: '#6366F1',
+                    backgroundColor: '#EEF2FF',
+                    fontSize: 12,
+                  },
+                }}
+                size={28}
+              >
+                {collaboration.users.slice(0, 5).map((user) => (
+                  <Tooltip key={user.id} title={user.name} placement="bottom">
+                    <Avatar
+                      style={{
+                        backgroundColor: user.color,
+                        border: '2px solid white',
+                      }}
+                    >
+                      {user.name.charAt(0)}
+                    </Avatar>
+                  </Tooltip>
+                ))}
+              </Avatar.Group>
+            </div>
+          </Tooltip>
+
           <Dropdown
             menu={{ items: userMenuItems }}
             placement="bottomRight"
@@ -291,6 +334,44 @@ const AppLayout: React.FC = () => {
                 <Bell size={18} />
               </button>
             </Badge>
+
+            <Tooltip
+              title={`实时协作中，${collaboration.users.length}人在线`}
+              placement="bottom"
+            >
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors">
+                <div
+                  className={cn(
+                    'w-2 h-2 rounded-full flex-shrink-0',
+                    collaboration.connected ? 'bg-green-500 animate-pulse' : 'bg-slate-300'
+                  )}
+                />
+                <Avatar.Group
+                  max={{
+                    count: 3,
+                    style: {
+                      color: '#6366F1',
+                      backgroundColor: '#EEF2FF',
+                      fontSize: 10,
+                    },
+                  }}
+                  size={24}
+                >
+                  {collaboration.users.slice(0, 3).map((user) => (
+                    <Tooltip key={user.id} title={user.name} placement="bottom">
+                      <Avatar
+                        style={{
+                          backgroundColor: user.color,
+                          border: '2px solid white',
+                        }}
+                      >
+                        {user.name.charAt(0)}
+                      </Avatar>
+                    </Tooltip>
+                  ))}
+                </Avatar.Group>
+              </div>
+            </Tooltip>
 
             <Dropdown
               menu={{ items: userMenuItems }}

@@ -16,8 +16,10 @@ import {
   message,
   Empty,
   Tooltip,
+  Tabs,
+  Badge,
 } from 'antd';
-import type { UploadProps } from 'antd';
+import type { UploadProps, TabsProps } from 'antd';
 import {
   Search as SearchIcon,
   FilterX,
@@ -31,16 +33,22 @@ import {
   CheckCircle2,
   FileCheck,
   FileWarning,
+  FileImage,
+  AlertCircle,
+  XCircle,
 } from 'lucide-react';
 import type {
   MaintenanceTask,
   VoltageLevel,
   MaintenanceCategory,
   ApprovalStatus,
+  ReportType,
+  AcceptanceConclusion,
+  ReportFile,
 } from '@/types';
 import { usePlanStore } from '@/store/planStore';
 import { useEquipmentStore } from '@/store/equipmentStore';
-import { formatDateTime } from '@/utils/dateUtils';
+import { formatDateTime, formatFileSize } from '@/utils/dateUtils';
 import { Dayjs } from 'dayjs';
 
 const { RangePicker } = DatePicker;
@@ -64,18 +72,17 @@ const STATUS_OPTIONS: { label: string; value: ApprovalStatus; color: string; ico
   { label: '已完成', value: 'completed', color: 'purple', icon: '🏁' },
 ];
 
-interface ReportFile {
-  id: string;
-  name: string;
-  size: string;
-  type: string;
-  uploadedAt: number;
-}
+const REPORT_TYPE_OPTIONS: { label: string; value: ReportType; color: string; icon: any }[] = [
+  { label: '检修报告', value: 'maintenance_report', color: 'red', icon: FileWarning },
+  { label: '验收记录', value: 'acceptance_record', color: 'green', icon: FileCheck },
+  { label: '现场照片', value: 'site_photo', color: 'blue', icon: FileImage },
+  { label: '试验报告', value: 'test_report', color: 'purple', icon: FileText },
+];
 
-const mockReportFiles: ReportFile[] = [
-  { id: 'r-001', name: '检修报告_20260615.pdf', size: '2.4MB', type: 'PDF', uploadedAt: Date.now() - 3 * 24 * 3600 * 1000 },
-  { id: 'r-002', name: '验收记录_20260615.xlsx', size: '186KB', type: 'Excel', uploadedAt: Date.now() - 3 * 24 * 3600 * 1000 + 3600000 },
-  { id: 'r-003', name: '现场照片_20260615.zip', size: '18.6MB', type: 'ZIP', uploadedAt: Date.now() - 3 * 24 * 3600 * 1000 + 7200000 },
+const CONCLUSION_OPTIONS: { label: string; value: AcceptanceConclusion; color: string; icon: any }[] = [
+  { label: '通过', value: 'pass', color: 'success', icon: CheckCircle2 },
+  { label: '有条件通过', value: 'conditional_pass', color: 'warning', icon: AlertCircle },
+  { label: '不通过', value: 'fail', color: 'error', icon: XCircle },
 ];
 
 const getStatusTag = (status: ApprovalStatus) => {
@@ -96,9 +103,39 @@ const getCategoryTag = (cat: MaintenanceCategory) => {
   );
 };
 
+const getReportTypeLabel = (type: ReportType) => {
+  const opt = REPORT_TYPE_OPTIONS.find((o) => o.value === type);
+  return opt?.label || type;
+};
+
+const getReportTypeTag = (type: ReportType) => {
+  const opt = REPORT_TYPE_OPTIONS.find((o) => o.value === type);
+  const IconComponent = opt?.icon || FileText;
+  return (
+    <Tag color={opt?.color as any} bordered={false} className="!text-[11px] !py-0 !h-5 !leading-5">
+      <IconComponent size={10} className="inline mr-1" />
+      {opt?.label || type}
+    </Tag>
+  );
+};
+
+const getConclusionTag = (conclusion?: AcceptanceConclusion) => {
+  if (!conclusion) return null;
+  const opt = CONCLUSION_OPTIONS.find((o) => o.value === conclusion);
+  const IconComponent = opt?.icon || CheckCircle2;
+  return (
+    <Tag color={opt?.color as any} icon={<IconComponent size={10} />} className="!py-0 !h-6 font-medium">
+      {opt?.label || conclusion}
+    </Tag>
+  );
+};
+
 const HistorySearch = () => {
   const tasks = usePlanStore((s) => s.tasks);
+  const reports = usePlanStore((s) => s.reports);
   const initTasks = usePlanStore((s) => s.initTasks);
+  const initReports = usePlanStore((s) => s.initReports);
+  const getReportsByTaskId = usePlanStore((s) => s.getReportsByTaskId);
   const { substations, initData } = useEquipmentStore();
 
   const [page, setPage] = useState(1);
@@ -110,16 +147,20 @@ const HistorySearch = () => {
   const [filterStatus, setFilterStatus] = useState<ApprovalStatus[]>([]);
   const [filterApplicant, setFilterApplicant] = useState<string>('');
   const [filterKeyword, setFilterKeyword] = useState<string>('');
+  const [filterReportType, setFilterReportType] = useState<ReportType | undefined>(undefined);
+  const [filterConclusion, setFilterConclusion] = useState<AcceptanceConclusion | undefined>(undefined);
 
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<MaintenanceTask | null>(null);
+  const [activeTab, setActiveTab] = useState<string>('basic');
 
   useEffect(() => {
     initTasks();
     initData();
-  }, [initTasks, initData]);
+    initReports();
+  }, [initTasks, initData, initReports]);
 
-  const filteredData = useMemo(() => {
+  const filteredTasks = useMemo(() => {
     return tasks.filter((t) => {
       if (filterTimeRange && filterTimeRange[0] && filterTimeRange[1]) {
         const s = filterTimeRange[0].valueOf();
@@ -138,16 +179,39 @@ const HistorySearch = () => {
         const matchTitle = t.title.toLowerCase().includes(kw);
         const matchContent = t.workContent.toLowerCase().includes(kw);
         const matchDept = t.department.toLowerCase().includes(kw);
-        if (!matchTitle && !matchContent && !matchDept) return false;
+        const taskReports = getReportsByTaskId(t.id);
+        const matchReport = taskReports.some((r) => r.name.toLowerCase().includes(kw));
+        if (!matchTitle && !matchContent && !matchDept && !matchReport) return false;
+      }
+      if (filterReportType || filterConclusion) {
+        const taskReports = getReportsByTaskId(t.id);
+        if (taskReports.length === 0) return false;
+        if (filterReportType) {
+          const hasType = taskReports.some((r) => r.type === filterReportType);
+          if (!hasType) return false;
+        }
+        if (filterConclusion) {
+          const hasConclusion = taskReports.some((r) => r.conclusion === filterConclusion);
+          if (!hasConclusion) return false;
+        }
       }
       return true;
     });
-  }, [tasks, filterTimeRange, filterVoltage, filterCategory, filterStatus, filterApplicant, filterKeyword, substations]);
+  }, [tasks, filterTimeRange, filterVoltage, filterCategory, filterStatus, filterApplicant, filterKeyword, filterReportType, filterConclusion, substations, getReportsByTaskId]);
 
   const pagedData = useMemo(() => {
     const start = (page - 1) * pageSize;
-    return filteredData.slice(start, start + pageSize);
-  }, [filteredData, page, pageSize]);
+    return filteredTasks.slice(start, start + pageSize);
+  }, [filteredTasks, page, pageSize]);
+
+  const taskReports = useMemo(() => {
+    if (!selectedTask) return [];
+    return getReportsByTaskId(selectedTask.id);
+  }, [selectedTask, getReportsByTaskId]);
+
+  const acceptanceReport = useMemo(() => {
+    return taskReports.find((r) => r.type === 'acceptance_record');
+  }, [taskReports]);
 
   const handleReset = () => {
     setFilterTimeRange(null);
@@ -156,12 +220,14 @@ const HistorySearch = () => {
     setFilterStatus([]);
     setFilterApplicant('');
     setFilterKeyword('');
+    setFilterReportType(undefined);
+    setFilterConclusion(undefined);
     setPage(1);
   };
 
   const handleSearch = () => {
     setPage(1);
-    message.success(`查询完成，共找到 ${filteredData.length} 条记录`);
+    message.success(`查询完成，共找到 ${filteredTasks.length} 条记录`);
   };
 
   const getVoltage = (task: MaintenanceTask) => {
@@ -178,6 +244,86 @@ const HistorySearch = () => {
       return false;
     },
   };
+
+  const reportColumns = [
+    {
+      title: '文件名',
+      dataIndex: 'name',
+      key: 'name',
+      render: (v: string, record: ReportFile) => (
+        <div className="flex items-center gap-2 min-w-0">
+          {record.type === 'maintenance_report' && <FileWarning size={16} className="text-red-500 flex-shrink-0" />}
+          {record.type === 'acceptance_record' && <FileCheck size={16} className="text-emerald-500 flex-shrink-0" />}
+          {record.type === 'site_photo' && <FileImage size={16} className="text-blue-500 flex-shrink-0" />}
+          {record.type === 'test_report' && <FileText size={16} className="text-purple-500 flex-shrink-0" />}
+          <Tooltip title={v}>
+            <span className="text-sm text-slate-700 truncate">{v}</span>
+          </Tooltip>
+        </div>
+      ),
+    },
+    {
+      title: '类型',
+      dataIndex: 'type',
+      key: 'type',
+      width: 110,
+      render: (v: ReportType) => getReportTypeTag(v),
+    },
+    {
+      title: '大小',
+      dataIndex: 'size',
+      key: 'size',
+      width: 90,
+      align: 'right' as const,
+      render: (v: number) => <span className="text-sm text-slate-600 tabular-nums">{formatFileSize(v)}</span>,
+    },
+    {
+      title: '上传人',
+      dataIndex: 'uploader',
+      key: 'uploader',
+      width: 90,
+      render: (name: string) => (
+        <div className="flex items-center gap-1.5">
+          <Avatar size={18} className="!w-[18px] !h-[18px] !text-[10px] bg-gradient-to-br from-dispatch-400 to-dispatch-600">
+            {name.charAt(0)}
+          </Avatar>
+          <span className="text-sm text-slate-600">{name}</span>
+        </div>
+      ),
+    },
+    {
+      title: '上传时间',
+      dataIndex: 'uploadedAt',
+      key: 'uploadedAt',
+      width: 160,
+      render: (v: number) => (
+        <span className="text-xs text-slate-500">{formatDateTime(v)}</span>
+      ),
+    },
+    {
+      title: '验收结论',
+      dataIndex: 'conclusion',
+      key: 'conclusion',
+      width: 110,
+      render: (v?: AcceptanceConclusion) => v ? getConclusionTag(v) : <span className="text-slate-400 text-xs">—</span>,
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 120,
+      fixed: 'right' as const,
+      render: (_: unknown, record: ReportFile) => (
+        <Space size="small">
+          <Button type="link" size="small" icon={<Eye size={12} />} className="!p-0 !h-auto">
+            查看
+          </Button>
+          <Button type="link" size="small" icon={<Download size={12} />} className="!p-0 !h-auto">
+            下载
+          </Button>
+        </Space>
+      ),
+    },
+  ];
 
   const columns = [
     {
@@ -290,6 +436,21 @@ const HistorySearch = () => {
       render: (v: ApprovalStatus) => getStatusTag(v),
     },
     {
+      title: '报告数量',
+      dataIndex: 'reportCount',
+      key: 'reportCount',
+      width: 90,
+      align: 'center' as const,
+      render: (_: unknown, record: MaintenanceTask) => {
+        const count = getReportsByTaskId(record.id).length;
+        return count > 0 ? (
+          <Badge count={count} size="small" color="blue" />
+        ) : (
+          <span className="text-slate-400 text-xs">—</span>
+        );
+      },
+    },
+    {
       title: '操作',
       key: 'action',
       width: 100,
@@ -313,6 +474,40 @@ const HistorySearch = () => {
     },
   ];
 
+  const tabItems: TabsProps['items'] = [
+    {
+      key: 'basic',
+      label: (
+        <span className="inline-flex items-center gap-1">
+          <FileText size={14} />
+          基本信息
+        </span>
+      ),
+    },
+    {
+      key: 'reports',
+      label: (
+        <span className="inline-flex items-center gap-1">
+          <FileCheck size={14} />
+          报告文件
+          {taskReports.length > 0 && (
+            <Badge count={taskReports.length} size="small" color="blue" offset={[4, -2]} />
+          )}
+        </span>
+      ),
+    },
+    {
+      key: 'conclusion',
+      label: (
+        <span className="inline-flex items-center gap-1">
+          <CheckCircle2 size={14} />
+          验收结论
+        </span>
+      ),
+      disabled: !acceptanceReport,
+    },
+  ];
+
   return (
     <div className="page-container space-y-5">
       <div>
@@ -326,7 +521,7 @@ const HistorySearch = () => {
             <div className="text-xs text-slate-500 mb-1.5 inline-flex items-center gap-1"><FileText size={11} />设备名称 / 关键词</div>
             <Search
               allowClear
-              placeholder="输入任务名称、设备、部门、工作内容等关键词..."
+              placeholder="输入任务名称、设备、部门、工作内容、报告文件名等关键词..."
               value={filterKeyword}
               onChange={(e) => setFilterKeyword(e.target.value)}
               onSearch={handleSearch}
@@ -402,7 +597,33 @@ const HistorySearch = () => {
             />
           </div>
 
-          <div className="col-span-3 flex items-end gap-2 justify-end">
+          <div className="col-span-3">
+            <div className="text-xs text-slate-500 mb-1.5">报告类型</div>
+            <Select
+              allowClear
+              value={filterReportType}
+              onChange={(v) => setFilterReportType(v as ReportType | undefined)}
+              placeholder="全部类型"
+              size="large"
+              style={{ width: '100%' }}
+              options={REPORT_TYPE_OPTIONS.map((o) => ({ label: o.label, value: o.value }))}
+            />
+          </div>
+
+          <div className="col-span-3">
+            <div className="text-xs text-slate-500 mb-1.5">验收结论</div>
+            <Select
+              allowClear
+              value={filterConclusion}
+              onChange={(v) => setFilterConclusion(v as AcceptanceConclusion | undefined)}
+              placeholder="全部结论"
+              size="large"
+              style={{ width: '100%' }}
+              options={CONCLUSION_OPTIONS.map((o) => ({ label: o.label, value: o.value }))}
+            />
+          </div>
+
+          <div className="col-span-9 flex items-end gap-2 justify-end">
             <Button size="large" icon={<FilterX size={16} />} onClick={handleReset} className="!h-10">重置</Button>
             <Button type="primary" size="large" icon={<SearchIcon size={16} />} onClick={handleSearch} className="!h-10">查询</Button>
           </div>
@@ -413,7 +634,7 @@ const HistorySearch = () => {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <span className="text-base font-semibold text-slate-800">历史记录</span>
-            <Tag color="geekblue" bordered={false} className="!text-xs">共 {filteredData.length} 条</Tag>
+            <Tag color="geekblue" bordered={false} className="!text-xs">共 {filteredTasks.length} 条</Tag>
           </div>
           <Space size="middle">
             <Upload {...fileUploadProps}>
@@ -426,13 +647,13 @@ const HistorySearch = () => {
           rowKey="id"
           columns={columns as any}
           dataSource={pagedData}
-          scroll={{ x: 1700, y: 520 }}
+          scroll={{ x: 1850, y: 520 }}
           size="middle"
           locale={{ emptyText: <Empty description="暂无符合条件的历史记录" /> }}
           pagination={{
             current: page,
             pageSize,
-            total: filteredData.length,
+            total: filteredTasks.length,
             showSizeChanger: true,
             showQuickJumper: true,
             pageSizeOptions: ['10', '20', '50', '100'],
@@ -447,133 +668,141 @@ const HistorySearch = () => {
 
       <Drawer
         title={<span className="text-base font-semibold text-slate-800 inline-flex items-center gap-2"><FileCheck size={16} className="text-dispatch-600" />任务详情与验收报告</span>}
-        width={720}
+        width={820}
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         maskClosable
         destroyOnHidden
       >
         {selectedTask && (
-          <div className="space-y-5">
-            <Descriptions
-              title={<span className="text-sm font-semibold text-dispatch-700">基本信息</span>}
-              column={2}
+          <div className="space-y-4">
+            <Tabs
+              activeKey={activeTab}
+              onChange={setActiveTab}
+              items={tabItems}
               size="small"
-              bordered
-            >
-              <Descriptions.Item label="任务名称" span={2}>
-                <span className="font-medium">{selectedTask.title}</span>
-              </Descriptions.Item>
-              <Descriptions.Item label="编号">
-                <code className="text-xs bg-slate-100 px-2 py-0.5 rounded">{selectedTask.id}</code>
-              </Descriptions.Item>
-              <Descriptions.Item label="审批状态">{getStatusTag(selectedTask.approvalStatus)}</Descriptions.Item>
-              <Descriptions.Item label="检修类型">{getCategoryTag(selectedTask.category)}</Descriptions.Item>
-              <Descriptions.Item label="电压等级">
-                <Tag color="geekblue" bordered={false}>{getVoltage(selectedTask)}</Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="开始时间" span={2}>{formatDateTime(selectedTask.startTime)}</Descriptions.Item>
-              <Descriptions.Item label="结束时间" span={2}>{formatDateTime(selectedTask.endTime)}</Descriptions.Item>
-              <Descriptions.Item label="停电时长"><span className="font-semibold tabular-nums">{selectedTask.outageDurationH} 小时</span></Descriptions.Item>
-              <Descriptions.Item label="损失容量"><span className="font-semibold tabular-nums text-red-600">{selectedTask.lostCapacity} MVA</span></Descriptions.Item>
-              <Descriptions.Item label="申请人">{selectedTask.applicant}</Descriptions.Item>
-              <Descriptions.Item label="所属部门">{selectedTask.department}</Descriptions.Item>
-            </Descriptions>
+              className="!-mt-2"
+            />
 
-            <Descriptions
-              title={<span className="text-sm font-semibold text-dispatch-700">工作内容</span>}
-              column={1}
-              size="small"
-              bordered
-            >
-              <Descriptions.Item label="工作描述">
-                <p className="text-sm text-slate-700 leading-relaxed m-0">{selectedTask.workContent || '—'}</p>
-              </Descriptions.Item>
-              <Descriptions.Item label="影响变电站">
-                <Space size="small" wrap>
-                  {selectedTask.affectedStationIds.map((sid) => {
-                    const s = substations.find((st) => st.id === sid);
-                    return <Tag key={sid} color="purple" bordered={false}>{s?.name || sid}</Tag>;
-                  })}
-                </Space>
-              </Descriptions.Item>
-            </Descriptions>
+            {activeTab === 'basic' && (
+              <div className="space-y-4 pt-2">
+                <Descriptions
+                  title={<span className="text-sm font-semibold text-dispatch-700">基本信息</span>}
+                  column={2}
+                  size="small"
+                  bordered
+                >
+                  <Descriptions.Item label="任务名称" span={2}>
+                    <span className="font-medium">{selectedTask.title}</span>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="编号">
+                    <code className="text-xs bg-slate-100 px-2 py-0.5 rounded">{selectedTask.id}</code>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="审批状态">{getStatusTag(selectedTask.approvalStatus)}</Descriptions.Item>
+                  <Descriptions.Item label="检修类型">{getCategoryTag(selectedTask.category)}</Descriptions.Item>
+                  <Descriptions.Item label="电压等级">
+                    <Tag color="geekblue" bordered={false}>{getVoltage(selectedTask)}</Tag>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="开始时间" span={2}>{formatDateTime(selectedTask.startTime)}</Descriptions.Item>
+                  <Descriptions.Item label="结束时间" span={2}>{formatDateTime(selectedTask.endTime)}</Descriptions.Item>
+                  <Descriptions.Item label="停电时长"><span className="font-semibold tabular-nums">{selectedTask.outageDurationH} 小时</span></Descriptions.Item>
+                  <Descriptions.Item label="损失容量"><span className="font-semibold tabular-nums text-red-600">{selectedTask.lostCapacity} MVA</span></Descriptions.Item>
+                  <Descriptions.Item label="申请人">{selectedTask.applicant}</Descriptions.Item>
+                  <Descriptions.Item label="所属部门">{selectedTask.department}</Descriptions.Item>
+                </Descriptions>
 
-            <Divider className="!my-2" />
-
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <div className="text-sm font-semibold text-dispatch-700 inline-flex items-center gap-2"><FileText size={14} />验收报告与相关文件</div>
-                <Upload {...fileUploadProps}>
-                  <Button size="small" type="primary" icon={<UploadIcon size={12} />} className="!h-8">
-                    上传文件
-                  </Button>
-                </Upload>
+                <Descriptions
+                  title={<span className="text-sm font-semibold text-dispatch-700">工作内容</span>}
+                  column={1}
+                  size="small"
+                  bordered
+                >
+                  <Descriptions.Item label="工作描述">
+                    <p className="text-sm text-slate-700 leading-relaxed m-0">{selectedTask.workContent || '—'}</p>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="影响变电站">
+                    <Space size="small" wrap>
+                      {selectedTask.affectedStationIds.map((sid) => {
+                        const s = substations.find((st) => st.id === sid);
+                        return <Tag key={sid} color="purple" bordered={false}>{s?.name || sid}</Tag>;
+                      })}
+                    </Space>
+                  </Descriptions.Item>
+                </Descriptions>
               </div>
+            )}
 
-              {mockReportFiles.length === 0 ? (
-                <Empty description="暂无报告文件" image={Empty.PRESENTED_IMAGE_SIMPLE} className="!py-8" />
-              ) : (
-                <div className="space-y-2">
-                  {mockReportFiles.map((f) => (
-                    <div
-                      key={f.id}
-                      className="flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:bg-dispatch-50/40 hover:border-dispatch-200 transition-all group"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-dispatch-50 to-dispatch-100 flex items-center justify-center flex-shrink-0">
-                          {f.type === 'PDF' ? (
-                            <FileWarning size={20} className="text-red-500" />
-                          ) : f.type === 'Excel' ? (
-                            <FileCheck size={20} className="text-emerald-500" />
-                          ) : (
-                            <FileText size={20} className="text-dispatch-500" />
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-sm font-medium text-slate-800 truncate group-hover:text-dispatch-700">{f.name}</div>
-                          <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
-                            <Tag color={f.type === 'PDF' ? 'red' : f.type === 'Excel' ? 'green' : 'blue'} bordered={false} className="!text-[10px] !py-0 !h-4 !leading-4">{f.type}</Tag>
-                            <span>{f.size}</span>
-                            <span className="inline-flex items-center gap-0.5"><Clock size={10} />{formatDateTime(f.uploadedAt)}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Tooltip title="预览">
-                          <Button type="link" size="small" icon={<Eye size={13} />} className="!p-0 !h-auto">预览</Button>
-                        </Tooltip>
-                        <Tooltip title="下载">
-                          <Button type="link" size="small" icon={<Download size={13} />} className="!p-0 !h-auto">下载</Button>
-                        </Tooltip>
-                      </div>
+            {activeTab === 'reports' && (
+              <div className="pt-2">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-sm font-semibold text-dispatch-700 inline-flex items-center gap-2"><FileText size={14} />报告文件列表</div>
+                  <Upload {...fileUploadProps}>
+                    <Button size="small" type="primary" icon={<UploadIcon size={12} />} className="!h-8">
+                      上传文件
+                    </Button>
+                  </Upload>
+                </div>
+
+                {taskReports.length === 0 ? (
+                  <Empty description="暂无报告文件" image={Empty.PRESENTED_IMAGE_SIMPLE} className="!py-12" />
+                ) : (
+                  <Table
+                    rowKey="id"
+                    columns={reportColumns as any}
+                    dataSource={taskReports}
+                    size="small"
+                    scroll={{ x: 700 }}
+                    pagination={false}
+                  />
+                )}
+              </div>
+            )}
+
+            {activeTab === 'conclusion' && acceptanceReport && (
+              <div className="pt-2">
+                <Card className="!shadow-sm !border-dispatch-200" size="small">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-dispatch-700 inline-flex items-center gap-2">
+                        <CheckCircle2 size={16} />
+                        验收结论
+                      </span>
+                      {getConclusionTag(acceptanceReport.conclusion)}
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
 
-            <Divider className="!my-2" />
+                    <Divider className="!my-2" />
 
-            <Descriptions
-              title={<span className="text-sm font-semibold text-dispatch-700 inline-flex items-center gap-2"><CheckCircle2 size={14} />验收结论</span>}
-              column={1}
-              size="small"
-              bordered
-            >
-              <Descriptions.Item label="验收结果">
-                <div className="flex items-center gap-2">
-                  <Tag color="success" icon={<CheckCircle2 size={12} />} className="!py-0 !h-6 font-medium">验收合格</Tag>
+                    <Descriptions column={1} size="small" bordered={false}>
+                      <Descriptions.Item label="验收报告">
+                        <span className="text-sm text-slate-700">{acceptanceReport.name}</span>
+                      </Descriptions.Item>
+                      <Descriptions.Item label="验收人">
+                        <div className="flex items-center gap-2">
+                          <Avatar size={20} className="!w-5 !h-5 !text-[10px] bg-gradient-to-br from-dispatch-400 to-dispatch-600">
+                            {acceptanceReport.uploader.charAt(0)}
+                          </Avatar>
+                          <span className="text-sm">{acceptanceReport.uploader}</span>
+                        </div>
+                      </Descriptions.Item>
+                      <Descriptions.Item label="验收时间">
+                        <span className="text-sm text-slate-600">{formatDateTime(acceptanceReport.uploadedAt)}</span>
+                      </Descriptions.Item>
+                      <Descriptions.Item label="验收备注">
+                        <p className="text-sm text-slate-700 leading-relaxed m-0">
+                          {acceptanceReport.remark || '—'}
+                        </p>
+                      </Descriptions.Item>
+                    </Descriptions>
+                  </div>
+                </Card>
+
+                <div className="mt-4">
+                  <Button type="primary" icon={<Eye size={14} />} size="small">
+                    查看验收报告详情
+                  </Button>
                 </div>
-              </Descriptions.Item>
-              <Descriptions.Item label="验收人">张工 / 李工</Descriptions.Item>
-              <Descriptions.Item label="验收时间">{formatDateTime(selectedTask.endTime + 3600 * 1000)}</Descriptions.Item>
-              <Descriptions.Item label="验收备注">
-                <p className="text-sm text-slate-700 leading-relaxed m-0">
-                  检修工作已按计划完成，设备各项试验数据合格，现场清理完毕，安全措施已拆除，具备送电条件。
-                </p>
-              </Descriptions.Item>
-            </Descriptions>
+              </div>
+            )}
 
             <Divider className="!my-2" />
             <div className="flex justify-end">

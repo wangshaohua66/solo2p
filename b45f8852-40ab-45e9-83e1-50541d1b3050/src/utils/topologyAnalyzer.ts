@@ -7,6 +7,7 @@ import type {
   OutageScope,
   VoltageLevel,
   OutageLevel,
+  TransferSuggestion,
 } from '@/types';
 
 export function buildAdjacencyMap(
@@ -264,4 +265,142 @@ export function getNodeVoltageLevel(
 
 export function clearTopologyCache(): void {
   pathCache.clear();
+}
+
+const voltageLevelOrder: Record<string, number> = {
+  '500kV': 3,
+  '220kV': 2,
+  '110kV': 1,
+};
+
+export function suggestLoadTransfer(
+  outageStationIds: string[],
+  adjacencyMap: AdjacencyMap,
+  substations: Substation[],
+  lines: TransmissionLine[],
+  maxSuggestions: number = 3
+): TransferSuggestion[] {
+  const outageSet = new Set(outageStationIds);
+  const allSuggestions: TransferSuggestion[] = [];
+  let suggestionCounter = 0;
+
+  const getStationById = (id: string): Substation | undefined =>
+    substations.find((s) => s.id === id);
+
+  const getLineById = (id: string): TransmissionLine | undefined =>
+    lines.find((l) => l.id === id);
+
+  const findConnectedStations = (stationId: string): { station: Substation; line: TransmissionLine }[] => {
+    const neighbors = adjacencyMap.get(stationId) || [];
+    const connected: { station: Substation; line: TransmissionLine }[] = [];
+    const seen = new Set<string>();
+
+    for (const neighbor of neighbors) {
+      const line = getLineById(neighbor);
+      if (!line) continue;
+
+      const otherStationId =
+        line.fromStationId === stationId ? line.toStationId : line.fromStationId;
+
+      if (outageSet.has(otherStationId) || seen.has(otherStationId)) continue;
+
+      const otherStation = getStationById(otherStationId);
+      if (otherStation) {
+        seen.add(otherStationId);
+        connected.push({ station: otherStation, line });
+      }
+    }
+
+    return connected;
+  };
+
+  const calculatePriority = (
+    sourceStation: Substation,
+    targetStation: Substation
+  ): 'high' | 'medium' | 'low' => {
+    const sourceLevel = voltageLevelOrder[sourceStation.voltageLevel] || 0;
+    const targetLevel = voltageLevelOrder[targetStation.voltageLevel] || 0;
+
+    const capacityRatio = targetStation.capacity / sourceStation.capacity;
+
+    if (capacityRatio >= 1.5 && targetLevel >= sourceLevel) {
+      return 'high';
+    }
+    if (targetLevel === sourceLevel && capacityRatio >= 0.8) {
+      return 'medium';
+    }
+    return 'low';
+  };
+
+  const generateSwitchOperations = (
+    sourceStation: Substation,
+    targetStation: Substation,
+    line: TransmissionLine
+  ): string[] => {
+    return [
+      `断开${sourceStation.name}出线侧断路器`,
+      `闭合${line.name}联络开关`,
+      `投入${targetStation.name}相应保护装置`,
+    ];
+  };
+
+  const calculateEstimatedCapacity = (
+    sourceStation: Substation,
+    targetStation: Substation,
+    priority: 'high' | 'medium' | 'low'
+  ): number => {
+    const ratios: Record<string, number> = {
+      high: 0.85,
+      medium: 0.6,
+      low: 0.35,
+    };
+    const ratio = ratios[priority];
+    return Math.round(Math.min(sourceStation.capacity * ratio, targetStation.capacity * 0.5));
+  };
+
+  for (const outageId of outageStationIds) {
+    const sourceStation = getStationById(outageId);
+    if (!sourceStation) continue;
+
+    const connected = findConnectedStations(outageId);
+
+    connected.sort((a, b) => b.station.capacity - a.station.capacity);
+
+    for (const { station: targetStation, line } of connected) {
+      const priority = calculatePriority(sourceStation, targetStation);
+      const estimatedCapacity = calculateEstimatedCapacity(
+        sourceStation,
+        targetStation,
+        priority
+      );
+
+      const recoveryRatio = Math.round(
+        (estimatedCapacity / sourceStation.capacity) * 100
+      );
+
+      suggestionCounter++;
+      allSuggestions.push({
+        id: `suggest-${String(suggestionCounter).padStart(3, '0')}`,
+        priority,
+        description: `将${sourceStation.name}的负荷通过${line.name}转移至${targetStation.name}，预计可恢复${recoveryRatio}%的供电能力。`,
+        switchOperations: generateSwitchOperations(sourceStation, targetStation, line),
+        estimatedCapacity,
+        sourceStationId: sourceStation.id,
+        targetStationId: targetStation.id,
+        viaLineId: line.id,
+      });
+    }
+  }
+
+  const priorityOrder: Record<string, number> = {
+    high: 3,
+    medium: 2,
+    low: 1,
+  };
+
+  allSuggestions.sort(
+    (a, b) => priorityOrder[b.priority] - priorityOrder[a.priority]
+  );
+
+  return allSuggestions.slice(0, maxSuggestions);
 }

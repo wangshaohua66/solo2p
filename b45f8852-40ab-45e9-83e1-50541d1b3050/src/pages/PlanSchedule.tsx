@@ -203,6 +203,7 @@ const PlanSchedule = () => {
       statuses: undefined,
       keyword: undefined,
       department: undefined,
+      equipmentTypes: undefined,
     });
     setPage(1);
   };
@@ -474,6 +475,10 @@ const PlanSchedule = () => {
               mode="multiple"
               maxTagCount="responsive"
               placeholder="全部类型"
+              value={filters.equipmentTypes || []}
+              onChange={(v) =>
+                setFilters({ equipmentTypes: v.length > 0 ? (v as EquipmentType[]) : undefined })
+              }
               options={EQUIPMENT_TYPES}
               style={{ width: '100%' }}
             />

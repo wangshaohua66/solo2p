@@ -131,6 +131,7 @@ export interface PlanFilters {
   statuses?: ApprovalStatus[];
   keyword?: string;
   department?: string;
+  equipmentTypes?: EquipmentType[];
 }
 
 export type PowerSupplyPath = string[];
@@ -151,9 +152,13 @@ export type GanttZoom = 'day' | 'week' | 'month';
 
 export interface TransferSuggestion {
   id: string;
-  path: string[];
+  priority: 'high' | 'medium' | 'low';
   description: string;
+  switchOperations: string[];
   estimatedCapacity: number;
+  sourceStationId: string;
+  targetStationId: string;
+  viaLineId?: string;
 }
 
 export interface ProtectionWindow {
@@ -166,4 +171,46 @@ export interface TimeAxisItem {
   ts: number;
   label: string;
   dayOfWeek: number;
+}
+
+export type ReportType = 'maintenance_report' | 'acceptance_record' | 'site_photo' | 'test_report';
+export type AcceptanceConclusion = 'pass' | 'fail' | 'conditional_pass';
+
+export interface ReportFile {
+  id: string;
+  taskId: string;
+  name: string;
+  type: ReportType;
+  size: number;
+  uploader: string;
+  uploaderId: string;
+  uploadedAt: number;
+  conclusion?: AcceptanceConclusion;
+  remark?: string;
+  fileUrl?: string;
+}
+
+export interface OnlineUser {
+  id: string;
+  name: string;
+  avatar?: string;
+  role: string;
+  color: string;
+  cursorTaskId?: string;
+  lastActiveAt: number;
+}
+
+export interface CollabMessage<T = any> {
+  type: string;
+  senderId: string;
+  data: T;
+  timestamp: number;
+  version?: number;
+}
+
+export interface CollaborationState {
+  connected: boolean;
+  users: OnlineUser[];
+  lastSyncAt: number;
+  currentUserId: string;
 }

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { shallow } from 'zustand/shallow';
+import { message } from 'antd';
 import type {
   MaintenanceTask,
   ConflictInfo,
@@ -9,7 +10,14 @@ import type {
   ApprovalRole,
   UserLevel,
   OutageLevel,
+  ReportFile,
+  VoltageLevel,
+  MaintenanceCategory,
+  OnlineUser,
+  CollaborationState,
 } from '@/types';
+import { MockWebSocket } from '@/mock/mockWebSocket';
+import { getCurrentUser } from '@/mock/mockUsers';
 import {
   detectConflicts,
   filterTasksByStatus,
@@ -25,6 +33,7 @@ import {
   debounce,
 } from '@/utils/dateUtils';
 import { mockTasks } from '@/data/mockTasks';
+import { mockReports } from '@/data/mockReports';
 import { useEquipmentStore } from './equipmentStore';
 
 interface PlanState {
@@ -35,6 +44,8 @@ interface PlanState {
   editingTask: Partial<MaintenanceTask> | null;
   loading: boolean;
   filteredTasks: MaintenanceTask[];
+  reports: ReportFile[];
+  collaboration: CollaborationState;
 }
 
 interface PlanActions {
@@ -50,6 +61,12 @@ interface PlanActions {
   setEditingTask: (partial: Partial<MaintenanceTask> | null) => void;
   commitEditing: () => void;
   recomputeConflicts: () => void;
+  initReports: () => void;
+  getReportsByTaskId: (taskId: string) => ReportFile[];
+  addReport: (report: ReportFile) => void;
+  connectCollaboration: () => void;
+  disconnectCollaboration: () => void;
+  broadcastTaskUpdate: (taskId: string, patch: Partial<MaintenanceTask>) => void;
 }
 
 export type PlanStore = PlanState & PlanActions;
@@ -57,6 +74,60 @@ export type PlanStore = PlanState & PlanActions;
 const PLAN_CACHE_KEY = 'plan_store_tasks_v2_202607';
 const PLAN_ARCHIVE_KEY = 'plan_store_archive_v2_202607';
 const MAX_ARCHIVE_ITEMS = 5000;
+const TASK_VERSION_KEY = 'plan_store_task_versions_v1';
+const WS_URL = 'ws://mock-server/collaboration';
+
+const WINDOW_PERIOD_HOURS: Record<MaintenanceCategory, number | Record<VoltageLevel, number>> = {
+  primary_outage: {
+    '500kV': 72,
+    '220kV': 72,
+    '110kV': 48,
+  },
+  secondary_calibration: 24,
+  corridor_clearing: 8,
+  technical_reform: 168,
+};
+
+export interface ValidationResult {
+  valid: boolean;
+  message: string;
+}
+
+export const validateWindowPeriod = (
+  task: Partial<MaintenanceTask> & { category: MaintenanceCategory; outageDurationH?: number; startTime?: number; endTime?: number },
+  equipmentVoltage?: VoltageLevel
+): ValidationResult => {
+  const { category, outageDurationH, startTime, endTime } = task;
+  
+  let duration = outageDurationH;
+  if (!duration && startTime && endTime) {
+    duration = calculateDurationH(startTime, endTime);
+  }
+  if (!duration) {
+    return { valid: true, message: '' };
+  }
+
+  const windowConfig = WINDOW_PERIOD_HOURS[category];
+  let maxHours: number;
+
+  if (typeof windowConfig === 'number') {
+    maxHours = windowConfig;
+  } else {
+    if (!equipmentVoltage) {
+      return { valid: true, message: '' };
+    }
+    maxHours = windowConfig[equipmentVoltage] || 72;
+  }
+
+  if (duration > maxHours) {
+    return {
+      valid: false,
+      message: `检修时长超过规定窗口期（${maxHours}小时），请核实时限`,
+    };
+  }
+
+  return { valid: true, message: '' };
+};
 
 const initialFilters: PlanFilters = {
   timeRange: undefined,
@@ -65,6 +136,7 @@ const initialFilters: PlanFilters = {
   statuses: undefined,
   keyword: undefined,
   department: undefined,
+  equipmentTypes: undefined,
 };
 
 const initialState: PlanState = {
@@ -75,6 +147,13 @@ const initialState: PlanState = {
   editingTask: null,
   loading: false,
   filteredTasks: [],
+  reports: [],
+  collaboration: {
+    connected: false,
+    users: [],
+    lastSyncAt: 0,
+    currentUserId: getCurrentUser().id,
+  },
 };
 
 const loadTasksFromCache = (): MaintenanceTask[] | null => {
@@ -118,7 +197,8 @@ const archiveOldTask = (task: MaintenanceTask): void => {
 const computeFilteredTasks = (
   tasks: MaintenanceTask[],
   filters: PlanFilters,
-  substations: { id: string; voltageLevel: string }[] = []
+  substations: { id: string; voltageLevel: string }[] = [],
+  equipments: { id: string; type: string }[] = []
 ): MaintenanceTask[] => {
   let result = tasks;
   result = filterTasksByStatus(result, filters.statuses);
@@ -135,6 +215,20 @@ const computeFilteredTasks = (
         const station = substations.find((s) => s.id === sid);
         return station && voltageLevels.includes(station.voltageLevel as any);
       });
+    });
+  }
+
+  if (filters.equipmentTypes && filters.equipmentTypes.length > 0) {
+    const equipmentTypes = filters.equipmentTypes;
+    result = result.filter((task) => {
+      if (task.equipmentId) {
+        const eq = equipments.find((e) => e.id === task.equipmentId);
+        return eq && equipmentTypes.includes(eq.type as any);
+      }
+      if (task.lineId) {
+        return equipmentTypes.includes('line' as any);
+      }
+      return false;
     });
   }
 
@@ -178,6 +272,39 @@ interface OutageScopeResult {
 let debouncedConflictDetection: ((tasks: MaintenanceTask[]) => void) | null =
   null;
 
+let wsInstance: MockWebSocket | null = null;
+let taskVersionMap: Map<string, number> = new Map();
+
+const loadTaskVersions = (): void => {
+  try {
+    const stored = localStorage.getItem(TASK_VERSION_KEY);
+    if (stored) {
+      const versions = JSON.parse(stored);
+      taskVersionMap = new Map(Object.entries(versions));
+    }
+  } catch {
+    taskVersionMap = new Map();
+  }
+};
+
+const saveTaskVersions = (): void => {
+  try {
+    const versions = Object.fromEntries(taskVersionMap);
+    localStorage.setItem(TASK_VERSION_KEY, JSON.stringify(versions));
+  } catch {
+    // ignore
+  }
+};
+
+const getTaskVersion = (taskId: string): number => {
+  return taskVersionMap.get(taskId) || 0;
+};
+
+const setTaskVersion = (taskId: string, version: number): void => {
+  taskVersionMap.set(taskId, version);
+  saveTaskVersions();
+};
+
 export const usePlanStore = create<PlanStore>()(
   devtools(
     (set, get) => {
@@ -199,12 +326,12 @@ export const usePlanStore = create<PlanStore>()(
           const cachedTasks = loadTasksFromCache();
           const tasks = cachedTasks && cachedTasks.length > 0 ? cachedTasks : [...mockTasks];
           const conflicts = detectConflicts(tasks);
-          const { substations } = useEquipmentStore.getState();
+          const { substations, equipments } = useEquipmentStore.getState();
 
           set({
             tasks,
             conflicts,
-            filteredTasks: computeFilteredTasks(tasks, get().filters, substations),
+            filteredTasks: computeFilteredTasks(tasks, get().filters, substations, equipments),
             loading: false,
           });
 
@@ -213,10 +340,10 @@ export const usePlanStore = create<PlanStore>()(
 
         setFilters: (partial) => {
           const newFilters = { ...get().filters, ...partial };
-          const { substations } = useEquipmentStore.getState();
+          const { substations, equipments } = useEquipmentStore.getState();
           set({
             filters: newFilters,
-            filteredTasks: computeFilteredTasks(get().tasks, newFilters, substations),
+            filteredTasks: computeFilteredTasks(get().tasks, newFilters, substations, equipments),
           });
         },
 
@@ -283,16 +410,55 @@ export const usePlanStore = create<PlanStore>()(
             updatedAt: now,
           };
 
+          let equipmentVoltage: VoltageLevel | undefined;
+          if (partialTask.equipmentId) {
+            const eq = equipments.find((e) => e.id === partialTask.equipmentId);
+            if (eq) {
+              const station = substations.find((s) => s.id === eq.substationId);
+              if (station) {
+                equipmentVoltage = station.voltageLevel;
+              }
+            }
+          } else if (partialTask.lineId) {
+            const line = lines.find((l) => l.id === partialTask.lineId);
+            if (line) {
+              equipmentVoltage = line.voltageLevel;
+            }
+          }
+
+          const validation = validateWindowPeriod(
+            { ...newTask, category: newTask.category },
+            equipmentVoltage
+          );
+          if (!validation.valid) {
+            message.warning(validation.message);
+          }
+
           const newTasks = [...get().tasks, newTask];
           const newConflicts = detectConflicts(newTasks);
 
           set({
             tasks: newTasks,
             conflicts: newConflicts,
-            filteredTasks: computeFilteredTasks(newTasks, get().filters, substations),
+            filteredTasks: computeFilteredTasks(newTasks, get().filters, substations, equipments),
           });
 
           saveTasksToCache(newTasks);
+
+          if (get().collaboration.connected && wsInstance) {
+            const newVersion = 1;
+            setTaskVersion(taskId, newVersion);
+            wsInstance.send({
+              type: 'task:create',
+              senderId: get().collaboration.currentUserId,
+              data: {
+                task: newTask,
+                version: newVersion,
+              },
+              timestamp: Date.now(),
+              version: newVersion,
+            });
+          }
         },
 
         updateTask: (id, patch) => {
@@ -353,13 +519,62 @@ export const usePlanStore = create<PlanStore>()(
           const newTasks = [...state.tasks];
           newTasks[taskIndex] = updatedTask;
 
+          const needsValidate =
+            patch.startTime !== undefined ||
+            patch.endTime !== undefined ||
+            patch.equipmentId !== undefined ||
+            patch.lineId !== undefined ||
+            patch.category !== undefined;
+
+          if (needsValidate) {
+            let equipmentVoltage: VoltageLevel | undefined;
+            if (updatedTask.equipmentId) {
+              const eq = equipments.find((e) => e.id === updatedTask.equipmentId);
+              if (eq) {
+                const station = substations.find((s) => s.id === eq.substationId);
+                if (station) {
+                  equipmentVoltage = station.voltageLevel;
+                }
+              }
+            } else if (updatedTask.lineId) {
+              const line = lines.find((l) => l.id === updatedTask.lineId);
+              if (line) {
+                equipmentVoltage = line.voltageLevel;
+              }
+            }
+
+            const validation = validateWindowPeriod(
+              { ...updatedTask, category: updatedTask.category },
+              equipmentVoltage
+            );
+            if (!validation.valid) {
+              message.warning(validation.message);
+            }
+          }
+
           set({
             tasks: newTasks,
-            filteredTasks: computeFilteredTasks(newTasks, state.filters, substations),
+            filteredTasks: computeFilteredTasks(newTasks, state.filters, substations, equipments),
           });
 
           saveTasksToCache(newTasks);
           debouncedConflictDetection?.(newTasks);
+
+          if (get().collaboration.connected && wsInstance) {
+            const newVersion = getTaskVersion(id) + 1;
+            setTaskVersion(id, newVersion);
+            wsInstance.send({
+              type: 'task:update',
+              senderId: get().collaboration.currentUserId,
+              data: {
+                taskId: id,
+                patch,
+                version: newVersion,
+              },
+              timestamp: Date.now(),
+              version: newVersion,
+            });
+          }
         },
 
         deleteTask: (id) => {
@@ -376,7 +591,7 @@ export const usePlanStore = create<PlanStore>()(
 
           const newTasks = state.tasks.filter((t) => t.id !== id);
           const newConflicts = detectConflicts(newTasks);
-          const { substations: delSubstations } = useEquipmentStore.getState();
+          const { substations: delSubstations, equipments: delEquipments } = useEquipmentStore.getState();
 
           set({
             tasks: newTasks,
@@ -387,10 +602,25 @@ export const usePlanStore = create<PlanStore>()(
               state.editingTask && state.editingTask.id === id
                 ? null
                 : state.editingTask,
-            filteredTasks: computeFilteredTasks(newTasks, state.filters, delSubstations),
+            filteredTasks: computeFilteredTasks(newTasks, state.filters, delSubstations, delEquipments),
           });
 
           saveTasksToCache(newTasks);
+
+          if (get().collaboration.connected && wsInstance) {
+            const newVersion = getTaskVersion(id) + 1;
+            setTaskVersion(id, newVersion);
+            wsInstance.send({
+              type: 'task:delete',
+              senderId: get().collaboration.currentUserId,
+              data: {
+                taskId: id,
+                version: newVersion,
+              },
+              timestamp: Date.now(),
+              version: newVersion,
+            });
+          }
         },
 
         submitForApproval: (id) => {
@@ -411,11 +641,11 @@ export const usePlanStore = create<PlanStore>()(
 
           const newTasks = [...state.tasks];
           newTasks[taskIndex] = updatedTask;
-          const { substations: subSubstations } = useEquipmentStore.getState();
+          const { substations: subSubstations, equipments: subEquipments } = useEquipmentStore.getState();
 
           set({
             tasks: newTasks,
-            filteredTasks: computeFilteredTasks(newTasks, state.filters, subSubstations),
+            filteredTasks: computeFilteredTasks(newTasks, state.filters, subSubstations, subEquipments),
           });
 
           saveTasksToCache(newTasks);
@@ -495,11 +725,11 @@ export const usePlanStore = create<PlanStore>()(
 
           const newTasks = [...state.tasks];
           newTasks[taskIndex] = updatedTask;
-          const { substations: rejSubstations } = useEquipmentStore.getState();
+          const { substations: rejSubstations, equipments: rejEquipments } = useEquipmentStore.getState();
 
           set({
             tasks: newTasks,
-            filteredTasks: computeFilteredTasks(newTasks, state.filters, rejSubstations),
+            filteredTasks: computeFilteredTasks(newTasks, state.filters, rejSubstations, rejEquipments),
           });
 
           saveTasksToCache(newTasks);
@@ -531,6 +761,183 @@ export const usePlanStore = create<PlanStore>()(
         recomputeConflicts: () => {
           const conflicts = detectConflicts(get().tasks);
           set({ conflicts });
+        },
+
+        initReports: () => {
+          set({ reports: [...mockReports] });
+        },
+
+        getReportsByTaskId: (taskId) => {
+          return get().reports.filter((r) => r.taskId === taskId);
+        },
+
+        addReport: (report) => {
+          const newReports = [...get().reports, report];
+          set({ reports: newReports });
+        },
+
+        connectCollaboration: () => {
+          if (wsInstance && wsInstance.isConnected()) {
+            return;
+          }
+
+          loadTaskVersions();
+
+          try {
+            const ws = new MockWebSocket(WS_URL);
+            wsInstance = ws;
+
+            ws.onOpen = () => {
+              set({
+                collaboration: {
+                  ...get().collaboration,
+                  connected: true,
+                  currentUserId: ws.getUserId(),
+                },
+              });
+            };
+
+            ws.onMessage = (message) => {
+              const state = get();
+              const { collaboration } = state;
+
+              set({
+                collaboration: {
+                  ...collaboration,
+                  lastSyncAt: message.timestamp,
+                },
+              });
+
+              switch (message.type) {
+                case 'presence':
+                  set({
+                    collaboration: {
+                      ...get().collaboration,
+                      users: message.data as OnlineUser[],
+                    },
+                  });
+                  break;
+
+                case 'task:update': {
+                  const { taskId, patch, version } = message.data as {
+                    taskId: string;
+                    patch: Partial<MaintenanceTask>;
+                    version: number;
+                  };
+
+                  const currentVersion = getTaskVersion(taskId);
+                  if (version > currentVersion) {
+                    setTaskVersion(taskId, version);
+                    const task = state.tasks.find((t) => t.id === taskId);
+                    if (task) {
+                      get().updateTask(taskId, patch);
+                    }
+                  }
+                  break;
+                }
+
+                case 'task:create': {
+                  const { task, version } = message.data as {
+                    task: MaintenanceTask;
+                    version: number;
+                  };
+
+                  const currentVersion = getTaskVersion(task.id);
+                  if (version > currentVersion) {
+                    setTaskVersion(task.id, version);
+                    const exists = state.tasks.some((t) => t.id === task.id);
+                    if (!exists) {
+                      const newTasks = [...state.tasks, task];
+                      const { substations, equipments } =
+                        useEquipmentStore.getState();
+                      const newConflicts = detectConflicts(newTasks);
+                      set({
+                        tasks: newTasks,
+                        conflicts: newConflicts,
+                        filteredTasks: computeFilteredTasks(
+                          newTasks,
+                          state.filters,
+                          substations,
+                          equipments
+                        ),
+                      });
+                      saveTasksToCache(newTasks);
+                    }
+                  }
+                  break;
+                }
+
+                case 'task:delete': {
+                  const { taskId, version } = message.data as {
+                    taskId: string;
+                    version: number;
+                  };
+
+                  const currentVersion = getTaskVersion(taskId);
+                  if (version > currentVersion) {
+                    setTaskVersion(taskId, version);
+                    get().deleteTask(taskId);
+                  }
+                  break;
+                }
+              }
+            };
+
+            ws.onClose = () => {
+              set({
+                collaboration: {
+                  ...get().collaboration,
+                  connected: false,
+                },
+              });
+            };
+
+            ws.onError = () => {
+              set({
+                collaboration: {
+                  ...get().collaboration,
+                  connected: false,
+                },
+              });
+            };
+          } catch (error) {
+            console.error('Failed to connect collaboration:', error);
+          }
+        },
+
+        disconnectCollaboration: () => {
+          if (wsInstance) {
+            wsInstance.close();
+            wsInstance = null;
+          }
+          set({
+            collaboration: {
+              ...get().collaboration,
+              connected: false,
+              users: [],
+            },
+          });
+        },
+
+        broadcastTaskUpdate: (taskId, patch) => {
+          if (!wsInstance || !wsInstance.isConnected()) {
+            return;
+          }
+
+          const newVersion = getTaskVersion(taskId) + 1;
+          setTaskVersion(taskId, newVersion);
+
+          wsInstance.send({
+            type: 'task:update',
+            senderId: get().collaboration.currentUserId,
+            data: {
+              taskId,
+              patch,
+              version: newVersion,
+            },
+            timestamp: Date.now(),
+            version: newVersion,
+          });
         },
       };
     },
