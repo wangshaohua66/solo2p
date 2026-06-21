@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>证书管理 - 职业技能鉴定管理系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <style>
+        .nav-tabs {
+            border-bottom: 2px solid var(--border-color);
+        }
+        
+        .nav-tabs .nav-link {
+            border: none;
+            color: var(--text-secondary);
+            font-weight: 500;
+            padding: 1rem 1.5rem;
+            margin-bottom: -2px;
+            border-radius: 0;
+            position: relative;
+        }
+        
+        .nav-tabs .nav-link:hover {
+            color: var(--primary-color);
+            background: transparent;
+        }
+        
+        .nav-tabs .nav-link.active {
+            color: var(--primary-color);
+            background: transparent;
+            border-bottom: 2px solid var(--primary-color);
+        }
+        
+        .nav-tabs .nav-link.active::after {
+            display: none;
+        }
+        
+        .tab-content {
+            padding-top: 1.5rem;
+        }
+        
+        .filter-bar {
+            background: var(--bg-white);
+            border-radius: var(--radius-md);
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: var(--radius-md);
+        }
+        
+        .table-container::-webkit-scrollbar {
+            height: 8px;
+        }
+        
+        .table-container::-webkit-scrollbar-track {
+            background: var(--bg-light);
+            border-radius: 4px;
+        }
+        
+        .table-container::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+        
+        .table-container::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+        
+        .qrcode-thumbnail {
+            width: 60px;
+            height: 60px;
+            background: var(--bg-white);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all var(--transition-base);
+            cursor: pointer;
+        }
+        
+        .qrcode-thumbnail:hover {
+            border-color: var(--primary-color);
+            transform: scale(1.05);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .qrcode-thumbnail canvas,
+        .qrcode-thumbnail img {
+            width: 50px;
+            height: 50px;
+        }
+        
+        .certificate-card {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 2px solid #f59e0b;
+            border-radius: var(--radius-lg);
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .certificate-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200px;
+            height: 200px;
+            background: linear-gradient(45deg, transparent 40%, rgba(245, 158, 11, 0.1) 50%, transparent 60%);
+            transform: rotate(45deg);
+        }
+        
+        .certificate-logo {
+            width: 80px;
+            height: 80px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            color: white;
+            font-size: 2rem;
+        }
+        
+        .generate-progress {
+            background: var(--bg-white);
+            border-radius: var(--radius-md);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+        
+        .progress-step {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .progress-step:last-child {
+            border-bottom: none;
+        }
+        
+        .progress-step-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 1rem;
+            flex-shrink: 0;
+            font-weight: 600;
+        }
+        
+        .progress-step.pending .progress-step-icon {
+            background: var(--bg-light);
+            color: var(--text-secondary);
+        }
+        
+        .progress-step.active .progress-step-icon {
+            background: var(--primary-color);
+            color: white;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        .progress-step.completed .progress-step-icon {
+            background: var(--success-color);
+            color: white;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .progress-step-text {
+            flex: 1;
+        }
+        
+        .progress-step-title {
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+        
+        .progress-step-desc {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+        
+        .eligible-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+        }
+        
+        .eligible-item {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: all var(--transition-base);
+        }
+        
+        .eligible-item:last-child {
+            border-bottom: none;
+        }
+        
+        .eligible-item:hover {
+            background: var(--primary-light);
+        }
+        
+        .eligible-item .form-check {
+            margin: 0;
+        }
+        
+        .eligible-item-info {
+            flex: 1;
+        }
+        
+        .eligible-item-name {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        
+        .eligible-item-meta {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+        
+        .certificate-detail-modal .modal-content {
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+        }
+        
+        .certificate-detail-body {
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        .certificate-detail-body h3 {
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+            font-weight: 700;
+        }
+        
+        .certificate-detail-body .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px dashed var(--border-color);
+            text-align: left;
+        }
+        
+        .certificate-detail-body .info-label {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        
+        .certificate-detail-body .info-value {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        
+        .security-features {
+            background: var(--bg-white);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            margin-top: 1.5rem;
+            text-align: left;
+        }
+        
+        .security-features h6 {
+            color: var(--primary-color);
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .security-features ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .security-features li {
+            padding: 0.25rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+        
+        .security-features li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: var(--success-color);
+            font-weight: 700;
+        }
+        
+        .select-all-bar {
+            background: var(--bg-light);
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius-md) var(--radius-md) 0 0;
+            border: 1px solid var(--border-color);
+            border-bottom: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body>
+    <div id="navbar-container"></div>
+    
+    <div class="main-content">
+        <div class="page-header">
+            <h1 class="page-title"><i class="bi bi-award"></i> 证书管理</h1>
+            <p class="page-subtitle">证书查询、生成与下载管理</p>
+        </div>
+        
+        <div class="card">
+            <div class="card-body p-0">
+                <ul class="nav nav-tabs px-4" id="certTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="list-tab" data-bs-toggle="tab" data-bs-target="#list-pane" type="button" role="tab">
+                            <i class="bi bi-list-ul"></i> 证书列表
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="generate-tab" data-bs-toggle="tab" data-bs-target="#generate-pane" type="button" role="tab">
+                            <i class="bi bi-gear"></i> 生成证书
+                        </button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content p-4" id="certTabsContent">
+                    <div class="tab-pane fade show active" id="list-pane" role="tabpanel">
+                        <div class="filter-bar">
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-3">
+                                    <label class="form-label">姓名</label>
+                                    <input type="text" class="form-control" id="searchName" placeholder="请输入姓名">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">身份证号</label>
+                                    <input type="text" class="form-control" id="searchIdCard" placeholder="请输入身份证号">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">证书编号</label>
+                                    <input type="text" class="form-control" id="searchCertNo" placeholder="请输入证书编号">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">工种</label>
+                                    <select class="form-select" id="searchProfession">
+                                        <option value="">全部工种</option>
+                                        <option value="电工">电工</option>
+                                        <option value="焊工">焊工</option>
+                                        <option value="钳工">钳工</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-3">
+                                <div class="col-md-12 text-end">
+                                    <button class="btn btn-outline-secondary me-2" id="resetSearchBtn">
+                                        <i class="bi bi-arrow-counterclockwise"></i> 重置
+                                    </button>
+                                    <button class="btn btn-primary" id="searchCertBtn">
+                                        <i class="bi bi-search"></i> 查询
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="table-container">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>序号</th>
+                                        <th>二维码</th>
+                                        <th>证书编号</th>
+                                        <th>姓名</th>
+                                        <th>身份证号</th>
+                                        <th>工种</th>
+                                        <th>等级</th>
+                                        <th>发证日期</th>
+                                        <th>有效期至</th>
+                                        <th>状态</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="certTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <nav class="pagination" aria-label="Page navigation">
+                            <ul class="pagination" id="certPagination">
+                            </ul>
+                        </nav>
+                    </div>
+                    
+                    <div class="tab-pane fade" id="generate-pane" role="tabpanel">
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-4">
+                                <label class="form-label">选择考期 <span class="text-danger">*</span></label>
+                                <select class="form-select" id="generateExamPeriod">
+                                    <option value="">请选择考期</option>
+                                    <option value="202406">2024年6月职业技能鉴定考试</option>
+                                    <option value="202403">2024年3月职业技能鉴定考试</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 align-self-end">
+                                <button class="btn btn-primary" id="loadEligibleBtn">
+                                    <i class="bi bi-search"></i> 查询合格人员
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="generateProgressArea" style="display: none;">
+                            <div class="generate-progress">
+                                <h6 class="mb-3"><i class="bi bi-info-circle text-primary"></i> 生成进度</h6>
+                                <div class="progress-step active" id="step1">
+                                    <div class="progress-step-icon">1</div>
+                                    <div class="progress-step-text">
+                                        <div class="progress-step-title">准备证书数据</div>
+                                        <div class="progress-step-desc" id="step1Desc">正在准备证书数据...</div>
+                                    </div>
+                                </div>
+                                <div class="progress-step pending" id="step2">
+                                    <div class="progress-step-icon">2</div>
+                                    <div class="progress-step-text">
+                                        <div class="progress-step-title">生成电子证书</div>
+                                        <div class="progress-step-desc" id="step2Desc">等待生成...</div>
+                                    </div>
+                                </div>
+                                <div class="progress-step pending" id="step3">
+                                    <div class="progress-step-icon">3</div>
+                                    <div class="progress-step-text">
+                                        <div class="progress-step-title">生成二维码</div>
+                                        <div class="progress-step-desc" id="step3Desc">等待生成...</div>
+                                    </div>
+                                </div>
+                                <div class="progress-step pending" id="step4">
+                                    <div class="progress-step-icon"><i class="bi bi-check"></i></div>
+                                    <div class="progress-step-text">
+                                        <div class="progress-step-title">完成</div>
+                                        <div class="progress-step-desc" id="step4Desc">等待完成...</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="eligibleArea" style="display: none;">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0">合格人员列表 (<span id="eligibleCount">0</span> 人)</h6>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-outline-secondary btn-sm" id="downloadEligibleListBtn">
+                                        <i class="bi bi-download"></i> 下载名单
+                                    </button>
+                                    <button class="btn btn-primary btn-sm" id="batchGenerateBtn">
+                                        <i class="bi bi-gear"></i> 批量生成证书
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="select-all-bar">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="selectAll">
+                                    <label class="form-check-label" for="selectAll">
+                                        全选
+                                    </label>
+                                </div>
+                                <span class="text-muted small">已选择 <span id="selectedCount">0</span> 人</span>
+                            </div>
+                            
+                            <div class="eligible-list" id="eligibleList">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal fade certificate-detail-modal" id="certDetailModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-award"></i> 证书详情</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body certificate-detail-body" id="certDetailBody">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-primary" id="downloadCertBtn">
+                        <i class="bi bi-download"></i> 下载证书
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script src="js/common.js"></script>
+    <script>
+        $(function() {
+            if (!checkLogin()) return;
+            renderNavbar('certificate');
+            
+            loadCertificateList();
+            
+            $('#searchCertBtn').on('click', loadCertificateList);
+            $('#resetSearchBtn').on('click', function() {
+                $('#searchName').val('');
+                $('#searchIdCard').val('');
+                $('#searchCertNo').val('');
+                $('#searchProfession').val('');
+                loadCertificateList();
+            });
+            
+            $('#loadEligibleBtn').on('click', loadEligibleList);
+            
+            $('#generateExamPeriod').on('change', function() {
+                $('#eligibleArea').hide();
+                $('#generateProgressArea').hide();
+            });
+            
+            $('#selectAll').on('change', function() {
+                var isChecked = $(this).prop('checked');
+                $('#eligibleList .form-check-input').prop('checked', isChecked);
+                updateSelectedCount();
+            });
+            
+            $('#batchGenerateBtn').on('click', function() {
+                var selectedCount = parseInt($('#selectedCount').text());
+                if (selectedCount === 0) {
+                    showError('请选择要生成证书的人员');
+                    return;
+                }
+                confirmDialog('确定为选中的 ' + selectedCount + ' 人生成证书吗？', function() {
+                    startGenerateProcess(selectedCount);
+                });
+            });
+            
+            $('#downloadEligibleListBtn').on('click', function() {
+                showInfo('下载合格人员名单');
+            });
+            
+            $('#downloadCertBtn').on('click', function() {
+                showSuccess('证书下载中...');
+            });
+        });
+        
+        function loadCertificateList() {
+            var mockData = [
+                { id: 1, certNo: 'ZYJN2024060001', name: '张三', idCard: '110101199001011234', profession: '电工', level: '中级', issueDate: '2024-06-20', validUntil: '2030-06-19', status: 'valid' },
+                { id: 2, certNo: 'ZYJN2024060002', name: '李四', idCard: '110101199102022345', profession: '电工', level: '中级', issueDate: '2024-06-20', validUntil: '2030-06-19', status: 'valid' },
+                { id: 3, certNo: 'ZYJN2024060003', name: '王五', idCard: '110101199203033456', profession: '焊工', level: '高级', issueDate: '2024-06-20', validUntil: '2030-06-19', status: 'valid' },
+                { id: 4, certNo: 'ZYJN2024030001', name: '赵六', idCard: '110101199304044567', profession: '钳工', level: '高级', issueDate: '2024-03-25', validUntil: '2024-03-24', status: 'expired' },
+                { id: 5, certNo: 'ZYJN2024030002', name: '钱七', idCard: '110101199405055678', profession: '电工', level: '初级', issueDate: '2024-03-25', validUntil: '2030-03-24', status: 'revoked' }
+            ];
+            
+            renderCertificateTable(mockData);
+        }
+        
+        function renderCertificateTable(data) {
+            var $tbody = $('#certTableBody');
+            $tbody.empty();
+            
+            data.forEach(function(row, index) {
+                var statusMap = {
+                    valid: { class: 'badge-success', text: '有效' },
+                    expired: { class: 'badge-warning', text: '已过期' },
+                    revoked: { class: 'badge-danger', text: '已作废' }
+                };
+                var status = statusMap[row.status] || statusMap.valid;
+                
+                var html = '<tr>' +
+                    '<td>' + (index + 1) + '</td>' +
+                    '<td><div class="qrcode-thumbnail" id="qrcode-' + row.id + '"></div></td>' +
+                    '<td><span class="fw-bold text-primary">' + row.certNo + '</span></td>' +
+                    '<td>' + row.name + '</td>' +
+                    '<td>' + row.idCard + '</td>' +
+                    '<td>' + row.profession + '</td>' +
+                    '<td>' + row.level + '</td>' +
+                    '<td>' + row.issueDate + '</td>' +
+                    '<td>' + row.validUntil + '</td>' +
+                    '<td><span class="badge ' + status.class + '">' + status.text + '</span></td>' +
+                    '<td>' +
+                        '<button class="btn btn-sm btn-outline-primary me-1" onclick="viewCertDetail(' + row.id + ')">' +
+                            '<i class="bi bi-eye"></i> 详情' +
+                        '</button>' +
+                        '<button class="btn btn-sm btn-outline-secondary" onclick="downloadCert(' + row.id + ')">' +
+                            '<i class="bi bi-download"></i> 下载' +
+                        '</button>' +
+                    '</td>' +
+                '</tr>';
+                
+                $tbody.append(html);
+                
+                setTimeout(function() {
+                    generateQRCode('qrcode-' + row.id, 'https://verify.example.com/cert/' + row.certNo);
+                }, 100);
+            });
+            
+            renderPagination('#certPagination', 1, 10, 10);
+        }
+        
+        function generateQRCode(containerId, text) {
+            var canvas = document.createElement('canvas');
+            QRCode.toCanvas(canvas, text, {
+                width: 50,
+                margin: 1,
+                color: {
+                    dark: '#165DFF',
+                    light: '#ffffff'
+                }
+            }, function(error) {
+                if (!error) {
+                    document.getElementById(containerId).appendChild(canvas);
+                }
+            });
+        }
+        
+        function viewCertDetail(id) {
+            var mockCert = {
+                certNo: 'ZYJN2024060001',
+                name: '张三',
+                gender: '男',
+                idCard: '110101199001011234',
+                birthday: '1990年01月01日',
+                profession: '电工',
+                level: '中级（四级）',
+                theoryScore: 85,
+                practiceScore: 90,
+                finalScore: 88.0,
+                examPeriod: '2024年6月职业技能鉴定考试',
+                issueDate: '2024年06月20日',
+                validUntil: '2030年06月19日',
+                issuingAuthority: 'XX市职业技能鉴定中心',
+                certHash: '7F83B1657FF1FC53B92DC18148A1D65DFC2D4B1FA3D677284ADDD200176D9251'
+            };
+            
+            var html = '<div class="certificate-logo"><i class="bi bi-award"></i></div>' +
+                '<h3>职业技能等级证书</h3>' +
+                '<p class="text-muted mb-4">Certificate of Professional Skill Grade</p>' +
+                '<div class="row mb-4">' +
+                    '<div class="col-md-6">' +
+                        '<div class="info-row"><span class="info-label">证书编号：</span><span class="info-value">' + mockCert.certNo + '</span></div>' +
+                        '<div class="info-row"><span class="info-label">持证人：</span><span class="info-value">' + mockCert.name + '</span></div>' +
+                        '<div class="info-row"><span class="info-label">性别：</span><span class="info-value">' + mockCert.gender + '</span></div>' +
+                        '<div class="info-row"><span class="info-label">出生日期：</span><span class="info-value">' + mockCert.birthday + '</span></div>' +
+                        '<div class="info-row"><span class="info-label">身份证号：</span><span class="info-value">' + mockCert.idCard + '</span></div>' +
+                    '</div>' +
+                    '<div class="col-md-6">' +
+                        '<div class="info-row"><span class="info-label">工种：</span><span class="info-value">' + mockCert.profession + '</span></div>' +
+                        '<div class="info-row"><span class="info-label">等级：</span><span class="info-value">' + mockCert.level + '</span></div>' +
+                        '<div class="info-row"><span class="info-label">理论成绩：</span><span class="info-value">' + mockCert.theoryScore + ' 分</span></div>' +
+                        '<div class="info-row"><span class="info-label">实操成绩：</span><span class="info-value">' + mockCert.practiceScore + ' 分</span></div>' +
+                        '<div class="info-row"><span class="info-label">综合成绩：</span><span class="info-value text-success">' + mockCert.finalScore + ' 分</span></div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="info-row"><span class="info-label">考期：</span><span class="info-value">' + mockCert.examPeriod + '</span></div>' +
+                '<div class="info-row"><span class="info-label">发证日期：</span><span class="info-value">' + mockCert.issueDate + '</span></div>' +
+                '<div class="info-row"><span class="info-label">有效期至：</span><span class="info-value">' + mockCert.validUntil + '</span></div>' +
+                '<div class="info-row"><span class="info-label">发证机关：</span><span class="info-value">' + mockCert.issuingAuthority + '</span></div>' +
+                '<div class="security-features">' +
+                    '<h6><i class="bi bi-shield-lock"></i> 防伪特征</h6>' +
+                    '<ul>' +
+                        '<li>证书唯一编号，可在线验真</li>' +
+                        '<li>电子签名和时间戳保护</li>' +
+                        '<li>SHA-256 哈希校验：' + mockCert.certHash.substring(0, 32) + '...</li>' +
+                        '<li>二维码防伪验证</li>' +
+                    '</ul>' +
+                '</div>';
+            
+            $('#certDetailBody').html(html);
+            $('#certDetailModal').modal('show');
+        }
+        
+        function downloadCert(id) {
+            showSuccess('证书下载中...');
+        }
+        
+        function loadEligibleList() {
+            var examPeriod = $('#generateExamPeriod').val();
+            if (!examPeriod) {
+                showError('请选择考期');
+                return;
+            }
+            
+            var mockData = [
+                { id: 1, name: '张三', idCard: '110101199001011234', profession: '电工', level: '中级', theoryScore: 85, practiceScore: 90, finalScore: 88.0 },
+                { id: 2, name: '李四', idCard: '110101199102022345', profession: '电工', level: '中级', theoryScore: 72, practiceScore: 85, finalScore: 79.8 },
+                { id: 3, name: '王五', idCard: '110101199203033456', profession: '焊工', level: '高级', theoryScore: 95, practiceScore: 92, finalScore: 93.2 },
+                { id: 4, name: '孙八', idCard: '110101199506066789', profession: '电工', level: '中级', theoryScore: 78, practiceScore: 82, finalScore: 80.4 },
+                { id: 5, name: '周九', idCard: '110101199607077890', profession: '焊工', level: '中级', theoryScore: 91, practiceScore: 88, finalScore: 89.2 }
+            ];
+            
+            $('#eligibleCount').text(mockData.length);
+            renderEligibleList(mockData);
+            $('#eligibleArea').show();
+            $('#selectAll').prop('checked', false);
+            $('#selectedCount').text('0');
+        }
+        
+        function renderEligibleList(data) {
+            var $list = $('#eligibleList');
+            $list.empty();
+            
+            data.forEach(function(row) {
+                var html = '<div class="eligible-item">' +
+                    '<div class="form-check">' +
+                        '<input class="form-check-input eligible-checkbox" type="checkbox" value="' + row.id + '" id="check-' + row.id + '" onchange="updateSelectedCount()">' +
+                    '</div>' +
+                    '<div class="eligible-item-info">' +
+                        '<div class="eligible-item-name">' + row.name + '</div>' +
+                        '<div class="eligible-item-meta">' +
+                            row.idCard + ' | ' + row.profession + ' ' + row.level + ' | 综合 ' + row.finalScore + ' 分' +
+                        '</div>' +
+                    '</div>' +
+                    '<span class="badge badge-success">合格</span>' +
+                '</div>';
+                
+                $list.append(html);
+            });
+        }
+        
+        function updateSelectedCount() {
+            var count = $('#eligibleList .eligible-checkbox:checked').length;
+            $('#selectedCount').text(count);
+            
+            var total = $('#eligibleList .eligible-checkbox').length;
+            $('#selectAll').prop('checked', count > 0 && count === total);
+        }
+        
+        function startGenerateProcess(count) {
+            $('#generateProgressArea').show();
+            
+            var steps = ['step1', 'step2', 'step3', 'step4'];
+            var currentStep = 0;
+            
+            function runStep() {
+                if (currentStep > 0) {
+                    var prevStep = steps[currentStep - 1];
+                    $('#' + prevStep).removeClass('active').addClass('completed');
+                    $('#' + prevStep + ' .progress-step-icon').html('<i class="bi bi-check"></i>');
+                }
+                
+                if (currentStep >= steps.length) {
+                    showSuccess('成功生成 ' + count + ' 本证书');
+                    return;
+                }
+                
+                var step = steps[currentStep];
+                $('#' + step).removeClass('pending').addClass('active');
+                
+                var descMap = {
+                    step1: '正在准备 ' + count + ' 条证书数据...',
+                    step2: '正在生成电子证书图片...',
+                    step3: '正在生成防伪二维码...',
+                    step4: '已完成全部生成工作'
+                };
+                
+                $('#' + step + 'Desc').text(descMap[step]);
+                
+                currentStep++;
+                setTimeout(runStep, 1500);
+            }
+            
+            runStep();
+        }
+        
+        function renderPagination(container, currentPage, totalPages, pageSize) {
+            var $pagination = $(container);
+            $pagination.empty();
+            
+            var html = '';
+            html += '<li class="page-item ' + (currentPage === 1 ? 'disabled' : '') + '"><a class="page-link" href="#" onclick="return false;">上一页</a></li>';
+            
+            for (var i = 1; i <= Math.min(totalPages, 5); i++) {
+                html += '<li class="page-item ' + (currentPage === i ? 'active' : '') + '"><a class="page-link" href="#" onclick="return false;">' + i + '</a></li>';
+            }
+            
+            if (totalPages > 5) {
+                html += '<li class="page-item disabled"><a class="page-link" href="#" onclick="return false;">...</a></li>';
+                html += '<li class="page-item"><a class="page-link" href="#" onclick="return false;">' + totalPages + '</a></li>';
+            }
+            
+            html += '<li class="page-item ' + (currentPage === totalPages ? 'disabled' : '') + '"><a class="page-link" href="#" onclick="return false;">下一页</a></li>';
+            
+            $pagination.html(html);
+        }
+    </script>
+</body>
+</html>

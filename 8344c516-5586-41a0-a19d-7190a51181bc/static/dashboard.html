@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>首页 - 职业技能鉴定管理系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="style.css" rel="stylesheet">
+</head>
+<body>
+    <div class="main-content">
+        <div class="alert-container"></div>
+        
+        <h2 class="section-title fade-in">
+            <i class="bi bi-speedometer2"></i>
+            数据概览
+        </h2>
+        
+        <div class="row g-4 mb-4">
+            <div class="col-lg-3 col-md-6 fade-in">
+                <div class="card stat-card stat-card-1">
+                    <div class="card-body">
+                        <div class="stat-icon">
+                            <i class="bi bi-calendar-event-fill"></i>
+                        </div>
+                        <div class="stat-value" id="todayExamCount">0</div>
+                        <div class="stat-label">今日考试场次</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 fade-in" style="animation-delay: 0.1s">
+                <div class="card stat-card stat-card-2">
+                    <div class="card-body">
+                        <div class="stat-icon">
+                            <i class="bi bi-people-fill"></i>
+                        </div>
+                        <div class="stat-value" id="monthCandidateCount">0</div>
+                        <div class="stat-label">本月参考人数</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 fade-in" style="animation-delay: 0.2s">
+                <div class="card stat-card stat-card-3">
+                    <div class="card-body">
+                        <div class="stat-icon">
+                            <i class="bi bi-clock-history"></i>
+                        </div>
+                        <div class="stat-value" id="pendingExamCount">0</div>
+                        <div class="stat-label">待审批考期</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 fade-in" style="animation-delay: 0.3s">
+                <div class="card stat-card stat-card-4">
+                    <div class="card-body">
+                        <div class="stat-icon">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                        </div>
+                        <div class="stat-value" id="warningCount">0</div>
+                        <div class="stat-label">预警信息</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-7 fade-in" style="animation-delay: 0.4s">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <i class="bi bi-list-check"></i>
+                        待办提醒
+                    </div>
+                    <div class="card-body">
+                        <ul class="todo-list">
+                            <li class="todo-item" onclick="location.href='exam-list.html?status=pending'">
+                                <div class="todo-icon todo-icon-blue">
+                                    <i class="bi bi-calendar-event"></i>
+                                </div>
+                                <div class="todo-content">
+                                    <div class="todo-title">待审批考期</div>
+                                    <p class="todo-desc">有 <span id="todoPendingExams">0</span> 个考期等待审批</p>
+                                </div>
+                                <span class="badge badge-primary todo-badge" id="badgePendingExams">待处理</span>
+                            </li>
+                            <li class="todo-item" onclick="location.href='score-list.html?status=review'">
+                                <div class="todo-icon todo-icon-green">
+                                    <i class="bi bi-file-earmark-check"></i>
+                                </div>
+                                <div class="todo-content">
+                                    <div class="todo-title">待复核成绩</div>
+                                    <p class="todo-desc">有 <span id="todoReviewScores">0</span> 条成绩等待复核</p>
+                                </div>
+                                <span class="badge badge-success todo-badge">待复核</span>
+                            </li>
+                            <li class="todo-item" onclick="location.href='examiner-list.html?tab=expiring'">
+                                <div class="todo-icon todo-icon-orange">
+                                    <i class="bi bi-person-badge"></i>
+                                </div>
+                                <div class="todo-content">
+                                    <div class="todo-title">即将过期考评员</div>
+                                    <p class="todo-desc">有 <span id="todoExpiringExaminers">0</span> 名考评员资质即将到期</p>
+                                </div>
+                                <span class="badge badge-warning todo-badge">即将到期</span>
+                            </li>
+                            <li class="todo-item" onclick="location.href='certificate-list.html?status=pending'">
+                                <div class="todo-icon todo-icon-red">
+                                    <i class="bi bi-award"></i>
+                                </div>
+                                <div class="todo-content">
+                                    <div class="todo-title">待发证书</div>
+                                    <p class="todo-desc">有 <span id="todoPendingCertificates">0</span> 本证书等待生成</p>
+                                </div>
+                                <span class="badge badge-danger todo-badge">待生成</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-5 fade-in" style="animation-delay: 0.5s">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <i class="bi bi-lightning"></i>
+                        快捷入口
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <a href="exam-create.html" class="quick-btn">
+                                    <i class="bi bi-calendar-plus"></i>
+                                    <span>快速申报考期</span>
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <a href="score-list.html?action=import" class="quick-btn">
+                                    <i class="bi bi-cloud-upload"></i>
+                                    <span>批量导入成绩</span>
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <a href="certificate-list.html?action=generate" class="quick-btn">
+                                    <i class="bi bi-file-earmark-spreadsheet"></i>
+                                    <span>生成证书</span>
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <a href="statistics.html?action=export" class="quick-btn">
+                                    <i class="bi bi-download"></i>
+                                    <span>导出报表</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mt-4">
+            <div class="col-lg-6 fade-in" style="animation-delay: 0.6s">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-graph-up"></i>
+                        月度考试趋势
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="monthlyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6 fade-in" style="animation-delay: 0.7s">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-bell"></i>
+                        预警消息
+                    </div>
+                    <div class="card-body" id="warningList">
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-check-circle display-4 text-success"></i>
+                            <p class="mt-2">暂无预警信息</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="common.js"></script>
+    <script>
+        $(function() {
+            if (!checkLogin()) return;
+            renderNavbar();
+            loadStatistics();
+            initChart();
+        });
+
+        function loadStatistics() {
+            apiRequest('/statistics/overview', 'GET')
+                .then(function(data) {
+                    $('#todayExamCount').text(data.todayExamCount || 0);
+                    $('#monthCandidateCount').text(data.monthCandidateCount || 0);
+                    $('#pendingExamCount').text(data.pendingExamCount || 0);
+                    $('#warningCount').text(data.warnings ? data.warnings.length : 0);
+                    $('#todoPendingExams').text(data.pendingExamCount || 0);
+                    $('#badgePendingExams').text(data.pendingExamCount || 0 + '个待处理');
+
+                    if (data.warnings && data.warnings.length > 0) {
+                        renderWarnings(data.warnings);
+                    }
+
+                    let expiringCount = 0;
+                    data.warnings.forEach(function(w) {
+                        if (w.type === 'qualification') {
+                            expiringCount++;
+                        }
+                    });
+                    $('#todoExpiringExaminers').text(expiringCount);
+                })
+                .catch(function(error) {
+                    console.error('加载统计数据失败:', error);
+                });
+        }
+
+        function renderWarnings(warnings) {
+            if (!warnings || warnings.length === 0) return;
+
+            const container = $('#warningList');
+            container.empty();
+
+            warnings.slice(0, 5).forEach(function(warning) {
+                const levelClass = warning.level === 'danger' ? 'todo-icon-red' : 'todo-icon-orange';
+                const iconClass = warning.type === 'qualification' ? 'bi-person-badge' : 'bi-exclamation-triangle';
+                
+                const html = `
+                    <div class="todo-item">
+                        <div class="todo-icon ${levelClass}">
+                            <i class="bi ${iconClass}"></i>
+                        </div>
+                        <div class="todo-content">
+                            <div class="todo-title">${warning.message}</div>
+                            <p class="todo-desc">${formatDate(warning.date)}</p>
+                        </div>
+                    </div>
+                `;
+                container.append(html);
+            });
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('monthlyChart').getContext('2d');
+            
+            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.4)');
+            gradient.addColorStop(1, 'rgba(59, 130, 246, 0.05)');
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['1月', '2月', '3月', '4月', '5月', '6月'],
+                    datasets: [{
+                        label: '考试场次',
+                        data: [12, 19, 15, 25, 22, 30],
+                        borderColor: '#3b82f6',
+                        backgroundColor: gradient,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#3b82f6',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }, {
+                        label: '参考人数',
+                        data: [150, 230, 180, 320, 280, 380],
+                        borderColor: '#10b981',
+                        backgroundColor: 'transparent',
+                        borderDash: [5, 5],
+                        tension: 0.4,
+                        pointBackgroundColor: '#10b981',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                            display: false
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

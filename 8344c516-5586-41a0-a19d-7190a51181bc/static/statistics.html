@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>统计看板 - 职业技能鉴定管理系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+    <div id="navbar-container"></div>
+
+    <div class="main-content">
+        <div class="alert-container"></div>
+
+        <div class="page-header fade-in">
+            <h2 class="page-title">
+                <i class="bi bi-bar-chart-line"></i> 统计看板
+            </h2>
+            <p class="page-subtitle">全面掌握鉴定工作数据，助力科学决策</p>
+        </div>
+
+        <div class="card fade-in" style="animation-delay: 0.1s">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-funnel"></i> 筛选条件
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">时间范围</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="timeRange" id="timeMonth" value="month" checked>
+                            <label class="btn btn-outline-primary" for="timeMonth">月度</label>
+                            <input type="radio" class="btn-check" name="timeRange" id="timeQuarter" value="quarter">
+                            <label class="btn btn-outline-primary" for="timeQuarter">季度</label>
+                            <input type="radio" class="btn-check" name="timeRange" id="timeYear" value="year">
+                            <label class="btn btn-outline-primary" for="timeYear">年度</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">工种</label>
+                        <select class="form-select" id="tradeFilter" multiple size="1">
+                            <option value="">全部工种</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">机构</label>
+                        <select class="form-select" id="orgFilter" multiple size="1">
+                            <option value="">全部机构</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1 d-flex align-items-end">
+                        <button class="btn btn-primary w-100" id="searchBtn">
+                            <i class="bi bi-search"></i> 查询
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-4">
+            <div class="col-lg-3 col-md-6 fade-in" style="animation-delay: 0.2s">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="stat-label">参考率</div>
+                                <div class="stat-value" id="attendanceRate">0%</div>
+                                <div class="stat-trend" id="attendanceTrend">
+                                    <i class="bi bi-arrow-up"></i> <span>0%</span>
+                                </div>
+                            </div>
+                            <div class="stat-icon stat-icon-blue">
+                                <i class="bi bi-people-fill"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 fade-in" style="animation-delay: 0.3s">
+                <div class="card stat-card success">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="stat-label">通过率</div>
+                                <div class="stat-value" id="passRate">0%</div>
+                                <div class="stat-trend" id="passTrend">
+                                    <i class="bi bi-arrow-up"></i> <span>0%</span>
+                                </div>
+                            </div>
+                            <div class="stat-icon stat-icon-green">
+                                <i class="bi bi-check-circle-fill"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 fade-in" style="animation-delay: 0.4s">
+                <div class="card stat-card warning">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="stat-label">考场利用率</div>
+                                <div class="stat-value" id="roomUtilRate">0%</div>
+                                <div class="stat-trend" id="roomUtilTrend">
+                                    <i class="bi bi-arrow-down"></i> <span>0%</span>
+                                </div>
+                            </div>
+                            <div class="stat-icon stat-icon-orange">
+                                <i class="bi bi-building-fill"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 fade-in" style="animation-delay: 0.5s">
+                <div class="card stat-card danger">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="stat-label">考评员工作量</div>
+                                <div class="stat-value" id="examinerWorkload">0</div>
+                                <div class="stat-trend" id="workloadTrend">
+                                    <i class="bi bi-arrow-up"></i> <span>0%</span>
+                                </div>
+                            </div>
+                            <div class="stat-icon stat-icon-red">
+                                <i class="bi bi-person-badge-fill"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-4">
+            <div class="col-lg-8 fade-in" style="animation-delay: 0.6s">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-graph-up"></i> 月度趋势图
+                        </h5>
+                        <div class="action-buttons">
+                            <button class="btn btn-sm btn-outline-primary" id="refreshTrendBtn">
+                                <i class="bi bi-arrow-clockwise"></i> 刷新
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container" style="height: 350px;">
+                            <canvas id="trendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 fade-in" style="animation-delay: 0.7s">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-pie-chart-fill"></i> 工种分布图
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container" style="height: 350px;">
+                            <canvas id="tradeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-4">
+            <div class="col-lg-6 fade-in" style="animation-delay: 0.8s">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-bar-chart-fill"></i> 机构通过率对比
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container" style="height: 350px;">
+                            <canvas id="orgChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6 fade-in" style="animation-delay: 0.9s">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-calendar3"></i> 考场利用率
+                        </h5>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-primary active" data-view="bar">柱状图</button>
+                            <button class="btn btn-sm btn-outline-primary" data-view="heatmap">热力图</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container" style="height: 350px;">
+                            <canvas id="roomChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card fade-in" style="animation-delay: 1s">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-table"></i> 详细统计数据
+                </h5>
+                <div class="action-buttons">
+                    <button class="btn btn-success" id="exportBtn">
+                        <i class="bi bi-file-earmark-excel-fill"></i> 导出Excel报表
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="statsTable">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>工种</th>
+                                <th>机构</th>
+                                <th>计划人数</th>
+                                <th>参考人数</th>
+                                <th>通过人数</th>
+                                <th>参考率</th>
+                                <th>通过率</th>
+                                <th>考场利用率</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-4">
+                                    <div class="loading-spinner mx-auto mb-2" style="width: 30px; height: 30px;"></div>
+                                    数据加载中...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <nav>
+                    <ul class="pagination" id="pagination"></ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="js/common.js"></script>
+    <script src="js/statistics.js"></script>
+</body>
+</html>

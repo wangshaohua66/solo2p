@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>证书验真 - 职业技能鉴定管理系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <style>
+        .verify-container {
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1rem;
+        }
+        
+        .verify-card {
+            background: var(--bg-white);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            padding: 2.5rem;
+            width: 100%;
+            max-width: 520px;
+            animation: slideUp 0.5s ease;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .verify-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .verify-logo {
+            width: 72px;
+            height: 72px;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            color: white;
+            font-size: 2rem;
+            box-shadow: var(--shadow-md);
+        }
+        
+        .verify-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+        
+        .verify-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.9375rem;
+        }
+        
+        .verify-tabs {
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: 1.5rem;
+        }
+        
+        .verify-tabs .nav-link {
+            border: none;
+            color: var(--text-secondary);
+            font-weight: 500;
+            padding: 0.875rem 1.5rem;
+            margin-bottom: -2px;
+            border-radius: 0;
+        }
+        
+        .verify-tabs .nav-link:hover {
+            color: var(--primary-color);
+            background: transparent;
+        }
+        
+        .verify-tabs .nav-link.active {
+            color: var(--primary-color);
+            background: transparent;
+            border-bottom: 2px solid var(--primary-color);
+        }
+        
+        .verify-input-group {
+            position: relative;
+        }
+        
+        .verify-input-group .form-control {
+            padding-left: 3rem;
+            padding-right: 6rem;
+            height: 56px;
+            font-size: 1rem;
+            border-radius: var(--radius-md);
+        }
+        
+        .verify-input-group .input-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            font-size: 1.25rem;
+        }
+        
+        .verify-input-group .scan-btn {
+            position: absolute;
+            right: 0.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            height: calc(100% - 8px);
+            padding: 0 1rem;
+            border-radius: calc(var(--radius-md) - 4px);
+        }
+        
+        .verify-btn {
+            height: 56px;
+            font-size: 1.125rem;
+            font-weight: 600;
+            border-radius: var(--radius-md);
+        }
+        
+        .result-card {
+            background: var(--bg-white);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            margin-top: 1.5rem;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        .result-header {
+            padding: 1.5rem;
+            text-align: center;
+            color: white;
+        }
+        
+        .result-header.valid {
+            background: linear-gradient(135deg, var(--success-color) 0%, #059669 100%);
+        }
+        
+        .result-header.expired {
+            background: linear-gradient(135deg, var(--warning-color) 0%, #D97706 100%);
+        }
+        
+        .result-header.revoked {
+            background: linear-gradient(135deg, var(--danger-color) 0%, #DC2626 100%);
+        }
+        
+        .result-header .result-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .result-header .result-status {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+        
+        .result-header .result-desc {
+            font-size: 0.9375rem;
+            opacity: 0.9;
+        }
+        
+        .result-body {
+            padding: 1.5rem;
+        }
+        
+        .result-info {
+            display: flex;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .result-info:last-child {
+            border-bottom: none;
+        }
+        
+        .result-info-label {
+            width: 120px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            flex-shrink: 0;
+        }
+        
+        .result-info-value {
+            flex: 1;
+            color: var(--text-primary);
+            font-weight: 600;
+            word-break: break-all;
+        }
+        
+        .security-section {
+            background: var(--bg-light);
+            border-radius: var(--radius-md);
+            padding: 1rem 1.25rem;
+            margin-top: 1.5rem;
+        }
+        
+        .security-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+        
+        .security-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .security-list li {
+            padding: 0.375rem 0;
+            padding-left: 1.25rem;
+            position: relative;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+        
+        .security-list li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: var(--success-color);
+            font-weight: 700;
+        }
+        
+        .hash-display {
+            background: var(--bg-light);
+            border-radius: var(--radius-sm);
+            padding: 0.5rem 0.75rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            word-break: break-all;
+            line-height: 1.4;
+        }
+        
+        .back-btn {
+            margin-top: 1.5rem;
+        }
+        
+        .footer-info {
+            text-align: center;
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+        
+        .footer-info a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+        
+        .footer-info a:hover {
+            text-decoration: underline;
+        }
+        
+        .scanner-area {
+            background: var(--bg-light);
+            border: 2px dashed var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 3rem 2rem;
+            text-align: center;
+            transition: all var(--transition-base);
+        }
+        
+        .scanner-area:hover {
+            border-color: var(--primary-color);
+            background: var(--primary-light);
+        }
+        
+        .scanner-icon {
+            font-size: 3rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            transition: all var(--transition-base);
+        }
+        
+        .scanner-area:hover .scanner-icon {
+            color: var(--primary-color);
+        }
+        
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.375rem 0.875rem;
+            border-radius: var(--radius-sm);
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+        
+        .status-badge.valid {
+            background: #D1FAE5;
+            color: var(--success-color);
+        }
+        
+        .status-badge.expired {
+            background: #FEF3C7;
+            color: var(--warning-color);
+        }
+        
+        .status-badge.revoked {
+            background: var(--danger-light);
+            color: var(--danger-color);
+        }
+        
+        @media (max-width: 576px) {
+            .verify-card {
+                padding: 1.5rem;
+            }
+            
+            .verify-title {
+                font-size: 1.25rem;
+            }
+            
+            .result-info {
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+            
+            .result-info-label {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="verify-container">
+        <div class="verify-card">
+            <div class="verify-header">
+                <div class="verify-logo">
+                    <i class="bi bi-shield-check"></i>
+                </div>
+                <h1 class="verify-title">证书验真</h1>
+                <p class="verify-subtitle">职业技能等级证书在线验证</p>
+            </div>
+            
+            <div id="verifyFormArea">
+                <ul class="nav nav-tabs verify-tabs" id="verifyTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="code-tab" data-bs-toggle="tab" data-bs-target="#code-pane" type="button" role="tab">
+                            <i class="bi bi-keyboard"></i> 输入验证码
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="scan-tab" data-bs-toggle="tab" data-bs-target="#scan-pane" type="button" role="tab">
+                            <i class="bi bi-qr-code-scan"></i> 扫码验真
+                        </button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content" id="verifyTabsContent">
+                    <div class="tab-pane fade show active" id="code-pane" role="tabpanel">
+                        <form id="verifyForm">
+                            <div class="form-group">
+                                <label class="form-label">证书编号或验证码 <span class="text-danger">*</span></label>
+                                <div class="verify-input-group">
+                                    <i class="bi bi-credit-card-2-front input-icon"></i>
+                                    <input type="text" class="form-control" id="verifyCode" placeholder="请输入证书编号或验证码" required>
+                                    <button type="button" class="btn btn-outline-primary scan-btn" id="switchToScanBtn">
+                                        <i class="bi bi-qr-code"></i> 扫码
+                                    </button>
+                                </div>
+                                <div class="form-text">请输入证书上的16位证书编号或12位验证码</div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">持证人身份证号 <span class="text-danger">*</span></label>
+                                <div class="verify-input-group">
+                                    <i class="bi bi-person-vcard input-icon"></i>
+                                    <input type="text" class="form-control" id="verifyIdCard" placeholder="请输入持证人身份证号后6位" maxlength="6" required>
+                                </div>
+                                <div class="form-text">为保护隐私，仅需输入身份证号后6位</div>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary w-100 verify-btn">
+                                <i class="bi bi-search"></i> 立即验真
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <div class="tab-pane fade" id="scan-pane" role="tabpanel">
+                        <div class="scanner-area" id="scannerArea">
+                            <i class="bi bi-qr-code-scan scanner-icon"></i>
+                            <h5 class="mb-2">扫描证书二维码</h5>
+                            <p class="text-muted mb-0">使用手机摄像头扫描证书上的二维码</p>
+                            <p class="text-muted small mt-2">或点击下方按钮手动选择二维码图片</p>
+                            <input type="file" id="qrFileInput" accept="image/*" style="display: none;">
+                            <button type="button" class="btn btn-outline-primary mt-3" id="selectQrBtn">
+                                <i class="bi bi-image"></i> 选择二维码图片
+                            </button>
+                        </div>
+                        
+                        <div class="mt-3 text-center">
+                            <button type="button" class="btn btn-link text-decoration-none" id="switchToCodeBtn">
+                                <i class="bi bi-arrow-left"></i> 返回手动输入
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="footer-info">
+                    <p class="mb-1">
+                        <i class="bi bi-info-circle"></i> 
+                        如遇验真问题，请联系：
+                        <a href="tel:400-123-4567">400-123-4567</a>
+                    </p>
+                    <p class="mb-0">
+                        © 2024 职业技能鉴定管理系统
+                    </p>
+                </div>
+            </div>
+            
+            <div id="verifyResultArea" style="display: none;">
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        $(function() {
+            $('#verifyForm').on('submit', function(e) {
+                e.preventDefault();
+                
+                var verifyCode = $('#verifyCode').val().trim();
+                var idCard = $('#verifyIdCard').val().trim();
+                
+                if (!verifyCode) {
+                    showError('请输入证书编号或验证码');
+                    return;
+                }
+                if (!idCard || idCard.length !== 6) {
+                    showError('请输入正确的身份证号后6位');
+                    return;
+                }
+                
+                var mockResults = {
+                    'ZYJN2024060001': {
+                        status: 'valid',
+                        statusText: '有效',
+                        statusDesc: '该证书真实有效，处于有效期内',
+                        certNo: 'ZYJN2024060001',
+                        name: '张三',
+                        gender: '男',
+                        idCard: '110101199001011234',
+                        profession: '电工',
+                        level: '中级（四级）',
+                        issueDate: '2024年06月20日',
+                        validUntil: '2030年06月19日',
+                        issuingAuthority: 'XX市职业技能鉴定中心',
+                        certHash: '7F83B1657FF1FC53B92DC18148A1D65DFC2D4B1FA3D677284ADDD200176D9251',
+                        issueTime: '2024-06-20 09:30:00',
+                        verifyCount: 3
+                    },
+                    'ZYJN2024030001': {
+                        status: 'expired',
+                        statusText: '已过期',
+                        statusDesc: '该证书已超过有效期',
+                        certNo: 'ZYJN2024030001',
+                        name: '赵六',
+                        gender: '男',
+                        idCard: '110101199304044567',
+                        profession: '钳工',
+                        level: '高级（三级）',
+                        issueDate: '2024年03月25日',
+                        validUntil: '2024年03月24日',
+                        issuingAuthority: 'XX市职业技能鉴定中心',
+                        certHash: 'A1B2C3D4E5F678901234567890ABCDEF1234567890ABCDEF1234567890ABCDEF',
+                        issueTime: '2024-03-25 14:30:00',
+                        verifyCount: 12
+                    },
+                    'ZYJN2024030002': {
+                        status: 'revoked',
+                        statusText: '已作废',
+                        statusDesc: '该证书已被作废，不再具有法律效力',
+                        certNo: 'ZYJN2024030002',
+                        name: '钱七',
+                        gender: '男',
+                        idCard: '110101199405055678',
+                        profession: '电工',
+                        level: '初级（五级）',
+                        issueDate: '2024年03月25日',
+                        validUntil: '2030年03月24日',
+                        issuingAuthority: 'XX市职业技能鉴定中心',
+                        certHash: 'FEDCBA0987654321FEDCBA0987654321FEDCBA0987654321FEDCBA0987654321',
+                        issueTime: '2024-03-25 14:35:00',
+                        verifyCount: 5,
+                        revokeReason: '经查实，考试过程存在作弊行为',
+                        revokeDate: '2024年05月10日'
+                    }
+                };
+                
+                var result = mockResults[verifyCode.toUpperCase()];
+                
+                if (!result) {
+                    showError('未找到对应的证书信息，请核实后重试');
+                    return;
+                }
+                
+                var idCardLast6 = result.idCard.slice(-6);
+                if (idCard !== idCardLast6) {
+                    showError('身份证号后6位不匹配，请核实');
+                    return;
+                }
+                
+                renderVerifyResult(result);
+            });
+            
+            $('#switchToScanBtn').on('click', function() {
+                var tab = new bootstrap.Tab($('#scan-tab'));
+                tab.show();
+            });
+            
+            $('#switchToCodeBtn').on('click', function() {
+                var tab = new bootstrap.Tab($('#code-tab'));
+                tab.show();
+            });
+            
+            $('#selectQrBtn').on('click', function() {
+                $('#qrFileInput').click();
+            });
+            
+            $('#qrFileInput').on('change', function(e) {
+                var file = e.target.files[0];
+                if (file) {
+                    showInfo('二维码识别功能开发中，请手动输入证书编号');
+                    var tab = new bootstrap.Tab($('#code-tab'));
+                    tab.show();
+                }
+            });
+        });
+        
+        function renderVerifyResult(result) {
+            var statusClass = result.status;
+            var statusIconMap = {
+                valid: 'bi-check-circle-fill',
+                expired: 'bi-exclamation-triangle-fill',
+                revoked: 'bi-x-circle-fill'
+            };
+            
+            var revokeSection = '';
+            if (result.status === 'revoked' && result.revokeReason) {
+                revokeSection = '<div class="result-info">' +
+                    '<div class="result-info-label">作废原因</div>' +
+                    '<div class="result-info-value text-danger">' + result.revokeReason + '</div>' +
+                '</div>' +
+                '<div class="result-info">' +
+                    '<div class="result-info-label">作废日期</div>' +
+                    '<div class="result-info-value text-danger">' + result.revokeDate + '</div>' +
+                '</div>';
+            }
+            
+            var html = '<div class="result-card">' +
+                '<div class="result-header ' + statusClass + '">' +
+                    '<div class="result-icon"><i class="bi ' + statusIconMap[result.status] + '"></i></div>' +
+                    '<div class="result-status">' + result.statusText + '</div>' +
+                    '<div class="result-desc">' + result.statusDesc + '</div>' +
+                '</div>' +
+                '<div class="result-body">' +
+                    '<div class="result-info">' +
+                        '<div class="result-info-label">证书编号</div>' +
+                        '<div class="result-info-value text-primary">' + result.certNo + '</div>' +
+                    '</div>' +
+                    '<div class="result-info">' +
+                        '<div class="result-info-label">持证人</div>' +
+                        '<div class="result-info-value">' + result.name + '（' + result.gender + '）</div>' +
+                    '</div>' +
+                    '<div class="result-info">' +
+                        '<div class="result-info-label">身份证号</div>' +
+                        '<div class="result-info-value">' + maskIdCard(result.idCard) + '</div>' +
+                    '</div>' +
+                    '<div class="result-info">' +
+                        '<div class="result-info-label">工种</div>' +
+                        '<div class="result-info-value">' + result.profession + '</div>' +
+                    '</div>' +
+                    '<div class="result-info">' +
+                        '<div class="result-info-label">等级</div>' +
+                        '<div class="result-info-value">' + result.level + '</div>' +
+                    '</div>' +
+                    '<div class="result-info">' +
+                        '<div class="result-info-label">证书状态</div>' +
+                        '<div class="result-info-value">' +
+                            '<span class="status-badge ' + statusClass + '">' +
+                                '<i class="bi ' + statusIconMap[result.status] + '"></i> ' + result.statusText +
+                            '</span>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="result-info">' +
+                        '<div class="result-info-label">发证日期</div>' +
+                        '<div class="result-info-value">' + result.issueDate + '</div>' +
+                    '</div>' +
+                    '<div class="result-info">' +
+                        '<div class="result-info-label">有效期至</div>' +
+                        '<div class="result-info-value">' + result.validUntil + '</div>' +
+                    '</div>' +
+                    '<div class="result-info">' +
+                        '<div class="result-info-label">发证机关</div>' +
+                        '<div class="result-info-value">' + result.issuingAuthority + '</div>' +
+                    '</div>' +
+                    revokeSection +
+                    '<div class="security-section">' +
+                        '<div class="security-title">' +
+                            '<i class="bi bi-shield-lock"></i> 防伪验证信息' +
+                        '</div>' +
+                        '<ul class="security-list">' +
+                            '<li>证书唯一编号，可在线验真</li>' +
+                            '<li>发证时间：' + result.issueTime + '</li>' +
+                            '<li>累计验真次数：' + result.verifyCount + ' 次</li>' +
+                            '<li>本次验真时间：' + getCurrentTime() + '</li>' +
+                        '</ul>' +
+                        '<div class="mt-3">' +
+                            '<div class="form-label small text-muted mb-1">数字指纹（SHA-256）</div>' +
+                            '<div class="hash-display">' + result.certHash + '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+            '<button type="button" class="btn btn-outline-primary w-100 back-btn" id="backToVerifyBtn">' +
+                '<i class="bi bi-arrow-left"></i> 继续验真' +
+            '</button>';
+            
+            $('#verifyResultArea').html(html);
+            $('#verifyFormArea').hide();
+            $('#verifyResultArea').show();
+            
+            $('#backToVerifyBtn').on('click', function() {
+                $('#verifyForm')[0].reset();
+                $('#verifyResultArea').hide();
+                $('#verifyFormArea').show();
+            });
+        }
+        
+        function maskIdCard(idCard) {
+            if (!idCard || idCard.length < 8) return idCard;
+            return idCard.substring(0, 6) + '********' + idCard.substring(14);
+        }
+        
+        function getCurrentTime() {
+            var now = new Date();
+            var year = now.getFullYear();
+            var month = String(now.getMonth() + 1).padStart(2, '0');
+            var day = String(now.getDate()).padStart(2, '0');
+            var hours = String(now.getHours()).padStart(2, '0');
+            var minutes = String(now.getMinutes()).padStart(2, '0');
+            var seconds = String(now.getSeconds()).padStart(2, '0');
+            return year + '-' + month + '-' + day + ' ' + hours + ':' + minutes + ':' + seconds;
+        }
+        
+        function showError(message) {
+            var $alert = $('<div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">' +
+                '<i class="bi bi-exclamation-circle me-2"></i>' + message +
+                '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+            '</div>');
+            
+            $('#verifyForm .form-group:last').after($alert);
+            
+            setTimeout(function() {
+                $alert.alert('close');
+            }, 5000);
+        }
+        
+        function showInfo(message) {
+            var $alert = $('<div class="alert alert-info alert-dismissible fade show mt-3" role="alert">' +
+                '<i class="bi bi-info-circle me-2"></i>' + message +
+                '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+            '</div>');
+            
+            $('#verifyForm .form-group:last').after($alert);
+            
+            setTimeout(function() {
+                $alert.alert('close');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

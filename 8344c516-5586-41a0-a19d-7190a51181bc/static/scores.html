@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>成绩管理 - 职业技能鉴定管理系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <style>
+        .upload-zone {
+            border: 2px dashed var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 3rem 2rem;
+            text-align: center;
+            transition: all var(--transition-base);
+            cursor: pointer;
+            background: var(--bg-white);
+        }
+        
+        .upload-zone:hover,
+        .upload-zone.dragover {
+            border-color: var(--primary-color);
+            background: var(--primary-light);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .upload-zone .upload-icon {
+            font-size: 3rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            transition: all var(--transition-base);
+        }
+        
+        .upload-zone:hover .upload-icon,
+        .upload-zone.dragover .upload-icon {
+            color: var(--primary-color);
+        }
+        
+        .progress {
+            height: 8px;
+            border-radius: var(--radius-sm);
+        }
+        
+        .progress-bar {
+            background: var(--primary-color);
+            border-radius: var(--radius-sm);
+            transition: width 0.3s ease;
+        }
+        
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .stat-item {
+            background: var(--bg-white);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+        
+        .stat-item .stat-num {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+        
+        .stat-item.total .stat-num { color: var(--primary-color); }
+        .stat-item.success .stat-num { color: var(--success-color); }
+        .stat-item.failed .stat-num { color: var(--danger-color); }
+        
+        .stat-item .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+        
+        .filter-bar {
+            background: var(--bg-white);
+            border-radius: var(--radius-md);
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+        
+        .error-message {
+            background: var(--danger-light);
+            border: 1px solid var(--danger-color);
+            border-radius: var(--radius-md);
+            padding: 0.75rem 1rem;
+            margin-top: 0.5rem;
+            color: var(--danger-color);
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .nav-tabs {
+            border-bottom: 2px solid var(--border-color);
+        }
+        
+        .nav-tabs .nav-link {
+            border: none;
+            color: var(--text-secondary);
+            font-weight: 500;
+            padding: 1rem 1.5rem;
+            margin-bottom: -2px;
+            border-radius: 0;
+            position: relative;
+        }
+        
+        .nav-tabs .nav-link:hover {
+            color: var(--primary-color);
+            background: transparent;
+        }
+        
+        .nav-tabs .nav-link.active {
+            color: var(--primary-color);
+            background: transparent;
+            border-bottom: 2px solid var(--primary-color);
+        }
+        
+        .nav-tabs .nav-link.active::after {
+            display: none;
+        }
+        
+        .tab-content {
+            padding-top: 1.5rem;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: var(--radius-md);
+        }
+        
+        .table-container::-webkit-scrollbar {
+            height: 8px;
+        }
+        
+        .table-container::-webkit-scrollbar-track {
+            background: var(--bg-light);
+            border-radius: 4px;
+        }
+        
+        .table-container::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+        
+        .table-container::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+        
+        .edit-cell {
+            cursor: pointer;
+            transition: all var(--transition-base);
+        }
+        
+        .edit-cell:hover {
+            background: var(--primary-light);
+        }
+        
+        .edit-input {
+            width: 100%;
+            padding: 0.375rem 0.5rem;
+            border: 1px solid var(--primary-color);
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+        }
+        
+        .publish-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <div id="navbar-container"></div>
+    
+    <div class="main-content">
+        <div class="page-header">
+            <h1 class="page-title"><i class="bi bi-file-earmark-check"></i> 成绩管理</h1>
+            <p class="page-subtitle">成绩录入、复核与公示管理</p>
+        </div>
+        
+        <div class="card">
+            <div class="card-body p-0">
+                <ul class="nav nav-tabs px-4" id="scoreTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="input-tab" data-bs-toggle="tab" data-bs-target="#input-pane" type="button" role="tab">
+                            <i class="bi bi-cloud-upload"></i> 成绩录入
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="review-tab" data-bs-toggle="tab" data-bs-target="#review-pane" type="button" role="tab">
+                            <i class="bi bi-check2-square"></i> 成绩复核
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="public-tab" data-bs-toggle="tab" data-bs-target="#public-pane" type="button" role="tab">
+                            <i class="bi bi-megaphone"></i> 成绩公示
+                        </button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content p-4" id="scoreTabsContent">
+                    <div class="tab-pane fade show active" id="input-pane" role="tabpanel">
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-4">
+                                <label class="form-label">选择考期 <span class="text-danger">*</span></label>
+                                <select class="form-select" id="examPeriod">
+                                    <option value="">请选择考期</option>
+                                    <option value="202406">2024年6月职业技能鉴定考试</option>
+                                    <option value="202403">2024年3月职业技能鉴定考试</option>
+                                    <option value="202312">2023年12月职业技能鉴定考试</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="upload-zone" id="uploadZone">
+                            <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
+                            <i class="bi bi-cloud-upload upload-icon"></i>
+                            <h5 class="mb-2">拖拽Excel文件到此处上传</h5>
+                            <p class="text-muted mb-0">或点击选择文件，支持 .xlsx 和 .xls 格式</p>
+                            <p class="text-muted small mt-2"><i class="bi bi-info-circle"></i> 请确保Excel包含：姓名、身份证号、准考证号、理论成绩、实操成绩</p>
+                        </div>
+                        
+                        <div class="mt-3" id="progressArea" style="display: none;">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>上传进度</span>
+                                <span id="progressText">0%</span>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        
+                        <div id="resultArea" style="display: none;">
+                            <div class="stats-row mt-4">
+                                <div class="stat-item total">
+                                    <div class="stat-num" id="totalCount">0</div>
+                                    <div class="stat-label">总条数</div>
+                                </div>
+                                <div class="stat-item success">
+                                    <div class="stat-num" id="successCount">0</div>
+                                    <div class="stat-label">校验通过</div>
+                                </div>
+                                <div class="stat-item failed">
+                                    <div class="stat-num" id="failedCount">0</div>
+                                    <div class="stat-label">校验失败</div>
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex gap-2 mb-3">
+                                <button class="btn btn-primary" id="submitScoresBtn">
+                                    <i class="bi bi-check-circle"></i> 提交校验通过的数据
+                                </button>
+                                <button class="btn btn-outline-secondary" id="clearBtn">
+                                    <i class="bi bi-x-circle"></i> 清空重新上传
+                                </button>
+                                <button class="btn btn-outline-primary" id="downloadTemplateBtn">
+                                    <i class="bi bi-download"></i> 下载模板
+                                </button>
+                            </div>
+                            
+                            <div id="errorSummary" style="display: none;" class="mb-3">
+                                <div class="alert alert-danger" role="alert">
+                                    <i class="bi bi-exclamation-triangle"></i> 
+                                    发现 <span id="errorCount">0</span> 条错误数据，请修正后重新提交
+                                </div>
+                            </div>
+                            
+                            <div class="table-container">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>行号</th>
+                                            <th>姓名</th>
+                                            <th>身份证号</th>
+                                            <th>准考证号</th>
+                                            <th>理论成绩</th>
+                                            <th>实操成绩</th>
+                                            <th>综合成绩</th>
+                                            <th>状态</th>
+                                            <th>错误信息</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="resultTableBody">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-pane fade" id="review-pane" role="tabpanel">
+                        <div class="filter-bar">
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-3">
+                                    <label class="form-label">考期</label>
+                                    <select class="form-select" id="reviewExamPeriod">
+                                        <option value="">全部考期</option>
+                                        <option value="202406">2024年6月</option>
+                                        <option value="202403">2024年3月</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">工种</label>
+                                    <select class="form-select" id="reviewProfession">
+                                        <option value="">全部工种</option>
+                                        <option value="电工">电工</option>
+                                        <option value="焊工">焊工</option>
+                                        <option value="钳工">钳工</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">复核状态</label>
+                                    <select class="form-select" id="reviewStatus">
+                                        <option value="">全部状态</option>
+                                        <option value="pending">待复核</option>
+                                        <option value="passed">已通过</option>
+                                        <option value="rejected">已驳回</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <button class="btn btn-primary w-100" id="searchReviewBtn">
+                                        <i class="bi bi-search"></i> 查询
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="table-container">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>序号</th>
+                                        <th>考期</th>
+                                        <th>工种</th>
+                                        <th>姓名</th>
+                                        <th>身份证号</th>
+                                        <th>准考证号</th>
+                                        <th>理论成绩</th>
+                                        <th>实操成绩</th>
+                                        <th>综合成绩</th>
+                                        <th>复核状态</th>
+                                        <th>录入时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="reviewTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <nav class="pagination" aria-label="Page navigation">
+                            <ul class="pagination" id="reviewPagination">
+                            </ul>
+                        </nav>
+                    </div>
+                    
+                    <div class="tab-pane fade" id="public-pane" role="tabpanel">
+                        <div class="filter-bar">
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-3">
+                                    <label class="form-label">考期</label>
+                                    <select class="form-select" id="publicExamPeriod">
+                                        <option value="">全部考期</option>
+                                        <option value="202406">2024年6月</option>
+                                        <option value="202403">2024年3月</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">工种</label>
+                                    <select class="form-select" id="publicProfession">
+                                        <option value="">全部工种</option>
+                                        <option value="电工">电工</option>
+                                        <option value="焊工">焊工</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">公示状态</label>
+                                    <select class="form-select" id="publicStatus">
+                                        <option value="">全部状态</option>
+                                        <option value="published">已发布</option>
+                                        <option value="draft">未发布</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <button class="btn btn-primary w-100" id="searchPublicBtn">
+                                        <i class="bi bi-search"></i> 查询
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="table-container">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>序号</th>
+                                        <th>考期</th>
+                                        <th>工种</th>
+                                        <th>等级</th>
+                                        <th>发布时间</th>
+                                        <th>参考人数</th>
+                                        <th>通过人数</th>
+                                        <th>通过率</th>
+                                        <th>公示状态</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="publicTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal fade" id="reviewModal" tabindex="-1" aria-labelledby="reviewModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="reviewModalLabel">成绩复核</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="reviewScoreInfo" class="mb-4">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">复核结果 <span class="text-danger">*</span></label>
+                        <select class="form-select" id="reviewResult">
+                            <option value="">请选择复核结果</option>
+                            <option value="passed">复核通过</option>
+                            <option value="rejected">驳回修改</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">复核意见 <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="reviewComment" rows="4" placeholder="请输入复核意见..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="submitReviewBtn">
+                        <i class="bi bi-check-circle"></i> 提交复核
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="js/common.js"></script>
+    <script>
+        $(function() {
+            if (!checkLogin()) return;
+            renderNavbar('score');
+            
+            initUploadZone();
+            loadReviewData();
+            loadPublicData();
+            
+            $('#clearBtn').on('click', function() {
+                $('#fileInput').val('');
+                $('#resultArea').hide();
+                $('#progressArea').hide();
+                $('#progressBar').css('width', '0%');
+                $('#progressText').text('0%');
+            });
+            
+            $('#downloadTemplateBtn').on('click', function() {
+                showInfo('模板下载功能');
+            });
+            
+            $('#submitScoresBtn').on('click', function() {
+                var successCount = parseInt($('#successCount').text());
+                if (successCount === 0) {
+                    showWarning('没有校验通过的数据');
+                    return;
+                }
+                confirmDialog('确定提交 ' + successCount + ' 条成绩数据吗？', function() {
+                    showSuccess('成绩提交成功');
+                });
+            });
+            
+            $('#searchReviewBtn').on('click', loadReviewData);
+            $('#searchPublicBtn').on('click', loadPublicData);
+            
+            $('#submitReviewBtn').on('click', function() {
+                var result = $('#reviewResult').val();
+                var comment = $('#reviewComment').val().trim();
+                
+                if (!result) {
+                    showError('请选择复核结果');
+                    return;
+                }
+                if (!comment) {
+                    showError('请输入复核意见');
+                    return;
+                }
+                
+                showSuccess('复核提交成功');
+                $('#reviewModal').modal('hide');
+                loadReviewData();
+            });
+        });
+        
+        function initUploadZone() {
+            var $uploadZone = $('#uploadZone');
+            var $fileInput = $('#fileInput');
+            
+            $uploadZone.on('click', function() {
+                $fileInput.click();
+            });
+            
+            $fileInput.on('change', function(e) {
+                var file = e.target.files[0];
+                if (file) {
+                    handleFileUpload(file);
+                }
+            });
+            
+            $uploadZone.on('dragover', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                $uploadZone.addClass('dragover');
+            });
+            
+            $uploadZone.on('dragleave', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                $uploadZone.removeClass('dragover');
+            });
+            
+            $uploadZone.on('drop', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                $uploadZone.removeClass('dragover');
+                
+                var files = e.originalEvent.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFileUpload(files[0]);
+                }
+            });
+        }
+        
+        function handleFileUpload(file) {
+            var examPeriod = $('#examPeriod').val();
+            if (!examPeriod) {
+                showError('请先选择考期');
+                return;
+            }
+            
+            var validExtensions = ['.xlsx', '.xls'];
+            var fileName = file.name.toLowerCase();
+            var isValid = validExtensions.some(function(ext) {
+                return fileName.endsWith(ext);
+            });
+            
+            if (!isValid) {
+                showError('请上传Excel文件（.xlsx 或 .xls 格式）');
+                return;
+            }
+            
+            $('#progressArea').show();
+            simulateUpload(file);
+        }
+        
+        function simulateUpload(file) {
+            var progress = 0;
+            var $progressBar = $('#progressBar');
+            var $progressText = $('#progressText');
+            
+            var interval = setInterval(function() {
+                progress += Math.random() * 15;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(interval);
+                    parseExcelFile(file);
+                }
+                $progressBar.css('width', progress + '%');
+                $progressText.text(Math.floor(progress) + '%');
+            }, 100);
+        }
+        
+        function parseExcelFile(file) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                var data = new Uint8Array(e.target.result);
+                var workbook = XLSX.read(data, { type: 'array' });
+                var firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                var jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                
+                validateAndDisplayData(jsonData);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        
+        function validateAndDisplayData(data) {
+            if (data.length < 2) {
+                showError('Excel文件内容为空');
+                return;
+            }
+            
+            var headers = data[0];
+            var rows = data.slice(1);
+            var results = [];
+            var successCount = 0;
+            var failedCount = 0;
+            
+            rows.forEach(function(row, index) {
+                var rowData = {
+                    rowNum: index + 2,
+                    name: row[0] || '',
+                    idCard: row[1] || '',
+                    examNumber: row[2] || '',
+                    theoryScore: row[3] || '',
+                    practiceScore: row[4] || '',
+                    errors: []
+                };
+                
+                if (!rowData.name) rowData.errors.push('姓名不能为空');
+                if (!rowData.idCard) {
+                    rowData.errors.push('身份证号不能为空');
+                } else if (!/^[1-9]\d{5}(18|19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}[\dXx]$/.test(rowData.idCard)) {
+                    rowData.errors.push('身份证号格式不正确');
+                }
+                if (!rowData.examNumber) rowData.errors.push('准考证号不能为空');
+                
+                var theory = parseFloat(rowData.theoryScore);
+                if (rowData.theoryScore === '' || isNaN(theory) || theory < 0 || theory > 100) {
+                    rowData.errors.push('理论成绩必须是0-100之间的数字');
+                }
+                
+                var practice = parseFloat(rowData.practiceScore);
+                if (rowData.practiceScore === '' || isNaN(practice) || practice < 0 || practice > 100) {
+                    rowData.errors.push('实操成绩必须是0-100之间的数字');
+                }
+                
+                if (!isNaN(theory) && !isNaN(practice)) {
+                    rowData.finalScore = ((theory * 0.4) + (practice * 0.6)).toFixed(1);
+                } else {
+                    rowData.finalScore = '-';
+                }
+                
+                rowData.valid = rowData.errors.length === 0;
+                if (rowData.valid) successCount++;
+                else failedCount++;
+                
+                results.push(rowData);
+            });
+            
+            $('#totalCount').text(rows.length);
+            $('#successCount').text(successCount);
+            $('#failedCount').text(failedCount);
+            
+            if (failedCount > 0) {
+                $('#errorSummary').show();
+                $('#errorCount').text(failedCount);
+            } else {
+                $('#errorSummary').hide();
+            }
+            
+            renderResultTable(results);
+            $('#resultArea').show();
+        }
+        
+        function renderResultTable(data) {
+            var $tbody = $('#resultTableBody');
+            $tbody.empty();
+            
+            data.forEach(function(row) {
+                var rowClass = row.valid ? '' : 'error-row';
+                var statusClass = row.valid ? 'badge-success' : 'badge-danger';
+                var statusText = row.valid ? '通过' : '错误';
+                
+                var html = '<tr class="' + rowClass + '" data-row="' + row.rowNum + '">' +
+                    '<td>' + row.rowNum + '</td>' +
+                    '<td class="edit-cell" data-field="name">' + row.name + '</td>' +
+                    '<td class="edit-cell" data-field="idCard">' + row.idCard + '</td>' +
+                    '<td class="edit-cell" data-field="examNumber">' + row.examNumber + '</td>' +
+                    '<td class="edit-cell" data-field="theoryScore">' + row.theoryScore + '</td>' +
+                    '<td class="edit-cell" data-field="practiceScore">' + row.practiceScore + '</td>' +
+                    '<td>' + row.finalScore + '</td>' +
+                    '<td><span class="badge ' + statusClass + '">' + statusText + '</span></td>' +
+                    '<td>' + (row.errors.length > 0 ? row.errors.join('；') : '-') + '</td>' +
+                    '<td>' + (row.valid ? 
+                        '<span class="text-muted">无需操作</span>' : 
+                        '<button class="btn btn-sm btn-outline-primary" onclick="editRow(this)"><i class="bi bi-pencil"></i> 修正</button>') +
+                    '</td>' +
+                '</tr>';
+                
+                $tbody.append(html);
+            });
+        }
+        
+        function editRow(btn) {
+            var $tr = $(btn).closest('tr');
+            var $cells = $tr.find('.edit-cell');
+            
+            $cells.each(function() {
+                var $cell = $(this);
+                var value = $cell.text().trim();
+                var field = $cell.data('field');
+                $cell.html('<input type="text" class="edit-input" data-field="' + field + '" value="' + value + '">');
+            });
+            
+            $(btn).html('<i class="bi bi-check"></i> 保存').removeClass('btn-outline-primary').addClass('btn-primary').attr('onclick', 'saveRow(this)');
+        }
+        
+        function saveRow(btn) {
+            var $tr = $(btn).closest('tr');
+            var $inputs = $tr.find('.edit-input');
+            
+            $inputs.each(function() {
+                var $input = $(this);
+                var value = $input.val().trim();
+                var field = $input.data('field');
+                $input.closest('td').text(value).attr('data-field', field);
+            });
+            
+            validateSingleRow($tr);
+            $(btn).html('<i class="bi bi-pencil"></i> 修正').removeClass('btn-primary').addClass('btn-outline-primary').attr('onclick', 'editRow(this)');
+        }
+        
+        function validateSingleRow($tr) {
+            var name = $tr.find('td[data-field="name"]').text().trim();
+            var idCard = $tr.find('td[data-field="idCard"]').text().trim();
+            var examNumber = $tr.find('td[data-field="examNumber"]').text().trim();
+            var theoryScore = $tr.find('td[data-field="theoryScore"]').text().trim();
+            var practiceScore = $tr.find('td[data-field="practiceScore"]').text().trim();
+            var errors = [];
+            
+            if (!name) errors.push('姓名不能为空');
+            if (!idCard) errors.push('身份证号不能为空');
+            else if (!/^[1-9]\d{5}(18|19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}[\dXx]$/.test(idCard)) errors.push('身份证号格式不正确');
+            if (!examNumber) errors.push('准考证号不能为空');
+            
+            var theory = parseFloat(theoryScore);
+            if (theoryScore === '' || isNaN(theory) || theory < 0 || theory > 100) errors.push('理论成绩必须是0-100之间的数字');
+            
+            var practice = parseFloat(practiceScore);
+            if (practiceScore === '' || isNaN(practice) || practice < 0 || practice > 100) errors.push('实操成绩必须是0-100之间的数字');
+            
+            var finalScore = '-';
+            if (!isNaN(theory) && !isNaN(practice)) {
+                finalScore = ((theory * 0.4) + (practice * 0.6)).toFixed(1);
+            }
+            
+            var $finalTd = $tr.find('td:eq(6)');
+            $finalTd.text(finalScore);
+            
+            var $statusTd = $tr.find('td:eq(7)');
+            var $errorTd = $tr.find('td:eq(8)');
+            
+            if (errors.length > 0) {
+                $tr.addClass('error-row');
+                $statusTd.html('<span class="badge badge-danger">错误</span>');
+                $errorTd.text(errors.join('；'));
+            } else {
+                $tr.removeClass('error-row');
+                $statusTd.html('<span class="badge badge-success">通过</span>');
+                $errorTd.text('-');
+                updateStats();
+            }
+        }
+        
+        function updateStats() {
+            var total = $('#resultTableBody tr').length;
+            var success = $('#resultTableBody tr:not(.error-row)').length;
+            var failed = total - success;
+            
+            $('#totalCount').text(total);
+            $('#successCount').text(success);
+            $('#failedCount').text(failed);
+            
+            if (failed > 0) {
+                $('#errorSummary').show();
+                $('#errorCount').text(failed);
+            } else {
+                $('#errorSummary').hide();
+            }
+        }
+        
+        function loadReviewData() {
+            var mockData = [
+                { id: 1, examPeriod: '202406', examPeriodText: '2024年6月', profession: '电工', name: '张三', idCard: '110101199001011234', examNumber: '202406001', theoryScore: 85, practiceScore: 90, finalScore: 88.0, status: 'pending', createTime: '2024-06-15 10:30:00' },
+                { id: 2, examPeriod: '202406', examPeriodText: '2024年6月', profession: '电工', name: '李四', idCard: '110101199102022345', examNumber: '202406002', theoryScore: 72, practiceScore: 85, finalScore: 79.8, status: 'pending', createTime: '2024-06-15 10:31:00' },
+                { id: 3, examPeriod: '202406', examPeriodText: '2024年6月', profession: '焊工', name: '王五', idCard: '110101199203033456', examNumber: '202406003', theoryScore: 95, practiceScore: 92, finalScore: 93.2, status: 'passed', createTime: '2024-06-15 10:32:00' },
+                { id: 4, examPeriod: '202403', examPeriodText: '2024年3月', profession: '钳工', name: '赵六', idCard: '110101199304044567', examNumber: '202403001', theoryScore: 58, practiceScore: 60, finalScore: 59.2, status: 'rejected', createTime: '2024-03-20 14:20:00' },
+                { id: 5, examPeriod: '202406', examPeriodText: '2024年6月', profession: '电工', name: '钱七', idCard: '110101199405055678', examNumber: '202406004', theoryScore: 88, practiceScore: 76, finalScore: 80.8, status: 'pending', createTime: '2024-06-15 10:35:00' }
+            ];
+            
+            renderReviewTable(mockData);
+        }
+        
+        function renderReviewTable(data) {
+            var $tbody = $('#reviewTableBody');
+            $tbody.empty();
+            
+            data.forEach(function(row, index) {
+                var statusMap = {
+                    pending: { class: 'badge-warning', text: '待复核' },
+                    passed: { class: 'badge-success', text: '已通过' },
+                    rejected: { class: 'badge-danger', text: '已驳回' }
+                };
+                var status = statusMap[row.status] || statusMap.pending;
+                
+                var html = '<tr>' +
+                    '<td>' + (index + 1) + '</td>' +
+                    '<td>' + row.examPeriodText + '</td>' +
+                    '<td>' + row.profession + '</td>' +
+                    '<td>' + row.name + '</td>' +
+                    '<td>' + row.idCard + '</td>' +
+                    '<td>' + row.examNumber + '</td>' +
+                    '<td>' + row.theoryScore + '</td>' +
+                    '<td>' + row.practiceScore + '</td>' +
+                    '<td>' + row.finalScore + '</td>' +
+                    '<td><span class="badge ' + status.class + '">' + status.text + '</span></td>' +
+                    '<td>' + row.createTime + '</td>' +
+                    '<td>' + 
+                        (row.status === 'pending' ? 
+                            '<button class="btn btn-sm btn-outline-primary" onclick="openReviewModal(' + row.id + ')"><i class="bi bi-check2-square"></i> 复核</button>' :
+                            '<button class="btn btn-sm btn-outline-secondary" onclick="viewReviewDetail(' + row.id + ')"><i class="bi bi-eye"></i> 查看</button>') +
+                    '</td>' +
+                '</tr>';
+                
+                $tbody.append(html);
+            });
+            
+            renderPagination('#reviewPagination', 1, 5, 10);
+        }
+        
+        function openReviewModal(id) {
+            $('#reviewModal').modal('show');
+            $('#reviewResult').val('');
+            $('#reviewComment').val('');
+            
+            var infoHtml = '<table class="table table-sm table-borderless">' +
+                '<tr><th>考期：</th><td>2024年6月职业技能鉴定考试</td></tr>' +
+                '<tr><th>工种：</th><td>电工</td></tr>' +
+                '<tr><th>姓名：</th><td>张三</td></tr>' +
+                '<tr><th>身份证号：</th><td>110101199001011234</td></tr>' +
+                '<tr><th>准考证号：</th><td>202406001</td></tr>' +
+                '<tr><th>理论成绩：</th><td>85 分（40%）</td></tr>' +
+                '<tr><th>实操成绩：</th><td>90 分（60%）</td></tr>' +
+                '<tr><th>综合成绩：</th><td class="fw-bold text-primary">88.0 分</td></tr>' +
+            '</table>';
+            
+            $('#reviewScoreInfo').html(infoHtml);
+        }
+        
+        function viewReviewDetail(id) {
+            showInfo('查看复核详情功能');
+        }
+        
+        function loadPublicData() {
+            var mockData = [
+                { id: 1, examPeriod: '202406', examPeriodText: '2024年6月', profession: '电工', level: '中级', publishTime: '2024-06-20 09:00:00', totalCount: 150, passCount: 128, passRate: '85.3%', status: 'published' },
+                { id: 2, examPeriod: '202406', examPeriodText: '2024年6月', profession: '焊工', level: '中级', publishTime: '-', totalCount: 85, passCount: 0, passRate: '-', status: 'draft' },
+                { id: 3, examPeriod: '202403', examPeriodText: '2024年3月', profession: '钳工', level: '高级', publishTime: '2024-03-25 14:30:00', totalCount: 60, passCount: 48, passRate: '80.0%', status: 'published' },
+                { id: 4, examPeriod: '202403', examPeriodText: '2024年3月', profession: '电工', level: '初级', publishTime: '2024-03-25 14:35:00', totalCount: 200, passCount: 175, passRate: '87.5%', status: 'published' }
+            ];
+            
+            renderPublicTable(mockData);
+        }
+        
+        function renderPublicTable(data) {
+            var $tbody = $('#publicTableBody');
+            $tbody.empty();
+            
+            data.forEach(function(row, index) {
+                var statusMap = {
+                    published: { class: 'badge-success', text: '已发布', icon: 'bi-broadcast' },
+                    draft: { class: 'badge-secondary', text: '未发布', icon: 'bi-file-earmark' }
+                };
+                var status = statusMap[row.status] || statusMap.draft;
+                
+                var html = '<tr>' +
+                    '<td>' + (index + 1) + '</td>' +
+                    '<td>' + row.examPeriodText + '</td>' +
+                    '<td>' + row.profession + '</td>' +
+                    '<td>' + row.level + '</td>' +
+                    '<td>' + row.publishTime + '</td>' +
+                    '<td>' + row.totalCount + '</td>' +
+                    '<td>' + row.passCount + '</td>' +
+                    '<td>' + row.passRate + '</td>' +
+                    '<td><span class="badge ' + status.class + ' publish-badge"><i class="bi ' + status.icon + '"></i> ' + status.text + '</span></td>' +
+                    '<td>' + 
+                        (row.status === 'published' ? 
+                            '<button class="btn btn-sm btn-outline-danger" onclick="unpublishScore(' + row.id + ')"><i class="bi bi-megaphone-fill"></i> 取消发布</button>' :
+                            '<button class="btn btn-sm btn-outline-primary" onclick="publishScore(' + row.id + ')"><i class="bi bi-megaphone"></i> 发布</button>') +
+                        ' <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i> 查看</button>' +
+                    '</td>' +
+                '</tr>';
+                
+                $tbody.append(html);
+            });
+        }
+        
+        function publishScore(id) {
+            confirmDialog('确定发布该批次成绩吗？发布后考生可查询成绩。', function() {
+                showSuccess('成绩发布成功');
+                loadPublicData();
+            });
+        }
+        
+        function unpublishScore(id) {
+            confirmDialog('确定取消发布该批次成绩吗？取消后考生将无法查询。', function() {
+                showSuccess('已取消发布');
+                loadPublicData();
+            });
+        }
+        
+        function renderPagination(container, currentPage, totalPages, pageSize) {
+            var $pagination = $(container);
+            $pagination.empty();
+            
+            var html = '';
+            html += '<li class="page-item ' + (currentPage === 1 ? 'disabled' : '') + '"><a class="page-link" href="#" onclick="return false;">上一页</a></li>';
+            
+            for (var i = 1; i <= Math.min(totalPages, 5); i++) {
+                html += '<li class="page-item ' + (currentPage === i ? 'active' : '') + '"><a class="page-link" href="#" onclick="return false;">' + i + '</a></li>';
+            }
+            
+            if (totalPages > 5) {
+                html += '<li class="page-item disabled"><a class="page-link" href="#" onclick="return false;">...</a></li>';
+                html += '<li class="page-item"><a class="page-link" href="#" onclick="return false;">' + totalPages + '</a></li>';
+            }
+            
+            html += '<li class="page-item ' + (currentPage === totalPages ? 'disabled' : '') + '"><a class="page-link" href="#" onclick="return false;">下一页</a></li>';
+            
+            $pagination.html(html);
+        }
+    </script>
+</body>
+</html>

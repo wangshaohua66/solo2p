@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - 职业技能鉴定管理系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="style.css" rel="stylesheet">
+</head>
+<body class="login-body">
+    <div class="login-container fade-in">
+        <div class="card login-card">
+            <div class="login-header">
+                <div class="logo">
+                    <i class="bi bi-mortarboard-fill"></i>
+                </div>
+                <h1>职业技能鉴定管理系统</h1>
+            </div>
+            <div class="login-body-card">
+                <ul class="nav nav-tabs justify-content-center" id="authTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="login-tab" data-bs-toggle="tab" data-bs-target="#login-tab-pane">
+                            <i class="bi bi-box-arrow-in-right"></i> 登录
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="register-tab" data-bs-toggle="tab" data-bs-target="#register-tab-pane">
+                            <i class="bi bi-person-plus"></i> 考生注册
+                        </button>
+                    </li>
+                </ul>
+                <div class="tab-content" id="authTabsContent">
+                    <div class="tab-pane fade show active" id="login-tab-pane">
+                        <form id="loginForm">
+                            <div class="alert-container"></div>
+                            <div class="form-floating">
+                                <input type="text" class="form-control" id="loginUsername" placeholder="请输入用户名" required>
+                                <label for="loginUsername">用户名</label>
+                                <div class="invalid-feedback">请输入用户名</div>
+                            </div>
+                            <div class="form-floating">
+                                <input type="password" class="form-control" id="loginPassword" placeholder="请输入密码" required>
+                                <label for="loginPassword">密码</label>
+                                <div class="invalid-feedback">请输入密码</div>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary" id="loginBtn">
+                                    <i class="bi bi-box-arrow-in-right"></i> 登录
+                                </button>
+                            </div>
+                        </form>
+                        <div class="mt-3 text-center text-muted small">
+                            <p class="mb-0">测试账号：</p>
+                            <p class="mb-0">管理员: admin / 123456</p>
+                            <p class="mb-0">考生: examinee / 123456</p>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="register-tab-pane">
+                        <form id="registerForm">
+                            <div class="alert-container"></div>
+                            <div class="form-floating">
+                                <input type="text" class="form-control" id="registerUsername" placeholder="请输入用户名" required minlength="3" maxlength="20">
+                                <label for="registerUsername">用户名</label>
+                                <div class="invalid-feedback">用户名长度3-20位</div>
+                            </div>
+                            <div class="form-floating">
+                                <input type="text" class="form-control" id="registerName" placeholder="请输入真实姓名" required>
+                                <label for="registerName">真实姓名</label>
+                                <div class="invalid-feedback">请输入真实姓名</div>
+                            </div>
+                            <div class="form-floating">
+                                <input type="password" class="form-control" id="registerPassword" placeholder="请输入密码" required minlength="6">
+                                <label for="registerPassword">密码</label>
+                                <div class="invalid-feedback">密码至少6位</div>
+                            </div>
+                            <div class="form-floating">
+                                <input type="password" class="form-control" id="registerConfirmPassword" placeholder="请再次输入密码" required>
+                                <label for="registerConfirmPassword">确认密码</label>
+                                <div class="invalid-feedback">两次输入密码不一致</div>
+                            </div>
+                            <div class="form-floating">
+                                <input type="tel" class="form-control" id="registerPhone" placeholder="请输入手机号" required pattern="^1[3-9]\d{9}$">
+                                <label for="registerPhone">手机号</label>
+                                <div class="invalid-feedback">请输入有效的手机号</div>
+                            </div>
+                            <div class="form-floating">
+                                <input type="text" class="form-control" id="registerIDCard" placeholder="请输入身份证号" required pattern="^[1-9]\d{5}(18|19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}[\dXx]$">
+                                <label for="registerIDCard">身份证号</label>
+                                <div class="invalid-feedback">请输入有效的身份证号</div>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-success" id="registerBtn">
+                                    <i class="bi bi-person-plus"></i> 注册
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <p class="text-center text-white-50 mt-4 small">
+            © 2024 职业技能鉴定管理系统 版权所有
+        </p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="common.js"></script>
+    <script>
+        $(function() {
+            const token = getToken();
+            if (token) {
+                window.location.href = 'dashboard.html';
+            }
+
+            $('#loginForm').submit(function(e) {
+                e.preventDefault();
+                const form = $(this)[0];
+                if (!form.checkValidity()) {
+                    form.classList.add('was-validated');
+                    return;
+                }
+
+                const username = $('#loginUsername').val().trim();
+                const password = $('#loginPassword').val();
+
+                showLoading($('#loginBtn'));
+
+                $.ajax({
+                    url: '/api/auth/login',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        username: username,
+                        password: password
+                    }),
+                    success: function(res) {
+                        if (res.code === 0) {
+                            localStorage.setItem('token', res.data.token);
+                            localStorage.setItem('user', JSON.stringify(res.data.user));
+                            showAlert('登录成功！正在跳转...', 'success');
+                            setTimeout(function() {
+                                window.location.href = 'dashboard.html';
+                            }, 500);
+                        } else {
+                            showAlert(res.message || '登录失败', 'danger');
+                        }
+                    },
+                    error: function(xhr) {
+                        const res = xhr.responseJSON;
+                        showAlert(res && res.message ? res.message : '网络错误，请稍后重试', 'danger');
+                    },
+                    complete: function() {
+                        hideLoading($('#loginBtn'));
+                    }
+                });
+            });
+
+            $('#registerForm').submit(function(e) {
+                e.preventDefault();
+                const form = $(this)[0];
+                
+                const password = $('#registerPassword').val();
+                const confirmPassword = $('#registerConfirmPassword').val();
+                
+                if (password !== confirmPassword) {
+                    $('#registerConfirmPassword')[0].setCustomValidity('密码不一致');
+                } else {
+                    $('#registerConfirmPassword')[0].setCustomValidity('');
+                }
+
+                if (!form.checkValidity()) {
+                    form.classList.add('was-validated');
+                    return;
+                }
+
+                const data = {
+                    username: $('#registerUsername').val().trim(),
+                    password: password,
+                    name: $('#registerName').val().trim(),
+                    phone: $('#registerPhone').val().trim(),
+                    idCard: $('#registerIDCard').val().trim()
+                };
+
+                showLoading($('#registerBtn'));
+
+                $.ajax({
+                    url: '/api/auth/register',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data),
+                    success: function(res) {
+                        if (res.code === 0) {
+                            showAlert('注册成功！请使用账号登录', 'success');
+                            setTimeout(function() {
+                                const tab = new bootstrap.Tab($('#login-tab'));
+                                tab.show();
+                                $('#loginUsername').val(data.username);
+                                $('#loginPassword').focus();
+                            }, 1000);
+                        } else {
+                            showAlert(res.message || '注册失败', 'danger');
+                        }
+                    },
+                    error: function(xhr) {
+                        const res = xhr.responseJSON;
+                        showAlert(res && res.message ? res.message : '网络错误，请稍后重试', 'danger');
+                    },
+                    complete: function() {
+                        hideLoading($('#registerBtn'));
+                    }
+                });
+            });
+
+            $('#registerPassword, #registerConfirmPassword').on('keyup', function() {
+                const password = $('#registerPassword').val();
+                const confirmPassword = $('#registerConfirmPassword').val();
+                if (password !== confirmPassword) {
+                    $('#registerConfirmPassword')[0].setCustomValidity('密码不一致');
+                } else {
+                    $('#registerConfirmPassword')[0].setCustomValidity('');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

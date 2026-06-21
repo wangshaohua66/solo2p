@@ -1,0 +1,134 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "职业技能鉴定管理系统接口文档，涵盖考期管理、题库组卷、排期调度、成绩管理、证书管理等功能",
+        "title": "职业技能鉴定管理系统 API",
+        "version": "1.0.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/",
+    "schemes": ["http", "https"],
+    "paths": {
+        "/api/auth/login": {
+            "post": {
+                "description": "用户登录获取Token",
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["认证"],
+                "parameters": [{
+                    "description": "登录信息",
+                    "name": "body",
+                    "in": "body",
+                    "required": true,
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "username": {"type": "string", "example": "admin"},
+                            "password": {"type": "string", "example": "123456"}
+                        }
+                    }
+                }],
+                "responses": {"200": {"description": "登录成功"}}
+            }
+        },
+        "/api/auth/register": {
+            "post": {
+                "description": "考生自助注册",
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["认证"],
+                "responses": {"200": {"description": "注册成功"}}
+            }
+        },
+        "/api/exams": {
+            "get": {
+                "security": [{"Bearer": []}],
+                "description": "获取考期列表",
+                "tags": ["考期管理"],
+                "responses": {"200": {"description": "成功"}}
+            },
+            "post": {
+                "security": [{"Bearer": []}],
+                "description": "提交考期申请",
+                "tags": ["考期管理"],
+                "responses": {"200": {"description": "成功"}}
+            }
+        },
+        "/api/exams/{id}/conflicts": {
+            "get": {
+                "security": [{"Bearer": []}],
+                "description": "检测考期冲突",
+                "tags": ["考期管理"],
+                "parameters": [{"name": "id", "in": "path", "type": "integer", "required": true}],
+                "responses": {"200": {"description": "成功"}}
+            }
+        },
+        "/api/exams/calendar": {
+            "get": {
+                "security": [{"Bearer": []}],
+                "description": "获取日历视图数据",
+                "tags": ["考期管理"],
+                "responses": {"200": {"description": "成功"}}
+            }
+        },
+        "/api/questions": {
+            "get": {
+                "security": [{"Bearer": []}],
+                "description": "获取题目列表",
+                "tags": ["题库管理"],
+                "responses": {"200": {"description": "成功"}}
+            },
+            "post": {
+                "security": [{"Bearer": []}],
+                "description": "新增题目",
+                "tags": ["题库管理"],
+                "responses": {"200": {"description": "成功"}}
+            }
+        },
+        "/api/papers/generate": {
+            "post": {
+                "security": [{"Bearer": []}],
+                "description": "智能组卷",
+                "tags": ["题库管理"],
+                "responses": {"200": {"description": "成功"}}
+            }
+        },
+        "/api/scores/batch": {
+            "post": {
+                "security": [{"Bearer": []}],
+                "description": "批量导入成绩",
+                "consumes": ["multipart/form-data"],
+                "tags": ["成绩管理"],
+                "parameters": [
+                    {"name": "file", "in": "formData", "type": "file", "required": true},
+                    {"name": "examId", "in": "formData", "type": "integer", "required": true}
+                ],
+                "responses": {"200": {"description": "成功"}}
+            }
+        },
+        "/api/certificates/verify/{code}": {
+            "get": {
+                "description": "证书在线验真",
+                "tags": ["证书管理"],
+                "parameters": [{"name": "code", "in": "path", "type": "string", "required": true}],
+                "responses": {"200": {"description": "成功"}}
+            }
+        },
+        "/api/statistics/overview": {
+            "get": {
+                "security": [{"Bearer": []}],
+                "description": "首页统计概览",
+                "tags": ["统计分析"],
+                "responses": {"200": {"description": "成功"}}
+            }
+        }
+    },
+    "securityDefinitions": {
+        "Bearer": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header",
+            "description": "JWT Authorization header using the Bearer scheme. Example: 'Bearer {token}'"
+        }
+    }
+}
