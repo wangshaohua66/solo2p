@@ -652,22 +652,38 @@ class InspectionRunner {
       const totalCount = Math.min(records.length, maxCount);
       const processRecords = records.slice(0, totalCount);
       
+      this.initBatchStats();
+      
       audit.batchProcessStart(batchId, totalCount, this.inspectionLine.id);
       tracer.logStep(`批量任务 ${batchId} 开始，共 ${totalCount} 条记录`);
+      tracer.logStep(`目标吞吐量: ${this.batchStats.targetThroughput}台/小时`);
 
       const results = [];
       let successCount = 0;
       let failedCount = 0;
+      let currentInterval = options.interval || this.batchStats.currentInterval;
 
       for (let i = 0; i < processRecords.length; i++) {
         const record = processRecords[i];
         const plateNumber = record.plateNumber || record['车牌号'];
         
         tracer.logStep(`处理第 ${i + 1}/${totalCount} 条: ${plateNumber}`);
+        this.notifyStep('batch_process', { 
+          index: i + 1, 
+          total: totalCount, 
+          plateNumber,
+          throughput: Math.round(
+            ((i + 1) / ((Date.now() - this.batchStats.startTime) / 3600000)) || 0
+          )
+        });
 
         try {
           const testData = this.parseCsvTestData(record);
-          const result = await this.runInspection(plateNumber, testData, options);
+          const result = await this.runInspection(plateNumber, {
+            ...testData,
+            ...options,
+            plateNumber
+          });
           
           results.push({
             index: i + 1,
@@ -680,6 +696,25 @@ class InspectionRunner {
           } else {
             failedCount++;
           }
+
+          const stats = this.updateBatchStats(result.success);
+          currentInterval = stats.interval;
+
+          if (options.progressCallback) {
+            options.progressCallback({
+              completed: i + 1,
+              total: totalCount,
+              success: successCount,
+              failed: failedCount,
+              throughput: stats.throughput,
+              interval: currentInterval,
+              currentPlate: plateNumber
+            });
+          }
+
+          logger.info(`[${batchId}] ${plateNumber}: ${result.success ? '✅' : '❌'} ` +
+            `进度 ${i + 1}/${totalCount}, 速率 ${stats.throughput}台/小时, 间隔 ${currentInterval}ms`);
+
         } catch (error) {
           failedCount++;
           results.push({
@@ -688,14 +723,33 @@ class InspectionRunner {
             success: false,
             error: error.message
           });
+
+          const stats = this.updateBatchStats(false);
+          currentInterval = stats.interval;
+
+          if (options.progressCallback) {
+            options.progressCallback({
+              completed: i + 1,
+              total: totalCount,
+              success: successCount,
+              failed: failedCount,
+              throughput: stats.throughput,
+              interval: currentInterval,
+              currentPlate: plateNumber
+            });
+          }
+
+          logger.error(`[${batchId}] ${plateNumber} 失败: ${error.message}`);
         }
 
-        if (i < records.length - 1) {
-          await this.sleep(options.interval || 2000);
+        if (i < processRecords.length - 1) {
+          await this.sleep(currentInterval);
         }
       }
 
       const duration = Date.now() - tracer.startTime;
+      const finalThroughput = Math.round(totalCount / (duration / 3600000));
+      
       audit.batchProcessComplete(
         batchId,
         successCount,
@@ -705,7 +759,16 @@ class InspectionRunner {
         this.inspectionLine.id
       );
 
-      tracer.complete('success', { successCount, failedCount, totalCount });
+      tracer.complete('success', { 
+        successCount, 
+        failedCount, 
+        totalCount,
+        duration,
+        throughput: finalThroughput,
+        averageInterval: this.batchStats.currentInterval
+      });
+
+      logger.info(`[${batchId}] 批量处理完成: ${successCount}/${totalCount} 成功, 速率 ${finalThroughput}台/小时`);
 
       return {
         batchId,
@@ -713,6 +776,8 @@ class InspectionRunner {
         successCount,
         failedCount,
         duration,
+        throughput: finalThroughput,
+        averageInterval: this.batchStats.currentInterval,
         results
       };
     } catch (error) {
@@ -1014,23 +1079,48 @@ class InspectionRunner {
     const captchaConfig = config.getCaptchaConfig();
     
     try {
-      this.notifyStep('captcha_recognition', { method: 'ocr' });
+      this.notifyStep('captcha_recognition', { method: 'auto' });
+      
+      let methodUsed = 'none';
       
       if (captchaConfig.damaPlatform?.enabled) {
-        const result = await this.recognizeCaptchaDama(captchaElement);
-        if (result) return result;
+        const damaConfig = captchaConfig.damaPlatform;
+        if (damaConfig.apiUrl && damaConfig.appId && damaConfig.appKey) {
+          this.notifyStep('captcha_recognition', { method: 'dama' });
+          const result = await this.recognizeCaptchaDama(captchaElement);
+          if (result) {
+            methodUsed = 'dama';
+            return result;
+          }
+        } else {
+          logger.warn('打码平台配置不完整，已跳过：缺少apiUrl、appId或appKey');
+        }
       }
       
       if (captchaConfig.ocrService) {
-        const result = await this.recognizeCaptchaOCR(captchaElement);
-        if (result) return result;
+        if (captchaConfig.ocrApiUrl) {
+          this.notifyStep('captcha_recognition', { method: 'ocr' });
+          const result = await this.recognizeCaptchaOCR(captchaElement);
+          if (result) {
+            methodUsed = 'ocr';
+            return result;
+          }
+        } else {
+          logger.warn('OCR API URL未配置，已跳过OCR识别');
+        }
       }
       
       if (captchaConfig.manualFallback) {
+        this.notifyStep('captcha_recognition', { method: 'manual' });
         return await this.manualCaptchaInput(captchaElement);
       }
       
-      throw new Error('无可用的验证码识别方式');
+      const errorMsg = '无可用的验证码识别方式。请检查配置：\n' +
+        '  - 打码平台：检查apiUrl、appId、appKey\n' +
+        '  - OCR服务：检查ocrApiUrl\n' +
+        '  - 或启用manualFallback以使用手动输入';
+      logger.error(errorMsg);
+      throw new Error(errorMsg);
     } catch (error) {
       logger.warn('验证码识别失败', error.message);
       throw error;
@@ -1045,27 +1135,37 @@ class InspectionRunner {
       const apiUrl = captchaConfig.ocrApiUrl;
       
       if (!apiUrl) {
-        logger.debug('未配置OCR API，跳过OCR识别');
+        logger.warn('OCR API URL未配置，将使用示例配置。如需使用真实OCR服务，请在config.js中配置ocrApiUrl和ocrApiKey');
         return null;
+      }
+      
+      if (apiUrl === 'https://api.ocr.space/parse/image' && captchaConfig.ocrApiKey === 'helloworld') {
+        logger.info('当前使用OCR.space示例API密钥，识别准确率有限。建议在config.js中配置您的真实API密钥');
       }
       
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${captchaConfig.ocrApiKey}`
+          'apikey': captchaConfig.ocrApiKey
         },
         body: JSON.stringify({
-          image: screenshot,
-          type: 'captcha'
+          base64Image: `data:image/png;base64,${screenshot}`,
+          OCREngine: '2',
+          language: 'eng',
+          isOverlayRequired: false,
+          scale: true
         })
       });
       
       const data = await response.json();
       
-      if (data.code === 0 && data.result) {
-        logger.info(`OCR验证码识别结果: ${data.result.text}`);
-        return data.result.text;
+      if (data.IsErroredOnProcessing === false && data.ParsedResults?.length > 0) {
+        const text = data.ParsedResults[0].ParsedText.replace(/\s/g, '');
+        if (text && text.length >= 3) {
+          logger.info(`OCR验证码识别结果: ${text}`);
+          return text;
+        }
       }
       
       return null;
@@ -1077,8 +1177,16 @@ class InspectionRunner {
 
   async recognizeCaptchaDama(captchaElement) {
     try {
-      const screenshot = await captchaElement.takeScreenshot();
       const damaConfig = config.getCaptchaConfig().damaPlatform;
+      
+      if (!damaConfig.apiUrl || damaConfig.apiUrl === 'https://api.dama2.com/app/' ||
+          !damaConfig.appId || damaConfig.appId === 'your_app_id' ||
+          !damaConfig.appKey || damaConfig.appKey === 'your_app_key') {
+        logger.warn('打码平台未正确配置，请在config.js中设置真实的damaPlatform参数');
+        return null;
+      }
+      
+      const screenshot = await captchaElement.takeScreenshot();
       
       const response = await fetch(damaConfig.apiUrl + '/captcha', {
         method: 'POST',

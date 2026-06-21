@@ -367,15 +367,15 @@ const HEARTBEAT_CONFIG = {
 const CAPTCHA_CONFIG = {
   enabled: true,
   ocrService: 'tesseract',
-  ocrApiUrl: '',
-  ocrApiKey: '',
+  ocrApiUrl: 'https://api.ocr.space/parse/image',
+  ocrApiKey: 'helloworld',
   manualFallback: true,
   manualInputTimeout: 60000,
   damaPlatform: {
     enabled: false,
-    apiUrl: '',
-    appId: '',
-    appKey: ''
+    apiUrl: 'https://api.dama2.com/app/',
+    appId: 'your_app_id',
+    appKey: 'your_app_key'
   }
 };
 

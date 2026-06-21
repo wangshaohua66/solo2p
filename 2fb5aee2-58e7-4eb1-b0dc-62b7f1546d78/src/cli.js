@@ -7,7 +7,7 @@ const dayjs = require('dayjs');
 const fs = require('fs');
 const path = require('path');
 
-const { logger } = require('./logger');
+const { logger, OperationTracer } = require('./logger');
 const config = require('./config');
 const { errorHandler, ERROR_TYPES } = require('./errorHandler');
 const { createVehicleService } = require('./vehicleService');
@@ -458,15 +458,100 @@ class CLIManager {
     }
 
     this.spinner = ora('正在初始化批量处理...').start();
+    this.currentStep = '初始化';
+    this.batchProgress = { completed: 0, total: 0, success: 0, failed: 0 };
+
+    const stepNames = {
+      'login_attempt': '登录尝试',
+      'login_navigate': '访问登录页面',
+      'login_username': '输入用户名',
+      'login_password': '输入密码',
+      'login_captcha': '处理验证码',
+      'login_submit': '提交登录',
+      'vehicle_query': '查询车辆信息',
+      'vehicle_query_complete': '车辆信息查询完成',
+      'navigate_inspection': '进入检测页面',
+      'fill_vehicle_info': '填充车辆信息',
+      'select_method': '选择检测方法',
+      'fill_test_data': '录入检测数据',
+      'submit_inspection': '提交检测',
+      'evaluate_result': '判定检测结果',
+      'heartbeat_check': '心跳检测',
+      'captcha_recognition': '验证码识别',
+      'relogin': '重新登录'
+    };
+
+    const stepCallback = (stepInfo) => {
+      const stepName = stepNames[stepInfo.step] || stepInfo.step;
+      this.currentStep = stepName;
+      
+      let plateText = stepInfo.details?.plateNumber ? `[${stepInfo.details.plateNumber}] ` : '';
+      let statusText = `${plateText}${stepName}`;
+      
+      if (stepInfo.details?.attempt) {
+        statusText += ` (第${stepInfo.details.attempt}次)`;
+      }
+      
+      if (this.batchProgress.total > 0) {
+        const progress = this.batchProgress;
+        statusText = `[${progress.completed}/${progress.total}] ${statusText}`;
+      }
+      
+      this.spinner.text = statusText;
+    };
+
+    const tracerCallback = (tracerInfo) => {
+      if (process.env.LOG_LEVEL === 'debug') {
+        console.log(chalk.gray(`\n  📝 [${tracerInfo.operationId}] ${tracerInfo.operation} - ${tracerInfo.step}`));
+      }
+    };
+
+    const progressCallback = (progress) => {
+      this.batchProgress = progress;
+      const percent = Math.round((progress.completed / progress.total) * 100);
+      const throughput = progress.throughput || 0;
+      
+      let statusText = `[${progress.completed}/${progress.total} (${percent}%)] `;
+      statusText += `成功: ${chalk.green(progress.success || 0)} `;
+      statusText += `失败: ${chalk.red(progress.failed || 0)} `;
+      statusText += `速率: ${throughput}台/小时`;
+      
+      if (this.currentStep) {
+        statusText += ` | ${this.currentStep}`;
+      }
+      
+      this.spinner.text = statusText;
+    };
 
     try {
-      const runner = createInspectionRunner(targetLineId);
+      const runner = createInspectionRunner(targetLineId, {
+        stepCallback,
+        progressCallback
+      });
+      
+      const originalLogStep = OperationTracer.prototype.logStep;
+      OperationTracer.prototype.logStep = function(step, details = {}) {
+        originalLogStep.call(this, step, details);
+        tracerCallback({
+          operationId: this.operationId,
+          operation: this.operation,
+          step,
+          details
+        });
+      };
+      
       await runner.init();
 
       this.spinner.succeed('初始化完成，开始批量处理');
       console.log('');
+      this.spinner = ora('开始处理...').start();
 
-      const result = await runner.batchProcess(csvFile, { interval });
+      const result = await runner.batchProcess(csvFile, { 
+        interval,
+        progressCallback 
+      });
+
+      OperationTracer.prototype.logStep = originalLogStep;
 
       console.log('\n' + chalk.cyan('=== 批量处理完成 ===\n'));
       
@@ -991,47 +1076,87 @@ class CLIManager {
     
     console.log('\n');
     
-    const borderColor = severity === 'critical' ? chalk.bgRed.white.bold :
-                        severity === 'high' ? chalk.bgRedBright.white :
-                        severity === 'medium' ? chalk.bgYellow.black :
-                        chalk.bgWhite.black;
+    const bgColor = severity === 'critical' ? chalk.bgRed :
+                    severity === 'high' ? chalk.bgRedBright :
+                    severity === 'medium' ? chalk.bgYellow :
+                    chalk.bgWhite;
     
-    const titleBar = borderColor(' 错误  ');
-    const typeLabel = severity === 'critical' ? chalk.red.bold :
-                      severity === 'high' ? chalk.red :
-                      severity === 'medium' ? chalk.yellow :
-                      chalk.gray;
+    const textColor = severity === 'critical' ? chalk.bgRed.white :
+                      severity === 'high' ? chalk.bgRedBright.black :
+                      severity === 'medium' ? chalk.bgYellow.black :
+                      chalk.bgWhite.black;
     
-    console.log(chalk.red('╔══════════════════════════════════════════════════════════╗'));
-    console.log(chalk.red('║ ') + titleBar + chalk.red('                                         ║'));
-    console.log(chalk.red('╠══════════════════════════════════════════════════════════╣'));
+    const borderColor = severity === 'critical' ? chalk.red.bold :
+                        severity === 'high' ? chalk.red :
+                        severity === 'medium' ? chalk.yellow :
+                        chalk.gray;
     
-    console.log(chalk.red('║ ') + typeLabel(`错误类型: ${errorType}`) + ' '.repeat(50 - errorType.length - 8) + chalk.red('║'));
-    console.log(chalk.red('║ ') + `错误ID: ${errorId}` + ' '.repeat(50 - errorId.length - 9) + chalk.red('║'));
+    const titleBar = bgColor.white.bold(' 错误 ') + bgColor.white(` ${severity.toUpperCase()} `);
+    
+    const maxLineWidth = 52;
+    const padLine = (text, width = maxLineWidth) => {
+      const chars = Array.from(text);
+      let displayLength = 0;
+      for (const c of chars) {
+        displayLength += c.charCodeAt(0) > 127 ? 2 : 1;
+      }
+      return text + ' '.repeat(Math.max(0, width - displayLength));
+    };
+    
+    const formatBgLine = (text, width = maxLineWidth) => {
+      return textColor(' ' + padLine(text, width - 2) + ' ');
+    };
+    
+    console.log(borderColor('╔══════════════════════════════════════════════════════════╗'));
+    console.log(borderColor('║ ') + titleBar + ' '.repeat(38) + borderColor('║'));
+    console.log(borderColor('╠══════════════════════════════════════════════════════════╣'));
+    
+    const typeLine = formatBgLine(`错误类型: ${errorType}`);
+    console.log(borderColor('║ ') + typeLine + borderColor('║'));
+    
+    const idLine = formatBgLine(`错误ID: ${errorId}`);
+    console.log(borderColor('║ ') + idLine + borderColor('║'));
+    
+    console.log(borderColor('╠══════════════════════════════════════════════════════════╣'));
+    
+    const messageLabel = formatBgLine('📋 错误信息:');
+    console.log(borderColor('║ ') + messageLabel + borderColor('║'));
     
     const messageLines = this.wrapText(error.message, 48);
-    messageLines.forEach((line, idx) => {
-      const prefix = idx === 0 ? '错误信息: ' : '          ';
-      console.log(chalk.red('║ ') + chalk.bold(prefix) + line + ' '.repeat(Math.max(0, 48 - line.length - prefix.length)) + chalk.red('║'));
+    messageLines.forEach((line) => {
+      const paddedLine = formatBgLine(`   ${line}`);
+      console.log(borderColor('║ ') + paddedLine + borderColor('║'));
     });
     
-    console.log(chalk.red('╠══════════════════════════════════════════════════════════╣'));
+    if (error.details && Object.keys(error.details).length > 0) {
+      console.log(borderColor('╠══════════════════════════════════════════════════════════╣'));
+      const detailLabel = formatBgLine('🔍 详细信息:');
+      console.log(borderColor('║ ') + detailLabel + borderColor('║'));
+      
+      for (const [key, value] of Object.entries(error.details)) {
+        const detailLine = formatBgLine(`   ${key}: ${value}`);
+        console.log(borderColor('║ ') + detailLine + borderColor('║'));
+      }
+    }
     
     const suggestions = this.getErrorSuggestions(errorType, error);
     if (suggestions.length > 0) {
-      console.log(chalk.red('║ ') + chalk.cyan.bold('💡 建议操作:') + ' '.repeat(36) + chalk.red('║'));
+      console.log(borderColor('╠══════════════════════════════════════════════════════════╣'));
+      
+      const suggLabel = chalk.bgCyan.white.bold(' 💡 建议操作 ') + chalk.bgCyan.white(' ' + ' '.repeat(39));
+      console.log(borderColor('║ ') + suggLabel + borderColor('║'));
       
       suggestions.forEach((s, i) => {
         const line = `${i + 1}. ${s}`;
         const wrapped = this.wrapText(line, 48);
-        wrapped.forEach((wline, wi) => {
-          const pad = ' '.repeat(Math.max(0, 48 - wline.length));
-          console.log(chalk.red('║ ') + chalk.yellow(wline) + pad + chalk.red('║'));
+        wrapped.forEach((wline) => {
+          const paddedLine = formatBgLine(`   ${wline}`);
+          console.log(borderColor('║ ') + paddedLine + borderColor('║'));
         });
       });
     }
     
-    console.log(chalk.red('╚══════════════════════════════════════════════════════════╝'));
+    console.log(borderColor('╚══════════════════════════════════════════════════════════╝'));
     console.log('\n');
     
     if (error.stack && process.env.LOG_LEVEL === 'debug') {

@@ -21,8 +21,10 @@ class ReportGenerator {
     this.reportsDir = path.join(__dirname, '..', 'reports');
     this.fontConfig = config.getFontConfig();
     this.fontsRegistered = false;
-    this.regularFont = this.regularFont;
-    this.boldFont = this.boldFont;
+    this.regularFont = 'Helvetica';
+    this.boldFont = 'Helvetica-Bold';
+    this.regularFontPath = null;
+    this.boldFontPath = null;
     this.ensureDirectories();
     this.registerFonts();
   }
@@ -68,19 +70,29 @@ class ReportGenerator {
   }
 
   applyFonts(doc) {
-    if (this.fontsRegistered && this.regularFontPath) {
-      try {
-        doc.registerFont(this.regularFontPath, this.regularFont);
-        if (this.boldFontPath !== this.regularFontPath) {
-          doc.registerFont(this.boldFontPath, this.boldFont);
-        } else {
-          this.boldFont = this.regularFont;
-        }
-      } catch (e) {
-        logger.warn('注册字体到PDF失败', e.message);
-        this.regularFont = this.regularFont;
-        this.boldFont = this.boldFont;
+    if (!this.fontsRegistered || !this.regularFontPath) {
+      logger.warn('未注册中文字体，使用默认Helvetica字体，中文可能显示异常');
+      return;
+    }
+
+    try {
+      doc.registerFont(this.regularFontPath, this.regularFont);
+      logger.debug(`已注册字体: ${this.regularFont} -> ${this.regularFontPath}`);
+      
+      if (this.boldFontPath && this.boldFontPath !== this.regularFontPath) {
+        doc.registerFont(this.boldFontPath, this.boldFont);
+        logger.debug(`已注册粗体: ${this.boldFont} -> ${this.boldFontPath}`);
+      } else {
+        logger.debug('粗体使用普通字体');
       }
+    } catch (e) {
+      logger.error(`注册字体到PDF文档失败: ${e.message}`);
+      logger.error(`  字体路径: ${this.regularFontPath}`);
+      logger.error(`  字体名称: ${this.regularFont}`);
+      this.regularFont = 'Helvetica';
+      this.boldFont = 'Helvetica-Bold';
+      this.fontsRegistered = false;
+      logger.warn('已回退到默认Helvetica字体');
     }
   }
 
