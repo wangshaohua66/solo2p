@@ -8,6 +8,7 @@ import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import App from './App.vue'
 import router from './router'
 import './styles/main.scss'
+import { setupRipple } from './directives/ripple'
 
 const app = createApp(App)
 
@@ -18,5 +19,7 @@ for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
 app.use(createPinia())
 app.use(router)
 app.use(ElementPlus, { locale: zhCn })
+
+setupRipple(app)
 
 app.mount('#app')

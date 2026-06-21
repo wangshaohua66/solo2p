@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import asyncio
 
 from app.config import get_settings
-from app.routers import declaration, hscode, tax, dashboard, customs, policy, auth
+from app.routers import declaration, hscode, tax, dashboard, customs, policy, auth, websocket
 
 settings = get_settings()
 
@@ -29,6 +30,7 @@ app.include_router(tax.router, prefix="/tax", tags=["出口退税"])
 app.include_router(dashboard.router, prefix="/dashboard", tags=["数据看板"])
 app.include_router(customs.router, prefix="/customs", tags=["通关异常"])
 app.include_router(policy.router, prefix="/policies", tags=["政策法规"])
+app.include_router(websocket.router, tags=["WebSocket"])
 
 
 @app.get("/health")

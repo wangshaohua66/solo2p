@@ -61,6 +61,27 @@ const newItem = reactive<Partial<DeclarationItem>>({
   declareElements: {}
 })
 
+const declareElementDialogVisible = ref(false)
+const currentEditItemIndex = ref<number | null>(null)
+const declareElementForm = reactive<Record<string, string>>({})
+
+const MAX_FILE_SIZE = 20 * 1024 * 1024
+
+const declareElementFields = [
+  { key: 'brand', label: '品牌类型', required: true, placeholder: '如：自有品牌、无品牌、境内品牌、境外品牌' },
+  { key: 'outwardProcess', label: '是否含出口加工', required: false, placeholder: '是/否' },
+  { key: 'material', label: '成分含量', required: true, placeholder: '如：棉100%、不锈钢70%+塑料30%' },
+  { key: 'usage', label: '用途', required: true, placeholder: '如：家用、办公、工业用、儿童玩具' },
+  { key: 'specificationModel', label: '规格型号', required: true, placeholder: '详细规格、型号、尺寸、功率等' },
+  { key: 'productionProcess', label: '加工工艺', required: false, placeholder: '如：注塑、缝制、压铸、电镀' },
+  { key: 'packingType', label: '包装规格', required: true, placeholder: '如：12个/箱、独立包装' },
+  { key: 'originCountry', label: '原产国', required: true, placeholder: '如：中国、越南' },
+  { key: 'standard', label: '执行标准', required: false, placeholder: '如：GB/ISO/CE等标准编号' },
+  { key: 'otherFeatures', label: '其他特征', required: false, placeholder: '其他需要说明的商品特征' }
+]
+
+const editingDeclareElements = reactive<Record<string, string>>({})
+
 const mockDeclarations: Declaration[] = reactive([
   {
     id: '1',
@@ -510,6 +531,67 @@ function removeItem(idx: number) {
   newDeclaration.items!.splice(idx, 1)
 }
 
+function openDeclareElements(idx: number) {
+  currentEditItemIndex.value = idx
+  const item = newDeclaration.items![idx]
+  Object.assign(editingDeclareElements, item.declareElements || {})
+  declareElementDialogVisible.value = true
+}
+
+function saveDeclareElements() {
+  if (currentEditItemIndex.value !== null && newDeclaration.items) {
+    newDeclaration.items[currentEditItemIndex.value].declareElements = { ...editingDeclareElements }
+    ElMessage.success('申报要素已保存')
+  }
+  declareElementDialogVisible.value = false
+}
+
+function getDeclareElementsSummary(elements: Record<string, string>) {
+  const entries = Object.entries(elements).filter(([, v]) => v)
+  if (entries.length === 0) return '未填写'
+  return entries.map(([k, v]) => v).filter(Boolean).slice(0, 3).join('、')
+}
+
+const declareElementsFilledCount = computed(() => {
+  return Object.values(editingDeclareElements).filter(v => v && v.trim()).length
+})
+
+const declareElementsRequiredCount = computed(() => {
+  return declareElementFields.filter(f => f.required).length
+})
+
+function handleFileUpload(file: any) {
+  if (file.size > MAX_FILE_SIZE) {
+    ElMessage.error(`文件大小不能超过 20MB，当前文件大小 ${(file.size / 1024 / 1024).toFixed(2)}MB`)
+    return false
+  }
+
+  const newAtt = {
+    id: `a${Date.now()}`,
+    name: file.name,
+    url: URL.createObjectURL(file.raw || file),
+    size: file.size,
+    uploadedAt: new Date().toLocaleString('zh-CN')
+  }
+  newDeclaration.attachments!.push(newAtt as any)
+  ElMessage.success('文件上传成功')
+  return false
+}
+
+function handleFileExceed() {
+  ElMessage.error('文件大小超过 20MB 限制')
+}
+
+function removeAttachment(idx: number) {
+  newDeclaration.attachments!.splice(idx, 1)
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / 1024 / 1024).toFixed(2) + ' MB'
+}
+
 async function confirmCreate(saveAsDraft = false) {
   if (!saveAsDraft) {
     await filterFormRef.value?.validate()
@@ -787,6 +869,7 @@ function handleSizeChange(size: number) {
       </div>
 
       <div v-show="formStep === 1">
+        <div class="step-section-title">商品信息</div>
         <div class="item-form-inline">
           <el-input v-model="newItem.productName" placeholder="商品名称" style="width: 180px" />
           <el-input v-model="newItem.hsCode" placeholder="HS编码" style="width: 140px" />
@@ -810,25 +893,73 @@ function handleSizeChange(size: number) {
         </div>
 
         <el-table :data="newDeclaration.items" style="margin-top: 16px" border>
-          <el-table-column prop="productName" label="商品名称" />
+          <el-table-column prop="productName" label="商品名称" min-width="120" />
           <el-table-column prop="hsCode" label="HS编码" width="120" />
-          <el-table-column prop="specification" label="规格" width="140" />
-          <el-table-column prop="quantity" label="数量" width="80" align="right" />
-          <el-table-column prop="unit" label="单位" width="70" />
-          <el-table-column prop="unitPrice" label="单价" width="100" align="right">
+          <el-table-column prop="specification" label="规格" width="120" />
+          <el-table-column prop="quantity" label="数量" width="70" align="right" />
+          <el-table-column prop="unit" label="单位" width="60" />
+          <el-table-column prop="unitPrice" label="单价" width="90" align="right">
             <template #default="{ row }">${{ row.unitPrice }}</template>
           </el-table-column>
-          <el-table-column prop="currency" label="币种" width="70" />
-          <el-table-column prop="totalAmount" label="金额" width="110" align="right">
+          <el-table-column prop="currency" label="币种" width="60" />
+          <el-table-column prop="totalAmount" label="金额" width="100" align="right">
             <template #default="{ row }">${{ row.totalAmount.toLocaleString() }}</template>
           </el-table-column>
-          <el-table-column prop="country" label="目的国" width="80" />
-          <el-table-column label="操作" width="70">
+          <el-table-column prop="country" label="目的国" width="70" />
+          <el-table-column label="申报要素" min-width="140" show-overflow-tooltip>
+            <template #default="{ row }">
+              <el-tooltip :content="getDeclareElementsSummary(row.declareElements)" placement="top">
+                <span class="declare-ele-summary">
+                  {{ getDeclareElementsSummary(row.declareElements) }}
+                </span>
+              </el-tooltip>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="130" fixed="right">
             <template #default="{ $index }">
+              <el-button link type="primary" @click="openDeclareElements($index)">
+                <el-icon style="margin-right: 2px"><Edit /></el-icon>
+                申报要素
+              </el-button>
               <el-button link type="danger" @click="removeItem($index)">删除</el-button>
             </template>
           </el-table-column>
         </el-table>
+
+        <div class="step-section-title" style="margin-top: 24px">附件上传</div>
+        <el-upload
+          class="upload-box"
+          :auto-upload="false"
+          :show-file-list="false"
+          :before-upload="handleFileUpload"
+          multiple
+          drag
+          :limit="10"
+          :on-exceed="handleFileExceed"
+        >
+          <el-icon class="upload-icon"><Upload /></el-icon>
+          <div class="upload-text">将文件拖到此处，或<em>点击上传</em></div>
+          <template #tip>
+            <div class="upload-tip">
+              支持 PDF、Excel、Word、图片格式，单个文件不超过 20MB
+            </div>
+          </template>
+        </el-upload>
+
+        <div v-if="newDeclaration.attachments && newDeclaration.attachments.length > 0" class="attachment-list">
+          <div v-for="(att, idx) in newDeclaration.attachments" :key="att.id" class="attachment-item">
+            <el-icon class="att-icon"><Document /></el-icon>
+            <div class="att-info">
+              <div class="att-name">{{ att.name }}</div>
+              <div class="att-meta">
+                {{ formatFileSize(att.size) }} · {{ att.uploadedAt }}
+              </div>
+            </div>
+            <el-button link type="danger" @click="removeAttachment(idx)">
+              <el-icon><Delete /></el-icon>
+            </el-button>
+          </div>
+        </div>
       </div>
 
       <div v-show="formStep === 2">
@@ -946,6 +1077,51 @@ function handleSizeChange(size: number) {
         <el-button type="primary" @click="confirmWithdraw">确认撤回</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="declareElementDialogVisible"
+      title="申报要素填写"
+      width="680px"
+      :close-on-click-modal="false"
+    >
+      <div class="declare-elements-header">
+        <div class="de-title">
+          请填写商品申报要素
+          <el-tag type="info" size="small" style="margin-left: 8px">
+            必填 {{ declareElementsRequiredCount }} 项 · 已填 {{ declareElementsFilledCount }} 项
+          </el-tag>
+        </div>
+        <div class="de-tip">
+          申报要素是海关归类和审价的重要依据，请如实准确填写
+        </div>
+      </div>
+
+      <el-form label-position="top" class="declare-elements-form">
+        <el-row :gutter="16">
+          <el-col :span="12" v-for="field in declareElementFields" :key="field.key">
+            <el-form-item :label="field.label + (field.required ? ' *' : '')">
+              <el-input
+                :model-value="editingDeclareElements[field.key]"
+                @input="(val: string) => { editingDeclareElements[field.key] = val }"
+                :placeholder="field.placeholder"
+                type="text"
+                clearable
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </el-form>
+
+      <div class="declare-elements-tip">
+        <el-icon style="margin-right: 6px"><Warning /></el-icon>
+        提示：申报要素信息将用于海关归类审价，请确保填写准确完整。带 <span style="color: #f56c6c">*</span> 为必填项。
+      </div>
+
+      <template #footer>
+        <el-button @click="declareElementDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveDeclareElements">保存申报要素</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -994,5 +1170,139 @@ function handleSizeChange(size: number) {
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.step-section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: $text-primary;
+  margin-bottom: 12px;
+  padding-left: 10px;
+  border-left: 3px solid $primary-color;
+}
+
+.declare-ele-summary {
+  font-size: 12px;
+  color: $text-regular;
+  cursor: help;
+}
+
+.upload-box {
+  border: 1px dashed $border-light;
+  border-radius: $border-radius-md;
+  padding: 30px;
+  text-align: center;
+  transition: all 0.3s;
+
+  &:hover {
+    border-color: $primary-color;
+    background: #f0f9ff;
+  }
+
+  .upload-icon {
+    font-size: 48px;
+    color: #c0c4cc;
+    margin-bottom: 10px;
+  }
+
+  .upload-text {
+    font-size: 14px;
+    color: $text-regular;
+    margin-bottom: 6px;
+
+    em {
+      color: $primary-color;
+      font-style: normal;
+    }
+  }
+
+  .upload-tip {
+    font-size: 12px;
+    color: $text-secondary;
+  }
+}
+
+.attachment-list {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .attachment-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: #f5f7fa;
+    border-radius: $border-radius-sm;
+    border: 1px solid #ebeef5;
+    transition: all 0.2s;
+
+    &:hover {
+      border-color: $primary-color;
+      background: #fff;
+    }
+
+    .att-icon {
+      font-size: 24px;
+      color: $primary-color;
+      flex-shrink: 0;
+    }
+
+    .att-info {
+      flex: 1;
+      min-width: 0;
+
+      .att-name {
+        font-size: 13px;
+        color: $text-primary;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .att-meta {
+        font-size: 12px;
+        color: $text-secondary;
+        margin-top: 2px;
+      }
+    }
+  }
+}
+
+.declare-elements-header {
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid $border-light;
+
+  .de-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: $text-primary;
+    margin-bottom: 6px;
+  }
+
+  .de-tip {
+    font-size: 12px;
+    color: $text-secondary;
+  }
+}
+
+.declare-elements-form {
+  :deep(.el-form-item) {
+    margin-bottom: 14px;
+  }
+}
+
+.declare-elements-tip {
+  margin-top: 16px;
+  padding: 10px 14px;
+  background: #fff7e6;
+  border: 1px solid #ffd591;
+  border-radius: $border-radius-sm;
+  font-size: 12px;
+  color: #d48806;
+  display: flex;
+  align-items: flex-start;
 }
 </style>

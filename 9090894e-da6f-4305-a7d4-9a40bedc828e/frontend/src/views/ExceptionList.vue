@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Warning,
   Search as SearchIcon,
@@ -9,18 +9,26 @@ import {
   Edit,
   WarningFilled,
   CircleCheck,
-  Clock
+  Clock,
+  RefreshRight,
+  Upload
 } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import type { CustomsException } from '@/types'
+import { useNotificationStore } from '@/stores/notificationStore'
+
+const notificationStore = useNotificationStore()
 
 const filterStatus = ref('')
 const filterType = ref('')
 const keyword = ref('')
 const detailVisible = ref(false)
 const handleVisible = ref(false)
+const redeclareVisible = ref(false)
 const currentException = ref<CustomsException | null>(null)
 const handleForm = reactive({ suggestion: '', actions: '' })
+const redeclareForm = reactive({ remark: '', resubmit: true })
+const syncLoading = ref(false)
 
 const exceptions: CustomsException[] = reactive([
   {
@@ -154,6 +162,61 @@ function resolve(row: CustomsException) {
   ElMessage.success('案件已标记为已解决')
 }
 
+function openRedeclare(row: CustomsException) {
+  currentException.value = row
+  redeclareForm.remark = ''
+  redeclareForm.resubmit = true
+  redeclareVisible.value = true
+}
+
+function confirmRedeclare() {
+  if (!currentException.value) return
+
+  ElMessageBox.confirm(
+    `确定要对申报单 ${currentException.value.declareNo} 重新申报吗？重新提交后将进入审核流程。`,
+    '重新申报确认',
+    {
+      confirmButtonText: '确认重新申报',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(() => {
+    if (currentException.value) {
+      currentException.value.status = 'resolved'
+      currentException.value.resolvedAt = new Date().toLocaleString()
+      currentException.value.resolveNote = redeclareForm.remark || '企业重新申报'
+
+      notificationStore.addMessage({
+        type: 'system',
+        title: '重新申报成功',
+        content: `申报单 ${currentException.value.declareNo} 已重新提交，等待审核`,
+        link: '/declarations'
+      })
+
+      ElMessage.success('重新申报成功，已进入审核流程')
+      redeclareVisible.value = false
+    }
+  }).catch(() => {})
+}
+
+function syncCustomsStatus() {
+  syncLoading.value = true
+  setTimeout(() => {
+    const pendingList = exceptions.filter(e => e.status !== 'resolved')
+    if (pendingList.length > 0 && Math.random() > 0.5) {
+      const randomException = pendingList[Math.floor(Math.random() * pendingList.length)]
+      notificationStore.addMessage({
+        type: 'exception',
+        title: '新异常预警',
+        content: `申报单 ${randomException.declareNo} 出现${randomException.type}异常`,
+        link: '/exceptions'
+      })
+    }
+    syncLoading.value = false
+    ElMessage.success('海关状态同步完成')
+  }, 1500)
+}
+
 const knowledgeList = [
   { id: 'k1', title: 'HS编码归类常见错误及正确案例', solution: '重点关注商品材质、用途、功能三个维度进行综合判断...' },
   { id: 'k2', title: '出口退税单证不齐应对方案', solution: '常见缺失单证包括报关单、增值税发票、出口收汇核销单等...' },
@@ -172,6 +235,10 @@ const showKnowledge = ref(false)
         通关异常跟踪
       </div>
       <div style="display: flex; gap: 10px">
+        <el-button @click="syncCustomsStatus" :loading="syncLoading">
+          <el-icon style="margin-right: 4px"><RefreshRight /></el-icon>
+          同步海关状态
+        </el-button>
         <el-button @click="showKnowledge = !showKnowledge">
           <el-icon style="margin-right: 4px"><View /></el-icon>
           {{ showKnowledge ? '隐藏知识库' : '异常知识库' }}
@@ -254,14 +321,20 @@ const showKnowledge = ref(false)
           <template #default="{ row }">{{ row.handler || '-' }}</template>
         </el-table-column>
         <el-table-column prop="reportedAt" label="上报时间" width="170" sortable />
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="viewDetail(row)">详情</el-button>
             <el-button link type="primary" @click="handleException(row)" :disabled="row.status==='resolved'">
               处理
             </el-button>
-            <el-button link type="success" @click="resolve(row)" :disabled="row.status==='resolved'">
-              标记解决
+            <el-button
+              link
+              type="success"
+              @click="openRedeclare(row)"
+              :disabled="row.status==='resolved'"
+            >
+              <el-icon style="margin-right: 2px"><Upload /></el-icon>
+              重新申报
             </el-button>
           </template>
         </el-table-column>
@@ -284,6 +357,17 @@ const showKnowledge = ref(false)
           <el-descriptions-item label="异常描述" :span="2">{{ currentException.description }}</el-descriptions-item>
           <el-descriptions-item label="整改建议" :span="2">{{ currentException.suggestion }}</el-descriptions-item>
         </el-descriptions>
+        <div style="margin-top: 16px; text-align: right">
+          <el-button @click="detailVisible = false">关闭</el-button>
+          <el-button
+            type="primary"
+            @click="openRedeclare(currentException); detailVisible = false"
+            :disabled="currentException.status==='resolved'"
+          >
+            <el-icon style="margin-right: 4px"><Upload /></el-icon>
+            重新申报
+          </el-button>
+        </div>
       </template>
     </el-dialog>
 
@@ -309,6 +393,46 @@ const showKnowledge = ref(false)
       <template #footer>
         <el-button @click="handleVisible = false">取消</el-button>
         <el-button type="primary" @click="submitHandle">提交处理</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="redeclareVisible" title="重新申报" width="520px">
+      <template v-if="currentException">
+        <el-alert
+          title="重新申报说明"
+          type="info"
+          :closable="false"
+          style="margin-bottom: 16px"
+        >
+          <template #default>
+            <p>• 重新申报后，原异常案件将标记为"已解决"</p>
+            <p>• 新的申报单将进入审核流程，状态为"待审核"</p>
+            <p>• 请确保已根据整改建议补充完整相关资料</p>
+          </template>
+        </el-alert>
+        <el-form label-position="top">
+          <el-form-item label="申报单号">
+            <el-input :model-value="currentException.declareNo" disabled />
+          </el-form-item>
+          <el-form-item label="异常类型">
+            <el-input :model-value="currentException.type" disabled />
+          </el-form-item>
+          <el-form-item label="整改备注">
+            <el-input
+              v-model="redeclareForm.remark"
+              type="textarea"
+              :rows="3"
+              placeholder="请简要说明已完成的整改工作（选填）"
+            />
+          </el-form-item>
+        </el-form>
+      </template>
+      <template #footer>
+        <el-button @click="redeclareVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmRedeclare">
+          <el-icon style="margin-right: 4px"><Upload /></el-icon>
+          确认重新申报
+        </el-button>
       </template>
     </el-dialog>
   </div>

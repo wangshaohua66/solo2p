@@ -122,6 +122,28 @@ export interface Policy {
   summary: string
   tags: string[]
   isFavorite: boolean
+  notes?: PolicyNote[]
+  isSubscribed?: boolean
+}
+
+export interface PolicyNote {
+  id: string
+  policyId: string
+  content: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type NotificationType = 'exception' | 'policy' | 'review' | 'system'
+
+export interface NotificationMessage {
+  id: string
+  type: NotificationType
+  title: string
+  content: string
+  read: boolean
+  time: string
+  link: string
 }
 
 export interface CustomsException {
