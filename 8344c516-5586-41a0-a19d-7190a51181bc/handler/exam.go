@@ -173,6 +173,110 @@ func GetExamDetail(c *gin.Context) {
 	Success(c, result)
 }
 
+type UpdateExamTimeRequest struct {
+	ExamDate time.Time `json:"examDate" binding:"required"`
+	StartTime string    `json:"startTime" binding:"required"`
+	EndTime   string    `json:"endTime" binding:"required"`
+}
+
+func UpdateExamTime(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		Error(c, http.StatusBadRequest, "无效的ID")
+		return
+	}
+
+	var req UpdateExamTimeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		Error(c, http.StatusBadRequest, "参数错误: "+err.Error())
+		return
+	}
+
+	var exam model.Exam
+	if err := model.DB.Where("id = ?", id).First(&exam).Error; err != nil {
+		Error(c, http.StatusNotFound, "考期不存在")
+		return
+	}
+
+	startParsed, err := time.Parse("15:04", req.StartTime)
+	if err != nil {
+		Error(c, http.StatusBadRequest, "开始时间格式错误，需HH:MM格式")
+		return
+	}
+	endParsed, err := time.Parse("15:04", req.EndTime)
+	if err != nil {
+		Error(c, http.StatusBadRequest, "结束时间格式错误，需HH:MM格式")
+		return
+	}
+
+	duration := int(endParsed.Sub(startParsed).Minutes())
+	if duration <= 0 {
+		Error(c, http.StatusBadRequest, "结束时间必须晚于开始时间")
+		return
+	}
+
+	oldDate := exam.ExamDate
+	oldStart := exam.StartTime
+	oldEnd := exam.EndTime
+
+	exam.ExamDate = req.ExamDate
+	exam.StartTime = req.StartTime
+	exam.EndTime = req.EndTime
+	exam.Duration = duration
+
+	tx := model.DB.Begin()
+
+	if err := tx.Save(&exam).Error; err != nil {
+		tx.Rollback()
+		Error(c, http.StatusInternalServerError, "更新考期时间失败: "+err.Error())
+		return
+	}
+
+	var schedules []model.Schedule
+	if err := tx.Where("exam_id = ?", id).Find(&schedules).Error; err == nil {
+		for i := range schedules {
+			schedules[i].ScheduleDate = req.ExamDate
+			schedules[i].StartTime = req.StartTime
+			schedules[i].EndTime = req.EndTime
+			if err := tx.Save(&schedules[i]).Error; err != nil {
+				tx.Rollback()
+				Error(c, http.StatusInternalServerError, "更新排期失败: "+err.Error())
+				return
+			}
+		}
+	}
+
+	var occupies []model.WorkstationOccupy
+	if err := tx.Where("exam_id = ?", id).Find(&occupies).Error; err == nil {
+		for i := range occupies {
+			occupies[i].OccupyDate = req.ExamDate
+			occupies[i].StartTime = req.StartTime
+			occupies[i].EndTime = req.EndTime
+			if err := tx.Save(&occupies[i]).Error; err != nil {
+				tx.Rollback()
+				Error(c, http.StatusInternalServerError, "更新工位占用失败: "+err.Error())
+				return
+			}
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		Error(c, http.StatusInternalServerError, "提交事务失败: "+err.Error())
+		return
+	}
+
+	Success(c, gin.H{
+		"id":          exam.ID,
+		"examDate":    exam.ExamDate,
+		"startTime":   exam.StartTime,
+		"endTime":     exam.EndTime,
+		"duration":    exam.Duration,
+		"oldDate":     oldDate,
+		"oldStartTime": oldStart,
+		"oldEndTime":   oldEnd,
+	})
+}
+
 func UpdateExam(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {

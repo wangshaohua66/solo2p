@@ -468,6 +468,18 @@ func GetExaminerWarnings(c *gin.Context) {
 
 	continueEducationHours := 0
 	requiredHours := 36
+
+	var ceRecords []model.ContinuingEducation
+	currentYear := time.Now().Year()
+	ceQuery := model.DB.Where("examiner_id = ? AND status = 1", id)
+	ceQuery = ceQuery.Where("(strftime('%Y', start_date) = ? OR strftime('%Y', end_date) = ?)",
+		strconv.Itoa(currentYear), strconv.Itoa(currentYear))
+	if err := ceQuery.Find(&ceRecords).Error; err == nil {
+		for _, r := range ceRecords {
+			continueEducationHours += r.Hours
+		}
+	}
+
 	if continueEducationHours < requiredHours {
 		warnings = append(warnings, ExaminerWarning{
 			Type:          "education",

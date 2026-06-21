@@ -439,22 +439,184 @@ type GeneratePaperRequest struct {
 }
 
 type PaperQuestionVO struct {
-	ID        uint     `json:"id"`
-	Type      string   `json:"type"`
-	Content   string   `json:"content"`
-	Options   []string `json:"options,omitempty"`
-	Score     int      `json:"score"`
-	Answer    string   `json:"answer"`
+	ID          uint     `json:"id"`
+	Type        string   `json:"type"`
+	Content     string   `json:"content"`
+	Options     []string `json:"options,omitempty"`
+	Score       int      `json:"score"`
+	Answer      string   `json:"answer"`
+	Knowledge   string   `json:"knowledge,omitempty"`
+	Analysis    string   `json:"analysis,omitempty"`
+	ScoringRule string   `json:"scoringRule,omitempty"`
+	PenaltyRule string   `json:"penaltyRule,omitempty"`
 }
 
 type PaperDetailVO struct {
-	ID            uint              `json:"id"`
-	Name          string            `json:"name"`
-	TradeID       uint              `json:"tradeId"`
-	Level         string            `json:"level"`
-	TotalScore    int               `json:"totalScore"`
-	QuestionCount int               `json:"questionCount"`
-	Questions     []PaperQuestionVO `json:"questions"`
+	ID              uint              `json:"id"`
+	Name            string            `json:"name"`
+	TradeID         uint              `json:"tradeId"`
+	Level           string            `json:"level"`
+	TotalScore      int               `json:"totalScore"`
+	QuestionCount   int               `json:"questionCount"`
+	Questions       []PaperQuestionVO `json:"questions"`
+	KnowledgeCovered []string          `json:"knowledgeCovered"`
+	KnowledgeMissing []string          `json:"knowledgeMissing,omitempty"`
+	ScoringStandards string            `json:"scoringStandards,omitempty"`
+}
+
+func getScoringRuleForQuestion(q *model.Question, score int) string {
+	switch q.Type {
+	case "single":
+		return fmt.Sprintf("单选题，满分%d分，选择正确答案得全分，选错或不选得0分", score)
+	case "multiple":
+		return fmt.Sprintf("多选题，满分%d分，全部选对得全分，少选且选对得%d分，选错或多选得0分", score, score/2)
+	case "judge":
+		return fmt.Sprintf("判断题，满分%d分，判断正确得全分，判断错误或不答得0分", score)
+	case "essay":
+		return fmt.Sprintf("论述题/简答题，满分%d分。评分要点：(1)核心观点正确得%d分；(2)论述充分条理清晰得%d分；(3)结合实际案例得%d分", score, score/2, score/4, score/4)
+	default:
+		return fmt.Sprintf("满分%d分，按标准答案评分", score)
+	}
+}
+
+func getPenaltyRuleForQuestion(q *model.Question) string {
+	switch q.Type {
+	case "single":
+		return "选错、不选、多选均不得分"
+	case "multiple":
+		return "多选或错选不得分，少选且全部选对得部分分值"
+	case "judge":
+		return "判断错误不得分，不答按错误处理"
+	case "essay":
+		return "答案与题目无关或严重偏离主题得0分，存在明显知识性错误酌情扣分"
+	default:
+		return "不按要求作答酌情扣分"
+	}
+}
+
+func getGeneralScoringStandards() string {
+	return "一、总体原则：试卷总分100分，60分及以上为合格。二、客观题（单选、多选、判断）采用机器阅卷，按标准答案自动评分。三、主观题（简答、论述）采用人工阅卷，按评分细则分步给分。四、缺考考生成绩记为0分。五、违纪考生成绩记为0分并标注违纪。六、成绩保留两位小数，四舍五入。"
+}
+
+func extractKnowledgePoints(questions []*model.Question) map[string][]*model.Question {
+	kpMap := make(map[string][]*model.Question)
+	for _, q := range questions {
+		if q.Knowledge != "" {
+			kps := strings.Split(q.Knowledge, ",")
+			for _, kp := range kps {
+				kp = strings.TrimSpace(kp)
+				if kp != "" {
+					kpMap[kp] = append(kpMap[kp], q)
+				}
+			}
+		} else {
+			kpMap["未分类"] = append(kpMap["未分类"], q)
+		}
+	}
+	return kpMap
+}
+
+func getAllKnowledgePoints(tradeID uint, level string) []string {
+	var questions []model.Question
+	model.DB.Where("trade_id = ? AND level = ? AND status = 1 AND knowledge != ''", tradeID, level).Find(&questions)
+	kpSet := make(map[string]bool)
+	for _, q := range questions {
+		kps := strings.Split(q.Knowledge, ",")
+		for _, kp := range kps {
+			kp = strings.TrimSpace(kp)
+			if kp != "" {
+				kpSet[kp] = true
+			}
+		}
+	}
+	result := make([]string, 0, len(kpSet))
+	for kp := range kpSet {
+		result = append(result, kp)
+	}
+	return result
+}
+
+func selectByKnowledgeCoverage(pool []*model.Question, count int, allKPs []string) ([]*model.Question, []string, []string, error) {
+	if count <= 0 || len(pool) == 0 {
+		return nil, nil, nil, nil
+	}
+	if count > len(pool) {
+		return nil, nil, nil, fmt.Errorf("insufficient questions: need %d, have %d", count, len(pool))
+	}
+
+	kpMap := extractKnowledgePoints(pool)
+	selected := make([]*model.Question, 0, count)
+	selectedIDs := make(map[uint]bool)
+	coveredKP := make(map[string]bool)
+
+	kpList := make([]string, 0, len(allKPs))
+	for _, kp := range allKPs {
+		if _, exists := kpMap[kp]; exists {
+			kpList = append(kpList, kp)
+		}
+	}
+
+	for _, kp := range kpList {
+		if len(selected) >= count {
+			break
+		}
+		questions := kpMap[kp]
+		for _, q := range questions {
+			if !selectedIDs[q.ID] {
+				selected = append(selected, q)
+				selectedIDs[q.ID] = true
+				coveredKP[kp] = true
+				break
+			}
+		}
+	}
+
+	missingKP := make([]string, 0)
+	for _, kp := range allKPs {
+		if !coveredKP[kp] {
+			missingKP = append(missingKP, kp)
+		}
+	}
+
+	if len(selected) < count {
+		remaining := make([]*model.Question, 0)
+		for _, q := range pool {
+			if !selectedIDs[q.ID] {
+				remaining = append(remaining, q)
+			}
+		}
+		moreNeeded := count - len(selected)
+		extra, err := randomSelect(remaining, moreNeeded)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		for _, q := range extra {
+			selected = append(selected, q)
+			if q.Knowledge != "" {
+				kps := strings.Split(q.Knowledge, ",")
+				for _, kp := range kps {
+					kp = strings.TrimSpace(kp)
+					if kp != "" {
+						coveredKP[kp] = true
+					}
+				}
+			}
+		}
+	}
+
+	coveredList := make([]string, 0, len(coveredKP))
+	for kp := range coveredKP {
+		coveredList = append(coveredList, kp)
+	}
+
+	newMissing := make([]string, 0)
+	for _, kp := range allKPs {
+		if !coveredKP[kp] {
+			newMissing = append(newMissing, kp)
+		}
+	}
+
+	return selected, coveredList, newMissing, nil
 }
 
 func GeneratePaper(c *gin.Context) {
@@ -505,22 +667,58 @@ func GeneratePaper(c *gin.Context) {
 		mediumCount = req.QuestionNum - easyCount
 	}
 
-	easyQuestions, err := randomSelect(levelCache[1], easyCount)
+	allKnowledgePoints := getAllKnowledgePoints(req.TradeID, req.Level)
+
+	easyQuestions, easyCovered, easyMissing, err := selectByKnowledgeCoverage(levelCache[1], easyCount, allKnowledgePoints)
 	if err != nil {
 		Error(c, 400, "简单题数量不足")
 		return
 	}
 
-	mediumQuestions, err := randomSelect(levelCache[2], mediumCount)
+	mediumQuestions, mediumCovered, mediumMissing, err := selectByKnowledgeCoverage(levelCache[2], mediumCount, allKnowledgePoints)
 	if err != nil {
 		Error(c, 400, "中等题数量不足")
 		return
 	}
 
-	hardQuestions, err := randomSelect(levelCache[3], hardCount)
+	hardQuestions, hardCovered, hardMissing, err := selectByKnowledgeCoverage(levelCache[3], hardCount, allKnowledgePoints)
 	if err != nil {
 		Error(c, 400, "困难题数量不足")
 		return
+	}
+
+	allCoveredKP := make(map[string]bool)
+	for _, kp := range easyCovered {
+		allCoveredKP[kp] = true
+	}
+	for _, kp := range mediumCovered {
+		allCoveredKP[kp] = true
+	}
+	for _, kp := range hardCovered {
+		allCoveredKP[kp] = true
+	}
+
+	coveredList := make([]string, 0, len(allCoveredKP))
+	for kp := range allCoveredKP {
+		coveredList = append(coveredList, kp)
+	}
+
+	missingSet := make(map[string]bool)
+	for _, kp := range easyMissing {
+		missingSet[kp] = true
+	}
+	for _, kp := range mediumMissing {
+		missingSet[kp] = true
+	}
+	for _, kp := range hardMissing {
+		missingSet[kp] = true
+	}
+	for kp := range allCoveredKP {
+		delete(missingSet, kp)
+	}
+	missingList := make([]string, 0, len(missingSet))
+	for kp := range missingSet {
+		missingList = append(missingList, kp)
 	}
 
 	easyScore := 2
@@ -616,13 +814,16 @@ func GeneratePaper(c *gin.Context) {
 		}
 
 		vo := PaperDetailVO{
-			ID:            paper.ID,
-			Name:          paper.Name,
-			TradeID:       paper.TradeID,
-			Level:         paper.Level,
-			TotalScore:    paper.TotalScore,
-			QuestionCount: paper.QuestionCount,
-			Questions:     make([]PaperQuestionVO, 0, len(allQuestions)),
+			ID:               paper.ID,
+			Name:             paper.Name,
+			TradeID:          paper.TradeID,
+			Level:            paper.Level,
+			TotalScore:       paper.TotalScore,
+			QuestionCount:    paper.QuestionCount,
+			Questions:        make([]PaperQuestionVO, 0, len(allQuestions)),
+			KnowledgeCovered: coveredList,
+			KnowledgeMissing: missingList,
+			ScoringStandards: getGeneralScoringStandards(),
 		}
 
 		for idx, q := range allQuestions {
@@ -635,11 +836,15 @@ func GeneratePaper(c *gin.Context) {
 			model.DB.Create(&pq)
 
 			qvo := PaperQuestionVO{
-				ID:      q.ID,
-				Type:    q.Type,
-				Content: q.Content,
-				Score:   allScores[idx],
-				Answer:  q.Answer,
+				ID:          q.ID,
+				Type:        q.Type,
+				Content:     q.Content,
+				Score:       allScores[idx],
+				Answer:      q.Answer,
+				Knowledge:   q.Knowledge,
+				Analysis:    q.Analysis,
+				ScoringRule: getScoringRuleForQuestion(q, allScores[idx]),
+				PenaltyRule: getPenaltyRuleForQuestion(q),
 			}
 
 			if q.Type != "essay" && q.Type != "judge" {
@@ -687,24 +892,47 @@ func GetPaperDetail(c *gin.Context) {
 		return
 	}
 
+	coveredKP := make(map[string]bool)
+	for _, pq := range paperQuestions {
+		if pq.Question.Knowledge != "" {
+			kps := strings.Split(pq.Question.Knowledge, ",")
+			for _, kp := range kps {
+				kp = strings.TrimSpace(kp)
+				if kp != "" {
+					coveredKP[kp] = true
+				}
+			}
+		}
+	}
+	coveredList := make([]string, 0, len(coveredKP))
+	for kp := range coveredKP {
+		coveredList = append(coveredList, kp)
+	}
+
 	vo := PaperDetailVO{
-		ID:            paper.ID,
-		Name:          paper.Name,
-		TradeID:       paper.TradeID,
-		Level:         paper.Level,
-		TotalScore:    paper.TotalScore,
-		QuestionCount: paper.QuestionCount,
-		Questions:     make([]PaperQuestionVO, 0, len(paperQuestions)),
+		ID:               paper.ID,
+		Name:             paper.Name,
+		TradeID:          paper.TradeID,
+		Level:            paper.Level,
+		TotalScore:       paper.TotalScore,
+		QuestionCount:    paper.QuestionCount,
+		Questions:        make([]PaperQuestionVO, 0, len(paperQuestions)),
+		KnowledgeCovered: coveredList,
+		ScoringStandards: getGeneralScoringStandards(),
 	}
 
 	for _, pq := range paperQuestions {
 		q := pq.Question
 		qvo := PaperQuestionVO{
-			ID:      q.ID,
-			Type:    q.Type,
-			Content: q.Content,
-			Score:   pq.Score,
-			Answer:  q.Answer,
+			ID:          q.ID,
+			Type:        q.Type,
+			Content:     q.Content,
+			Score:       pq.Score,
+			Answer:      q.Answer,
+			Knowledge:   q.Knowledge,
+			Analysis:    q.Analysis,
+			ScoringRule: getScoringRuleForQuestion(&q, pq.Score),
+			PenaltyRule: getPenaltyRuleForQuestion(&q),
 		}
 
 		if q.Type != "essay" && q.Type != "judge" {

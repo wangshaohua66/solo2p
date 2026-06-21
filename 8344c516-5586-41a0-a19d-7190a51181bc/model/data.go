@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -293,6 +294,52 @@ type OperationLog struct {
 	CreatedAt  time.Time `gorm:"column:created_at;index"`
 }
 
+type ContinuingEducation struct {
+	ID          uint      `gorm:"primaryKey;column:id"`
+	ExaminerID  uint      `gorm:"column:examiner_id;index;not null"`
+	Examiner    User      `gorm:"foreignKey:ExaminerID"`
+	Title       string    `gorm:"size:200;column:title;not null"`
+	Hours       int       `gorm:"column:hours;not null;default:0"`
+	CourseType  string    `gorm:"size:50;column:course_type;default:'common'"`
+	StartDate   time.Time `gorm:"column:start_date;not null"`
+	EndDate     time.Time `gorm:"column:end_date;not null"`
+	Provider    string    `gorm:"size:200;column:provider"`
+	Certificate string    `gorm:"size:100;column:certificate"`
+	Status      int       `gorm:"column:status;default:1"`
+	CreatedAt   time.Time `gorm:"column:created_at"`
+	UpdatedAt   time.Time `gorm:"column:updated_at"`
+}
+
+type PaymentOrder struct {
+	ID           uint       `gorm:"primaryKey;column:id"`
+	OrderNo      string     `gorm:"size:50;uniqueIndex;column:order_no;not null"`
+	UserID       uint       `gorm:"column:user_id;index;not null"`
+	User         User       `gorm:"foreignKey:UserID"`
+	ApplyID      uint       `gorm:"column:apply_id;index;not null"`
+	Apply        ExamApply  `gorm:"foreignKey:ApplyID"`
+	ExamID       uint       `gorm:"column:exam_id;index;not null"`
+	Exam         Exam       `gorm:"foreignKey:ExamID"`
+	Amount       float64    `gorm:"column:amount;not null;default:0"`
+	PayChannel   string     `gorm:"size:20;column:pay_channel;default:'wechat'"`
+	PayStatus    int        `gorm:"column:pay_status;default:0"`
+	ThirdPartyNo string     `gorm:"size:100;column:third_party_no"`
+	PayTime      *time.Time `gorm:"column:pay_time"`
+	ExpireTime   time.Time  `gorm:"column:expire_time;not null"`
+	NotifyUrl    string     `gorm:"size:500;column:notify_url"`
+	ReturnUrl    string     `gorm:"size:500;column:return_url"`
+	Remark       string     `gorm:"size:500;column:remark"`
+	CreatedAt    time.Time  `gorm:"column:created_at"`
+	UpdatedAt    time.Time  `gorm:"column:updated_at"`
+}
+
+func (ContinuingEducation) TableName() string {
+	return "biz_continuing_education"
+}
+
+func (PaymentOrder) TableName() string {
+	return "biz_payment_order"
+}
+
 func (User) TableName() string {
 	return "sys_user"
 }
@@ -409,6 +456,8 @@ func InitDB() error {
 		&Certificate{},
 		&WorkstationOccupy{},
 		&OperationLog{},
+		&ContinuingEducation{},
+		&PaymentOrder{},
 	)
 	if err != nil {
 		return err
@@ -446,12 +495,12 @@ func initSeedData() error {
 	DB.Model(&Trade{}).Count(&tradeCount)
 	if tradeCount == 0 {
 		categories := []Trade{
-			{Name: "生产制造类", Code: "CAT001", Sort: 1, Status: 1},
-			{Name: "交通运输类", Code: "CAT002", Sort: 2, Status: 1},
-			{Name: "建筑工程类", Code: "CAT003", Sort: 3, Status: 1},
-			{Name: "信息技术类", Code: "CAT004", Sort: 4, Status: 1},
-			{Name: "生活服务类", Code: "CAT005", Sort: 5, Status: 1},
-			{Name: "农业生产类", Code: "CAT006", Sort: 6, Status: 1},
+			{Name: "电工类", Code: "CAT-ELEC", Sort: 1, Status: 1},
+			{Name: "焊工类", Code: "CAT-WELD", Sort: 2, Status: 1},
+			{Name: "起重工类", Code: "CAT-CRANE", Sort: 3, Status: 1},
+			{Name: "制冷工类", Code: "CAT-REF", Sort: 4, Status: 1},
+			{Name: "锅炉工类", Code: "CAT-BOIL", Sort: 5, Status: 1},
+			{Name: "电梯修理工类", Code: "CAT-ELEV", Sort: 6, Status: 1},
 		}
 		for i := range categories {
 			if err := DB.Create(&categories[i]).Error; err != nil {
@@ -459,23 +508,44 @@ func initSeedData() error {
 			}
 		}
 
-		exampleTrades := []Trade{
-			{Name: "电工", Code: "TRADE001", Level: "初级", LevelCode: "5", ParentID: &categories[0].ID, Sort: 1, Status: 1},
-			{Name: "电工", Code: "TRADE002", Level: "中级", LevelCode: "4", ParentID: &categories[0].ID, Sort: 2, Status: 1},
-			{Name: "电工", Code: "TRADE003", Level: "高级", LevelCode: "3", ParentID: &categories[0].ID, Sort: 3, Status: 1},
-			{Name: "焊工", Code: "TRADE004", Level: "初级", LevelCode: "5", ParentID: &categories[0].ID, Sort: 4, Status: 1},
-			{Name: "焊工", Code: "TRADE005", Level: "中级", LevelCode: "4", ParentID: &categories[0].ID, Sort: 5, Status: 1},
-			{Name: "焊工", Code: "TRADE006", Level: "高级", LevelCode: "3", ParentID: &categories[0].ID, Sort: 6, Status: 1},
-			{Name: "计算机维修工", Code: "TRADE007", Level: "初级", LevelCode: "5", ParentID: &categories[3].ID, Sort: 7, Status: 1},
-			{Name: "计算机维修工", Code: "TRADE008", Level: "中级", LevelCode: "4", ParentID: &categories[3].ID, Sort: 8, Status: 1},
-			{Name: "计算机维修工", Code: "TRADE009", Level: "高级", LevelCode: "3", ParentID: &categories[3].ID, Sort: 9, Status: 1},
-			{Name: "中式烹调师", Code: "TRADE010", Level: "初级", LevelCode: "5", ParentID: &categories[4].ID, Sort: 10, Status: 1},
-			{Name: "中式烹调师", Code: "TRADE011", Level: "中级", LevelCode: "4", ParentID: &categories[4].ID, Sort: 11, Status: 1},
-			{Name: "中式烹调师", Code: "TRADE012", Level: "高级", LevelCode: "3", ParentID: &categories[4].ID, Sort: 12, Status: 1},
+		tradeNames := map[*uint][]string{
+			&categories[0].ID: {"电工", "维修电工", "安装电工", "配电工", "继电保护工", "变电设备安装工", "电气值班员", "高低压电器装配工"},
+			&categories[1].ID: {"焊工", "电焊工", "气焊工", "氩弧焊工", "CO2气体保护焊工", "压力焊焊工", "钎焊工"},
+			&categories[2].ID: {"起重工", "起重机驾驶员", "塔式起重机驾驶员", "门式起重机驾驶员", "桥式起重机驾驶员", "流动式起重机驾驶员", "升降机驾驶员"},
+			&categories[3].ID: {"制冷工", "制冷设备维修工", "中央空调工", "冷库工", "制冰工", "空调器装配工"},
+			&categories[4].ID: {"锅炉工", "锅炉设备安装工", "锅炉水质处理工", "热力司炉工", "工业锅炉操作工"},
+			&categories[5].ID: {"电梯修理工", "电梯安装维修工", "电梯检验员", "自动扶梯维修工", "乘客电梯操作工"},
 		}
-		for i := range exampleTrades {
-			if err := DB.Create(&exampleTrades[i]).Error; err != nil {
-				return err
+
+		levels := []struct{
+			Name string
+			Code string
+		}{
+			{Name: "初级", Code: "5"},
+			{Name: "中级", Code: "4"},
+			{Name: "高级", Code: "3"},
+		}
+
+		sortCounter := 1
+		codeCounter := 1
+		for catID, names := range tradeNames {
+			for _, name := range names {
+				for _, lvl := range levels {
+					trade := Trade{
+						Name:      name,
+						Code:      fmt.Sprintf("TRADE%03d", codeCounter),
+						Level:     lvl.Name,
+						LevelCode: lvl.Code,
+						ParentID:  catID,
+						Sort:      sortCounter,
+						Status:    1,
+					}
+					if err := DB.Create(&trade).Error; err != nil {
+						return err
+					}
+					sortCounter++
+					codeCounter++
+				}
 			}
 		}
 	}

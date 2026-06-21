@@ -77,6 +77,7 @@ func main() {
 			exam.GET("/calendar", middleware.RequireRole("admin", "institution"), handler.GetCalendarData)
 			exam.GET("/:id", handler.GetExamDetail)
 			exam.PUT("/:id", middleware.RequireRole("admin"), handler.UpdateExam)
+			exam.PUT("/:id/time", middleware.RequireRole("admin", "institution"), handler.UpdateExamTime)
 			exam.GET("/:id/conflicts", middleware.RequireRole("admin", "institution"), handler.CheckConflicts)
 			exam.POST("/:id/apply", middleware.RequireRole("examinee"), handler.ApplyExam)
 			exam.POST("/:id/approve", middleware.RequireRole("admin"), handler.ApproveExam)
@@ -129,6 +130,17 @@ func main() {
 		}
 
 		api.GET("/certificates/verify/:code", handler.VerifyCertificate)
+
+		payment := api.Group("/payments")
+		{
+			payment.POST("", middleware.RequireRole("examinee"), handler.CreatePayment)
+			payment.GET("", middleware.RequireRole("examinee", "admin"), handler.GetPaymentList)
+			payment.GET("/order/:orderNo", middleware.RequireRole("examinee", "admin"), handler.GetPaymentDetail)
+			payment.POST("/order/:orderNo/mock", middleware.RequireRole("examinee"), handler.MockPay)
+			payment.POST("/refund/:id", middleware.RequireRole("admin"), handler.RefundPayment)
+		}
+
+		api.POST("/payment/notify", handler.PaymentNotify)
 
 		statistics := api.Group("/statistics")
 		{
