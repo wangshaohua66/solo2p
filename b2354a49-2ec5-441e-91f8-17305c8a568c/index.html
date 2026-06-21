@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>萌宠乐美 - 连锁宠物美容管理系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="css/custom.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top shadow-sm" id="topNav">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="#/reception">
+                <i class="bi bi-paw-fill me-2 fs-4"></i>
+                <span class="fw-bold">萌宠乐美</span>
+            </a>
+            <div class="d-flex align-items-center ms-3">
+                <div class="dropdown">
+                    <button class="btn btn-light btn-sm dropdown-toggle" type="button" id="storeDropdown" data-bs-toggle="dropdown">
+                        <i class="bi bi-shop me-1"></i>
+                        <span id="currentStoreName">总店</span>
+                    </button>
+                    <ul class="dropdown-menu" id="storeList"></ul>
+                </div>
+            </div>
+            <div class="d-flex align-items-center ms-auto gap-2">
+                <button class="btn btn-success btn-sm" onclick="App.router.navigate('/reception?action=new')">
+                    <i class="bi bi-calendar-plus me-1"></i>新建预约
+                </button>
+                <button class="btn btn-info btn-sm text-white" onclick="App.router.navigate('/member')">
+                    <i class="bi bi-people me-1"></i>会员查询
+                </button>
+                <button class="btn btn-warning btn-sm text-white" onclick="App.router.navigate('/dashboard')">
+                    <i class="bi bi-bar-chart me-1"></i>数据看板
+                </button>
+                <div class="dropdown ms-2">
+                    <button class="btn btn-outline-light btn-sm dropdown-toggle d-flex align-items-center" type="button" id="userDropdown" data-bs-toggle="dropdown">
+                        <i class="bi bi-person-circle me-1"></i>
+                        <span id="currentOperator">张经理</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-person-gear me-2"></i>个人设置</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="#" onclick="logout()"><i class="bi bi-box-arrow-right me-2"></i>退出登录</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="d-flex" id="mainWrapper" style="padding-top: 56px;">
+        <nav class="sidebar bg-dark text-white" id="sidebar">
+            <ul class="nav flex-column py-3" id="sidebarMenu">
+                <li class="nav-item">
+                    <a class="nav-link text-white sidebar-link" data-route="/reception" href="#/reception">
+                        <i class="bi bi-reception-4 me-2"></i><span class="sidebar-text">前台接待</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white sidebar-link" data-route="/groomer" href="#/groomer">
+                        <i class="bi bi-scissors me-2"></i><span class="sidebar-text">美容师工作台</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white sidebar-link" data-route="/schedule" href="#/schedule">
+                        <i class="bi bi-calendar-week me-2"></i><span class="sidebar-text">排班管理</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white sidebar-link" data-route="/member" href="#/member">
+                        <i class="bi bi-credit-card-2-front me-2"></i><span class="sidebar-text">会员管理</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white sidebar-link" data-route="/pets" href="#/pets">
+                        <i class="bi bi-heart me-2"></i><span class="sidebar-text">宠物档案</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white sidebar-link" data-route="/checkout" href="#/checkout">
+                        <i class="bi bi-cash-coin me-2"></i><span class="sidebar-text">收银结算</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white sidebar-link" data-route="/dashboard" href="#/dashboard">
+                        <i class="bi bi-graph-up me-2"></i><span class="sidebar-text">经营看板</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white sidebar-link" data-route="/settings" href="#/settings">
+                        <i class="bi bi-gear me-2"></i><span class="sidebar-text">系统设置</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <main class="flex-grow-1 p-4 bg-light min-vh-100" id="mainContent">
+            <div id="pageContainer" class="page-transition"></div>
+        </main>
+    </div>
+
+    <div class="modal fade" id="globalModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="globalModalTitle">标题</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="globalModalBody"></div>
+                <div class="modal-footer" id="globalModalFooter"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999; margin-top: 60px;">
+        <div id="appToast" class="toast" role="alert">
+            <div class="toast-header">
+                <i class="bi bi-info-circle me-2" id="toastIcon"></i>
+                <strong class="me-auto" id="toastTitle">提示</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="toastBody"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery-router-plugin@1.0.0/jquery.router.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <script src="js/store.js?v=1"></script>
+    <script src="js/utils/calculator.js?v=1"></script>
+    <script src="js/components/pet-card.js?v=1"></script>
+    <script src="js/components/service-panel.js?v=1"></script>
+    <script src="js/components/schedule-grid.js?v=1"></script>
+    <script src="js/pages/reception.js?v=1"></script>
+    <script src="js/pages/groomer.js?v=1"></script>
+    <script src="js/pages/member.js?v=1"></script>
+    <script src="js/pages/schedule.js?v=1"></script>
+    <script src="js/pages/pets.js?v=1"></script>
+    <script src="js/pages/checkout.js?v=1"></script>
+    <script src="js/pages/dashboard.js?v=1"></script>
+    <script src="js/pages/settings.js?v=1"></script>
+    <script src="js/router.js?v=1"></script>
+
+    <script>
+        var App = window.App || {};
+
+        App.showToast = function(message, type, title) {
+            type = type || 'info';
+            title = title || '系统提示';
+            var iconMap = {
+                info: 'bi-info-circle text-primary',
+                success: 'bi-check-circle text-success',
+                warning: 'bi-exclamation-triangle text-warning',
+                error: 'bi-x-circle text-danger'
+            };
+            $('#toastIcon').attr('class', 'me-2 bi ' + (iconMap[type] || iconMap.info));
+            $('#toastTitle').text(title);
+            $('#toastBody').text(message);
+            var toast = new bootstrap.Toast($('#appToast')[0]);
+            toast.show();
+        };
+
+        App.showModal = function(title, bodyHtml, footerHtml) {
+            $('#globalModalTitle').text(title);
+            $('#globalModalBody').html(bodyHtml);
+            $('#globalModalFooter').html(footerHtml || '');
+            new bootstrap.Modal($('#globalModal')[0]).show();
+        };
+
+        function logout() {
+            sessionStorage.clear();
+            location.reload();
+        }
+
+        function renderStoreList() {
+            var stores = App.store.getStores();
+            var html = '';
+            stores.forEach(function(s) {
+                html += '<li><a class="dropdown-item store-item" href="#" data-id="' + s.id + '">' +
+                    '<i class="bi bi-shop-window me-2"></i>' + s.name + '</a></li>';
+            });
+            $('#storeList').html(html);
+            $('#storeList').on('click', '.store-item', function(e) {
+                e.preventDefault();
+                var id = $(this).data('id');
+                App.store.setCurrentStore(id);
+                var store = App.store.getCurrentStore();
+                $('#currentStoreName').text(store.name);
+                App.showToast('已切换至门店：' + store.name, 'success');
+            });
+            var cur = App.store.getCurrentStore();
+            $('#currentStoreName').text(cur.name);
+        }
+
+        $(document).ready(function() {
+            App.store.init();
+            renderStoreList();
+            App.router.init();
+        });
+    </script>
+</body>
+</html>
