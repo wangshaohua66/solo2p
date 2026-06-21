@@ -1,9 +1,14 @@
+using System.Text;
 using System.Text.Json;
+using System.Security.Cryptography;
 using Microsoft.Extensions.Options;
 using SpecialEquipmentInspection.Common;
 using SpecialEquipmentInspection.Dtos;
 using SpecialEquipmentInspection.Models;
 using SpecialEquipmentInspection.Repositories;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 
 namespace SpecialEquipmentInspection.Services;
 
@@ -11,6 +16,8 @@ public class InspectionOptions
 {
     public int MaxPhotosPerInspection { get; set; } = 20;
     public int MaxPhotoSizeMB { get; set; } = 5;
+    public int MaxVideosPerInspection { get; set; } = 5;
+    public int MaxVideoSizeMB { get; set; } = 50;
     public int RectificationDefaultDays { get; set; } = 15;
     public int WarningBeforeExpiryDays { get; set; } = 30;
     public int ReportRetentionYears { get; set; } = 10;
@@ -28,20 +35,26 @@ public class InspectionService : IInspectionService
     private readonly IInspectionRepository _inspections;
     private readonly IInspectorRepository _inspectors;
     private readonly InspectionOptions _options;
+    private readonly SupervisionPlatformOptions _supervisionOptions;
     private readonly ILogger<InspectionService> _logger;
+    private readonly ISupervisionPlatformClient _supervisionClient;
 
     public InspectionService(
         IDeviceRepository devices,
         IInspectionRepository inspections,
         IInspectorRepository inspectors,
         IOptions<InspectionOptions> options,
-        ILogger<InspectionService> logger)
+        IOptions<SupervisionPlatformOptions> supervisionOptions,
+        ILogger<InspectionService> logger,
+        ISupervisionPlatformClient supervisionClient)
     {
         _devices = devices;
         _inspections = inspections;
         _inspectors = inspectors;
         _options = options.Value;
+        _supervisionOptions = supervisionOptions.Value;
         _logger = logger;
+        _supervisionClient = supervisionClient;
     }
 
     public async Task<InspectionPlan> CreatePlanAsync(CreatePlanDto dto, CurrentUser user)
@@ -71,7 +84,7 @@ public class InspectionService : IInspectionService
 
         var plan = new InspectionPlan
         {
-            PlanCode = $"PL-{dto.Year}-{DateTime.Now:MMddHHmmss}",
+            PlanCode = $"PL-{dto.Year}-{DateTime.Now:MMddHHmmssfff}",
             Year = dto.Year,
             Region = dto.Region ?? "全部",
             DeviceType = dto.DeviceType,
@@ -94,7 +107,7 @@ public class InspectionService : IInspectionService
 
             var inspection = new Inspection
             {
-                InspectionCode = $"INS-{dto.Year}{DateTime.Now:MMdd}-{sequence:D4}",
+                InspectionCode = $"INS-{DateTime.Now:yyyyMMddHHmmssfff}-{sequence:D4}",
                 PlanId = plan.Id,
                 DeviceId = device.Id,
                 DeviceCode = device.DeviceCode,
@@ -132,7 +145,7 @@ public class InspectionService : IInspectionService
 
         var inspection = new Inspection
         {
-            InspectionCode = $"INS-{DateTime.Now:yyyyMMddHHmmss}",
+            InspectionCode = $"INS-{DateTime.Now:yyyyMMddHHmmssfff}",
             PlanId = dto.PlanId,
             DeviceId = device.Id,
             DeviceCode = device.DeviceCode,
@@ -198,13 +211,23 @@ public class InspectionService : IInspectionService
         if (dto.Photos.Count > _options.MaxPhotosPerInspection)
             throw new BusinessException($"每次检验照片不能超过{_options.MaxPhotosPerInspection}张");
 
+        if (dto.Videos.Count > _options.MaxVideosPerInspection)
+            throw new BusinessException($"每次检验视频不能超过{_options.MaxVideosPerInspection}个");
+
+        var isHighRisk = inspection.DeviceType == DeviceType.PassengerRopeway || inspection.DeviceType == DeviceType.LargeAmusementDevice;
+        if (isHighRisk && dto.Videos.Count == 0)
+            throw new BusinessException("客运索道、大型游乐设施等高风险设备必须采集现场运行视频");
+
+        var device = await _devices.GetByIdAsync(inspection.DeviceId);
+
         inspection.Status = InspectionStatus.Completed;
         inspection.Result = dto.Result;
         inspection.Conclusion = dto.Conclusion;
         inspection.InspectionDate ??= DateTime.Now;
         inspection.Photos = JsonSerializer.Serialize(dto.Photos);
+        inspection.Videos = JsonSerializer.Serialize(dto.Videos);
         inspection.Findings = dto.Findings;
-        inspection.NextInspectionDate = dto.NextInspectionDate ?? CalculateNextInspectionDate(inspection.DeviceType, DateTime.Now);
+        inspection.NextInspectionDate = dto.NextInspectionDate ?? CalculateNextInspectionDate(inspection.DeviceType, inspection.InspectionDate.Value, device?.ManufacturingDate);
         await _inspections.UpdateInspectionAsync(inspection);
 
         var items = dto.Items.Select(i => new InspectionItem
@@ -220,7 +243,6 @@ public class InspectionService : IInspectionService
         }).ToList();
         await _inspections.ReplaceItemsAsync(inspectionId, items);
 
-        var device = await _devices.GetByIdAsync(inspection.DeviceId);
         if (device != null)
         {
             device.LastInspectionDate = inspection.InspectionDate;
@@ -359,7 +381,7 @@ public class InspectionService : IInspectionService
         var report = new Report
         {
             InspectionId = inspectionId,
-            ReportNo = $"RPT-{DateTime.Now:yyyyMMddHHmmss}",
+            ReportNo = $"RPT-{DateTime.Now:yyyyMMddHHmmssfff}",
             DeviceInfo = deviceInfo,
             InspectionBasis = GetInspectionBasis(inspection.DeviceType),
             ItemsSummary = itemsSummary,
@@ -411,17 +433,37 @@ public class InspectionService : IInspectionService
         return report;
     }
 
-    public async Task<(string Content, string FileName)> ExportReportAsync(int reportId)
+    public async Task<(byte[] Content, string FileName, string MimeType)> ExportReportAsync(int reportId, string format = "html")
     {
         var report = await _inspections.GetReportAsync(reportId)
             ?? throw new NotFoundException("报告不存在");
         var inspection = await _inspections.GetInspectionByIdAsync(report.InspectionId);
-        var html = BuildReportHtml(report, inspection);
-        return (html, $"{report.ReportNo}.html");
+
+        var ext = format.ToLowerInvariant() switch
+        {
+            "pdf" => "pdf",
+            _ => "html"
+        };
+
+        if (ext == "pdf")
+        {
+            var pdfBytes = BuildReportPdf(report, inspection);
+            return (pdfBytes, $"{report.ReportNo}.pdf", "application/pdf");
+        }
+        else
+        {
+            var html = BuildReportHtml(report, inspection);
+            var bytes = System.Text.Encoding.UTF8.GetBytes(html);
+            return (bytes, $"{report.ReportNo}.html", "text/html; charset=utf-8");
+        }
     }
 
     public Task<InspectionStatistics> GetStatisticsAsync(int? year, string? region)
         => _inspections.GetStatisticsAsync(year, region);
+
+    public Task<TimeSeriesStatistics> GetTimeSeriesStatisticsAsync(
+        DateTime dateFrom, DateTime dateTo, TimeDimension dimension, string? region, DeviceType? deviceType)
+        => _inspections.GetTimeSeriesStatisticsAsync(dateFrom, dateTo, dimension, region, deviceType);
 
     public async Task<List<SupervisionReport>> GenerateSupervisionReportsAsync(bool fullSync, CurrentUser user)
     {
@@ -445,7 +487,7 @@ public class InspectionService : IInspectionService
                 if (ins == null) continue;
                 var sr = new SupervisionReport
                 {
-                    ReportCode = $"SUP-{DateTime.Now:yyyyMMddHHmmss}-{rect.Id}",
+                    ReportCode = $"SUP-{DateTime.Now:yyyyMMddHHmmssfff}-{rect.Id}",
                     RectificationId = rect.Id,
                     InspectionId = rect.InspectionId,
                     DeviceId = rect.DeviceId,
@@ -472,7 +514,7 @@ public class InspectionService : IInspectionService
     {
         var sr = new SupervisionReport
         {
-            ReportCode = $"SUP-{DateTime.Now:yyyyMMddHHmmss}-{ins.Id}",
+            ReportCode = $"SUP-{DateTime.Now:yyyyMMddHHmmssfff}-{ins.Id}",
             InspectionId = ins.Id,
             DeviceId = ins.DeviceId,
             DeviceCode = ins.DeviceCode,
@@ -503,13 +545,20 @@ public class InspectionService : IInspectionService
             throw new ForbiddenException("仅可操作分配给自己的检验任务");
     }
 
-    private static DateTime CalculateNextInspectionDate(DeviceType type, DateTime baseDate)
+    private static DateTime CalculateNextInspectionDate(DeviceType type, DateTime baseDate, DateTime? manufacturingDate)
     {
+        var ageYears = manufacturingDate.HasValue
+            ? Math.Max(0, (baseDate.Date - manufacturingDate.Value.Date).TotalDays / 365.25)
+            : 0;
+
         var intervalMonths = type switch
         {
+            DeviceType.Elevator => ageYears > 15 ? 6 : 12,
+            DeviceType.Crane => ageYears > 10 ? 6 : 12,
+            DeviceType.PressureVessel => ageYears > 10 ? 24 : 36,
+            DeviceType.Boiler => ageYears > 10 ? 6 : 12,
             DeviceType.PassengerRopeway => 12,
             DeviceType.LargeAmusementDevice => 12,
-            DeviceType.Boiler => 12,
             _ => 12
         };
         return baseDate.AddMonths(intervalMonths);
@@ -555,5 +604,213 @@ public class InspectionService : IInspectionService
 <tr><th>审批人</th><td>{report.ApprovedBy} {report.ApprovedDate:yyyy-MM-dd}</td></tr>
 <tr><th>检验编号</th><td>{inspection?.InspectionCode}</td></tr></table>
 {seal}</body></html>";
+    }
+
+    private static byte[] BuildReportPdf(Report report, Inspection? inspection)
+    {
+        var deviceInfo = string.IsNullOrWhiteSpace(report.DeviceInfo) ? "{}" : report.DeviceInfo;
+        var items = string.IsNullOrWhiteSpace(report.ItemsSummary) ? "[]" : report.ItemsSummary;
+        var conclusion = report.Conclusion switch
+        {
+            InspectionResult.Pass => "合格",
+            InspectionResult.Fail => "不合格",
+            InspectionResult.PassAfterRectification => "整改后合格",
+            InspectionResult.Suspended => "停用",
+            _ => "-"
+        };
+        var statusText = report.Status == ReportStatus.Approved ? "已审批" : "未审批";
+
+        var data = Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.Margin(2, Unit.Centimetre);
+                page.DefaultTextStyle(x => x.FontFamily(Fonts.Calibri).FontSize(10));
+                page.Header().Element(c =>
+                {
+                    c.Column(column =>
+                    {
+                        column.Item().AlignCenter().Text("特种设备定期检验报告").FontSize(18).Bold();
+                        column.Item().AlignCenter().Text($"报告编号：{report.ReportNo}").FontSize(11).SemiBold();
+                        column.Item().PaddingBottom(10).LineHorizontal(1).LineColor(Colors.Grey.Medium);
+                    });
+                });
+                page.Content().Element(c =>
+                {
+                    c.Table(table =>
+                    {
+                        table.ColumnsDefinition(columns =>
+                        {
+                            columns.ConstantColumn(100);
+                            columns.RelativeColumn();
+                        });
+                        void Cell(string label, string value)
+                        {
+                            table.Cell().Border(1).BorderColor(Colors.Grey.Medium).Padding(4).Text(label).Bold();
+                            table.Cell().Border(1).BorderColor(Colors.Grey.Medium).Padding(4).Text(value);
+                        }
+                        Cell("设备信息", deviceInfo);
+                        Cell("检验依据", report.InspectionBasis);
+                        Cell("检验项目", items);
+                        Cell("检验结论", conclusion);
+                        Cell("下次检验日期", report.NextInspectionDate.HasValue ? report.NextInspectionDate.Value.ToString("yyyy-MM-dd") : "-");
+                        Cell("生成日期", report.GeneratedDate.ToString("yyyy-MM-dd HH:mm"));
+                        Cell("审批人", $"{report.ApprovedBy} {report.ApprovedDate:yyyy-MM-dd}");
+                        Cell("检验编号", inspection?.InspectionCode ?? "-");
+                        Cell("报告状态", statusText);
+                    });
+                });
+                page.Footer().AlignRight().Text(x =>
+                {
+                    x.Span("第 ");
+                    x.CurrentPageNumber();
+                    x.Span(" / ");
+                    x.TotalPages();
+                });
+            });
+        });
+
+        return data.GeneratePdf();
+    }
+
+    private ProvincialSupervisionPayload MapToSupervisionPayload(SupervisionReport sup, Inspection? inspection, Device? device, Report? report, Rectification? rect)
+    {
+        var resultName = inspection?.Result switch
+        {
+            InspectionResult.Pass => "合格",
+            InspectionResult.Fail => "不合格",
+            InspectionResult.PassAfterRectification => "整改后合格",
+            InspectionResult.Suspended => "停用",
+            _ => "未知"
+        };
+        var typeName = (device?.Type ?? inspection?.DeviceType ?? 0) switch
+        {
+            DeviceType.Elevator => "电梯",
+            DeviceType.Crane => "起重机械",
+            DeviceType.PressureVessel => "压力容器",
+            DeviceType.Boiler => "锅炉",
+            DeviceType.PassengerRopeway => "客运索道",
+            DeviceType.LargeAmusementDevice => "大型游乐设施",
+            _ => "其他"
+        };
+        var rectStatusName = rect?.Status switch
+        {
+            RectificationStatus.Pending => "待整改",
+            RectificationStatus.InProgress => "整改中",
+            RectificationStatus.Completed => "已完成",
+            RectificationStatus.Overdue => "已逾期",
+            RectificationStatus.Rejected => "已驳回",
+            _ => "未知"
+        };
+        var inspectionCode = inspection?.InspectionCode ?? $"INSP-{sup.InspectionId:000000}";
+
+        var itemPassCount = 0;
+        var itemFailCount = 0;
+        if (inspection?.Items != null)
+        {
+            itemPassCount = inspection.Items.Count(i => i.Result == InspectionResult.Pass);
+            itemFailCount = inspection.Items.Count(i => i.Result == InspectionResult.Fail);
+        }
+
+        var payload = new ProvincialSupervisionPayload
+        {
+            OrgCode = _supervisionOptions.OrgCode,
+            ReportCode = sup.ReportCode,
+            ReportType = sup.ReportType,
+            ReportTime = sup.CreatedAt,
+            Device = new SupervisionDeviceInfo
+            {
+                DeviceCode = device?.DeviceCode ?? sup.DeviceCode ?? "",
+                DeviceName = device?.Name ?? typeName,
+                DeviceType = (int)(device?.Type ?? inspection?.DeviceType ?? 0),
+                DeviceTypeName = typeName,
+                RegistrationCode = device?.DeviceCode ?? "",
+                UserUnit = device?.UseUnitName ?? "",
+                UserUnitCode = device?.UseUnitCode ?? "",
+                Region = device?.Region ?? "",
+                Address = device?.Region ?? "",
+                ManufacturingDate = device?.ManufacturingDate,
+                InstallationDate = null,
+                LastInspectionDate = device?.LastInspectionDate,
+                NextInspectionDate = device?.NextInspectionDate
+            },
+            Inspection = new SupervisionInspectionData
+            {
+                InspectionCode = inspectionCode,
+                InspectionDate = inspection?.InspectionDate ?? sup.CreatedAt,
+                InspectionOrg = "某市特种设备检验检测研究院",
+                Inspector = inspection?.InspectorName ?? "",
+                Result = (int)(inspection?.Result ?? 0),
+                ResultName = resultName,
+                Conclusion = report?.Conclusion.ToString() ?? inspection?.Conclusion ?? "",
+                Basis = report?.InspectionBasis ?? GetInspectionBasis(inspection?.DeviceType ?? 0),
+                ItemTotal = inspection?.Items.Count ?? 0,
+                ItemPass = itemPassCount,
+                ItemFail = itemFailCount,
+                Findings = inspection?.Findings,
+                NextInspectionDate = inspection?.NextInspectionDate,
+                ReportNo = report?.ReportNo,
+                ReportDate = report?.GeneratedDate,
+                ApprovedBy = report?.ApprovedBy,
+                ApprovedDate = report?.ApprovedDate
+            }
+        };
+
+        if (rect != null)
+        {
+            payload.Rectification = new SupervisionRectificationData
+            {
+                RectificationCode = $"RECT-{rect.Id:000000}",
+                Description = rect.Description,
+                Deadline = rect.Deadline,
+                CompletedDate = rect.CompleteDate,
+                Status = (int)rect.Status,
+                StatusName = rectStatusName,
+                Feedback = rect.RectificationResult
+            };
+        }
+
+        return payload;
+    }
+
+    public async Task<SupervisionReport?> SubmitToSupervisionAsync(int supervisionReportId, CurrentUser user)
+    {
+        if (!user.IsAdmin) throw new ForbiddenException("仅管理员可上报监察平台");
+
+        var sup = await _inspections.GetSupervisionReportByIdAsync(supervisionReportId)
+            ?? throw new NotFoundException("监察上报记录不存在");
+
+        if (sup.Status == SupervisionReportStatus.Reported)
+            throw new BusinessException("该报告已上报，无需重复上报");
+
+        var inspection = sup.InspectionId.HasValue ? await _inspections.GetInspectionByIdAsync(sup.InspectionId.Value) : null;
+        var device = inspection != null ? await _devices.GetByIdAsync(inspection.DeviceId) : null;
+        var report = inspection != null ? await _inspections.GetReportByInspectionAsync(inspection.Id) : null;
+        var rect = sup.RectificationId.HasValue ? await _inspections.GetRectificationByIdAsync(sup.RectificationId.Value) : null;
+
+        var payload = MapToSupervisionPayload(sup, inspection, device, report, rect);
+        sup.Payload = JsonSerializer.Serialize(payload, ReportJsonOptions);
+        sup.Status = SupervisionReportStatus.Reporting;
+        sup.ReportedAt = DateTime.Now;
+        await _inspections.UpdateSupervisionReportAsync(sup);
+
+        var (success, response, error) = await _supervisionClient.SubmitReportAsync(payload);
+
+        if (success)
+        {
+            sup.Status = SupervisionReportStatus.Reported;
+            sup.Remark = response;
+            _logger.LogInformation("监察上报成功：{ReportCode}", sup.ReportCode);
+        }
+        else
+        {
+            sup.Status = SupervisionReportStatus.Failed;
+            sup.Remark = error ?? response;
+            _logger.LogError("监察上报失败：{ReportCode} - {Error}", sup.ReportCode, error);
+        }
+
+        await _inspections.UpdateSupervisionReportAsync(sup);
+        return sup;
     }
 }

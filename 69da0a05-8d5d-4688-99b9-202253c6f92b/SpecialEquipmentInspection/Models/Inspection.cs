@@ -43,6 +43,8 @@ public class Inspection
 
     public string Photos { get; set; } = "[]";
 
+    public string Videos { get; set; } = "[]";
+
     public string Findings { get; set; } = string.Empty;
 
     public int? ReportId { get; set; }

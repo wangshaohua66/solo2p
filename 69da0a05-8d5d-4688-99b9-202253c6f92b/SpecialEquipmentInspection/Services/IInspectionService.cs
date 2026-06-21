@@ -30,10 +30,13 @@ public interface IInspectionService
     Task<Report?> GetReportByInspectionAsync(int inspectionId);
     Task<Report> ApproveReportAsync(int reportId, ApproveReportDto dto, CurrentUser user);
     Task<PagedResult<Report>> GetReportsAsync(ReportStatus? status, int page, int pageSize);
-    Task<(string Content, string FileName)> ExportReportAsync(int reportId);
+    Task<(byte[] Content, string FileName, string MimeType)> ExportReportAsync(int reportId, string format = "html");
 
     Task<InspectionStatistics> GetStatisticsAsync(int? year, string? region);
 
+    Task<TimeSeriesStatistics> GetTimeSeriesStatisticsAsync(DateTime dateFrom, DateTime dateTo, TimeDimension dimension, string? region, DeviceType? deviceType);
+
     Task<List<SupervisionReport>> GenerateSupervisionReportsAsync(bool fullSync, CurrentUser user);
+    Task<SupervisionReport?> SubmitToSupervisionAsync(int supervisionReportId, CurrentUser user);
     Task<PagedResult<SupervisionReport>> GetSupervisionReportsAsync(SupervisionReportStatus? status, int page, int pageSize);
 }

@@ -54,6 +54,12 @@ public interface IInspectionRepository
     Task<PagedResult<SupervisionReport>> GetSupervisionReportsPagedAsync(SupervisionReportStatus? status, int page, int pageSize);
 
     Task<InspectionStatistics> GetStatisticsAsync(int? year, string? region);
+
+    Task<TimeSeriesStatistics> GetTimeSeriesStatisticsAsync(DateTime dateFrom, DateTime dateTo, TimeDimension dimension, string? region, DeviceType? deviceType);
+
+    Task<SupervisionReport?> GetSupervisionReportByIdAsync(int id);
+
+    Task<Rectification?> GetRectificationByIdAsync(int id);
 }
 
 public class InspectionStatistics
@@ -70,4 +76,32 @@ public class InspectionStatistics
     public double CompletionRate => TotalInspections == 0 ? 0 : Math.Round(CompletedCount * 100.0 / TotalInspections, 2);
     public double PassRate => CompletedCount == 0 ? 0 : Math.Round((PassCount + PassAfterRectificationCount) * 100.0 / CompletedCount, 2);
     public double RectificationCompletionRate => TotalRectifications == 0 ? 0 : Math.Round(CompletedRectifications * 100.0 / TotalRectifications, 2);
+}
+
+public enum TimeDimension { Month = 1, Quarter = 2, Year = 3 }
+
+public class TimeSeriesPoint
+{
+    public string Period { get; set; } = string.Empty;
+    public DateTime PeriodStart { get; set; }
+    public DateTime PeriodEnd { get; set; }
+    public int TotalInspections { get; set; }
+    public int CompletedCount { get; set; }
+    public int PassCount { get; set; }
+    public int FailCount { get; set; }
+    public int RectificationCount { get; set; }
+    public int CompletedRectifications { get; set; }
+    public double CompletionRate { get; set; }
+    public double PassRate { get; set; }
+}
+
+public class TimeSeriesStatistics
+{
+    public TimeDimension Dimension { get; set; }
+    public DateTime DateFrom { get; set; }
+    public DateTime DateTo { get; set; }
+    public string? Region { get; set; }
+    public DeviceType? DeviceType { get; set; }
+    public InspectionStatistics Summary { get; set; } = new();
+    public List<TimeSeriesPoint> Series { get; set; } = new();
 }

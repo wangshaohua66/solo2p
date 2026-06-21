@@ -10,6 +10,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Polly;
+using QuestPDF.Infrastructure;
 using SpecialEquipmentInspection.Common;
 using SpecialEquipmentInspection.Data;
 using SpecialEquipmentInspection.Middleware;
@@ -83,7 +85,19 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 var jwtSection = builder.Configuration.GetSection("Jwt");
 builder.Services.Configure<JwtOptions>(jwtSection);
 builder.Services.Configure<InspectionOptions>(builder.Configuration.GetSection("Inspection"));
+builder.Services.Configure<SupervisionPlatformOptions>(builder.Configuration.GetSection("SupervisionPlatform"));
 var jwtOptions = jwtSection.Get<JwtOptions>()!;
+
+QuestPDF.Settings.License = LicenseType.Community;
+
+builder.Services.AddHttpClient<ISupervisionPlatformClient, SupervisionPlatformClient>()
+    .SetHandlerLifetime(TimeSpan.FromMinutes(5))
+    .AddPolicyHandler(
+        Policy.HandleResult<HttpResponseMessage>(r => !r.IsSuccessStatusCode)
+            .Or<HttpRequestException>()
+            .Or<TaskCanceledException>()
+            .WaitAndRetryAsync(1, retryAttempt =>
+                TimeSpan.FromSeconds(Math.Pow(1, retryAttempt))));
 
 builder.Services.AddAuthentication(Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

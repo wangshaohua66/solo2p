@@ -57,7 +57,7 @@ public class AlertService : IAlertService
                 var ins = await _inspections.GetInspectionByIdAsync(rect.InspectionId);
                 var sr = new SupervisionReport
                 {
-                    ReportCode = $"SUP-OD-{now:yyyyMMddHHmmss}-{rect.Id}",
+                    ReportCode = $"SUP-OD-{now:yyyyMMddHHmmssfff}-{rect.Id}",
                     RectificationId = rect.Id,
                     InspectionId = rect.InspectionId,
                     DeviceId = rect.DeviceId,

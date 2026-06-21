@@ -292,4 +292,130 @@ public class InspectionRepository : IInspectionRepository
 
         return stats;
     }
+
+    public async Task<TimeSeriesStatistics> GetTimeSeriesStatisticsAsync(
+        DateTime dateFrom, DateTime dateTo, TimeDimension dimension, string? region, DeviceType? deviceType)
+    {
+        dateFrom = dateFrom.Date;
+        dateTo = dateTo.Date;
+
+        var result = new TimeSeriesStatistics
+        {
+            Dimension = dimension,
+            DateFrom = dateFrom,
+            DateTo = dateTo,
+            Region = region,
+            DeviceType = deviceType
+        };
+
+        var inspectQ = _db.Inspections.AsNoTracking().AsQueryable();
+        var deviceQ = _db.Devices.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(region))
+        {
+            var deviceIds = deviceQ.Where(d => d.Region == region).Select(d => d.Id);
+            inspectQ = inspectQ.Where(i => deviceIds.Contains(i.DeviceId));
+            deviceQ = deviceQ.Where(d => d.Region == region);
+        }
+
+        if (deviceType.HasValue)
+        {
+            inspectQ = inspectQ.Where(i => i.DeviceType == deviceType.Value);
+            deviceQ = deviceQ.Where(d => d.Type == deviceType.Value);
+        }
+
+        inspectQ = inspectQ.Where(i => i.CreatedAt >= dateFrom && i.CreatedAt <= dateTo.AddDays(1));
+        var rectQ = _db.Rectifications.AsNoTracking().Where(r => r.CreatedAt >= dateFrom && r.CreatedAt <= dateTo.AddDays(1));
+
+        var inspectList = await inspectQ.ToListAsync();
+        var rectList = await rectQ.ToListAsync();
+
+        result.Summary = new InspectionStatistics
+        {
+            TotalInspections = inspectList.Count,
+            CompletedCount = inspectList.Count(i => i.Status == InspectionStatus.Completed || i.Status == InspectionStatus.Approved),
+            PassCount = inspectList.Count(i => i.Result == InspectionResult.Pass),
+            FailCount = inspectList.Count(i => i.Result == InspectionResult.Fail),
+            PassAfterRectificationCount = inspectList.Count(i => i.Result == InspectionResult.PassAfterRectification),
+            SuspendedCount = inspectList.Count(i => i.Result == InspectionResult.Suspended),
+            TotalRectifications = rectList.Count,
+            CompletedRectifications = rectList.Count(r => r.Status == RectificationStatus.Completed),
+            OverdueRectifications = rectList.Count(r => r.Status == RectificationStatus.Overdue)
+        };
+
+        var periods = GeneratePeriods(dateFrom, dateTo, dimension);
+
+        foreach (var (period, start, end) in periods)
+        {
+            var point = new TimeSeriesPoint
+            {
+                Period = period,
+                PeriodStart = start,
+                PeriodEnd = end,
+                TotalInspections = inspectList.Count(i => i.CreatedAt >= start && i.CreatedAt < end),
+                CompletedCount = inspectList.Count(i => (i.Status == InspectionStatus.Completed || i.Status == InspectionStatus.Approved)
+                    && i.InspectionDate.HasValue && i.InspectionDate.Value >= start && i.InspectionDate.Value < end),
+                PassCount = inspectList.Count(i => i.Result == InspectionResult.Pass
+                    && i.InspectionDate.HasValue && i.InspectionDate.Value >= start && i.InspectionDate.Value < end),
+                FailCount = inspectList.Count(i => i.Result == InspectionResult.Fail
+                    && i.InspectionDate.HasValue && i.InspectionDate.Value >= start && i.InspectionDate.Value < end),
+                RectificationCount = rectList.Count(r => r.CreatedAt >= start && r.CreatedAt < end),
+                CompletedRectifications = rectList.Count(r => r.Status == RectificationStatus.Completed
+                    && r.CompleteDate.HasValue && r.CompleteDate.Value >= start && r.CompleteDate.Value < end)
+            };
+
+            point.CompletionRate = point.TotalInspections == 0 ? 0 : Math.Round(point.CompletedCount * 100.0 / point.TotalInspections, 2);
+            point.PassRate = point.CompletedCount == 0 ? 0 : Math.Round(point.PassCount * 100.0 / point.CompletedCount, 2);
+
+            result.Series.Add(point);
+        }
+
+        return result;
+    }
+
+    public async Task<SupervisionReport?> GetSupervisionReportByIdAsync(int id)
+    {
+        return await _db.SupervisionReports.AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Id == id);
+    }
+
+    public async Task<Rectification?> GetRectificationByIdAsync(int id)
+    {
+        return await _db.Rectifications.AsNoTracking()
+            .FirstOrDefaultAsync(r => r.Id == id);
+    }
+
+    private static List<(string Period, DateTime Start, DateTime End)> GeneratePeriods(DateTime dateFrom, DateTime dateTo, TimeDimension dimension)
+    {
+        var periods = new List<(string, DateTime, DateTime)>();
+        var current = dateFrom;
+
+        while (current <= dateTo)
+        {
+            switch (dimension)
+            {
+                case TimeDimension.Month:
+                    var monthStart = new DateTime(current.Year, current.Month, 1);
+                    var monthEnd = monthStart.AddMonths(1);
+                    periods.Add(($"{current.Year}-{current.Month:00}", monthStart, monthEnd));
+                    current = monthEnd;
+                    break;
+                case TimeDimension.Quarter:
+                    var qnum = (current.Month - 1) / 3;
+                    var qStart = new DateTime(current.Year, qnum * 3 + 1, 1);
+                    var qEnd = qStart.AddMonths(3);
+                    periods.Add(($"{current.Year}Q{qnum + 1}", qStart, qEnd));
+                    current = qEnd;
+                    break;
+                case TimeDimension.Year:
+                    var yStart = new DateTime(current.Year, 1, 1);
+                    var yEnd = yStart.AddYears(1);
+                    periods.Add(($"{current.Year}", yStart, yEnd));
+                    current = yEnd;
+                    break;
+            }
+        }
+
+        return periods;
+    }
 }

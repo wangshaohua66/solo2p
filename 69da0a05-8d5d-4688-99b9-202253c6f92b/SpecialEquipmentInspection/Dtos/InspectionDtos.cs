@@ -64,6 +64,8 @@ public class SubmitInspectionDto
 
     public List<string> Photos { get; set; } = new();
 
+    public List<string> Videos { get; set; } = new();
+
     public string Findings { get; set; } = string.Empty;
 
     public List<InspectionItemDto> Items { get; set; } = new();

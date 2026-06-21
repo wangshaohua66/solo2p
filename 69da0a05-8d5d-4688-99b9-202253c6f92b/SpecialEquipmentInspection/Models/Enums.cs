@@ -76,6 +76,13 @@ public enum InspectorStatus
 public enum SupervisionReportStatus
 {
     Pending = 1,
-    Reported = 2,
-    Failed = 3
+    Reporting = 2,
+    Reported = 3,
+    Failed = 4
+}
+
+public enum SupervisionReportType
+{
+    Inspection = 1,
+    Rectification = 2
 }

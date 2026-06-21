@@ -64,11 +64,10 @@ public class ReportController : ControllerBase
     }
 
     [HttpGet("{id:int}/export")]
-    public async Task<IActionResult> Export(int id)
+    public async Task<IActionResult> Export(int id, [FromQuery] string format = "html")
     {
-        var (content, fileName) = await _service.ExportReportAsync(id);
-        var bytes = System.Text.Encoding.UTF8.GetBytes(content);
-        return File(bytes, "text/html; charset=utf-8", fileName);
+        var (content, fileName, mimeType) = await _service.ExportReportAsync(id, format);
+        return File(content, mimeType, fileName);
     }
 
     [HttpGet("statistics")]
@@ -77,6 +76,22 @@ public class ReportController : ControllerBase
     {
         var stats = await _service.GetStatisticsAsync(year, region);
         return ApiResponse<InspectionStatistics>.Ok(stats);
+    }
+
+    [HttpGet("statistics/time-series")]
+    [Authorize(Roles = "Admin,Inspector")]
+    public async Task<ApiResponse<TimeSeriesStatistics>> TimeSeries(
+        [FromQuery] DateTime dateFrom,
+        [FromQuery] DateTime dateTo,
+        [FromQuery] TimeDimension dimension = TimeDimension.Month,
+        [FromQuery] string? region = null,
+        [FromQuery] DeviceType? deviceType = null)
+    {
+        if (dateFrom >= dateTo)
+            throw new BusinessException("开始日期必须早于结束日期");
+
+        var stats = await _service.GetTimeSeriesStatisticsAsync(dateFrom, dateTo, dimension, region, deviceType);
+        return ApiResponse<TimeSeriesStatistics>.Ok(stats);
     }
 
     [HttpPost("supervision")]
@@ -94,6 +109,16 @@ public class ReportController : ControllerBase
     {
         var data = await _service.GetSupervisionReportsAsync(status, page, pageSize);
         return ApiResponse<PagedResult<SupervisionReport>>.Ok(data);
+    }
+
+    [HttpPost("supervision/{id:int}/submit")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ApiResponse<SupervisionReport>> SubmitSupervision(int id)
+    {
+        var report = await _service.SubmitToSupervisionAsync(id, _user.User)
+            ?? throw new NotFoundException("监察上报记录不存在");
+        return ApiResponse<SupervisionReport>.Ok(report,
+            report.Status == SupervisionReportStatus.Reported ? "省级监察平台上报成功" : "省级监察平台上报失败");
     }
 
     [HttpPost("alerts/run")]
