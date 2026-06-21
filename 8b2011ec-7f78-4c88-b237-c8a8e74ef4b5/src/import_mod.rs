@@ -42,7 +42,8 @@ struct DoseJsonRecord {
 pub fn import_survey_csv<P: AsRef<Path>>(db: &Db, path: P) -> Result<ImportResult> {
     let start = std::time::Instant::now();
     let path = path.as_ref();
-    let file = File::open(path).with_context(|| format!("无法打开文件: {:?}", path))?;
+    let file = File::open(path)
+        .map_err(|_| err(ErrorCode::FileNotFound, format!("无法打开文件: {:?}", path)))?;
     let mut rdr = ReaderBuilder::new()
         .has_headers(true)
         .flexible(true)
@@ -67,7 +68,7 @@ pub fn import_survey_csv<P: AsRef<Path>>(db: &Db, path: P) -> Result<ImportResul
     }
 
     let (inserted, skipped) = db.batch_insert_survey(&records)
-        .context("批量插入巡检数据失败")?;
+        .map_err(|e| err(ErrorCode::DatabaseQuery, format!("批量插入巡检数据失败: {}", e)))?;
 
     Ok(ImportResult {
         total,
@@ -105,11 +106,12 @@ fn validate_survey_row(row: &SurveyCsvRow) -> Result<SurveyRecord> {
 pub fn import_dose_json<P: AsRef<Path>>(db: &Db, path: P) -> Result<ImportResult> {
     let start = std::time::Instant::now();
     let path = path.as_ref();
-    let file = File::open(path).with_context(|| format!("无法打开文件: {:?}", path))?;
+    let file = File::open(path)
+        .map_err(|_| err(ErrorCode::FileNotFound, format!("无法打开文件: {:?}", path)))?;
     let reader = BufReader::new(file);
 
     let value: Value = serde_json::from_reader(reader)
-        .context("JSON解析失败")?;
+        .map_err(|e| err(ErrorCode::InvalidFormat, format!("JSON解析失败: {}", e)))?;
 
     let records_array = value.as_array()
         .ok_or_else(|| err(ErrorCode::InvalidFormat, "JSON必须是数组格式".to_string()))?;
@@ -135,7 +137,7 @@ pub fn import_dose_json<P: AsRef<Path>>(db: &Db, path: P) -> Result<ImportResult
     }
 
     let (inserted, skipped) = db.batch_insert_dose(&records)
-        .context("批量插入剂量数据失败")?;
+        .map_err(|e| err(ErrorCode::DatabaseQuery, format!("批量插入剂量数据失败: {}", e)))?;
 
     Ok(ImportResult {
         total,

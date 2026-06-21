@@ -299,7 +299,7 @@ fn write_alert_log(alerts: &[AlertRecord], log_path: &std::path::Path) -> Result
         .create(true)
         .append(true)
         .open(log_path)
-        .with_context(|| format!("无法打开预警日志文件: {:?}", log_path))?;
+        .map_err(|_| err(ErrorCode::OutputFailed, format!("无法打开预警日志文件: {:?}", log_path)))?;
 
     for alert in alerts {
         writeln!(

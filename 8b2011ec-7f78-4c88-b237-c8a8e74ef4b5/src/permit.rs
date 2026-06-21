@@ -104,7 +104,7 @@ pub fn get_permit_by_no(db: &Db, permit_no: &str) -> Result<PermitInfo> {
         params![permit_no],
         |row| parse_permit_row(row),
     )
-    .with_context(|| format!("许可证不存在: {}", permit_no))
+    .map_err(|_| err(ErrorCode::PermitNotFound, format!("许可证不存在: {}", permit_no)))
 }
 
 fn parse_permit_row(row: &rusqlite::Row) -> Result<PermitInfo, rusqlite::Error> {
