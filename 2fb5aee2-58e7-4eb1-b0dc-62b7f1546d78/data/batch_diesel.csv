@@ -1,0 +1,6 @@
+plateNumber,methodCode,smoke1,smoke2,smoke3,smokeAvg,maxPower,velMax,smoke100,smoke90,smoke80,nox100,nox90,nox80,testDate,testEquipment
+浙J77777,FAM,0.5,0.6,0.4,0.5,,,,,,,,2025-06-20,DIESEL-01
+浙K88888,LUGDOWN,0.7,0.65,0.55,0.63,85,120,0.8,0.7,0.6,1500,1200,1000,2025-06-20,DIESEL-02
+浙L99999,FAM,1.1,1.2,1.0,1.1,,,,,,,,2025-06-20,DIESEL-01
+浙M00000,LUGDOWN,0.5,0.45,0.4,0.45,102,110,0.5,0.45,0.4,900,750,600,2025-06-20,DIESEL-02
+浙N11111,FAM,0.8,0.9,0.7,0.8,,,,,,,,2025-06-20,DIESEL-01

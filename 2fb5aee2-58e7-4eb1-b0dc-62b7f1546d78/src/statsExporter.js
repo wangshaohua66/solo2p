@@ -1,5 +1,3 @@
-const { Builder, By, until } = require('selenium-webdriver');
-const chrome = require('selenium-webdriver/chrome');
 const XLSX = require('xlsx');
 const cheerio = require('cheerio');
 const path = require('path');
@@ -9,6 +7,7 @@ const cron = require('node-cron');
 const { logger, audit, OperationTracer } = require('./logger');
 const config = require('./config');
 const { errorHandler, ERROR_TYPES, InspectionError } = require('./errorHandler');
+const { createDriver, By, until } = require('./webdriver/adapter');
 
 const REPORT_TYPES = {
   MONTHLY_SUMMARY: {
@@ -59,21 +58,10 @@ class StatsExporter {
     const tracer = new OperationTracer('初始化统计导出服务', {});
 
     try {
-      tracer.logStep('创建Chrome浏览器实例');
-      const options = new chrome.Options();
+      tracer.logStep('创建Chrome浏览器实例 (WebdriverIO)');
       
-      if (process.env.NODE_ENV === 'production') {
-        options.addArguments('--headless=new');
-      }
-      options.addArguments('--no-sandbox');
-      options.addArguments('--disable-dev-shm-usage');
-      options.addArguments('--disable-gpu');
-      options.addArguments('--window-size=1920,1080');
-
-      this.driver = await new Builder()
-        .forBrowser('chrome')
-        .setChromeOptions(options)
-        .build();
+      this.driver = createDriver({ platform: 'environmental' });
+      await this.driver.init();
 
       await this.driver.manage().setTimeouts({
         pageLoad: this.platformConfig.pageTimeout,

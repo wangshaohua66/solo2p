@@ -259,16 +259,51 @@ class CLIManager {
     ]);
 
     this.currentLineId = answers.lineId;
+    this.currentStep = '初始化';
     this.spinner = ora('正在初始化检测流程...').start();
+    
+    const stepCallback = (stepInfo) => {
+      const stepNames = {
+        'login_attempt': '登录尝试',
+        'login_navigate': '访问登录页面',
+        'login_username': '输入用户名',
+        'login_password': '输入密码',
+        'login_captcha': '处理验证码',
+        'login_submit': '提交登录',
+        'vehicle_query': '查询车辆信息',
+        'vehicle_query_complete': '车辆信息查询完成',
+        'navigate_inspection': '进入检测页面',
+        'fill_vehicle_info': '填充车辆信息',
+        'select_method': '选择检测方法',
+        'fill_test_data': '录入检测数据',
+        'submit_inspection': '提交检测',
+        'evaluate_result': '判定检测结果',
+        'heartbeat_check': '心跳检测',
+        'captcha_recognition': '验证码识别',
+        'relogin': '重新登录'
+      };
+      
+      const stepName = stepNames[stepInfo.step] || stepInfo.step;
+      this.currentStep = stepName;
+      
+      let statusText = `[${answers.plateNumber}] ${stepName}`;
+      if (stepInfo.details?.attempt) {
+        statusText += ` (第${stepInfo.details.attempt}次)`;
+      }
+      
+      this.spinner.text = statusText;
+    };
 
     try {
       if (!this.currentRunner || this.currentRunner.inspectionLine.id !== answers.lineId) {
         await this.cleanupRunner();
-        this.currentRunner = createInspectionRunner(answers.lineId);
+        this.currentRunner = createInspectionRunner(answers.lineId, {
+          stepCallback: stepCallback.bind(this)
+        });
         await this.currentRunner.init();
       }
 
-      this.spinner.text = '正在执行检测流程...';
+      this.spinner.text = `[${answers.plateNumber}] 正在执行检测流程...`;
       const result = await this.currentRunner.runInspection(answers.plateNumber);
 
       if (result.success) {
@@ -952,24 +987,51 @@ class CLIManager {
   displayError(error) {
     const errorType = error.type || errorHandler.classifyError(error);
     const errorId = error.errorId || 'N/A';
+    const severity = this.getErrorSeverity(errorType);
     
     console.log('\n');
-    console.log(chalk.red('═══════════════════════════════════════════'));
-    console.log(chalk.red('  错误详情'));
-    console.log(chalk.red('═══════════════════════════════════════════'));
-    console.log(chalk.red(`  错误类型: ${errorType}`));
-    console.log(chalk.red(`  错误ID: ${errorId}`));
-    console.log(chalk.red(`  错误信息: ${error.message}`));
-    console.log(chalk.red('═══════════════════════════════════════════'));
     
-    const suggestions = this.getErrorSuggestions(errorType);
+    const borderColor = severity === 'critical' ? chalk.bgRed.white.bold :
+                        severity === 'high' ? chalk.bgRedBright.white :
+                        severity === 'medium' ? chalk.bgYellow.black :
+                        chalk.bgWhite.black;
+    
+    const titleBar = borderColor(' 错误  ');
+    const typeLabel = severity === 'critical' ? chalk.red.bold :
+                      severity === 'high' ? chalk.red :
+                      severity === 'medium' ? chalk.yellow :
+                      chalk.gray;
+    
+    console.log(chalk.red('╔══════════════════════════════════════════════════════════╗'));
+    console.log(chalk.red('║ ') + titleBar + chalk.red('                                         ║'));
+    console.log(chalk.red('╠══════════════════════════════════════════════════════════╣'));
+    
+    console.log(chalk.red('║ ') + typeLabel(`错误类型: ${errorType}`) + ' '.repeat(50 - errorType.length - 8) + chalk.red('║'));
+    console.log(chalk.red('║ ') + `错误ID: ${errorId}` + ' '.repeat(50 - errorId.length - 9) + chalk.red('║'));
+    
+    const messageLines = this.wrapText(error.message, 48);
+    messageLines.forEach((line, idx) => {
+      const prefix = idx === 0 ? '错误信息: ' : '          ';
+      console.log(chalk.red('║ ') + chalk.bold(prefix) + line + ' '.repeat(Math.max(0, 48 - line.length - prefix.length)) + chalk.red('║'));
+    });
+    
+    console.log(chalk.red('╠══════════════════════════════════════════════════════════╣'));
+    
+    const suggestions = this.getErrorSuggestions(errorType, error);
     if (suggestions.length > 0) {
-      console.log(chalk.yellow('\n  建议操作:'));
+      console.log(chalk.red('║ ') + chalk.cyan.bold('💡 建议操作:') + ' '.repeat(36) + chalk.red('║'));
+      
       suggestions.forEach((s, i) => {
-        console.log(chalk.yellow(`  ${i + 1}. ${s}`));
+        const line = `${i + 1}. ${s}`;
+        const wrapped = this.wrapText(line, 48);
+        wrapped.forEach((wline, wi) => {
+          const pad = ' '.repeat(Math.max(0, 48 - wline.length));
+          console.log(chalk.red('║ ') + chalk.yellow(wline) + pad + chalk.red('║'));
+        });
       });
     }
     
+    console.log(chalk.red('╚══════════════════════════════════════════════════════════╝'));
     console.log('\n');
     
     if (error.stack && process.env.LOG_LEVEL === 'debug') {
@@ -979,7 +1041,38 @@ class CLIManager {
     }
   }
 
-  getErrorSuggestions(errorType) {
+  getErrorSeverity(errorType) {
+    const severityMap = {
+      [ERROR_TYPES.NETWORK_INTERRUPTION]: 'high',
+      [ERROR_TYPES.PLATFORM_MAINTENANCE]: 'medium',
+      [ERROR_TYPES.CAPTCHA_FAILED]: 'low',
+      [ERROR_TYPES.SESSION_EXPIRED]: 'medium',
+      [ERROR_TYPES.VALIDATION_FAILED]: 'high',
+      [ERROR_TYPES.TIMEOUT_ERROR]: 'medium',
+      [ERROR_TYPES.UNKNOWN_ERROR]: 'critical'
+    };
+    return severityMap[errorType] || 'medium';
+  }
+
+  wrapText(text, maxWidth) {
+    const lines = [];
+    let current = '';
+    
+    const chars = Array.from(text);
+    for (const char of chars) {
+      if (current.length >= maxWidth) {
+        lines.push(current);
+        current = char;
+      } else {
+        current += char;
+      }
+    }
+    if (current) lines.push(current);
+    
+    return lines.length ? lines : [''];
+  }
+
+  getErrorSuggestions(errorType, error = {}) {
     const suggestions = {
       [ERROR_TYPES.NETWORK_INTERRUPTION]: [
         '检查网络连接是否正常',
@@ -1019,7 +1112,22 @@ class CLIManager {
       ]
     };
     
-    return suggestions[errorType] || suggestions[ERROR_TYPES.UNKNOWN_ERROR];
+    const baseSuggestions = suggestions[errorType] || suggestions[ERROR_TYPES.UNKNOWN_ERROR];
+    const dynamicSuggestions = [];
+    
+    if (error?.context === 'login') {
+      dynamicSuggestions.push('💡 登录失败：可尝试切换其他检测线账号');
+    }
+    
+    if (error?.screenshotPath) {
+      dynamicSuggestions.push(`📸 错误截图已保存: ${error.screenshotPath}`);
+    }
+    
+    if (error?.retryCount !== undefined) {
+      dynamicSuggestions.push(`🔄 已重试 ${error.retryCount} 次`);
+    }
+    
+    return [...dynamicSuggestions, ...baseSuggestions];
   }
 
   async cleanupRunner() {

@@ -231,8 +231,19 @@ class ErrorHandler {
     const opId = context.operationId || `OP-${Date.now()}`;
     let lastError;
     let currentDelay = 0;
+    
+    const errorType = context.initialErrorType || ERROR_TYPES.UNKNOWN_ERROR;
+    const strategy = RETRY_STRATEGIES[errorType] || RETRY_STRATEGIES[ERROR_TYPES.UNKNOWN_ERROR];
+    
+    let maxRetries = strategy.maxRetries;
+    if (context.context === 'login') {
+      maxRetries = 3;
+    }
+    if (context.maxRetries !== undefined) {
+      maxRetries = context.maxRetries;
+    }
 
-    for (let attempt = 1; attempt <= 5; attempt++) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const result = await operation(attempt);
         if (attempt > 1) {
@@ -241,22 +252,33 @@ class ErrorHandler {
         return { success: true, result, attempt };
       } catch (error) {
         lastError = error;
-        const errorType = this.classifyError(error);
-        const strategy = RETRY_STRATEGIES[errorType] || RETRY_STRATEGIES[ERROR_TYPES.UNKNOWN_ERROR];
-
-        if (attempt > strategy.maxRetries) {
-          logger.warn(`操作 ${opId} 达到最大重试次数 ${strategy.maxRetries}，触发降级策略`);
+        const currentErrorType = this.classifyError(error);
+        const currentStrategy = RETRY_STRATEGIES[currentErrorType] || strategy;
+        
+        const effectiveMaxRetries = context.context === 'login' ? 3 : currentStrategy.maxRetries;
+        
+        if (attempt >= effectiveMaxRetries) {
+          logger.warn(`操作 ${opId} 达到最大重试次数 ${effectiveMaxRetries}，触发降级策略`);
+          
+          if (context.context === 'login') {
+            await this.sendDingtalkAlert({
+              title: '登录重试失败告警',
+              content: `检测线: ${context.inspectionLine || '未知'}\n错误类型: ${currentErrorType}\n错误信息: ${error.message}\n已重试 ${attempt} 次`,
+              type: 'error'
+            });
+          }
+          
           break;
         }
 
         currentDelay = Math.min(
-          strategy.delayMs * Math.pow(strategy.backoffMultiplier, attempt - 1),
-          strategy.maxDelayMs
+          currentStrategy.delayMs * Math.pow(currentStrategy.backoffMultiplier, attempt - 1),
+          currentStrategy.maxDelayMs
         );
 
-        logger.warn(`操作 ${opId} 第 ${attempt} 次尝试失败 (${errorType})，${currentDelay / 1000}秒后重试...`, {
+        logger.warn(`操作 ${opId} 第 ${attempt} 次尝试失败 (${currentErrorType})，${currentDelay / 1000}秒后重试...`, {
           attempt,
-          errorType,
+          errorType: currentErrorType,
           nextDelay: currentDelay
         });
 
@@ -283,22 +305,48 @@ class ErrorHandler {
       action: fallback.action,
       description: fallback.description,
       executedSteps: [],
-      success: false
+      success: false,
+      accountRotated: false
     };
 
     for (const step of fallback.steps) {
       try {
         fallbackResult.executedSteps.push(step);
         logger.debug(`降级步骤: ${step}`);
+        
+        if (step.includes('轮换账号') && context.runner?.rotateAccount) {
+          const rotatedAccount = await context.runner.rotateAccount();
+          if (rotatedAccount) {
+            fallbackResult.accountRotated = true;
+            fallbackResult.newAccount = rotatedAccount.lineId;
+            logger.info(`账号轮换成功: ${rotatedAccount.lineId}`);
+          }
+        }
+        
+        if (step.includes('重新登录') && context.runner?.login) {
+          await context.runner.login();
+          logger.info('重新登录成功');
+        }
+        
       } catch (stepError) {
         logger.error(`降级步骤 "${step}" 执行失败`, stepError);
         fallbackResult.failedStep = step;
+        fallbackResult.failedStepError = stepError.message;
         break;
       }
     }
 
     fallbackResult.success = !fallbackResult.failedStep;
     this.addToFailedQueue(context, error, fallbackResult);
+    
+    if (fallbackResult.success && fallbackResult.accountRotated) {
+      audit.accountRotate(
+        context.inspectionLine || 'unknown',
+        'current',
+        fallbackResult.newAccount,
+        'fallback_triggered'
+      );
+    }
 
     return fallbackResult;
   }

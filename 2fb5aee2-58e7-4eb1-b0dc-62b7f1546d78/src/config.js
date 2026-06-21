@@ -338,6 +338,54 @@ const PERFORMANCE_CONFIG = {
   maxLogSizePerDayMB: 50
 };
 
+const FONT_CONFIG = {
+  chineseFontName: 'SourceHanSans',
+  chineseFontBoldName: 'SourceHanSans-Bold',
+  fontDir: path.join(__dirname, '..', 'fonts'),
+  fontFiles: {
+    regular: 'SourceHanSansSC-Regular.otf',
+    bold: 'SourceHanSansSC-Bold.otf'
+  },
+  fallbackFonts: [
+    '/System/Library/Fonts/PingFang.ttc',
+    '/System/Library/Fonts/STHeiti Medium.ttc',
+    '/System/Library/Fonts/Hiragino Sans GB.ttc',
+    'C:/Windows/Fonts/msyh.ttc',
+    'C:/Windows/Fonts/simhei.ttf'
+  ]
+};
+
+const HEARTBEAT_CONFIG = {
+  enabled: true,
+  intervalMs: 30000,
+  timeoutMs: 10000,
+  maxConsecutiveFailures: 3,
+  checkUrl: '',
+  checkSelector: '#userInfo, .user-center, .header-logo'
+};
+
+const CAPTCHA_CONFIG = {
+  enabled: true,
+  ocrService: 'tesseract',
+  ocrApiUrl: '',
+  ocrApiKey: '',
+  manualFallback: true,
+  manualInputTimeout: 60000,
+  damaPlatform: {
+    enabled: false,
+    apiUrl: '',
+    appId: '',
+    appKey: ''
+  }
+};
+
+const ACCOUNT_ROTATION_CONFIG = {
+  enabled: true,
+  maxFailuresPerAccount: 3,
+  rotationCooldownMs: 300000,
+  strategy: 'round_robin'
+};
+
 const ORGANIZATION_INFO = {
   name: 'XX市机动车排放检验中心',
   code: 'XX-2024-001',
@@ -451,8 +499,35 @@ class ConfigManager {
     return PERFORMANCE_CONFIG;
   }
 
+  getFontConfig() {
+    return FONT_CONFIG;
+  }
+
+  getHeartbeatConfig() {
+    return HEARTBEAT_CONFIG;
+  }
+
+  getCaptchaConfig() {
+    return CAPTCHA_CONFIG;
+  }
+
+  getAccountRotationConfig() {
+    return ACCOUNT_ROTATION_CONFIG;
+  }
+
   getOrganizationInfo() {
     return ORGANIZATION_INFO;
+  }
+
+  getAvailableAccounts(excludeLineId = null) {
+    return INSPECTION_LINES.filter(line => 
+      line.active && line.id !== excludeLineId
+    ).map(line => ({
+      lineId: line.id,
+      lineName: line.name,
+      envAccount: line.envAccount,
+      trafficAccount: line.trafficAccount
+    }));
   }
 
   validateConfig() {
@@ -483,3 +558,7 @@ module.exports.CODE_MAPPING = CODE_MAPPING;
 module.exports.ALERT_CONFIG = ALERT_CONFIG;
 module.exports.PERFORMANCE_CONFIG = PERFORMANCE_CONFIG;
 module.exports.ORGANIZATION_INFO = ORGANIZATION_INFO;
+module.exports.FONT_CONFIG = FONT_CONFIG;
+module.exports.HEARTBEAT_CONFIG = HEARTBEAT_CONFIG;
+module.exports.CAPTCHA_CONFIG = CAPTCHA_CONFIG;
+module.exports.ACCOUNT_ROTATION_CONFIG = ACCOUNT_ROTATION_CONFIG;

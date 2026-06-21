@@ -1,12 +1,11 @@
 const PDFDocument = require('pdfkit');
-const { Builder, By, until } = require('selenium-webdriver');
-const chrome = require('selenium-webdriver/chrome');
 const path = require('path');
 const dayjs = require('dayjs');
 const fs = require('fs');
 const { logger, audit, OperationTracer } = require('./logger');
 const config = require('./config');
 const { errorHandler, ERROR_TYPES, InspectionError } = require('./errorHandler');
+const { By, until } = require('./webdriver/adapter');
 
 const REPORT_STANDARD = 'HJ1237-2021';
 
@@ -20,12 +19,68 @@ class ReportGenerator {
       );
     }
     this.reportsDir = path.join(__dirname, '..', 'reports');
+    this.fontConfig = config.getFontConfig();
+    this.fontsRegistered = false;
+    this.regularFont = this.regularFont;
+    this.boldFont = this.boldFont;
     this.ensureDirectories();
+    this.registerFonts();
   }
 
   ensureDirectories() {
     if (!fs.existsSync(this.reportsDir)) {
       fs.mkdirSync(this.reportsDir, { recursive: true });
+    }
+  }
+
+  registerFonts() {
+    try {
+      const fontDir = this.fontConfig.fontDir;
+      const regularPath = path.join(fontDir, this.fontConfig.fontFiles.regular);
+      const boldPath = path.join(fontDir, this.fontConfig.fontFiles.bold);
+
+      if (fs.existsSync(regularPath) && fs.existsSync(boldPath)) {
+        this.regularFont = this.fontConfig.chineseFontName;
+        this.boldFont = this.fontConfig.chineseFontBoldName;
+        this.regularFontPath = regularPath;
+        this.boldFontPath = boldPath;
+        this.fontsRegistered = true;
+        logger.info(`PDF中文字体已注册: ${this.regularFont}`);
+        return;
+      }
+
+      for (const fallbackPath of this.fontConfig.fallbackFonts) {
+        if (fs.existsSync(fallbackPath)) {
+          this.regularFont = 'FallbackChinese';
+          this.boldFont = 'FallbackChinese';
+          this.regularFontPath = fallbackPath;
+          this.boldFontPath = fallbackPath;
+          this.fontsRegistered = true;
+          logger.info(`PDF使用备用中文字体: ${fallbackPath}`);
+          return;
+        }
+      }
+
+      logger.warn('未找到中文字体，使用默认Helvetica字体，中文可能显示异常');
+    } catch (error) {
+      logger.warn('注册中文字体失败，使用默认字体', error.message);
+    }
+  }
+
+  applyFonts(doc) {
+    if (this.fontsRegistered && this.regularFontPath) {
+      try {
+        doc.registerFont(this.regularFontPath, this.regularFont);
+        if (this.boldFontPath !== this.regularFontPath) {
+          doc.registerFont(this.boldFontPath, this.boldFont);
+        } else {
+          this.boldFont = this.regularFont;
+        }
+      } catch (e) {
+        logger.warn('注册字体到PDF失败', e.message);
+        this.regularFont = this.regularFont;
+        this.boldFont = this.boldFont;
+      }
     }
   }
 
@@ -58,6 +113,8 @@ class ReportGenerator {
           Creator: '机动车排放检验自动化系统'
         }
       });
+
+      this.applyFonts(doc);
 
       const stream = fs.createWriteStream(reportPath);
       doc.pipe(stream);
@@ -125,24 +182,24 @@ class ReportGenerator {
     const org = config.getOrganizationInfo();
     
     doc.fontSize(18)
-       .font('Helvetica-Bold')
+       .font(this.boldFont)
        .text('机动车排放检验报告', { align: 'center' });
     
     doc.moveDown(0.5);
     doc.fontSize(12)
-       .font('Helvetica')
+       .font(this.regularFont)
        .text(`报告编号: ${reportNo}`, { align: 'right' });
     
     doc.text(`检验标准: ${REPORT_STANDARD}`, { align: 'right' });
     
     doc.moveDown(1);
     doc.fontSize(14)
-       .font('Helvetica-Bold')
+       .font(this.boldFont)
        .text(org.name, { align: 'center' });
     
     doc.moveDown(0.3);
     doc.fontSize(10)
-       .font('Helvetica')
+       .font(this.regularFont)
        .text(`地址: ${org.address}`, { align: 'center' });
     doc.text(`联系电话: ${org.contact}`, { align: 'center' });
     
@@ -153,12 +210,12 @@ class ReportGenerator {
   drawVehicleInfo(doc, vehicleInfo) {
     doc.moveDown(0.5);
     doc.fontSize(13)
-       .font('Helvetica-Bold')
+       .font(this.boldFont)
        .text('一、车辆基本信息');
     
     doc.moveDown(0.5);
     doc.fontSize(11)
-       .font('Helvetica');
+       .font(this.regularFont);
 
     const tableData = [
       ['号牌号码', vehicleInfo.plateNumber || '', '号牌种类', vehicleInfo.plateType || ''],
@@ -179,12 +236,12 @@ class ReportGenerator {
   drawInspectionInfo(doc, method, inspectionResult) {
     doc.moveDown(1);
     doc.fontSize(13)
-       .font('Helvetica-Bold')
+       .font(this.boldFont)
        .text('二、检验信息');
     
     doc.moveDown(0.5);
     doc.fontSize(11)
-       .font('Helvetica');
+       .font(this.regularFont);
 
     const inspectionDate = dayjs().format('YYYY-MM-DD HH:mm:ss');
     const tableData = [
@@ -201,7 +258,7 @@ class ReportGenerator {
   drawInspectionData(doc, methodCode, inspectionData, result) {
     doc.moveDown(1);
     doc.fontSize(13)
-       .font('Helvetica-Bold')
+       .font(this.boldFont)
        .text('三、检验结果');
     
     doc.moveDown(0.5);
@@ -215,12 +272,12 @@ class ReportGenerator {
     };
 
     doc.fontSize(12)
-       .font('Helvetica-Bold')
+       .font(this.boldFont)
        .text(methodNames[methodCode] || '检测结果');
     
     doc.moveDown(0.3);
     doc.fontSize(11)
-       .font('Helvetica');
+       .font(this.regularFont);
 
     let tableData;
     
@@ -295,12 +352,12 @@ class ReportGenerator {
   drawConclusion(doc, result) {
     doc.moveDown(1);
     doc.fontSize(13)
-       .font('Helvetica-Bold')
+       .font(this.boldFont)
        .text('四、检验结论');
     
     doc.moveDown(0.5);
     doc.fontSize(12)
-       .font('Helvetica');
+       .font(this.regularFont);
 
     const passColor = result.pass ? '#008000' : '#FF0000';
     const passText = result.pass ? '合格' : '不合格';
@@ -309,14 +366,14 @@ class ReportGenerator {
     
     doc.moveDown(0.3);
     doc.fontSize(16)
-       .font('Helvetica-Bold')
+       .font(this.boldFont)
        .fillColor(passColor)
        .text(`检验结论：${passText}`, { align: 'center' });
     
     doc.fillColor('#000000');
     doc.moveDown(0.5);
     doc.fontSize(11)
-       .font('Helvetica');
+       .font(this.regularFont);
 
     if (!result.pass && result.items) {
       const failedItems = result.items.filter(i => !i.pass).map(i => `${i.label}(${i.value} > ${i.limit})`).join('、');
@@ -335,7 +392,7 @@ class ReportGenerator {
     
     doc.moveDown(0.5);
     doc.fontSize(10)
-       .font('Helvetica');
+       .font(this.regularFont);
     
     const org = config.getOrganizationInfo();
     const now = dayjs().format('YYYY-MM-DD HH:mm:ss');
@@ -372,9 +429,9 @@ class ReportGenerator {
         
         doc.fontSize(fontSize);
         if (hasHeader && rowIndex === 0) {
-          doc.font('Helvetica-Bold');
+          doc.font(this.boldFont);
         } else {
-          doc.font('Helvetica');
+          doc.font(this.regularFont);
         }
         
         doc.text(cell || '', x + 5, y + 7, {

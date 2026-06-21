@@ -1,10 +1,9 @@
-const { Builder, By, until } = require('selenium-webdriver');
-const chrome = require('selenium-webdriver/chrome');
 const path = require('path');
 const dayjs = require('dayjs');
 const { logger, audit, OperationTracer } = require('./logger');
 const config = require('./config');
 const { errorHandler, ERROR_TYPES, InspectionError } = require('./errorHandler');
+const { createDriver, By, until } = require('./webdriver/adapter');
 
 class VehicleService {
   constructor(inspectionLineId) {
@@ -28,22 +27,10 @@ class VehicleService {
     });
 
     try {
-      tracer.logStep('创建Chrome浏览器实例');
-      const options = new chrome.Options();
+      tracer.logStep('创建Chrome浏览器实例 (WebdriverIO)');
       
-      if (process.env.NODE_ENV === 'production') {
-        options.addArguments('--headless=new');
-      }
-      options.addArguments('--no-sandbox');
-      options.addArguments('--disable-dev-shm-usage');
-      options.addArguments('--disable-gpu');
-      options.addArguments('--window-size=1920,1080');
-      options.addArguments('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
-
-      this.driver = await new Builder()
-        .forBrowser('chrome')
-        .setChromeOptions(options)
-        .build();
+      this.driver = createDriver({ platform: 'traffic' });
+      await this.driver.init();
 
       await this.driver.manage().setTimeouts({
         pageLoad: this.platformConfig.pageTimeout,
