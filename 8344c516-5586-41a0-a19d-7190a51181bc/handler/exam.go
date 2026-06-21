@@ -174,9 +174,9 @@ func GetExamDetail(c *gin.Context) {
 }
 
 type UpdateExamTimeRequest struct {
-	ExamDate time.Time `json:"examDate" binding:"required"`
-	StartTime string    `json:"startTime" binding:"required"`
-	EndTime   string    `json:"endTime" binding:"required"`
+	ExamDate  string `json:"examDate" binding:"required"`
+	StartTime string `json:"startTime" binding:"required"`
+	EndTime   string `json:"endTime" binding:"required"`
 }
 
 func UpdateExamTime(c *gin.Context) {
@@ -189,6 +189,12 @@ func UpdateExamTime(c *gin.Context) {
 	var req UpdateExamTimeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		Error(c, http.StatusBadRequest, "参数错误: "+err.Error())
+		return
+	}
+
+	examDate, err := time.ParseInLocation("2006-01-02", req.ExamDate, time.Local)
+	if err != nil {
+		Error(c, http.StatusBadRequest, "日期格式错误，需YYYY-MM-DD格式")
 		return
 	}
 
@@ -219,7 +225,7 @@ func UpdateExamTime(c *gin.Context) {
 	oldStart := exam.StartTime
 	oldEnd := exam.EndTime
 
-	exam.ExamDate = req.ExamDate
+	exam.ExamDate = examDate
 	exam.StartTime = req.StartTime
 	exam.EndTime = req.EndTime
 	exam.Duration = duration
@@ -235,7 +241,7 @@ func UpdateExamTime(c *gin.Context) {
 	var schedules []model.Schedule
 	if err := tx.Where("exam_id = ?", id).Find(&schedules).Error; err == nil {
 		for i := range schedules {
-			schedules[i].ScheduleDate = req.ExamDate
+			schedules[i].ScheduleDate = examDate
 			schedules[i].StartTime = req.StartTime
 			schedules[i].EndTime = req.EndTime
 			if err := tx.Save(&schedules[i]).Error; err != nil {
@@ -249,7 +255,7 @@ func UpdateExamTime(c *gin.Context) {
 	var occupies []model.WorkstationOccupy
 	if err := tx.Where("exam_id = ?", id).Find(&occupies).Error; err == nil {
 		for i := range occupies {
-			occupies[i].OccupyDate = req.ExamDate
+			occupies[i].OccupyDate = examDate
 			occupies[i].StartTime = req.StartTime
 			occupies[i].EndTime = req.EndTime
 			if err := tx.Save(&occupies[i]).Error; err != nil {
@@ -266,12 +272,12 @@ func UpdateExamTime(c *gin.Context) {
 	}
 
 	Success(c, gin.H{
-		"id":          exam.ID,
-		"examDate":    exam.ExamDate,
-		"startTime":   exam.StartTime,
-		"endTime":     exam.EndTime,
-		"duration":    exam.Duration,
-		"oldDate":     oldDate,
+		"id":           exam.ID,
+		"examDate":     exam.ExamDate,
+		"startTime":    exam.StartTime,
+		"endTime":      exam.EndTime,
+		"duration":     exam.Duration,
+		"oldDate":      oldDate,
 		"oldStartTime": oldStart,
 		"oldEndTime":   oldEnd,
 	})
