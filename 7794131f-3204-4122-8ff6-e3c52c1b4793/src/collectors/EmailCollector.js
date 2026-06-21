@@ -2,11 +2,12 @@ const Imap = require('imap');
 const { simpleParser } = require('mailparser');
 const fs = require('fs');
 const path = require('path');
+const axios = require('axios');
 const yauzl = require('yauzl');
 const { logger, verbose } = require('../utils/logger');
-const { withRetry, RetryError } = require('../utils/retry');
+const { withRetry, RetryError, ProxyManager } = require('../utils/retry');
 const { ensureDir, getFileExtension, formatFileSize, generateId } = require('../utils/common');
-const { paths, performanceConfig } = require('../../config/schedule');
+const { paths, performanceConfig, proxyConfig } = require('../../config/schedule');
 
 class EmailCollector {
   constructor(orgConfig) {
@@ -17,6 +18,9 @@ class EmailCollector {
     this.imap = null;
     this.connected = false;
     this.currentHost = this.emailConfig.host;
+    const proxyList = orgConfig.proxyList || (proxyConfig && proxyConfig.enabled ? proxyConfig.proxyList : []);
+    this.proxyManager = new ProxyManager(proxyList);
+    verbose(`[${this.orgId}] 邮箱采集代理配置: ${this.proxyManager.enabled ? this.proxyManager.size + '个节点' : '未启用(直连)'}`);
   }
 
   async _connect(useBackup = false) {
@@ -194,6 +198,58 @@ class EmailCollector {
     return allowedExts.includes(getFileExtension(filename));
   }
 
+  _extractDownloadUrls(email) {
+    const urlRegex = /https?:\/\/[^\s"'<>()]+/gi;
+    const allowedExts = ['xlsx', 'xls', 'csv', 'zip', 'json', 'xml'];
+    const text = `${email.text || ''}\n${email.html || ''}`;
+    const urls = [];
+    let match;
+    while ((match = urlRegex.exec(text)) !== null) {
+      const rawUrl = match[0].replace(/[.,;:!?]$/, '');
+      const cleanUrl = rawUrl.split(/[\s"'<>]/)[0];
+      const ext = getFileExtension(cleanUrl);
+      if (allowedExts.includes(ext)) {
+        if (!urls.includes(cleanUrl)) urls.push(cleanUrl);
+      }
+    }
+    return urls;
+  }
+
+  async _downloadWithProxy(url, destPath, context = '') {
+    return this.proxyManager.withProxyRetry(
+      async (proxyUrl) => {
+        verbose(`[${this.orgId}] 下载附件 ${url}${proxyUrl ? ` via代理 ${proxyUrl}` : ' (直连)'}`);
+        const config = {
+          method: 'GET',
+          url,
+          timeout: (proxyConfig && proxyConfig.readTimeoutMs) || 30000,
+          responseType: 'stream',
+          maxContentLength: performanceConfig.maxFileSizeMB * 1024 * 1024,
+          maxRedirects: 5,
+          headers: { 'User-Agent': 'Regulator-Collector/1.0' }
+        };
+        const axiosProxy = this.proxyManager.toAxiosProxy(proxyUrl);
+        if (axiosProxy) config.proxy = axiosProxy;
+        const resp = await axios(config);
+        if (resp.status >= 400) {
+          throw Object.assign(new Error(`下载失败 HTTP ${resp.status}`), {
+            code: `ERR_DOWNLOAD_${resp.status}`,
+            isAxiosError: true
+          });
+        }
+        const writer = fs.createWriteStream(destPath);
+        resp.data.pipe(writer);
+        await new Promise((resolve, reject) => {
+          writer.on('finish', resolve);
+          writer.on('error', reject);
+          resp.data.on('error', reject);
+        });
+        return destPath;
+      },
+      { context: context || `[${this.orgId}] 下载附件`, maxProxySwitches: this.proxyManager.enabled ? proxyConfig.maxProxySwitches : 1 }
+    );
+  }
+
   async saveAttachments(emails, targetDir) {
     const baseDir = targetDir || path.join(paths.data.raw, this.orgId);
     ensureDir(baseDir);
@@ -239,6 +295,46 @@ class EmailCollector {
             source: 'email',
             collectedAt: new Date().toISOString()
           });
+        }
+      }
+
+      const downloadUrls = this._extractDownloadUrls(email);
+      for (const url of downloadUrls) {
+        const urlFilename = path.basename(url.split('?')[0]).replace(/[^\w.\-]/g, '_');
+        const safeFilename = `${emailTimestamp}_url_${urlFilename}`;
+        const savePath = path.join(baseDir, safeFilename);
+        try {
+          await this._downloadWithProxy(url, savePath, `[${this.orgId}] ${email.subject}`);
+          const ext = getFileExtension(savePath);
+          let extractedFiles = [savePath];
+          if (ext === 'zip') {
+            try {
+              extractedFiles = await this._extractZip(savePath, baseDir);
+            } catch (e) {
+              logger.warn(`[${this.orgId}] 解压ZIP(下载)失败: ${e.message}, 保留原始文件`);
+              extractedFiles = [savePath];
+            }
+          }
+          for (const fp of extractedFiles) {
+            const stats = fs.existsSync(fp) ? fs.statSync(fp) : null;
+            savedFiles.push({
+              filePath: fp,
+              filename: path.basename(fp),
+              size: stats?.size || 0,
+              originalFilename: urlFilename,
+              emailSubject: email.subject,
+              emailFrom: email.from,
+              emailDate: email.date,
+              messageId: email.messageId,
+              orgId: this.orgId,
+              orgName: this.orgName,
+              source: 'email_url',
+              downloadUrl: url,
+              collectedAt: new Date().toISOString()
+            });
+          }
+        } catch (e) {
+          logger.error(`[${this.orgId}] 下载附件链接失败: ${url}, 原因: ${e.message}`);
         }
       }
     }

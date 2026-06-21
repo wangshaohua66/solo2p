@@ -32,7 +32,11 @@ class MultiFormatParser {
     switch (format) {
       case 'excel':
         records = await this._parseExcel(filePath, options);
-        metadata = { sheetCount: records._sheetCount || 1 };
+        metadata = {
+          sheetCount: records._sheetCount || 1,
+          mergeRegions: records._mergeRegions || 0,
+          mergeCellsFilled: records._mergeCellsFilled || 0
+        };
         break;
       case 'csv':
         records = await this._parseCsv(filePath, options);
@@ -59,6 +63,46 @@ class MultiFormatParser {
     };
   }
 
+  _decodeCell(addr) {
+    return xlsx.utils.decode_cell(addr);
+  }
+
+  _encodeCell(row, col) {
+    return xlsx.utils.encode_cell({ r: row, c: col });
+  }
+
+  _fillMergedCells(worksheet, sheetName) {
+    const merges = worksheet['!merges'];
+    if (!Array.isArray(merges) || merges.length === 0) {
+      return { filledCount: 0, mergeCount: 0 };
+    }
+    let filledCount = 0;
+    for (const merge of merges) {
+      const { s, e } = merge;
+      const topLeftAddr = this._encodeCell(s.r, s.c);
+      const topLeftCell = worksheet[topLeftAddr];
+      const sourceValue = topLeftCell ? topLeftCell.v : null;
+      const sourceType = topLeftCell ? topLeftCell.t : null;
+      for (let r = s.r; r <= e.r; r++) {
+        for (let c = s.c; c <= e.c; c++) {
+          if (r === s.r && c === s.c) continue;
+          const addr = this._encodeCell(r, c);
+          const existing = worksheet[addr];
+          if (!existing || existing.v === null || existing.v === undefined || existing.v === '') {
+            worksheet[addr] = {
+              t: sourceType || (typeof sourceValue === 'number' ? 'n' : 's'),
+              v: sourceValue,
+              w: topLeftCell ? topLeftCell.w : undefined
+            };
+            filledCount++;
+          }
+        }
+      }
+    }
+    verbose(`Excel Sheet ${sheetName} 处理合并单元格: ${merges.length}个区域, 填充${filledCount}个单元格`);
+    return { filledCount, mergeCount: merges.length };
+  }
+
   async _parseExcel(filePath, options = {}) {
     const workbook = xlsx.readFile(filePath, {
       cellDates: true,
@@ -67,8 +111,13 @@ class MultiFormatParser {
     });
     const allRecords = [];
     const sheetNames = workbook.SheetNames;
+    let totalMergesFilled = 0;
+    let totalMergeRegions = 0;
     for (const sheetName of sheetNames) {
       const worksheet = workbook.Sheets[sheetName];
+      const mergeStats = this._fillMergedCells(worksheet, sheetName);
+      totalMergesFilled += mergeStats.filledCount;
+      totalMergeRegions += mergeStats.mergeCount;
       const jsonData = xlsx.utils.sheet_to_json(worksheet, {
         defval: null,
         raw: false,
@@ -91,6 +140,8 @@ class MultiFormatParser {
       }
     }
     allRecords._sheetCount = sheetNames.length;
+    allRecords._mergeRegions = totalMergeRegions;
+    allRecords._mergeCellsFilled = totalMergesFilled;
     return allRecords;
   }
 

@@ -169,10 +169,100 @@ class RetryQueue {
   }
 }
 
+class ProxyManager {
+  constructor(proxyList = []) {
+    this.proxyList = (Array.isArray(proxyList) ? proxyList : []).filter(Boolean);
+    this.currentIndex = 0;
+    this.failureCounts = new Map();
+    this.rotationCount = 0;
+  }
+
+  get enabled() {
+    return this.proxyList.length > 0;
+  }
+
+  get size() {
+    return this.proxyList.length;
+  }
+
+  current() {
+    return this.enabled ? this.proxyList[this.currentIndex] : null;
+  }
+
+  rotate() {
+    if (!this.enabled) return null;
+    this.currentIndex = (this.currentIndex + 1) % this.proxyList.length;
+    this.rotationCount++;
+    return this.current();
+  }
+
+  getFailureCount(proxyUrl) {
+    return this.failureCounts.get(proxyUrl) || 0;
+  }
+
+  toAxiosProxy(proxyUrl) {
+    if (!proxyUrl) return undefined;
+    try {
+      const u = new URL(proxyUrl);
+      const cfg = { host: u.hostname, port: parseInt(u.port, 10) || 8080 };
+      const proto = u.protocol.replace(':', '');
+      if (['http', 'https', 'socks5', 'socks5h', 'socks4', 'socks4a'].includes(proto)) {
+        cfg.protocol = proto;
+      }
+      if (u.username) {
+        cfg.auth = {
+          username: decodeURIComponent(u.username),
+          password: decodeURIComponent(u.password || '')
+        };
+      }
+      return cfg;
+    } catch (e) {
+      logger.warn(`解析代理地址失败: ${proxyUrl}, ${e.message}`);
+      return undefined;
+    }
+  }
+
+  isNetworkError(err) {
+    if (!err) return false;
+    const code = err.code || '';
+    const networkCodes = [
+      'ECONNRESET', 'ECONNREFUSED', 'ECONNABORTED', 'ETIMEDOUT',
+      'ENOTFOUND', 'EAI_AGAIN', 'EHOSTUNREACH', 'ENETUNREACH',
+      'EPIPE', 'ESOCKETTIMEDOUT', 'ERR_PROXY_CONNECTION_FAILED',
+      'ERR_NETWORK'
+    ];
+    if (networkCodes.includes(code)) return true;
+    if (err.isAxiosError && err.message && /network|timeout|proxy|socket|ECONN/gi.test(err.message)) return true;
+    return false;
+  }
+
+  async withProxyRetry(fn, { context = '', maxProxySwitches } = {}) {
+    const totalAttempts = maxProxySwitches || this.proxyList.length || 1;
+    let lastError;
+    for (let attempt = 0; attempt < totalAttempts; attempt++) {
+      const proxy = this.enabled ? this.current() : null;
+      try {
+        return await fn(proxy);
+      } catch (err) {
+        lastError = err;
+        if (!this.isNetworkError(err)) {
+          throw err;
+        }
+        const failedProxy = proxy || '直连';
+        this.failureCounts.set(failedProxy, (this.failureCounts.get(failedProxy) || 0) + 1);
+        logger.warn(`代理切换重试 [${context || '请求'}] 第${attempt + 1}/${totalAttempts}次: 节点[${failedProxy}]网络异常(${err.code || err.message})，切换下一代理`);
+        if (this.enabled) this.rotate();
+      }
+    }
+    throw lastError;
+  }
+}
+
 module.exports = {
   withRetry,
   RetryQueue,
   RetryError,
   isRetryableError,
-  getRetryAfterSeconds
+  getRetryAfterSeconds,
+  ProxyManager
 };

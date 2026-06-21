@@ -4,9 +4,9 @@ const fs = require('fs');
 const path = require('path');
 const pLimit = require('p-limit');
 const { logger, verbose } = require('../utils/logger');
-const { withRetry, RetryError } = require('../utils/retry');
+const { withRetry, RetryError, ProxyManager } = require('../utils/retry');
 const { ensureDir, generateId, businessDate, formatDate } = require('../utils/common');
-const { paths, performanceConfig } = require('../../config/schedule');
+const { paths, performanceConfig, proxyConfig } = require('../../config/schedule');
 
 class ApiCollector {
   constructor(orgConfig) {
@@ -19,6 +19,9 @@ class ApiCollector {
     this.requestCount = 0;
     this.lastRequestTime = 0;
     this.concurrencyLimit = pLimit(performanceConfig.maxConcurrentApiRequests);
+    const proxyList = orgConfig.proxyList || (proxyConfig && proxyConfig.enabled ? proxyConfig.proxyList : []);
+    this.proxyManager = new ProxyManager(proxyList);
+    verbose(`[${this.orgId}] 代理配置: ${this.proxyManager.enabled ? this.proxyManager.size + '个节点' : '未启用(直连)'}`);
   }
 
   _buildSignature(params, timestamp, nonce) {
@@ -95,35 +98,45 @@ class ApiCollector {
     return this.concurrencyLimit(async () => {
       return withRetry(
         async () => {
-          verbose(`[${this.orgId}] API请求 ${method} ${endpoint}`);
-          const headers = this._buildHeaders(params);
-          const config = {
-            method,
-            url,
-            headers,
-            timeout: options.timeout || 30000,
-            params: method === 'GET' ? params : undefined,
-            data: method !== 'GET' ? params : undefined,
-            validateStatus: (status) => status >= 200 && status < 500
-          };
-          const resp = await axios(config);
-          if (resp.status === 429) {
-            const retryAfter = resp.headers?.['retry-after'];
-            const wait = retryAfter ? parseInt(retryAfter, 10) * 1000 : 5000;
-            throw Object.assign(new Error('API限流'), {
-              code: 'ERR_RATE_LIMITED',
-              response: resp,
-              isAxiosError: true
-            });
-          }
-          if (resp.status >= 400) {
-            throw Object.assign(new Error(`API错误 ${resp.status}: ${resp.statusText}`), {
-              code: `ERR_API_${resp.status}`,
-              response: resp,
-              isAxiosError: resp.status >= 500
-            });
-          }
-          return resp.data;
+          const requestContext = `[${this.orgId}] ${method} ${endpoint}`;
+          return this.proxyManager.withProxyRetry(
+            async (proxyUrl) => {
+              verbose(`[${this.orgId}] API请求 ${method} ${endpoint}${proxyUrl ? ` via代理 ${proxyUrl}` : ' (直连)'}`);
+              const headers = this._buildHeaders(params);
+              const config = {
+                method,
+                url,
+                headers,
+                timeout: options.timeout || 30000,
+                params: method === 'GET' ? params : undefined,
+                data: method !== 'GET' ? params : undefined,
+                validateStatus: (status) => status >= 200 && status < 500
+              };
+              const axiosProxy = this.proxyManager.toAxiosProxy(proxyUrl);
+              if (axiosProxy) {
+                config.proxy = axiosProxy;
+              }
+              const resp = await axios(config);
+              if (resp.status === 429) {
+                const retryAfter = resp.headers?.['retry-after'];
+                const wait = retryAfter ? parseInt(retryAfter, 10) * 1000 : 5000;
+                throw Object.assign(new Error('API限流'), {
+                  code: 'ERR_RATE_LIMITED',
+                  response: resp,
+                  isAxiosError: true
+                });
+              }
+              if (resp.status >= 400) {
+                throw Object.assign(new Error(`API错误 ${resp.status}: ${resp.statusText}`), {
+                  code: `ERR_API_${resp.status}`,
+                  response: resp,
+                  isAxiosError: resp.status >= 500
+                });
+              }
+              return resp.data;
+            },
+            { context: requestContext, maxProxySwitches: this.proxyManager.enabled ? proxyConfig.maxProxySwitches : 1 }
+          );
         },
         {
           context: `[${this.orgId}] ${method} ${endpoint}`,

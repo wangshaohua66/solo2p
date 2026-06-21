@@ -175,6 +175,18 @@ const performanceConfig = {
   }
 };
 
+const proxyConfig = {
+  enabled: process.env.PROXY_ENABLED === 'true' || false,
+  proxyList: (process.env.PROXY_LIST ? process.env.PROXY_LIST.split(',') : [
+    'http://proxy1.local.gov.cn:8080',
+    'http://proxy2.local.gov.cn:8080',
+    'socks5://proxy3.local.gov.cn:1080'
+  ]).map((s) => s.trim()).filter(Boolean),
+  maxProxySwitches: 3,
+  connectTimeoutMs: 10000,
+  readTimeoutMs: 30000
+};
+
 const paths = {
   root: path.resolve(__dirname, '..'),
   data: {
@@ -220,6 +232,7 @@ module.exports = {
   organizations,
   holidayConfig,
   performanceConfig,
+  proxyConfig,
   paths,
   regulatorConfig,
   notificationConfig
