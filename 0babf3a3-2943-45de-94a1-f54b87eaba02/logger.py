@@ -1,6 +1,6 @@
 import logging
 import os
-from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
+from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime
 from typing import Optional
 
@@ -65,7 +65,6 @@ class LoggerManager:
         level = getattr(logging, level_str.upper(), logging.INFO)
         self.logger.setLevel(logging.DEBUG)
 
-        max_bytes = log_config.get("max_bytes", 10 * 1024 * 1024)
         backup_count = log_config.get("backup_count", 7)
 
         file_handler = TimedRotatingFileHandler(
@@ -78,21 +77,11 @@ class LoggerManager:
         file_handler.setLevel(level)
         file_handler.setFormatter(self._get_formatter())
 
-        size_handler = RotatingFileHandler(
-            filename=log_file,
-            maxBytes=max_bytes,
-            backupCount=backup_count,
-            encoding='utf-8'
-        )
-        size_handler.setLevel(level)
-        size_handler.setFormatter(self._get_formatter())
-
         console_handler = logging.StreamHandler()
         console_handler.setLevel(level)
         console_handler.setFormatter(self._get_formatter())
 
         self.logger.addHandler(file_handler)
-        self.logger.addHandler(size_handler)
         self.logger.addHandler(console_handler)
 
     def _get_formatter(self) -> logging.Formatter:
