@@ -1,13 +1,10 @@
 import fs from 'fs-extra';
 import path from 'path';
 import crypto from 'crypto';
-import { fileURLToPath } from 'url';
 import { compareMetadata, extractAudioMetadata } from './audio-meta.js';
+import { getConfig } from '../utils/config.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const configPath = path.resolve(__dirname, '../../config/default.json');
-const config = await fs.readJson(configPath);
+const config = getConfig();
 
 function generateFileHash(filePath, algorithm = 'sha256') {
   const buffer = fs.readFileSync(filePath);

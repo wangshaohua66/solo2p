@@ -1,9 +1,10 @@
 import fs from 'fs-extra';
 import path from 'path';
 import chalk from 'chalk';
-import { fileURLToPath } from 'url';
 import {
   renderTable,
+  renderPaginatedTable,
+  renderPaginatedTableInteractive,
   renderSuccess,
   renderError,
   renderWarning,
@@ -33,11 +34,13 @@ import {
   cleanupTempFiles,
   getStorageAlert
 } from '../services/storage-analyzer.js';
+import {
+  getStorageBasePath,
+  getConfig
+} from '../utils/config.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const BASE_STORAGE_PATH = path.resolve(__dirname, '../../projects');
+const BASE_STORAGE_PATH = getStorageBasePath();
+const config = getConfig();
 
 function calculateProjectProgress(project) {
   const materials = project.materials || [];

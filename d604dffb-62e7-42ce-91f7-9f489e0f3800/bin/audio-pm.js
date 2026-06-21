@@ -3,15 +3,12 @@
 import { Command } from 'commander';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
-import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
-const configPath = path.join(ROOT_DIR, 'config', 'default.json');
-const config = await fs.readJson(configPath);
 
 import {
   createProjectCmd,
@@ -59,8 +56,12 @@ import {
   renderError,
   renderSuccess,
   renderInfo,
-  renderDivider
+  renderDivider,
+  formatDate
 } from '../lib/utils/formatter.js';
+
+import { getConfig } from '../lib/utils/config.js';
+const config = getConfig();
 
 const program = new Command();
 
@@ -188,7 +189,7 @@ material.command('show')
   .requiredOption('-P, --project <projectId>', '项目ID')
   .argument('<materialId>', '素材ID')
   .option('--with-versions', '显示版本历史')
-  .action(async (opts, id) => {
+  .action(async (id, opts) => {
     try { await getMaterialDetailCmd(opts.project, id, opts); }
     catch (e) { renderError({ code: 'E000', error: e.message }); process.exit(1); }
   });
@@ -218,7 +219,7 @@ material.command('delete')
   .option('--delete-file', '同时删除文件')
   .option('-y, --yes', '确认删除')
   .option('--actor <name>', '操作人')
-  .action(async (opts, id) => {
+  .action(async (id, opts) => {
     try { deleteMaterialCmd(opts.project, id, opts); }
     catch (e) { renderError({ code: 'E000', error: e.message }); process.exit(1); }
   });
@@ -255,7 +256,7 @@ workflow.command('diff')
   .requiredOption('-m, --material <materialId>', '素材ID')
   .argument('<versionId1>', '版本ID1')
   .argument('<versionId2>', '版本ID2')
-  .action(async (opts, v1, v2) => {
+  .action(async (v1, v2, opts) => {
     try { await compareVersionsCmd(opts.project, opts.material, v1, v2, opts); }
     catch (e) { renderError({ code: 'E000', error: e.message }); process.exit(1); }
   });
@@ -271,7 +272,7 @@ workflow.command('rollback')
   .option('--delete-later', '删除后续版本')
   .option('-y, --yes', '确认执行')
   .option('--confirm', '确认执行')
-  .action(async (opts, target) => {
+  .action(async (target, opts) => {
     try { await rollbackVersionCmd(opts.project, opts.material, target, opts); }
     catch (e) { renderError({ code: 'E000', error: e.message }); process.exit(1); }
   });
@@ -328,12 +329,12 @@ workflow.command('feedback')
 
 workflow.command('resolve-feedback')
   .description('标记反馈已解决')
-  .requiredOption('-P, --project <projectId>', '项目ID')
   .argument('<feedbackId>', '反馈ID')
+  .requiredOption('-P, --project <projectId>', '项目ID')
   .option('-n, --note <text>', '处理说明')
   .option('-a, --actor <name>', '处理人')
   .option('--reopen', '重新打开(设为待处理)')
-  .action(async (opts, fid) => {
+  .action(async (fid, opts) => {
     try {
       const status = opts.reopen ? 'pending' : 'resolved';
       updateFeedbackStatusCmd(opts.project, fid, status, opts);

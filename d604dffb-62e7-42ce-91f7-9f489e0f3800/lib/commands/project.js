@@ -1,7 +1,7 @@
 import fs from 'fs-extra';
 import path from 'path';
 import chalk from 'chalk';
-import { fileURLToPath } from 'url';
+import archiver from 'archiver';
 import {
   validateProjectName,
   validatePath,
@@ -11,6 +11,7 @@ import {
 import {
   renderTable,
   renderPaginatedTable,
+  renderPaginatedTableInteractive,
   renderSuccess,
   renderError,
   renderWarning,
@@ -20,7 +21,8 @@ import {
   formatProjectStatus,
   formatDate,
   formatFileSize,
-  saveCSV
+  saveCSV,
+  formatDuration
 } from '../utils/formatter.js';
 import {
   loadProjects,
@@ -28,17 +30,19 @@ import {
   getProjectById,
   getProjectByName,
   updateProject,
-  addActivity
+  addActivity,
+  findMaterials
 } from '../utils/store.js';
 import { analyzeProjectStorage } from '../services/storage-analyzer.js';
+import {
+  getConfig,
+  getStorageBasePath,
+  getArchivePath
+} from '../utils/config.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const configPath = path.resolve(__dirname, '../../config/default.json');
-const config = await fs.readJson(configPath);
-
-const BASE_STORAGE_PATH = path.resolve(__dirname, '../../projects');
-const ARCHIVE_PATH = path.resolve(__dirname, '../../archives');
+const config = getConfig();
+const BASE_STORAGE_PATH = getStorageBasePath();
+const ARCHIVE_PATH = getArchivePath();
 
 function getProjectPath(project) {
   return project.storagePath || path.join(BASE_STORAGE_PATH, project.id);
@@ -148,16 +152,26 @@ export async function archiveProjectCmd(projectId, options) {
   const archivePath = options.output
     ? path.resolve(options.output)
     : path.join(ARCHIVE_PATH, archiveFileName);
+
+  const projectMaterials = findMaterials({ projectId });
   const manifest = {
     projectId: project.id,
     projectName: project.name,
     archivedAt: new Date().toISOString(),
     archivedBy: options.actor || 'system',
-    materialCount: project.materials?.length || 0,
-    feedbackCount: project.feedback?.length || 0,
+    materialCount: projectMaterials.length,
+    feedbackCount: (project.feedbackIds || []).length,
     status: project.status,
-    note: options.note || ''
+    note: options.note || '',
+    archiveFormat: 'tar.gz',
+    materialSummary: {
+      byType: projectMaterials.reduce((acc, m) => {
+        acc[m.type] = (acc[m.type] || 0) + 1;
+        return acc;
+      }, {})
+    }
   };
+
   if (projectPath && fs.existsSync(projectPath)) {
     fs.writeFileSync(
       path.join(projectPath, 'archive_manifest.json'),
@@ -165,35 +179,120 @@ export async function archiveProjectCmd(projectId, options) {
       'utf-8'
     );
   }
-  renderInfo(`正在归档项目: ${project.name}`);
-  renderInfo(`归档路径: ${archivePath}`);
+
+  renderInfo(`正在归档项目: ${chalk.bold(project.name)}`);
+  renderInfo(`归档路径: ${chalk.gray(archivePath)}`);
+  renderInfo(`素材数量: ${chalk.cyan(projectMaterials.length)} 条`);
+
   const materialListPath = path.join(ARCHIVE_PATH, `${safeName}_${timestamp}_清单.csv`);
-  const headers = ['素材ID', '名称', '类型', '场次', '镜头', '状态', '文件大小', '时长(秒)', '创建时间'];
-  const rows = (project.materials || []).map(m => [
+  const headers = ['素材ID', '名称', '类型', '场次', '镜头', '状态', '文件大小', '时长(秒)', '创建时间', '存储路径'];
+  const rows = projectMaterials.map(m => [
     m.id, m.name, m.type, m.scene || '-', m.shot || '-',
     m.status, formatFileSize(m.metadata?.fileSize || 0),
-    (m.metadata?.duration || 0).toFixed(2), formatDate(m.createdAt)
+    (m.metadata?.duration || 0).toFixed(2), formatDate(m.createdAt),
+    m.storagePath || '-'
   ]);
   saveCSV(materialListPath, headers, rows);
+
+  let archiveSize = 0;
+  let filesArchived = 0;
+  const archiveStartTime = Date.now();
+
+  await new Promise((resolve, reject) => {
+    if (!projectPath || !fs.existsSync(projectPath)) {
+      const placeholderArchive = { manifest, note: '项目目录不存在，仅生成元数据归档' };
+      fs.writeFileSync(
+        archivePath.replace(/\.tar\.gz$/, '_metadata.json'),
+        JSON.stringify(placeholderArchive, null, 2),
+        'utf-8'
+      );
+      renderWarning('项目目录不存在，仅生成元数据归档文件');
+      resolve();
+      return;
+    }
+
+    const output = fs.createWriteStream(archivePath);
+    const archive = archiver('tar', {
+      gzip: true,
+      gzipOptions: { level: options.compressionLevel || 6 },
+      zlib: { level: options.compressionLevel || 6 }
+    });
+
+    output.on('close', () => {
+      archiveSize = archive.pointer();
+      resolve();
+    });
+
+    archive.on('warning', (err) => {
+      if (err.code === 'ENOENT') {
+        renderWarning(`归档警告: ${err.message}`);
+      } else {
+        reject(err);
+      }
+    });
+
+    archive.on('error', reject);
+
+    archive.on('entry', () => {
+      filesArchived++;
+    });
+
+    archive.pipe(output);
+    archive.directory(projectPath, project.id, (entry) => {
+      if (entry.stats?.isFile()) filesArchived++;
+      return entry;
+    });
+    archive.file(materialListPath, { name: `${project.id}/archive_inventory.csv` });
+    archive.append(JSON.stringify(manifest, null, 2), { name: `${project.id}/archive_manifest.json` });
+    archive.finalize();
+  });
+
+  const archiveDuration = ((Date.now() - archiveStartTime) / 1000).toFixed(2);
+  const actualSize = fs.existsSync(archivePath) ? fs.statSync(archivePath).size : archiveSize;
+
   updateProject(project.id, {
     status: 'archived',
     archivePath,
     archivedAt: manifest.archivedAt,
-    materialListPath
+    materialListPath,
+    archiveSize: actualSize,
+    archiveDuration: Number(archiveDuration)
   });
+
   addActivity(project.id, {
     type: 'project_archived',
-    description: `项目归档: ${archivePath}`,
-    actor: options.actor || 'system'
+    description: `项目归档完成: ${archivePath}，大小: ${formatFileSize(actualSize)}，耗时: ${archiveDuration}s`,
+    actor: options.actor || 'system',
+    metadata: {
+      archivePath,
+      archiveSize: actualSize,
+      durationSec: archiveDuration,
+      filesArchived,
+      materialCount: projectMaterials.length
+    }
   });
-  renderSuccess(`项目归档完成: ${project.name}`);
-  renderInfo(`归档清单已保存: ${materialListPath}`);
+
+  renderDivider();
+  renderSuccess(`项目归档完成: ${chalk.bold(project.name)}`);
+  const summaryRows = [
+    ['归档文件', chalk.gray(archivePath)],
+    ['压缩大小', chalk.green(formatFileSize(actualSize))],
+    ['处理耗时', `${archiveDuration} 秒`],
+    ['归档文件数', filesArchived > 0 ? `${filesArchived} 个` : '-'],
+    ['素材清单', materialListPath],
+    ['操作人', options.actor || 'system']
+  ];
+  renderTable(['项目', '值'], summaryRows);
+
   if (!options.keepData && projectPath && fs.existsSync(projectPath)) {
     if (options.deleteOriginal) {
       fs.removeSync(projectPath);
-      renderInfo(`项目原目录已删除: ${projectPath}`);
+      renderInfo(chalk.yellow(`项目原目录已清理: ${projectPath}`));
+    } else {
+      renderInfo(chalk.gray(`保留原目录，如需清理请指定 --delete-original`));
     }
   }
+
   return true;
 }
 

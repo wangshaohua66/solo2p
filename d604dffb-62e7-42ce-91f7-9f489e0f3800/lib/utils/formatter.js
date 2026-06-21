@@ -1,13 +1,10 @@
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import fs from 'fs-extra';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import readline from 'readline';
+import { getConfig } from './config.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const configPath = path.resolve(__dirname, '../../config/default.json');
-const config = await fs.readJson(configPath);
+const config = getConfig();
 
 export function formatStatus(status, type = 'material') {
   const statusConfig = type === 'project' ? config.projectStatus : config.materialStatus;
@@ -130,6 +127,102 @@ export function renderPaginatedTable(headers, rows, options = {}) {
     console.log(chalk.gray(`\n  第 ${currentPage}/${totalPages}页，共 ${rows.length} 条记录`));
   }
   return { totalPages, currentPage, pageSize };
+}
+
+export async function renderPaginatedTableInteractive(headers, rows, options = {}) {
+  const pageSize = options.pageSize || config.pagination.pageSize;
+  const totalPages = Math.ceil(rows.length / pageSize);
+  let currentPage = options.page || 1;
+  if (currentPage < 1) currentPage = 1;
+  if (currentPage > totalPages) currentPage = totalPages;
+  const isTTY = process.stdin.isTTY && process.stdout.isTTY;
+  if (!isTTY || totalPages <= 1 || options.noInteractive) {
+    return renderPaginatedTable(headers, rows, options);
+  }
+
+  const clearPage = () => {
+    readline.cursorTo(process.stdout, 0, 0);
+    readline.clearScreenDown(process.stdout);
+  };
+
+  const renderPage = () => {
+    clearPage();
+    renderHeader(options._title || '查询结果');
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    const pageRows = rows.slice(start, end);
+    renderTable(headers, pageRows, options);
+    console.log();
+    console.log(chalk.cyan.bold(`  第 ${chalk.yellow(currentPage)}/${chalk.yellow(totalPages)} 页  |  共 ${chalk.green(rows.length)} 条记录`));
+    console.log(chalk.gray('  导航: [↑/↓/P/N] 翻页  [Home/End] 首页/末页  [G 数字回车] 跳转到页  [Q/ESC/Ctrl+C] 退出'));
+  };
+
+  renderPage();
+
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      terminal: true
+    });
+
+    let awaitingGoto = false;
+    let gotoBuffer = '';
+
+    const cleanup = () => {
+      rl.close();
+      process.stdin.removeAllListeners();
+      process.stdin.setRawMode(false);
+      resolve({ totalPages, currentPage, pageSize, exit: true });
+    };
+
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+
+    process.stdin.on('data', (data) => {
+      const str = data.toString();
+      const codes = [...data];
+      let goNext = false;
+      let goPrev = false;
+
+      if (codes.length === 3 && codes[0] === 27 && codes[1] === 91) {
+        if (codes[2] === 65 /* UP */) { goPrev = true; }
+        else if (codes[2] === 66 /* DOWN */) { goNext = true; }
+        else if (codes[2] === 72 /* HOME */) { currentPage = 1; renderPage(); return; }
+        else if (codes[2] === 70 /* END */) { currentPage = totalPages; renderPage(); return; }
+        else { return; }
+      } else if (str === '\x1B' /* ESC */ || str === '\x03' /* Ctrl+C */ || str.toLowerCase() === 'q') {
+        cleanup();
+        return;
+      } else if (awaitingGoto) {
+        if (str === '\r' || str === '\n') {
+          const pageNum = parseInt(gotoBuffer, 10);
+          if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+            currentPage = pageNum;
+          }
+          awaitingGoto = false;
+          gotoBuffer = '';
+          renderPage();
+          return;
+        } else if (/^\d$/.test(str)) {
+          gotoBuffer += str;
+          return;
+        } else {
+          awaitingGoto = false;
+          gotoBuffer = '';
+          return;
+        }
+      } else if (str.toLowerCase() === 'n' || str === ' ') { goNext = true; }
+      else if (str.toLowerCase() === 'p' || str === '\b') { goPrev = true; }
+      else if (str.toLowerCase() === 'g') { awaitingGoto = true; gotoBuffer = ''; return; }
+      else { return; }
+
+      if (goNext && currentPage < totalPages) { currentPage++; renderPage(); }
+      else if (goPrev && currentPage > 1) { currentPage--; renderPage(); }
+    });
+
+    rl.on('close', () => { /* ignore */ });
+  });
 }
 
 export function renderTree(items, options = {}) {

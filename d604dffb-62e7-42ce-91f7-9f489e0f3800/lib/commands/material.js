@@ -1,7 +1,7 @@
 import fs from 'fs-extra';
 import path from 'path';
 import chalk from 'chalk';
-import { fileURLToPath } from 'url';
+import inquirer from 'inquirer';
 import {
   validateMaterialType,
   validateMaterialStatus,
@@ -12,6 +12,7 @@ import {
 import {
   renderTable,
   renderPaginatedTable,
+  renderPaginatedTableInteractive,
   renderSuccess,
   renderError,
   renderWarning,
@@ -45,14 +46,15 @@ import {
   getVersion,
   compareVersions
 } from '../services/version-control.js';
+import {
+  getConfig,
+  getStorageBasePath
+} from '../utils/config.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const configPath = path.resolve(__dirname, '../../config/default.json');
-const config = await fs.readJson(configPath);
+const config = getConfig();
 
 function getProjectStoragePath(project) {
-  return project.storagePath || path.resolve(__dirname, '../../projects', project.id);
+  return project.storagePath || path.join(getStorageBasePath(), project.id);
 }
 
 function scanAudioFiles(sourcePath, recursive = true) {
@@ -128,6 +130,8 @@ export async function importMaterialsCmd(projectId, sourcePath, options) {
   fs.ensureDirSync(rawPath);
   const importResults = { success: [], conflicts: [], failed: [], skipped: [] };
   const projectMaterials = project.materials || [];
+  let globalConflictStrategy = null;
+
   for (const meta of metaResults.success) {
     try {
       const originalName = meta.fileName;
@@ -147,15 +151,125 @@ export async function importMaterialsCmd(projectId, sourcePath, options) {
       let targetFileName = originalName;
       let conflictInfo = null;
       if (conflictList.length > 0) {
-        if (options.onConflict === 'skip') {
+        const conflictStrategy = globalConflictStrategy || options.onConflict;
+        if (conflictStrategy === 'skip') {
           importResults.skipped.push({ file: originalName, reason: '文件重名已跳过' });
           continue;
-        } else if (options.onConflict === 'rename' || !options.onConflict === 'auto') {
+        } else if (conflictStrategy === 'rename' || !conflictStrategy || conflictStrategy === 'auto') {
           const base = path.parse(originalName);
           targetFileName = `${base.name}_${conflictList.length + 1}${base.ext}`;
           conflictInfo = { renamedFrom: originalName, strategy: 'rename' };
-        } else if (options.onConflict === 'overwrite') {
+        } else if (conflictStrategy === 'overwrite') {
           conflictInfo = { strategy: 'overwrite' };
+        } else if (conflictStrategy === 'manual') {
+          console.log();
+          console.log(chalk.yellow.bold('  ⚠️  检测到重名冲突:'));
+          const existingFirst = conflictList[0];
+          const conflictRows = [
+            ['项目', chalk.gray(originalName)],
+            ['类型/场次/镜头', `${type} / ${scene} / ${shot}`],
+            ['— 新文件 —', ''],
+            ['  文件大小', formatFileSize(meta.fileSize)],
+            ['  时长', formatDuration(meta.duration)],
+            ['  规格', `${meta.sampleRate || '-'}Hz / ${meta.bitsPerSample || '-'}bit / ${meta.numChannels || '-'}ch`],
+            ['— 现有素材 —', ''],
+            ['  素材ID', existingFirst.id],
+            ['  文件大小', formatFileSize(existingFirst.metadata?.fileSize || 0)],
+            ['  时长', formatDuration(existingFirst.metadata?.duration || 0)],
+            ['  规格', `${existingFirst.metadata?.sampleRate || '-'}Hz / ${existingFirst.metadata?.bitsPerSample || '-'}bit / ${existingFirst.metadata?.numChannels || '-'}ch`],
+            ['  状态', formatStatus(existingFirst.status)]
+          ];
+          renderTable([chalk.cyan('属性'), chalk.cyan('值')], conflictRows);
+
+          const answers = await inquirer.prompt([
+            {
+              type: 'expand',
+              name: 'strategy',
+              message: '选择处理方式 (r=重命名 o=覆盖 s=跳过 R=全部重命名 O=全部覆盖 S=全部跳过):',
+              choices: [
+                { key: 'r', name: '自动重命名 (仅本次)', value: 'rename' },
+                { key: 'o', name: '覆盖现有 (仅本次)', value: 'overwrite' },
+                { key: 's', name: '跳过 (仅本次)', value: 'skip' },
+                new inquirer.Separator(),
+                { key: 'R', name: '✅ 应用「重命名」到所有后续冲突', value: 'rename_all' },
+                { key: 'O', name: '✅ 应用「覆盖」到所有后续冲突', value: 'overwrite_all' },
+                { key: 'S', name: '✅ 应用「跳过」到所有后续冲突', value: 'skip_all' },
+                { key: 'n', name: '详细信息对比', value: 'detail' }
+              ],
+              default: 'rename'
+            }
+          ]);
+
+          let selectedStrategy = answers.strategy;
+          if (selectedStrategy === 'detail') {
+            renderDivider();
+            console.log(chalk.cyan('  🔍 详细差异对比:'));
+            console.log(chalk.gray('  新文件路径: ') + meta.filePath);
+            console.log(chalk.gray('  现有路径: ') + (existingFirst.filePath || '-'));
+            console.log(chalk.gray('  现有创建时间: ') + formatDate(existingFirst.createdAt));
+            if (existingFirst.assignedTo) {
+              console.log(chalk.gray('  现有负责人: ') + existingFirst.assignedTo);
+            }
+            const detailAnswer = await inquirer.prompt([
+              {
+                type: 'list',
+                name: 'strategy',
+                message: '请选择最终处理方式:',
+                choices: [
+                  { name: '自动重命名', value: 'rename' },
+                  { name: '覆盖现有文件', value: 'overwrite' },
+                  { name: '跳过此文件', value: 'skip' },
+                  { name: '从后续列表中自定义命名', value: 'custom' }
+                ]
+              }
+            ]);
+            selectedStrategy = detailAnswer.strategy;
+          }
+
+          if (selectedStrategy === 'custom') {
+            const { customName } = await inquirer.prompt([
+              {
+                type: 'input',
+                name: 'customName',
+                message: '输入新文件名 (含扩展名):',
+                default: () => {
+                  const b = path.parse(originalName);
+                  return `${b.name}_new${b.ext}`;
+                },
+                validate: (input) => {
+                  if (!input || input.length < 3) return '文件名至少3个字符';
+                  const sameName = projectMaterials.filter(m => m.originalName === input || path.basename(m.filePath || '') === input);
+                  if (sameName.length > 0) return '该名称仍然存在冲突，请换一个';
+                  return true;
+                }
+              }
+            ]);
+            targetFileName = customName;
+            conflictInfo = { renamedFrom: originalName, strategy: 'custom', customName };
+          } else if (selectedStrategy.endsWith('_all')) {
+            const baseStrategy = selectedStrategy.replace('_all', '');
+            globalConflictStrategy = baseStrategy;
+            renderInfo(chalk.green(`已设置全局策略: 所有后续冲突将自动「${baseStrategy === 'rename' ? '重命名' : baseStrategy === 'overwrite' ? '覆盖' : '跳过'}」`));
+            if (baseStrategy === 'skip') {
+              importResults.skipped.push({ file: originalName, reason: '文件重名 (全局跳过)' });
+              continue;
+            } else if (baseStrategy === 'rename') {
+              const b = path.parse(originalName);
+              targetFileName = `${b.name}_${conflictList.length + 1}${b.ext}`;
+              conflictInfo = { renamedFrom: originalName, strategy: 'rename', global: true };
+            } else {
+              conflictInfo = { strategy: 'overwrite', global: true };
+            }
+          } else if (selectedStrategy === 'skip') {
+            importResults.skipped.push({ file: originalName, reason: '文件重名 (用户手动跳过)' });
+            continue;
+          } else if (selectedStrategy === 'rename') {
+            const b = path.parse(originalName);
+            targetFileName = `${b.name}_${conflictList.length + 1}${b.ext}`;
+            conflictInfo = { renamedFrom: originalName, strategy: 'rename', manual: true };
+          } else if (selectedStrategy === 'overwrite') {
+            conflictInfo = { strategy: 'overwrite', manual: true };
+          }
         } else {
           importResults.conflicts.push({
             file: originalName,

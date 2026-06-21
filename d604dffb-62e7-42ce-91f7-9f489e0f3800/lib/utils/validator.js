@@ -1,11 +1,6 @@
-import fs from 'fs-extra';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { getConfig } from './config.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const configPath = path.resolve(__dirname, '../../config/default.json');
-const config = await fs.readJson(configPath);
+const config = getConfig();
 
 export const PROJECT_NAME_REGEX = /^[a-zA-Z\u4e00-\u9fa5][a-zA-Z0-9_\-\u4e00-\u9fa5]{1,49}$/;
 

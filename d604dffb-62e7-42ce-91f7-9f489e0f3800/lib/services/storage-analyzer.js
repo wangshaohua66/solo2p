@@ -1,11 +1,8 @@
 import fs from 'fs-extra';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { getConfig } from '../utils/config.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const configPath = path.resolve(__dirname, '../../config/default.json');
-const config = await fs.readJson(configPath);
+const config = getConfig();
 
 const AUDIO_EXTENSIONS = config.supportedFormats;
 const TEMP_EXTENSIONS = ['.tmp', '.temp', '.bak', '.backup', '.log', '.crdownload', '.part'];
@@ -234,7 +231,10 @@ export function analyzeMultiProject(projects, basePath) {
   let totalSize = 0;
   let totalFiles = 0;
   for (const project of projects) {
-    const projectPath = path.resolve(basePath, project.path || project.id);
+    const projectPath =
+      project.storagePath && path.isAbsolute(project.storagePath)
+        ? project.storagePath
+        : path.resolve(basePath, project.storagePath || project.path || project.id);
     if (fs.existsSync(projectPath)) {
       const analysis = analyzeProjectStorage(projectPath);
       results[project.id] = analysis;
