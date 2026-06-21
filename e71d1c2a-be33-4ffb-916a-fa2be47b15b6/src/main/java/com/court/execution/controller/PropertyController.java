@@ -120,13 +120,37 @@ public class PropertyController {
     }
 
     @PostMapping("/seizure/{id}/release")
-    @Operation(summary = "解封", description = "解除查封冻结，需审批流程")
-    @PreAuthorize("hasAnyRole('JUDGE', 'ADMIN')")
+    @Operation(summary = "申请解封", description = "申请解除查封冻结，需审批流程")
+    @PreAuthorize("hasAnyRole('JUDGE', 'ASSISTANT', 'ADMIN')")
     public ApiResponse<SeizureRecord> releaseSeizure(@PathVariable Long id) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String username = auth.getName();
         SeizureRecord record = propertyService.releaseSeizure(id, username);
-        return ApiResponse.success("解封成功", record);
+        return ApiResponse.success("解封申请已提交", record);
+    }
+
+    @PutMapping("/seizure/{id}/release/confirm")
+    @Operation(summary = "审批解封申请", description = "审批解封申请，批准后正式解除查封")
+    @PreAuthorize("hasAnyRole('JUDGE', 'ADMIN')")
+    public ApiResponse<SeizureRecord> confirmReleaseSeizure(
+            @PathVariable Long id,
+            @Parameter(description = "是否批准") @RequestParam boolean approved) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = auth.getName();
+        SeizureRecord record = propertyService.confirmReleaseSeizure(id, username, approved);
+        return ApiResponse.success(approved ? "解封成功" : "解封申请已驳回", record);
+    }
+
+    @PostMapping("/{id}/skip-disposal")
+    @Operation(summary = "跳过财产处置", description = "对无需处置或无法处置的财产标记为跳过处置，可结案")
+    @PreAuthorize("hasAnyRole('JUDGE', 'ADMIN')")
+    public ApiResponse<Property> skipPropertyDisposal(
+            @PathVariable Long id,
+            @Parameter(description = "跳过处置原因") @RequestParam String reason) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = auth.getName();
+        Property property = propertyService.skipPropertyDisposal(id, reason, username);
+        return ApiResponse.success("已标记为跳过处置", property);
     }
 
     @GetMapping("/warning/expiring")

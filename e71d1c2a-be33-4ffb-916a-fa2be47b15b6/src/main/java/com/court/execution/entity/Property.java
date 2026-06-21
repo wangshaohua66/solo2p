@@ -47,6 +47,10 @@ public class Property {
 
     private LocalDateTime seizeExpireDate;
 
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    private PropertyDisposalStatus disposalStatus = PropertyDisposalStatus.NOT_DISPOSED;
+
     @Column(columnDefinition = "TEXT")
     private String remark;
 

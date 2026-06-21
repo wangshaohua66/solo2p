@@ -30,4 +30,7 @@ public interface AuctionRepository extends JpaRepository<Auction, Long> {
     java.math.BigDecimal sumSoldAmountByDateRange(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
 
     long countByStatus(AuctionStatus status);
+
+    @Query("SELECT a FROM Auction a WHERE a.property.id = :propertyId AND a.status IN ('CREATED', 'PUBLISHED', 'ONGOING', 'FAILED', 'WITHDRAWN')")
+    List<Auction> findUnfinishedByPropertyId(@Param("propertyId") Long propertyId);
 }

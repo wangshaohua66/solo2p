@@ -18,6 +18,7 @@ public class StatisticsService {
     private final SeizureRecordRepository seizureRepository;
     private final AuctionRepository auctionRepository;
     private final FundRecordRepository fundRepository;
+    private final DistributionDetailRepository distributionDetailRepository;
     private final CoordinationLetterRepository letterRepository;
 
     public StatisticsService(ExecutionCaseRepository caseRepository,
@@ -25,12 +26,14 @@ public class StatisticsService {
                              SeizureRecordRepository seizureRepository,
                              AuctionRepository auctionRepository,
                              FundRecordRepository fundRepository,
+                             DistributionDetailRepository distributionDetailRepository,
                              CoordinationLetterRepository letterRepository) {
         this.caseRepository = caseRepository;
         this.propertyRepository = propertyRepository;
         this.seizureRepository = seizureRepository;
         this.auctionRepository = auctionRepository;
         this.fundRepository = fundRepository;
+        this.distributionDetailRepository = distributionDetailRepository;
         this.letterRepository = letterRepository;
     }
 
@@ -54,6 +57,12 @@ public class StatisticsService {
         result.put("totalLetters", letterRepository.count());
         result.put("sentLetters", letterRepository.countByStatus("SENT"));
         result.put("feedbackLetters", letterRepository.countByStatus("FEEDBACK"));
+
+        result.put("fundReceivedTotal", fundRepository.sumByReceivedDateBetween(
+                LocalDateTime.of(2000, 1, 1, 0, 0),
+                LocalDateTime.now()
+        ));
+        result.put("fundDistributedTotal", distributionDetailRepository.sumAllPaidAmount());
 
         return result;
     }
@@ -103,8 +112,11 @@ public class StatisticsService {
         result.put("seizureCount", seizureRepository.countByStartDateBetween(startDate, endDate));
         result.put("soldAuctions", auctionRepository.countSoldByDateRange(startDate, endDate));
         result.put("auctionAmount", auctionRepository.sumSoldAmountByDateRange(startDate, endDate));
+
         result.put("fundCount", fundRepository.countByReceivedDateBetween(startDate, endDate));
-        result.put("fundTotal", fundRepository.sumByReceivedDateBetween(startDate, endDate));
+        result.put("fundReceivedTotal", fundRepository.sumByReceivedDateBetween(startDate, endDate));
+        result.put("fundDistributedTotal", distributionDetailRepository.sumPaidAmountByPayTimeBetween(startDate, endDate));
+
         result.put("letterCount", letterRepository.countByCreateTimeBetween(startDate, endDate));
 
         return result;

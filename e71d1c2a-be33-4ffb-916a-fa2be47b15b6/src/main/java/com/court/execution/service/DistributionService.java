@@ -11,8 +11,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class DistributionService {
@@ -22,6 +22,7 @@ public class DistributionService {
     private final DistributionDetailRepository detailRepository;
     private final ExecutionCaseRepository caseRepository;
     private final UserRepository userRepository;
+    private final ApprovalService approvalService;
 
     private int planSequence = 1;
 
@@ -29,12 +30,14 @@ public class DistributionService {
                                DistributionPlanRepository planRepository,
                                DistributionDetailRepository detailRepository,
                                ExecutionCaseRepository caseRepository,
-                               UserRepository userRepository) {
+                               UserRepository userRepository,
+                               ApprovalService approvalService) {
         this.fundRepository = fundRepository;
         this.planRepository = planRepository;
         this.detailRepository = detailRepository;
         this.caseRepository = caseRepository;
         this.userRepository = userRepository;
+        this.approvalService = approvalService;
     }
 
     private String generatePlanNumber() {
@@ -131,12 +134,12 @@ public class DistributionService {
         if (caseObj.getCreditorName() != null && !caseObj.getCreditorName().isEmpty()) {
             DistributionDetail detail = new DistributionDetail();
             detail.setDistributionPlan(savedPlan);
-            detail.setPriorityOrder(1);
-            detail.setCreditorType("申请执行人");
+            detail.setPriorityOrder(DistributionPriority.ORDINARY_CLAIM.getOrder());
+            detail.setCreditorType(DistributionPriority.ORDINARY_CLAIM.getDescription());
             detail.setCreditorName(caseObj.getCreditorName());
             detail.setClaimAmount(caseObj.getExecutionAmount());
             detail.setDistributableAmount(distributableAmount);
-            detail.setActualAmount(distributableAmount);
+            detail.setActualAmount(BigDecimal.ZERO);
             detail.setPayStatus("PENDING");
             detailRepository.save(detail);
             savedPlan.getDetails().add(detail);
@@ -163,13 +166,18 @@ public class DistributionService {
             throw new RuntimeException("只有草稿状态的方案才能添加分配明细");
         }
 
+        if (detail.getPriorityOrder() == null) {
+            detail.setPriorityOrder(DistributionPriority.ORDINARY_CLAIM.getOrder());
+        }
+        if (detail.getCreditorType() == null || detail.getCreditorType().isEmpty()) {
+            detail.setCreditorType(DistributionPriority.ORDINARY_CLAIM.getDescription());
+        }
+
         detail.setDistributionPlan(plan);
         detail.setPayStatus("PENDING");
 
         DistributionDetail saved = detailRepository.save(detail);
         plan.getDetails().add(saved);
-
-        recalculatePlan(plan);
 
         return saved;
     }
@@ -187,39 +195,58 @@ public class DistributionService {
 
         BigDecimal remaining = plan.getDistributableAmount();
 
-        for (DistributionDetail detail : details) {
+        Map<Integer, List<DistributionDetail>> groupedByPriority = details.stream()
+                .collect(Collectors.groupingBy(
+                        d -> d.getPriorityOrder() != null ? d.getPriorityOrder() : DistributionPriority.ORDINARY_CLAIM.getOrder(),
+                        TreeMap::new,
+                        Collectors.toList()
+                ));
+
+        for (Map.Entry<Integer, List<DistributionDetail>> entry : groupedByPriority.entrySet()) {
             if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
-                detail.setActualAmount(BigDecimal.ZERO);
-            } else if (detail.getClaimAmount() != null && remaining.compareTo(detail.getClaimAmount()) >= 0) {
-                detail.setActualAmount(detail.getClaimAmount());
-                remaining = remaining.subtract(detail.getClaimAmount());
+                for (DistributionDetail detail : entry.getValue()) {
+                    detail.setDistributableAmount(BigDecimal.ZERO);
+                    detail.setActualAmount(BigDecimal.ZERO);
+                    detailRepository.save(detail);
+                }
+                continue;
+            }
+
+            List<DistributionDetail> samePriorityDetails = entry.getValue();
+            BigDecimal totalClaim = samePriorityDetails.stream()
+                    .map(d -> d.getClaimAmount() != null ? d.getClaimAmount() : BigDecimal.ZERO)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            if (totalClaim.compareTo(BigDecimal.ZERO) <= 0) {
+                BigDecimal share = remaining.divide(BigDecimal.valueOf(samePriorityDetails.size()), 2, RoundingMode.HALF_UP);
+                for (DistributionDetail detail : samePriorityDetails) {
+                    detail.setDistributableAmount(share);
+                    detail.setActualAmount(share);
+                    detailRepository.save(detail);
+                }
+                remaining = BigDecimal.ZERO;
+            } else if (remaining.compareTo(totalClaim) >= 0) {
+                for (DistributionDetail detail : samePriorityDetails) {
+                    BigDecimal claim = detail.getClaimAmount() != null ? detail.getClaimAmount() : BigDecimal.ZERO;
+                    detail.setDistributableAmount(claim);
+                    detail.setActualAmount(claim);
+                    detailRepository.save(detail);
+                }
+                remaining = remaining.subtract(totalClaim);
             } else {
-                detail.setActualAmount(remaining);
+                for (DistributionDetail detail : samePriorityDetails) {
+                    BigDecimal claim = detail.getClaimAmount() != null ? detail.getClaimAmount() : BigDecimal.ZERO;
+                    BigDecimal ratio = claim.divide(totalClaim, 10, RoundingMode.HALF_UP);
+                    BigDecimal actual = remaining.multiply(ratio).setScale(2, RoundingMode.HALF_UP);
+                    detail.setDistributableAmount(actual);
+                    detail.setActualAmount(actual);
+                    detailRepository.save(detail);
+                }
                 remaining = BigDecimal.ZERO;
             }
-            detail.setDistributableAmount(detail.getActualAmount());
-            detailRepository.save(detail);
         }
 
         return plan;
-    }
-
-    private void recalculatePlan(DistributionPlan plan) {
-        List<DistributionDetail> details = detailRepository.findByDistributionPlanIdOrderByPriorityOrder(plan.getId());
-
-        BigDecimal totalClaim = details.stream()
-                .map(d -> d.getClaimAmount() != null ? d.getClaimAmount() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal distributable = plan.getDistributableAmount();
-
-        for (DistributionDetail detail : details) {
-            if (totalClaim.compareTo(BigDecimal.ZERO) > 0 && detail.getClaimAmount() != null) {
-                BigDecimal ratio = detail.getClaimAmount().divide(totalClaim, 10, RoundingMode.HALF_UP);
-                detail.setDistributableAmount(distributable.multiply(ratio).setScale(2, RoundingMode.HALF_UP));
-            }
-            detailRepository.save(detail);
-        }
     }
 
     @Transactional
@@ -234,6 +261,30 @@ public class DistributionService {
         plan.setApprovalTime(LocalDateTime.now());
         plan.setStatus(approved ? "APPROVED" : "REJECTED");
 
+        return planRepository.save(plan);
+    }
+
+    @Transactional
+    public DistributionPlan requestPlanApproval(Long planId, String applicantUsername) {
+        DistributionPlan plan = planRepository.findById(planId)
+                .orElseThrow(() -> new RuntimeException("分配方案不存在"));
+
+        if (!"DRAFT".equals(plan.getStatus())) {
+            throw new RuntimeException("只有草稿状态的方案才能提交审批");
+        }
+
+        User applicant = userRepository.findByUsername(applicantUsername)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+
+        String title = plan.getPlanNumber() + "-" + plan.getExecutionCase().getCaseName();
+        approvalService.createApprovalTask(
+                ApprovalType.DISTRIBUTION_PLAN,
+                plan.getId(),
+                title,
+                applicant.getId()
+        );
+
+        plan.setStatus("PENDING_APPROVAL");
         return planRepository.save(plan);
     }
 

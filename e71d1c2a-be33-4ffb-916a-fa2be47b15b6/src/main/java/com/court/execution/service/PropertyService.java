@@ -20,17 +20,20 @@ public class PropertyService {
     private final ExecutionCaseRepository caseRepository;
     private final CoordinationUnitRepository unitRepository;
     private final UserRepository userRepository;
+    private final ApprovalService approvalService;
 
     public PropertyService(PropertyRepository propertyRepository,
                            SeizureRecordRepository seizureRepository,
                            ExecutionCaseRepository caseRepository,
                            CoordinationUnitRepository unitRepository,
-                           UserRepository userRepository) {
+                           UserRepository userRepository,
+                           ApprovalService approvalService) {
         this.propertyRepository = propertyRepository;
         this.seizureRepository = seizureRepository;
         this.caseRepository = caseRepository;
         this.unitRepository = unitRepository;
         this.userRepository = userRepository;
+        this.approvalService = approvalService;
     }
 
     @Transactional
@@ -91,10 +94,13 @@ public class PropertyService {
 
         SeizureRecord saved = seizureRepository.save(record);
 
-        property.setSeized(true);
-        property.setSeizeDate(request.getStartDate());
-        property.setSeizeExpireDate(request.getEndDate());
-        propertyRepository.save(property);
+        String title = request.getSeizureType() + "-" + property.getPropertyName();
+        approvalService.createApprovalTask(
+                ApprovalType.SEIZURE_CREATE,
+                saved.getId(),
+                title,
+                operator.getId()
+        );
 
         return saved;
     }
@@ -118,7 +124,17 @@ public class PropertyService {
         record.setApprover(approver);
         record.setApprovalStatus(approved ? "APPROVED" : "REJECTED");
 
-        return seizureRepository.save(record);
+        SeizureRecord saved = seizureRepository.save(record);
+
+        if (approved) {
+            Property property = record.getProperty();
+            property.setSeized(true);
+            property.setSeizeDate(record.getStartDate());
+            property.setSeizeExpireDate(record.getEndDate());
+            propertyRepository.save(property);
+        }
+
+        return saved;
     }
 
     @Transactional
@@ -126,7 +142,7 @@ public class PropertyService {
         SeizureRecord record = seizureRepository.findById(seizureId)
                 .orElseThrow(() -> new RuntimeException("查封记录不存在"));
 
-        if (record.getExpired()) {
+        if (Boolean.TRUE.equals(record.getExpired())) {
             throw new RuntimeException("查封已过期，不能续封");
         }
 
@@ -143,13 +159,17 @@ public class PropertyService {
         newRecord.setEndDate(newEndDate);
         newRecord.setOperator(operator);
         newRecord.setApprovalStatus("PENDING");
-        newRecord.setRemark("续封");
+        newRecord.setRemark("续封，原查封ID: " + seizureId);
 
         SeizureRecord saved = seizureRepository.save(newRecord);
 
-        Property property = record.getProperty();
-        property.setSeizeExpireDate(newEndDate);
-        propertyRepository.save(property);
+        String title = "续封-" + record.getProperty().getPropertyName();
+        approvalService.createApprovalTask(
+                ApprovalType.SEIZURE_EXTEND,
+                saved.getId(),
+                title,
+                operator.getId()
+        );
 
         return saved;
     }
@@ -159,28 +179,79 @@ public class PropertyService {
         SeizureRecord record = seizureRepository.findById(seizureId)
                 .orElseThrow(() -> new RuntimeException("查封记录不存在"));
 
+        if ("RELEASED".equals(record.getApprovalStatus())) {
+            throw new RuntimeException("该查封已解除");
+        }
+
         User operator = userRepository.findByUsername(operatorUsername)
                 .orElseThrow(() -> new RuntimeException("操作员不存在"));
 
-        record.setReleaseDate(LocalDateTime.now());
-        record.setExpired(true);
-        record.setApprovalStatus("RELEASED");
-
+        record.setRemark(("解封申请".equals(record.getRemark()) ? "" : record.getRemark() + "; ") + "解封申请中");
+        record.setApprovalStatus("PENDING_RELEASE");
         SeizureRecord saved = seizureRepository.save(record);
 
-        Property property = record.getProperty();
-        boolean hasOtherValidSeizures = seizureRepository.findByPropertyIdOrderByCreateTimeDesc(property.getId())
-                .stream()
-                .anyMatch(s -> !s.getExpired() && s.getId() != seizureId);
-
-        if (!hasOtherValidSeizures) {
-            property.setSeized(false);
-            property.setSeizeDate(null);
-            property.setSeizeExpireDate(null);
-            propertyRepository.save(property);
-        }
+        String title = "解封-" + record.getProperty().getPropertyName();
+        approvalService.createApprovalTask(
+                ApprovalType.SEIZURE_RELEASE,
+                saved.getId(),
+                title,
+                operator.getId()
+        );
 
         return saved;
+    }
+
+    @Transactional
+    public SeizureRecord confirmReleaseSeizure(Long seizureId, String approverUsername, boolean approved) {
+        SeizureRecord record = seizureRepository.findById(seizureId)
+                .orElseThrow(() -> new RuntimeException("查封记录不存在"));
+
+        if (!"PENDING_RELEASE".equals(record.getApprovalStatus())) {
+            throw new RuntimeException("该查封不在待解封审批状态");
+        }
+
+        User approver = userRepository.findByUsername(approverUsername)
+                .orElseThrow(() -> new RuntimeException("审批人不存在"));
+
+        if (approved) {
+            record.setReleaseDate(LocalDateTime.now());
+            record.setExpired(true);
+            record.setApprovalStatus("RELEASED");
+            record.setApprover(approver);
+
+            SeizureRecord saved = seizureRepository.save(record);
+
+            Property property = record.getProperty();
+            boolean hasOtherValidSeizures = seizureRepository.findByPropertyIdOrderByCreateTimeDesc(property.getId())
+                    .stream()
+                    .anyMatch(s -> !Boolean.TRUE.equals(s.getExpired()) && !s.getId().equals(seizureId));
+
+            if (!hasOtherValidSeizures) {
+                property.setSeized(false);
+                property.setSeizeDate(null);
+                property.setSeizeExpireDate(null);
+                propertyRepository.save(property);
+            }
+
+            return saved;
+        } else {
+            record.setApprovalStatus("APPROVED");
+            record.setApprover(approver);
+            record.setRemark(record.getRemark() + "; 解封申请被驳回");
+            return seizureRepository.save(record);
+        }
+    }
+
+    @Transactional
+    public void confirmExtendSeizureApproval(Long seizureId, boolean approved) {
+        SeizureRecord record = seizureRepository.findById(seizureId)
+                .orElseThrow(() -> new RuntimeException("查封记录不存在"));
+
+        if (approved) {
+            Property property = record.getProperty();
+            property.setSeizeExpireDate(record.getEndDate());
+            propertyRepository.save(property);
+        }
     }
 
     public List<Property> getExpiringProperties(int days) {
@@ -191,5 +262,20 @@ public class PropertyService {
 
     public List<Property> getExpiredProperties() {
         return propertyRepository.findExpiredSeizedProperties(LocalDateTime.now());
+    }
+
+    @Transactional
+    public Property skipPropertyDisposal(Long propertyId, String reason, String operatorUsername) {
+        Property property = propertyRepository.findById(propertyId)
+                .orElseThrow(() -> new RuntimeException("财产不存在"));
+
+        userRepository.findByUsername(operatorUsername)
+                .orElseThrow(() -> new RuntimeException("操作员不存在"));
+
+        property.setDisposalStatus(PropertyDisposalStatus.SKIPPED);
+        String remark = property.getRemark() != null ? property.getRemark() : "";
+        property.setRemark(remark + (remark.isEmpty() ? "" : "; ") + "跳过处置：" + reason);
+
+        return propertyRepository.save(property);
     }
 }

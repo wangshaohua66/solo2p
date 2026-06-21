@@ -10,7 +10,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class ExecutionService {
@@ -100,28 +103,32 @@ public class ExecutionService {
     public ExecutionCase closeCase(Long caseId) {
         ExecutionCase caseObj = getCaseById(caseId);
 
-        long unseizedCount = propertyRepository.findByExecutionCaseId(caseId).stream()
-                .filter(p -> p.getSeized() && p.getSeizeExpireDate() != null
-                        && p.getSeizeExpireDate().isAfter(LocalDateTime.now()))
-                .count();
-        if (unseizedCount > 0) {
-            throw new RuntimeException("存在未解封的财产，不能结案");
+        List<Property> properties = propertyRepository.findByExecutionCaseId(caseId);
+        for (Property property : properties) {
+            PropertyDisposalStatus status = property.getDisposalStatus();
+            if (status == null || status == PropertyDisposalStatus.NOT_DISPOSED
+                    || status == PropertyDisposalStatus.IN_AUCTION
+                    || status == PropertyDisposalStatus.AUCTION_FAILED) {
+                throw new RuntimeException("财产【" + property.getPropertyName() + "】处置未完成（状态："
+                        + (status != null ? status.getDescription() : "未处置") + "），不能结案");
+            }
+
+            if (status == PropertyDisposalStatus.AUCTION_SOLD) {
+                List<Auction> auctions = auctionRepository.findByPropertyId(property.getId());
+                boolean hasSold = auctions.stream()
+                        .anyMatch(a -> a.getStatus() == AuctionStatus.SOLD);
+                if (!hasSold) {
+                    throw new RuntimeException("财产【" + property.getPropertyName() + "】处置状态为拍卖成交，但无对应的拍卖成交记录，不能结案");
+                }
+            }
         }
 
-        long pendingAuctions = auctionRepository.findByExecutionCaseIdOrderByCreateTimeDesc(caseId).stream()
-                .filter(a -> a.getStatus() == AuctionStatus.BIDDING
-                        || a.getStatus() == AuctionStatus.ANNOUNCED
-                        || a.getStatus() == AuctionStatus.EVALUATING)
-                .count();
-        if (pendingAuctions > 0) {
-            throw new RuntimeException("存在未完成的拍卖，不能结案");
-        }
-
-        long pendingDistributions = distributionRepository.findByExecutionCaseIdOrderByCreateTimeDesc(caseId).stream()
-                .filter(d -> !"COMPLETED".equals(d.getStatus()))
-                .count();
-        if (pendingDistributions > 0) {
-            throw new RuntimeException("存在未完成的款项分配，不能结案");
+        BigDecimal totalFund = fundRepository.sumByCaseId(caseId);
+        if (totalFund != null && totalFund.compareTo(BigDecimal.ZERO) > 0) {
+            boolean hasCompletedPlan = distributionRepository.hasCompletedPlanByCaseId(caseId);
+            if (!hasCompletedPlan) {
+                throw new RuntimeException("案件存在到账款项但无已完成的分配方案，不能结案");
+            }
         }
 
         caseObj.setStatus(CaseStatus.CLOSED);

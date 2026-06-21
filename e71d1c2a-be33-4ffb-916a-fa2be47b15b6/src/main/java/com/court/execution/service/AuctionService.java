@@ -100,6 +100,10 @@ public class AuctionService {
         auction.setAnnounceTime(LocalDateTime.now());
         auction.setStatus(AuctionStatus.ANNOUNCED);
 
+        Property property = auction.getProperty();
+        property.setDisposalStatus(PropertyDisposalStatus.IN_AUCTION);
+        propertyRepository.save(property);
+
         return auctionRepository.save(auction);
     }
 
@@ -164,19 +168,23 @@ public class AuctionService {
 
         BidRecord highestBid = getHighestBid(auctionId);
 
+        Property property = auction.getProperty();
+
         if (highestBid == null) {
             auction.setStatus(AuctionStatus.FAILED);
-            return auctionRepository.save(auction);
+            property.setDisposalStatus(PropertyDisposalStatus.AUCTION_FAILED);
+        } else {
+            auction.setStatus(AuctionStatus.SOLD);
+            auction.setFinalPrice(highestBid.getBidAmount());
+            auction.setBuyerName(highestBid.getBidderName());
+            auction.setBuyerIdCard(highestBid.getBidderIdCard());
+            auction.setBuyerPhone(highestBid.getBidderPhone());
+            auction.setDealTime(LocalDateTime.now());
+            auction.setDealDocumentNumber(generateDealNumber());
+            property.setDisposalStatus(PropertyDisposalStatus.AUCTION_SOLD);
         }
 
-        auction.setStatus(AuctionStatus.SOLD);
-        auction.setFinalPrice(highestBid.getBidAmount());
-        auction.setBuyerName(highestBid.getBidderName());
-        auction.setBuyerIdCard(highestBid.getBidderIdCard());
-        auction.setBuyerPhone(highestBid.getBidderPhone());
-        auction.setDealTime(LocalDateTime.now());
-        auction.setDealDocumentNumber(generateDealNumber());
-
+        propertyRepository.save(property);
         return auctionRepository.save(auction);
     }
 
