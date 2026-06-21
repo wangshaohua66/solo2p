@@ -10,14 +10,18 @@ import {
   CalendarCheck,
   AlertTriangle,
   Activity,
+  X,
+  FileText,
 } from 'lucide-react';
 import { mockApi } from '@/api/mock';
-import type { ApptStatItem, WarningStatItem } from '@/types';
+import LoadingButton from '@/components/LoadingButton';
+import type { ApptStatItem, WarningStatItem, ReportData } from '@/types';
 
 const TIME_RANGES = [
   { value: '7', label: '近7天' },
   { value: '30', label: '近30天' },
   { value: '90', label: '近90天' },
+  { value: 'custom', label: '自定义' },
 ];
 
 export default function StatisticsPage() {
@@ -25,8 +29,13 @@ export default function StatisticsPage() {
   const [apptStats, setApptStats] = useState<ApptStatItem[]>([]);
   const [warningStats, setWarningStats] = useState<WarningStatItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+  const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [showReport, setShowReport] = useState(false);
 
   useEffect(() => {
+    if (timeRange === 'custom') return;
     (async () => {
       setLoading(true);
       const [a, w] = await Promise.all([mockApi.getApptStats(), mockApi.getWarningStatsTrend()]);
@@ -35,6 +44,14 @@ export default function StatisticsPage() {
       setLoading(false);
     })();
   }, [timeRange]);
+
+  const handleExportReport = async () => {
+    const startDate = timeRange === 'custom' ? customStartDate : new Date(Date.now() - parseInt(timeRange) * 86400000).toISOString().slice(0, 10);
+    const endDate = timeRange === 'custom' ? customEndDate : new Date().toISOString().slice(0, 10);
+    const data = await mockApi.exportReport(startDate, endDate);
+    setReportData(data);
+    setShowReport(true);
+  };
 
   const totalAppointments = useMemo(
     () => apptStats.reduce((s, i) => s + i.count, 0),
@@ -287,10 +304,32 @@ export default function StatisticsPage() {
               </button>
             ))}
           </div>
-          <button className="btn-secondary">
+          {timeRange === 'custom' && (
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="input !py-1.5 !text-xs w-36"
+              />
+              <span className="text-gray-400 text-xs">至</span>
+              <input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="input !py-1.5 !text-xs w-36"
+              />
+            </div>
+          )}
+          <LoadingButton
+            onClick={handleExportReport}
+            variant="secondary"
+            disabled={timeRange === 'custom' && (!customStartDate || !customEndDate)}
+            loadingText="导出中..."
+          >
             <Download className="w-4 h-4 mr-1.5" />
             导出报表
-          </button>
+          </LoadingButton>
         </div>
       </div>
 
@@ -492,6 +531,65 @@ export default function StatisticsPage() {
           </table>
         </div>
       </div>
+
+      {showReport && reportData && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col animate-slide-up">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-primary-600" />
+                报表数据（{reportData.startDate} ~ {reportData.endDate}）
+              </h3>
+              <button onClick={() => setShowReport(false)} className="btn-ghost p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto flex-1 space-y-5">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {[
+                  { label: '总预约量', value: reportData.totalAppointments, color: 'text-primary-600' },
+                  { label: '已完成预约', value: reportData.completedAppointments, color: 'text-green-600' },
+                  { label: '已取消预约', value: reportData.cancelledAppointments, color: 'text-danger-600' },
+                  { label: '预警总数', value: reportData.totalWarnings, color: 'text-warning-600' },
+                  { label: '高危预警', value: reportData.highRiskWarnings, color: 'text-danger-600' },
+                ].map((item) => (
+                  <div key={item.label} className="p-4 bg-gray-50 rounded-lg">
+                    <div className="text-sm text-gray-500">{item.label}</div>
+                    <div className={`mt-1 text-2xl font-bold ${item.color}`}>{item.value.toLocaleString()}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">按科室分布</h4>
+                  <div className="space-y-2">
+                    {Object.entries(reportData.byDepartment).map(([dept, count]) => (
+                      <div key={dept} className="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg">
+                        <span className="text-sm text-gray-700">{dept}</span>
+                        <span className="text-sm font-medium text-primary-600">{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">按服务站分布</h4>
+                  <div className="space-y-2">
+                    {Object.entries(reportData.byStation).map(([station, count]) => (
+                      <div key={station} className="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg">
+                        <span className="text-sm text-gray-700">{station}</span>
+                        <span className="text-sm font-medium text-primary-600">{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-100 flex justify-end">
+              <button onClick={() => setShowReport(false)} className="btn-secondary">关闭</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

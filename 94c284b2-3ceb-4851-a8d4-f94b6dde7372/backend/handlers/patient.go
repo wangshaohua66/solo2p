@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"math"
 	"net/http"
 	"strings"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	"mental-health-backend/config"
@@ -147,7 +149,7 @@ func (h *PatientHandler) CreateAssessment(c echo.Context) error {
 	}
 	assessment.CreatedAt = time.Now()
 
-	assessment.TotalScore = calculateScaleScore(assessment.ScaleCode, assessment.Answers)
+	assessment.TotalScore = calculateScaleScore(assessment.ScaleCode, parseAnswersJSON(assessment.Answers))
 	assessment.Severity = classifySeverity(assessment.ScaleCode, assessment.TotalScore)
 
 	h.db.Create(&assessment)
@@ -189,6 +191,17 @@ func (h *PatientHandler) ExportPDF(c echo.Context) error {
 		"exportedAt": time.Now(),
 		"patient":    patient.Name,
 	})
+}
+
+func parseAnswersJSON(raw datatypes.JSON) map[string]interface{} {
+	var m map[string]interface{}
+	if len(raw) > 0 {
+		_ = json.Unmarshal(raw, &m)
+	}
+	if m == nil {
+		m = map[string]interface{}{}
+	}
+	return m
 }
 
 func calculateScaleScore(scaleCode string, answers map[string]interface{}) int {
@@ -291,6 +304,40 @@ func recalculateRiskScore(db *gorm.DB, patientID uuid.UUID) {
 		if strings.Contains(medHist, "自伤") {
 			riskScore += 15
 			triggers = append(triggers, "既往自伤史")
+		}
+	}
+
+	whoqolScore := latestScaleScore(assessments, "WHOQOL")
+	if whoqolScore > 0 || strings.Contains(strings.ToLower(patient.MedicalHistory), "体重变化") {
+		riskScore += 8
+		triggers = append(triggers, "体重变化")
+	}
+
+	psqiScore := latestScaleScore(assessments, "PSQI")
+	if psqiScore >= 12 {
+		riskScore += 12
+		triggers = append(triggers, "睡眠质量差")
+	}
+
+	gafScore := latestScaleScore(assessments, "GAF")
+	if gafScore > 0 && gafScore <= 50 {
+		riskScore += 10
+		triggers = append(triggers, "社会功能受损")
+	}
+
+	if patient.ID != uuid.Nil {
+		if patient.EmergencyContact == "" {
+			riskScore += 8
+			triggers = append(triggers, "家庭支持不足")
+		}
+		medHistLower := strings.ToLower(patient.MedicalHistory)
+		if strings.Contains(medHistLower, "失业") || strings.Contains(medHistLower, "无业") {
+			riskScore += 6
+			triggers = append(triggers, "就业状态不稳定")
+		}
+		if strings.Contains(medHistLower, "经济困难") || strings.Contains(medHistLower, "经济压力") {
+			riskScore += 6
+			triggers = append(triggers, "经济压力")
 		}
 	}
 

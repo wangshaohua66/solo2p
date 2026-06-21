@@ -14,6 +14,12 @@ import type {
   ApptStatItem,
   WarningStatItem,
   User,
+  Referral,
+  ReferralLog,
+  Signature,
+  Schedule,
+  Reminder,
+  ReportData,
 } from '@/types';
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -180,6 +186,122 @@ const followups: Followup[] = patients.slice(0, 10).map((p, i) => ({
   createdAt: '2026-06-10',
 }));
 
+const referrals: Referral[] = patients.slice(0, 8).map((p, i) => ({
+  id: 'rf' + (i + 1),
+  patientId: p.id,
+  patientName: p.name,
+  fromStationId: stations[i % 3].id,
+  fromStationName: stations[i % 3].name,
+  toStationId: stations[(i + 1) % 5].id,
+  toStationName: stations[(i + 1) % 5].name,
+  fromDoctorId: doctors[i % doctors.length].id,
+  fromDoctorName: doctors[i % doctors.length].name,
+  status: (['pending', 'accepted', 'rejected', 'pending'] as const)[i % 4],
+  reason: ['患者需要更专业的儿童心理评估', '转至睡眠科进行多导睡眠监测', '需上级医院会诊', '药物难治性抑郁需调整方案'][i % 4],
+  materials: [
+    { name: '患者病历摘要.pdf', type: 'pdf', uploadedAt: new Date(Date.now() - i * 86400000).toISOString() },
+    { name: '近期检查报告.docx', type: 'doc', uploadedAt: new Date(Date.now() - i * 86400000).toISOString() },
+  ],
+  files: [
+    { name: '心理评估报告.pdf', size: 1024 * 256 },
+    { name: '用药记录.xlsx', size: 1024 * 128 },
+  ],
+  rejectReason: i === 2 ? '目标科室号源已满，建议转至其他站点' : undefined,
+  createdAt: new Date(Date.now() - i * 86400000 * 2).toISOString(),
+  acceptedAt: i === 1 ? new Date(Date.now() - i * 86400000).toISOString() : undefined,
+}));
+
+const referralLogs: ReferralLog[] = referrals.flatMap((r) => {
+  const logs: ReferralLog[] = [
+    {
+      id: r.id + '_log1',
+      referralId: r.id,
+      action: 'created',
+      operatorName: r.fromDoctorName,
+      detail: `发起转诊申请：${r.reason}`,
+      createdAt: r.createdAt,
+    },
+  ];
+  if (r.status === 'accepted') {
+    logs.push({
+      id: r.id + '_log2',
+      referralId: r.id,
+      action: 'accepted',
+      operatorName: '目标站接收人',
+      detail: '目标服务站已确认接收',
+      createdAt: r.acceptedAt || r.createdAt,
+    });
+  }
+  if (r.status === 'rejected') {
+    logs.push({
+      id: r.id + '_log3',
+      referralId: r.id,
+      action: 'rejected',
+      operatorName: '目标站接收人',
+      detail: r.rejectReason || '转诊被拒绝',
+      createdAt: r.createdAt,
+    });
+  }
+  return logs;
+});
+
+const schedules: Schedule[] = doctors.flatMap((d, di) =>
+  Array.from({ length: 5 }, (_, i) => {
+    const dayOffset = i + 1;
+    const date = new Date(Date.now() + dayOffset * 86400000).toISOString().slice(0, 10);
+    const isMorning = i % 2 === 0;
+    return {
+      id: `sc_${di}_${i}`,
+      doctorId: d.id,
+      doctorName: d.name,
+      stationId: d.stationId,
+      stationName: d.station?.name,
+      scheduleDate: date,
+      startTime: isMorning ? '08:00' : '14:00',
+      endTime: isMorning ? '12:00' : '17:30',
+      maxPatients: 20,
+      scheduleType: (i === 4 ? 'temporary' : 'regular') as 'regular' | 'temporary',
+      status: 'active' as const,
+      notes: i === 4 ? '临时加诊' : '',
+      createdAt: '2026-06-01',
+      updatedAt: '2026-06-01',
+    };
+  })
+);
+
+const reminders: Reminder[] = patients.slice(0, 12).map((p, i) => ({
+  id: 'rm' + (i + 1),
+  patientId: p.id,
+  patientName: p.name,
+  doctorId: doctors[i % doctors.length].id,
+  doctorName: doctors[i % doctors.length].name,
+  type: (['followup', 'medication', 'assessment', 'appointment'] as const)[i % 4],
+  title: ['复诊提醒', '用药提醒', '量表评估提醒', '预约确认'][i % 4],
+  content: [
+    `患者${p.name}，您的复诊时间为${new Date(Date.now() + (i + 1) * 86400000).toLocaleDateString('zh-CN')}，请按时就诊。`,
+    `请记得按时服用${['舍曲林', '艾司西酞普兰', '文拉法辛'][i % 3]}，如有不适请及时联系医生。`,
+    `建议进行${['PHQ-9', 'GAD-7', 'SAS'][i % 3]}量表复查，评估当前症状变化。`,
+    `您预约的${doctors[i % doctors.length].name}医生的门诊即将到来，请提前15分钟到达。`,
+  ][i % 4],
+  remindAt: new Date(Date.now() + (i - 4) * 3600000 * 6).toISOString(),
+  status: (i < 4 ? 'sent' : 'pending') as 'sent' | 'pending',
+  sentAt: i < 4 ? new Date(Date.now() - 3600000).toISOString() : undefined,
+  createdAt: '2026-06-15',
+}));
+
+const signatures: Signature[] = patients.slice(0, 6).map((p, i) => ({
+  id: 'sig' + (i + 1),
+  patientId: p.id,
+  signerId: doctors[i % doctors.length].id,
+  signerName: doctors[i % doctors.length].name,
+  signerRole: 'doctor',
+  resourceType: (['patient_record', 'diagnosis', 'medication', 'assessment', 'followup', 'referral'] as const)[i],
+  resourceId: p.id,
+  signatureData: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==',
+  ipAddress: '192.168.1.' + (100 + i),
+  createdAt: new Date(Date.now() - i * 86400000).toISOString(),
+}));
+
 function delay<T>(data: T, ms = 250): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(data), ms));
 }
@@ -339,4 +461,119 @@ export const mockApi = {
   listStations: async () => delay(stations),
   listDoctors: async () => delay(doctors),
   deptNames,
+
+  listReferrals: async (params?: { status?: string }) => {
+    let data = [...referrals];
+    if (params?.status) data = data.filter((r) => r.status === params.status);
+    return delay(data);
+  },
+  createReferral: async (body: Partial<Referral>) =>
+    delay<Referral>({
+      id: uid(),
+      patientId: body.patientId || patients[0].id,
+      patientName: patients.find((p) => p.id === (body.patientId || patients[0].id))?.name,
+      fromStationId: body.fromStationId || 's1',
+      fromStationName: stations.find((s) => s.id === (body.fromStationId || 's1'))?.name,
+      toStationId: body.toStationId || 's2',
+      toStationName: stations.find((s) => s.id === (body.toStationId || 's2'))?.name,
+      fromDoctorId: body.fromDoctorId || doctors[0].id,
+      fromDoctorName: doctors.find((d) => d.id === (body.fromDoctorId || doctors[0].id))?.name,
+      status: 'pending',
+      reason: body.reason || '',
+      materials: body.materials || [],
+      files: body.files || [],
+      createdAt: new Date().toISOString(),
+    }),
+  acceptReferral: async () => delay({ success: true }),
+  rejectReferral: async (_rejectReason: string) => delay({ success: true }),
+  listReferralLogs: async (referralId: string) =>
+    delay<ReferralLog[]>(referralLogs.filter((l) => l.referralId === referralId)),
+
+  listSchedules: async (params?: { doctorId?: string; date?: string }) => {
+    let data = [...schedules];
+    if (params?.doctorId) data = data.filter((s) => s.doctorId === params.doctorId);
+    if (params?.date) data = data.filter((s) => s.scheduleDate === params.date);
+    return delay(data);
+  },
+  createSchedule: async (body: Partial<Schedule>) =>
+    delay<Schedule>({
+      id: uid(),
+      doctorId: body.doctorId || doctors[0].id,
+      doctorName: doctors.find((d) => d.id === (body.doctorId || doctors[0].id))?.name,
+      stationId: body.stationId || 's1',
+      stationName: stations.find((s) => s.id === (body.stationId || 's1'))?.name,
+      scheduleDate: body.scheduleDate || new Date().toISOString().slice(0, 10),
+      startTime: body.startTime || '08:00',
+      endTime: body.endTime || '12:00',
+      maxPatients: body.maxPatients || 20,
+      scheduleType: body.scheduleType || 'regular',
+      status: 'active',
+      notes: body.notes || '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }),
+  updateSchedule: async () => delay({ success: true }),
+  deleteSchedule: async () => delay({ success: true }),
+
+  listReminders: async (params?: { patientId?: string; status?: string }) => {
+    let data = [...reminders];
+    if (params?.patientId) data = data.filter((r) => r.patientId === params.patientId);
+    if (params?.status) data = data.filter((r) => r.status === params.status);
+    return delay(data);
+  },
+  createReminder: async (body: Partial<Reminder>) =>
+    delay<Reminder>({
+      id: uid(),
+      patientId: body.patientId || patients[0].id,
+      patientName: patients.find((p) => p.id === (body.patientId || patients[0].id))?.name,
+      doctorId: body.doctorId || doctors[0].id,
+      doctorName: doctors.find((d) => d.id === (body.doctorId || doctors[0].id))?.name,
+      type: body.type || 'followup',
+      title: body.title || '复诊提醒',
+      content: body.content || '',
+      remindAt: body.remindAt || new Date().toISOString(),
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    }),
+
+  listSignatures: async (patientId: string) =>
+    delay<Signature[]>(signatures.filter((s) => s.patientId === patientId)),
+  createSignature: async (body: Partial<Signature>) =>
+    delay<Signature>({
+      id: uid(),
+      patientId: body.patientId || patients[0].id,
+      signerId: 'u1',
+      signerName: '系统管理员',
+      signerRole: 'admin',
+      resourceType: body.resourceType || 'patient_record',
+      resourceId: body.resourceId || body.patientId || patients[0].id,
+      signatureData: body.signatureData || '',
+      createdAt: new Date().toISOString(),
+    }),
+
+  exportReport: async (startDate: string, endDate: string) =>
+    delay<ReportData>({
+      startDate,
+      endDate,
+      totalAppointments: 1055,
+      completedAppointments: 972,
+      cancelledAppointments: 83,
+      totalWarnings: 46,
+      highRiskWarnings: 12,
+      byDepartment: {
+        '精神科': 342,
+        '心理咨询科': 268,
+        '儿童青少年心理科': 156,
+        '老年精神科': 124,
+        '睡眠医学科': 98,
+        '成瘾医学科': 67,
+      },
+      byStation: {
+        '中心院区': 421,
+        '东区服务站': 218,
+        '西区服务站': 165,
+        '南区服务站': 142,
+        '北区服务站': 109,
+      },
+    }),
 };

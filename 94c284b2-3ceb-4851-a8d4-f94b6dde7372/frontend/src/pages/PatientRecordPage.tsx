@@ -17,9 +17,12 @@ import {
   Clock,
   Stethoscope,
   TrendingUp,
+  Pen,
 } from 'lucide-react';
 import { mockApi } from '@/api/mock';
 import { SCALE_DEFINITIONS } from '@/types';
+import SignaturePad from '@/components/SignaturePad';
+import LoadingButton from '@/components/LoadingButton';
 import type {
   Patient,
   DiagnosisRecord,
@@ -27,6 +30,7 @@ import type {
   Assessment,
   Followup,
   Severity,
+  Signature,
 } from '@/types';
 
 const TABS = [
@@ -72,23 +76,28 @@ export default function PatientRecordPage() {
   const [showAssessmentModal, setShowAssessmentModal] = useState(false);
   const [selectedScale, setSelectedScale] = useState<string>('PHQ-9');
   const [assessmentAnswers, setAssessmentAnswers] = useState<Record<string, number>>({});
+  const [signatures, setSignatures] = useState<Signature[]>([]);
+  const [showSignatureModal, setShowSignatureModal] = useState(false);
+  const [signatureContext, setSignatureContext] = useState<{ resourceType: string; resourceId: string } | null>(null);
 
   useEffect(() => {
     if (!id) return;
     (async () => {
       setLoading(true);
-      const [p, d, m, a, f] = await Promise.all([
+      const [p, d, m, a, f, sigs] = await Promise.all([
         mockApi.getPatient(id),
         mockApi.getDiagnoses(id),
         mockApi.getMedications(id),
         mockApi.getAssessments(id),
         mockApi.getFollowups(id),
+        mockApi.listSignatures(id),
       ]);
       setPatient(p);
       setDiagnoses(d);
       setMedications(m);
       setAssessments(a);
       setFollowups(f);
+      setSignatures(sigs);
       setLoading(false);
     })();
   }, [id]);
@@ -123,6 +132,37 @@ export default function PatientRecordPage() {
     ]);
     setShowAssessmentModal(false);
     setAssessmentAnswers({});
+  };
+
+  const handleSignatureConfirm = async (dataUrl: string) => {
+    if (!id || !signatureContext) return;
+    const newSig = await mockApi.createSignature({
+      patientId: id,
+      signerId: 'u1',
+      signerName: '当前用户',
+      signerRole: 'doctor',
+      resourceType: signatureContext.resourceType,
+      resourceId: signatureContext.resourceId,
+      signatureData: dataUrl,
+    });
+    setSignatures((prev) => [newSig, ...prev]);
+    setShowSignatureModal(false);
+    setSignatureContext(null);
+  };
+
+  const handleDiagnosisSign = (diagnosisId: string) => {
+    setSignatureContext({ resourceType: 'diagnosis', resourceId: diagnosisId });
+    setShowSignatureModal(true);
+  };
+
+  const handleNewDiagnosisSign = () => {
+    setSignatureContext({ resourceType: 'diagnosis', resourceId: 'new' });
+    setShowSignatureModal(true);
+  };
+
+  const handleBasicInfoSign = () => {
+    setSignatureContext({ resourceType: 'patient_record', resourceId: id! });
+    setShowSignatureModal(true);
   };
 
   if (loading || !patient) {
@@ -313,6 +353,41 @@ export default function PatientRecordPage() {
                   ))}
                 </div>
               </div>
+              <div className="md:col-span-2">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <Pen className="w-4 h-4 text-primary-600" />
+                    电子签名记录（{signatures.length}条）
+                  </h4>
+                  <LoadingButton onClick={handleBasicInfoSign} loadingText="签名中...">
+                    <Pen className="w-4 h-4 mr-1.5" />
+                    电子签名确认
+                  </LoadingButton>
+                </div>
+                {signatures.length === 0 ? (
+                  <div className="py-8 text-center text-gray-400 bg-gray-50 rounded-lg">
+                    <Pen className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                    暂无签名记录
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {signatures.map((sig) => (
+                      <div key={sig.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
+                            <Pen className="w-4 h-4 text-primary-600" />
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium text-gray-800">{sig.signerName}（{sig.signerRole}）</div>
+                            <div className="text-xs text-gray-500">{sig.resourceType} · {sig.createdAt}</div>
+                          </div>
+                        </div>
+                        <span className="badge bg-green-100 text-green-700 text-xs">已签名</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -322,7 +397,10 @@ export default function PatientRecordPage() {
                 <h4 className="text-sm font-medium text-gray-700">
                   诊断记录（{diagnoses.length}条）
                 </h4>
-                <button className="btn-primary text-xs">
+                <button
+                  onClick={handleNewDiagnosisSign}
+                  className="btn-primary text-xs"
+                >
                   <Plus className="w-3.5 h-3.5 mr-1" />
                   新增诊断
                 </button>
@@ -363,6 +441,13 @@ export default function PatientRecordPage() {
                             </div>
                           )}
                         </div>
+                        <button
+                          onClick={() => handleDiagnosisSign(d.id)}
+                          className="btn-secondary text-xs flex-shrink-0"
+                        >
+                          <Pen className="w-3.5 h-3.5 mr-1" />
+                          签名确认
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -673,6 +758,18 @@ export default function PatientRecordPage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showSignatureModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="w-full max-w-lg animate-slide-up">
+            <SignaturePad
+              onConfirm={handleSignatureConfirm}
+              onCancel={() => { setShowSignatureModal(false); setSignatureContext(null); }}
+              title={signatureContext?.resourceType === 'diagnosis' ? '诊断记录签名确认' : '电子签名确认'}
+            />
           </div>
         </div>
       )}

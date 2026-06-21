@@ -4,6 +4,7 @@ import {
   Calendar,
   Users,
   AlertTriangle,
+  ArrowLeftRight,
   BarChart3,
   Settings,
   ChevronLeft,
@@ -18,6 +19,7 @@ const navItems = [
   { path: '/appointments', label: '预约管理', icon: Calendar },
   { path: '/patients', label: '患者档案', icon: Users },
   { path: '/warnings', label: '预警中心', icon: AlertTriangle, badge: 'pendingWarningCount' },
+  { path: '/referrals', label: '跨站转诊', icon: ArrowLeftRight },
   { path: '/statistics', label: '统计报表', icon: BarChart3 },
   { path: '/settings', label: '系统设置', icon: Settings },
 ];

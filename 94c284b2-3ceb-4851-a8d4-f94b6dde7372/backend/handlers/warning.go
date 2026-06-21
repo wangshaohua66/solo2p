@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 
 	"mental-health-backend/config"
 	"mental-health-backend/models"
+	"mental-health-backend/services"
 )
 
 type WarningHandler struct{}
@@ -111,6 +113,36 @@ func (h *WarningHandler) Resolve(c echo.Context) error {
 
 func (h *WarningHandler) Notify(c echo.Context) error {
 	id := c.Param("id")
+	var warning models.Warning
+	if err := config.DB.First(&warning, "id = ?", id).Error; err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "Warning not found")
+	}
+
+	go func() {
+		var patient models.Patient
+		config.DB.First(&patient, "id = ?", warning.PatientID)
+
+		var factors []string
+		if warning.TriggerFactors != nil {
+			_ = json.Unmarshal(warning.TriggerFactors, &factors)
+		}
+
+		doctorPhone := ""
+		if warning.AssigneeID != nil {
+			var user models.User
+			config.DB.First(&user, "id = ?", *warning.AssigneeID)
+			doctorPhone = user.Phone
+		}
+
+		sms := services.NewSMSService()
+		_ = sms.SendWarningNotification(doctorPhone, patient.Name, warning.RiskScore, factors)
+
+		if patient.EmergencyPhone != "" {
+			_ = sms.SendSMS(patient.EmergencyPhone,
+				"您的家人 "+patient.Name+" 触发精神健康预警，请关注并及时联系医生。")
+		}
+	}()
+
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"success":   true,
 		"warningId": id,

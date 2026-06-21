@@ -75,9 +75,77 @@ func (h *StatsHandler) Warnings(c echo.Context) error {
 }
 
 func (h *StatsHandler) Export(c echo.Context) error {
+	startDate := c.QueryParam("startDate")
+	endDate := c.QueryParam("endDate")
+
+	now := time.Now()
+	if startDate == "" {
+		startDate = now.AddDate(0, -1, 0).Format("2006-01-02")
+	}
+	if endDate == "" {
+		endDate = now.Format("2006-01-02")
+	}
+
+	var totalAppointments, completedAppointments, cancelledAppointments int64
+	var totalWarnings, highRiskWarnings int64
+
+	config.DB.Model(&models.Appointment{}).
+		Where("appointment_date >= ? AND appointment_date <= ?", startDate, endDate).
+		Count(&totalAppointments)
+	config.DB.Model(&models.Appointment{}).
+		Where("appointment_date >= ? AND appointment_date <= ? AND status = 'completed'", startDate, endDate).
+		Count(&completedAppointments)
+	config.DB.Model(&models.Appointment{}).
+		Where("appointment_date >= ? AND appointment_date <= ? AND status = 'cancelled'", startDate, endDate).
+		Count(&cancelledAppointments)
+	config.DB.Model(&models.Warning{}).
+		Where("DATE(created_at) >= ? AND DATE(created_at) <= ?", startDate, endDate).
+		Count(&totalWarnings)
+	config.DB.Model(&models.Warning{}).
+		Where("DATE(created_at) >= ? AND DATE(created_at) <= ? AND risk_level = 'high'", startDate, endDate).
+		Count(&highRiskWarnings)
+
+	type DeptCount struct {
+		Department string `json:"department"`
+		Count      int64  `json:"count"`
+	}
+	var byDept []DeptCount
+	config.DB.Model(&models.Appointment{}).
+		Select("department, COUNT(*) as count").
+		Where("appointment_date >= ? AND appointment_date <= ? AND department != ''", startDate, endDate).
+		Group("department").
+		Scan(&byDept)
+	byDepartment := make(map[string]int64)
+	for _, d := range byDept {
+		byDepartment[d.Department] = d.Count
+	}
+
+	type StationCount struct {
+		StationID string `json:"stationId"`
+		Count     int64  `json:"count"`
+	}
+	var byStat []StationCount
+	config.DB.Model(&models.Appointment{}).
+		Select("station_id, COUNT(*) as count").
+		Where("appointment_date >= ? AND appointment_date <= ?", startDate, endDate).
+		Group("station_id").
+		Scan(&byStat)
+	byStation := make(map[string]int64)
+	for _, s := range byStat {
+		byStation[s.StationID] = s.Count
+	}
+
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"success":     true,
-		"downloadUrl": "/exports/stats-report.xlsx",
-		"exportedAt":  time.Now(),
+		"success":               true,
+		"startDate":             startDate,
+		"endDate":               endDate,
+		"totalAppointments":     totalAppointments,
+		"completedAppointments": completedAppointments,
+		"cancelledAppointments": cancelledAppointments,
+		"totalWarnings":         totalWarnings,
+		"highRiskWarnings":      highRiskWarnings,
+		"byDepartment":          byDepartment,
+		"byStation":             byStation,
+		"exportedAt":            time.Now(),
 	})
 }

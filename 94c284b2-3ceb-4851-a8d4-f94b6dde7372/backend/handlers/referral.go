@@ -36,6 +36,16 @@ func (h *ReferralHandler) Create(c echo.Context) error {
 	r.Status = "pending"
 	r.CreatedAt = time.Now()
 	config.DB.Create(&r)
+
+	config.DB.Create(&models.ReferralLog{
+		ID:           uuid.New(),
+		ReferralID:   r.ID,
+		Action:       "created",
+		OperatorID:   r.FromDoctorID,
+		Detail:       r.Reason,
+		CreatedAt:    time.Now(),
+	})
+
 	return c.JSON(http.StatusCreated, r)
 }
 
@@ -51,6 +61,15 @@ func (h *ReferralHandler) Accept(c echo.Context) error {
 	if result.RowsAffected == 0 {
 		return echo.NewHTTPError(http.StatusNotFound, "Not found")
 	}
+
+	rid, _ := uuid.Parse(id)
+	config.DB.Create(&models.ReferralLog{
+		ID:         uuid.New(),
+		ReferralID: rid,
+		Action:     "accepted",
+		CreatedAt:  now,
+	})
+
 	return c.NoContent(http.StatusOK)
 }
 
@@ -60,6 +79,7 @@ func (h *ReferralHandler) Reject(c echo.Context) error {
 		RejectReason string `json:"rejectReason"`
 	}
 	c.Bind(&body)
+	now := time.Now()
 	result := config.DB.Model(&models.Referral{}).
 		Where("id = ? AND status = 'pending'", id).
 		Updates(map[string]interface{}{
@@ -69,5 +89,22 @@ func (h *ReferralHandler) Reject(c echo.Context) error {
 	if result.RowsAffected == 0 {
 		return echo.NewHTTPError(http.StatusNotFound, "Not found")
 	}
+
+	rid, _ := uuid.Parse(id)
+	config.DB.Create(&models.ReferralLog{
+		ID:         uuid.New(),
+		ReferralID: rid,
+		Action:     "rejected",
+		Detail:     body.RejectReason,
+		CreatedAt:  now,
+	})
+
 	return c.NoContent(http.StatusOK)
+}
+
+func (h *ReferralHandler) ListLogs(c echo.Context) error {
+	id := c.Param("id")
+	var logs []models.ReferralLog
+	config.DB.Where("referral_id = ?", id).Order("created_at DESC").Find(&logs)
+	return c.JSON(http.StatusOK, logs)
 }

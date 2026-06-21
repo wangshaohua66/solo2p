@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Settings,
   Users,
@@ -15,7 +15,12 @@ import {
   FileText,
   Smartphone,
   Mail,
+  X,
 } from 'lucide-react';
+import { mockApi } from '@/api/mock';
+import LoadingButton from '@/components/LoadingButton';
+import FormField from '@/components/FormField';
+import type { Schedule } from '@/types';
 
 type SectionKey = 'basic' | 'stations' | 'doctors' | 'users' | 'risk' | 'sms' | 'audit' | 'privacy';
 
@@ -33,6 +38,138 @@ const SECTIONS: { key: SectionKey; label: string; icon: typeof Settings }[] = [
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState<SectionKey>('basic');
   const [saved, setSaved] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showSubstituteModal, setShowSubstituteModal] = useState(false);
+  const [substituteDoctorId, setSubstituteDoctorId] = useState('');
+  const [selectedScheduleForSubstitute, setSelectedScheduleForSubstitute] = useState<Schedule | null>(null);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [scheduleForm, setScheduleForm] = useState({
+    doctorId: '',
+    stationId: '',
+    scheduleDate: '',
+    startTime: '',
+    endTime: '',
+    maxPatients: '',
+    scheduleType: 'regular' as 'regular' | 'temporary' | 'substitute',
+    substituteDoctorId: '',
+    notes: '',
+  });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  const DOCTORS_LIST = [
+    { id: 'd1', name: '张建华' },
+    { id: 'd2', name: '李雪梅' },
+    { id: 'd3', name: '王志强' },
+    { id: 'd4', name: '陈美玲' },
+    { id: 'd5', name: '赵晓燕' },
+    { id: 'd6', name: '刘建国' },
+  ];
+
+  const STATIONS_LIST = [
+    { id: 's1', name: '中心院区' },
+    { id: 's2', name: '东区服务站' },
+    { id: 's3', name: '西区服务站' },
+    { id: 's4', name: '南区服务站' },
+    { id: 's5', name: '北区服务站' },
+  ];
+
+  useEffect(() => {
+    if (activeSection === 'doctors') {
+      mockApi.listSchedules().then(setSchedules);
+    }
+  }, [activeSection]);
+
+  const validateField = (field: string, value: string) => {
+    if (!value.trim()) return '此字段为必填项';
+    return null;
+  };
+
+  const handleScheduleFormBlur = (field: string, value: string) => {
+    const err = validateField(field, value);
+    setFormErrors((prev) => {
+      const next = { ...prev };
+      if (err) next[field] = err;
+      else delete next[field];
+      return next;
+    });
+    return err;
+  };
+
+  const resetScheduleForm = () => {
+    setScheduleForm({
+      doctorId: '',
+      stationId: '',
+      scheduleDate: '',
+      startTime: '',
+      endTime: '',
+      maxPatients: '',
+      scheduleType: 'regular',
+      substituteDoctorId: '',
+      notes: '',
+    });
+    setFormErrors({});
+  };
+
+  const handleSubmitSchedule = async () => {
+    const errors: Record<string, string> = {};
+    const requiredFields = ['doctorId', 'stationId', 'scheduleDate', 'startTime', 'endTime', 'maxPatients'];
+    requiredFields.forEach((f) => {
+      const err = validateField(f, (scheduleForm as Record<string, string>)[f]);
+      if (err) errors[f] = err;
+    });
+    if (scheduleForm.scheduleType === 'substitute' && !scheduleForm.substituteDoctorId) {
+      errors.substituteDoctorId = '此字段为必填项';
+    }
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+    const selectedDoctor = DOCTORS_LIST.find((d) => d.id === scheduleForm.doctorId);
+    const selectedStation = STATIONS_LIST.find((s) => s.id === scheduleForm.stationId);
+    const selectedSubstitute = DOCTORS_LIST.find((d) => d.id === scheduleForm.substituteDoctorId);
+    const body = {
+      doctorId: scheduleForm.doctorId,
+      doctorName: selectedDoctor?.name,
+      stationId: scheduleForm.stationId,
+      stationName: selectedStation?.name,
+      scheduleDate: scheduleForm.scheduleDate,
+      startTime: scheduleForm.startTime,
+      endTime: scheduleForm.endTime,
+      maxPatients: parseInt(scheduleForm.maxPatients),
+      scheduleType: scheduleForm.scheduleType,
+      substituteDoctorId: scheduleForm.substituteDoctorId || undefined,
+      substituteDoctorName: selectedSubstitute?.name,
+      notes: scheduleForm.notes || undefined,
+    };
+    const newSchedule = await mockApi.createSchedule(body);
+    setSchedules((prev) => [...prev, newSchedule]);
+    setShowScheduleModal(false);
+    resetScheduleForm();
+  };
+
+  const handleSubstituteSubmit = async () => {
+    if (!substituteDoctorId || !selectedScheduleForSubstitute) return;
+    const selectedSubstitute = DOCTORS_LIST.find((d) => d.id === substituteDoctorId);
+    const body = {
+      doctorId: selectedScheduleForSubstitute.doctorId,
+      doctorName: selectedScheduleForSubstitute.doctorName,
+      stationId: selectedScheduleForSubstitute.stationId,
+      stationName: selectedScheduleForSubstitute.stationName,
+      scheduleDate: selectedScheduleForSubstitute.scheduleDate,
+      startTime: selectedScheduleForSubstitute.startTime,
+      endTime: selectedScheduleForSubstitute.endTime,
+      maxPatients: selectedScheduleForSubstitute.maxPatients,
+      scheduleType: 'substitute' as const,
+      substituteDoctorId,
+      substituteDoctorName: selectedSubstitute?.name,
+      notes: '请假代班',
+    };
+    const newSchedule = await mockApi.createSchedule(body);
+    setSchedules((prev) => [...prev, newSchedule]);
+    setShowSubstituteModal(false);
+    setSubstituteDoctorId('');
+    setSelectedScheduleForSubstitute(null);
+  };
 
   const handleSave = () => {
     setSaved(true);
@@ -190,7 +327,10 @@ export default function SettingsPage() {
                   <UserCog className="w-5 h-5 text-primary-600" />
                   医生排班管理
                 </h3>
-                <button className="btn-primary text-sm">
+                <button
+                  onClick={() => { resetScheduleForm(); setShowScheduleModal(true); }}
+                  className="btn-primary text-sm"
+                >
                   <Plus className="w-4 h-4 mr-1" />
                   新增排班
                 </button>
@@ -203,32 +343,45 @@ export default function SettingsPage() {
                   <thead>
                     <tr className="text-left text-gray-500 border-b border-gray-200">
                       <th className="py-3 px-3 font-medium">医生</th>
-                      <th className="py-3 px-3 font-medium">科室</th>
                       <th className="py-3 px-3 font-medium">服务站</th>
-                      <th className="py-3 px-3 font-medium">排班周期</th>
+                      <th className="py-3 px-3 font-medium">排班日期</th>
+                      <th className="py-3 px-3 font-medium">时段</th>
+                      <th className="py-3 px-3 font-medium">类型</th>
                       <th className="py-3 px-3 font-medium">可约号源</th>
                       <th className="py-3 px-3 font-medium">操作</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {[
-                      ['张建华', '精神科', '中心院区', '每周一、三、五 上午', 20],
-                      ['李雪梅', '心理咨询科', '中心院区', '每周二、四 全天', 16],
-                      ['王志强', '精神科', '东区服务站', '每周一至五 全天', 30],
-                      ['陈美玲', '儿童青少年科', '西区服务站', '每周三、六 上午', 12],
-                    ].map((row, i) => (
-                      <tr key={i} className="table-row">
-                        <td className="py-3 px-3 font-medium text-gray-800">{row[0]}</td>
-                        <td className="py-3 px-3 text-gray-600">{row[1]}</td>
-                        <td className="py-3 px-3 text-gray-600">{row[2]}</td>
-                        <td className="py-3 px-3 text-gray-700">{row[3]}</td>
+                    {schedules.map((s) => (
+                      <tr key={s.id} className="table-row">
+                        <td className="py-3 px-3 font-medium text-gray-800">{s.doctorName || '-'}</td>
+                        <td className="py-3 px-3 text-gray-600">{s.stationName || '-'}</td>
+                        <td className="py-3 px-3 text-gray-700">{s.scheduleDate}</td>
+                        <td className="py-3 px-3 text-gray-700">{s.startTime} - {s.endTime}</td>
                         <td className="py-3 px-3">
-                          <span className="badge bg-primary-100 text-primary-700">{row[4]}号/天</span>
+                          <span className={`badge ${
+                            s.scheduleType === 'regular' ? 'bg-primary-100 text-primary-700' :
+                            s.scheduleType === 'temporary' ? 'bg-warning-100 text-warning-700' :
+                            'bg-green-100 text-green-700'
+                          }`}>
+                            {s.scheduleType === 'regular' ? '周期排班' : s.scheduleType === 'temporary' ? '临时调班' : '请假代班'}
+                          </span>
+                          {s.substituteDoctorName && (
+                            <span className="text-xs text-gray-500 ml-1">（{s.substituteDoctorName}）</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="badge bg-primary-100 text-primary-700">{s.maxPatients}号/天</span>
                         </td>
                         <td className="py-3 px-3">
                           <div className="flex items-center gap-3">
                             <button className="text-primary-600 hover:text-primary-700 text-xs">编辑排班</button>
-                            <button className="text-warning-600 hover:text-warning-700 text-xs">临时调班</button>
+                            <button
+                              onClick={() => { setSelectedScheduleForSubstitute(s); setSubstituteDoctorId(''); setShowSubstituteModal(true); }}
+                              className="text-warning-600 hover:text-warning-700 text-xs"
+                            >
+                              请假代班
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -617,6 +770,160 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+
+      {showScheduleModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-slide-up">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <UserCog className="w-5 h-5 text-primary-600" />
+                新增排班
+              </h3>
+              <button onClick={() => { setShowScheduleModal(false); resetScheduleForm(); }} className="btn-ghost p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto flex-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <FormField
+                  label="医生"
+                  value={scheduleForm.doctorId}
+                  onChange={(v) => setScheduleForm((p) => ({ ...p, doctorId: v }))}
+                  onBlur={(v) => handleScheduleFormBlur('doctorId', v)}
+                  type="select"
+                  required
+                  error={formErrors.doctorId}
+                  options={DOCTORS_LIST.map((d) => ({ value: d.id, label: d.name }))}
+                  placeholder="请选择医生"
+                />
+                <FormField
+                  label="服务站"
+                  value={scheduleForm.stationId}
+                  onChange={(v) => setScheduleForm((p) => ({ ...p, stationId: v }))}
+                  onBlur={(v) => handleScheduleFormBlur('stationId', v)}
+                  type="select"
+                  required
+                  error={formErrors.stationId}
+                  options={STATIONS_LIST.map((s) => ({ value: s.id, label: s.name }))}
+                  placeholder="请选择服务站"
+                />
+                <FormField
+                  label="排班日期"
+                  value={scheduleForm.scheduleDate}
+                  onChange={(v) => setScheduleForm((p) => ({ ...p, scheduleDate: v }))}
+                  onBlur={(v) => handleScheduleFormBlur('scheduleDate', v)}
+                  type="date"
+                  required
+                  error={formErrors.scheduleDate}
+                />
+                <FormField
+                  label="排班类型"
+                  value={scheduleForm.scheduleType}
+                  onChange={(v) => setScheduleForm((p) => ({ ...p, scheduleType: v as 'regular' | 'temporary' | 'substitute' }))}
+                  type="select"
+                  required
+                  options={[
+                    { value: 'regular', label: '周期排班' },
+                    { value: 'temporary', label: '临时调班' },
+                    { value: 'substitute', label: '请假代班' },
+                  ]}
+                />
+                <FormField
+                  label="开始时间"
+                  value={scheduleForm.startTime}
+                  onChange={(v) => setScheduleForm((p) => ({ ...p, startTime: v }))}
+                  onBlur={(v) => handleScheduleFormBlur('startTime', v)}
+                  type="text"
+                  required
+                  error={formErrors.startTime}
+                  placeholder="如 08:00"
+                />
+                <FormField
+                  label="结束时间"
+                  value={scheduleForm.endTime}
+                  onChange={(v) => setScheduleForm((p) => ({ ...p, endTime: v }))}
+                  onBlur={(v) => handleScheduleFormBlur('endTime', v)}
+                  type="text"
+                  required
+                  error={formErrors.endTime}
+                  placeholder="如 12:00"
+                />
+                <FormField
+                  label="最大接诊数"
+                  value={scheduleForm.maxPatients}
+                  onChange={(v) => setScheduleForm((p) => ({ ...p, maxPatients: v }))}
+                  onBlur={(v) => handleScheduleFormBlur('maxPatients', v)}
+                  type="number"
+                  required
+                  error={formErrors.maxPatients}
+                  placeholder="请输入最大接诊数"
+                />
+                {scheduleForm.scheduleType === 'substitute' && (
+                  <FormField
+                    label="代班医生"
+                    value={scheduleForm.substituteDoctorId}
+                    onChange={(v) => setScheduleForm((p) => ({ ...p, substituteDoctorId: v }))}
+                    onBlur={(v) => handleScheduleFormBlur('substituteDoctorId', v)}
+                    type="select"
+                    required
+                    error={formErrors.substituteDoctorId}
+                    options={DOCTORS_LIST.map((d) => ({ value: d.id, label: d.name }))}
+                    placeholder="请选择代班医生"
+                  />
+                )}
+                <div className={scheduleForm.scheduleType === 'substitute' ? '' : 'md:col-span-2'}>
+                  <FormField
+                    label="备注"
+                    value={scheduleForm.notes}
+                    onChange={(v) => setScheduleForm((p) => ({ ...p, notes: v }))}
+                    type="textarea"
+                    placeholder="可选备注信息"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-100 flex justify-end gap-2">
+              <button onClick={() => { setShowScheduleModal(false); resetScheduleForm(); }} className="btn-secondary">取消</button>
+              <LoadingButton onClick={handleSubmitSchedule} loadingText="提交中...">确认排班</LoadingButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSubstituteModal && selectedScheduleForSubstitute && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md animate-slide-up">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <UserCog className="w-5 h-5 text-primary-600" />
+                请假代班 - {selectedScheduleForSubstitute.doctorName}
+              </h3>
+              <button onClick={() => setShowSubstituteModal(false)} className="btn-ghost p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
+                <div>日期：{selectedScheduleForSubstitute.scheduleDate}</div>
+                <div>时段：{selectedScheduleForSubstitute.startTime} - {selectedScheduleForSubstitute.endTime}</div>
+              </div>
+              <FormField
+                label="代班医生"
+                value={substituteDoctorId}
+                onChange={setSubstituteDoctorId}
+                type="select"
+                required
+                options={DOCTORS_LIST.filter((d) => d.id !== selectedScheduleForSubstitute.doctorId).map((d) => ({ value: d.id, label: d.name }))}
+                placeholder="请选择代班医生"
+              />
+            </div>
+            <div className="p-4 border-t border-gray-100 flex justify-end gap-2">
+              <button onClick={() => setShowSubstituteModal(false)} className="btn-secondary">取消</button>
+              <LoadingButton onClick={handleSubstituteSubmit} disabled={!substituteDoctorId} loadingText="提交中...">确认代班</LoadingButton>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

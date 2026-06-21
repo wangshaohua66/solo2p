@@ -29,6 +29,8 @@ func main() {
 	}
 	log.Println("Database migration completed")
 
+	handlers.StartReminderScheduler()
+
 	e := echo.New()
 	e.HideBanner = true
 
@@ -98,6 +100,28 @@ func main() {
 	referrals.POST("", referralHandler.Create)
 	referrals.PUT("/:id/accept", referralHandler.Accept)
 	referrals.PUT("/:id/reject", referralHandler.Reject)
+	referrals.GET("/:id/logs", referralHandler.ListLogs)
+
+	signatureHandler := handlers.NewSignatureHandler()
+	patients.GET("/:id/signatures", signatureHandler.List)
+	api.POST("/signatures", signatureHandler.Create)
+	api.GET("/signatures/:id", signatureHandler.Get)
+
+	scheduleHandler := handlers.NewScheduleHandler()
+	schedules := api.Group("/schedules")
+	schedules.GET("", scheduleHandler.List)
+	schedules.POST("", scheduleHandler.Create)
+	schedules.PUT("/:id", scheduleHandler.Update)
+	schedules.DELETE("/:id", scheduleHandler.Delete)
+	schedules.GET("/by-date", scheduleHandler.ListByDate)
+
+	reminderHandler := handlers.NewReminderHandler()
+	reminders := api.Group("/reminders")
+	reminders.GET("", reminderHandler.List)
+	reminders.POST("", reminderHandler.Create)
+	reminders.PUT("/:id", reminderHandler.Update)
+	reminders.PUT("/:id/sent", reminderHandler.MarkSent)
+	reminders.GET("/pending", reminderHandler.GetPendingReminders)
 
 	auditHandler := handlers.NewAuditHandler()
 	api.GET("/audit/logs", auditHandler.List)

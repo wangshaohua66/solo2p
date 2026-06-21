@@ -158,6 +158,8 @@ type Referral struct {
 	FromDoctorID   uuid.UUID  `gorm:"type:uuid;not null" json:"fromDoctorId"`
 	Status         string     `gorm:"type:varchar(20);default:'pending'" json:"status"`
 	Reason         string     `gorm:"type:text" json:"reason"`
+	Materials      datatypes.JSON `gorm:"type:jsonb" json:"materials"`
+	Files          datatypes.JSON `gorm:"type:jsonb" json:"files"`
 	RejectReason   string     `gorm:"type:text" json:"rejectReason,omitempty"`
 	CreatedAt      time.Time  `json:"createdAt"`
 	AcceptedAt     *time.Time `json:"acceptedAt,omitempty"`
@@ -186,6 +188,63 @@ type User struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
+type Signature struct {
+	ID            uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	PatientID     uuid.UUID `gorm:"type:uuid;not null;index" json:"patientId"`
+	Patient       Patient   `gorm:"foreignKey:PatientID" json:"-"`
+	SignerID      uuid.UUID `gorm:"type:uuid;not null" json:"signerId"`
+	SignerName    string    `gorm:"type:varchar(50);not null" json:"signerName"`
+	SignerRole    string    `gorm:"type:varchar(50)" json:"signerRole"`
+	ResourceType  string    `gorm:"type:varchar(50);not null" json:"resourceType"`
+	ResourceID    uuid.UUID `gorm:"type:uuid;not null" json:"resourceId"`
+	SignatureData string    `gorm:"type:text;not null" json:"signatureData"`
+	IPAddress     string    `gorm:"type:varchar(50)" json:"ipAddress"`
+	CreatedAt     time.Time `json:"createdAt"`
+}
+
+type ReferralLog struct {
+	ID           uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	ReferralID   uuid.UUID `gorm:"type:uuid;not null;index" json:"referralId"`
+	Referral     Referral  `gorm:"foreignKey:ReferralID" json:"-"`
+	Action       string    `gorm:"type:varchar(50);not null" json:"action"`
+	OperatorID   uuid.UUID `gorm:"type:uuid" json:"operatorId"`
+	OperatorName string    `gorm:"type:varchar(50)" json:"operatorName"`
+	Detail       string    `gorm:"type:text" json:"detail"`
+	CreatedAt    time.Time `json:"createdAt"`
+}
+
+type Schedule struct {
+	ID                  uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	DoctorID           uuid.UUID  `gorm:"type:uuid;not null;index:idx_schedule_doctor_date" json:"doctorId"`
+	Doctor             Doctor     `gorm:"foreignKey:DoctorID" json:"doctor"`
+	StationID          uuid.UUID  `gorm:"type:uuid;not null" json:"stationId"`
+	ScheduleDate        time.Time `gorm:"type:date;index:idx_schedule_doctor_date" json:"scheduleDate"`
+	StartTime          string    `gorm:"type:varchar(10);not null" json:"startTime"`
+	EndTime            string    `gorm:"type:varchar(10);not null" json:"endTime"`
+	MaxPatients        int        `gorm:"type:int;default:20" json:"maxPatients"`
+	ScheduleType       string    `gorm:"type:varchar(20);default:'regular'" json:"scheduleType"`
+	SubstituteDoctorID *uuid.UUID `gorm:"type:uuid" json:"substituteDoctorId,omitempty"`
+	Status             string    `gorm:"type:varchar(20);default:'active'" json:"status"`
+	Notes              string    `gorm:"type:text" json:"notes"`
+	CreatedAt          time.Time  `json:"createdAt"`
+	UpdatedAt          time.Time  `json:"updatedAt"`
+}
+
+type Reminder struct {
+	ID         uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	PatientID  uuid.UUID  `gorm:"type:uuid;not null;index" json:"patientId"`
+	Patient    Patient    `gorm:"foreignKey:PatientID" json:"patient"`
+	DoctorID   uuid.UUID  `gorm:"type:uuid;not null" json:"doctorId"`
+	DoctorName string     `gorm:"type:varchar(50)" json:"doctorName"`
+	Type       string     `gorm:"type:varchar(50);not null" json:"type"`
+	Title      string     `gorm:"type:varchar(200);not null" json:"title"`
+	Content    string     `gorm:"type:text" json:"content"`
+	RemindAt   time.Time  `gorm:"not null;index" json:"remindAt"`
+	Status     string     `gorm:"type:varchar(20);default:'pending'" json:"status"`
+	SentAt     *time.Time `json:"sentAt,omitempty"`
+	CreatedAt  time.Time  `json:"createdAt"`
+}
+
 func AutoMigrate(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&Station{},
@@ -201,5 +260,9 @@ func AutoMigrate(db *gorm.DB) error {
 		&Referral{},
 		&AuditLog{},
 		&User{},
+		&Signature{},
+		&ReferralLog{},
+		&Schedule{},
+		&Reminder{},
 	)
 }

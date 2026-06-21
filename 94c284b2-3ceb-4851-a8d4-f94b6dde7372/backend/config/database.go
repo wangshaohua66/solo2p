@@ -51,3 +51,28 @@ func getEnv(key, defaultValue string) string {
 	}
 	return defaultValue
 }
+
+func WithTransaction(fn func(tx *gorm.DB) error) error {
+	tx := DB.Begin()
+	if err := tx.Error; err != nil {
+		return err
+	}
+
+	if err := fn(tx); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
+}
+
+// BeginTx starts and returns a new transaction.
+// Usage:
+//
+//	tx := config.BeginTx()
+//	// ... operations on tx ...
+//	if err := tx.Commit().Error; err != nil { ... }
+//	// On failure: tx.Rollback()
+func BeginTx() *gorm.DB {
+	return DB.Begin()
+}
