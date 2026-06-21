@@ -7,6 +7,11 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Tuple
 from enum import Enum
 
+try:
+    import openpyxl
+except ImportError:
+    openpyxl = None
+
 
 class ValidationSeverity(str, Enum):
     ERROR = "error"
@@ -79,33 +84,14 @@ class ValidationConfig:
         ".pdf", ".ofd", ".docx", ".xlsx", ".jpg", ".jpeg", ".png", ".tiff", ".tif"
     ])
     max_file_size_mb: int = 500
+    max_batch_size: int = 100000
+    enable_gbt18894: bool = True
 
 
 class ArchiveValidator:
     def __init__(self, config: Optional[ValidationConfig] = None, logger=None):
         self.config = config or ValidationConfig()
         self.logger = logger
-
-    def validate_archive(self, metadata: Dict[str, Any], file_path: Optional[str] = None) -> ValidationResult:
-        archive_id = metadata.get("archive_number", metadata.get("id", "unknown"))
-        result = ValidationResult(archive_id=archive_id, metadata=metadata)
-
-        self._validate_completeness(metadata, result)
-        self._validate_format(metadata, result)
-        self._validate_logic(metadata, result)
-
-        if file_path:
-            self._validate_file(file_path, metadata, result)
-
-        if self.logger:
-            status = "PASSED" if result.passed else "FAILED"
-            self.logger.info(
-                f"Archive validation {status}: {archive_id}",
-                operation_type="validation",
-                obj=archive_id,
-            )
-
-        return result
 
     def validate_batch(self, archives: List[Dict[str, Any]], file_dir: Optional[str] = None) -> List[ValidationResult]:
         results = []
@@ -240,7 +226,8 @@ class ArchiveValidator:
                 value=actual_size,
             ))
 
-        if ext in [".jpg", ".jpeg", ".png", ".tiff", ".tif", ".pdf"]:
+        if ext in [".jpg", ".jpeg", ".png", ".tiff", ".tif", ".pdf",
+                   ".docx", ".xlsx", ".ofd"]:
             self._check_file_readable(path, ext, result)
 
     def _validate_date_format(self, field: str, value: str, result: ValidationResult):
@@ -307,6 +294,12 @@ class ArchiveValidator:
                 import pdfplumber
                 with pdfplumber.open(str(path)) as pdf:
                     _ = len(pdf.pages)
+            elif ext == ".docx":
+                self._check_docx_readable(path)
+            elif ext == ".xlsx":
+                self._check_xlsx_readable(path)
+            elif ext == ".ofd":
+                self._check_ofd_readable(path)
         except Exception as e:
             result.add_issue(ValidationIssue(
                 field="file_readable",
@@ -315,6 +308,69 @@ class ArchiveValidator:
                 type=ValidationType.FILE,
                 value=str(e),
             ))
+
+    def _check_docx_readable(self, path: Path):
+        import zipfile
+        from xml.etree import ElementTree as ET
+
+        with zipfile.ZipFile(str(path), "r") as zf:
+            required_files = ["word/document.xml", "word/_rels/document.xml.rels", "[Content_Types].xml"]
+            for f in required_files:
+                if f not in zf.namelist():
+                    raise ValueError(f"缺少必要文件缺失: {f}")
+
+            with zf.open("word/document.xml") as f:
+                content = f.read()
+                if not content:
+                    raise ValueError("document.xml 内容为空")
+
+                try:
+                    ET.fromstring(content)
+                except ET.ParseError as e:
+                    raise ValueError(f"XML 解析失败: {e}")
+
+    def _check_xlsx_readable(self, path: Path):
+        if openpyxl is None:
+            try:
+                from openpyxl import load_workbook
+            except ImportError:
+                raise ValueError("需要 openpyxl 库来检测 XLSX 文件")
+        else:
+            from openpyxl import load_workbook
+
+        wb = load_workbook(str(path), read_only=True, data_only=True)
+        if not wb.sheetnames:
+            raise ValueError("工作簿中没有工作表")
+
+        ws = wb[wb.sheetnames[0]]
+        _ = ws.max_row
+        wb.close()
+
+    def _check_ofd_readable(self, path: Path):
+        import zipfile
+        from xml.etree import ElementTree as ET
+
+        with zipfile.ZipFile(str(path), "r") as zf:
+            required_files = ["OFD.xml", "Doc_0/DocumentRes.xml"]
+
+            found_any = False
+            for f in zf.namelist():
+                if f.startswith("Doc_") and f.endswith("Page.xml"):
+                    found_any = True
+                    break
+
+            if not found_any:
+                raise ValueError("未找到文档页面文件")
+
+            with zf.open("OFD.xml") as f:
+                content = f.read()
+                if not content:
+                    raise ValueError("OFD.xml 内容为空")
+
+                try:
+                    ET.fromstring(content)
+                except ET.ParseError as e:
+                    raise ValueError(f"XML 解析失败: {e}")
 
     def check_duplicate_archive_numbers(self, archives: List[Dict[str, Any]]) -> List[ValidationIssue]:
         issues = []
@@ -336,3 +392,119 @@ class ArchiveValidator:
                 ))
 
         return issues
+
+    def check_batch_size(self, archives: List[Dict[str, Any]]) -> Tuple[bool, str]:
+        count = len(archives)
+        if count > self.config.max_batch_size:
+            message = (f"批次档案数量 {count} 超过最大限制 {self.config.max_batch_size} 件，"
+                      f"请分批处理")
+            return False, message
+        return True, ""
+
+    def validate_gbt18894(self, metadata: Dict[str, Any], result: ValidationResult):
+        if not self.config.enable_gbt18894:
+            return
+
+        if "file_format" not in metadata or not metadata["file_format"]:
+            result.add_issue(ValidationIssue(
+                field="file_format",
+                message="[GB/T 18894] 电子文件格式信息缺失",
+                severity=ValidationSeverity.ERROR,
+                type=ValidationType.FORMAT,
+            ))
+
+        if "file_size" not in metadata or not metadata["file_size"]:
+            result.add_issue(ValidationIssue(
+                field="file_size",
+                message="[GB/T 18894] 电子文件大小信息缺失",
+                severity=ValidationSeverity.ERROR,
+                type=ValidationType.COMPLETENESS,
+            ))
+
+        if "title" in metadata and metadata["title"]:
+            title = str(metadata["title"])
+            if len(title) > 256:
+                result.add_issue(ValidationIssue(
+                    field="title",
+                    message=f"[GB/T 18894] 题名长度 {len(title)} 字符，建议不超过256字符",
+                    severity=ValidationSeverity.WARNING,
+                    type=ValidationType.FORMAT,
+                    value=f"{len(title)}字符",
+                ))
+
+        if "page_count" in metadata and metadata["page_count"]:
+            try:
+                pages = int(metadata["page_count"])
+                if pages <= 0:
+                    result.add_issue(ValidationIssue(
+                        field="page_count",
+                        message="[GB/T 18894] 页数应为正整数",
+                        severity=ValidationSeverity.ERROR,
+                        type=ValidationType.FORMAT,
+                        value=metadata["page_count"],
+                    ))
+            except (ValueError, TypeError):
+                result.add_issue(ValidationIssue(
+                    field="page_count",
+                    message="[GB/T 18894] 页数字段格式不正确",
+                    severity=ValidationSeverity.ERROR,
+                    type=ValidationType.FORMAT,
+                    value=metadata["page_count"],
+                ))
+
+        if "file_name" in metadata and metadata["file_name"]:
+            file_name = str(metadata["file_name"])
+            forbidden_chars = '<>:"/\\|?*'
+            invalid_chars = [c for c in forbidden_chars if c in file_name]
+            if invalid_chars:
+                result.add_issue(ValidationIssue(
+                    field="file_name",
+                    message=f"[GB/T 18894] 文件名包含非法字符: {''.join(invalid_chars)}",
+                    severity=ValidationSeverity.WARNING,
+                    type=ValidationType.FORMAT,
+                    value=file_name,
+                ))
+
+        if "keywords" in metadata and metadata["keywords"]:
+            keywords = str(metadata["keywords"])
+            if len(keywords) > 500:
+                result.add_issue(ValidationIssue(
+                    field="keywords",
+                    message=f"[GB/T 18894] 主题词长度 {len(keywords)} 字符，建议不超过500字符",
+                    severity=ValidationSeverity.WARNING,
+                    type=ValidationType.FORMAT,
+                    value=f"{len(keywords)}字符",
+                ))
+
+        if "summary" in metadata and metadata["summary"]:
+            summary = str(metadata["summary"])
+            if len(summary) > 2000:
+                result.add_issue(ValidationIssue(
+                    field="summary",
+                    message=f"[GB/T 18894] 摘要长度 {len(summary)} 字符，建议不超过2000字符",
+                    severity=ValidationSeverity.WARNING,
+                    type=ValidationType.FORMAT,
+                    value=f"{len(summary)}字符",
+                ))
+
+    def validate_archive(self, metadata: Dict[str, Any], file_path: Optional[str] = None) -> ValidationResult:
+        archive_id = metadata.get("archive_number", metadata.get("id", "unknown"))
+        result = ValidationResult(archive_id=archive_id, metadata=metadata)
+
+        self._validate_completeness(metadata, result)
+        self._validate_format(metadata, result)
+        self._validate_logic(metadata, result)
+        self.validate_gbt18894(metadata, result)
+
+        if file_path:
+            self._validate_file(file_path, metadata, result)
+
+        if self.logger:
+            status = "PASSED" if result.passed else "FAILED"
+            self.logger.info(
+                f"Archive validation {status}: {archive_id}",
+                operation_type="validation",
+                obj=archive_id,
+            )
+
+        return result

@@ -81,6 +81,104 @@ class FormatConverter:
         else:
             raise ValueError(f"不支持的文件格式: {format_type}")
 
+    def validate_xml_schema(self, xml_path: str, xsd_path: str) -> Tuple[bool, List[str]]:
+        if etree is None:
+            raise ImportError("需要安装 lxml 库来进行 XML Schema 校验")
+
+        errors = []
+
+        try:
+            with open(xsd_path, "rb") as f:
+                xsd_doc = etree.parse(f)
+            xsd_schema = etree.XMLSchema(xsd_doc)
+        except Exception as e:
+            return False, [f"XSD Schema 加载失败: {str(e)}"]
+
+        try:
+            with open(xml_path, "rb") as f:
+                xml_doc = etree.parse(f)
+        except Exception as e:
+            return False, [f"XML 文件解析失败: {str(e)}"]
+
+        try:
+            xsd_schema.assertValid(xml_doc)
+            return True, []
+        except etree.DocumentInvalid:
+            error_log = xsd_schema.error_log
+            for error in error_log:
+                errors.append(f"第 {error.line} 行: {error.message}")
+            return False, errors
+
+    def get_builtin_dat46_xsd(self) -> str:
+        xsd_content = '''<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://www.saac.gov.cn/dat46"
+           xmlns="http://www.saac.gov.cn/dat46"
+           elementFormDefault="qualified">
+
+  <xs:element name="电子档案移交清单">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="档案列表" minOccurs="1" maxOccurs="1"/>
+      </xs:sequence>
+      <xs:attribute name="版本" type="xs:string" use="optional"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="档案列表">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="档案" minOccurs="1" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="档案">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="档号" type="xs:string" minOccurs="1" maxOccurs="1"/>
+        <xs:element name="题名" type="xs:string" minOccurs="1" maxOccurs="1"/>
+        <xs:element name="责任者" type="xs:string" minOccurs="1" maxOccurs="1"/>
+        <xs:element name="形成时间" type="xs:string" minOccurs="1" maxOccurs="1"/>
+        <xs:element name="归档时间" type="xs:string" minOccurs="0" maxOccurs="1"/>
+        <xs:element name="保管期限" type="xs:string" minOccurs="1" maxOccurs="1"/>
+        <xs:element name="密级" type="xs:string" minOccurs="0" maxOccurs="1"/>
+        <xs:element name="文件名" type="xs:string" minOccurs="0" maxOccurs="1"/>
+        <xs:element name="文件大小" type="xs:string" minOccurs="0" maxOccurs="1"/>
+        <xs:element name="文件格式" type="xs:string" minOccurs="0" maxOccurs="1"/>
+        <xs:element name="页数" type="xs:string" minOccurs="0" maxOccurs="1"/>
+        <xs:element name="摘要" type="xs:string" minOccurs="0" maxOccurs="1"/>
+        <xs:element name="主题词" type="xs:string" minOccurs="0" maxOccurs="1"/>
+        <xs:element name="类别" type="xs:string" minOccurs="0" maxOccurs="1"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>'''
+        return xsd_content
+
+    def validate_against_dat46(self, xml_path: str) -> Tuple[bool, List[str]]:
+        if etree is None:
+            raise ImportError("需要安装 lxml 库来进行 XML Schema 校验")
+
+        import tempfile
+
+        xsd_content = self.get_builtin_dat46_xsd()
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.xsd', delete=False, encoding='utf-8') as f:
+            f.write(xsd_content)
+            xsd_path = f.name
+
+        try:
+            result, errors = self.validate_xml_schema(xml_path, xsd_path)
+        finally:
+            try:
+                os.unlink(xsd_path)
+            except Exception:
+                pass
+
+        return result, errors
+
     def _parse_dat46_xml(self, file_path: str) -> List[Dict[str, Any]]:
         if etree is None:
             raise ImportError("需要安装 lxml 库来解析 XML 文件")

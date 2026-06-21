@@ -275,27 +275,12 @@ class ImageQualityScanner:
     def _check_tilt(self, img, result: ImageQualityResult):
         try:
             gray_img = img.convert("L")
-            edges = gray_img.filter(ImageFilter.FIND_EDGES)
-            edge_pixels = edges.load()
 
-            width, height = gray_img.size
-            angles = []
+            edges = self._detect_edges(gray_img)
 
-            step = max(1, min(width, height) // 50)
-            for y in range(0, height, step):
-                edge_x = []
-                for x in range(width):
-                    if edge_pixels[x, y] > 128:
-                        edge_x.append(x)
-                if len(edge_x) >= 2:
-                    angles.append(0)
+            tilt_angle = self._hough_transform_tilt(edges)
 
-            tilt = 0.0
-            for angle in angles:
-                if abs(angle) > abs(tilt):
-                    tilt = angle
-
-            result.tilt_degrees = abs(tilt)
+            result.tilt_degrees = abs(tilt_angle)
 
             if result.tilt_degrees > self.config.max_tilt_degrees:
                 result.issues.append({
@@ -306,6 +291,125 @@ class ImageQualityScanner:
 
         except Exception:
             result.tilt_degrees = 0.0
+
+    def _detect_edges(self, gray_img):
+        if ImageFilter is None:
+            return gray_img
+
+        edges = gray_img.filter(ImageFilter.FIND_EDGES)
+
+        threshold = 60
+        from PIL import Image as PILImage
+        edge_binary = PILImage.new("L", gray_img.size, 0)
+        edge_pixels = edges.load()
+        out_pixels = edge_binary.load()
+
+        width, height = gray_img.size
+        for y in range(height):
+            for x in range(width):
+                if edge_pixels[x, y] > threshold:
+                    out_pixels[x, y] = 255
+
+        return edge_binary
+
+    def _hough_transform_tilt(self, edge_img):
+        import math
+
+        width, height = edge_img.size
+        edge_pixels = edge_img.load()
+
+        border_margin = min(width, height) // 20
+        edge_points = []
+        step = max(1, min(width, height) // 600)
+
+        for y in range(border_margin, height - border_margin, step):
+            for x in range(border_margin, width - border_margin, step):
+                if edge_pixels[x, y] > 128:
+                    edge_points.append((x, y))
+
+        if len(edge_points) < 20:
+            return 0.0
+
+        max_tilt = 15.0
+        angle_step = 0.2
+        
+        center_theta = 90.0
+        start_theta = center_theta - max_tilt
+        end_theta = center_theta + max_tilt
+        num_angles = int((end_theta - start_theta) / angle_step) + 1
+
+        center_x = width / 2
+        center_y = height / 2
+        max_rho = int(math.sqrt(width**2 + height**2)) + 1
+        rho_step = 2
+        num_rhos = max_rho * 2 // rho_step + 1
+
+        angle_max_scores = []
+
+        for angle_idx in range(num_angles):
+            theta_deg = start_theta + angle_idx * angle_step
+            theta_rad = math.radians(theta_deg)
+            cos_theta = math.cos(theta_rad)
+            sin_theta = math.sin(theta_rad)
+
+            scores = {}
+            for x, y in edge_points:
+                rho = int((x - center_x) * cos_theta + (y - center_y) * sin_theta)
+                rho_idx = (rho + max_rho) // rho_step
+                if 0 <= rho_idx < num_rhos:
+                    scores[rho_idx] = scores.get(rho_idx, 0) + 1
+
+            if scores:
+                max_score = max(scores.values())
+                angle_max_scores.append((theta_deg, max_score))
+
+        if not angle_max_scores:
+            return 0.0
+
+        angle_max_scores.sort(key=lambda x: -x[1])
+        top_score = angle_max_scores[0][1]
+
+        if top_score < 8:
+            return 0.0
+
+        top_thetas = [ang for ang, score in angle_max_scores[:5] if score > top_score * 0.6]
+
+        if not top_thetas:
+            best_theta = angle_max_scores[0][0]
+        else:
+            best_theta = sum(top_thetas) / len(top_thetas)
+
+        tilt_angle = best_theta - 90.0
+
+        fine_range = 1.5
+        fine_step = 0.05
+        best_fine_theta = best_theta
+        best_fine_score = 0
+
+        fine_thetas = [best_theta - fine_range + i * fine_step
+                       for i in range(int(fine_range * 2 / fine_step) + 1)]
+
+        for theta_deg in fine_thetas:
+            theta_rad = math.radians(theta_deg)
+            cos_theta = math.cos(theta_rad)
+            sin_theta = math.sin(theta_rad)
+
+            scores = {}
+            for x, y in edge_points:
+                rho = int((x - center_x) * cos_theta + (y - center_y) * sin_theta)
+                rho_idx = (rho + max_rho) // rho_step
+                if 0 <= rho_idx < num_rhos:
+                    scores[rho_idx] = scores.get(rho_idx, 0) + 1
+
+            if scores:
+                max_s = max(scores.values())
+                if max_s > best_fine_score:
+                    best_fine_score = max_s
+                    best_fine_theta = theta_deg
+
+        tilt_angle = best_fine_theta - 90.0
+
+        return tilt_angle
 
     def _check_blank_page(self, img, result: ImageQualityResult):
         try:

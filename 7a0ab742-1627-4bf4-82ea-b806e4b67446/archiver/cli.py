@@ -11,6 +11,8 @@ from .converter import FormatConverter, InputFormat
 from .renamer import ArchiveRenamer, ArchiveNumberConfig
 from .scanner import ImageQualityScanner, ScannerConfig, QualitySeverity
 from .reporter import ReportGenerator
+from .config import AppConfig, ConfigValidationError
+from .progress import ProgressManager
 
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
@@ -19,34 +21,86 @@ CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 class ArchiverCLI:
     def __init__(self):
         self.logger = None
+        self.app_config = None
         self.validator = None
         self.converter = None
         self.renamer = None
         self.scanner = None
         self.reporter = None
+        self.progress_manager = None
+
+    def load_config(self, config_file=None):
+        if config_file:
+            try:
+                self.app_config = AppConfig.from_file(config_file)
+            except ConfigValidationError as e:
+                click.echo(click.style(f"配置文件校验失败:\n{e}", fg="red", bold=True))
+                sys.exit(1)
+            except Exception as e:
+                click.echo(click.style(f"加载配置文件失败: {e}", fg="red", bold=True))
+                sys.exit(1)
+        else:
+            self.app_config = AppConfig()
 
     def init_logger(self, log_level="INFO", log_dir="logs"):
+        if self.app_config:
+            log_config = self.app_config.get_logging_config()
+            if log_config:
+                log_level = log_config.get("level", log_level)
+                log_dir = log_config.get("log_dir", log_dir)
+
         self.logger = get_logger(log_dir=log_dir, log_level=log_level)
         return self.logger
+
+    def get_progress_manager(self):
+        if self.progress_manager is None:
+            progress_dir = ".progress"
+            if self.app_config:
+                proc_config = self.app_config.get_processing_config()
+                if proc_config and "progress_dir" in proc_config:
+                    progress_dir = proc_config["progress_dir"]
+
+            self.progress_manager = ProgressManager(progress_dir, self.logger)
+        return self.progress_manager
 
     def get_validator(self, config=None):
         if self.validator is None:
             val_config = ValidationConfig()
+
+            if self.app_config:
+                vconfig = self.app_config.get_validation_config()
+                if vconfig:
+                    if "required_fields" in vconfig:
+                        val_config.required_fields = vconfig["required_fields"]
+                    if "date_format" in vconfig:
+                        val_config.date_format = vconfig["date_format"]
+                    if "retention_periods" in vconfig:
+                        val_config.retention_periods = vconfig["retention_periods"]
+                    if "secrecy_levels" in vconfig:
+                        val_config.secrecy_levels = vconfig["secrecy_levels"]
+                    if "archive_number_pattern" in vconfig:
+                        val_config.archive_number_pattern = vconfig["archive_number_pattern"]
+
+                fvconfig = self.app_config.get_file_validation_config()
+                if fvconfig:
+                    if "allowed_extensions" in fvconfig:
+                        val_config.allowed_extensions = fvconfig["allowed_extensions"]
+                    if "max_file_size_mb" in fvconfig:
+                        val_config.max_file_size_mb = fvconfig["max_file_size_mb"]
+
+                standards_config = self.app_config.get_standards_config()
+                if standards_config and "enable_gbt18894" in standards_config:
+                    val_config.enable_gbt18894 = standards_config["enable_gbt18894"]
+
+                proc_config = self.app_config.get_processing_config()
+                if proc_config and "max_batch_size" in proc_config:
+                    val_config.max_batch_size = proc_config["max_batch_size"]
+
             if config:
-                if "required_fields" in config:
-                    val_config.required_fields = config["required_fields"]
-                if "date_format" in config:
-                    val_config.date_format = config["date_format"]
-                if "retention_periods" in config:
-                    val_config.retention_periods = config["retention_periods"]
-                if "secrecy_levels" in config:
-                    val_config.secrecy_levels = config["secrecy_levels"]
-                if "archive_number_pattern" in config:
-                    val_config.archive_number_pattern = config["archive_number_pattern"]
-                if "allowed_extensions" in config:
-                    val_config.allowed_extensions = config["allowed_extensions"]
-                if "max_file_size_mb" in config:
-                    val_config.max_file_size_mb = config["max_file_size_mb"]
+                for key, value in config.items():
+                    if hasattr(val_config, key):
+                        setattr(val_config, key, value)
+
             self.validator = ArchiveValidator(val_config, self.logger)
         return self.validator
 
@@ -58,34 +112,52 @@ class ArchiverCLI:
     def get_renamer(self, config=None):
         if self.renamer is None:
             rename_config = ArchiveNumberConfig()
+
+            if self.app_config:
+                aconfig = self.app_config.get_archive_number_config()
+                if aconfig:
+                    if "fonds_number" in aconfig:
+                        rename_config.fonds_number = aconfig["fonds_number"]
+                    if "directory_number" in aconfig:
+                        rename_config.directory_number = aconfig["directory_number"]
+                    if "volume_number" in aconfig:
+                        rename_config.volume_number = aconfig["volume_number"]
+                    if "item_number_digits" in aconfig:
+                        rename_config.item_number_digits = aconfig["item_number_digits"]
+                    if "separator" in aconfig:
+                        rename_config.separator = aconfig["separator"]
+                    if "start_item" in aconfig:
+                        rename_config.start_item = aconfig["start_item"]
+
             if config:
-                if "fonds_number" in config:
-                    rename_config.fonds_number = config["fonds_number"]
-                if "directory_number" in config:
-                    rename_config.directory_number = config["directory_number"]
-                if "volume_number" in config:
-                    rename_config.volume_number = config["volume_number"]
-                if "item_number_digits" in config:
-                    rename_config.item_number_digits = config["item_number_digits"]
-                if "separator" in config:
-                    rename_config.separator = config["separator"]
-                if "start_item" in config:
-                    rename_config.start_item = config["start_item"]
+                for key, value in config.items():
+                    if hasattr(rename_config, key):
+                        setattr(rename_config, key, value)
+
             self.renamer = ArchiveRenamer(rename_config, self.logger)
         return self.renamer
 
     def get_scanner(self, config=None):
         if self.scanner is None:
             scan_config = ScannerConfig()
+
+            if self.app_config:
+                sconfig = self.app_config.get_scanner_config()
+                if sconfig:
+                    if "min_dpi" in sconfig:
+                        scan_config.min_dpi = sconfig["min_dpi"]
+                    if "max_tilt_degrees" in sconfig:
+                        scan_config.max_tilt_degrees = sconfig["max_tilt_degrees"]
+                    if "blank_page_threshold" in sconfig:
+                        scan_config.blank_page_threshold = sconfig["blank_page_threshold"]
+                    if "color_modes" in sconfig:
+                        scan_config.color_modes = sconfig["color_modes"]
+
             if config:
-                if "min_dpi" in config:
-                    scan_config.min_dpi = config["min_dpi"]
-                if "max_tilt_degrees" in config:
-                    scan_config.max_tilt_degrees = config["max_tilt_degrees"]
-                if "blank_page_threshold" in config:
-                    scan_config.blank_page_threshold = config["blank_page_threshold"]
-                if "color_modes" in config:
-                    scan_config.color_modes = config["color_modes"]
+                for key, value in config.items():
+                    if hasattr(scan_config, key):
+                        setattr(scan_config, key, value)
+
             self.scanner = ImageQualityScanner(scan_config, self.logger)
         return self.scanner
 
@@ -93,6 +165,27 @@ class ArchiverCLI:
         if self.reporter is None:
             self.reporter = ReportGenerator(self.logger)
         return self.reporter
+
+    def check_batch_size(self, count: int) -> bool:
+        validator = self.get_validator()
+        is_ok, message = validator.check_batch_size([{} for _ in range(count)])
+        if not is_ok:
+            click.echo(click.style(f"警告: {message}", fg="yellow"))
+        return is_ok
+
+    def is_incremental_mode(self) -> bool:
+        if self.app_config:
+            proc_config = self.app_config.get_processing_config()
+            if proc_config and "incremental_mode" in proc_config:
+                return proc_config["incremental_mode"]
+        return False
+
+    def is_progress_enabled(self) -> bool:
+        if self.app_config:
+            proc_config = self.app_config.get_processing_config()
+            if proc_config and "enable_progress" in proc_config:
+                return proc_config["enable_progress"]
+        return True
 
 
 pass_cli = click.make_pass_decorator(ArchiverCLI, ensure=True)
@@ -106,6 +199,7 @@ pass_cli = click.make_pass_decorator(ArchiverCLI, ensure=True)
 @pass_cli
 def cli(cli_obj, log_level, log_dir, config_file):
     """数字档案管理系统 - 电子档案移交接收工具"""
+    cli_obj.load_config(config_file)
     cli_obj.init_logger(log_level=log_level, log_dir=log_dir)
 
 
@@ -116,17 +210,42 @@ def cli(cli_obj, log_level, log_dir, config_file):
 @click.option("--format", "output_format", type=click.Choice(["table", "json"]),
               default="table", help="输出格式")
 @click.option("--strict/--no-strict", default=False, help="严格模式 (所有警告视为错误)")
+@click.option("--resume/--no-resume", default=False, help="断点续传模式")
+@click.option("--incremental/--no-incremental", default=False, help="增量校验模式")
+@click.option("--xsd-validate/--no-xsd-validate", default=False, help="XML Schema校验 (仅XML)")
+@click.option("--xsd-schema", type=click.Path(exists=True), help="自定义XSD Schema文件路径")
 @pass_cli
-def receive(cli_obj, input_path, output, file_dir, output_format, strict):
+def receive(cli_obj, input_path, output, file_dir, output_format, strict,
+            resume, incremental, xsd_validate, xsd_schema):
     """接收校验 - 解析并校验档案元数据"""
     click.echo(click.style("\n=== 档案接收校验 ===", fg="cyan", bold=True))
 
     converter = cli_obj.get_converter()
     validator = cli_obj.get_validator()
+    progress_manager = None
 
     input_path = Path(input_path)
     fmt = converter.detect_format(str(input_path))
     click.echo(f"检测到文件格式: {click.style(fmt.value, fg='yellow')}")
+
+    if xsd_validate and fmt.value.startswith("xml"):
+        click.echo(click.style("\n--- XML Schema 校验 ---", fg="blue"))
+        try:
+            if xsd_schema:
+                is_valid, errors = converter.validate_xml_schema(str(input_path), xsd_schema)
+            else:
+                is_valid, errors = converter.validate_against_dat46(str(input_path))
+
+            if is_valid:
+                click.echo(click.style("  ✓ XML Schema 校验通过", fg="green"))
+            else:
+                click.echo(click.style(f"  ✗ XML Schema 校验未通过 ({len(errors)} 个错误):", fg="red"))
+                for err in errors[:5]:
+                    click.echo(f"    - {err}")
+                if len(errors) > 5:
+                    click.echo(f"    ... 还有 {len(errors) - 5} 个错误")
+        except Exception as e:
+            click.echo(click.style(f"  Schema校验失败: {e}", fg="yellow"))
 
     try:
         archives = converter.parse(str(input_path), fmt)
@@ -135,33 +254,110 @@ def receive(cli_obj, input_path, output, file_dir, output_format, strict):
         click.echo(click.style(f"解析文件失败: {str(e)}", fg="red", bold=True))
         sys.exit(1)
 
-    with click.progressbar(archives, label="校验进度") as bar:
-        results = []
-        for archive in bar:
+    if not cli_obj.check_batch_size(len(archives)):
+        click.echo(click.style("数量超限，拒绝处理。请减小批次大小后重试。", fg="red", bold=True))
+        sys.exit(1)
+
+    item_ids = []
+    for i, archive in enumerate(archives):
+        aid = archive.get("archive_number", f"item_{i}")
+        item_ids.append(str(aid))
+
+    results_map = {}
+    archives_to_process = list(enumerate(archives))
+    processed_indices = set()
+
+    if resume or incremental:
+        progress_manager = cli_obj.get_progress_manager()
+        existing_record, is_resumed = progress_manager.resume_task(str(input_path), "validation")
+
+        if is_resumed and existing_record:
+            click.echo(click.style(f"\n发现未完成任务，进度: {existing_record.processed_items}/{existing_record.total_items}",
+                                   fg="yellow"))
+
+            if incremental:
+                click.echo("  增量模式：仅处理新增或变更的记录")
+
+            pending_ids = progress_manager.get_pending_items(existing_record)
+            pending_indices = []
+            for idx, archive in archives:
+                aid = str(archive.get("archive_number", f"item_{idx}"))
+                if aid in pending_ids:
+                    pending_indices.append(idx)
+
+            for idx, archive in enumerate(archives):
+                aid = str(archive.get("archive_number", f"item_{idx}"))
+                if aid in existing_record.items and existing_record.items[aid].status == "completed":
+                    if existing_record.items[aid].result:
+                        from .validator import ValidationResult
+                        result_data = existing_record.items[aid].result
+                        result = ValidationResult(
+                            archive_id=result_data.get("archive_id", aid),
+                            passed=result_data.get("passed", True),
+                            metadata=result_data.get("metadata", {}),
+                        )
+                        results_map[idx] = result
+                    processed_indices.add(idx)
+
+            archives_to_process = [(idx, archives[idx]) for idx in pending_indices]
+            click.echo(f"  待处理: {len(archives_to_process)} 条")
+        else:
+            progress_manager.create_task("validation", str(input_path), item_ids)
+
+    total_to_process = len(archives_to_process)
+    results = [None] * len(archives)
+
+    if results_map:
+        for idx, result in results_map.items():
+            results[idx] = result
+
+    with click.progressbar(archives_to_process, label="校验进度") as bar:
+        for idx, archive in bar:
             file_path = None
             if file_dir and "file_name" in archive:
                 file_path = os.path.join(file_dir, archive["file_name"])
-            result = validator.validate_archive(archive, file_path)
-            results.append(result)
 
-    passed = sum(1 for r in results if r.passed)
-    failed = len(results) - passed
-    total_errors = sum(len([i for i in r.issues if i.severity == ValidationSeverity.ERROR]) for r in results)
-    total_warnings = sum(len([i for i in r.issues if i.severity == ValidationSeverity.WARNING]) for r in results)
+            result = validator.validate_archive(archive, file_path)
+            results[idx] = result
+
+            if progress_manager:
+                aid = str(archive.get("archive_number", f"item_{idx}"))
+                if result.passed:
+                    progress_manager.mark_item_completed(
+                        progress_manager.find_existing_task(str(input_path), "validation"),
+                        aid,
+                        result.to_dict()
+                    )
+                else:
+                    progress_manager.mark_item_failed(
+                        progress_manager.find_existing_task(str(input_path), "validation"),
+                        aid,
+                        "validation_failed",
+                        result.to_dict()
+                    )
+
+    valid_results = [r for r in results if r is not None]
+    passed = sum(1 for r in valid_results if r.passed)
+    failed = len(valid_results) - passed
+    total_errors = sum(len([i for i in r.issues if i.severity == ValidationSeverity.ERROR]) for r in valid_results)
+    total_warnings = sum(len([i for i in r.issues if i.severity == ValidationSeverity.WARNING]) for r in valid_results)
 
     click.echo("\n" + "=" * 60)
     click.echo(click.style("校验结果汇总", bold=True))
-    click.echo(f"  总档案数: {len(results)}")
+    click.echo(f"  总档案数: {len(archives)}")
+    if resume or incremental:
+        click.echo(f"  本次处理: {total_to_process} 条")
+        click.echo(f"  历史已处理: {len(archives) - total_to_process} 条")
     click.echo(f"  {click.style('通过', fg='green')}: {passed}")
     click.echo(f"  {click.style('未通过', fg='red')}: {failed}")
     click.echo(f"  错误数: {total_errors}")
     click.echo(f"  警告数: {total_warnings}")
-    click.echo(f"  通过率: {passed/len(results)*100:.1f}%" if results else "  通过率: 0%")
+    click.echo(f"  通过率: {passed/len(valid_results)*100:.1f}%" if valid_results else "  通过率: 0%")
 
     if output_format == "table":
         click.echo("\n" + click.style("问题详情 (前10条):", bold=True))
         issues_displayed = 0
-        for result in results:
+        for result in valid_results:
             if not result.passed and issues_displayed < 10:
                 for issue in result.issues:
                     if issue.severity == ValidationSeverity.ERROR:
@@ -174,11 +370,11 @@ def receive(cli_obj, input_path, output, file_dir, output_format, strict):
                     if issues_displayed >= 10:
                         break
     elif output_format == "json":
-        results_dict = [r.to_dict() for r in results]
+        results_dict = [r.to_dict() for r in valid_results]
         click.echo(json.dumps(results_dict, ensure_ascii=False, indent=2))
 
     if output:
-        results_dict = [r.to_dict() for r in results]
+        results_dict = [r.to_dict() for r in valid_results]
         with open(output, "w", encoding="utf-8") as f:
             json.dump(results_dict, f, ensure_ascii=False, indent=2)
         click.echo(f"\n校验结果已保存到: {click.style(output, fg='green')}")

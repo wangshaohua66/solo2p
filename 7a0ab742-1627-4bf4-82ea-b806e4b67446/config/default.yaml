@@ -68,3 +68,12 @@ logging:
   rotation: daily
   retention_days: 90
   log_dir: logs
+
+processing:
+  max_batch_size: 100000
+  enable_progress: true
+  incremental_mode: false
+  progress_dir: .progress
+
+standards:
+  enable_gbt18894: true
