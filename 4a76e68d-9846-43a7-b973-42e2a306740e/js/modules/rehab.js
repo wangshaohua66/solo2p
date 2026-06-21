@@ -189,14 +189,23 @@ var Rehab = window.Rehab = (function () {
             calendar = null;
         }
 
+        var resources = staff.map(function (s) {
+            return {
+                id: s.id,
+                title: s.name + '（' + (s.qualifications && s.qualifications[0] ? s.qualifications[0] : '康复师') + '）',
+                staffId: s.id
+            };
+        });
+
         var events = appointments.map(function (a) {
             var project = PROJECTS.find(function (p) { return p.type === a.projectType; }) || PROJECTS[0];
             var conflict = hasConflict(a);
             return {
                 id: a.id,
-                title: a.projectName + ' - ' + a.motherName + '（' + (a.staffName || '康复师') + '）',
+                title: a.projectName + ' - ' + a.motherName,
                 start: a.startTime ? a.startTime.replace(' ', 'T') : null,
                 end: a.endTime ? a.endTime.replace(' ', 'T') : null,
+                resourceId: a.staffId,
                 backgroundColor: conflict ? '#dc3545' : project.color,
                 borderColor: conflict ? '#dc3545' : project.color,
                 extendedProps: {
@@ -208,12 +217,26 @@ var Rehab = window.Rehab = (function () {
             };
         }).filter(function (e) { return e.start; });
 
-        calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'timeGridDay',
+        var hasResourceTimeline = typeof FullCalendar !== 'undefined' &&
+            typeof FullCalendar.ResourceTimelinePlugin !== 'undefined' &&
+            FullCalendar.ResourceTimelinePlugin;
+
+        var initialView = hasResourceTimeline ? 'resourceTimelineDay' : 'timeGridDay';
+        var rightButtons = 'timeGridDay,timeGridWeek,dayGridMonth';
+        if (hasResourceTimeline) rightButtons = 'resourceTimelineDay,resourceTimelineWeek,' + rightButtons;
+
+        var plugins = [FullCalendar.dayGridPlugin, FullCalendar.timeGridPlugin, FullCalendar.interactionPlugin];
+        if (hasResourceTimeline) {
+            plugins = [FullCalendar.dayGridPlugin, FullCalendar.timeGridPlugin, FullCalendar.interactionPlugin, FullCalendar.ResourcePlugin, FullCalendar.ResourceTimelinePlugin];
+        }
+
+        var calendarOptions = {
+            initialView: initialView,
+            plugins: plugins,
             headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
-                right: 'timeGridDay,timeGridWeek,dayGridMonth'
+                right: rightButtons
             },
             locale: 'zh-cn',
             nowIndicator: true,
@@ -225,13 +248,18 @@ var Rehab = window.Rehab = (function () {
             slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
             allDaySlot: false,
             scrollTime: '09:00:00',
-            height: 550,
+            height: 580,
             buttonText: {
                 today: '今天',
-                timeGridDay: '日视图',
-                timeGridWeek: '周视图',
-                dayGridMonth: '月视图'
+                timeGridDay: '日',
+                timeGridWeek: '周',
+                dayGridMonth: '月',
+                resourceTimelineDay: '横向对比(日)',
+                resourceTimelineWeek: '横向对比(周)'
             },
+            resourceAreaHeaderContent: '康复师',
+            resourceAreaWidth: '150px',
+            resources: resources,
             events: events,
             eventClick: function (info) {
                 var ext = info.event.extendedProps;
@@ -251,11 +279,20 @@ var Rehab = window.Rehab = (function () {
             eventDidMount: function (info) {
                 if (info.event.extendedProps.conflict) {
                     info.el.style.backgroundImage = 'repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(255,255,255,0.3) 5px, rgba(255,255,255,0.3) 10px)';
-                    info.el.title = '⚠️ 时段冲突！';
+                    info.el.style.border = '2px solid #ff0000';
+                    info.el.title = '⚠️ 时段冲突！该康复师此时间段另有安排';
                 }
             }
-        });
+        };
 
+        if (!hasResourceTimeline) {
+            delete calendarOptions.resources;
+            delete calendarOptions.resourceAreaHeaderContent;
+            delete calendarOptions.resourceAreaWidth;
+            delete calendarOptions.plugins;
+        }
+
+        calendar = new FullCalendar.Calendar(calendarEl, calendarOptions);
         calendar.render();
     }
 
@@ -307,21 +344,32 @@ var Rehab = window.Rehab = (function () {
         var appt = info.event.extendedProps.appt;
         var newStart = info.event.startStr.replace('T', ' ').substring(0, 16);
         var newEnd = info.event.endStr.replace('T', ' ').substring(0, 16);
+        var newResourceId = info.event.resourceId;
         var testAppt = { ...appt, startTime: newStart, endTime: newEnd };
-
-        if (hasConflict(testAppt)) {
-            App.showToast('时段冲突：该康复师此时间段已有预约', 'danger');
-            info.revert();
-            return;
+        if (newResourceId && newResourceId !== appt.staffId) {
+            testAppt.staffId = newResourceId;
         }
 
-        appt.startTime = newStart;
-        appt.endTime = newEnd;
-        Store.updateRehab(appt).then(function () {
-            App.showToast('预约时间已调整', 'success');
-            if (calendar) {
-                initCalendar();
+        var checkId = testAppt.staffId;
+        Store.checkRehabConflict(checkId, newStart, newEnd, appt.id).then(function (conflict) {
+            if (conflict) {
+                App.showToast('时段冲突：该康复师此时间段已有预约', 'danger');
+                info.revert();
+                return;
             }
+            appt.startTime = newStart;
+            appt.endTime = newEnd;
+            if (newResourceId && newResourceId !== appt.staffId) {
+                var newTherapist = staff.find(function (s) { return s.id === newResourceId; });
+                appt.staffId = newResourceId;
+                appt.staffName = newTherapist ? newTherapist.name : appt.staffName;
+            }
+            Store.updateRehab(appt).then(function () {
+                App.showToast('预约已调整', 'success');
+                if (calendar) {
+                    initCalendar();
+                }
+            });
         });
     }
 

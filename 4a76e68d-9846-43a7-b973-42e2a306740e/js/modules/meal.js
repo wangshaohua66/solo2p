@@ -2,6 +2,9 @@ var Meal = window.Meal = (function () {
     var mealPlans = [];
     var mothers = [];
     var today = '';
+    var scanVideoStream = null;
+    var scanCanvas = null;
+    var scanAnimationId = null;
 
     var CONSTITUTION_LABELS = {
         qi: '气虚体质',
@@ -108,7 +111,8 @@ var Meal = window.Meal = (function () {
     }
 
     function renderPageHeader() {
-        var actionsHtml = '<button class="btn btn-pink" id="btn-diagnosis"><i class="bi bi-clipboard2-pulse me-1"></i>体质辨证</button>';
+        var actionsHtml = '<button class="btn btn-soft-pink" id="btn-scan-code"><i class="bi bi-qr-code-scan me-1"></i>扫码确认</button>' +
+            ' <button class="btn btn-pink" id="btn-diagnosis"><i class="bi bi-clipboard2-pulse me-1"></i>体质辨证</button>';
         return App.renderPageHeader('bi-cup-hot', '月子餐管理', App.state.storeName + ' · ' + today, actionsHtml);
     }
 
@@ -169,7 +173,7 @@ var Meal = window.Meal = (function () {
             '<select class="form-select form-select-sm" id="meal-type-filter">' +
             mealTypes.map(function (t) { return '<option value="' + t.value + '">' + t.label + '</option>'; }).join('') +
             '</select>' +
-            '<span class="badge-pink"><i class="bi bi-info-circle me-1"></i>点击卡片可流转状态</span>' +
+            '<span class="badge-pink"><i class="bi bi-info-circle me-1"></i>点击卡片查看详情、二维码和扫码确认</span>' +
             '</div>';
     }
 
@@ -240,13 +244,14 @@ var Meal = window.Meal = (function () {
             : meal.status === 'cooking' ? 'var(--color-info)'
             : 'var(--color-success)';
 
-        return '<div class="kanban-card" data-plan-id="' + plan.id + '" data-meal-id="' + meal.id + '" style="border-left:3px solid ' + cardColor + ';">' +
+        return '<div class="kanban-card meal-card-clickable" data-plan-id="' + plan.id + '" data-meal-id="' + meal.id + '" style="border-left:3px solid ' + cardColor + ';">' +
             '<div class="kanban-card-title">' +
             meal.name + allergyWarning +
             '</div>' +
             '<div class="mb-2">' +
             '<span class="meal-tag ' + typeClass + '">' + mealTypeLabel + '</span>' +
             '<span class="badge-pink" style="margin-left:4px;">' + constitutionLabel + '</span>' +
+            (meal.scanCode ? '<span class="badge bg-secondary" style="margin-left:4px;font-size:10px;"><i class="bi bi-qr-code"></i> ' + meal.scanCode + '</span>' : '') +
             '</div>' +
             '<div class="kanban-card-meta">' +
             '<i class="bi bi-person"></i>' + plan.motherName +
@@ -272,57 +277,311 @@ var Meal = window.Meal = (function () {
             openDiagnosisModal();
         });
 
+        $('#btn-scan-code').on('click', function () {
+            openScanModal(null, null);
+        });
+
         bindKanbanEvents();
     }
 
     function bindKanbanEvents() {
-        $('.kanban-card').on('click', function () {
+        $('.meal-card-clickable').off('click').on('click', function () {
             var planId = $(this).data('plan-id');
             var mealId = $(this).data('meal-id');
-            handleMealCardClick(planId, mealId);
+            openMealDetail(planId, mealId);
         });
     }
 
-    function handleMealCardClick(planId, mealId) {
+    function openMealDetail(planId, mealId) {
         var plan = mealPlans.find(function (p) { return p.id === planId; });
         if (!plan) return;
         var meal = plan.meals.find(function (m) { return m.id === mealId; });
         if (!meal) return;
 
+        var mealTypeLabel = Store.MEAL_TYPE_LABELS[meal.type] || meal.type;
+        var constitutionLabel = CONSTITUTION_LABELS[plan.constitution] || plan.constitution;
+        var statusLabel = STATUS_LABELS[meal.status] || meal.status;
+        var statusBadge = meal.status === 'pending' ? '<span class="badge-yellow">待制作</span>'
+            : meal.status === 'cooking' ? '<span class="badge bg-info text-white">制作中</span>'
+            : '<span class="badge-green">已送达</span>';
+
+        var hasAllergy = false;
         if (plan.allergies && plan.allergies.length > 0) {
+            meal.ingredients.forEach(function (ing) {
+                plan.allergies.forEach(function (allergy) {
+                    if (ing.indexOf(allergy) >= 0 || allergy.indexOf(ing) >= 0) hasAllergy = true;
+                });
+            });
+        }
+
+        var scanCode = meal.scanCode || ('SC' + Store.generateId().toUpperCase().substr(0, 8));
+        if (!meal.scanCode) meal.scanCode = scanCode;
+
+        var bodyHtml = '';
+        if (hasAllergy) {
+            bodyHtml += '<div class="alert alert-danger d-flex align-items-center mb-3" style="border-radius:10px;">' +
+                '<i class="bi bi-exclamation-triangle-fill me-2" style="font-size:20px;"></i>' +
+                '<div><strong>忌口拦截</strong>：餐品含产妇忌口食材（' + plan.allergies.join('、') + '），请更换餐品！</div></div>';
+        }
+
+        bodyHtml += '<div class="row g-3">' +
+            '<div class="col-md-6">' +
+            '<div class="mb-2"><label class="form-label text-muted">餐品名称</label><div class="fw-medium fs-5 text-primary-pink">' + meal.name + '</div></div>' +
+            '<div class="mb-2"><label class="form-label text-muted">餐次</label><div class="fw-medium">' + mealTypeLabel + '</div></div>' +
+            '<div class="mb-2"><label class="form-label text-muted">体质方案</label><div class="fw-medium">' + constitutionLabel + '</div></div>' +
+            '<div class="mb-2"><label class="form-label text-muted">食材</label><div class="fw-medium">' + meal.ingredients.join('、') + '</div></div>' +
+            '</div>' +
+            '<div class="col-md-6">' +
+            '<div class="mb-2"><label class="form-label text-muted">产妇</label><div class="fw-medium">' + plan.motherName + '</div></div>' +
+            '<div class="mb-2"><label class="form-label text-muted">房间</label><div class="fw-medium">' + plan.roomNumber + '</div></div>' +
+            '<div class="mb-2"><label class="form-label text-muted">状态</label><div class="fw-medium">' + statusBadge + '</div></div>' +
+            (meal.completedAt ? '<div class="mb-2"><label class="form-label text-muted">送达时间</label><div class="fw-medium" style="color:var(--color-success);">' + meal.completedAt + '</div></div>' : '') +
+            '</div></div>' +
+            '<div class="divider-pink"></div>' +
+            '<div class="row g-3 align-items-center">' +
+            '<div class="col-md-6 text-center">' +
+            '<label class="form-label fw-bold"><i class="bi bi-qr-code"></i> 餐品二维码</label>' +
+            '<div id="qrcode-container" style="padding:10px;background:#fff;border:1px solid var(--color-border);border-radius:10px;display:inline-block;"></div>' +
+            '<div class="mt-2 text-muted" style="font-size:12px;">编号：<span class="fw-bold text-primary-pink">' + scanCode + '</span></div>' +
+            '<div class="mt-1" style="font-size:11px;color:#999;">扫码即可流转餐品状态</div>' +
+            '</div>' +
+            '<div class="col-md-6 text-center">' +
+            '<p style="font-size:13px;" class="text-muted">扫码确认当前餐品状态流转：</p>' +
+            '<div class="d-grid gap-2">' +
+            (meal.status === 'pending' ?
+                '<button class="btn btn-pink" id="btn-scan-this" data-plan-id="' + plan.id + '" data-meal-id="' + meal.id + '"><i class="bi bi-qr-code-scan me-1"></i>扫码 → 开始制作</button>' :
+                meal.status === 'cooking' ?
+                '<button class="btn btn-pink" id="btn-scan-this" data-plan-id="' + plan.id + '" data-meal-id="' + meal.id + '"><i class="bi bi-qr-code-scan me-1"></i>扫码 → 确认送达</button>' :
+                '<button class="btn btn-outline-pink" disabled><i class="bi bi-check2 me-1"></i>已送达完成</button>') +
+            '</div>' +
+            (meal.status !== 'delivered' ? '<div class="mt-3"><small class="text-muted">或直接操作：</small><br>' +
+                '<button class="btn btn-sm btn-soft-pink mt-2" id="btn-quick-next"><i class="bi bi-arrow-right-short"></i>' +
+                (meal.status === 'pending' ? ' 标记为制作中' : ' 标记为已送达') + '</button></div>' : '') +
+            '</div></div>';
+
+        var footerHtml = '<button type="button" class="btn btn-outline-pink" data-bs-dismiss="modal">关闭</button>';
+
+        App.showGlobalModal('餐品详情 - ' + meal.name, bodyHtml, footerHtml, function () {
+            try {
+                if (window.QRCode) {
+                    $('#qrcode-container').empty();
+                    new QRCode(document.getElementById('qrcode-container'), {
+                        text: JSON.stringify({ planId: plan.id, mealId: meal.id, scanCode: scanCode, type: 'meal' }),
+                        width: 180,
+                        height: 180,
+                        colorDark: '#E891A8',
+                        colorLight: '#ffffff',
+                        correctLevel: QRCode.CorrectLevel.M
+                    });
+                } else {
+                    $('#qrcode-container').html('<div class="text-muted p-3">二维码库未加载</div>');
+                }
+            } catch (e) {
+                $('#qrcode-container').html('<div class="text-muted p-3">二维码生成失败</div>');
+            }
+
+            $('#btn-scan-this').off('click').on('click', function () {
+                var pid = $(this).data('plan-id');
+                var mid = $(this).data('meal-id');
+                App.closeModal();
+                setTimeout(function () {
+                    openScanModal(pid, mid);
+                }, 200);
+            });
+
+            $('#btn-quick-next').off('click').on('click', function () {
+                advanceMealStatus(plan.id, meal.id);
+            });
+        });
+    }
+
+    function openScanModal(targetPlanId, targetMealId) {
+        stopScanCamera();
+
+        var bodyHtml = '<div class="row g-3">' +
+            '<div class="col-12">' +
+            '<div class="alert alert-info" style="background:#e6f7ff;border:1px solid #91d5ff;border-radius:10px;font-size:13px;">' +
+            '<i class="bi bi-camera me-1"></i>请将餐品二维码对准摄像头，系统将自动识别并流转状态。' +
+            '</div></div>' +
+            '<div class="col-12 text-center">' +
+            '<div id="scan-video-wrapper" style="position:relative;max-width:400px;margin:0 auto;border:3px solid var(--color-primary);border-radius:12px;overflow:hidden;background:#000;">' +
+            '<video id="scan-video" playsinline autoplay style="width:100%;display:block;"></video>' +
+            '<canvas id="scan-canvas" style="display:none;"></canvas>' +
+            '<div id="scan-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;">' +
+            '<div style="position:absolute;top:20%;left:10%;right:10%;bottom:20%;border:2px dashed #fff;border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,0.3);"></div>' +
+            '<div style="position:absolute;top:50%;left:0;right:0;text-align:center;color:#fff;transform:translateY(-50%);"><i class="bi bi-qr-code-scan" style="font-size:48px;opacity:0.8;"></i></div>' +
+            '</div></div>' +
+            '<div id="scan-status" class="mt-2 text-muted" style="font-size:13px;"><i class="bi bi-hourglass-split"></i>正在启动摄像头...</div>' +
+            '</div>' +
+            '<div class="col-12"><div class="divider-pink"></div>' +
+            '<label class="form-label">或手动输入餐品编号 (SCXXXXXXXX)</label>' +
+            '<div class="input-group">' +
+            '<input type="text" class="form-control" id="manual-scan-code" placeholder="输入二维码编号，如 SC12345678">' +
+            '<button class="btn btn-pink" id="btn-manual-scan">确认</button>' +
+            '</div></div></div>';
+
+        var footerHtml = '<button type="button" class="btn btn-outline-pink" id="btn-close-scan">关闭</button>';
+
+        App.showGlobalModal('扫码确认餐品', bodyHtml, footerHtml, function () {
+            startScanCamera(targetPlanId, targetMealId);
+
+            $('#btn-close-scan').off('click').on('click', function () {
+                stopScanCamera();
+                App.closeModal();
+            });
+
+            $('#btn-manual-scan').off('click').on('click', function () {
+                var code = $('#manual-scan-code').val().trim().toUpperCase();
+                if (!code) { App.showToast('请输入餐品编号', 'warning'); return; }
+                handleScanResultByCode(code, targetPlanId, targetMealId);
+            });
+        });
+    }
+
+    function startScanCamera(targetPlanId, targetMealId) {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            $('#scan-status').html('<span style="color:#cf1322;"><i class="bi bi-x-circle me-1"></i>当前浏览器不支持摄像头，请手动输入编号</span>');
+            return;
+        }
+
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(function (stream) {
+            scanVideoStream = stream;
+            var video = document.getElementById('scan-video');
+            if (video) {
+                video.srcObject = stream;
+                video.setAttribute('playsinline', true);
+                video.play().then(function () {
+                    $('#scan-status').html('<span style="color:var(--color-success);"><i class="bi bi-check-circle me-1"></i>摄像头已启动，请将二维码对准扫描框</span>');
+                    scanCanvas = document.getElementById('scan-canvas');
+                    tickScan(targetPlanId, targetMealId);
+                }).catch(function () {
+                    $('#scan-status').html('<span style="color:#cf1322;"><i class="bi bi-x-circle me-1"></i>视频启动失败，请手动输入编号</span>');
+                });
+            }
+        }).catch(function (err) {
+            console.warn('摄像头访问失败:', err);
+            $('#scan-status').html('<span style="color:#d48806;"><i class="bi bi-exclamation-triangle me-1"></i>无法访问摄像头（' + (err.message || '用户拒绝') + '），请手动输入编号</span>');
+        });
+    }
+
+    function stopScanCamera() {
+        if (scanAnimationId) {
+            cancelAnimationFrame(scanAnimationId);
+            scanAnimationId = null;
+        }
+        if (scanVideoStream) {
+            scanVideoStream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+            scanVideoStream = null;
+        }
+        scanCanvas = null;
+    }
+
+    function tickScan(targetPlanId, targetMealId) {
+        var video = document.getElementById('scan-video');
+        if (!video || !scanCanvas) return;
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            scanCanvas.height = video.videoHeight;
+            scanCanvas.width = video.videoWidth;
+            var ctx = scanCanvas.getContext('2d', { willReadFrequently: true });
+            ctx.drawImage(video, 0, 0, scanCanvas.width, scanCanvas.height);
+            var imageData = ctx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
+            try {
+                if (window.jsQR) {
+                    var code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+                    if (code && code.data) {
+                        stopScanCamera();
+                        handleScanResult(code.data, targetPlanId, targetMealId);
+                        return;
+                    }
+                }
+            } catch (e) { console.warn(e); }
+        }
+        scanAnimationId = requestAnimationFrame(function () { tickScan(targetPlanId, targetMealId); });
+    }
+
+    function handleScanResult(data, targetPlanId, targetMealId) {
+        var payload = null;
+        try {
+            payload = JSON.parse(data);
+        } catch (e) {
+            payload = { scanCode: data };
+        }
+        if (payload && payload.scanCode) {
+            handleScanResultByCode(payload.scanCode, payload.planId || targetPlanId, payload.mealId || targetMealId);
+        } else {
+            App.showToast('无法识别的二维码内容', 'danger');
+            setTimeout(function () {
+                startScanCamera(targetPlanId, targetMealId);
+            }, 1500);
+        }
+    }
+
+    function handleScanResultByCode(scanCode, planId, mealId) {
+        var foundPlan = null;
+        var foundMeal = null;
+        scanCode = String(scanCode).toUpperCase();
+
+        if (planId && mealId) {
+            foundPlan = mealPlans.find(function (p) { return p.id === planId; });
+            if (foundPlan) foundMeal = foundPlan.meals.find(function (m) { return m.id === mealId; });
+        }
+        if (!foundMeal) {
+            for (var i = 0; i < mealPlans.length; i++) {
+                var m = mealPlans[i].meals.find(function (mm) { return mm.scanCode && mm.scanCode.toUpperCase() === scanCode; });
+                if (m) { foundPlan = mealPlans[i]; foundMeal = m; break; }
+            }
+        }
+        if (!foundMeal) {
+            App.showToast('未找到对应餐品（编号：' + scanCode + '）', 'danger');
+            if (scanVideoStream) setTimeout(function () { startScanCamera(planId, mealId); }, 1500);
+            return;
+        }
+
+        $('#scan-status').html('<span style="color:var(--color-success);"><i class="bi bi-check-circle me-1"></i>识别成功：' + foundMeal.name + '，正在流转状态...</span>');
+
+        setTimeout(function () {
+            advanceMealStatus(foundPlan.id, foundMeal.id, true);
+        }, 600);
+    }
+
+    function advanceMealStatus(planId, mealId, fromScan) {
+        var plan = mealPlans.find(function (p) { return p.id === planId; });
+        if (!plan) return;
+        var meal = plan.meals.find(function (m) { return m.id === mealId; });
+        if (!meal) return;
+
+        if (plan.allergies && plan.allergies.length > 0 && meal.status !== 'delivered') {
             var hasAllergy = false;
             meal.ingredients.forEach(function (ing) {
                 plan.allergies.forEach(function (allergy) {
-                    if (ing.indexOf(allergy) >= 0 || allergy.indexOf(ing) >= 0) {
-                        hasAllergy = true;
-                    }
+                    if (ing.indexOf(allergy) >= 0 || allergy.indexOf(ing) >= 0) hasAllergy = true;
                 });
             });
             if (hasAllergy) {
-                App.showToast('⚠️ 忌口拦截：餐品 "' + meal.name + '" 含产妇忌口食材！请更换餐品', 'danger');
+                App.showToast('⚠️ 忌口拦截：餐品 "' + meal.name + '" 含产妇忌口食材！无法流转', 'danger');
                 return;
             }
         }
 
         var nextStatus = meal.status === 'pending' ? 'cooking'
             : meal.status === 'cooking' ? 'delivered' : null;
-
-        if (!nextStatus) {
-            App.showToast('该餐品已送达', 'info');
-            return;
-        }
+        if (!nextStatus) { App.showToast('该餐品已送达完成', 'info'); return; }
 
         var actionMsg = nextStatus === 'cooking' ? '开始制作' : '确认送达';
-
         if (nextStatus === 'delivered') {
             var now = new Date();
             meal.completedAt = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
         }
-
         meal.status = nextStatus;
+        if (!meal.scanCode) meal.scanCode = 'SC' + Store.generateId().toUpperCase().substr(0, 8);
+
         Store.updateMealPlan(plan).then(function () {
-            App.showToast('餐品"' + meal.name + '"已' + actionMsg + '！', 'success');
-            renderPage();
+            stopScanCamera();
+            App.showToast((fromScan ? '[扫码] ' : '') + '餐品"' + meal.name + '"已' + actionMsg + '！', 'success');
+            App.closeModal();
+            render();
+        }).catch(function () {
+            App.showToast('状态更新失败', 'danger');
         });
     }
 

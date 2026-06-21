@@ -4,7 +4,20 @@ var Visitor = window.Visitor = (function () {
     var today = '';
     var selectedVisitorId = null;
 
-    var TIME_SLOTS = ['10:00-10:30', '10:30-11:00', '14:00-14:30', '15:00-15:30', '16:00-16:30', '19:00-19:30'];
+    var BASE_TIME_SLOTS = ['10:00-10:30', '10:30-11:00', '14:00-14:30', '15:00-15:30', '16:00-16:30', '19:00-19:30'];
+
+    function getRoomTimeSlots(roomNumber) {
+        if (!roomNumber) return BASE_TIME_SLOTS.slice();
+        var num = 0;
+        var s = String(roomNumber);
+        for (var i = 0; i < s.length; i++) num = (num * 31 + s.charCodeAt(i)) >>> 0;
+        var offset = num % BASE_TIME_SLOTS.length;
+        var slots = [];
+        for (var j = 0; j < BASE_TIME_SLOTS.length; j++) {
+            slots.push(BASE_TIME_SLOTS[(offset + j) % BASE_TIME_SLOTS.length]);
+        }
+        return slots;
+    }
 
     var RELATIONS = ['丈夫', '母亲', '婆婆', '父亲', '姐妹', '兄弟', '朋友', '其他'];
 
@@ -212,24 +225,19 @@ var Visitor = window.Visitor = (function () {
             return;
         }
 
-        var slotUsage = {};
-        TIME_SLOTS.forEach(function (slot) { slotUsage[slot] = 0; });
-        visitors.forEach(function (v) {
-            if (slotUsage[v.timeSlot]) {
-                slotUsage[v.timeSlot]++;
-            }
-        });
-
-        var minSlot = TIME_SLOTS.reduce(function (min, s) { return slotUsage[s] < slotUsage[min] ? s : min; });
+        var defaultMother = checkedInMothers[0];
+        var defaultRoomSlots = getRoomTimeSlots(defaultMother.roomNumber);
+        var defaultRoomUsage = getRoomSlotUsage(defaultMother.roomNumber);
 
         var html = '<div class="row g-3">' +
             '<div class="col-12">' +
             '<label class="form-label"><span class="text-danger">*</span> 选择产妇（房间号）</label>' +
             '<select class="form-select" id="v-mother">' +
             checkedInMothers.map(function (m) {
-                return '<option value="' + m.id + '">' + m.name + ' - ' + m.roomNumber + '</option>';
+                return '<option value="' + m.id + '" data-room="' + m.roomNumber + '">' + m.name + ' - ' + m.roomNumber + '</option>';
             }).join('') +
             '</select>' +
+            '<small class="text-muted mt-1 d-block"><i class="bi bi-info-circle me-1"></i>每个房间拥有独立专属时段，自动错开避免冲突</small>' +
             '</div>' +
             '<div class="col-md-6">' +
             '<label class="form-label"><span class="text-danger">*</span> 访客姓名</label>' +
@@ -246,23 +254,11 @@ var Visitor = window.Visitor = (function () {
             '<input type="tel" class="form-control" id="v-phone" placeholder="请输入联系电话">' +
             '</div>' +
             '<div class="col-md-12">' +
-            '<label class="form-label"><span class="text-danger">*</span> 选择探视时段（错峰推荐高亮）</label>' +
-            '<div class="row g-2">' +
-            TIME_SLOTS.map(function (slot) {
-                var count = slotUsage[slot];
-                var isRec = slot === minSlot;
-                var bg = isRec ? 'var(--color-primary-lighter)' : 'var(--color-bg)';
-                var border = isRec ? 'var(--color-primary)' : 'var(--color-border)';
-                return '<div class="col-sm-4 col-6">' +
-                    '<div class="form-check p-2 rounded" style="background:' + bg + ';border:1px solid ' + border + ';">' +
-                    '<input class="form-check-input" type="radio" name="v-slot" id="v-slot-' + slot.replace(/:/g, '').replace(/-/g, '') + '" value="' + slot + '"' + (isRec ? ' checked' : '') + '>' +
-                    '<label class="form-check-label" for="v-slot-' + slot.replace(/:/g, '').replace(/-/g, '') + '">' +
-                    '<strong>' + slot + '</strong>' +
-                    (count > 0 ? '<br><small class="text-muted">' + count + '人已约</small>' : '<br><small class="text-success">推荐时段</small>') +
-                    '</label></div></div>';
-            }).join('') +
+            '<label class="form-label"><span class="text-danger">*</span> 选择探视时段（该房间专属时段：<span id="v-room-label" class="text-primary-pink fw-bold">' + defaultMother.roomNumber + '</span>）</label>' +
+            '<div class="row g-2" id="v-slot-container">' +
+            renderRoomSlotOptions(defaultRoomSlots, defaultRoomUsage) +
             '</div>' +
-            (minSlot ? '<div class="mt-2"><small class="text-primary-pink"><i class="bi bi-lightbulb me-1"></i>建议选择绿色时段可避开人流高峰</small></div>' : '') +
+            '<div class="mt-2"><small class="text-primary-pink"><i class="bi bi-lightbulb me-1"></i>绿色为空闲推荐时段，红色为该房间同时段已被占用</small></div>' +
             '</div></div>';
 
         var footerHtml = '<button class="btn btn-pink" id="btn-submit-visit"><i class="bi bi-check2 me-1"></i>确认预约</button>' +
@@ -273,9 +269,49 @@ var Visitor = window.Visitor = (function () {
             html,
             footerHtml,
             function () {
-                $('#btn-submit-visit').on('click', submitVisit);
+                $('#v-mother').off('change').on('change', function () {
+                    var opt = $('#v-mother option:selected');
+                    var roomNumber = opt.data('room') || opt.text().split(' - ')[1];
+                    $('#v-room-label').text(roomNumber);
+                    var slots = getRoomTimeSlots(roomNumber);
+                    var usage = getRoomSlotUsage(roomNumber);
+                    $('#v-slot-container').html(renderRoomSlotOptions(slots, usage));
+                });
+                $('#btn-submit-visit').off('click').on('click', submitVisit);
             }
         );
+    }
+
+    function getRoomSlotUsage(roomNumber) {
+        var usage = {};
+        visitors.forEach(function (v) {
+            if (v.roomNumber === roomNumber && v.visitDate === today) {
+                usage[v.timeSlot] = (usage[v.timeSlot] || 0) + 1;
+            }
+        });
+        return usage;
+    }
+
+    function renderRoomSlotOptions(slots, usage) {
+        var html = '';
+        for (var i = 0; i < slots.length; i++) {
+            var slot = slots[i];
+            var count = usage[slot] || 0;
+            var occupied = count > 0;
+            var bg = occupied ? '#fff1f0' : '#f6ffed';
+            var border = occupied ? '#ffa39e' : '#b7eb8f';
+            var color = occupied ? '#cf1322' : '#389e0d';
+            var disabled = occupied ? ' disabled' : '';
+            var checked = !occupied && i === 0 ? ' checked' : '';
+            html += '<div class="col-sm-4 col-6">' +
+                '<div class="form-check p-2 rounded" style="background:' + bg + ';border:1px solid ' + border + ';opacity:' + (occupied ? '0.7' : '1') + ';">' +
+                '<input class="form-check-input v-slot-radio" type="radio" name="v-slot" id="v-slot-' + slot.replace(/:/g, '').replace(/-/g, '') + '" value="' + slot + '"' + disabled + checked + '>' +
+                '<label class="form-check-label" for="v-slot-' + slot.replace(/:/g, '').replace(/-/g, '') + '" style="color:' + color + ';">' +
+                '<strong>' + slot + '</strong>' +
+                (occupied ? '<br><small><i class="bi bi-x-circle"></i> 已预约 (' + count + '人)</small>' : '<br><small><i class="bi bi-check-circle"></i> 空闲推荐</small>') +
+                '</label></div></div>';
+        }
+        return html;
     }
 
     function submitVisit() {

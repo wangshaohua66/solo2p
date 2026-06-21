@@ -1,6 +1,6 @@
 var Store = window.Store = (function () {
     const DB_NAME = 'MaternityCenterDB';
-    const DB_VERSION = 1;
+    const DB_VERSION = 3;
     let db = null;
     const cache = new Map();
 
@@ -14,7 +14,8 @@ var Store = window.Store = (function () {
         MEAL_PLANS: 'meal_plans',
         VISITORS: 'visitors',
         REHAB_APPOINTMENTS: 'rehab_appointments',
-        OPERATION_LOGS: 'operation_logs'
+        OPERATION_LOGS: 'operation_logs',
+        SHIFT_SWAPS: 'shift_swaps'
     };
 
     const STORE_CONFIG = [
@@ -27,7 +28,8 @@ var Store = window.Store = (function () {
         { name: STORES.MEAL_PLANS, keyPath: 'id', indexes: [['motherId', 'motherId'], ['date', 'date']] },
         { name: STORES.VISITORS, keyPath: 'id', indexes: [['motherId', 'motherId'], ['storeId', 'storeId'], ['visitDate', 'visitDate']] },
         { name: STORES.REHAB_APPOINTMENTS, keyPath: 'id', indexes: [['staffId', 'staffId'], ['storeId', 'storeId'], ['motherId', 'motherId']] },
-        { name: STORES.OPERATION_LOGS, keyPath: 'id', indexes: [['storeId', 'storeId'], ['date', 'date']] }
+        { name: STORES.OPERATION_LOGS, keyPath: 'id', indexes: [['storeId', 'storeId'], ['date', 'date']] },
+        { name: STORES.SHIFT_SWAPS, keyPath: 'id', indexes: [['storeId', 'storeId'], ['status', 'status']] }
     ];
 
     function openDB() {
@@ -247,6 +249,7 @@ var Store = window.Store = (function () {
         const seedVisitors = [];
         const seedRehab = [];
         const seedLogs = [];
+        const seedShiftSwaps = [];
 
         const today = formatDate(new Date());
 
@@ -623,6 +626,33 @@ var Store = window.Store = (function () {
             });
         }
 
+        const nurseStaff = seedStaff.filter(function (s) { return s.role === 'nurse'; });
+        const swapReasons = ['家中有事', '身体不适', '参加培训', '家人需要照顾', '与其他工作冲突'];
+        const swapStatuses = ['pending', 'pending', 'pending', 'approved', 'rejected'];
+        for (let i = 0; i < 15; i++) {
+            const requester = nurseStaff[i % nurseStaff.length];
+            const candidates = nurseStaff.filter(function (s) { return s.id !== requester.id && s.storeId === requester.storeId; });
+            const target = candidates[randomInt(0, candidates.length - 1)];
+            const shiftDate = addDays(today, randomInt(0, 6));
+            const status = swapStatuses[i % swapStatuses.length];
+            seedShiftSwaps.push({
+                id: generateId(),
+                storeId: requester.storeId,
+                requesterId: requester.id,
+                requesterName: requester.name,
+                targetId: target ? target.id : '',
+                targetName: target ? target.name : '',
+                shiftDate: shiftDate,
+                shiftType: i % 2 === 0 ? 'day' : 'night',
+                reason: swapReasons[i % swapReasons.length],
+                status: status,
+                createdAt: today,
+                approvedBy: status === 'approved' ? '系统主管' : '',
+                approvedAt: status === 'approved' ? today : '',
+                rejectReason: status === 'rejected' ? '对方护士已有安排' : ''
+            });
+        }
+
         return Promise.all([
             bulkPut(STORES.STORES, seedStores),
             bulkPut(STORES.ROOMS, seedRooms),
@@ -633,7 +663,8 @@ var Store = window.Store = (function () {
             bulkPut(STORES.MEAL_PLANS, seedMeals),
             bulkPut(STORES.VISITORS, seedVisitors),
             bulkPut(STORES.REHAB_APPOINTMENTS, seedRehab),
-            bulkPut(STORES.OPERATION_LOGS, seedLogs)
+            bulkPut(STORES.OPERATION_LOGS, seedLogs),
+            bulkPut(STORES.SHIFT_SWAPS, seedShiftSwaps)
         ]);
     }
 
@@ -790,6 +821,18 @@ var Store = window.Store = (function () {
         });
     }
 
+    function getShiftSwapsByStore(storeId) {
+        return getCachedByIndex(STORES.SHIFT_SWAPS, 'storeId', storeId);
+    }
+
+    function addShiftSwap(swap) {
+        return add(STORES.SHIFT_SWAPS, swap);
+    }
+
+    function updateShiftSwap(swap) {
+        return put(STORES.SHIFT_SWAPS, swap);
+    }
+
     return {
         STORES: STORES,
         MEAL_TYPE_LABELS: MEAL_TYPE_LABELS,
@@ -832,6 +875,9 @@ var Store = window.Store = (function () {
         addRehab: addRehab,
         updateRehab: updateRehab,
         checkBookingConflict: checkBookingConflict,
-        checkRehabConflict: checkRehabConflict
+        checkRehabConflict: checkRehabConflict,
+        getShiftSwapsByStore: getShiftSwapsByStore,
+        addShiftSwap: addShiftSwap,
+        updateShiftSwap: updateShiftSwap
     };
 })();
