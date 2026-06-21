@@ -1,0 +1,65 @@
+{
+  "project_name": "测试项目_ReportTest",
+  "generated_at": "2026-06-22T07:36:58.886051",
+  "project_info": {
+    "project_name": "测试项目_ReportTest",
+    "drug_type": "chemical",
+    "applicant": "测试公司",
+    "folder_path": "/tmp/test",
+    "total_files": 10,
+    "total_size_mb": 5.0
+  },
+  "statistics": {
+    "total": 2,
+    "overall_score": 95.5,
+    "recommendation": "REJECT",
+    "common_count": 2,
+    "by_severity": {
+      "FATAL": 1,
+      "DEFECT": 1
+    },
+    "by_module": {
+      "ctd_structure": 1,
+      "file_naming": 1
+    },
+    "by_type": {
+      "MISSING_MODULE": 1,
+      "INVALID_FILENAME": 1
+    },
+    "module_scores": {
+      "ctd_structure": 85,
+      "file_naming": 90,
+      "page_continuity": 100,
+      "signature_seal": 100,
+      "overview_check": 100,
+      "cross_validate": 100
+    }
+  },
+  "issues": [
+    {
+      "severity": "FATAL",
+      "module": "ctd_structure",
+      "issue_type": "MISSING_MODULE",
+      "description": "缺失必填模块Module3 - 药学研究资料",
+      "file_path": "/tmp/test",
+      "suggestion": "请补充Module3模块目录及其申报资料",
+      "is_common": true,
+      "occurrence_count": 5
+    },
+    {
+      "severity": "DEFECT",
+      "module": "file_naming",
+      "issue_type": "INVALID_FILENAME",
+      "description": "文件名不符合CTD命名规范: bad_name.txt",
+      "file_path": "/tmp/test/bad_name.txt",
+      "suggestion": "请按化学药格式修正文件名",
+      "is_common": true,
+      "occurrence_count": 5
+    }
+  ],
+  "structure_diff": [
+    "= CTD结构差异 =",
+    "✓ Module1: 申报资料目录",
+    "✗ Module3: 药学研究资料"
+  ]
+}

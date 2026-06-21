@@ -1,0 +1,97 @@
+2026-06-22 07:29:27 | WARNING  | CTDReview | PDF库未安装，PDF相关功能将降级为文件存在性检查
+2026-06-22 07:29:29 | INFO     | CTDReview | 磁盘可用空间: 13310MB
+2026-06-22 07:29:29 | INFO     | CTDReview | 磁盘可用空间: 13310MB
+2026-06-22 07:33:17 | INFO     | CTDReview | 测试INFO日志
+2026-06-22 07:33:17 | WARNING  | CTDReview | 测试WARNING日志
+2026-06-22 07:33:17 | DEBUG    | CTDReview | 测试DEBUG日志
+2026-06-22 07:33:21 | INFO     | CTDReview | 开始扫描目录: /tmp/ctd_test_data
+2026-06-22 07:33:22 | INFO     | CTDReview | 扫描完成，共发现 6 个文件
+2026-06-22 07:33:22 | INFO     | CTDReview | 开始CTD目录结构合规校验
+2026-06-22 07:33:22 | INFO     | CTDReview | 结构校验完成，发现 8 个问题
+2026-06-22 07:33:22 | INFO     | CTDReview | 开始分类 2 个问题
+2026-06-22 07:33:22 | INFO     | CTDReview | 已更新 2 类问题到历史问题库
+2026-06-22 07:33:22 | INFO     | CTDReview | 问题分类完成
+2026-06-22 07:34:15 | INFO     | CTDReview | 测试INFO日志
+2026-06-22 07:34:15 | INFO     | CTDReview | 开始分类 2 个问题
+2026-06-22 07:34:15 | WARNING  | CTDReview | 测试WARNING日志
+2026-06-22 07:34:15 | DEBUG    | CTDReview | 测试DEBUG日志
+2026-06-22 07:34:15 | WARNING  | CTDReview | 历史问题库查询耗时: 144ms
+2026-06-22 07:34:16 | INFO     | CTDReview | 已更新 2 类问题到历史问题库
+2026-06-22 07:34:16 | INFO     | CTDReview | 问题分类完成
+2026-06-22 07:34:16 | INFO     | CTDReview | 开始生成审查报告
+2026-06-22 07:34:18 | INFO     | CTDReview | 开始扫描目录: /tmp/ctd_test_data
+2026-06-22 07:34:18 | INFO     | CTDReview | 扫描完成，共发现 6 个文件
+2026-06-22 07:34:18 | INFO     | CTDReview | 开始CTD目录结构合规校验
+2026-06-22 07:34:18 | INFO     | CTDReview | 结构校验完成，发现 8 个问题
+2026-06-22 07:34:19 | INFO     | CTDReview | 开始分类 2 个问题
+2026-06-22 07:34:19 | WARNING  | CTDReview | 历史问题库查询耗时: 152ms
+2026-06-22 07:34:20 | INFO     | CTDReview | 已更新 2 类问题到历史问题库
+2026-06-22 07:34:20 | INFO     | CTDReview | 问题分类完成
+2026-06-22 07:34:28 | INFO     | CTDReview | PDF报告已生成: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查报告_20260622_073416.pdf
+2026-06-22 07:34:29 | INFO     | CTDReview | Excel报告已生成: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_问题汇总_20260622_073416.xlsx
+2026-06-22 07:34:29 | INFO     | CTDReview | JSON数据已导出: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查数据_20260622_073416.json
+2026-06-22 07:34:29 | INFO     | CTDReview | 文本摘要已生成: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查摘要_20260622_073416.txt
+2026-06-22 07:34:29 | INFO     | CTDReview | 报告生成完成，耗时 13.61 秒
+2026-06-22 07:34:29 | INFO     | CTDReview |   PDF: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查报告_20260622_073416.pdf
+2026-06-22 07:34:29 | INFO     | CTDReview |   EXCEL: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_问题汇总_20260622_073416.xlsx
+2026-06-22 07:34:29 | INFO     | CTDReview |   JSON: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查数据_20260622_073416.json
+2026-06-22 07:34:29 | INFO     | CTDReview |   TEXT: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查摘要_20260622_073416.txt
+2026-06-22 07:34:55 | INFO     | CTDReview | 开始分类 2 个问题
+2026-06-22 07:34:55 | INFO     | CTDReview | 已更新 2 类问题到历史问题库
+2026-06-22 07:34:55 | INFO     | CTDReview | 问题分类完成
+2026-06-22 07:34:55 | INFO     | CTDReview | 开始生成审查报告
+2026-06-22 07:34:57 | INFO     | CTDReview | PDF报告已生成: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查报告_20260622_073455.pdf
+2026-06-22 07:34:58 | INFO     | CTDReview | Excel报告已生成: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_问题汇总_20260622_073455.xlsx
+2026-06-22 07:34:58 | INFO     | CTDReview | JSON数据已导出: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查数据_20260622_073455.json
+2026-06-22 07:34:58 | INFO     | CTDReview | 文本摘要已生成: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查摘要_20260622_073455.txt
+2026-06-22 07:34:58 | INFO     | CTDReview | 报告生成完成，耗时 2.68 秒
+2026-06-22 07:34:58 | INFO     | CTDReview |   PDF: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查报告_20260622_073455.pdf
+2026-06-22 07:34:58 | INFO     | CTDReview |   EXCEL: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_问题汇总_20260622_073455.xlsx
+2026-06-22 07:34:58 | INFO     | CTDReview |   JSON: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查数据_20260622_073455.json
+2026-06-22 07:34:58 | INFO     | CTDReview |   TEXT: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查摘要_20260622_073455.txt
+2026-06-22 07:36:57 | INFO     | CTDReview | 测试INFO日志
+2026-06-22 07:36:57 | WARNING  | CTDReview | 测试WARNING日志
+2026-06-22 07:36:57 | DEBUG    | CTDReview | 测试DEBUG日志
+2026-06-22 07:36:57 | INFO     | CTDReview | 开始扫描目录: /tmp/ctd_test_data
+2026-06-22 07:36:57 | INFO     | CTDReview | 扫描完成，共发现 6 个文件
+2026-06-22 07:36:57 | INFO     | CTDReview | 开始CTD目录结构合规校验
+2026-06-22 07:36:57 | INFO     | CTDReview | 结构校验完成，发现 8 个问题
+2026-06-22 07:36:57 | INFO     | CTDReview | 开始分类 2 个问题
+2026-06-22 07:36:57 | INFO     | CTDReview | 已更新 2 类问题到历史问题库
+2026-06-22 07:36:57 | INFO     | CTDReview | 问题分类完成
+2026-06-22 07:36:58 | INFO     | CTDReview | 开始分类 2 个问题
+2026-06-22 07:36:58 | INFO     | CTDReview | 已更新 2 类问题到历史问题库
+2026-06-22 07:36:58 | INFO     | CTDReview | 问题分类完成
+2026-06-22 07:36:58 | INFO     | CTDReview | 开始生成审查报告
+2026-06-22 07:36:58 | INFO     | CTDReview | PDF报告已生成: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查报告_20260622_073658.pdf
+2026-06-22 07:36:58 | INFO     | CTDReview | Excel报告已生成: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_问题汇总_20260622_073658.xlsx
+2026-06-22 07:36:58 | INFO     | CTDReview | JSON数据已导出: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查数据_20260622_073658.json
+2026-06-22 07:36:58 | INFO     | CTDReview | 文本摘要已生成: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查摘要_20260622_073658.txt
+2026-06-22 07:36:58 | INFO     | CTDReview | 报告生成完成，耗时 0.29 秒
+2026-06-22 07:36:58 | INFO     | CTDReview |   PDF: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查报告_20260622_073658.pdf
+2026-06-22 07:36:58 | INFO     | CTDReview |   EXCEL: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_问题汇总_20260622_073658.xlsx
+2026-06-22 07:36:58 | INFO     | CTDReview |   JSON: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查数据_20260622_073658.json
+2026-06-22 07:36:58 | INFO     | CTDReview |   TEXT: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查摘要_20260622_073658.txt
+2026-06-22 07:37:02 | INFO     | CTDReview | 测试INFO日志
+2026-06-22 07:37:02 | WARNING  | CTDReview | 测试WARNING日志
+2026-06-22 07:37:02 | DEBUG    | CTDReview | 测试DEBUG日志
+2026-06-22 07:37:02 | INFO     | CTDReview | 开始扫描目录: /tmp/ctd_test_data
+2026-06-22 07:37:02 | INFO     | CTDReview | 扫描完成，共发现 6 个文件
+2026-06-22 07:37:02 | INFO     | CTDReview | 开始CTD目录结构合规校验
+2026-06-22 07:37:02 | INFO     | CTDReview | 结构校验完成，发现 8 个问题
+2026-06-22 07:37:02 | INFO     | CTDReview | 开始分类 2 个问题
+2026-06-22 07:37:02 | INFO     | CTDReview | 已更新 2 类问题到历史问题库
+2026-06-22 07:37:02 | INFO     | CTDReview | 问题分类完成
+2026-06-22 07:37:02 | INFO     | CTDReview | 开始分类 2 个问题
+2026-06-22 07:37:02 | INFO     | CTDReview | 已更新 2 类问题到历史问题库
+2026-06-22 07:37:02 | INFO     | CTDReview | 问题分类完成
+2026-06-22 07:37:02 | INFO     | CTDReview | 开始生成审查报告
+2026-06-22 07:37:02 | INFO     | CTDReview | PDF报告已生成: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查报告_20260622_073702.pdf
+2026-06-22 07:37:02 | INFO     | CTDReview | Excel报告已生成: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_问题汇总_20260622_073702.xlsx
+2026-06-22 07:37:02 | INFO     | CTDReview | JSON数据已导出: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查数据_20260622_073702.json
+2026-06-22 07:37:02 | INFO     | CTDReview | 文本摘要已生成: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查摘要_20260622_073702.txt
+2026-06-22 07:37:02 | INFO     | CTDReview | 报告生成完成，耗时 0.12 秒
+2026-06-22 07:37:02 | INFO     | CTDReview |   PDF: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查报告_20260622_073702.pdf
+2026-06-22 07:37:02 | INFO     | CTDReview |   EXCEL: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_问题汇总_20260622_073702.xlsx
+2026-06-22 07:37:02 | INFO     | CTDReview |   JSON: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查数据_20260622_073702.json
+2026-06-22 07:37:02 | INFO     | CTDReview |   TEXT: /Users/paul/WorkSpace/TestSoloCoder/31b910dd-43e5-47e1-9c9d-2b3c111e592a/reports/测试项目_ReportTest_审查摘要_20260622_073702.txt
