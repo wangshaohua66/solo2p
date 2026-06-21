@@ -9,6 +9,7 @@ use std::path::PathBuf;
 
 use crate::db::{AlertRecord, Db};
 use crate::dose::{get_5year_dose_for_worker, get_personal_dose, get_yearly_dose_for_worker};
+use crate::error_codes::{err, ErrorCode};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AlertLevel {
@@ -28,7 +29,7 @@ impl AlertLevel {
         match s.to_lowercase().as_str() {
             "yellow" | "warning" => Ok(AlertLevel::Yellow),
             "red" | "critical" | "danger" => Ok(AlertLevel::Red),
-            _ => Err(anyhow::anyhow!("无效的预警级别: {}", s)),
+            _ => Err(err(ErrorCode::InvalidLevel, format!("无效的预警级别: {}", s))),
         }
     }
 

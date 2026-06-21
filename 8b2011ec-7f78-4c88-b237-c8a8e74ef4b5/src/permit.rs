@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::db::Db;
 use crate::dose::get_yearly_dose_for_worker;
+use crate::error_codes::{err, ErrorCode};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreatePermitRequest {
@@ -48,10 +49,10 @@ pub struct ApprovalResult {
 
 pub fn create_permit(db: &Db, req: CreatePermitRequest) -> Result<PermitInfo> {
     if req.valid_from > req.valid_to {
-        return Err(anyhow!("有效期开始日期不能晚于结束日期"));
+        return Err(err(ErrorCode::PermitDateError, "有效期开始日期不能晚于结束日期".to_string()));
     }
     if req.valid_to < Local::now().date_naive() {
-        return Err(anyhow!("有效期结束日期不能早于今天"));
+        return Err(err(ErrorCode::PermitDateError, "有效期结束日期不能早于今天".to_string()));
     }
 
     let now = Local::now().naive_local();
@@ -138,10 +139,7 @@ pub fn approve_permit(db: &Db, permit_no: &str, approver: &str) -> Result<Approv
     let permit = get_permit_by_no(db, permit_no)?;
 
     if permit.status != "pending" {
-        return Err(anyhow!(
-            "许可证状态为 {}，无法审批",
-            permit.status
-        ));
+        return Err(err(ErrorCode::PermitStatusError, format!("许可证状态为 {}，无法审批", permit.status)));
     }
 
     let current_year = Local::now().year();
@@ -198,10 +196,7 @@ fn reject_permit_internal(db: &Db, permit_no: &str, reason: &str) -> Result<()> 
 pub fn reject_permit(db: &Db, permit_no: &str, reason: &str) -> Result<()> {
     let permit = get_permit_by_no(db, permit_no)?;
     if permit.status != "pending" {
-        return Err(anyhow!(
-            "许可证状态为 {}，无法驳回",
-            permit.status
-        ));
+        return Err(err(ErrorCode::PermitStatusError, format!("许可证状态为 {}，无法驳回", permit.status)));
     }
     reject_permit_internal(db, permit_no, reason)
 }

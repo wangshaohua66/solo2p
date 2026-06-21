@@ -169,7 +169,7 @@ enum AlertCommands {
 
 #[derive(Subcommand)]
 enum PermitCommands {
-    #[command(about = "创建新许可证")]
+    #[command(about = "创建新许可证", after_help = "\n示例:\n  radmon permit create \\\n    --employee-id E001 --employee-name 张三 \\\n    --department 运行一部 \\\n    --area-type 控制区 --area-name 1号反应堆厂房 \\\n    --work-type 检修 \\\n    --valid-from 2026-06-21 --valid-to 2026-07-21")]
     Create {
         #[arg(long, help = "员工工号")]
         employee_id: String,
@@ -195,7 +195,7 @@ enum PermitCommands {
         #[arg(long, help = "有效期结束日期 (YYYY-MM-DD)")]
         valid_to: String,
     },
-    #[command(about = "审批许可证")]
+    #[command(about = "审批许可证", after_help = "\n示例:\n  radmon permit approve RP-20260621-1234 --approver 管理员\n  radmon permit approve RP-20260621-5678 --approver 李四")]
     Approve {
         #[arg(help = "许可证编号")]
         permit_no: String,
@@ -203,7 +203,7 @@ enum PermitCommands {
         #[arg(long, help = "审批人")]
         approver: String,
     },
-    #[command(about = "驳回许可证")]
+    #[command(about = "驳回许可证", after_help = "\n示例:\n  radmon permit reject RP-20260621-1234 --reason 超剂量限值\n  radmon permit reject RP-20260621-5678 --reason 资料不全")]
     Reject {
         #[arg(help = "许可证编号")]
         permit_no: String,
@@ -211,7 +211,7 @@ enum PermitCommands {
         #[arg(long, help = "驳回原因")]
         reason: String,
     },
-    #[command(about = "查看许可证列表")]
+    #[command(about = "查看许可证列表", after_help = "\n示例:\n  radmon permit list                    # 查看所有许可证\n  radmon permit list --status pending    # 查看待审批许可证\n  radmon permit list --status approved   # 查看已批准许可证\n  radmon permit list --employee E001     # 查看指定员工的许可证\n  radmon permit list -n 10               # 查看最近10条")]
     List {
         #[arg(short, long, help = "状态: pending, approved, rejected")]
         status: Option<String>,
@@ -670,14 +670,30 @@ fn cmd_query(
                     println!("{}", table);
                     println!("共 {} 条记录", records.len());
                 }
-                "csv" | "json" => {
+                "csv" => {
                     if let Some(path) = export {
                         export_survey_csv(&records, path)?;
                         println!("{}", format!("已导出到 {:?}", path).green());
                     } else {
-                        let json = serde_json::to_string_pretty(&records)?;
-                        println!("{}", json);
+                        let mut wtr = csv::Writer::from_writer(std::io::stdout());
+                        wtr.write_record(&["id", "point_code", "measure_time", "dose_rate", "unit", "surveyor", "instrument"])?;
+                        for rec in &records {
+                            wtr.write_record(&[
+                                rec.id.to_string(),
+                                rec.point_code.clone(),
+                                rec.measure_time.format("%Y-%m-%d %H:%M:%S").to_string(),
+                                format!("{:.6}", rec.dose_rate),
+                                rec.unit.clone(),
+                                rec.surveyor.clone().unwrap_or_default(),
+                                rec.instrument.clone().unwrap_or_default(),
+                            ])?;
+                        }
+                        wtr.flush()?;
                     }
+                }
+                "json" => {
+                    let json = serde_json::to_string_pretty(&records)?;
+                    println!("{}", json);
                 }
                 _ => return Err(err(ErrorCode::UnsupportedFormat, format!("不支持的输出格式: {}", format))),
             }
@@ -690,14 +706,30 @@ fn cmd_query(
                     println!("{}", table);
                     println!("共 {} 条记录", records.len());
                 }
-                "csv" | "json" => {
+                "csv" => {
                     if let Some(path) = export {
                         export_dose_csv(&records, path)?;
                         println!("{}", format!("已导出到 {:?}", path).green());
                     } else {
-                        let json = serde_json::to_string_pretty(&records)?;
-                        println!("{}", json);
+                        let mut wtr = csv::Writer::from_writer(std::io::stdout());
+                        wtr.write_record(&["id", "employee_id", "employee_name", "department", "record_time", "cumulative_dose", "unit"])?;
+                        for rec in &records {
+                            wtr.write_record(&[
+                                rec.id.to_string(),
+                                rec.employee_id.clone(),
+                                rec.employee_name.clone(),
+                                rec.department.clone(),
+                                rec.record_time.format("%Y-%m-%d %H:%M:%S").to_string(),
+                                format!("{:.6}", rec.cumulative_dose),
+                                rec.unit.clone(),
+                            ])?;
+                        }
+                        wtr.flush()?;
                     }
+                }
+                "json" => {
+                    let json = serde_json::to_string_pretty(&records)?;
+                    println!("{}", json);
                 }
                 _ => return Err(err(ErrorCode::UnsupportedFormat, format!("不支持的输出格式: {}", format))),
             }

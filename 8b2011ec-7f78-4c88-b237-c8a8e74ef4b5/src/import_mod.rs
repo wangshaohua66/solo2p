@@ -8,6 +8,7 @@ use std::io::BufReader;
 use std::path::Path;
 
 use crate::db::{Db, DoseRecord, SurveyRecord};
+use crate::error_codes::{err, ErrorCode};
 
 #[derive(Debug, Serialize)]
 pub struct ImportResult {
@@ -79,16 +80,16 @@ pub fn import_survey_csv<P: AsRef<Path>>(db: &Db, path: P) -> Result<ImportResul
 
 fn validate_survey_row(row: &SurveyCsvRow) -> Result<SurveyRecord> {
     if row.point_code.trim().is_empty() {
-        return Err(anyhow!("监测点编号不能为空"));
+        return Err(err(ErrorCode::EmptyValue, "监测点编号不能为空".to_string()));
     }
     let measure_time = NaiveDateTime::parse_from_str(&row.measure_time, "%Y-%m-%d %H:%M:%S")
         .or_else(|_| NaiveDateTime::parse_from_str(&row.measure_time, "%Y/%m/%d %H:%M:%S"))
-        .map_err(|_| anyhow!("时间戳格式无效: {}", row.measure_time))?;
+        .map_err(|_| err(ErrorCode::InvalidTimestamp, format!("时间戳格式无效: {}", row.measure_time)))?;
     if row.dose_rate < 0.0 {
-        return Err(anyhow!("剂量率不能为负数: {}", row.dose_rate));
+        return Err(err(ErrorCode::ValueOutOfRange, format!("剂量率不能为负数: {}", row.dose_rate)));
     }
     if row.dose_rate > 10000.0 {
-        return Err(anyhow!("剂量率超出合理范围: {}", row.dose_rate));
+        return Err(err(ErrorCode::ValueOutOfRange, format!("剂量率超出合理范围: {}", row.dose_rate)));
     }
     Ok(SurveyRecord {
         id: 0,
@@ -111,7 +112,7 @@ pub fn import_dose_json<P: AsRef<Path>>(db: &Db, path: P) -> Result<ImportResult
         .context("JSON解析失败")?;
 
     let records_array = value.as_array()
-        .ok_or_else(|| anyhow!("JSON必须是数组格式"))?;
+        .ok_or_else(|| err(ErrorCode::InvalidFormat, "JSON必须是数组格式".to_string()))?;
 
     let mut records: Vec<DoseRecord> = Vec::new();
     let mut errors: Vec<String> = Vec::new();
@@ -147,23 +148,23 @@ pub fn import_dose_json<P: AsRef<Path>>(db: &Db, path: P) -> Result<ImportResult
 
 fn validate_dose_record(row: &DoseJsonRecord) -> Result<DoseRecord> {
     if row.employee_id.trim().is_empty() {
-        return Err(anyhow!("员工工号不能为空"));
+        return Err(err(ErrorCode::EmptyValue, "员工工号不能为空".to_string()));
     }
     if row.employee_name.trim().is_empty() {
-        return Err(anyhow!("员工姓名不能为空"));
+        return Err(err(ErrorCode::EmptyValue, "员工姓名不能为空".to_string()));
     }
     if row.department.trim().is_empty() {
-        return Err(anyhow!("部门不能为空"));
+        return Err(err(ErrorCode::EmptyValue, "部门不能为空".to_string()));
     }
     let record_time = NaiveDateTime::parse_from_str(&row.record_time, "%Y-%m-%d %H:%M:%S")
         .or_else(|_| NaiveDateTime::parse_from_str(&row.record_time, "%Y/%m/%d %H:%M:%S"))
         .or_else(|_| NaiveDateTime::parse_from_str(&row.record_time, "%Y-%m-%dT%H:%M:%S"))
-        .map_err(|_| anyhow!("时间戳格式无效: {}", row.record_time))?;
+        .map_err(|_| err(ErrorCode::InvalidTimestamp, format!("时间戳格式无效: {}", row.record_time)))?;
     if row.cumulative_dose < 0.0 {
-        return Err(anyhow!("累积剂量不能为负数: {}", row.cumulative_dose));
+        return Err(err(ErrorCode::ValueOutOfRange, format!("累积剂量不能为负数: {}", row.cumulative_dose)));
     }
     if row.cumulative_dose > 10000.0 {
-        return Err(anyhow!("累积剂量超出合理范围: {}", row.cumulative_dose));
+        return Err(err(ErrorCode::ValueOutOfRange, format!("累积剂量超出合理范围: {}", row.cumulative_dose)));
     }
     Ok(DoseRecord {
         id: 0,
@@ -181,11 +182,11 @@ pub fn auto_import<P: AsRef<Path>>(db: &Db, path: P) -> Result<ImportResult> {
     let ext = path.extension()
         .and_then(|e| e.to_str())
         .map(|s| s.to_lowercase())
-        .ok_or_else(|| anyhow!("无法识别文件扩展名"))?;
+        .ok_or_else(|| err(ErrorCode::UnsupportedExt, "无法识别文件扩展名".to_string()))?;
 
     match ext.as_str() {
         "csv" => import_survey_csv(db, path),
         "json" => import_dose_json(db, path),
-        _ => Err(anyhow!("不支持的文件格式: .{}，仅支持 .csv 和 .json", ext)),
+        _ => Err(err(ErrorCode::UnsupportedFormat, format!("不支持的文件格式: .{}，仅支持 .csv 和 .json", ext))),
     }
 }

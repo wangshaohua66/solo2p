@@ -4,6 +4,7 @@ use rusqlite::params;
 use serde::{Deserialize, Serialize};
 
 use crate::db::Db;
+use crate::error_codes::{err, ErrorCode};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DoseSummary {
@@ -64,7 +65,7 @@ impl StatsPeriod {
             "quarter" | "quarterly" => Ok(StatsPeriod::Quarterly),
             "year" | "yearly" => Ok(StatsPeriod::Yearly),
             "custom" => Ok(StatsPeriod::Custom),
-            _ => Err(anyhow::anyhow!("不支持的统计周期: {}", s)),
+            _ => Err(err(ErrorCode::InvalidPeriod, format!("不支持的统计周期: {}", s))),
         }
     }
 }
@@ -267,7 +268,7 @@ fn build_period_query(
 
 pub fn get_yearly_dose_for_worker(db: &Db, employee_id: &str, year: i32) -> Result<f64> {
     let from = NaiveDate::from_ymd_opt(year, 1, 1)
-        .ok_or_else(|| anyhow::anyhow!("无效的年份"))?
+        .ok_or_else(|| err(ErrorCode::InvalidValue, "无效的年份".to_string()))?
         .and_hms_opt(0, 0, 0)
         .unwrap();
     let to = NaiveDate::from_ymd_opt(year + 1, 1, 1)
@@ -287,7 +288,7 @@ pub fn get_yearly_dose_for_worker(db: &Db, employee_id: &str, year: i32) -> Resu
         ],
         |row| row.get::<_, Option<f64>>(0).map(|v| v.unwrap_or(0.0)),
     );
-    result.map_err(|e| anyhow::anyhow!(e))
+    result.map_err(|e| err(ErrorCode::DatabaseQuery, format!("{}", e)))
 }
 
 pub fn get_5year_dose_for_worker(db: &Db, employee_id: &str, end_year: i32) -> Result<f64> {
