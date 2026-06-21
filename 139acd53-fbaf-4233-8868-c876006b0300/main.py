@@ -108,7 +108,7 @@ def cmd_sync(args, ctx: AppContext):
     if args.all:
         sids = ctx.config.all_supplier_ids()
     elif args.supplier:
-        sids = [args.supplier] if isinstance(args.supplier, str) else list(args.supplier)
+        sids = list(args.supplier) if isinstance(args.supplier, list) else [args.supplier]
     elif args.group:
         sids = [s.id for s in ctx.config.get_suppliers_by_group(args.group)]
     else:
@@ -186,7 +186,17 @@ def _print_sync_summary(results: List[Dict], start: datetime):
     print(_green(f"\nDone"))
 
 
-def cmd_report_stock(args, ctx: AppContext):
+def cmd_report(args, ctx: AppContext):
+    if getattr(args, 'stock', False):
+        return _cmd_report_stock(args, ctx)
+    elif getattr(args, 'price', False):
+        return _cmd_report_price(args, ctx)
+    else:
+        print(_yellow("  Usage: report --stock  |  report --price"))
+        return 1
+
+
+def _cmd_report_stock(args, ctx: AppContext):
     print(_bold("\n=== Stock Alert Report ==="))
     date = args.date or datetime.now().strftime("%Y-%m-%d")
     summary = ctx.stocker.monitor_all()
@@ -253,7 +263,7 @@ def cmd_report_stock(args, ctx: AppContext):
     return 0
 
 
-def cmd_report_price(args, ctx: AppContext):
+def _cmd_report_price(args, ctx: AppContext):
     print(_bold("\n=== Price Fluctuation Analysis ==="))
     date = args.date or datetime.now().strftime("%Y-%m-%d")
     summary = ctx.pricer.analyze_all()
@@ -426,20 +436,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_sync = sub.add_parser("sync", help="Sync data")
     g = p_sync.add_mutually_exclusive_group()
     g.add_argument("--all", action="store_true", help="sync all suppliers")
-    g.add_argument("--supplier", action="append", help="supplier ID (repeatable)")
+    g.add_argument("--supplier", nargs="+", help="supplier ID, e.g. SUP001 (multiple allowed)")
     g.add_argument("--group", help="sync by supplier group")
     p_sync.add_argument("--no-analyze", action="store_true", help="skip post-sync analysis")
     p_sync.set_defaults(func=cmd_sync)
 
-    p_stock = sub.add_parser("report-stock", help="Stock alert report")
-    p_stock.add_argument("--date", help="target date YYYY-MM-DD")
-    p_stock.add_argument("--export", action="store_true", help="export CSV")
-    p_stock.set_defaults(func=cmd_report_stock)
-
-    p_price = sub.add_parser("report-price", help="Price fluctuation report")
-    p_price.add_argument("--date", help="target date YYYY-MM-DD")
-    p_price.add_argument("--export", action="store_true", help="export CSV")
-    p_price.set_defaults(func=cmd_report_price)
+    p_report = sub.add_parser("report", help="Generate stock / price reports")
+    rg = p_report.add_mutually_exclusive_group(required=True)
+    rg.add_argument("--stock", action="store_true", help="Stock alert report")
+    rg.add_argument("--price", action="store_true", help="Price fluctuation report")
+    p_report.add_argument("--date", help="target date YYYY-MM-DD")
+    p_report.add_argument("--export", action="store_true", help="export CSV")
+    p_report.set_defaults(func=cmd_report)
 
     p_logs = sub.add_parser("logs", help="Query sync logs")
     p_logs.add_argument("--from-date", help="start date")

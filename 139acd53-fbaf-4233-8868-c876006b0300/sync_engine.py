@@ -4,15 +4,18 @@ import sys
 import json
 import time
 import uuid
+import email
 import ftplib
 import shutil
+import imaplib
 import chardet
 import tempfile
 import subprocess
 import webbrowser
+from email.header import decode_header, make_header
 from pathlib import Path
 from fnmatch import fnmatch
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional, Tuple, Callable
 
 import pandas as pd
@@ -360,11 +363,9 @@ class SyncEngine:
         if has_captcha:
             cap_loc = self._try_templates(captcha_tpls, templates_dir, task_id, sid)
             if cap_loc:
-                self.log.log_manual_intervention_needed(
-                    task_id, sid,
-                    "检测到验证码，需人工输入后继续"
+                self._handle_captcha_interactive(
+                    task_id, sid, cap_loc, captcha_tpls,
                 )
-                raise CaptchaRequiredError("需要人工输入验证码")
 
         self.log.log_step(task_id, sid, "定位登录按钮", f"模板: {login_tpls}")
         login_loc = self._try_templates(login_tpls, templates_dir, task_id, sid)
@@ -372,6 +373,100 @@ class SyncEngine:
             raise TemplateMatchError(f"无法定位登录按钮，模板: {login_tpls}")
         pyautogui.click(*login_loc)
         self.log.log_step(task_id, sid, "登录完成", "等待登录响应")
+
+    # --------------------------------------------------------- captcha handling
+
+    def _handle_captcha_interactive(self, task_id: str, sid: str,
+                                     cap_loc: Tuple[int, int],
+                                     captcha_tpls: List[str]):
+        """Interactive captcha workflow.
+
+        Workflow:
+          1. Click the captcha input box to focus it.
+          2. Prompt the operator on stdout / stderr to enter the captcha.
+          3. If captcha value provided: type it into the input box.
+          4. If user chooses "skip" / blank and timeout elapses, optionally
+             raise CaptchaRequiredError (configurable via SKIP_CAPTCHA env).
+        """
+        # Click the captcha input box to give it focus
+        try:
+            pyautogui.click(*cap_loc)
+            time.sleep(0.3)
+        except Exception as e:
+            self.log.log_step(
+                task_id, sid, "验证码定位失败",
+                f"点击验证码输入框异常: {e}", LogLevel.WARNING,
+            )
+
+        self.log.log_manual_intervention_needed(
+            task_id, sid,
+            "检测到图形验证码，等待人工输入（也可输入 's' 跳过此供应商）",
+        )
+
+        # Always notify terminal (in case running interactively)
+        print(
+            "\n=========================================================\n"
+            f"  [{sid}] CAPTCHA REQUIRED - manual input needed\n"
+            "  Please type the captcha text you see on screen.\n"
+            "    [Enter captcha]  -> type into browser + sync continues\n"
+            "    [s / skip]       -> skip this supplier (logged)\n"
+            "    [timeout 60s]    -> auto skip\n"
+            "=========================================================",
+            flush=True,
+        )
+
+        captcha_text = self._prompt_with_timeout(
+            prompt=f"[{sid}] captcha> ",
+            timeout=60.0,
+            default="",
+        )
+
+        if captcha_text is None or captcha_text.strip().lower() in ("s", "skip", ""):
+            self.log.log_step(
+                task_id, sid, "验证码跳过",
+                f"用户跳过或输入超时 (输入={captcha_text!r})",
+                LogLevel.WARNING,
+            )
+            raise CaptchaRequiredError(
+                "验证码未输入，跳过该供应商。"
+            )
+
+        self.log.log_step(
+            task_id, sid, "验证码已输入",
+            f"长度={len(captcha_text)}",
+        )
+        try:
+            pyautogui.hotkey("ctrl", "a")
+        except Exception:
+            pass
+        pyautogui.typewrite(captcha_text.strip(), interval=0.08)
+        time.sleep(0.3)
+
+    @staticmethod
+    def _prompt_with_timeout(prompt: str, timeout: float,
+                              default: Optional[str] = None) -> Optional[str]:
+        """Read a line from stdin within `timeout` seconds, or return default.
+
+        Works on POSIX (select-based) with a fallback to plain input() when
+        stdin is not a TTY (e.g. when piped) - in that case returns default
+        immediately to avoid blocking the whole sync pipeline.
+        """
+        if not sys.stdin or not sys.stdin.isatty():
+            # Non-interactive context (cron, pipeline, etc.)
+            print(f"{prompt}(non-interactive, using default={default!r})",
+                  flush=True)
+            return default
+
+        import select
+        print(prompt, end="", flush=True)
+        ready, _, _ = select.select([sys.stdin], [], [], timeout)
+        if ready:
+            try:
+                return sys.stdin.readline().rstrip("\n")
+            except Exception:
+                return default
+        print(" [TIMEOUT]", flush=True)
+        return default
 
     def _navigate_to_inventory(self, inventory_url: str, task_id: str, sid: str):
         self.log.log_step(task_id, sid, "导航库存页", inventory_url)
@@ -471,6 +566,13 @@ class SyncEngine:
         if watch_dir and not os.path.exists(watch_dir):
             os.makedirs(watch_dir, exist_ok=True)
 
+        fetched = self._fetch_email_attachments(supplier, task_id)
+        if fetched:
+            self.log.log_step(
+                task_id, sid, "邮件下载",
+                f"从邮件获取了 {len(fetched)} 个附件到 {watch_dir}"
+            )
+
         file_path = self._find_latest_file(watch_dir, exts, task_id, sid)
         if not file_path:
             self.log.log_step(task_id, sid, "文件回退",
@@ -483,6 +585,183 @@ class SyncEngine:
 
         records = self._normalize_records(raw, supplier, fields, self.sync_date)
         return records
+
+    # ---------------------------------------------------------------- IMAP helpers
+
+    def _fetch_email_attachments(self, supplier: SupplierConfig,
+                                  task_id: str) -> List[str]:
+        """Try to download Excel attachments from IMAP mailbox for this supplier.
+
+        Returns list of saved local paths (may be empty if IMAP not configured
+        or no matching email found).
+        """
+        sid = supplier.id
+        conn = supplier.connection
+        imap_cfg = self.settings.imap
+
+        # Skip if no IMAP host configured, or supplier has no email filter
+        if not imap_cfg or not imap_cfg.host:
+            return []
+        if not conn.get("email_subject_keyword") and not conn.get("email_from"):
+            return []
+
+        saved_paths: List[str] = []
+        watch_dir = conn.get("local_watch_dir", "")
+        if watch_dir:
+            os.makedirs(watch_dir, exist_ok=True)
+
+        M = None
+        try:
+            if imap_cfg.use_ssl:
+                M = imaplib.IMAP4_SSL(imap_cfg.host, imap_cfg.port)
+            else:
+                M = imaplib.IMAP4(imap_cfg.host, imap_cfg.port)
+
+            if imap_cfg.username:
+                try:
+                    M.login(imap_cfg.username, imap_cfg.password)
+                except imaplib.IMAP4.error as e:
+                    self.log.log_step(
+                        task_id, sid, "IMAP登录失败", str(e), LogLevel.WARNING,
+                    )
+                    return []
+
+            mailbox = imap_cfg.mailbox or "INBOX"
+            status, _ = M.select(mailbox, readonly=True)
+            if status != "OK":
+                self.log.log_step(
+                    task_id, sid, "IMAP select 失败",
+                    f"mailbox={mailbox} status={status}",
+                    LogLevel.WARNING,
+                )
+                return []
+
+            # Build IMAP SEARCH criteria - combine subject / from / since
+            criteria: List[str] = []
+            subject_kw = conn.get("email_subject_keyword")
+            if subject_kw:
+                criteria.append(f'SUBJECT "{self._imap_quote(subject_kw)}"')
+            from_addr = conn.get("email_from")
+            if from_addr:
+                criteria.append(f'FROM "{self._imap_quote(from_addr)}"')
+
+            since_days = int(imap_cfg.search_since_days or 7)
+            since_date = (datetime.now() - timedelta(days=since_days)).strftime("%d-%b-%Y")
+            criteria.append(f"SINCE {since_date}")
+
+            search_cmd = "(" + " ".join(criteria) + ")"
+            self.log.log_step(
+                task_id, sid, "IMAP SEARCH", search_cmd,
+            )
+            status, data = M.search(None, search_cmd)
+            if status != "OK":
+                self.log.log_step(
+                    task_id, sid, "IMAP SEARCH 失败", str(data), LogLevel.WARNING,
+                )
+                return []
+
+            msg_ids = []
+            for part in data:
+                if part:
+                    msg_ids.extend(part.split())
+            if not msg_ids:
+                self.log.log_step(task_id, sid, "邮件查询", "未找到匹配邮件")
+                return []
+
+            # Take the most recent email only (last in UID order tends to be newest)
+            newest_ids = list(reversed(msg_ids))[:3]
+            self.log.log_step(
+                task_id, sid, "匹配邮件",
+                f"共 {len(msg_ids)} 封，取最近 {len(newest_ids)} 封解析附件",
+            )
+
+            exts = [e.lower() for e in conn.get("attachment_ext", [".xlsx", ".xls", ".csv"])]
+            name_pattern = conn.get("attachment_name_pattern")
+
+            for msg_id in newest_ids:
+                status, msg_data = M.fetch(msg_id, "(RFC822)")
+                if status != "OK" or not msg_data:
+                    continue
+                raw_email = None
+                for resp_part in msg_data:
+                    if isinstance(resp_part, tuple):
+                        raw_email = resp_part[1]
+                        break
+                if not raw_email:
+                    continue
+
+                msg = email.message_from_bytes(raw_email)
+                subject = self._decode_mime_header(
+                    msg.get("Subject", "")
+                )
+                self.log.log_step(
+                    task_id, sid, "解析邮件", f"Subject: {subject[:80]}"
+                )
+
+                for part in msg.walk():
+                    content_disp = str(part.get("Content-Disposition", ""))
+                    if "attachment" not in content_disp.lower():
+                        continue
+                    filename = self._decode_mime_header(
+                        part.get_filename() or ""
+                    )
+                    if not filename:
+                        continue
+                    fn_lower = filename.lower()
+                    if not any(fn_lower.endswith(e) for e in exts):
+                        continue
+                    if name_pattern and not fnmatch(filename, name_pattern):
+                        continue
+
+                    payload = part.get_payload(decode=True)
+                    if not payload:
+                        continue
+
+                    # Build a safe local filename with date prefix to avoid overwrite
+                    date_prefix = datetime.now().strftime("%Y%m%d_")
+                    safe_name = re.sub(r"[^A-Za-z0-9._\-]+", "_", filename)
+                    out_name = f"{sid}_{date_prefix}{safe_name}"
+                    out_path = os.path.join(watch_dir or tempfile.gettempdir(), out_name)
+                    with open(out_path, "wb") as f:
+                        f.write(payload)
+                    saved_paths.append(out_path)
+                    self.log.log_step(
+                        task_id, sid, "保存附件",
+                        f"{filename} -> {out_path} ({len(payload)} bytes)",
+                    )
+
+            return saved_paths
+
+        except (imaplib.IMAP4.error, OSError, TimeoutError) as e:
+            self.log.log_step(
+                task_id, sid, "IMAP异常",
+                f"{type(e).__name__}: {e}", LogLevel.WARNING,
+            )
+            return saved_paths
+        finally:
+            if M is not None:
+                try:
+                    M.close()
+                except Exception:
+                    pass
+                try:
+                    M.logout()
+                except Exception:
+                    pass
+
+    @staticmethod
+    def _imap_quote(value: str) -> str:
+        return value.replace("\\", "\\\\").replace('"', '\\"')
+
+    @staticmethod
+    def _decode_mime_header(value: str) -> str:
+        if not value:
+            return ""
+        try:
+            decoded = decode_header(value)
+            return str(make_header(decoded))
+        except Exception:
+            return value
 
     def _find_latest_file(self, directory: str, extensions: List[str],
                            task_id: str, sid: str) -> Optional[str]:

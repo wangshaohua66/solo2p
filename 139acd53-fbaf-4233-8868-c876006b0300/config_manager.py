@@ -5,6 +5,17 @@ from dataclasses import dataclass, field
 
 
 @dataclass
+class ImapSettings:
+    host: str = ""
+    port: int = 993
+    use_ssl: bool = True
+    username: str = ""
+    password: str = ""
+    mailbox: str = "INBOX"
+    search_since_days: int = 7
+
+
+@dataclass
 class GlobalSettings:
     sync_time: str
     price_threshold: float
@@ -19,6 +30,7 @@ class GlobalSettings:
     opencv_confidence: float
     page_load_wait: int
     page_flip_wait: int
+    imap: ImapSettings = field(default_factory=ImapSettings)
 
 
 @dataclass
@@ -67,6 +79,16 @@ class ConfigManager:
 
     def _parse_global_settings(self):
         gs = self._raw_config.get("global_settings", {})
+        imap_raw = gs.get("imap", {}) or {}
+        imap = ImapSettings(
+            host=imap_raw.get("host", ""),
+            port=int(imap_raw.get("port", 993)),
+            use_ssl=bool(imap_raw.get("use_ssl", True)),
+            username=imap_raw.get("username", ""),
+            password=imap_raw.get("password", ""),
+            mailbox=imap_raw.get("mailbox", "INBOX"),
+            search_since_days=int(imap_raw.get("search_since_days", 7)),
+        )
         self.global_settings = GlobalSettings(
             sync_time=gs.get("sync_time", "08:00"),
             price_threshold=float(gs.get("price_threshold", 10.0)),
@@ -81,6 +103,7 @@ class ConfigManager:
             opencv_confidence=float(gs.get("opencv_confidence", 0.85)),
             page_load_wait=int(gs.get("page_load_wait", 3)),
             page_flip_wait=int(gs.get("page_flip_wait", 1)),
+            imap=imap,
         )
 
     def _parse_suppliers(self):
