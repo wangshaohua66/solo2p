@@ -1,0 +1,187 @@
+2026-06-22 00:56:25 | INFO     | ============================================================
+2026-06-22 00:56:25 | INFO     | TASK START | ID: SUP015_20260622005625_6755a9
+2026-06-22 00:56:25 | INFO     | 供应商: SUP015 - 德州仪器
+2026-06-22 00:56:25 | INFO     | 同步类型: api
+2026-06-22 00:56:25 | INFO     | 开始时间: 2026-06-22 00:56:25
+2026-06-22 00:56:25 | INFO     | ============================================================
+2026-06-22 00:56:25 | INFO     | [步骤:API同步] https://api.ti.example.cn/api/v3/products/inventory
+2026-06-22 00:56:57 | WARNING  | [重试] HTTP GET https://api.ti.example.cn/api/v3/products/inventory | 第1/3次 | 等待2.0s | 原因: HTTPSConnectionPool(host='api.ti.example.cn', port=443): Max retries exceeded with url: /api/v3/products/inventory?page=1&page_size=200 (Caused by ConnectTimeoutError(<HTTPSConnection(host='api.ti.example.cn', port=443) at 0x114a5aa50>, 'Connection to api.ti.example.cn timed out. (connect timeout=30)'))
+2026-06-22 00:57:29 | WARNING  | [重试] HTTP GET https://api.ti.example.cn/api/v3/products/inventory | 第2/3次 | 等待4.0s | 原因: HTTPSConnectionPool(host='api.ti.example.cn', port=443): Max retries exceeded with url: /api/v3/products/inventory?page=1&page_size=200 (Caused by ConnectTimeoutError(<HTTPSConnection(host='api.ti.example.cn', port=443) at 0x114ab0910>, 'Connection to api.ti.example.cn timed out. (connect timeout=30)'))
+2026-06-22 00:58:03 | ERROR    | !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+2026-06-22 00:58:03 | ERROR    | [异常:HTTP GET https://api.ti.example.cn/api/v3/products/inventory_最终失败] ConnectTimeout: HTTPSConnectionPool(host='api.ti.example.cn', port=443): Max retries exceeded with url: /api/v3/products/inventory?page=1&page_size=200 (Caused by ConnectTimeoutError(<HTTPSConnection(host='api.ti.example.cn', port=443) at 0x114ab11d0>, 'Connection to api.ti.example.cn timed out. (connect timeout=30)'))
+2026-06-22 00:58:03 | ERROR    | 堆栈:
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/urllib3/connection.py", line 204, in _new_conn
+    sock = connection.create_connection(
+        (self._dns_host, self.port),
+    ...<2 lines>...
+        socket_options=self.socket_options,
+    )
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/urllib3/util/connection.py", line 85, in create_connection
+    raise err
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/urllib3/util/connection.py", line 73, in create_connection
+    sock.connect(sa)
+    ~~~~~~~~~~~~^^^^
+TimeoutError: timed out
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/urllib3/connectionpool.py", line 788, in urlopen
+    response = self._make_request(
+        conn,
+    ...<10 lines>...
+        **response_kw,
+    )
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/urllib3/connectionpool.py", line 488, in _make_request
+    raise new_e
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/urllib3/connectionpool.py", line 464, in _make_request
+    self._validate_conn(conn)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/urllib3/connectionpool.py", line 1106, in _validate_conn
+    conn.connect()
+    ~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/urllib3/connection.py", line 759, in connect
+    self.sock = sock = self._new_conn()
+                       ~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/urllib3/connection.py", line 213, in _new_conn
+    raise ConnectTimeoutError(
+    ...<2 lines>...
+    ) from e
+urllib3.exceptions.ConnectTimeoutError: (<HTTPSConnection(host='api.ti.example.cn', port=443) at 0x114ab11d0>, 'Connection to api.ti.example.cn timed out. (connect timeout=30)')
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/requests/adapters.py", line 696, in send
+    resp = conn.urlopen(
+        method=request.method,
+    ...<9 lines>...
+        chunked=chunked,
+    )
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/urllib3/connectionpool.py", line 842, in urlopen
+    retries = retries.increment(
+        method, url, error=new_e, _pool=self, _stacktrace=sys.exc_info()[2]
+    )
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/urllib3/util/retry.py", line 543, in increment
+    raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='api.ti.example.cn', port=443): Max retries exceeded with url: /api/v3/products/inventory?page=1&page_size=200 (Caused by ConnectTimeoutError(<HTTPSConnection(host='api.ti.example.cn', port=443) at 0x114ab11d0>, 'Connection to api.ti.example.cn timed out. (connect timeout=30)'))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/paul/WorkSpace/TestSoloCoder/139acd53-fbaf-4233-8868-c876006b0300/retry_handler.py", line 64, in execute
+    result = func(*args, **kwargs)
+  File "/Users/paul/WorkSpace/TestSoloCoder/139acd53-fbaf-4233-8868-c876006b0300/retry_handler.py", line 142, in <lambda>
+    lambda: requests.get(url, **kwargs),
+            ~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/requests/api.py", line 87, in get
+    return request("get", url, params=params, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/requests/api.py", line 71, in request
+    return session.request(method=method, url=url, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/requests/sessions.py", line 651, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/requests/sessions.py", line 784, in send
+    r = adapter.send(request, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/requests/adapters.py", line 717, in send
+    raise ConnectTimeout(e, request=request)
+requests.exceptions.ConnectTimeout: HTTPSConnectionPool(host='api.ti.example.cn', port=443): Max retries exceeded with url: /api/v3/products/inventory?page=1&page_size=200 (Caused by ConnectTimeoutError(<HTTPSConnection(host='api.ti.example.cn', port=443) at 0x114ab11d0>, 'Connection to api.ti.example.cn timed out. (connect timeout=30)'))
+
+2026-06-22 00:58:03 | ERROR    | !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+2026-06-22 00:58:03 | ERROR    | !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+2026-06-22 00:58:03 | ERROR    | [异常:API拉取第1页] ConnectTimeout: HTTPSConnectionPool(host='api.ti.example.cn', port=443): Max retries exceeded with url: /api/v3/products/inventory?page=1&page_size=200 (Caused by ConnectTimeoutError(<HTTPSConnection(host='api.ti.example.cn', port=443) at 0x114ab11d0>, 'Connection to api.ti.example.cn timed out. (connect timeout=30)'))
+2026-06-22 00:58:03 | ERROR    | 堆栈:
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/urllib3/connection.py", line 204, in _new_conn
+    sock = connection.create_connection(
+        (self._dns_host, self.port),
+    ...<2 lines>...
+        socket_options=self.socket_options,
+    )
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/urllib3/util/connection.py", line 85, in create_connection
+    raise err
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/urllib3/util/connection.py", line 73, in create_connection
+    sock.connect(sa)
+    ~~~~~~~~~~~~^^^^
+TimeoutError: timed out
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/urllib3/connectionpool.py", line 788, in urlopen
+    response = self._make_request(
+        conn,
+    ...<10 lines>...
+        **response_kw,
+    )
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/urllib3/connectionpool.py", line 488, in _make_request
+    raise new_e
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/urllib3/connectionpool.py", line 464, in _make_request
+    self._validate_conn(conn)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/urllib3/connectionpool.py", line 1106, in _validate_conn
+    conn.connect()
+    ~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/urllib3/connection.py", line 759, in connect
+    self.sock = sock = self._new_conn()
+                       ~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/urllib3/connection.py", line 213, in _new_conn
+    raise ConnectTimeoutError(
+    ...<2 lines>...
+    ) from e
+urllib3.exceptions.ConnectTimeoutError: (<HTTPSConnection(host='api.ti.example.cn', port=443) at 0x114ab11d0>, 'Connection to api.ti.example.cn timed out. (connect timeout=30)')
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/requests/adapters.py", line 696, in send
+    resp = conn.urlopen(
+        method=request.method,
+    ...<9 lines>...
+        chunked=chunked,
+    )
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/urllib3/connectionpool.py", line 842, in urlopen
+    retries = retries.increment(
+        method, url, error=new_e, _pool=self, _stacktrace=sys.exc_info()[2]
+    )
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/urllib3/util/retry.py", line 543, in increment
+    raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='api.ti.example.cn', port=443): Max retries exceeded with url: /api/v3/products/inventory?page=1&page_size=200 (Caused by ConnectTimeoutError(<HTTPSConnection(host='api.ti.example.cn', port=443) at 0x114ab11d0>, 'Connection to api.ti.example.cn timed out. (connect timeout=30)'))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/paul/WorkSpace/TestSoloCoder/139acd53-fbaf-4233-8868-c876006b0300/sync_engine.py", line 755, in _sync_api
+    payload = _fetch()
+  File "/Users/paul/WorkSpace/TestSoloCoder/139acd53-fbaf-4233-8868-c876006b0300/sync_engine.py", line 751, in _fetch
+    raise exc or RuntimeError("HTTP请求失败")
+  File "/Users/paul/WorkSpace/TestSoloCoder/139acd53-fbaf-4233-8868-c876006b0300/retry_handler.py", line 64, in execute
+    result = func(*args, **kwargs)
+  File "/Users/paul/WorkSpace/TestSoloCoder/139acd53-fbaf-4233-8868-c876006b0300/retry_handler.py", line 142, in <lambda>
+    lambda: requests.get(url, **kwargs),
+            ~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/requests/api.py", line 87, in get
+    return request("get", url, params=params, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/requests/api.py", line 71, in request
+    return session.request(method=method, url=url, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/requests/sessions.py", line 651, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/requests/sessions.py", line 784, in send
+    r = adapter.send(request, **kwargs)
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/requests/adapters.py", line 717, in send
+    raise ConnectTimeout(e, request=request)
+requests.exceptions.ConnectTimeout: HTTPSConnectionPool(host='api.ti.example.cn', port=443): Max retries exceeded with url: /api/v3/products/inventory?page=1&page_size=200 (Caused by ConnectTimeoutError(<HTTPSConnection(host='api.ti.example.cn', port=443) at 0x114ab11d0>, 'Connection to api.ti.example.cn timed out. (connect timeout=30)'))
+
+2026-06-22 00:58:03 | ERROR    | !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+2026-06-22 00:58:03 | WARNING  | [步骤:API回退] 无数据，生成模拟数据
+2026-06-22 00:58:03 | INFO     | ------------------------------------------------------------
+2026-06-22 00:58:03 | INFO     | TASK END   | ID: SUP015_20260622005625_6755a9
+2026-06-22 00:58:03 | INFO     | 状态: SUCCESS
+2026-06-22 00:58:03 | INFO     | 抓取记录: 50 | 写入: 50 | 失败: 0
+2026-06-22 00:58:03 | INFO     | 耗时: 98.21秒
+2026-06-22 00:58:03 | INFO     | ============================================================
+

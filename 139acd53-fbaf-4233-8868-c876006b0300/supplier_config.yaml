@@ -1,0 +1,452 @@
+global_settings:
+  sync_time: "08:00"
+  price_threshold: 10.0
+  retry_max: 3
+  retry_backoff: 2.0
+  timeout_request: 30
+  timeout_ui: 10
+  db_path: "data/inventory.db"
+  log_dir: "logs"
+  export_dir: "exports"
+  template_dir: "login_templates"
+  opencv_confidence: 0.85
+  page_load_wait: 3
+  page_flip_wait: 1
+
+suppliers:
+  - id: SUP001
+    name: "华芯电子"
+    type: "web"
+    group: "A"
+    sync_frequency: "daily"
+    categories: ["电阻", "电容", "芯片"]
+    connection:
+      login_url: "https://erp.huaxin.example.com/login"
+      inventory_url: "https://erp.huaxin.example.com/inventory/search"
+      username: "op_team_001"
+      password: "Hx@2024#Secure"
+      auth_type: "password"
+    ui_templates:
+      username_input: ["SUP001_username_1.png", "SUP001_username_2.png"]
+      password_input: ["SUP001_password_1.png"]
+      login_button: ["SUP001_loginbtn_1.png", "SUP001_loginbtn_2.png"]
+      search_box: ["SUP001_search_1.png"]
+      search_button: ["SUP001_searchbtn_1.png"]
+      next_page: ["SUP001_nextpage_1.png"]
+      table_region: [100, 200, 1200, 600]
+      has_captcha: false
+    fields:
+      sku_column: 0
+      name_column: 1
+      stock_column: 2
+      price_column: 3
+      unit: "PCS"
+    sku_count: 600
+
+  - id: SUP002
+    name: "盛达科技"
+    type: "web"
+    group: "A"
+    sync_frequency: "daily"
+    categories: ["芯片", "连接器"]
+    connection:
+      login_url: "https://portal.shengda.example.com/user/signin"
+      inventory_url: "https://portal.shengda.example.com/product/list"
+      username: "distributor_sd"
+      password: "SD#Dist!2024"
+      auth_type: "password"
+    ui_templates:
+      username_input: ["SUP002_username_1.png"]
+      password_input: ["SUP002_password_1.png"]
+      login_button: ["SUP002_loginbtn_1.png"]
+      search_box: ["SUP002_search_1.png"]
+      search_button: ["SUP002_searchbtn_1.png"]
+      next_page: ["SUP002_nextpage_1.png"]
+      table_region: [80, 180, 1300, 650]
+      has_captcha: true
+      captcha_input: ["SUP002_captcha_1.png"]
+    fields:
+      sku_column: 1
+      name_column: 2
+      stock_column: 4
+      price_column: 5
+      unit: "PCS"
+    sku_count: 550
+
+  - id: SUP003
+    name: "瑞华半导体"
+    type: "web"
+    group: "A"
+    sync_frequency: "daily"
+    categories: ["二极管", "三极管", "芯片"]
+    connection:
+      login_url: "https://erp.ruihua.example.com/account/login"
+      inventory_url: "https://erp.ruihua.example.com/stock/query"
+      username: "rh_partner_01"
+      password: "RhPartner@2024"
+      auth_type: "password"
+    ui_templates:
+      username_input: ["SUP003_username_1.png"]
+      password_input: ["SUP003_password_1.png"]
+      login_button: ["SUP003_loginbtn_1.png"]
+      search_box: ["SUP003_search_1.png"]
+      search_button: ["SUP003_searchbtn_1.png"]
+      next_page: ["SUP003_nextpage_1.png"]
+      table_region: [120, 220, 1250, 580]
+      has_captcha: false
+    fields:
+      sku_column: 0
+      name_column: 1
+      stock_column: 3
+      price_column: 4
+      unit: "PCS"
+    sku_count: 480
+
+  - id: SUP004
+    name: "恒通电子"
+    type: "web"
+    group: "B"
+    sync_frequency: "daily"
+    categories: ["电阻", "电容", "连接器"]
+    connection:
+      login_url: "https://sso.hengtong.example.com/login"
+      inventory_url: "https://biz.hengtong.example.com/inventory"
+      username: "ht_dist_001"
+      password: "HT@Dist2024#"
+      auth_type: "password"
+    ui_templates:
+      username_input: ["SUP004_username_1.png"]
+      password_input: ["SUP004_password_1.png"]
+      login_button: ["SUP004_loginbtn_1.png"]
+      search_box: ["SUP004_search_1.png"]
+      search_button: ["SUP004_searchbtn_1.png"]
+      next_page: ["SUP004_nextpage_1.png"]
+      table_region: [90, 190, 1280, 620]
+      has_captcha: false
+    fields:
+      sku_column: 0
+      name_column: 2
+      stock_column: 5
+      price_column: 6
+      unit: "KPCS"
+    sku_count: 520
+
+  - id: SUP005
+    name: "明扬光电"
+    type: "web"
+    group: "B"
+    sync_frequency: "daily"
+    categories: ["二极管", "芯片"]
+    connection:
+      login_url: "https://admin.mingyang.example.com/auth/login"
+      inventory_url: "https://admin.mingyang.example.com/product/stock"
+      username: "mychannel02"
+      password: "MyCh2024!Pass"
+      auth_type: "password"
+    ui_templates:
+      username_input: ["SUP005_username_1.png"]
+      password_input: ["SUP005_password_1.png"]
+      login_button: ["SUP005_loginbtn_1.png"]
+      search_box: ["SUP005_search_1.png"]
+      search_button: ["SUP005_searchbtn_1.png"]
+      next_page: ["SUP005_nextpage_1.png"]
+      table_region: [100, 210, 1220, 600]
+      has_captcha: true
+      captcha_input: ["SUP005_captcha_1.png"]
+    fields:
+      sku_column: 1
+      name_column: 3
+      stock_column: 6
+      price_column: 7
+      unit: "PCS"
+    sku_count: 400
+
+  - id: SUP006
+    name: "宏达元器件"
+    type: "web"
+    group: "B"
+    sync_frequency: "daily"
+    categories: ["电阻", "电容", "二极管", "三极管"]
+    connection:
+      login_url: "https://system.hongda.example.com/login.html"
+      inventory_url: "https://system.hongda.example.com/stock/list"
+      username: "hd_distribution"
+      password: "HD#Dist@2024"
+      auth_type: "password"
+    ui_templates:
+      username_input: ["SUP006_username_1.png"]
+      password_input: ["SUP006_password_1.png"]
+      login_button: ["SUP006_loginbtn_1.png"]
+      search_box: ["SUP006_search_1.png"]
+      search_button: ["SUP006_searchbtn_1.png"]
+      next_page: ["SUP006_nextpage_1.png"]
+      table_region: [110, 200, 1240, 610]
+      has_captcha: false
+    fields:
+      sku_column: 0
+      name_column: 1
+      stock_column: 2
+      price_column: 4
+      unit: "PCS"
+    sku_count: 450
+
+  - id: SUP007
+    name: "信诚电子"
+    type: "excel"
+    group: "C"
+    sync_frequency: "weekly"
+    categories: ["电阻", "电容"]
+    connection:
+      email_subject_keyword: "信诚电子周库存更新"
+      attachment_ext: [".xlsx", ".xls"]
+      local_watch_dir: "data/incoming_xc"
+    parsing:
+      header_row: 2
+      sheet_name: "库存明细"
+      date_format: "%Y-%m-%d"
+      encoding: "utf-8"
+    fields:
+      sku_column: "型号"
+      name_column: "品名"
+      stock_column: "库存数量"
+      price_column: "单价(含税)"
+      unit: "PCS"
+      unit_column: null
+    sku_count: 700
+
+  - id: SUP008
+    name: "泰科国际"
+    type: "excel"
+    group: "C"
+    sync_frequency: "weekly"
+    categories: ["连接器", "芯片"]
+    connection:
+      email_subject_keyword: "泰科库存报价表"
+      attachment_ext: [".xlsx"]
+      local_watch_dir: "data/incoming_tk"
+    parsing:
+      header_row: 1
+      sheet_name: 0
+      date_format: "%Y/%m/%d"
+      encoding: "gbk"
+    fields:
+      sku_column: "物料编码"
+      name_column: "产品描述"
+      stock_column: "可用库存"
+      price_column: "RMB单价"
+      unit: "KPCS"
+      unit_column: null
+    sku_count: 650
+
+  - id: SUP009
+    name: "国巨电子"
+    type: "excel"
+    group: "C"
+    sync_frequency: "weekly"
+    categories: ["电阻", "电容"]
+    connection:
+      email_subject_keyword: "国巨电子每周报价"
+      attachment_ext: [".xlsx", ".csv"]
+      local_watch_dir: "data/incoming_gj"
+    parsing:
+      header_row: 3
+      sheet_name: "Sheet1"
+      date_format: "%Y%m%d"
+      encoding: "utf-8"
+    fields:
+      sku_column: "PartNo"
+      name_column: "Description"
+      stock_column: "StockQty"
+      price_column: "UnitPrice"
+      unit: "PCS"
+      unit_column: "UOM"
+    sku_count: 800
+
+  - id: SUP010
+    name: "罗姆半导体"
+    type: "excel"
+    group: "C"
+    sync_frequency: "weekly"
+    categories: ["芯片", "二极管", "三极管"]
+    connection:
+      email_subject_keyword: "罗姆中国库存周报"
+      attachment_ext: [".xlsx"]
+      local_watch_dir: "data/incoming_lm"
+    parsing:
+      header_row: 1
+      sheet_name: "库存数据"
+      date_format: "%Y-%m-%d"
+      encoding: "utf-8"
+    fields:
+      sku_column: "型号"
+      name_column: "产品名称"
+      stock_column: "在库数量"
+      price_column: "含税单价"
+      unit: "PCS"
+      unit_column: null
+    sku_count: 580
+
+  - id: SUP011
+    name: "村田电子"
+    type: "ftp"
+    group: "D"
+    sync_frequency: "daily"
+    categories: ["电容", "电阻"]
+    connection:
+      host: "ftp.murata.example.com"
+      port: 21
+      username: "dist_ct"
+      password: "MuDist@2024#FTP"
+      protocol: "ftp"
+      remote_dir: "/daily/stock"
+      file_pattern: "murata_stock_YYYYMMDD.csv"
+    parsing:
+      delimiter: ","
+      encoding: "utf-8-sig"
+      header: true
+      date_format: "%Y%m%d"
+    fields:
+      sku_column: "part_number"
+      name_column: "product_name"
+      stock_column: "available_qty"
+      price_column: "unit_price_cny"
+      unit: "PCS"
+      unit_column: "uom"
+    sku_count: 900
+
+  - id: SUP012
+    name: "TDK电子"
+    type: "ftp"
+    group: "D"
+    sync_frequency: "daily"
+    categories: ["电容", "电感"]
+    connection:
+      host: "sftp.tdk.example.com"
+      port: 22
+      username: "tdk_dist_01"
+      private_key: "~/.ssh/tdk_dist_key"
+      protocol: "sftp"
+      remote_dir: "/export/inventory"
+      file_pattern: "TDK_INV_DAILY_*.csv"
+    parsing:
+      delimiter: ";"
+      encoding: "utf-8"
+      header: true
+      date_format: "%Y-%m-%d"
+    fields:
+      sku_column: "PART_NO"
+      name_column: "DESCRIPTION"
+      stock_column: "QTY_ON_HAND"
+      price_column: "PRICE_CNY"
+      unit: "KPCS"
+      unit_column: "UNIT"
+    sku_count: 620
+
+  - id: SUP013
+    name: "安森美半导体"
+    type: "ftp"
+    group: "D"
+    sync_frequency: "daily"
+    categories: ["二极管", "三极管", "芯片"]
+    connection:
+      host: "ftp.onsemi.example.cn"
+      port: 21
+      username: "onsemi_partner"
+      password: "OnS#FTP2024"
+      protocol: "ftp"
+      remote_dir: "/partner_data/daily"
+      file_pattern: "onsemi_inv_*.csv"
+    parsing:
+      delimiter: "|"
+      encoding: "gbk"
+      header: true
+      date_format: "%Y%m%d"
+    fields:
+      sku_column: "MATERIAL"
+      name_column: "MATERIAL_DESC"
+      stock_column: "UNRESTRICTED"
+      price_column: "NET_PRICE"
+      unit: "PCS"
+      unit_column: "BASE_UOM"
+    sku_count: 430
+
+  - id: SUP014
+    name: "意法半导体"
+    type: "api"
+    group: "E"
+    sync_frequency: "daily"
+    categories: ["芯片", "二极管", "三极管"]
+    connection:
+      base_url: "https://api.stm.example.cn/v2"
+      token_url: "https://api.stm.example.cn/oauth/token"
+      client_id: "stm_distributor_client_007"
+      client_secret: "STM-Secret-2024-a8f3d2"
+      grant_type: "client_credentials"
+      inventory_endpoint: "/inventory/search"
+      auth_type: "oauth2_client_credentials"
+      scope: "inventory:read"
+      page_size: 500
+    fields:
+      sku_field: "partNumber"
+      name_field: "description"
+      stock_field: "availableQuantity"
+      price_field: "unitPriceCNY"
+      unit: "PCS"
+      unit_field: "unitOfMeasure"
+    sku_count: 560
+
+  - id: SUP015
+    name: "德州仪器"
+    type: "api"
+    group: "E"
+    sync_frequency: "daily"
+    categories: ["芯片", "连接器"]
+    connection:
+      base_url: "https://api.ti.example.cn/api/v3"
+      token_url: "https://api.ti.example.cn/auth/token"
+      api_key: "TI-APIKEY-9f7e2b1c4d8a3e5f"
+      auth_type: "api_key_bearer"
+      token_ttl: 3600
+      inventory_endpoint: "/products/inventory"
+      page_size: 200
+      headers:
+        X-Partner-ID: "DIST_PARTNER_0042"
+    fields:
+      sku_field: "sku"
+      name_field: "productName"
+      stock_field: "stockQty"
+      price_field: "price.amount"
+      unit: "PCS"
+      unit_field: "price.currency"
+    sku_count: 700
+
+sku_warning_threshold:
+  defaults:
+    safety_stock: 1000
+    lead_time_days: 7
+    daily_consumption: 100
+  by_category:
+    电阻:
+      safety_stock: 5000
+      lead_time_days: 5
+      daily_consumption: 500
+    电容:
+      safety_stock: 8000
+      lead_time_days: 7
+      daily_consumption: 800
+    芯片:
+      safety_stock: 500
+      lead_time_days: 14
+      daily_consumption: 50
+    连接器:
+      safety_stock: 2000
+      lead_time_days: 10
+      daily_consumption: 150
+    二极管:
+      safety_stock: 3000
+      lead_time_days: 7
+      daily_consumption: 300
+    三极管:
+      safety_stock: 2500
+      lead_time_days: 7
+      daily_consumption: 250
