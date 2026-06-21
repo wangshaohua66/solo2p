@@ -9,6 +9,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"pavement/internal/api"
 	"pavement/internal/engine"
 	"pavement/internal/errors"
 	"pavement/internal/export"
@@ -118,6 +119,7 @@ func (c *CLI) registerCommands() {
 	c.commands["export"] = c.cmdExport
 	c.commands["stats"] = c.cmdStats
 	c.commands["delete"] = c.cmdDelete
+	c.commands["serve"] = c.cmdServe
 }
 
 func (c *CLI) printUsage() {
@@ -143,6 +145,7 @@ func (c *CLI) printUsage() {
 	fmt.Printf("  %s%-12s%s  %s\n", ColorGreen, "export", ColorReset, "导出Markdown养护方案报告")
 	fmt.Printf("  %s%-12s%s  %s\n", ColorGreen, "stats", ColorReset, "三维度数据统计分析")
 	fmt.Printf("  %s%-12s%s  %s\n", ColorGreen, "delete", ColorReset, "批量删除历史数据")
+	fmt.Printf("  %s%-12s%s  %s\n", ColorGreen, "serve", ColorReset, "启动 HTTP RESTful API 服务")
 	fmt.Println()
 	fmt.Println("示例:")
 	fmt.Println("  pavement import -d ./data/q1 -b Q1-2024")
@@ -153,6 +156,7 @@ func (c *CLI) printUsage() {
 	fmt.Println("  pavement export -o report.md")
 	fmt.Println("  pavement stats --dim all")
 	fmt.Println("  pavement delete --batch Q1-2023")
+	fmt.Println("  pavement serve --port 8080")
 	fmt.Println()
 }
 
@@ -1105,4 +1109,92 @@ func estimateFileSize(path string) int64 {
 		return 0
 	}
 	return info.Size()
+}
+
+func (c *CLI) cmdServe(args []string) error {
+	args = parseGlobalFlags(args)
+	fs := flag.NewFlagSet("serve", flag.ExitOnError)
+	port := fs.Int("port", 8080, "HTTP服务监听端口")
+	portShort := fs.Int("p", 8080, "HTTP服务监听端口 (短参数)")
+	host := fs.String("host", "0.0.0.0", "监听地址")
+	enableCORS := fs.Bool("cors", true, "启用CORS跨域支持")
+	timeoutSec := fs.Int("timeout", 60, "请求超时时间(秒)")
+	fs.Parse(args)
+
+	if *port == 8080 && *portShort != 8080 {
+		port = portShort
+	}
+
+	if *port < 1 || *port > 65535 {
+		return errors.NewValidatorError(
+			errors.ErrValidatorInvalidPath,
+			fmt.Sprintf("端口号不合法: %d", *port),
+			"端口号范围应为 1-65535",
+			nil,
+		)
+	}
+
+	logInfo("正在初始化 HTTP API 服务...")
+	logInfo("数据库路径: %s", dbPath)
+
+	cfg := &api.ServerConfig{
+		Port:           *port,
+		DBPath:         dbPath,
+		EnableCORS:     *enableCORS,
+		RequestTimeout: time.Duration(*timeoutSec) * time.Second,
+	}
+
+	server, err := api.NewServer(cfg)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println()
+	fmt.Printf("%s==========  HTTP API 服务启动中  ==========%s\n", ColorBold+ColorCyan, ColorReset)
+	fmt.Println()
+	fmt.Printf("  %s服务信息%s:\n", ColorBold, ColorReset)
+	fmt.Printf("    - 服务名称: %spavement API v1.0.0%s\n", ColorGreen, ColorReset)
+	fmt.Printf("    - 评定标准: JTG H20-2018\n")
+	fmt.Printf("    - 数据库:   %s%s%s\n", ColorCyan, dbPath, ColorReset)
+	fmt.Printf("    - CORS:     %v\n", *enableCORS)
+	fmt.Printf("    - 超时:     %d秒\n", *timeoutSec)
+	fmt.Println()
+	fmt.Printf("  %s监听地址%s: %shttp://%s:%d%s\n",
+		ColorBold, ColorReset, ColorGreen, *host, *port, ColorReset)
+	fmt.Println()
+	fmt.Printf("  %s可用API端点%s:\n", ColorBold, ColorReset)
+	fmt.Printf("    %sGET%s   /api/v1/health        健康检查\n", ColorBlue, ColorReset)
+	fmt.Printf("    %sGET%s   /api/v1/info          服务信息\n", ColorBlue, ColorReset)
+	fmt.Printf("    %sPOST%s  /api/v1/import        批量导入CSV数据\n", ColorGreen, ColorReset)
+	fmt.Printf("    %sPOST%s  /api/v1/classify      病害等级判定\n", ColorGreen, ColorReset)
+	fmt.Printf("    %sGET%s   /api/v1/records        查询路段记录\n", ColorBlue, ColorReset)
+	fmt.Printf("    %sGET%s   /api/v1/rank          优先级排序\n", ColorBlue, ColorReset)
+	fmt.Printf("    %sPOST%s  /api/v1/budget        预算分配\n", ColorGreen, ColorReset)
+	fmt.Printf("    %sGET%s   /api/v1/stats         数据统计\n", ColorBlue, ColorReset)
+	fmt.Printf("    %sGET%s   /api/v1/export        导出报告\n", ColorBlue, ColorReset)
+	fmt.Printf("    %sDEL%sETE /api/v1/records        删除记录\n", ColorRed, ColorReset)
+	fmt.Printf("    %sGET%s   /api/v1/routes         路线列表\n", ColorBlue, ColorReset)
+	fmt.Printf("    %sGET%s   /api/v1/centers        养护中心列表\n", ColorBlue, ColorReset)
+	fmt.Println()
+	fmt.Printf("  %s快捷测试%s:\n", ColorBold, ColorReset)
+	fmt.Printf("    curl http://%s:%d/api/v1/health\n", *host, *port)
+	fmt.Printf("    curl http://%s:%d/api/v1/stats\n", *host, *port)
+	fmt.Println()
+	fmt.Printf("  %s按 Ctrl+C 停止服务%s\n", ColorYellow, ColorReset)
+	fmt.Println()
+
+	if globalVerbose {
+		logVerbose("Echo 框架已加载，中间件: CORS=%v, Recover, RequestID, Gzip, BodyLimit=50M, Timeout=%ds",
+			*enableCORS, *timeoutSec)
+	}
+
+	printSuccess("HTTP API 服务已启动，监听端口 %d", *port)
+	fmt.Printf("  %s等待请求...%s\n", ColorCyan, ColorReset)
+
+	addr := fmt.Sprintf("%s:%d", *host, *port)
+	server.Echo().Server.Addr = addr
+	if err := server.Start(*port); err != nil {
+		return err
+	}
+	return nil
 }
