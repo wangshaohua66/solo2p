@@ -1,6 +1,6 @@
 import sqlite3
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple, Any
+from typing import List, Dict, Optional, Tuple, Any, Iterator
 from contextlib import contextmanager
 from datetime import datetime
 
@@ -297,6 +297,57 @@ class Database:
             ORDER BY declare_date
             """
             return pd.read_sql_query(query, conn, params=(start_date, end_date))
+
+    def get_declarations_paginated(self, start_date: Optional[str] = None,
+                                   end_date: Optional[str] = None,
+                                   chunk_size: int = 10000) -> Iterator[pd.DataFrame]:
+        offset = 0
+        while True:
+            with self.get_connection() as conn:
+                query = "SELECT * FROM declarations WHERE 1=1"
+                params = []
+                if start_date and end_date:
+                    query += " AND declare_date BETWEEN ? AND ?"
+                    params.extend([start_date, end_date])
+                query += " ORDER BY declare_date LIMIT ? OFFSET ?"
+                params.extend([chunk_size, offset])
+
+                chunk = pd.read_sql_query(query, conn, params=params)
+
+            if chunk.empty:
+                break
+
+            yield chunk
+            offset += chunk_size
+
+            if len(chunk) < chunk_size:
+                break
+
+    def get_declarations_by_hs_prefix_paginated(self, hs_prefix: str,
+                                                start_date: Optional[str] = None,
+                                                end_date: Optional[str] = None,
+                                                chunk_size: int = 10000) -> Iterator[pd.DataFrame]:
+        offset = 0
+        while True:
+            with self.get_connection() as conn:
+                query = "SELECT * FROM declarations WHERE hs_prefix6 = ?"
+                params = [hs_prefix]
+                if start_date and end_date:
+                    query += " AND declare_date BETWEEN ? AND ?"
+                    params.extend([start_date, end_date])
+                query += " ORDER BY declare_date LIMIT ? OFFSET ?"
+                params.extend([chunk_size, offset])
+
+                chunk = pd.read_sql_query(query, conn, params=params)
+
+            if chunk.empty:
+                break
+
+            yield chunk
+            offset += chunk_size
+
+            if len(chunk) < chunk_size:
+                break
 
     def get_declarations_by_hs_prefix(self, hs_prefix: str, start_date: Optional[str] = None,
                                       end_date: Optional[str] = None) -> pd.DataFrame:

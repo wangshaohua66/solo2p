@@ -1,9 +1,9 @@
 import json
 import os
+import logging
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Dict, List, Optional, Any
-
 
 WORKSPACE_DIR = Path(os.environ.get("CRISK_WORKSPACE", Path.cwd() / ".crisk"))
 
@@ -138,6 +138,19 @@ class ConfigManager:
         self._log_operation(f"新增HS规则: {hs_prefix}", "INFO")
         self.save_rules()
 
+    def update_hs_rule(self, hs_prefix: str, keywords: Optional[List[str]] = None, description: Optional[str] = None) -> bool:
+        rule_set = self.rule_set
+        for rule in rule_set.hs_rules:
+            if rule.hs_prefix == hs_prefix:
+                if keywords is not None:
+                    rule.keywords = keywords
+                if description is not None:
+                    rule.description = description
+                self._log_operation(f"更新HS规则: {hs_prefix}", "INFO")
+                self.save_rules()
+                return True
+        return False
+
     def delete_hs_rule(self, hs_prefix: str) -> bool:
         rule_set = self.rule_set
         original_len = len(rule_set.hs_rules)
@@ -182,12 +195,10 @@ class ConfigManager:
         return RuleSet(hs_rules=default_rules)
 
     def _log_operation(self, message: str, level: str = "INFO") -> None:
-        log_path = WORKSPACE_DIR / "operation.log"
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        from datetime import datetime
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        with open(log_path, "a", encoding="utf-8") as f:
-            f.write(f"[{timestamp}] [{level}] {message}\n")
+        from .logger import setup_logger
+        config_logger = setup_logger("crisk.config")
+        log_level = getattr(logging, level, logging.INFO)
+        config_logger.log(log_level, f"[规则操作] {message}")
 
 
 def get_config_manager() -> ConfigManager:

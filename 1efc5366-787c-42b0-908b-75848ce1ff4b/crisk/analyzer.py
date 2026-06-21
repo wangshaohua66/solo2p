@@ -37,18 +37,61 @@ class LowPriceAnalyzer(BaseAnalyzer):
         logger.info("开始低报检测分析")
         clues = []
 
-        if start_date and end_date:
-            df = self.db.get_declarations_by_date_range(start_date, end_date)
-        else:
-            with self.db.get_connection() as conn:
-                df = pd.read_sql_query("SELECT * FROM declarations ORDER BY declare_date", conn)
+        hs_stats: Dict[str, Dict[str, float]] = {}
+        hs_counts: Dict[str, int] = {}
 
-        if df.empty:
-            logger.warning("没有报关单数据可供分析")
+        with self.db.get_connection() as conn:
+            if start_date and end_date:
+                query = """
+                    SELECT hs_prefix6, unit_price
+                    FROM declarations
+                    WHERE declare_date BETWEEN ? AND ? AND unit_price > 0
+                    ORDER BY hs_prefix6
+                """
+                prices_df = pd.read_sql_query(query, conn, params=(start_date, end_date))
+            else:
+                query = """
+                    SELECT hs_prefix6, unit_price
+                    FROM declarations
+                    WHERE unit_price > 0
+                    ORDER BY hs_prefix6
+                """
+                prices_df = pd.read_sql_query(query, conn)
+
+        if prices_df.empty:
+            logger.warning("没有足够的报关单数据可供分析")
             return clues
 
-        hs_groups = df.groupby("hs_prefix6")
-        total_groups = len(hs_groups)
+        hs_grouped = prices_df.groupby("hs_prefix6")
+        stats_data = []
+        for hs_prefix, group in hs_grouped:
+            if len(group) >= 3:
+                stats_data.append({
+                    "hs_prefix6": hs_prefix,
+                    "cnt": len(group),
+                    "median_price": group["unit_price"].median()
+                })
+        stats_df = pd.DataFrame(stats_data)
+
+        if stats_df.empty:
+            logger.warning("没有足够的报关单数据可供分析")
+            return clues
+
+        for _, row in stats_df.iterrows():
+            hs_prefix = row["hs_prefix6"]
+            hs_stats[hs_prefix] = {
+                "median": row["median_price"],
+                "count": row["cnt"]
+            }
+
+        thresholds = self.config.thresholds
+        hs_thresholds: Dict[str, float] = {}
+        for hs_prefix in hs_stats:
+            hs_thresholds[hs_prefix] = custom_threshold if custom_threshold is not None else \
+                thresholds.get_threshold_for_category(hs_prefix)
+
+        total_hs = len(hs_stats)
+        processed_hs = 0
 
         with Progress(
             SpinnerColumn(),
@@ -59,51 +102,56 @@ class LowPriceAnalyzer(BaseAnalyzer):
             console=console,
             transient=True,
         ) as progress:
-            task = progress.add_task("[cyan]低报检测中...", total=total_groups)
+            task = progress.add_task("[cyan]低报检测中...", total=total_hs)
 
-            for hs_prefix, group in hs_groups:
-                if len(group) < 3:
-                    progress.advance(task)
-                    continue
+            for hs_prefix, stats in hs_stats.items():
+                industry_avg = stats["median"]
+                threshold = hs_thresholds[hs_prefix]
 
-                industry_avg = group["unit_price"].median()
-                if industry_avg <= 0:
-                    progress.advance(task)
-                    continue
-
-                threshold = custom_threshold if custom_threshold is not None else \
-                    self.config.thresholds.get_threshold_for_category(hs_prefix)
-
-                for _, row in group.iterrows():
-                    declared_price = row["unit_price"]
-                    if declared_price <= 0:
+                for chunk in self.db.get_declarations_by_hs_prefix_paginated(hs_prefix, start_date, end_date, chunk_size=10000):
+                    chunk = chunk[chunk["unit_price"] > 0].copy()
+                    if chunk.empty:
                         continue
 
-                    deviation = abs(declared_price - industry_avg) / industry_avg
+                    chunk["deviation"] = np.abs(chunk["unit_price"] - industry_avg) / industry_avg
+                    chunk["is_abnormal"] = chunk["deviation"] > threshold
 
-                    if deviation > threshold:
-                        deviation_percent = deviation * 100
-                        risk_score = min(deviation / 0.5, 1.0)
-                        risk_level = self._determine_risk_level(risk_score)
+                    abnormal = chunk[chunk["is_abnormal"]].copy()
+                    if abnormal.empty:
+                        continue
 
+                    abnormal["deviation_percent"] = (abnormal["deviation"] * 100).round(2)
+                    abnormal["risk_score"] = np.minimum(abnormal["deviation"] / 0.5, 1.0)
+                    abnormal["risk_level"] = np.where(
+                        abnormal["risk_score"] >= 0.7, "高风险",
+                        np.where(abnormal["risk_score"] >= 0.4, "中风险", "低风险")
+                    )
+                    abnormal["deviation_direction"] = np.where(
+                        abnormal["unit_price"] < industry_avg, "低报", "高报"
+                    )
+                    abnormal["industry_avg_price"] = round(industry_avg, 2)
+                    abnormal["declared_price"] = abnormal["unit_price"].round(2)
+
+                    for _, row in abnormal.iterrows():
                         clue = {
                             "detection_type": "lowprice",
-                            "risk_level": risk_level,
+                            "risk_level": row["risk_level"],
                             "declaration_no": row["declaration_no"],
                             "hs_code": row["hs_code"],
                             "company": row["company"],
                             "consignee": row["consignee"],
                             "analysis_details": json.dumps({
                                 "hs_category": hs_prefix,
-                                "deviation_direction": "低报" if declared_price < industry_avg else "高报",
+                                "deviation_direction": row["deviation_direction"],
                             }, ensure_ascii=False),
-                            "deviation_percent": round(deviation_percent, 2),
-                            "industry_avg_price": round(industry_avg, 2),
-                            "declared_price": round(declared_price, 2),
+                            "deviation_percent": row["deviation_percent"],
+                            "industry_avg_price": row["industry_avg_price"],
+                            "declared_price": row["declared_price"],
                         }
                         clues.append(clue)
 
-                progress.advance(task)
+                processed_hs += 1
+                progress.update(task, completed=processed_hs)
 
         logger.info(f"低报检测完成，发现 {len(clues)} 条线索")
         return clues
@@ -121,20 +169,28 @@ class SplitOrderAnalyzer(BaseAnalyzer):
         min_shipments = min_shipments or thresholds.split_min_shipments
         value_threshold = value_threshold or thresholds.split_value_threshold
 
-        if start_date and end_date:
-            df = self.db.get_declarations_by_date_range(start_date, end_date)
-        else:
-            with self.db.get_connection() as conn:
-                df = pd.read_sql_query("SELECT * FROM declarations ORDER BY declare_date", conn)
+        all_data = []
+        for chunk in self.db.get_declarations_paginated(start_date, end_date, chunk_size=10000):
+            all_data.append(chunk[["declaration_no", "hs_code", "hs_prefix6", "declared_value",
+                                   "declare_date", "company", "consignee"]])
+
+        if not all_data:
+            logger.warning("没有报关单数据可供分析")
+            return clues
+
+        df = pd.concat(all_data, ignore_index=True)
+        del all_data
 
         if df.empty:
             logger.warning("没有报关单数据可供分析")
             return clues
 
         df["declare_date_dt"] = pd.to_datetime(df["declare_date"])
+        df = df.sort_values("declare_date_dt").reset_index(drop=True)
 
-        groups = df.groupby(["consignee", "hs_prefix6"])
-        total_groups = len(groups)
+        group_counts = df.groupby(["consignee", "hs_prefix6"]).size()
+        valid_groups = group_counts[group_counts >= min_shipments].index
+        total_groups = len(valid_groups)
 
         with Progress(
             SpinnerColumn(),
@@ -147,11 +203,8 @@ class SplitOrderAnalyzer(BaseAnalyzer):
         ) as progress:
             task = progress.add_task("[cyan]拆单识别中...", total=total_groups)
 
-            for (consignee, hs_prefix), group in groups:
-                if len(group) < min_shipments:
-                    progress.advance(task)
-                    continue
-
+            for (consignee, hs_prefix) in valid_groups:
+                group = df[(df["consignee"] == consignee) & (df["hs_prefix6"] == hs_prefix)].copy()
                 group = group.sort_values("declare_date_dt").reset_index(drop=True)
 
                 for i in range(len(group)):
@@ -201,20 +254,27 @@ class FakeDeclarationAnalyzer(BaseAnalyzer):
         logger.info("开始伪报检测分析")
         clues = []
 
-        if start_date and end_date:
-            df = self.db.get_declarations_by_date_range(start_date, end_date)
-        else:
-            with self.db.get_connection() as conn:
-                df = pd.read_sql_query("SELECT * FROM declarations ORDER BY declare_date", conn)
-
-        if df.empty:
-            logger.warning("没有报关单数据可供分析")
+        rules = self.config.rule_set.hs_rules
+        if not rules:
+            logger.warning("没有检测规则可供分析")
             return clues
 
-        rules = self.config.rule_set.hs_rules
+        rule_hs_prefixes = [rule.hs_prefix for rule in rules]
         rule_map = {rule.hs_prefix: rule for rule in rules}
 
-        total_rows = len(df)
+        total_count = 0
+        with self.db.get_connection() as conn:
+            if start_date and end_date:
+                query = "SELECT COUNT(*) as cnt FROM declarations WHERE declare_date BETWEEN ? AND ?"
+                params = [start_date, end_date]
+            else:
+                query = "SELECT COUNT(*) as cnt FROM declarations"
+                params = []
+            total_count = conn.execute(query, params).fetchone()["cnt"]
+
+        if total_count == 0:
+            logger.warning("没有报关单数据可供分析")
+            return clues
 
         with Progress(
             SpinnerColumn(),
@@ -225,44 +285,65 @@ class FakeDeclarationAnalyzer(BaseAnalyzer):
             console=console,
             transient=True,
         ) as progress:
-            task = progress.add_task("[cyan]伪报检测中...", total=total_rows)
+            task = progress.add_task("[cyan]伪报检测中...", total=total_count)
+            processed = 0
 
-            for _, row in df.iterrows():
-                hs_code = row["hs_code"]
-                product_name = row["product_name"]
-                hs_prefix = hs_code[:6]
+            for chunk in self.db.get_declarations_paginated(start_date, end_date, chunk_size=10000):
+                chunk["hs_prefix6_match"] = chunk["hs_prefix6"]
 
-                matching_rule = None
-                for prefix, rule in rule_map.items():
-                    if hs_prefix.startswith(prefix):
-                        matching_rule = rule
-                        break
+                rule_descriptions = []
+                rule_keywords = []
+                expected_keywords = []
+                rule_hs_categories = []
 
-                if matching_rule is None:
-                    progress.advance(task)
-                    continue
+                for _, row in chunk.iterrows():
+                    hs_prefix = row["hs_prefix6_match"]
+                    matching_rule = None
+                    for prefix, rule in rule_map.items():
+                        if hs_prefix.startswith(prefix):
+                            matching_rule = rule
+                            break
 
-                if not matching_rule.matches(product_name):
-                    risk_score = 0.6
-                    risk_level = self._determine_risk_level(risk_score)
+                    if matching_rule is not None and not matching_rule.matches(row["product_name"]):
+                        rule_descriptions.append(matching_rule.description)
+                        rule_keywords.append(", ".join(matching_rule.keywords))
+                        expected_keywords.append(", ".join(matching_rule.keywords))
+                        rule_hs_categories.append(hs_prefix)
+                    else:
+                        rule_descriptions.append(None)
+                        rule_keywords.append(None)
+                        expected_keywords.append(None)
+                        rule_hs_categories.append(None)
 
-                    clue = {
-                        "detection_type": "fake",
-                        "risk_level": risk_level,
-                        "declaration_no": row["declaration_no"],
-                        "hs_code": hs_code,
-                        "company": row["company"],
-                        "consignee": row["consignee"],
-                        "analysis_details": json.dumps({
-                            "hs_category": hs_prefix,
-                            "rule_description": matching_rule.description,
-                        }, ensure_ascii=False),
-                        "expected_keywords": ", ".join(matching_rule.keywords),
-                        "actual_description": product_name,
-                    }
-                    clues.append(clue)
+                chunk["rule_description"] = rule_descriptions
+                chunk["rule_keywords"] = rule_keywords
+                chunk["expected_keywords"] = expected_keywords
+                chunk["rule_hs_category"] = rule_hs_categories
 
-                progress.advance(task)
+                abnormal = chunk[chunk["rule_description"].notna()].copy()
+                if not abnormal.empty:
+                    abnormal["risk_score"] = 0.6
+                    abnormal["risk_level"] = "中风险"
+
+                    for _, row in abnormal.iterrows():
+                        clue = {
+                            "detection_type": "fake",
+                            "risk_level": row["risk_level"],
+                            "declaration_no": row["declaration_no"],
+                            "hs_code": row["hs_code"],
+                            "company": row["company"],
+                            "consignee": row["consignee"],
+                            "analysis_details": json.dumps({
+                                "hs_category": row["rule_hs_category"],
+                                "rule_description": row["rule_description"],
+                            }, ensure_ascii=False),
+                            "expected_keywords": row["expected_keywords"],
+                            "actual_description": row["product_name"],
+                        }
+                        clues.append(clue)
+
+                processed += len(chunk)
+                progress.update(task, completed=processed)
 
         logger.info(f"伪报检测完成，发现 {len(clues)} 条线索")
         return clues
@@ -273,35 +354,42 @@ class AbnormalChannelAnalyzer(BaseAnalyzer):
         logger.info("开始通道异常检测分析")
         clues = []
 
-        if start_date and end_date:
-            df = self.db.get_declarations_by_date_range(start_date, end_date)
-        else:
-            with self.db.get_connection() as conn:
-                df = pd.read_sql_query("SELECT * FROM declarations ORDER BY declare_date", conn)
+        all_data = []
+        for chunk in self.db.get_declarations_paginated(start_date, end_date, chunk_size=10000):
+            all_data.append(chunk[["declaration_no", "hs_code", "company", "consignee",
+                                   "declare_date", "trade_route"]])
+
+        if not all_data:
+            logger.warning("没有报关单数据可供分析")
+            return clues
+
+        df = pd.concat(all_data, ignore_index=True)
+        del all_data
 
         if df.empty:
             logger.warning("没有报关单数据可供分析")
             return clues
 
         df["declare_date_dt"] = pd.to_datetime(df["declare_date"])
+        df = df.sort_values("declare_date_dt").reset_index(drop=True)
 
         company_first_dates = df.groupby("company")["declare_date_dt"].min()
-
-        with self.db.get_connection() as conn:
-            historical_df = pd.read_sql_query("""
-                SELECT DISTINCT company, trade_route 
-                FROM declarations 
-                WHERE declare_date < (SELECT MIN(declare_date) FROM declarations)
-            """, conn)
-
-        historical_routes: Dict[str, set] = {}
-        for _, row in historical_df.iterrows():
-            if row["company"] not in historical_routes:
-                historical_routes[row["company"]] = set()
-            historical_routes[row["company"]].add(row["trade_route"])
+        company_max_dates = df.groupby("company")["declare_date_dt"].max()
 
         companies = df["company"].unique()
         total_companies = len(companies)
+
+        with self.db.get_connection() as conn:
+            all_company_routes: Dict[str, pd.DataFrame] = {}
+            for company in companies:
+                max_date = company_max_dates[company].strftime("%Y-%m-%d")
+                routes_df = pd.read_sql_query("""
+                    SELECT DISTINCT trade_route, declare_date
+                    FROM declarations 
+                    WHERE company = ? AND declare_date < ?
+                    ORDER BY declare_date
+                """, conn, params=(company, max_date))
+                all_company_routes[company] = routes_df
 
         with Progress(
             SpinnerColumn(),
@@ -315,16 +403,27 @@ class AbnormalChannelAnalyzer(BaseAnalyzer):
             task = progress.add_task("[cyan]通道异常检测中...", total=total_companies)
 
             for company in companies:
-                company_df = df[df["company"] == company].copy()
+                company_df = df[df["company"] == company].copy().sort_values("declare_date_dt").reset_index(drop=True)
                 company_first = company_first_dates[company]
 
-                known_routes = historical_routes.get(company, set())
+                historical_routes_df = all_company_routes.get(company, pd.DataFrame())
+
+                known_routes: set = set()
+                if not historical_routes_df.empty:
+                    company_first_str = company_first.strftime("%Y-%m-%d")
+                    before_first = historical_routes_df[historical_routes_df["declare_date"] < company_first_str]
+                    known_routes = set(before_first["trade_route"].unique())
 
                 for _, row in company_df.iterrows():
                     current_route = row["trade_route"]
                     declare_date = row["declare_date_dt"]
+                    declare_date_str = declare_date.strftime("%Y-%m-%d")
 
                     is_new_company = declare_date <= company_first + timedelta(days=30)
+
+                    if not is_new_company and not historical_routes_df.empty:
+                        before_current = historical_routes_df[historical_routes_df["declare_date"] < declare_date_str]
+                        known_routes.update(before_current["trade_route"].unique())
 
                     prev_routes = company_df[company_df["declare_date_dt"] < declare_date]["trade_route"].unique()
                     known_routes.update(prev_routes)
@@ -358,79 +457,183 @@ class AbnormalChannelAnalyzer(BaseAnalyzer):
 
 
 class CaseMatcher(BaseAnalyzer):
+    def __init__(self, db: Database, config: ConfigManager):
+        super().__init__(db, config)
+        self._cases_cache: Optional[pd.DataFrame] = None
+        self._cache_timestamp: Optional[datetime] = None
+        self._cache_ttl = 3600
+
+    def _get_cases(self) -> pd.DataFrame:
+        now = datetime.now()
+        if self._cases_cache is None or (self._cache_timestamp is None or
+                                         (now - self._cache_timestamp).total_seconds() > self._cache_ttl):
+            self._cases_cache = self.db.get_all_cases()
+            self._cache_timestamp = now
+
+            if not self._cases_cache.empty:
+                self._cases_cache["hs_prefix6"] = self._cases_cache["hs_code"].apply(
+                    lambda x: str(x)[:6] if pd.notna(x) else ""
+                )
+                self._cases_cache["hs_prefix4"] = self._cases_cache["hs_prefix6"].str[:4]
+                self._cases_cache["company_clean"] = self._cases_cache["company"].fillna("")
+                self._cases_cache["origin_clean"] = self._cases_cache["origin_country"].fillna("")
+
+        return self._cases_cache
+
+    def _batch_get_origins(self, declaration_nos: List[str]) -> Dict[str, str]:
+        if not declaration_nos:
+            return {}
+
+        origins: Dict[str, str] = {}
+        batch_size = 500
+
+        for i in range(0, len(declaration_nos), batch_size):
+            batch = declaration_nos[i:i + batch_size]
+            placeholders = ", ".join(["?"] * len(batch))
+
+            with self.db.get_connection() as conn:
+                query = f"""
+                    SELECT declaration_no, origin_country
+                    FROM declarations
+                    WHERE declaration_no IN ({placeholders})
+                """
+                cur = conn.execute(query, batch)
+                for row in cur.fetchall():
+                    origins[row["declaration_no"]] = row["origin_country"] or ""
+
+        return origins
+
+    def _vectorized_similarity(self, target: str, series: pd.Series) -> np.ndarray:
+        if not target:
+            return np.zeros(len(series), dtype=np.float64)
+
+        target_len = len(target)
+        series_list = series.tolist()
+
+        scores = np.zeros(len(series_list), dtype=np.float64)
+
+        for i, s in enumerate(series_list):
+            if not s:
+                scores[i] = 0.0
+                continue
+            s_len = len(s)
+            if abs(target_len - s_len) > max(target_len, s_len) * 0.5:
+                scores[i] = 0.0
+                continue
+            scores[i] = SequenceMatcher(None, target, s).ratio()
+
+        return scores
+
     def match_cases(self, clues: List[Dict]) -> List[Dict]:
         if not clues:
             return clues
 
         logger.info("开始案例关联匹配")
-        cases_df = self.db.get_all_cases()
+        cases_df = self._get_cases()
 
         if cases_df.empty:
             logger.warning("没有历史案件数据可供匹配")
             return clues
 
+        declaration_nos = [c["declaration_no"] for c in clues if c.get("declaration_no")]
+        origin_map = self._batch_get_origins(declaration_nos)
+
+        clue_hs_list = []
+        clue_company_list = []
+        clue_origin_list = []
+        clue_hs4_list = []
+
         for clue in clues:
-            matches = []
             clue_hs = clue.get("hs_code", "")[:6]
             clue_company = clue.get("company", "")
-            clue_origin = ""
+            clue_origin = origin_map.get(clue.get("declaration_no", ""), "")
 
-            if clue.get("declaration_no"):
-                with self.db.get_connection() as conn:
-                    row = conn.execute(
-                        "SELECT origin_country FROM declarations WHERE declaration_no = ?",
-                        (clue["declaration_no"],)
-                    ).fetchone()
-                    if row:
-                        clue_origin = row["origin_country"]
+            clue_hs_list.append(clue_hs)
+            clue_company_list.append(clue_company)
+            clue_origin_list.append(clue_origin)
+            clue_hs4_list.append(clue_hs[:4])
 
-            for _, case in cases_df.iterrows():
-                score = 0.0
-                dimensions = []
+        case_hs6 = cases_df["hs_prefix6"].values
+        case_hs4 = cases_df["hs_prefix4"].values
+        case_company = cases_df["company_clean"].values
+        case_origin = cases_df["origin_clean"].values
+        case_nos = cases_df["case_no"].values
 
-                case_hs = str(case["hs_code"])[:6] if pd.notna(case["hs_code"]) else ""
-                if clue_hs and case_hs and clue_hs == case_hs:
-                    score += 0.4
-                    dimensions.append("HS编码匹配")
-                elif clue_hs and case_hs and clue_hs[:4] == case_hs[:4]:
-                    score += 0.2
-                    dimensions.append("HS编码前4位匹配")
+        batch_case_matches = []
 
-                case_company = case["company"] if pd.notna(case["company"]) else ""
-                if clue_company and case_company:
-                    sim = SequenceMatcher(None, clue_company, case_company).ratio()
-                    if sim > 0.8:
-                        score += 0.35
-                        dimensions.append(f"经营单位相似 ({sim:.2f})")
-                    elif sim > 0.5:
-                        score += 0.15
+        for clue_idx, clue in enumerate(clues):
+            clue_hs = clue_hs_list[clue_idx]
+            clue_hs4 = clue_hs4_list[clue_idx]
+            clue_company = clue_company_list[clue_idx]
+            clue_origin = clue_origin_list[clue_idx]
 
-                case_origin = case["origin_country"] if pd.notna(case["origin_country"]) else ""
-                if clue_origin and case_origin and clue_origin == case_origin:
-                    score += 0.25
-                    dimensions.append("原产地匹配")
+            scores = np.zeros(len(cases_df), dtype=np.float64)
+            dimensions_list: List[List[str]] = [[] for _ in range(len(cases_df))]
 
-                if score >= 0.3:
+            if clue_hs:
+                hs6_match_mask = (case_hs6 == clue_hs) & (case_hs6 != "")
+                scores[hs6_match_mask] += 0.4
+                for i in np.where(hs6_match_mask)[0]:
+                    dimensions_list[i].append("HS编码匹配")
+
+                hs4_match_mask = ~hs6_match_mask & (case_hs4 == clue_hs4) & (case_hs4 != "")
+                scores[hs4_match_mask] += 0.2
+                for i in np.where(hs4_match_mask)[0]:
+                    dimensions_list[i].append("HS编码前4位匹配")
+
+            if clue_company:
+                company_sims = self._vectorized_similarity(clue_company, cases_df["company_clean"])
+                high_sim_mask = company_sims > 0.8
+                scores[high_sim_mask] += 0.35
+                for i in np.where(high_sim_mask)[0]:
+                    dimensions_list[i].append(f"经营单位相似 ({company_sims[i]:.2f})")
+
+                med_sim_mask = ~high_sim_mask & (company_sims > 0.5)
+                scores[med_sim_mask] += 0.15
+
+            if clue_origin:
+                origin_match_mask = (case_origin == clue_origin) & (case_origin != "")
+                scores[origin_match_mask] += 0.25
+                for i in np.where(origin_match_mask)[0]:
+                    dimensions_list[i].append("原产地匹配")
+
+            match_mask = scores >= 0.3
+            match_indices = np.where(match_mask)[0]
+
+            if len(match_indices) > 0:
+                match_scores = scores[match_indices]
+                sort_order = np.argsort(-match_scores)
+                sorted_indices = match_indices[sort_order]
+
+                matches = []
+                for i in sorted_indices:
                     matches.append({
-                        "case_no": case["case_no"],
-                        "score": round(score, 3),
-                        "dimensions": dimensions,
+                        "case_no": case_nos[i],
+                        "score": round(float(scores[i]), 3),
+                        "dimensions": dimensions_list[i],
                     })
 
-            if matches:
-                matches.sort(key=lambda x: x["score"], reverse=True)
-                top_match = matches[0]
-                clue["similarity_score"] = top_match["score"]
-                clue["matched_cases"] = json.dumps([m["case_no"] for m in matches[:5]], ensure_ascii=False)
+                if matches:
+                    top_match = matches[0]
+                    clue["similarity_score"] = top_match["score"]
+                    clue["matched_cases"] = json.dumps([m["case_no"] for m in matches[:5]], ensure_ascii=False)
 
-                if "clue_no" in clue:
-                    for m in matches[:3]:
-                        self.db.insert_case_match(
-                            clue["clue_no"],
-                            m["case_no"],
-                            m["score"],
-                            ", ".join(m["dimensions"])
-                        )
+                    if "clue_no" in clue:
+                        for m in matches[:3]:
+                            batch_case_matches.append((
+                                clue["clue_no"],
+                                m["case_no"],
+                                m["score"],
+                                ", ".join(m["dimensions"])
+                            ))
+
+        if batch_case_matches:
+            with self.db.get_connection() as conn:
+                conn.executemany("""
+                    INSERT OR IGNORE INTO case_matches
+                    (clue_no, case_no, similarity_score, match_dimensions)
+                    VALUES (?, ?, ?, ?)
+                """, batch_case_matches)
 
         logger.info(f"案例关联完成，{sum(1 for c in clues if c.get('similarity_score'))} 条线索找到关联案件")
         return clues

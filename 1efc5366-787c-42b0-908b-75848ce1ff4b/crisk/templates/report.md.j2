@@ -25,6 +25,14 @@
 | {{ data.name }} | {{ data['高风险'] }} | {{ data['中风险'] }} | {{ data['低风险'] }} | **{{ data.count }}** |
 {% endfor %}
 
+{% if trends.descriptions %}
+### 📊 风险趋势分析
+
+{% for dtype, desc in trends.descriptions.items() %}
+- **{{ type_names[dtype] }}**: {{ desc }}
+{% endfor %}
+{% endif %}
+
 ---
 
 ## ⚠️ 异常线索明细

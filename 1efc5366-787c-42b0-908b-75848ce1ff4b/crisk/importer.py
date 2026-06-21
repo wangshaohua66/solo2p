@@ -58,7 +58,9 @@ class DataImporter:
         df = df.rename(columns=mapped_columns)
         return df, missing_fields
 
-    def _clean_data(self, df: pd.DataFrame, source_file: str) -> Tuple[pd.DataFrame, List[Dict]]:
+    def _clean_data(self, df: pd.DataFrame, source_file: str,
+                    progress: Optional[Progress] = None,
+                    parent_task: Optional[int] = None) -> Tuple[pd.DataFrame, List[Dict]]:
         errors = []
         df = df.copy()
 
@@ -75,9 +77,21 @@ class DataImporter:
 
         df["declare_date"] = pd.to_datetime(df["申报日期"], errors="coerce").dt.strftime("%Y-%m-%d")
 
-        for idx, row in df.iterrows():
-            row_errors = []
+        invalid_mask = pd.Series(False, index=df.index)
 
+        invalid_mask |= df["declaration_no"].isin(["", "nan"])
+        invalid_mask |= df["product_name"].isin(["", "nan"])
+        invalid_mask |= (df["hs_code"] == "") | (df["hs_code"].str.len() < 6)
+        invalid_mask |= df["declared_value"].isna() | (df["declared_value"] <= 0)
+        invalid_mask |= df["quantity"].isna() | (df["quantity"] <= 0)
+        invalid_mask |= df["origin_country"].isin(["", "nan"])
+        invalid_mask |= df["destination_country"].isin(["", "nan"])
+        invalid_mask |= df["declare_date"].isna()
+
+        invalid_indices = df.index[invalid_mask]
+        for idx in invalid_indices:
+            row = df.loc[idx]
+            row_errors = []
             if not row["declaration_no"] or row["declaration_no"] == "nan":
                 row_errors.append("报关单号为空")
             if not row["product_name"] or row["product_name"] == "nan":
@@ -95,20 +109,24 @@ class DataImporter:
             if pd.isna(row["declare_date"]):
                 row_errors.append("申报日期格式无效")
 
-            if row_errors:
-                errors.append({
-                    "row": idx + 2,
-                    "declaration_no": row["declaration_no"],
-                    "errors": "; ".join(row_errors)
-                })
+            errors.append({
+                "row": idx + 2,
+                "declaration_no": row["declaration_no"],
+                "errors": "; ".join(row_errors)
+            })
 
-        valid_mask = ~df.index.isin([e["row"] - 2 for e in errors])
+        if progress and parent_task is not None:
+            progress.advance(parent_task, len(df))
+
+        valid_mask = ~invalid_mask
         clean_df = df[valid_mask].copy()
         clean_df["source_file"] = source_file
 
         return clean_df, errors
 
-    def import_file(self, file_path: str, data_type: str = "declarations") -> Dict:
+    def import_file(self, file_path: str, data_type: str = "declarations",
+                    progress: Optional[Progress] = None,
+                    parent_task: Optional[int] = None) -> Dict:
         path = Path(file_path)
         if not path.exists():
             logger.error(f"文件不存在: {file_path}")
@@ -124,29 +142,39 @@ class DataImporter:
         else:
             raise ValueError(f"不支持的文件格式: {path.suffix}")
 
-        logger.info(f"读取到 {len(df)} 条记录")
+        total_records = len(df)
+        logger.info(f"读取到 {total_records} 条记录")
 
         if data_type == "declarations":
-            return self._import_declarations(df, path.name)
+            result = self._import_declarations(df, path.name, progress, parent_task)
         elif data_type == "risk_controls":
-            return self._import_risk_controls(df, path.name)
+            result = self._import_risk_controls(df, path.name)
         elif data_type == "inspections":
-            return self._import_inspections(df, path.name)
+            result = self._import_inspections(df, path.name)
         elif data_type == "cases":
-            return self._import_cases(df, path.name)
+            result = self._import_cases(df, path.name)
         else:
             raise ValueError(f"不支持的数据类型: {data_type}")
 
-    def _import_declarations(self, df: pd.DataFrame, source_file: str) -> Dict:
+        if progress and parent_task is not None:
+            progress.advance(parent_task, total_records)
+
+        return result
+
+    def _import_declarations(self, df: pd.DataFrame, source_file: str,
+                             progress: Optional[Progress] = None,
+                             parent_task: Optional[int] = None) -> Dict:
         df, missing_fields = self._map_columns(df)
 
         if missing_fields:
             error_msg = f"缺少必填字段: {', '.join(missing_fields)}"
             logger.error(error_msg)
             self.errors.append({"file": source_file, "error": error_msg})
+            if progress and parent_task is not None:
+                progress.advance(parent_task, len(df))
             return {"success": False, "error": error_msg, "missing_fields": missing_fields}
 
-        clean_df, row_errors = self._clean_data(df, source_file)
+        clean_df, row_errors = self._clean_data(df, source_file, progress, parent_task)
         self.errors.extend([{**e, "file": source_file} for e in row_errors])
 
         if clean_df.empty:
@@ -310,7 +338,24 @@ class DataImporter:
 
     def import_batch(self, file_paths: List[str], data_type: str = "declarations") -> List[Dict]:
         results = []
-        total_files = len(file_paths)
+        total_records = 0
+        file_sizes = {}
+
+        for file_path in file_paths:
+            try:
+                path = Path(file_path)
+                if path.suffix.lower() == ".csv":
+                    encoding = self.detect_encoding(path)
+                    df = pd.read_csv(path, encoding=encoding, low_memory=False, usecols=[0])
+                elif path.suffix.lower() in [".xlsx", ".xls"]:
+                    df = pd.read_excel(path, usecols=[0])
+                else:
+                    df = pd.DataFrame()
+                file_sizes[file_path] = len(df)
+                total_records += len(df)
+            except Exception as e:
+                logger.warning(f"无法预读取文件 {file_path}: {e}")
+                file_sizes[file_path] = 0
 
         with Progress(
             SpinnerColumn(),
@@ -321,16 +366,15 @@ class DataImporter:
             TimeRemainingColumn(),
             console=console,
         ) as progress:
-            task = progress.add_task(f"[cyan]导入 {total_files} 个文件...", total=total_files)
+            task = progress.add_task(f"[cyan]导入 {len(file_paths)} 个文件 ({total_records:,} 条)...", total=total_records)
 
             for file_path in file_paths:
-                progress.update(task, description=f"[cyan]导入: {Path(file_path).name}")
+                file_name = Path(file_path).name
+                progress.update(task, description=f"[cyan]导入: {file_name}")
                 try:
-                    result = self.import_file(file_path, data_type)
+                    result = self.import_file(file_path, data_type, progress, task)
                     results.append(result)
-                    if result["success"]:
-                        progress.advance(task)
-                    else:
+                    if not result["success"]:
                         logger.error(f"导入失败: {file_path} - {result.get('error', '未知错误')}")
                 except Exception as e:
                     logger.error(f"导入异常: {file_path} - {str(e)}")
@@ -339,7 +383,7 @@ class DataImporter:
                         "file": file_path,
                         "error": str(e)
                     })
-                    progress.advance(task)
+                    progress.advance(task, file_sizes.get(file_path, 0))
 
         return results
 

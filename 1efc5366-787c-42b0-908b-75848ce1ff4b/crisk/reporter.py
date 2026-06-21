@@ -131,6 +131,33 @@ class ReportGenerator:
             if rlevel in summary["by_risk"]:
                 summary["by_risk"][rlevel] += 1
 
+        trends = {"monthly": {}, "weekly": {}, "descriptions": {}}
+        if clues:
+            clues_trend_df = pd.DataFrame(clues)
+            if "detection_date" in clues_trend_df.columns:
+                clues_trend_df["detection_date_dt"] = pd.to_datetime(clues_trend_df["detection_date"])
+                clues_trend_df["month"] = clues_trend_df["detection_date_dt"].dt.to_period("M").astype(str)
+                clues_trend_df["week"] = clues_trend_df["detection_date_dt"].dt.to_period("W").astype(str)
+
+                for dtype in type_names.keys():
+                    type_data = clues_trend_df[clues_trend_df["detection_type"] == dtype]
+
+                    if len(type_data) >= 2:
+                        monthly_counts = type_data.groupby("month").size().sort_index()
+                        weekly_counts = type_data.groupby("week").size().sort_index()
+
+                        trends["monthly"][dtype] = monthly_counts.to_dict()
+                        trends["weekly"][dtype] = weekly_counts.to_dict()
+
+                        desc = self._generate_trend_description(type_names[dtype], monthly_counts, weekly_counts)
+                        trends["descriptions"][dtype] = desc
+
+                    elif len(type_data) == 1:
+                        only_date = type_data["detection_date_dt"].iloc[0]
+                        trends["monthly"][dtype] = {only_date.strftime("%Y-%m"): 1}
+                        trends["weekly"][dtype] = {only_date.strftime("%Y-W%W"): 1}
+                        trends["descriptions"][dtype] = f"{type_names[dtype]}首次检测到异常线索，共 1 条。"
+
         stats = self.db.get_stats()
 
         return {
@@ -143,7 +170,53 @@ class ReportGenerator:
             "clues": clues,
             "db_stats": stats,
             "type_names": type_names,
+            "trends": trends,
         }
+
+    def _generate_trend_description(self, type_name: str,
+                                     monthly_counts: pd.Series,
+                                     weekly_counts: pd.Series) -> str:
+        if len(monthly_counts) < 2:
+            first_month = monthly_counts.index[0] if len(monthly_counts) > 0 else "N/A"
+            first_count = monthly_counts.iloc[0] if len(monthly_counts) > 0 else 0
+            return f"{type_name}在{first_month}月首次检测到{first_count}条异常线索，暂无历史趋势对比数据。"
+
+        months = list(monthly_counts.index)
+        latest_month = months[-1]
+        prev_month = months[-2]
+        latest_count = monthly_counts.iloc[-1]
+        prev_count = monthly_counts.iloc[-2]
+
+        if prev_count > 0:
+            change_pct = ((latest_count - prev_count) / prev_count) * 100
+            direction = "上升" if change_pct > 0 else "下降"
+            abs_pct = abs(change_pct)
+        else:
+            direction = "新增"
+            abs_pct = 100
+
+        weeks = list(weekly_counts.index)
+        if len(weeks) >= 2:
+            latest_week = weeks[-1]
+            prev_week = weeks[-2]
+            latest_week_count = weekly_counts.iloc[-1]
+            prev_week_count = weekly_counts.iloc[-2]
+
+            if prev_week_count > 0:
+                week_change = ((latest_week_count - prev_week_count) / prev_week_count) * 100
+                week_direction = "上升" if week_change > 0 else "下降"
+                week_abs = abs(week_change)
+            else:
+                week_direction = "新增"
+                week_abs = 100
+
+            return (f"{type_name}月度趋势：{latest_month}月({latest_count}条) 较 {prev_month}月({prev_count}条) "
+                    f"{direction}{abs_pct:.1f}%。"
+                    f" 周度趋势：{latest_week}周({latest_week_count}条) 较 {prev_week}周({prev_week_count}条) "
+                    f"{week_direction}{week_abs:.1f}%。")
+
+        return (f"{type_name}月度趋势：{latest_month}月({latest_count}条) 较 {prev_month}月({prev_count}条) "
+                f"{direction}{abs_pct:.1f}%。")
 
     def generate_html(self, output_path: Path,
                       clues: Optional[List[Dict]] = None,
@@ -185,27 +258,43 @@ class ReportGenerator:
         logger.info(f"Markdown 报告已生成: {output_path}")
         return output_path
 
+    def get_report_data(self,
+                        detection_type: Optional[str] = None,
+                        risk_level: Optional[str] = None,
+                        start_date: Optional[str] = None,
+                        end_date: Optional[str] = None) -> Dict[str, Any]:
+        return self._prepare_report_data(None, detection_type, risk_level, start_date, end_date)
+
     def generate(self, output_format: str = "html",
                  output_path: Optional[str] = None,
                  clues: Optional[List[Dict]] = None,
                  detection_type: Optional[str] = None,
                  risk_level: Optional[str] = None,
                  start_date: Optional[str] = None,
-                 end_date: Optional[str] = None) -> Path:
+                 end_date: Optional[str] = None,
+                 return_data: bool = False) -> Any:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_dir = Path(output_path).parent if output_path else DEFAULT_REPORT_DIR
         output_dir.mkdir(parents=True, exist_ok=True)
 
+        report_data = None
+        if return_data:
+            report_data = self._prepare_report_data(clues, detection_type, risk_level, start_date, end_date)
+
         if output_format == "html":
             default_name = f"risk_report_{timestamp}.html"
             final_path = Path(output_path) if output_path else output_dir / default_name
-            return self.generate_html(final_path, clues, detection_type, risk_level, start_date, end_date)
+            result = self.generate_html(final_path, clues, detection_type, risk_level, start_date, end_date)
         elif output_format == "markdown":
             default_name = f"risk_report_{timestamp}.md"
             final_path = Path(output_path) if output_path else output_dir / default_name
-            return self.generate_markdown(final_path, clues, detection_type, risk_level, start_date, end_date)
+            result = self.generate_markdown(final_path, clues, detection_type, risk_level, start_date, end_date)
         else:
             raise ValueError(f"不支持的输出格式: {output_format}")
+
+        if return_data:
+            return final_path, report_data
+        return final_path
 
     def print_report_preview(self, data: Dict[str, Any]) -> None:
         summary = data["summary"]

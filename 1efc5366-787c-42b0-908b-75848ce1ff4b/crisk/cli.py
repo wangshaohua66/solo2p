@@ -237,13 +237,14 @@ def report(
     ) as progress:
         progress.add_task(f"[cyan]正在生成 {output_format.upper()} 报告...", total=None)
 
-        final_path = reporter.generate(
+        final_path, data = reporter.generate(
             output_format=output_format,
             output_path=str(output_path) if output_path else None,
             detection_type=detection_type,
             risk_level=risk_level,
             start_date=start_date,
             end_date=end_date,
+            return_data=True,
         )
 
     elapsed = time.time() - start_time
@@ -251,13 +252,12 @@ def report(
     print_success(f"报告生成完成，耗时: {elapsed:.2f} 秒")
     print_info(f"报告已保存至: [underline]{final_path}[/underline]")
 
-    data = reporter._prepare_report_data(None, detection_type, risk_level, start_date, end_date)
     reporter.print_report_preview(data)
 
 
 @app.command("rule", short_help="管理分析规则（查看/新增/修改/删除）")
 def rule(
-    action: str = typer.Argument(..., help="操作: list, add, delete, set-threshold, delete-threshold"),
+    action: str = typer.Argument(..., help="操作: list, add, modify, update, delete, set-threshold, delete-threshold"),
     hs_prefix: Optional[str] = typer.Option(None, "--hs", help="HS 编码前缀（前 6 位）"),
     keywords: Optional[str] = typer.Option(None, "--keywords", "-k", help="关键词列表，用逗号分隔"),
     description: Optional[str] = typer.Option(None, "--desc", help="规则描述"),
@@ -269,6 +269,8 @@ def rule(
     操作类型:
       list              查看所有规则
       add               新增/更新 HS 编码规则
+      modify            修改 HS 编码规则（同 update）
+      update            修改 HS 编码规则（同 modify）
       delete            删除 HS 编码规则
       set-threshold     设置分类阈值
       delete-threshold  删除分类阈值
@@ -276,6 +278,8 @@ def rule(
     示例:
         crisk rule list
         crisk rule add --hs 851712 --keywords 手机,移动电话,smartphone --desc "移动通信设备"
+        crisk rule modify --hs 851712 --keywords 手机,iPhone,智能手机
+        crisk rule update --hs 851712 --desc "更新的描述"
         crisk rule delete --hs 851712
         crisk rule set-threshold --hs 851712 --value 0.25
         crisk rule delete-threshold --hs 851712
@@ -283,7 +287,7 @@ def rule(
     print_header("规则管理")
 
     config = get_config_manager()
-    valid_actions = ["list", "add", "delete", "set-threshold", "delete-threshold"]
+    valid_actions = ["list", "add", "modify", "update", "delete", "set-threshold", "delete-threshold"]
 
     if action not in valid_actions:
         print_error(f"无效操作: {action}。支持: {', '.join(valid_actions)}")
@@ -329,6 +333,29 @@ def rule(
         keyword_list = [k.strip() for k in keywords.split(",") if k.strip()]
         config.add_hs_rule(hs_prefix, keyword_list, description or "")
         print_success(f"已添加/更新规则: {hs_prefix} - {', '.join(keyword_list)}")
+
+    elif action in ["modify", "update"]:
+        if not hs_prefix:
+            print_error("请提供 --hs 参数")
+            raise typer.Exit(code=1)
+
+        if not keywords and not description:
+            print_error("请提供至少一个更新参数: --keywords 或 --desc")
+            raise typer.Exit(code=1)
+
+        keyword_list = None
+        if keywords:
+            keyword_list = [k.strip() for k in keywords.split(",") if k.strip()]
+
+        if config.update_hs_rule(hs_prefix, keyword_list, description):
+            updates = []
+            if keyword_list:
+                updates.append(f"关键词: {', '.join(keyword_list)}")
+            if description:
+                updates.append(f"描述: {description}")
+            print_success(f"已更新规则: {hs_prefix} - {', '.join(updates)}")
+        else:
+            print_warning(f"未找到规则: {hs_prefix}")
 
     elif action == "delete":
         if not hs_prefix:
