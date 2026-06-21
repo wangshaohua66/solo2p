@@ -1,0 +1,390 @@
+/* ===== 监控墙主容器 ===== */
+.monitorPanel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: #001529;
+}
+
+/* ===== 顶部工具栏 ===== */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: linear-gradient(180deg, #002140 0%, #001529 100%);
+  border-bottom: 1px solid rgba(24, 144, 255, 0.2);
+  flex-shrink: 0;
+}
+
+.toolbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.layoutLabel {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* ===== 监控网格容器 ===== */
+.monitorGrid {
+  display: grid;
+  gap: 8px;
+  height: 100%;
+  padding: 8px;
+  flex: 1;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* ===== 单个监控画面单元 ===== */
+.monitorCell {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #0a0a0a;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  min-height: 0;
+  min-width: 0;
+}
+
+.monitorCell:hover {
+  transform: scale(1.01);
+  z-index: 10;
+}
+
+.monitorCell.dragging {
+  opacity: 0.5;
+  transform: scale(0.98);
+}
+
+.monitorCell.isSelected {
+  box-shadow: 0 0 0 2px #1890ff, 0 4px 16px rgba(24, 144, 255, 0.4);
+}
+
+/* 异常边框脉冲动画 */
+.pulseBorder {
+  animation: pulse-border 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-border {
+  0%, 100% {
+    box-shadow: 0 0 0 0 currentColor;
+  }
+  50% {
+    box-shadow: 0 0 0 4px transparent;
+  }
+}
+
+/* 三态信号异常边框 */
+.signalGood {
+  color: #52c41a;
+}
+
+.signalWarning {
+  color: #faad14;
+  border: 2px solid #faad14;
+}
+
+.signalError {
+  color: #ff4d4f;
+  border: 2px solid #ff4d4f;
+}
+
+/* ===== 模拟视频画面背景 ===== */
+.videoBackground {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse at center, rgba(24, 144, 255, 0.15) 0%, transparent 70%),
+    linear-gradient(135deg, #0f1a2e 0%, #1a2744 50%, #0d1a33 100%);
+}
+
+/* 动态噪点效果 */
+.videoBackground::before {
+  content: '';
+  position: absolute;
+  inset: -50%;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+  animation: noise 8s steps(10) infinite;
+}
+
+@keyframes noise {
+  0% { transform: translate(0, 0); }
+  10% { transform: translate(-5%, -10%); }
+  20% { transform: translate(-15%, 5%); }
+  30% { transform: translate(7%, -25%); }
+  40% { transform: translate(-5%, 25%); }
+  50% { transform: translate(-15%, 10%); }
+  60% { transform: translate(15%, 0%); }
+  70% { transform: translate(0%, 15%); }
+  80% { transform: translate(3%, 35%); }
+  90% { transform: translate(-10%, 10%); }
+  100% { transform: translate(0, 0); }
+}
+
+/* 画面中央节目名称 */
+.programName {
+  position: relative;
+  z-index: 1;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: clamp(16px, 2.5vw, 28px);
+  font-weight: 600;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  text-align: center;
+  padding: 0 16px;
+  letter-spacing: 1px;
+}
+
+/* ===== 顶部频道信息栏 ===== */
+.cellInfoBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 5;
+}
+
+.cellChannelName {
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60%;
+}
+
+.cellStationName {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 35%;
+}
+
+/* ===== 信号状态指示灯 ===== */
+.signalIndicator {
+  position: absolute;
+  top: 48px;
+  right: 12px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  z-index: 5;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.signalIndicator.good {
+  background: #52c41a;
+  color: #52c41a;
+}
+
+.signalIndicator.warning {
+  background: #faad14;
+  color: #faad14;
+  animation: pulse-signal 1.2s ease-in-out infinite;
+}
+
+.signalIndicator.error {
+  background: #ff4d4f;
+  color: #ff4d4f;
+  animation: pulse-signal 0.8s ease-in-out infinite;
+}
+
+@keyframes pulse-signal {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 6px currentColor;
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.3);
+    box-shadow: 0 0 12px currentColor;
+  }
+}
+
+/* ===== 三色检测标识 ===== */
+.detectionBadges {
+  position: absolute;
+  top: 48px;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 5;
+}
+
+.detectionBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 20px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.badgeBlackFrame {
+  background: #000000;
+  border: 1px solid #666666;
+  color: #ffffff;
+}
+
+.badgeStaticFrame {
+  background: #1890ff;
+}
+
+.badgeAudioLoss {
+  background: #faad14;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+/* ===== 音量条 ===== */
+.volumeBar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 12px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.6));
+  z-index: 5;
+  height: 40px;
+}
+
+.volumeBlock {
+  width: 100%;
+  max-width: 8px;
+  border-radius: 2px;
+  transition: height 0.2s ease;
+  min-height: 4px;
+}
+
+/* 16格渐变色：绿→黄→红 */
+.volumeBlock:nth-child(-n+5) {
+  background: linear-gradient(180deg, #95de64 0%, #52c41a 100%);
+}
+
+.volumeBlock:nth-child(n+6):nth-child(-n+11) {
+  background: linear-gradient(180deg, #ffec3d 0%, #faad14 100%);
+}
+
+.volumeBlock:nth-child(n+12) {
+  background: linear-gradient(180deg, #ff7875 0%, #ff4d4f 100%);
+}
+
+/* ===== 鼠标悬浮操作按钮 ===== */
+.cellToolbar {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  border-radius: 8px;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  z-index: 20;
+}
+
+.monitorCell:hover .cellToolbar {
+  opacity: 1;
+}
+
+.toolbarBtn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 16px;
+}
+
+.toolbarBtn:hover {
+  background: #1890ff;
+  transform: translateY(-1px);
+}
+
+/* ===== 放大 Modal 样式 ===== */
+.enlargedModal :global(.ant-modal-content) {
+  background: #000000;
+  padding: 0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.enlargedModal :global(.ant-modal-body) {
+  padding: 0;
+  height: 75vh;
+}
+
+.enlargedModal :global(.ant-modal-close) {
+  color: #ffffff;
+  top: 12px;
+  right: 12px;
+}
+
+.enlargedModal :global(.ant-modal-close-x) {
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
+  font-size: 20px;
+}
+
+.enlargedCell {
+  height: 100%;
+  border-radius: 0;
+}
+
+.enlargedCell .programName {
+  font-size: 48px;
+}
+
+.enlargedCell .cellChannelName {
+  font-size: 18px;
+}
+
+.enlargedCell .cellStationName {
+  font-size: 14px;
+}

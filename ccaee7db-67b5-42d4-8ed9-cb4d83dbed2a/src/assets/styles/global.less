@@ -1,0 +1,603 @@
+// ============ 全局CSS变量定义 ============
+:root {
+  // 主色调：广电深蓝
+  --primary-color: #1677ff;
+  --primary-dark: #001529;
+  --primary-hover: #4096ff;
+  --primary-active: #0958d9;
+
+  // 语义化颜色
+  --success-color: #52c41a;
+  --warning-color: #faad14;
+  --error-color: #ff4d4f;
+  --info-color: #1677ff;
+
+  // 背景色
+  --bg-dark: #001529;
+  --bg-body: #f0f2f5;
+  --bg-card: #ffffff;
+  --bg-sidebar: #001529;
+  --bg-content: #f5f7fa;
+
+  // 文字颜色
+  --text-primary: rgba(0, 0, 0, 0.88);
+  --text-secondary: rgba(0, 0, 0, 0.65);
+  --text-tertiary: rgba(0, 0, 0, 0.45);
+  --text-disabled: rgba(0, 0, 0, 0.25);
+  --text-on-dark: rgba(255, 255, 255, 0.85);
+  --text-on-dark-secondary: rgba(255, 255, 255, 0.65);
+
+  // 边框颜色
+  --border-color: #f0f0f0;
+  --border-color-dark: #d9d9d9;
+  --border-radius: 8px;
+  --border-radius-sm: 4px;
+  --border-radius-lg: 12px;
+
+  // 阴影
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.03), 0 1px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px 0 rgba(0, 0, 0, 0.02);
+  --shadow-md: 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
+
+  // 告警级别颜色
+  --alarm-urgent: #ff4d4f;
+  --alarm-important: #fa8c16;
+  --alarm-general: #faad14;
+
+  // 信号状态颜色
+  --signal-good: #52c41a;
+  --signal-warning: #faad14;
+  --signal-error: #ff4d4f;
+
+  // 尺寸
+  --header-height: 64px;
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 80px;
+  --footer-height: 48px;
+}
+
+// ============ 重置样式 ============
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  line-height: 1.5715;
+  color: var(--text-primary);
+  background-color: var(--bg-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+a {
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: var(--primary-hover);
+  }
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  outline: none;
+  background: none;
+  font-family: inherit;
+}
+
+input,
+textarea,
+select {
+  font-family: inherit;
+  font-size: inherit;
+  outline: none;
+}
+
+// ============ 深色侧边栏基础样式 ============
+.sidebar {
+  width: var(--sidebar-width);
+  height: 100vh;
+  background-color: var(--bg-sidebar);
+  color: var(--text-on-dark);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  transition: width 0.2s ease;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+  }
+
+  &-collapsed {
+    width: var(--sidebar-collapsed-width);
+  }
+
+  &-logo {
+    height: var(--header-height);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-on-dark);
+    letter-spacing: 1px;
+  }
+
+  &-menu {
+    flex: 1;
+    padding: 12px 0;
+  }
+}
+
+// ============ 卡片通用样式 ============
+.card {
+  background-color: var(--bg-card);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+
+  &:hover {
+    box-shadow: var(--shadow-md);
+  }
+
+  &-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    &-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    &-extra {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+  }
+
+  &-body {
+    padding: 20px;
+  }
+
+  &-footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border-color);
+    background-color: rgba(0, 0, 0, 0.01);
+    border-radius: 0 0 var(--border-radius) var(--border-radius);
+  }
+
+  &-ghost {
+    box-shadow: none;
+    border: 1px solid var(--border-color);
+  }
+
+  &-hoverable {
+    cursor: pointer;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+  }
+}
+
+// ============ 告警状态样式类 ============
+.alarm {
+  &-urgent {
+    color: var(--alarm-urgent);
+    background-color: rgba(255, 77, 79, 0.1);
+    border-color: var(--alarm-urgent);
+
+    &.alarm-pulse {
+      animation: pulse-border 1.5s ease-in-out infinite;
+    }
+  }
+
+  &-important {
+    color: var(--alarm-important);
+    background-color: rgba(250, 140, 22, 0.1);
+    border-color: var(--alarm-important);
+  }
+
+  &-general {
+    color: var(--alarm-general);
+    background-color: rgba(250, 173, 20, 0.1);
+    border-color: var(--alarm-general);
+  }
+
+  &-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 48px;
+    padding: 2px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 4px;
+    border: 1px solid;
+  }
+
+  &-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+}
+
+// ============ 信号状态样式类 ============
+.signal {
+  &-good {
+    color: var(--signal-good);
+  }
+
+  &-warning {
+    color: var(--signal-warning);
+  }
+
+  &-error {
+    color: var(--signal-error);
+  }
+
+  &-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+
+    &.signal-good {
+      background-color: var(--signal-good);
+      box-shadow: 0 0 8px rgba(82, 196, 26, 0.6);
+    }
+
+    &.signal-warning {
+      background-color: var(--signal-warning);
+      box-shadow: 0 0 8px rgba(250, 173, 20, 0.6);
+    }
+
+    &.signal-error {
+      background-color: var(--signal-error);
+      box-shadow: 0 0 8px rgba(255, 77, 79, 0.6);
+    }
+  }
+}
+
+// ============ 动画关键帧 ============
+
+// 紧急告警脉冲闪烁动画：边框颜色周期性变化
+@keyframes pulse-border {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 77, 79, 0.4);
+  }
+
+  70% {
+    box-shadow: 0 0 0 12px rgba(255, 77, 79, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 77, 79, 0);
+  }
+}
+
+// 告警滑入动画：从右侧滑入并轻微放大
+@keyframes slide-in {
+  0% {
+    opacity: 0;
+    transform: translateX(100%) scale(0.95);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+// 渐入动画：透明度从0到1
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+// 数字滚动动画：用于统计数字变化效果
+@keyframes number-scroll {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// ============ 通用工具类 ============
+
+// 弹性布局
+.flex {
+  display: flex;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+// 文本截断
+.text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text-ellipsis-2 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+// 动画辅助类
+.animate-pulse-border {
+  animation: pulse-border 1.5s ease-in-out infinite;
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+.animate-number-scroll {
+  animation: number-scroll 0.4s ease-out;
+}
+
+// ============ 告警中心组件专用样式 ============
+
+// 告警分类树节点标题
+.tree-node-title {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  width: calc(100% - 24px);
+  font-size: 13px;
+
+  .ant-badge {
+    margin-left: 8px;
+  }
+}
+
+// 告警分类树
+.alarm-category-tree {
+  .ant-tree-node-content-wrapper {
+    &:hover {
+      background-color: rgba(22, 119, 255, 0.06);
+    }
+  }
+
+  .ant-tree-treenode-selected {
+    .ant-tree-node-content-wrapper {
+      background-color: rgba(22, 119, 255, 0.1) !important;
+    }
+  }
+
+  .ant-tree-switcher {
+    width: 18px;
+  }
+}
+
+// 告警行 - 新告警闪烁高亮动画
+@keyframes alarm-new-flash {
+  0%,
+  100% {
+    background-color: rgba(255, 77, 79, 0.08);
+  }
+
+  50% {
+    background-color: rgba(255, 77, 79, 0.2);
+  }
+}
+
+.alarm-row {
+  &-new {
+    animation: alarm-new-flash 2s ease-in-out 2;
+  }
+
+  &-unack {
+    &:hover {
+      background-color: rgba(22, 119, 255, 0.04) !important;
+    }
+  }
+
+  .ant-btn-text {
+    padding: 0 8px;
+    font-size: 12px;
+
+    &:hover {
+      background-color: rgba(22, 119, 255, 0.06);
+    }
+  }
+}
+
+// 告警列表容器滚动条美化
+.alarm-list-container {
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.25);
+    }
+  }
+}
+
+// 紧急告警弹窗 - 红色脉冲边框动画
+.alarm-urgent-modal {
+  .ant-modal-content {
+    animation: urgent-modal-pulse 2s ease-in-out infinite;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .ant-modal-header {
+    background: linear-gradient(135deg, #fff1f0 0%, #ffffff 100%);
+    border-bottom: 1px solid #ffccc7;
+  }
+
+  .ant-modal-close {
+    color: #ff4d4f;
+
+    &:hover {
+      color: #ff7875;
+    }
+  }
+}
+
+@keyframes urgent-modal-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 6px 16px 0 rgba(0, 0, 0, 0.08),
+      0 0 0 0 rgba(255, 77, 79, 0.4),
+      0 3px 6px -4px rgba(0, 0, 0, 0.12);
+  }
+
+  50% {
+    box-shadow:
+      0 6px 16px 0 rgba(0, 0, 0, 0.08),
+      0 0 0 8px rgba(255, 77, 79, 0),
+      0 3px 6px -4px rgba(0, 0, 0, 0.12);
+  }
+}
+
+// 紧急告警卡片边框脉冲
+.alarm-urgent-card {
+  animation: urgent-card-border 2s ease-in-out infinite;
+}
+
+@keyframes urgent-card-border {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 77, 79, 0.25);
+  }
+
+  70% {
+    box-shadow: 0 0 0 8px rgba(255, 77, 79, 0);
+  }
+}
+
+// 告警详情面板滚动条
+.alarm-detail-panel {
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.12);
+    border-radius: 3px;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.2);
+    }
+  }
+}
+
+// 告警中心整体
+.alarm-center {
+  background-color: var(--bg-content);
+
+  .ant-card-head {
+    min-height: 44px;
+
+    .ant-card-head-title {
+      padding: 10px 0;
+      font-size: 14px;
+      font-weight: 600;
+    }
+  }
+}
+
+// 告警列表包裹器
+.alarm-list-wrapper {
+  .ant-card-body {
+    padding: 0 !important;
+  }
+}
