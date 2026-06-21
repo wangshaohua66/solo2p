@@ -1,7 +1,38 @@
 import os
+import json
 import random
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Dict, Any
+
+
+@dataclass
+class CookiePoolConfig:
+    enabled: bool = False
+    pool_size: int = 5
+    storage_path: str = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "cookie_pool.json"
+    )
+    rotation_strategy: str = "round_robin"
+    refresh_interval_seconds: int = 3600
+    captcha_wait_timeout: int = 300
+    captcha_poll_interval: int = 5
+
+
+@dataclass
+class ReportConfig:
+    output_dir: str = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reports")
+    formats: List[str] = field(default_factory=lambda: ["json", "md"])
+    retention_days: int = 30
+
+
+@dataclass
+class SearchFormConfig:
+    keyword_selector: str = "input[name='keyword'], input#keyword, input.search-input"
+    location_selector: str = "select[name='location'], select#location"
+    salary_selector: str = "select[name='salary'], select#salary"
+    education_selector: str = "select[name='education'], select#education"
+    submit_selector: str = "button[type='submit'], input[type='submit'], .search-btn, button.search"
+    ajax_trigger: bool = True
 
 
 @dataclass
@@ -81,6 +112,9 @@ class Settings:
     timeout: TimeoutConfig = field(default_factory=TimeoutConfig)
     crawler: CrawlerConfig = field(default_factory=CrawlerConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
+    cookie_pool: CookiePoolConfig = field(default_factory=CookiePoolConfig)
+    report: ReportConfig = field(default_factory=ReportConfig)
+    search_form: SearchFormConfig = field(default_factory=SearchFormConfig)
     user_agents: List[str] = field(default_factory=lambda: USER_AGENTS.copy())
     request_headers: dict = field(default_factory=lambda: DEFAULT_REQUEST_HEADERS.copy())
     headless: bool = True

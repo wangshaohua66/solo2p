@@ -1,5 +1,6 @@
 import logging
 import re
+import time
 from datetime import datetime
 from typing import List, Dict, Optional, Any
 from urllib.parse import urljoin
@@ -9,6 +10,13 @@ from bs4 import BeautifulSoup
 from config import settings
 
 logger = logging.getLogger(__name__)
+
+REQUIRED_LIST_FIELDS = ["job_url", "job_title"]
+REQUIRED_DETAIL_FIELDS = ["job_title"]
+CRITICAL_DETAIL_FIELDS = [
+    "job_title", "company_name", "work_location", "recruit_count",
+    "publish_date", "deadline_date",
+]
 
 
 class Job:
@@ -87,7 +95,20 @@ class PageParser:
         for item in job_items:
             try:
                 job_info = self._extract_list_item(item)
-                if job_info and job_info.get("job_url"):
+                if job_info is None:
+                    continue
+                missing_required = [
+                    f for f in REQUIRED_LIST_FIELDS
+                    if not job_info.get(f)
+                ]
+                if missing_required:
+                    logger.warning(
+                        "List item skipped: required fields missing %s | raw_html=%s",
+                        missing_required,
+                        str(item)[:200].replace("\n", " "),
+                    )
+                    continue
+                if job_info.get("job_url"):
                     jobs.append(job_info)
             except Exception as e:
                 logger.warning("Error parsing job list item: %s", str(e))
@@ -96,13 +117,18 @@ class PageParser:
         logger.info("Parsed %d jobs from list page", len(jobs))
         return jobs
 
-    def _extract_list_item(self, item) -> Dict[str, str]:
+    def _extract_list_item(self, item) -> Optional[Dict[str, str]]:
         result: Dict[str, str] = {}
 
         link = item.find("a", href=True)
         if link:
             result["job_url"] = urljoin(self.base_url, link["href"])
             result["job_title"] = self._clean_text(link.get_text())
+        else:
+            logger.debug(
+                "No <a href> link found in list item; raw=%s",
+                str(item)[:150].replace("\n", " "),
+            )
 
         title_selectors = [".job-title", ".title", "h3", "h4", ".name", ".position"]
         for sel in title_selectors:
@@ -111,12 +137,23 @@ class PageParser:
                 result["job_title"] = self._clean_text(el.get_text())
                 break
 
+        if not result.get("job_title"):
+            all_text = self._clean_text(item.get_text())
+            if all_text and len(all_text) >= 2:
+                result["job_title"] = all_text[:60]
+                logger.debug(
+                    "Falling back job_title to extracted text fragment: '%s'",
+                    result["job_title"],
+                )
+
         company_selectors = [".company", ".company-name", ".org-name", ".employer"]
         for sel in company_selectors:
             el = item.select_one(sel)
             if el:
                 result["company_name"] = self._clean_text(el.get_text())
                 break
+        if not result.get("company_name"):
+            logger.debug("Missing optional field: company_name for item title=%s", result.get("job_title"))
 
         location_selectors = [".location", ".work-location", ".place", ".area", ".address"]
         for sel in location_selectors:
@@ -124,6 +161,8 @@ class PageParser:
             if el:
                 result["work_location"] = self._clean_text(el.get_text())
                 break
+        if not result.get("work_location"):
+            logger.debug("Missing optional field: work_location for item title=%s", result.get("job_title"))
 
         salary_selectors = [".salary", ".wage", ".pay", ".price"]
         for sel in salary_selectors:
@@ -131,6 +170,8 @@ class PageParser:
             if el:
                 result["salary_range"] = self._clean_text(el.get_text())
                 break
+        if not result.get("salary_range"):
+            logger.debug("Missing optional field: salary_range for item title=%s", result.get("job_title"))
 
         date_selectors = [".publish-date", ".date", ".time", ".publish-time", ".create-time"]
         for sel in date_selectors:
@@ -138,6 +179,8 @@ class PageParser:
             if el:
                 result["publish_date"] = self._clean_text(el.get_text())
                 break
+        if not result.get("publish_date"):
+            logger.debug("Missing optional field: publish_date for item title=%s", result.get("job_title"))
 
         return result
 
@@ -175,8 +218,39 @@ class PageParser:
             title_tag = soup.find("title")
             if title_tag:
                 job.job_title = self._clean_text(title_tag.get_text())
+                logger.debug("Using <title> as fallback job_title: '%s'", job.job_title)
 
-        job.job_id = job.generate_id()
+        missing_required = [
+            f for f in REQUIRED_DETAIL_FIELDS
+            if not getattr(job, f, "")
+        ]
+        if missing_required:
+            logger.warning(
+                "Job detail missing REQUIRED fields %s | url=%s | title=%s",
+                missing_required, job_url, job.job_title,
+            )
+
+        missing_critical = [
+            f for f in CRITICAL_DETAIL_FIELDS
+            if f not in missing_required and not getattr(job, f, "")
+        ]
+        if missing_critical:
+            logger.info(
+                "Job detail has empty non-required critical fields %s | url=%s | title=%s",
+                missing_critical, job_url, job.job_title,
+            )
+
+        if missing_required and not job.job_id:
+            try:
+                job.job_id = job.generate_id()
+            except Exception as e:
+                logger.warning("Failed to generate job_id: %s | url=%s", str(e), job_url)
+                import hashlib
+                job.job_id = hashlib.md5(
+                    f"{job_url}|{time.time()}".encode("utf-8")
+                ).hexdigest()
+
+        job.job_id = job.generate_id() if not job.job_id else job.job_id
         job.source = self.base_url
         job.crawl_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 

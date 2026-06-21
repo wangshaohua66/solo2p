@@ -13,6 +13,13 @@ from config import settings
 logger = logging.getLogger(__name__)
 
 
+REQUIRED_FIELDS_FOR_REPORT = [
+    "job_id", "job_title", "company_name", "work_location",
+    "salary_range", "education", "experience", "recruit_count",
+    "publish_date", "deadline_date", "job_url",
+]
+
+
 class DataProcessor:
     def __init__(self):
         self.db_path = settings.database.path
@@ -182,9 +189,21 @@ class DataProcessor:
         logger.info("Deduplicated: %d -> %d unique jobs", len(jobs), len(unique_jobs))
         return unique_jobs
 
-    def detect_changes(self, new_jobs: List[Job]) -> Dict[str, List[Job]]:
+    def detect_changes(
+        self,
+        new_jobs: List[Job],
+        report_prefix: str = "change_report",
+    ) -> Dict[str, Any]:
         logger.info("Detecting changes for %d jobs", len(new_jobs))
-        result = {"added": [], "modified": [], "deleted": [], "unchanged": []}
+        result: Dict[str, Any] = {
+            "added": [],
+            "modified": [],
+            "deleted": [],
+            "unchanged": [],
+            "modified_details": [],
+            "report_files": [],
+            "summary": {},
+        }
 
         existing_jobs = self.get_all_jobs()
         existing_map = {j.job_id: j for j in existing_jobs}
@@ -193,8 +212,14 @@ class DataProcessor:
         for job in new_jobs:
             if job.job_id in existing_map:
                 existing = existing_map[job.job_id]
-                if self._has_changed(existing, job):
+                diff_fields = self._get_diff_fields(existing, job)
+                if diff_fields:
                     result["modified"].append(job)
+                    result["modified_details"].append({
+                        "job_id": job.job_id,
+                        "job_title": job.job_title,
+                        "changed_fields": diff_fields,
+                    })
                 else:
                     result["unchanged"].append(job)
             else:
@@ -204,26 +229,155 @@ class DataProcessor:
             if job_id not in new_ids and existing.is_deleted == 0:
                 result["deleted"].append(existing)
 
+        summary = {
+            "total_new": len(new_jobs),
+            "total_existing": len(existing_jobs),
+            "added": len(result["added"]),
+            "modified": len(result["modified"]),
+            "deleted": len(result["deleted"]),
+            "unchanged": len(result["unchanged"]),
+            "detect_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        result["summary"] = summary
+
         logger.info(
             "Changes detected: added=%d, modified=%d, deleted=%d, unchanged=%d",
-            len(result["added"]),
-            len(result["modified"]),
-            len(result["deleted"]),
-            len(result["unchanged"]),
+            summary["added"], summary["modified"],
+            summary["deleted"], summary["unchanged"],
         )
+
+        report_files = self._generate_change_reports(result, report_prefix)
+        result["report_files"] = report_files
+
         return result
 
     @staticmethod
-    def _has_changed(old: Job, new: Job) -> bool:
+    def _get_diff_fields(old: Job, new: Job) -> List[Dict[str, Any]]:
         fields = [
             "job_title", "company_name", "work_location", "salary_range",
             "education", "experience", "recruit_count", "publish_date",
-            "deadline_date", "job_description",
+            "deadline_date", "job_description", "job_url",
         ]
+        diffs = []
         for field in fields:
-            if getattr(old, field, "") != getattr(new, field, ""):
-                return True
-        return False
+            old_val = getattr(old, field, "") or ""
+            new_val = getattr(new, field, "") or ""
+            if old_val != new_val:
+                diffs.append({
+                    "field": field,
+                    "old": old_val,
+                    "new": new_val,
+                })
+        return diffs
+
+    def _generate_change_reports(
+        self, result: Dict[str, Any], prefix: str
+    ) -> List[str]:
+        output_dir = Path(settings.report.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        report_files: List[str] = []
+
+        summary = result["summary"]
+
+        def job_brief(job: Job) -> Dict[str, Any]:
+            d = {}
+            for f in REQUIRED_FIELDS_FOR_REPORT:
+                d[f] = getattr(job, f, "")
+            return d
+
+        if "json" in [f.lower() for f in settings.report.formats]:
+            json_path = output_dir / f"{prefix}_{timestamp}.json"
+            json_data = {
+                "summary": summary,
+                "added": [job_brief(j) for j in result["added"]],
+                "modified": [job_brief(j) for j in result["modified"]],
+                "modified_details": result.get("modified_details", []),
+                "deleted": [job_brief(j) for j in result["deleted"]],
+            }
+            with open(json_path, "w", encoding="utf-8") as f:
+                json.dump(json_data, f, ensure_ascii=False, indent=2)
+            report_files.append(str(json_path))
+            logger.info("Change report (JSON) written: %s", json_path)
+
+        if "md" in [f.lower() for f in settings.report.formats]:
+            md_path = output_dir / f"{prefix}_{timestamp}.md"
+            lines: List[str] = []
+            lines.append(f"# 职位数据变更报告 - {summary['detect_time']}")
+            lines.append("")
+            lines.append("## 变更摘要")
+            lines.append("")
+            lines.append("| 指标 | 数量 |")
+            lines.append("|:---|---:|")
+            lines.append(f"| 本次抓取职位总数 | {summary['total_new']} |")
+            lines.append(f"| 数据库原有效职位数 | {summary['total_existing']} |")
+            lines.append(f"| 🆕 新增职位 | **{summary['added']}** |")
+            lines.append(f"| ✏️ 修改职位 | **{summary['modified']}** |")
+            lines.append(f"| 🗑️ 下线职位 | **{summary['deleted']}** |")
+            lines.append(f"| ✅ 未变更职位 | {summary['unchanged']} |")
+            lines.append("")
+
+            if result["added"]:
+                lines.append(f"## 🆕 新增职位 ({summary['added']})")
+                lines.append("")
+                lines.append("| 职位名称 | 公司 | 工作地点 | 薪资 | 发布日期 | 链接 |")
+                lines.append("|:---|:---|:---|:---|:---|:---|")
+                for j in result["added"]:
+                    title = j.job_title or "-"
+                    comp = j.company_name or "-"
+                    loc = j.work_location or "-"
+                    sal = j.salary_range or "-"
+                    date = j.publish_date or "-"
+                    link = f"[查看]({j.job_url})" if j.job_url else "-"
+                    lines.append(f"| {title} | {comp} | {loc} | {sal} | {date} | {link} |")
+                lines.append("")
+
+            if result["modified"]:
+                lines.append(f"## ✏️ 修改职位 ({summary['modified']})")
+                lines.append("")
+                for detail in result.get("modified_details", []):
+                    lines.append(f"### {detail['job_title']} (ID: `{detail['job_id']}`)")
+                    lines.append("")
+                    lines.append("| 字段 | 原值 | 新值 |")
+                    lines.append("|:---|:---|:---|")
+                    for cf in detail["changed_fields"]:
+                        old_v = (cf["old"] or "-")[:80]
+                        new_v = (cf["new"] or "-")[:80]
+                        lines.append(f"| {cf['field']} | {old_v} | {new_v} |")
+                    lines.append("")
+
+            if result["deleted"]:
+                lines.append(f"## 🗑️ 下线职位 ({summary['deleted']})")
+                lines.append("")
+                lines.append("| 职位名称 | 公司 | 工作地点 | 发布日期 |")
+                lines.append("|:---|:---|:---|:---|")
+                for j in result["deleted"]:
+                    lines.append(
+                        f"| {j.job_title or '-'} | {j.company_name or '-'} | "
+                        f"{j.work_location or '-'} | {j.publish_date or '-'} |"
+                    )
+                lines.append("")
+
+            with open(md_path, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines))
+            report_files.append(str(md_path))
+            logger.info("Change report (Markdown) written: %s", md_path)
+
+        self._cleanup_old_reports(output_dir, prefix)
+        return report_files
+
+    @staticmethod
+    def _cleanup_old_reports(report_dir: Path, prefix: str, retention: Optional[int] = None):
+        retention_days = retention or settings.report.retention_days
+        cutoff = datetime.now().timestamp() - retention_days * 86400
+        try:
+            for f in report_dir.glob(f"{prefix}_*"):
+                if f.is_file() and f.stat().st_mtime < cutoff:
+                    f.unlink()
+                    logger.debug("Cleaned up old report: %s", f)
+        except OSError as e:
+            logger.warning("Failed to clean old reports: %s", str(e))
 
     def save_jobs(self, jobs: List[Job]) -> Tuple[int, int]:
         if not jobs:

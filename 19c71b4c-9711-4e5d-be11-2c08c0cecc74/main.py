@@ -14,14 +14,18 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict, Any
 
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import Select
 from selenium.common.exceptions import (
     WebDriverException,
     TimeoutException,
     NoSuchElementException,
+    ElementNotInteractableException,
+    StaleElementReferenceException,
 )
 
 from config import settings
-from browser_manager import BrowserManager
+from browser_manager import BrowserManager, CookiePool, get_cookie_pool
 from page_parser import PageParser, Job
 from data_processor import DataProcessor
 from scheduler import Scheduler, AlertNotifier
@@ -125,6 +129,292 @@ class JobCrawler:
             "jobs_deleted": 0,
             "errors": 0,
         }
+
+    @staticmethod
+    def _find_first_element(driver, by: By, selectors: str):
+        for selector in [s.strip() for s in selectors.split(",") if s.strip()]:
+            try:
+                el = driver.find_element(by, selector)
+                if el.is_displayed():
+                    return el
+            except (NoSuchElementException, StaleElementReferenceException, ElementNotInteractableException):
+                continue
+        return None
+
+    def submit_search_form(
+        self,
+        browser: BrowserManager,
+        keyword: str = "",
+        location: str = "",
+        salary: str = "",
+        education: str = "",
+        search_url: str = "",
+    ) -> bool:
+        logger = logging.getLogger(__name__)
+        target_url = search_url or settings.crawler.search_url
+        if not target_url:
+            logger.error("Search URL is not configured")
+            return False
+
+        logger.info(
+            "Submitting search form: keyword=%s, location=%s, salary=%s, education=%s",
+            keyword, location, salary, education,
+        )
+
+        try:
+            browser.navigate(target_url, apply_cookies=True)
+            browser.wait_for_ajax()
+
+            form_indicators = [
+                (By.CSS_SELECTOR, "form.search-form"),
+                (By.CSS_SELECTOR, "form"),
+                (By.CSS_SELECTOR, "div.search-container"),
+                (By.CSS_SELECTOR, "input[name='keyword']"),
+                (By.CSS_SELECTOR, "input#keyword"),
+            ]
+            found_any = False
+            for by, sel in form_indicators:
+                try:
+                    browser.wait_for_element(by, sel, timeout=10)
+                    found_any = True
+                    break
+                except TimeoutException:
+                    continue
+            if not found_any:
+                logger.warning("Search form indicators not found; proceeding anyway")
+
+            sf_cfg = settings.search_form
+
+            if keyword:
+                kw_el = self._find_first_element(browser.driver, By.CSS_SELECTOR, sf_cfg.keyword_selector)
+                if kw_el is not None:
+                    try:
+                        kw_el.clear()
+                        kw_el.send_keys(Keys.CONTROL, "a")
+                        kw_el.send_keys(Keys.BACKSPACE)
+                        kw_el.send_keys(keyword)
+                        logger.info("Entered keyword: %s", keyword)
+                    except (ElementNotInteractableException, StaleElementReferenceException) as e:
+                        logger.warning("Failed to enter keyword: %s", str(e))
+                else:
+                    logger.warning("Keyword input not found with selectors: %s", sf_cfg.keyword_selector)
+
+            if location:
+                loc_el = self._find_first_element(browser.driver, By.CSS_SELECTOR, sf_cfg.location_selector)
+                if loc_el is not None:
+                    try:
+                        if loc_el.tag_name.lower() == "select":
+                            Select(loc_el).select_by_visible_text(location)
+                        else:
+                            loc_el.clear()
+                            loc_el.send_keys(location)
+                        logger.info("Set location: %s", location)
+                    except Exception as e:
+                        logger.warning("Failed to set location: %s", str(e))
+                else:
+                    logger.debug("Location input/select not found: %s", sf_cfg.location_selector)
+
+            if salary:
+                sal_el = self._find_first_element(browser.driver, By.CSS_SELECTOR, sf_cfg.salary_selector)
+                if sal_el is not None:
+                    try:
+                        if sal_el.tag_name.lower() == "select":
+                            Select(sal_el).select_by_visible_text(salary)
+                        else:
+                            sal_el.clear()
+                            sal_el.send_keys(salary)
+                        logger.info("Set salary: %s", salary)
+                    except Exception as e:
+                        logger.warning("Failed to set salary: %s", str(e))
+                else:
+                    logger.debug("Salary input/select not found: %s", sf_cfg.salary_selector)
+
+            if education:
+                edu_el = self._find_first_element(browser.driver, By.CSS_SELECTOR, sf_cfg.education_selector)
+                if edu_el is not None:
+                    try:
+                        if edu_el.tag_name.lower() == "select":
+                            Select(edu_el).select_by_visible_text(education)
+                        else:
+                            edu_el.clear()
+                            edu_el.send_keys(education)
+                        logger.info("Set education: %s", education)
+                    except Exception as e:
+                        logger.warning("Failed to set education: %s", str(e))
+                else:
+                    logger.debug("Education input/select not found: %s", sf_cfg.education_selector)
+
+            submit_el = self._find_first_element(browser.driver, By.CSS_SELECTOR, sf_cfg.submit_selector)
+            if submit_el is not None:
+                try:
+                    browser.driver.execute_script("arguments[0].scrollIntoView({block:'center'});", submit_el)
+                    time.sleep(0.5)
+                    try:
+                        submit_el.click()
+                    except ElementNotInteractableException:
+                        browser.driver.execute_script("arguments[0].click();", submit_el)
+                    logger.info("Search form submitted via click")
+                except Exception as e:
+                    logger.warning("Failed to click submit button: %s", str(e))
+                    if keyword:
+                        kw_el = self._find_first_element(browser.driver, By.CSS_SELECTOR, sf_cfg.keyword_selector)
+                        if kw_el is not None:
+                            try:
+                                kw_el.send_keys(Keys.RETURN)
+                                logger.info("Search form submitted via ENTER key")
+                            except Exception as e2:
+                                logger.error("Submit failed completely: %s", str(e2))
+                                return False
+            else:
+                logger.warning("Submit button not found; trying ENTER on keyword input")
+                if keyword:
+                    kw_el = self._find_first_element(browser.driver, By.CSS_SELECTOR, sf_cfg.keyword_selector)
+                    if kw_el is not None:
+                        try:
+                            kw_el.send_keys(Keys.RETURN)
+                            logger.info("Search form submitted via ENTER key")
+                        except Exception as e:
+                            logger.error("Submit via ENTER failed: %s", str(e))
+                            return False
+
+            if sf_cfg.ajax_trigger:
+                browser.wait_for_ajax(timeout=30)
+            else:
+                time.sleep(3)
+
+            time.sleep(1)
+            browser.handle_captcha()
+
+            logger.info("Search form submission complete, current URL: %s", browser.driver.current_url)
+            return True
+
+        except (WebDriverException, TimeoutException, ConnectionError) as e:
+            logger.error("Failed to submit search form: %s", str(e))
+            self.stats["errors"] += 1
+            return False
+
+    def crawl_with_search(
+        self,
+        keyword: str = "",
+        location: str = "",
+        salary: str = "",
+        education: str = "",
+        search_url: str = "",
+        max_pages: int = None,
+    ) -> Dict[str, Any]:
+        logger = logging.getLogger(__name__)
+        start_time = time.time()
+
+        with BrowserManager(headless=settings.headless) as browser:
+            ok = self.submit_search_form(
+                browser, keyword=keyword, location=location,
+                salary=salary, education=education, search_url=search_url,
+            )
+            if not ok:
+                logger.error("Search form submission failed, aborting crawl")
+                self.stats["duration_seconds"] = round(time.time() - start_time, 2)
+                return self.stats
+
+            all_job_info = self._parse_current_page(browser)
+
+            if max_pages:
+                pagination_links = self.parser.extract_pagination_links(browser.get_page_source())
+                for link in pagination_links[: max_pages - 1]:
+                    try:
+                        jobs = self.crawl_list_page(browser, link)
+                        all_job_info.extend(jobs)
+                    except Exception as e:
+                        logger.warning("Error crawling pagination page %s: %s", link, str(e))
+                        continue
+
+        return self._process_and_save(all_job_info, start_time)
+
+    def _parse_current_page(self, browser: BrowserManager) -> List[Dict[str, str]]:
+        logger = logging.getLogger(__name__)
+        list_indicators = [
+            (By.CSS_SELECTOR, "div.job-list"),
+            (By.CSS_SELECTOR, "ul.job-list"),
+            (By.CSS_SELECTOR, "div.job-item"),
+            (By.CSS_SELECTOR, "li.job-item"),
+            (By.TAG_NAME, "table"),
+        ]
+        for by, sel in list_indicators:
+            try:
+                browser.wait_for_element(by, sel, timeout=10)
+                break
+            except TimeoutException:
+                continue
+
+        scroll_count = browser.scroll_infinite()
+        logger.debug("Performed %d scroll operations on search result page", scroll_count)
+
+        try:
+            browser.click_load_more(By.XPATH, "//button[contains(text(), '加载更多')]")
+        except Exception:
+            pass
+        try:
+            browser.click_load_more(By.XPATH, "//a[contains(text(), '加载更多')]")
+        except Exception:
+            pass
+
+        html = browser.get_page_source()
+        job_list = self.parser.parse_job_list(html)
+        self.stats["pages_crawled"] += 1
+        self.stats["jobs_found"] += len(job_list)
+        logger.info("Found %d jobs on search result page", len(job_list))
+        return job_list
+
+    def _process_and_save(
+        self, all_job_info: List[Dict[str, str]], start_time: float
+    ) -> Dict[str, Any]:
+        logger = logging.getLogger(__name__)
+
+        unique_info: Dict[str, Dict[str, str]] = {}
+        for info in all_job_info:
+            url = info.get("job_url", "")
+            if url and url not in unique_info:
+                unique_info[url] = info
+        all_job_info = list(unique_info.values())
+        logger.info("Total unique job URLs: %d", len(all_job_info))
+
+        all_jobs: List[Job] = []
+        if all_job_info:
+            progress = ProgressBar(len(all_job_info), prefix="抓取详情页")
+            concurrency = min(settings.crawler.concurrency, len(all_job_info))
+            with ThreadPoolExecutor(max_workers=concurrency) as executor:
+                futures = {executor.submit(self.crawl_job_detail, info): info for info in all_job_info}
+                for future in as_completed(futures):
+                    try:
+                        job = future.result()
+                        if job:
+                            all_jobs.append(job)
+                    except Exception as e:
+                        logger.error("Error processing job detail: %s", str(e))
+                        self.stats["errors"] += 1
+                    progress.update()
+
+        cleaned_jobs = [self.processor.clean_job(job) for job in all_jobs]
+        cleaned_jobs = self.processor.deduplicate_jobs(cleaned_jobs)
+
+        changes = self.processor.detect_changes(cleaned_jobs)
+        inserted, updated = self.processor.save_jobs(changes["added"] + changes["modified"])
+        deleted_ids = [j.job_id for j in changes["deleted"]]
+        deleted_count = self.processor.mark_deleted(deleted_ids)
+
+        self.stats["jobs_saved"] = inserted + updated
+        self.stats["jobs_added"] = changes["summary"]["added"]
+        self.stats["jobs_modified"] = changes["summary"]["modified"]
+        self.stats["jobs_deleted"] = deleted_count
+        self.stats["duration_seconds"] = round(time.time() - start_time, 2)
+        self.stats["report_files"] = changes.get("report_files", [])
+
+        logger.info("=" * 60)
+        logger.info("抓取统计:")
+        for key, value in self.stats.items():
+            logger.info("  %-20s: %s", key, value)
+        logger.info("=" * 60)
+
+        return self.stats
 
     def crawl_list_page(self, browser: BrowserManager, url: str) -> List[Dict[str, str]]:
         logger = logging.getLogger(__name__)
@@ -243,51 +533,7 @@ class JobCrawler:
                         logger.warning("Error crawling pagination page %s: %s", link, str(e))
                         continue
 
-        unique_info: Dict[str, Dict[str, str]] = {}
-        for info in all_job_info:
-            url = info.get("job_url", "")
-            if url and url not in unique_info:
-                unique_info[url] = info
-        all_job_info = list(unique_info.values())
-        logger.info("Total unique job URLs: %d", len(all_job_info))
-
-        all_jobs: List[Job] = []
-        if all_job_info:
-            progress = ProgressBar(len(all_job_info), prefix="抓取详情页")
-            concurrency = min(settings.crawler.concurrency, len(all_job_info))
-            with ThreadPoolExecutor(max_workers=concurrency) as executor:
-                futures = {executor.submit(self.crawl_job_detail, info): info for info in all_job_info}
-                for future in as_completed(futures):
-                    try:
-                        job = future.result()
-                        if job:
-                            all_jobs.append(job)
-                    except Exception as e:
-                        logger.error("Error processing job detail: %s", str(e))
-                        self.stats["errors"] += 1
-                    progress.update()
-
-        cleaned_jobs = [self.processor.clean_job(job) for job in all_jobs]
-        cleaned_jobs = self.processor.deduplicate_jobs(cleaned_jobs)
-
-        changes = self.processor.detect_changes(cleaned_jobs)
-        inserted, updated = self.processor.save_jobs(changes["added"] + changes["modified"])
-        deleted_ids = [j.job_id for j in changes["deleted"]]
-        deleted_count = self.processor.mark_deleted(deleted_ids)
-
-        self.stats["jobs_saved"] = inserted + updated
-        self.stats["jobs_added"] = len(changes["added"])
-        self.stats["jobs_modified"] = len(changes["modified"])
-        self.stats["jobs_deleted"] = deleted_count
-        self.stats["duration_seconds"] = round(time.time() - start_time, 2)
-
-        logger.info("=" * 60)
-        logger.info("抓取统计:")
-        for key, value in self.stats.items():
-            logger.info("  %-20s: %s", key, value)
-        logger.info("=" * 60)
-
-        return self.stats
+        return self._process_and_save(all_job_info, start_time)
 
     def incremental_crawl(self) -> Dict[str, Any]:
         logger = logging.getLogger(__name__)
@@ -319,13 +565,15 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
-  %(prog)s crawl --full              # 全量抓取
-  %(prog)s crawl --incremental       # 增量抓取
-  %(prog)s crawl --max-pages 5       # 抓取指定页数
+  %(prog)s crawl --full                                 # 全量抓取
+  %(prog)s crawl --incremental                          # 增量抓取
+  %(prog)s crawl --max-pages 5 --no-headless            # 抓取指定页数并显示浏览器
+  %(prog)s search --keyword "Java工程师"                # 按关键词搜索抓取
+  %(prog)s search --keyword "后端" --location "北京" --education "本科" --max-pages 3
   %(prog)s export --format csv --output jobs.csv
   %(prog)s export --format json --output jobs.json --start 2024-01-01 --end 2024-01-31
-  %(prog)s stats                     # 查看数据库统计
-  %(prog)s schedule --daily 2:00     # 每天凌晨2点定时抓取
+  %(prog)s stats                                        # 查看数据库统计
+  %(prog)s schedule --daily 2:00                        # 每天凌晨2点定时抓取
         """,
     )
     subparsers = parser.add_subparsers(dest="command", help="可用命令")
@@ -337,6 +585,23 @@ def main():
     crawl_parser.add_argument("--max-pages", type=int, help="最大抓取页数")
     crawl_parser.add_argument("--url", type=str, help="自定义列表页URL")
     crawl_parser.add_argument("--no-headless", action="store_true", help="显示浏览器窗口")
+    crawl_parser.add_argument(
+        "--enable-cookie-pool", action="store_true",
+        help="启用 Cookie 池轮换 (config.cookie_pool.enabled)",
+    )
+
+    search_parser = subparsers.add_parser("search", help="按条件搜索并抓取")
+    search_parser.add_argument("--keyword", "-k", type=str, default="", help="职位关键词")
+    search_parser.add_argument("--location", "-l", type=str, default="", help="工作地点")
+    search_parser.add_argument("--salary", "-s", type=str, default="", help="薪资范围选择")
+    search_parser.add_argument("--education", "-e", type=str, default="", help="学历要求选择")
+    search_parser.add_argument("--search-url", type=str, default="", help="自定义搜索页URL")
+    search_parser.add_argument("--max-pages", type=int, help="搜索结果最大抓取页数")
+    search_parser.add_argument("--no-headless", action="store_true", help="显示浏览器窗口")
+    search_parser.add_argument(
+        "--enable-cookie-pool", action="store_true",
+        help="启用 Cookie 池轮换",
+    )
 
     export_parser = subparsers.add_parser("export", help="导出数据")
     export_parser.add_argument("--format", required=True, choices=["json", "csv"], help="输出格式")
@@ -355,14 +620,33 @@ def main():
     setup_logging()
     logger = logging.getLogger(__name__)
 
-    if args.command == "crawl":
-        if args.no_headless:
+    if args.command in ("crawl", "search"):
+        if getattr(args, "no_headless", False):
             settings.headless = False
+        if getattr(args, "enable_cookie_pool", False):
+            settings.cookie_pool.enabled = True
+            pool_size = get_cookie_pool().size()
+            logger.info("Cookie pool enabled, current size: %d", pool_size)
+
+    if args.command == "crawl":
         crawler = JobCrawler()
         if args.incremental:
             crawler.incremental_crawl()
         else:
             crawler.crawl_all(list_url=args.url, max_pages=args.max_pages)
+
+    elif args.command == "search":
+        if not any([args.keyword, args.location, args.salary, args.education]):
+            logger.warning("No search criteria specified. Please provide at least one search parameter.")
+        crawler = JobCrawler()
+        crawler.crawl_with_search(
+            keyword=args.keyword,
+            location=args.location,
+            salary=args.salary,
+            education=args.education,
+            search_url=args.search_url,
+            max_pages=args.max_pages,
+        )
 
     elif args.command == "export":
         crawler = JobCrawler()
