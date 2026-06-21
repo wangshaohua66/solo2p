@@ -1,0 +1,93 @@
+{
+  "storage": {
+    "basePath": "./projects",
+    "tempPath": "./temp",
+    "archivePath": "./archives"
+  },
+  "directoryStructure": {
+    "raw": "原始素材",
+    "edit": "剪辑工程",
+    "mix": "混音工程",
+    "deliver": "交付成品"
+  },
+  "materialTypes": {
+    "dialogue": "对白",
+    "ambience": "环境音",
+    "foley": "音效",
+    "music": "配乐"
+  },
+  "projectStatus": {
+    "preparation": {
+      "label": "筹备",
+      "color": "gray"
+    },
+    "production": {
+      "label": "制作",
+      "color": "yellow"
+    },
+    "mixing": {
+      "label": "混音",
+      "color": "yellow"
+    },
+    "delivery": {
+      "label": "交付",
+      "color": "green"
+    },
+    "archived": {
+      "label": "归档",
+      "color": "gray"
+    }
+  },
+  "materialStatus": {
+    "pending": {
+      "label": "待处理",
+      "color": "gray"
+    },
+    "editing": {
+      "label": "剪辑中",
+      "color": "yellow"
+    },
+    "review": {
+      "label": "待审核",
+      "color": "yellow"
+    },
+    "confirmed": {
+      "label": "已确认",
+      "color": "green"
+    },
+    "revision": {
+      "label": "需修改",
+      "color": "red"
+    }
+  },
+  "feedbackStatus": {
+    "pending": {
+      "label": "待处理",
+      "color": "gray"
+    },
+    "resolved": {
+      "label": "已处理",
+      "color": "green"
+    }
+  },
+  "roles": {
+    "editor": "声音编辑师",
+    "mixer": "混音师",
+    "foley_artist": "拟音师",
+    "supervisor": "声音总监"
+  },
+  "supportedFormats": [".wav", ".aiff", ".aif", ".mp3", ".flac"],
+  "versioning": {
+    "maxVersionsPerMaterial": 50,
+    "keepExpiredVersions": true,
+    "expireDays": 90
+  },
+  "storageThreshold": {
+    "warningGB": 50,
+    "criticalGB": 100
+  },
+  "pagination": {
+    "pageSize": 20
+  },
+  "namingTemplate": "{project}_{scene}_{shot}_{type}_{index:04d}"
+}
