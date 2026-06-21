@@ -1,0 +1,342 @@
+version: "1.0"
+
+global:
+  concurrency:
+    full: 10
+    incremental: 50
+  collection_interval_minutes: 30
+  daily_target: 50000
+  memory_limit_mb: 2048
+  proxy_survival_rate: 0.85
+  captcha_success_rate: 0.90
+
+redis:
+  host: "${REDIS_HOST:127.0.0.1}"
+  port: "${REDIS_PORT:6379}"
+  password: "${REDIS_PASSWORD:}"
+  db: 0
+  dedup_db: 1
+  queue_db: 2
+  simhash_threshold: 3
+
+mysql:
+  host: "${MYSQL_HOST:127.0.0.1}"
+  port: "${MYSQL_PORT:3306}"
+  user: "${MYSQL_USER:root}"
+  password: "${MYSQL_PASSWORD:ENCRYPTED}"
+  database: "complaint_monitor"
+  charset: "utf8mb4"
+  pool_size: 10
+
+captcha:
+  provider: "ruokuai"
+  api_url: "${CAPTCHA_API_URL:}"
+  username: "${CAPTCHA_USERNAME:ENCRYPTED}"
+  password: "${CAPTCHA_PASSWORD:ENCRYPTED}"
+
+proxy:
+  enabled: true
+  pool_api: "${PROXY_POOL_API:}"
+  min_alive_count: 20
+  check_interval_seconds: 60
+  max_fail_count: 3
+  categories:
+    government:
+      max_rpm: 10
+      timeout_seconds: 30
+      retry_times: 3
+      backoff_base: 2
+      backoff_max: 300
+      circuit_breaker_threshold: 5
+      circuit_breaker_reset_seconds: 600
+    ecommerce:
+      max_rpm: 20
+      timeout_seconds: 20
+      retry_times: 5
+      backoff_base: 2
+      backoff_max: 300
+      circuit_breaker_threshold: 8
+      circuit_breaker_reset_seconds: 300
+    weixin:
+      max_rpm: 5
+      timeout_seconds: 30
+      retry_times: 3
+      backoff_base: 2
+      backoff_max: 600
+      circuit_breaker_threshold: 3
+      circuit_breaker_reset_seconds: 900
+
+notify:
+  dingtalk:
+    webhook: "${DINGTALK_WEBHOOK:ENCRYPTED}"
+    secret: "${DINGTALK_SECRET:ENCRYPTED}"
+    urgent_keywords:
+      - "群体性"
+      - "食物中毒"
+      - "死亡"
+      - "重大安全"
+  email:
+    smtp_host: "${SMTP_HOST:}"
+    smtp_port: 465
+    sender: "${EMAIL_SENDER:ENCRYPTED}"
+    password: "${EMAIL_PASSWORD:ENCRYPTED}"
+    receivers:
+      - "${EMAIL_RECEIVER_1:}"
+    daily_report_time: "18:00"
+
+channels:
+  government:
+    - name: "国家市场监管总局投诉公示系统"
+      code: "gov_samr"
+      base_url: "https://www.samr.gov.cn/"
+      type: "static"
+      parser: "html_table"
+      schedule_cron: "*/30 * * * *"
+      enabled: true
+      login_required: false
+      selectors:
+        list_url: "/xw/zt/gn/gs/"
+        item_link: "table.table tr td a"
+        title: "h1.article-title"
+        content: "div.article-content"
+        date: "span.pub-date"
+    - name: "省市场监管局官网"
+      code: "gov_province"
+      base_url: "https://amr.example-province.gov.cn/"
+      type: "static"
+      parser: "html_list"
+      schedule_cron: "*/30 * * * *"
+      enabled: true
+      login_required: false
+      selectors:
+        list_url: "/hdjl/tsjb/"
+        item_link: "ul.list li a"
+        title: "h1.detail-title"
+        content: "div.detail-content"
+        date: "span.date"
+    - name: "12315平台"
+      code: "gov_12315"
+      base_url: "https://www.12315.cn/"
+      type: "dynamic"
+      parser: "json_api"
+      schedule_cron: "*/20 * * * *"
+      enabled: true
+      login_required: true
+      login_url: "https://www.12315.cn/user/login"
+      selectors:
+        api_url: "/api/complaint/list"
+        list_key: "data.list"
+        title_key: "title"
+        content_key: "content"
+        date_key: "create_time"
+        page_key: "page"
+        page_size: 50
+
+  ecommerce:
+    - name: "淘宝投诉频道"
+      code: "ec_taobao"
+      base_url: "https://consumerservice.taobao.com/"
+      type: "dynamic"
+      parser: "json_api"
+      schedule_cron: "*/15 * * * *"
+      enabled: true
+      login_required: true
+      anti_crawl_level: "high"
+      selectors:
+        api_url: "/api/complaint/search"
+        list_key: "data.items"
+        title_key: "subject"
+        content_key: "description"
+        date_key: "created"
+    - name: "京东投诉频道"
+      code: "ec_jd"
+      base_url: "https://complaint.jd.com/"
+      type: "dynamic"
+      parser: "json_api"
+      schedule_cron: "*/15 * * * *"
+      enabled: true
+      login_required: true
+      anti_crawl_level: "high"
+      selectors:
+        api_url: "/api/complaint/list"
+        list_key: "data.complaints"
+        title_key: "title"
+        content_key: "content"
+        date_key: "createTime"
+    - name: "拼多多投诉频道"
+      code: "ec_pdd"
+      base_url: "https://consumerservice.pinduoduo.com/"
+      type: "dynamic"
+      parser: "html_list"
+      schedule_cron: "*/15 * * * *"
+      enabled: true
+      login_required: false
+      anti_crawl_level: "medium"
+      selectors:
+        list_url: "/complaint/list"
+        item_link: "div.complaint-item a"
+        title: "h3.complaint-title"
+        content: "div.complaint-detail"
+        date: "span.time"
+    - name: "抖音投诉频道"
+      code: "ec_douyin"
+      base_url: "https://feedback-douyin.com/"
+      type: "dynamic"
+      parser: "json_api"
+      schedule_cron: "*/15 * * * *"
+      enabled: true
+      login_required: true
+      anti_crawl_level: "high"
+      selectors:
+        api_url: "/api/feedback/list"
+        list_key: "data.list"
+        title_key: "title"
+        content_key: "content"
+        date_key: "create_time"
+    - name: "快手投诉频道"
+      code: "ec_kuaishou"
+      base_url: "https:// Complaint.kuaishou.com/"
+      type: "dynamic"
+      parser: "json_api"
+      schedule_cron: "*/20 * * * *"
+      enabled: true
+      login_required: true
+      anti_crawl_level: "high"
+      selectors:
+        api_url: "/api/complaint/query"
+        list_key: "data.result"
+        title_key: "subject"
+        content_key: "detail"
+        date_key: "timestamp"
+    - name: "美团投诉频道"
+      code: "ec_meituan"
+      base_url: "https://Complaint.meituan.com/"
+      type: "dynamic"
+      parser: "json_api"
+      schedule_cron: "*/15 * * * *"
+      enabled: true
+      login_required: false
+      anti_crawl_level: "medium"
+      selectors:
+        api_url: "/api/complaint/search"
+        list_key: "data.complaints"
+        title_key: "complaintTitle"
+        content_key: "complaintContent"
+        date_key: "complaintTime"
+    - name: "饿了么投诉频道"
+      code: "ec_eleme"
+      base_url: "https://Complaint.ele.me/"
+      type: "dynamic"
+      parser: "json_api"
+      schedule_cron: "*/15 * * * *"
+      enabled: true
+      login_required: false
+      anti_crawl_level: "medium"
+      selectors:
+        api_url: "/api/complaint/list"
+        list_key: "data.feedbacks"
+        title_key: "title"
+        content_key: "content"
+        date_key: "gmtCreate"
+    - name: "小红书投诉频道"
+      code: "ec_xiaohongshu"
+      base_url: "https://Complaint.xiaohongshu.com/"
+      type: "dynamic"
+      parser: "json_api"
+      schedule_cron: "*/20 * * * *"
+      enabled: true
+      login_required: true
+      anti_crawl_level: "high"
+      selectors:
+        api_url: "/api/note/complaint"
+        list_key: "data.notes"
+        title_key: "title"
+        content_key: "desc"
+        date_key: "last_update_time"
+
+  weixin:
+    - name: "市监局公众号-杭州"
+      code: "wx_hangzhou"
+      account_id: "hz_amr"
+      type: "weixin_article"
+      parser: "weixin_html"
+      schedule_cron: "0 */2 * * *"
+      enabled: true
+      keywords:
+        - "消费投诉"
+        - "维权"
+        - "警示"
+        - "召回"
+    - name: "市监局公众号-宁波"
+      code: "wx_ningbo"
+      account_id: "nb_amr"
+      type: "weixin_article"
+      parser: "weixin_html"
+      schedule_cron: "0 */2 * * *"
+      enabled: true
+      keywords:
+        - "消费投诉"
+        - "维权"
+        - "警示"
+        - "召回"
+
+whitelist_keywords:
+  - "投诉"
+  - "举报"
+  - "维权"
+  - "欺诈"
+  - "假冒"
+  - "退货"
+  - "赔偿"
+  - "食品安全"
+  - "质量缺陷"
+  - "召回"
+  - "虚假宣传"
+  - "价格欺诈"
+
+blacklist_domains:
+  - "ad.example.com"
+  - "tracker.spam.com"
+
+risk_keywords:
+  urgent:
+    - "群体性"
+    - "食物中毒"
+    - "死亡"
+    - "重大安全"
+    - "致癌"
+    - "有毒有害"
+    - "数百人"
+    - "大规模"
+  warning:
+    - "批量投诉"
+    - "同一问题"
+    - "多次投诉"
+    - "拒不退款"
+    - "涉嫌欺诈"
+    - "严重质量"
+    - "过期食品"
+  attention:
+    - "质量不合格"
+    - "虚假宣传"
+    - "价格欺诈"
+    - "售后服务差"
+    - "退货困难"
+
+complaint_categories:
+  - name: "食品"
+    keywords: ["食品", "餐饮", "外卖", "零食", "饮料", "生鲜", "过期", "变质", "食物中毒"]
+  - name: "家电"
+    keywords: ["家电", "电器", "手机", "电脑", "电视", "冰箱", "空调", "洗衣机", "维修"]
+  - name: "服务"
+    keywords: ["服务", "客服", "售后", "快递", "物流", "安装", "培训", "旅游"]
+  - name: "金融"
+    keywords: ["金融", "贷款", "信用卡", "保险", "理财", "投资", "P2P", "利率"]
+  - name: "房产"
+    keywords: ["房产", "房屋", "装修", "物业", "租房", "中介", "交房"]
+  - name: "交通"
+    keywords: ["交通", "汽车", "驾校", "出行", "网约车", "停车", "充电"]
+  - name: "教育"
+    keywords: ["教育", "培训", "学校", "课程", "学费", "退费"]
+  - name: "医疗"
+    keywords: ["医疗", "药品", "医院", "体检", "美容", "整形", "保健"]
