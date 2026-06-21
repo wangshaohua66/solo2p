@@ -1,0 +1,38 @@
+{
+  "name": "vehicle-emission-inspection-automation",
+  "version": "1.0.0",
+  "description": "机动车排放检验自动化系统 - 省级环保检验平台自动化工具",
+  "main": "src/cli.js",
+  "scripts": {
+    "start": "node src/cli.js",
+    "lint": "eslint src/**/*.js",
+    "test": "node --test tests/"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "selenium-webdriver": "^4.21.0",
+    "webdriverio": "^8.38.0",
+    "pdfkit": "^0.15.0",
+    "xlsx": "^0.18.5",
+    "chalk": "^4.1.2",
+    "commander": "^12.1.0",
+    "inquirer": "^8.2.6",
+    "dayjs": "^1.11.11",
+    "node-cron": "^3.0.3",
+    "axios": "^1.7.2",
+    "winston": "^3.13.0",
+    "winston-daily-rotate-file": "^5.0.0",
+    "dotenv": "^16.4.5",
+    "cheerio": "^1.0.0-rc.12",
+    "csv-parse": "^5.5.6",
+    "cli-table3": "^0.6.5",
+    "ora": "^5.4.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "@types/node": "^20.12.12",
+    "typescript": "^5.4.5"
+  }
+}
