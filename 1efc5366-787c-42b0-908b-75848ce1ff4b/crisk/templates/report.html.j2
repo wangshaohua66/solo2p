@@ -113,12 +113,6 @@
                 </tbody>
             </table>
 
-            {% if summary.has_case_matches > 0 %}
-            <div class="trend-chart" style="margin-top: 20px;">
-                📈 风险趋势图: 共 {{ summary.has_case_matches }} 条线索关联到历史案件
-            </div>
-            {% endif %}
-
             {% if trends.descriptions %}
             <h3 style="margin: 20px 0 12px; color: #374151; font-size: 16px;">📊 风险趋势分析</h3>
             <div style="background: #f8fafc; border-radius: 8px; padding: 16px; margin-top: 12px;">

@@ -223,13 +223,15 @@ class ReportGenerator:
                       detection_type: Optional[str] = None,
                       risk_level: Optional[str] = None,
                       start_date: Optional[str] = None,
-                      end_date: Optional[str] = None) -> Path:
+                      end_date: Optional[str] = None,
+                      report_data: Optional[Dict[str, Any]] = None) -> Path:
         logger.info(f"生成 HTML 报告: {output_path}")
 
-        data = self._prepare_report_data(clues, detection_type, risk_level, start_date, end_date)
+        if report_data is None:
+            report_data = self._prepare_report_data(clues, detection_type, risk_level, start_date, end_date)
 
         template = self.env.get_template("report.html.j2")
-        html_content = template.render(**data)
+        html_content = template.render(**report_data)
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
@@ -243,13 +245,15 @@ class ReportGenerator:
                           detection_type: Optional[str] = None,
                           risk_level: Optional[str] = None,
                           start_date: Optional[str] = None,
-                          end_date: Optional[str] = None) -> Path:
+                          end_date: Optional[str] = None,
+                          report_data: Optional[Dict[str, Any]] = None) -> Path:
         logger.info(f"生成 Markdown 报告: {output_path}")
 
-        data = self._prepare_report_data(clues, detection_type, risk_level, start_date, end_date)
+        if report_data is None:
+            report_data = self._prepare_report_data(clues, detection_type, risk_level, start_date, end_date)
 
         template = self.env.get_template("report.md.j2")
-        md_content = template.render(**data)
+        md_content = template.render(**report_data)
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
@@ -284,11 +288,13 @@ class ReportGenerator:
         if output_format == "html":
             default_name = f"risk_report_{timestamp}.html"
             final_path = Path(output_path) if output_path else output_dir / default_name
-            result = self.generate_html(final_path, clues, detection_type, risk_level, start_date, end_date)
+            result = self.generate_html(final_path, clues, detection_type, risk_level,
+                                         start_date, end_date, report_data=report_data)
         elif output_format == "markdown":
             default_name = f"risk_report_{timestamp}.md"
             final_path = Path(output_path) if output_path else output_dir / default_name
-            result = self.generate_markdown(final_path, clues, detection_type, risk_level, start_date, end_date)
+            result = self.generate_markdown(final_path, clues, detection_type, risk_level,
+                                             start_date, end_date, report_data=report_data)
         else:
             raise ValueError(f"不支持的输出格式: {output_format}")
 

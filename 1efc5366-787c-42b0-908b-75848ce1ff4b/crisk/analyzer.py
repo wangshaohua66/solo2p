@@ -259,8 +259,17 @@ class FakeDeclarationAnalyzer(BaseAnalyzer):
             logger.warning("没有检测规则可供分析")
             return clues
 
-        rule_hs_prefixes = [rule.hs_prefix for rule in rules]
+        rule_hs_prefixes = sorted([rule.hs_prefix for rule in rules], key=lambda x: -len(x))
         rule_map = {rule.hs_prefix: rule for rule in rules}
+
+        rule_patterns = {}
+        rule_keywords_dict = {}
+        rule_description_dict = {}
+        for prefix, rule in rule_map.items():
+            keywords = [kw.lower() for kw in rule.keywords]
+            rule_patterns[prefix] = "|".join(keywords)
+            rule_keywords_dict[prefix] = ", ".join(rule.keywords)
+            rule_description_dict[prefix] = rule.description
 
         total_count = 0
         with self.db.get_connection() as conn:
@@ -289,58 +298,65 @@ class FakeDeclarationAnalyzer(BaseAnalyzer):
             processed = 0
 
             for chunk in self.db.get_declarations_paginated(start_date, end_date, chunk_size=10000):
-                chunk["hs_prefix6_match"] = chunk["hs_prefix6"]
+                chunk["matched_prefix"] = ""
 
-                rule_descriptions = []
-                rule_keywords = []
-                expected_keywords = []
-                rule_hs_categories = []
+                for prefix in rule_hs_prefixes:
+                    mask = (chunk["matched_prefix"] == "") & chunk["hs_prefix6"].str.startswith(prefix, na=False)
+                    chunk.loc[mask, "matched_prefix"] = prefix
 
-                for _, row in chunk.iterrows():
-                    hs_prefix = row["hs_prefix6_match"]
-                    matching_rule = None
-                    for prefix, rule in rule_map.items():
-                        if hs_prefix.startswith(prefix):
-                            matching_rule = rule
-                            break
+                has_rule_mask = chunk["matched_prefix"] != ""
 
-                    if matching_rule is not None and not matching_rule.matches(row["product_name"]):
-                        rule_descriptions.append(matching_rule.description)
-                        rule_keywords.append(", ".join(matching_rule.keywords))
-                        expected_keywords.append(", ".join(matching_rule.keywords))
-                        rule_hs_categories.append(hs_prefix)
-                    else:
-                        rule_descriptions.append(None)
-                        rule_keywords.append(None)
-                        expected_keywords.append(None)
-                        rule_hs_categories.append(None)
+                chunk["rule_description"] = None
+                chunk["expected_keywords"] = None
+                chunk["rule_hs_category"] = None
 
-                chunk["rule_description"] = rule_descriptions
-                chunk["rule_keywords"] = rule_keywords
-                chunk["expected_keywords"] = expected_keywords
-                chunk["rule_hs_category"] = rule_hs_categories
+                if has_rule_mask.any():
+                    rule_chunk = chunk[has_rule_mask].copy()
+                    prefixes_in_chunk = rule_chunk["matched_prefix"].unique()
 
-                abnormal = chunk[chunk["rule_description"].notna()].copy()
-                if not abnormal.empty:
-                    abnormal["risk_score"] = 0.6
-                    abnormal["risk_level"] = "中风险"
+                    matched_mask = pd.Series(False, index=rule_chunk.index)
+                    for prefix in prefixes_in_chunk:
+                        prefix_mask = rule_chunk["matched_prefix"] == prefix
+                        pattern = rule_patterns[prefix]
+                        if pattern:
+                            kw_match = rule_chunk.loc[prefix_mask, "product_name"].str.lower().str.contains(
+                                pattern, regex=True, na=False
+                            )
+                            matched_mask.loc[prefix_mask] = kw_match
+                        else:
+                            matched_mask.loc[prefix_mask] = True
 
-                    for _, row in abnormal.iterrows():
-                        clue = {
-                            "detection_type": "fake",
-                            "risk_level": row["risk_level"],
-                            "declaration_no": row["declaration_no"],
-                            "hs_code": row["hs_code"],
-                            "company": row["company"],
-                            "consignee": row["consignee"],
-                            "analysis_details": json.dumps({
-                                "hs_category": row["rule_hs_category"],
-                                "rule_description": row["rule_description"],
-                            }, ensure_ascii=False),
-                            "expected_keywords": row["expected_keywords"],
-                            "actual_description": row["product_name"],
-                        }
-                        clues.append(clue)
+                    abnormal_mask = has_rule_mask & ~matched_mask
+                    if abnormal_mask.any():
+                        abnormal = chunk[abnormal_mask].copy()
+                        abnormal["rule_description"] = abnormal["matched_prefix"].map(rule_description_dict)
+                        abnormal["expected_keywords"] = abnormal["matched_prefix"].map(rule_keywords_dict)
+                        abnormal["rule_hs_category"] = abnormal["matched_prefix"]
+                        abnormal["risk_score"] = 0.6
+                        abnormal["risk_level"] = "中风险"
+
+                        abnormal_records = abnormal[[
+                            "declaration_no", "hs_code", "company", "consignee",
+                            "product_name", "rule_hs_category", "rule_description",
+                            "expected_keywords", "risk_level"
+                        ]].to_dict("records")
+
+                        for row in abnormal_records:
+                            clue = {
+                                "detection_type": "fake",
+                                "risk_level": row["risk_level"],
+                                "declaration_no": row["declaration_no"],
+                                "hs_code": row["hs_code"],
+                                "company": row["company"],
+                                "consignee": row["consignee"],
+                                "analysis_details": json.dumps({
+                                    "hs_category": row["rule_hs_category"],
+                                    "rule_description": row["rule_description"],
+                                }, ensure_ascii=False),
+                                "expected_keywords": row["expected_keywords"],
+                                "actual_description": row["product_name"],
+                            }
+                            clues.append(clue)
 
                 processed += len(chunk)
                 progress.update(task, completed=processed)
