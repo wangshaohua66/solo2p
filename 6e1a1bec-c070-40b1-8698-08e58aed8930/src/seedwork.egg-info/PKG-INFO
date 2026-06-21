@@ -1,0 +1,16 @@
+Metadata-Version: 2.4
+Name: seedwork
+Version: 1.0.0
+Summary: Seismic waveform data quality monitoring and earthquake event catalog system
+Requires-Python: >=3.11
+Requires-Dist: typer>=0.9.0
+Requires-Dist: obspy>=1.4.0
+Requires-Dist: rich>=13.0.0
+Requires-Dist: numpy>=1.24.0
+Requires-Dist: scipy>=1.10.0
+Requires-Dist: pandas>=2.0.0
+Requires-Dist: sqlalchemy>=2.0.0
+Requires-Dist: ftputil>=5.0.0
+Requires-Dist: python-dateutil>=2.8.0
+Requires-Dist: tenacity>=8.2.0
+Requires-Dist: pydantic>=2.0.0

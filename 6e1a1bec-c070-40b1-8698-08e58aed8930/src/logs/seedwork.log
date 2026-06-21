@@ -1,0 +1,8 @@
+2026-06-21 08:49:55 | INFO     | seedwork | [green]Database initialized at:[/green] /Users/paul/WorkSpace/TestSoloCoder/6e1a1bec-c070-40b1-8698-08e58aed8930/src/data/seedwork.db
+2026-06-21 08:50:04 | INFO     | seedwork | [green]Database initialized at:[/green] /Users/paul/WorkSpace/TestSoloCoder/6e1a1bec-c070-40b1-8698-08e58aed8930/src/data/seedwork.db
+2026-06-21 08:50:04 | INFO     | seedwork | [green]Added station:[/green] XX.STA01
+2026-06-21 08:50:52 | INFO     | seedwork | [green]Database initialized at:[/green] /Users/paul/WorkSpace/TestSoloCoder/6e1a1bec-c070-40b1-8698-08e58aed8930/src/data/seedwork.db
+2026-06-21 08:51:14 | INFO     | seedwork | [green]Database initialized at:[/green] /Users/paul/WorkSpace/TestSoloCoder/6e1a1bec-c070-40b1-8698-08e58aed8930/src/data/seedwork.db
+2026-06-21 08:51:24 | INFO     | seedwork | [green]Database initialized at:[/green] /Users/paul/WorkSpace/TestSoloCoder/6e1a1bec-c070-40b1-8698-08e58aed8930/src/data/seedwork.db
+2026-06-21 08:51:24 | ERROR    | seedwork | [red]Error: local variable 'Table' referenced before assignment[/red]
+2026-06-21 08:52:55 | INFO     | seedwork | [green]Database initialized at:[/green] /Users/paul/WorkSpace/TestSoloCoder/6e1a1bec-c070-40b1-8698-08e58aed8930/src/data/seedwork.db

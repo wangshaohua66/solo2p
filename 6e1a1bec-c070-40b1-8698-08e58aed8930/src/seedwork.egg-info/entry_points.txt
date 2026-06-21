@@ -1,0 +1,2 @@
+[console_scripts]
+seedwork = seedwork.cli:app

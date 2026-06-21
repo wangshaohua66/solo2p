@@ -1,0 +1,50 @@
+{
+  "stations": [
+    {
+      "network": "XX",
+      "station": "STA01",
+      "location": "00",
+      "channels": ["BHE", "BHN", "BHZ"],
+      "latitude": 30.0,
+      "longitude": 105.0,
+      "elevation": 500.0,
+      "ftp_host": "ftp.example.com",
+      "ftp_port": 21,
+      "ftp_user": "station01",
+      "ftp_password": "password123",
+      "ftp_path": "/data/miniseed",
+      "sample_rate": 100.0,
+      "sensor_type": "broadband"
+    }
+  ],
+  "detection": {
+    "sta_window": 1.0,
+    "lta_window": 30.0,
+    "trigger_threshold": 4.0,
+    "detrigger_threshold": 2.0,
+    "algorithm": "recursive",
+    "min_event_duration": 5.0,
+    "max_event_duration": 300.0
+  },
+  "quality": {
+    "min_continuity_rate": 0.95,
+    "min_snr_db": 3.0,
+    "max_clock_bias_ms": 1.0,
+    "max_dc_offset": 1000.0
+  },
+  "download": {
+    "parallel_workers": 8,
+    "retry_count": 3,
+    "retry_delay": 5,
+    "chunk_size": 8192,
+    "data_dir": "./data"
+  },
+  "database": {
+    "path": "./data/seedwork.db"
+  },
+  "logging": {
+    "level": "INFO",
+    "log_dir": "./logs",
+    "retention_days": 90
+  }
+}
