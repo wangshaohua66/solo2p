@@ -1,0 +1,15 @@
+{"timestamp": "2026-06-22T02:06:04.792943", "level": "DEBUG", "module": "logger", "function": "_log_with_context", "line": 114, "message": "这是一条调试信息"}
+{"timestamp": "2026-06-22T02:06:04.793726", "level": "INFO", "module": "logger", "function": "_log_with_context", "line": 114, "message": "这是一条信息", "operation_type": "test", "object": "test_obj"}
+{"timestamp": "2026-06-22T02:06:04.793986", "level": "WARNING", "module": "logger", "function": "_log_with_context", "line": 114, "message": "这是一条警告"}
+{"timestamp": "2026-06-22T02:06:04.794202", "level": "ERROR", "module": "logger", "function": "_log_with_context", "line": 114, "message": "这是一条错误"}
+{"timestamp": "2026-06-22T02:06:04.915151", "level": "INFO", "module": "logger", "function": "_log_with_context", "line": 114, "message": "Operation completed: test_operation", "operation_type": "test_operation", "object": "test_object", "duration_ms": 120.27}
+{"timestamp": "2026-06-22T02:07:56.895724", "level": "DEBUG", "module": "logger", "function": "_log_with_context", "line": 114, "message": "这是一条调试信息"}
+{"timestamp": "2026-06-22T02:07:56.895994", "level": "INFO", "module": "logger", "function": "_log_with_context", "line": 114, "message": "这是一条信息", "operation_type": "test", "object": "test_obj"}
+{"timestamp": "2026-06-22T02:07:56.896049", "level": "WARNING", "module": "logger", "function": "_log_with_context", "line": 114, "message": "这是一条警告"}
+{"timestamp": "2026-06-22T02:07:56.896083", "level": "ERROR", "module": "logger", "function": "_log_with_context", "line": 114, "message": "这是一条错误"}
+{"timestamp": "2026-06-22T02:07:56.996450", "level": "INFO", "module": "logger", "function": "_log_with_context", "line": 114, "message": "Operation completed: test_operation", "operation_type": "test_operation", "object": "test_object", "duration_ms": 100.19}
+{"timestamp": "2026-06-22T02:28:21.445211", "level": "DEBUG", "module": "logger", "function": "_log_with_context", "line": 114, "message": "这是一条调试信息"}
+{"timestamp": "2026-06-22T02:28:21.449334", "level": "INFO", "module": "logger", "function": "_log_with_context", "line": 114, "message": "这是一条信息", "operation_type": "test", "object": "test_obj"}
+{"timestamp": "2026-06-22T02:28:21.449396", "level": "WARNING", "module": "logger", "function": "_log_with_context", "line": 114, "message": "这是一条警告"}
+{"timestamp": "2026-06-22T02:28:21.449434", "level": "ERROR", "module": "logger", "function": "_log_with_context", "line": 114, "message": "这是一条错误"}
+{"timestamp": "2026-06-22T02:28:21.558854", "level": "INFO", "module": "logger", "function": "_log_with_context", "line": 114, "message": "Operation completed: test_operation", "operation_type": "test_operation", "object": "test_object", "duration_ms": 109.34}

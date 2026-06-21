@@ -1,0 +1,70 @@
+validation:
+  required_fields:
+    - title
+    - author
+    - created_date
+    - archive_number
+    - retention_period
+  
+  date_format: "%Y-%m-%d"
+  
+  retention_periods:
+    - 永久
+    - 30年
+    - 10年
+    - 5年
+    - 3年
+  
+  secrecy_levels:
+    - 公开
+    - 内部
+    - 秘密
+    - 机密
+    - 绝密
+  
+  archive_number_pattern: "^[A-Z0-9]+-[A-Z0-9]+-[A-Z0-9]+-[A-Z0-9]+$"
+  archive_number_separator: "-"
+  archive_number_segments:
+    - fonds_number
+    - directory_number
+    - volume_number
+    - item_number
+
+archive_number:
+  fonds_number: "DA"
+  directory_number: "01"
+  volume_number: "001"
+  item_number_digits: 4
+  separator: "-"
+  start_item: 1
+
+scanner:
+  min_dpi: 300
+  max_tilt_degrees: 5
+  blank_page_threshold: 0.05
+  color_modes:
+    - "1"
+    - "L"
+    - "RGB"
+    - "CMYK"
+
+file_validation:
+  allowed_extensions:
+    - .pdf
+    - .ofd
+    - .docx
+    - .xlsx
+    - .jpg
+    - .jpeg
+    - .png
+    - .tiff
+    - .tif
+  
+  max_file_size_mb: 500
+
+logging:
+  level: INFO
+  format: json
+  rotation: daily
+  retention_days: 90
+  log_dir: logs
