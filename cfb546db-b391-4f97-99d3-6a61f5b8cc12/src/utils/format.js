@@ -80,7 +80,7 @@ function verifyTaxConsistency(amount, tax, taxRate, tolerance = 0.05) {
 function isValidInvoiceNumber(num) {
   if (!num) return false;
   const s = String(num).trim();
-  return /^\d{8}$|^\d{10}$|^\d{12}$|^\d{20}$/.test(s);
+  return /^\d{8}$|^\d{10}$/.test(s);
 }
 
 function isValidInvoiceCode(code) {

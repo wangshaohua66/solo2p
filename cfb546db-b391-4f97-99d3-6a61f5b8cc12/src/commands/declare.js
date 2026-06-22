@@ -7,6 +7,7 @@ const { writeToPath: writeCsv } = require('fast-csv');
 const { getDB } = require('../lib/db');
 const { getLogger } = require('../lib/logger');
 const { formatAmount, formatAmountCN, sanitizeFileName } = require('../utils/format');
+const { PerformanceTimer, PERFORMANCE_LIMITS, logMemorySnapshot } = require('../lib/monitor');
 
 const TAX_DECLARE_ROWS = [
   { code: '1', label: '一、按适用税率计税销售额', section: '销售额', formula: 'output_amount' },
@@ -40,12 +41,14 @@ async function declare(options = {}) {
   const logger = getLogger();
   logger.section('增值税申报预生成');
   const db = getDB();
-  const start = Date.now();
+  const timer = new PerformanceTimer('申报预生成(DECLARE)', PERFORMANCE_LIMITS.DECLARE, logger);
+  timer.startMemoryWatch();
 
   const startDate = options.startDate;
   const endDate = options.endDate;
   if (!startDate || !endDate) {
     logger.warn('请指定申报期范围 (--start-date YYYY-MM-DD --end-date YYYY-MM-DD)');
+    timer.stop();
     return { success: false };
   }
 
@@ -53,6 +56,7 @@ async function declare(options = {}) {
   const summary = db.getSummary(startDate, endDate);
   const stats = db.getInvoiceStats(startDate, endDate);
   const deductions = db.getDeductions(`${startDate}_${endDate}`);
+  timer.checkPerformance();
 
   const inputTransferOut = deductions.filter(d => d.deduction_status === 'non-deductible')
     .reduce((s, d) => s + Number(d.deductible_amount ? 0 : (d.input_total ? 0 : 0)), 0);
@@ -139,9 +143,9 @@ async function declare(options = {}) {
   }
 
   const payableTax = codeToValue['19'] || 0;
-  const dur = Date.now() - start;
-  spinner.succeed(`申报表草稿生成完成 (${dur}ms)`);
-  logger.success('申报预生成完成', { operation: 'DECLARE', durationMs: dur });
+  const metrics = timer.stop(false);
+  spinner.succeed(`申报表草稿生成完成 (${metrics.elapsedMs}ms)`);
+  logger.success('申报预生成完成', { operation: 'DECLARE', durationMs: metrics.elapsedMs });
 
   const outputDir = options.outputDir || path.resolve(process.cwd(), 'data', 'output');
   if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
@@ -240,7 +244,8 @@ async function declare(options = {}) {
     transferOut: values.input_transfer_out,
     csvPath,
     records: computedRows,
-    durationMs: dur
+    durationMs: metrics.elapsedMs,
+    peakMemoryMB: (metrics.peakMemoryBytes / 1024 / 1024).toFixed(2)
   };
 }
 

@@ -7,6 +7,7 @@ const { parseFile, scanDirectory } = require('../lib/parser');
 const { getDB, PLATFORMS } = require('../lib/db');
 const { getLogger } = require('../lib/logger');
 const { formatAmountCN, formatDateTime, truncate } = require('../utils/format');
+const { PerformanceTimer, PERFORMANCE_LIMITS, logMemorySnapshot } = require('../lib/monitor');
 
 const PLATFORM_NAMES = {
   [PLATFORMS.HANGXIN]: '航信开票系统',
@@ -22,7 +23,8 @@ function getPlatformName(p) { return PLATFORM_NAMES[p] || p; }
 
 async function aggregate(options = {}) {
   const logger = getLogger();
-  const startTime = Date.now();
+  const timer = new PerformanceTimer('发票归集(AGGREGATE)', PERFORMANCE_LIMITS.AGGREGATE, logger);
+  timer.startMemoryWatch(200);
   logger.section('发票归集');
 
   let inputDir = options.dir;
@@ -32,23 +34,31 @@ async function aggregate(options = {}) {
 
   if (!inputDir) {
     logger.warn('请提供导入目录路径 (--dir <路径>)');
+    timer.stop();
     return { success: false };
   }
 
   inputDir = path.resolve(inputDir);
   if (!fs.existsSync(inputDir) || !fs.statSync(inputDir).isDirectory()) {
     logger.error(`目录不存在: ${inputDir}`);
+    timer.stop();
     return { success: false };
   }
 
   const platformValue = platform === 'auto' ? null : platform;
   const db = getDB();
 
+  const capCheck = db.checkCapacity();
+  if (capCheck.overSize || capCheck.overCount) {
+    logger.warn(`导入前容量检查: 文件 ${capCheck.sizeMB.toFixed(2)}MB, 记录 ${capCheck.recordCount}条`, { operation: 'DB_CAPACITY' });
+  }
+
   const files = scanDirectory(inputDir, { recursive: true });
   logger.info(`扫描目录: ${chalk.cyan(inputDir)}`, { count: files.length, operation: 'SCAN' });
 
   if (files.length === 0) {
     logger.warn('未找到可解析的发票文件 (支持 .xml/.json/.csv/.xlsx/.xls/.txt)');
+    timer.stop();
     return { success: true, files: 0 };
   }
 
@@ -69,6 +79,7 @@ async function aggregate(options = {}) {
       parseErrors.push({ file, error: e.message });
     }
     if (totalRecords.length >= MAX_RECORDS) break;
+    if ((i + 1) % 10 === 0) timer.checkPerformance();
   }
   spinner.succeed(`解析完成: ${chalk.green(parseResults.length)} 个文件, ${chalk.cyan(totalRecords.length)} 条记录`);
 
@@ -78,7 +89,16 @@ async function aggregate(options = {}) {
 
   if (totalRecords.length === 0) {
     logger.warn('未解析到有效发票记录');
+    timer.stop();
     return { success: true, files: files.length, records: 0 };
+  }
+
+  logMemorySnapshot('解析完成', logger);
+
+  const enforceResult = db.enforceCapacity(totalRecords.length);
+  if (enforceResult.overSize || enforceResult.overCount) {
+    timer.stop();
+    return { success: false, files: files.length, records: totalRecords.length, capacityError: enforceResult.warnings };
   }
 
   const totalBefore = totalRecords.length;
@@ -113,15 +133,16 @@ async function aggregate(options = {}) {
     dbResult.failed += r.failed;
     if (r.errors) dbResult.errors.push(...r.errors);
     insertSpinner.text = `正在写入数据库... ${Math.min(i + BATCH, validRecords.length)}/${validRecords.length}`;
+    timer.checkPerformance();
   }
   insertSpinner.succeed(`入库完成`);
 
-  const duration = Date.now() - startTime;
+  const metrics = timer.stop(false);
   db.logImport(inputDir, platformValue,
     { total: totalRecords.length, success: dbResult.success, duplicate: dbResult.duplicate, failed: dbResult.failed + invalidCount },
-    duration, dbResult.errors);
+    metrics.elapsedMs, dbResult.errors);
 
-  logger.success('归集任务完成', { operation: 'AGGREGATE', count: dbResult.success, durationMs: duration });
+  logger.success('归集任务完成', { operation: 'AGGREGATE', count: dbResult.success, durationMs: metrics.elapsedMs });
 
   const pt = new Table({
     title: chalk.bold('📊 归集结果汇总'),
@@ -191,7 +212,8 @@ async function aggregate(options = {}) {
     imported: dbResult.success,
     duplicates: dbResult.duplicate,
     failed: dbResult.failed + invalidCount,
-    durationMs: duration
+    durationMs: metrics.elapsedMs,
+    peakMemoryMB: (metrics.peakMemoryBytes / 1024 / 1024).toFixed(2)
   };
 }
 

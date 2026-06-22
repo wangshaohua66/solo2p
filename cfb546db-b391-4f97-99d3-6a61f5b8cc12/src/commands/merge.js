@@ -9,6 +9,7 @@ const { getDB } = require('../lib/db');
 const { getLogger } = require('../lib/logger');
 const { formatAmount, formatDate, sanitizeFileName, generateInvoiceKey } = require('../utils/format');
 const { getPlatformName } = require('./aggregate');
+const { PerformanceTimer, PERFORMANCE_LIMITS, logMemorySnapshot } = require('../lib/monitor');
 
 const INVOICE_TYPE_NAMES = {
   input: '进项',
@@ -124,7 +125,8 @@ async function query(options = {}) {
   const logger = getLogger();
   logger.section('发票查询');
   const db = getDB();
-  const start = Date.now();
+  const timer = new PerformanceTimer('发票查询(QUERY)', PERFORMANCE_LIMITS.QUERY, logger);
+  timer.startMemoryWatch();
 
   const queryOptions = {
     startDate: options.startDate || null,
@@ -140,9 +142,9 @@ async function query(options = {}) {
   };
 
   const records = db.queryInvoices(queryOptions);
-  const dur = Date.now() - start;
+  const metrics = timer.stop(false);
 
-  logger.info(`查询完成，共 ${records.length} 条记录`, { operation: 'QUERY', count: records.length, durationMs: dur });
+  logger.info(`查询完成，共 ${records.length} 条记录`, { operation: 'QUERY', count: records.length, durationMs: metrics.elapsedMs });
 
   if (records.length === 0) {
     logger.warn('未查询到符合条件的发票记录');
@@ -181,20 +183,22 @@ async function query(options = {}) {
   });
   t.printTable();
 
-  return { success: true, count: records.length, records };
+  return { success: true, count: records.length, records, durationMs: metrics.elapsedMs };
 }
 
 async function merge(options = {}) {
   const logger = getLogger();
   logger.section('发票合并');
   const db = getDB();
-  const start = Date.now();
+  const timer = new PerformanceTimer('发票合并(MERGE)', PERFORMANCE_LIMITS.MERGE, logger);
+  timer.startMemoryWatch();
 
   const startDate = options.startDate;
   const endDate = options.endDate;
 
   if (!startDate || !endDate) {
     logger.warn('请指定日期范围 (--start-date YYYY-MM-DD --end-date YYYY-MM-DD)');
+    timer.stop();
     return { success: false };
   }
 
@@ -208,14 +212,15 @@ async function merge(options = {}) {
 
   const spinner = ora('查询数据库...').start();
   const rawRecords = db.queryInvoices(queryOptions);
+  timer.checkPerformance();
   spinner.text = `查询到 ${rawRecords.length} 条记录，正在去重合并...`;
 
   const { unique, duplicates } = deduplicateInvoices(rawRecords);
   unique.forEach((r, i) => { r.row_num = i + 1; });
-  const dur = Date.now() - start;
+  const metrics = timer.stop(false);
   spinner.succeed(`合并完成`);
 
-  logger.success('合并任务完成', { operation: 'MERGE', count: unique.length, durationMs: dur });
+  logger.success('合并任务完成', { operation: 'MERGE', count: unique.length, durationMs: metrics.elapsedMs });
 
   const ct = new Table({
     title: chalk.bold('📋 合并统计'),
@@ -270,7 +275,7 @@ async function merge(options = {}) {
     afterCount: unique.length,
     duplicateCount: duplicates.length,
     outputs,
-    durationMs: dur,
+    durationMs: metrics.elapsedMs,
     records: unique
   };
 }

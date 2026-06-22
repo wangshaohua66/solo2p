@@ -9,6 +9,7 @@ const { getDB } = require('../lib/db');
 const { getLogger } = require('../lib/logger');
 const { formatAmount, formatAmountCN, sanitizeFileName } = require('../utils/format');
 const { getPlatformName } = require('./aggregate');
+const { PerformanceTimer, PERFORMANCE_LIMITS, logMemorySnapshot } = require('../lib/monitor');
 
 function resolvePeriod(options) {
   const today = dayjs();
@@ -90,7 +91,8 @@ async function stats(options = {}) {
   const logger = getLogger();
   logger.section('发票统计报表');
   const db = getDB();
-  const start = Date.now();
+  const timer = new PerformanceTimer('统计报表(STATS)', PERFORMANCE_LIMITS.STATS, logger);
+  timer.startMemoryWatch();
 
   const period = resolvePeriod(options) || {
     start: options.startDate || dayjs().startOf('month').format('YYYY-MM-DD'),
@@ -103,6 +105,7 @@ async function stats(options = {}) {
   const summary = db.getSummary(period.start, period.end);
   const rawStats = db.getInvoiceStats(period.start, period.end);
   const topMerchants = db.getTopMerchants(period.start, period.end, options.topN || 10);
+  timer.checkPerformance();
 
   const totalCount = summary.input.count + summary.output.count;
   const totalAmount = summary.input.amount + summary.output.amount;
@@ -119,9 +122,9 @@ async function stats(options = {}) {
     p.tax += s.total_tax || 0;
   }
 
-  const dur = Date.now() - start;
-  spinner.succeed(`报表生成完成 (${dur}ms)`);
-  logger.success('统计报表生成完成', { operation: 'STATS', count: totalCount, durationMs: dur });
+  const metrics = timer.stop(false);
+  spinner.succeed(`报表生成完成 (${metrics.elapsedMs}ms)`);
+  logger.success('统计报表生成完成', { operation: 'STATS', count: totalCount, durationMs: metrics.elapsedMs });
 
   console.log(chalk.cyan.bold(`\n════════════════════════════════════════════════════════════════════`));
   console.log(chalk.cyan.bold(`  发票${period.type}汇总报告 · ${period.label}`));
@@ -276,7 +279,8 @@ async function stats(options = {}) {
     totalValue,
     platformStats: Object.fromEntries(platformData),
     topMerchants,
-    durationMs: dur
+    durationMs: metrics.elapsedMs,
+    peakMemoryMB: (metrics.peakMemoryBytes / 1024 / 1024).toFixed(2)
   };
 }
 

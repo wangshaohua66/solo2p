@@ -9,6 +9,7 @@ const { getLogger } = require('../lib/logger');
 const { formatAmount, formatAmountCN, sanitizeFileName } = require('../utils/format');
 const { getTypeName } = require('./merge');
 const { getPlatformName } = require('./aggregate');
+const { PerformanceTimer, PERFORMANCE_LIMITS, logMemorySnapshot } = require('../lib/monitor');
 
 const MAX_TAX_RATE = 0.13;
 
@@ -66,12 +67,14 @@ async function deduct(options = {}) {
   const logger = getLogger();
   logger.section('抵扣计算');
   const db = getDB();
-  const start = Date.now();
+  const timer = new PerformanceTimer('抵扣计算(DEDUCT)', PERFORMANCE_LIMITS.DEDUCT, logger);
+  timer.startMemoryWatch();
 
   const startDate = options.startDate;
   const endDate = options.endDate;
   if (!startDate || !endDate) {
     logger.warn('请指定申报期范围 (--start-date YYYY-MM-DD --end-date YYYY-MM-DD)');
+    timer.stop();
     return { success: false };
   }
   const period = options.period || `${startDate}_${endDate}`;
@@ -80,6 +83,7 @@ async function deduct(options = {}) {
   const outputs = db.queryInvoices({ startDate, endDate, invoiceType: 'output', limit: 5000 });
   const inputs = db.queryInvoices({ startDate, endDate, invoiceType: 'input', limit: 5000 });
   spinner.text = `销项 ${outputs.length} 张, 进项 ${inputs.length} 张，正在匹配...`;
+  timer.checkPerformance();
 
   const outputBuyerIndex = buildNameIndex(outputs, r => r.buyer_name);
   const deductionRecords = [];
@@ -146,6 +150,7 @@ async function deduct(options = {}) {
         _statusText: status === 'deductible' ? '可抵扣' : (status === 'non-deductible' ? '不可抵扣' : '未匹配')
       });
     }
+    if (deductionRecords.length % 100 === 0) timer.checkPerformance();
   }
 
   spinner.text = `匹配完成，正在保存计算结果...`;
@@ -171,9 +176,9 @@ async function deduct(options = {}) {
   const taxPayable = Math.max(0, outputTaxTotal - deductibleTax);
   const deductionRate = inputTaxTotal > 0 ? (deductibleTax / inputTaxTotal * 100) : 0;
   const actualRate = outputAmountTotal > 0 ? (taxPayable / outputAmountTotal * 100) : 0;
-  const dur = Date.now() - start;
-  spinner.succeed(`抵扣计算完成 (${dur}ms)`);
-  logger.success('抵扣计算完成', { operation: 'DEDUCT', count: deductionRecords.length, durationMs: dur });
+  const metrics = timer.stop(false);
+  spinner.succeed(`抵扣计算完成 (${metrics.elapsedMs}ms)`);
+  logger.success('抵扣计算完成', { operation: 'DEDUCT', count: deductionRecords.length, durationMs: metrics.elapsedMs });
 
   const summary = new Table({
     title: chalk.bold('🧾 增值税抵扣计算汇总'),
@@ -284,7 +289,8 @@ async function deduct(options = {}) {
     deductionRate,
     actualRate,
     records: deductionRecords,
-    durationMs: dur
+    durationMs: metrics.elapsedMs,
+    peakMemoryMB: (metrics.peakMemoryBytes / 1024 / 1024).toFixed(2)
   };
 }
 

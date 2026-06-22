@@ -2,6 +2,8 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 const { generateInvoiceKey } = require('../utils/format');
+const { checkDatabaseSize, checkRecordCount, DB_SIZE_LIMIT_MB, DB_RECORD_LIMIT } = require('./monitor');
+const { getLogger } = require('./logger');
 
 const PLATFORMS = {
   HANGXIN: 'hangxin',
@@ -374,6 +376,57 @@ class InvoiceDB {
       this.db.close();
     } catch (e) {
     }
+  }
+
+  getDbSizeMB() {
+    try {
+      if (!fs.existsSync(this.dbPath)) return 0;
+      const stats = fs.statSync(this.dbPath);
+      return stats.size / 1024 / 1024;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  checkCapacity(extraRecords = 0) {
+    const logger = getLogger();
+    const sizeMB = this.getDbSizeMB();
+    const recordCount = this.countInvoices();
+    const issues = [];
+
+    if (sizeMB > DB_SIZE_LIMIT_MB) {
+      issues.push(`数据库文件 ${sizeMB.toFixed(2)}MB 已超过 ${DB_SIZE_LIMIT_MB}MB 限制`);
+    } else if (sizeMB > DB_SIZE_LIMIT_MB * 0.9) {
+      issues.push(`数据库文件 ${sizeMB.toFixed(2)}MB 已达 ${DB_SIZE_LIMIT_MB}MB 限制的 90%`);
+    }
+
+    if (recordCount + extraRecords > DB_RECORD_LIMIT) {
+      issues.push(`记录数 ${recordCount}${extraRecords ? ' + ' + extraRecords + '新' : ''} 将超过 ${DB_RECORD_LIMIT} 条限制`);
+    } else if (recordCount + extraRecords > DB_RECORD_LIMIT * 0.9) {
+      issues.push(`记录数 ${recordCount}${extraRecords ? ' + ' + extraRecords + '新' : ''} 已达 ${DB_RECORD_LIMIT} 条限制的 90%`);
+    }
+
+    for (const msg of issues) {
+      logger.warn(`[容量预警] ${msg}`, { operation: 'DB_CAPACITY' });
+    }
+
+    return {
+      sizeMB,
+      recordCount,
+      sizeLimitMB: DB_SIZE_LIMIT_MB,
+      recordLimit: DB_RECORD_LIMIT,
+      overSize: sizeMB > DB_SIZE_LIMIT_MB,
+      overCount: recordCount + extraRecords > DB_RECORD_LIMIT,
+      warnings: issues
+    };
+  }
+
+  enforceCapacity(extraRecords = 0) {
+    const cap = this.checkCapacity(extraRecords);
+    if (cap.overSize || cap.overCount) {
+      throw new Error(`数据库容量超限: ${cap.warnings.join('; ')}`);
+    }
+    return cap;
   }
 }
 

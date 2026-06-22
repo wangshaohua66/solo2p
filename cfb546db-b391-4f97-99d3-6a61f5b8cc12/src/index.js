@@ -4,7 +4,6 @@
 const { Command } = require('commander');
 const chalk = require('chalk');
 const dayjs = require('dayjs');
-const inquirer = require('inquirer');
 const path = require('path');
 const { getLogger } = require('./lib/logger');
 const { getDB, PLATFORMS } = require('./lib/db');
@@ -13,6 +12,14 @@ const { merge, query } = require('./commands/merge');
 const { deduct } = require('./commands/deduct');
 const { declare } = require('./commands/declare');
 const { stats } = require('./commands/stats');
+
+let _inquirer = null;
+async function getInquirer() {
+  if (!_inquirer) {
+    _inquirer = await import('inquirer');
+  }
+  return _inquirer;
+}
 
 const program = new Command();
 const logger = getLogger();
@@ -31,6 +38,7 @@ ${chalk.cyan.bold('╚═══════════════════�
 }
 
 async function promptIfMissing(options, questions) {
+  const inquirer = await getInquirer();
   const answers = {};
   for (const q of questions) {
     if (options[q.name] === undefined || options[q.name] === null || options[q.name] === '') {
@@ -402,17 +410,27 @@ program
       const today = dayjs().format('YYYY-MM-DD');
       const monthStart = dayjs().startOf('month').format('YYYY-MM-DD');
       const monthSummary = db.getSummary(monthStart, today);
+      const cap = db.checkCapacity();
+      const mem = process.memoryUsage();
       const { Table } = require('console-table-printer');
       const t = new Table({
         title: chalk.bold('📋 系统状态'),
         columns: [{ name: '指标', alignment: 'left' }, { name: '值', alignment: 'left' }]
       });
       t.addRow({ '指标': '数据库文件', '值': db.dbPath });
-      t.addRow({ '指标': '发票记录总数', '值': chalk.cyan(total + ' 张') });
+      t.addRow({ '指标': '数据库大小', '值': `${cap.sizeMB.toFixed(2)} MB / ${cap.sizeLimitMB} MB ${cap.overSize ? chalk.red('⚠超限') : ''}` });
+      t.addRow({ '指标': '发票记录总数', '值': `${total} 张 / ${cap.recordLimit} 张 ${cap.overCount ? chalk.red('⚠超限') : ''}` });
       t.addRow({ '指标': '本月进项', '值': chalk.blue(`${monthSummary.input.count} 张 / ${monthSummary.input.total.toFixed(2)} 元`) });
       t.addRow({ '指标': '本月销项', '值': chalk.red(`${monthSummary.output.count} 张 / ${monthSummary.output.total.toFixed(2)} 元`) });
       t.addRow({ '指标': 'Node.js版本', '值': process.version });
+      t.addRow({ '指标': '内存占用(Heap)', '值': `${(mem.heapUsed / 1024 / 1024).toFixed(2)} MB / ${(mem.heapTotal / 1024 / 1024).toFixed(2)} MB` });
+      t.addRow({ '指标': '内存占用(RSS)', '值': `${(mem.rss / 1024 / 1024).toFixed(2)} MB` });
       t.printTable();
+      if (cap.warnings && cap.warnings.length > 0) {
+        for (const w of cap.warnings) {
+          logger.warn(`[容量预警] ${w}`);
+        }
+      }
     } catch (e) {
       logger.error(`状态查询失败: ${e.message}`);
     }
