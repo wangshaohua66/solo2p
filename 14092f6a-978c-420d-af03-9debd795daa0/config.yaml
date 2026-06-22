@@ -1,0 +1,245 @@
+# ==============================================================================
+# 社会保险基金申报自动化工具 配置文件
+# 说明：本文件存储目标网址、界面元素截图路径、字段映射规则、OCR语言包配置
+# ==============================================================================
+
+# ---------------------------------- 系统基础配置 ---------------------------------
+system:
+  # 运行模式：full=全量申报 / increment=增量申报 / validate=仅校验
+  default_mode: full
+  # 日志目录
+  log_dir: ./logs
+  # 失败截图保存目录
+  screenshot_dir: ./screenshots
+  # 模板图片目录（界面元素截图）
+  template_dir: ./templates
+  # 数据输入目录（Excel/PDF源文件）
+  input_dir: ./input
+  # 断点状态文件
+  checkpoint_file: ./logs/checkpoint.json
+  # 失败截图保留天数
+  screenshot_retention_days: 30
+  # 内存上限（MB），超过则触发预警
+  memory_limit_mb: 500
+  # 单单位申报全流程超时（秒）
+  unit_timeout_sec: 900
+
+# ---------------------------------- 目标网址配置 ---------------------------------
+target:
+  # 网上办事大厅登录地址
+  login_url: "https://wtbx.si.gov.cn/siweb/login.do"
+  # 人员增减变动表申报页地址（相对路径锚点）
+  personnel_page_url: "https://wtbx.si.gov.cn/siweb/personnel/declare.do"
+  # 工资基数申报表页地址
+  wage_page_url: "https://wtbx.si.gov.cn/siweb/wage/declare.do"
+  # 缴费凭证上传页地址
+  receipt_upload_url: "https://wtbx.si.gov.cn/siweb/payment/upload.do"
+  # 登录超时（秒）
+  login_timeout: 60
+  # 页面加载等待（秒）
+  page_load_wait: 3
+  # 操作间隔（秒），防止请求过快
+  action_interval: 0.5
+
+# ---------------------------------- 界面元素截图路径 -------------------------------
+# GUI 自动化使用的模板图片（位于 template_dir 下），用于模板匹配定位
+templates:
+  # 登录区域
+  login_username_input: login_username.png
+  login_password_input: login_password.png
+  login_button: login_btn.png
+  login_captcha_input: login_captcha.png
+  # 主导航
+  nav_personnel_tab: nav_personnel.png
+  nav_wage_tab: nav_wage.png
+  nav_receipt_tab: nav_receipt.png
+  # 人员增减变动表
+  personnel_add_button: personnel_add.png
+  personnel_id_input: personnel_id.png
+  personnel_name_input: personnel_name.png
+  personnel_type_select: personnel_type.png
+  personnel_save_button: personnel_save.png
+  personnel_next_page: personnel_next.png
+  # 工资基数申报表
+  wage_id_input: wage_id.png
+  wage_base_input: wage_base.png
+  wage_import_button: wage_import.png
+  wage_submit_button: wage_submit.png
+  # 缴费凭证上传
+  receipt_upload_area: receipt_area.png
+  receipt_browse_button: receipt_browse.png
+  receipt_confirm_button: receipt_confirm.png
+  # 通用
+  confirm_dialog_button: confirm_dialog.png
+  error_message_icon: error_icon.png
+
+# ---------------------------------- 字段映射规则 ---------------------------------
+# 将本地 Excel 字段名映射到网上办事大厅标准字段
+field_mapping:
+  # 人员变动表字段映射
+  personnel:
+    # 标准 -> [本地常见表头变体列表]
+    id_card:
+      standard: id_card
+      aliases: ["身份证号", "身份证号码", "证件号码", "身份证", "证件号", "ID"]
+    name:
+      standard: name
+      aliases: ["姓名", "员工姓名", "姓名（必填）", "人员姓名", "姓名 "]
+    insurance_type:
+      standard: insurance_type
+      aliases: ["参保类型", "险种类型", "参保险种", "保险类型"]
+    change_type:
+      standard: change_type
+      aliases: ["变动类型", "增减类型", "人员变动", "变动情况"]
+    change_date:
+      standard: change_date
+      aliases: ["变动日期", "变动时间", "办理日期", "生效日期"]
+    base_salary:
+      standard: base_salary
+      aliases: ["工资基数", "缴费基数", "基数", "申报基数"]
+  # 工资基数申报表字段映射
+  wage:
+    id_card:
+      standard: id_card
+      aliases: ["身份证号", "身份证号码", "证件号码", "身份证", "证件号"]
+    name:
+      standard: name
+      aliases: ["姓名", "员工姓名", "姓名（必填）", "人员姓名"]
+    pension_base:
+      standard: pension_base
+      aliases: ["养老保险基数", "养老基数", "养老金基数"]
+    medical_base:
+      standard: medical_base
+      aliases: ["医疗保险基数", "医疗基数", "医保基数"]
+    unemployment_base:
+      standard: unemployment_base
+      aliases: ["失业保险基数", "失业基数"]
+    workinjury_base:
+      standard: workinjury_base
+      aliases: ["工伤保险基数", "工伤基数"]
+    maternity_base:
+      standard: maternity_base
+      aliases: ["生育保险基数", "生育基数"]
+  # 银行回单字段
+  receipt:
+    amount:
+      standard: amount
+      aliases: ["金额", "缴费金额", "交易金额", "实缴金额"]
+    pay_date:
+      standard: pay_date
+      aliases: ["日期", "缴费日期", "交易日期", "回单日期"]
+    serial_no:
+      standard: serial_no
+      aliases: ["流水号", "银行流水号", "凭证号", "交易流水号"]
+    payee:
+      standard: payee
+      aliases: ["收款单位", "收款人", "收款方"]
+
+# ---------------------------------- OCR语言包配置 --------------------------------
+ocr:
+  # tesseract 可执行文件路径（macOS/Linux 留空使用 PATH，Windows 需指定）
+  tesseract_cmd: ""
+  # 识别语言：chi_sim=简体中文 eng=英文
+  language: "chi_sim+eng"
+  # 页面分割模式：6=假设为单一均匀文本块，适合回单
+  psm: 6
+  # OEM 引擎模式：3=默认（基于LSTM）
+  oem: 3
+  # 金额识别正则（支持千分位逗号）
+  amount_pattern: '(?:大写|金额)[:：]?\s*([0-9,]+\.\d{2})'
+  # 日期识别正则（支持 YYYY-MM-DD / YYYY/MM/DD / YYYY年MM月DD日）
+  date_pattern: '(\d{4}[-/年]\d{1,2}[-/月]\d{1,2}日?)'
+  # 流水号正则（字母数字组合，6-32位）
+  serial_pattern: '([A-Z0-9]{6,32})'
+  # DPI 缩放，提升小字体识别率
+  dpi: 300
+  # 预处理：二值化阈值
+  binary_threshold: 180
+
+# ---------------------------------- GUI 自动化参数 --------------------------------
+gui:
+  # 模板匹配置信度阈值（0-1），低于此值视为定位失败
+  confidence_threshold: 0.8
+  # 元素定位最大重试次数
+  locate_max_retry: 3
+  # 单次定位超时（秒）
+  locate_timeout: 10
+  # 鼠标移动持续时间（秒）
+  mouse_move_duration: 0.3
+  # 按键间隔（秒）
+  key_interval: 0.05
+  # 截屏缩放比例（适配高 DPI，1.0=原始）
+  screenshot_scale: 1.0
+  # 是否后台静默运行（不抢占焦点）
+  silent_mode: true
+  # 上传文件最大大小（MB）
+  upload_size_limit_mb: 10
+  # 上传完成等待超时（秒）
+  upload_wait_timeout: 60
+
+# ---------------------------------- 数据校验规则 ---------------------------------
+validation:
+  # 身份证号校验
+  id_card:
+    # 是否校验校验位
+    check_checksum: true
+    # 长度要求
+    length: 18
+  # 工资基数合规范围
+  wage_base:
+    # 下限（当地社平工资60%）
+    min_base: 3528.00
+    # 上限（当地社平工资300%）
+    max_base: 17640.00
+    # 五险基数是否须一致
+    require_consistent: false
+    # 允许的参保类型
+    valid_insurance_types: ["养老", "医疗", "失业", "工伤", "生育"]
+  # 人员名单一致性校验
+  consistency:
+    # 身份证号是否必须匹配
+    match_by_id: true
+    # 允许的姓名差异（如多音字），暂不支持模糊匹配
+    fuzzy_name: false
+
+# ---------------------------------- 重试与异常恢复 --------------------------------
+retry:
+  # 通用操作最大重试次数
+  max_attempts: 3
+  # 重试间隔（秒）
+  retry_interval: 2
+  # 退避倍率
+  backoff_multiplier: 2.0
+  # 触发人工介入的异常关键字
+  intervention_keywords:
+    - "验证码"
+    - "系统维护"
+    - "会话超时"
+    - "请稍后重试"
+    - "账户锁定"
+    - "密码错误"
+  # 声音告警
+  sound_alert: true
+
+# ---------------------------------- 断点续传配置 ---------------------------------
+checkpoint:
+  # 是否启用断点续传
+  enabled: true
+  # 状态自动保存间隔（每处理N人）
+  save_interval: 10
+  # 续传时是否重新校验已完成步骤
+  verify_on_resume: true
+
+# ---------------------------------- 日志配置 -------------------------------------
+logging:
+  # 日志级别：DEBUG / INFO / WARNING / ERROR
+  level: INFO
+  # 日志文件命名格式
+  filename_format: "si_automation_%Y%m%d_%H%M%S.log"
+  # 单文件最大大小（MB）
+  max_file_size_mb: 10
+  # 保留日志文件数
+  backup_count: 7
+  # 日志格式
+  format: "%(asctime)s [%(levelname)s] %(name)s - %(message)s"
+  date_format: "%Y-%m-%d %H:%M:%S"

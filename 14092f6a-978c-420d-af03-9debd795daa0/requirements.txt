@@ -1,0 +1,15 @@
+# 社会保险基金申报自动化工具 依赖清单
+# Python 3.10+
+
+PyAutoGUI>=0.9.54
+opencv-python>=4.8.0
+pytesseract>=0.3.10
+PyPDF2>=3.0.0
+pandas>=2.0.0
+openpyxl>=3.1.0
+python-docx>=0.8.11
+Pillow>=10.0.0
+pyperclip>=1.8.2
+PyYAML>=6.0
+# 可选：内存监控增强（缺失时自动回退到 resource 模块）
+psutil>=5.9.0
