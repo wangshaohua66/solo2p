@@ -1,0 +1,28 @@
+{
+  "name": "invoice-aggregator",
+  "version": "1.0.0",
+  "description": "电子发票聚合服务命令行工具 - 多平台发票归集、智能合并、抵扣计算与申报辅助",
+  "main": "src/index.js",
+  "bin": {
+    "invoice": "src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node test/run-tests.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "commander": "11.1.0",
+    "inquirer": "8.2.6",
+    "chalk": "4.1.2",
+    "ora": "5.4.0",
+    "exceljs": "4.4.0",
+    "fast-csv": "4.3.6",
+    "xml2js": "0.6.2",
+    "better-sqlite3": "11.3.0",
+    "dayjs": "1.11.10",
+    "console-table-printer": "2.12.1"
+  }
+}
