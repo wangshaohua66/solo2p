@@ -28,7 +28,7 @@ import sys
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 try:
     import yaml
@@ -273,6 +273,97 @@ class MemoryMonitor:
         return self._peak
 
 
+# ============================== 性能指标统计 ==============================
+
+@dataclass
+class PerformanceMetricsTracker:
+    """OCR 识别准确率与界面元素定位成功率统计。
+
+    阈值：OCR 识别准确率 ≥ 95%，界面元素定位成功率 ≥ 98%
+    """
+    OCR_THRESHOLD: float = 0.95
+    LOCATE_THRESHOLD: float = 0.98
+
+    ocr_total: int = 0
+    ocr_success: int = 0
+    locate_total: int = 0
+    locate_success: int = 0
+    skip_errors: bool = False
+
+    def on_metric(self, metric_type: str, success: bool,
+                  details: Optional[Dict[str, Any]] = None) -> None:
+        """作为回调，接收来自 GuiAutomator/PdfParser 的指标事件。"""
+        if metric_type == "ocr_recognize":
+            self.ocr_total += 1
+            if success:
+                self.ocr_success += 1
+        elif metric_type == "element_locate":
+            self.locate_total += 1
+            if success:
+                self.locate_success += 1
+
+    @property
+    def ocr_rate(self) -> Optional[float]:
+        if self.ocr_total == 0:
+            return None
+        return self.ocr_success / self.ocr_total
+
+    @property
+    def locate_rate(self) -> Optional[float]:
+        if self.locate_total == 0:
+            return None
+        return self.locate_success / self.locate_total
+
+    def report(self) -> Dict[str, Any]:
+        """生成统计报告字典。"""
+        ocr_rate = self.ocr_rate
+        locate_rate = self.locate_rate
+        ocr_ok = ocr_rate is None or ocr_rate >= self.OCR_THRESHOLD
+        locate_ok = locate_rate is None or locate_rate >= self.LOCATE_THRESHOLD
+        return {
+            "ocr_recognize": {
+                "total": self.ocr_total,
+                "success": self.ocr_success,
+                "rate": round(ocr_rate, 4) if ocr_rate is not None else None,
+                "threshold": self.OCR_THRESHOLD,
+                "ok": ocr_ok,
+            },
+            "element_locate": {
+                "total": self.locate_total,
+                "success": self.locate_success,
+                "rate": round(locate_rate, 4) if locate_rate is not None else None,
+                "threshold": self.LOCATE_THRESHOLD,
+                "ok": locate_ok,
+            },
+            "overall_ok": ocr_ok and locate_ok,
+        }
+
+    def print_report(self) -> None:
+        """在控制台打印格式化的统计报告。"""
+        report = self.report()
+        ocr = report["ocr_recognize"]
+        loc = report["element_locate"]
+        ocr_rate_str = f"{ocr['rate'] * 100:.2f}%" if ocr['rate'] is not None else "无数据"
+        loc_rate_str = f"{loc['rate'] * 100:.2f}%" if loc['rate'] is not None else "无数据"
+        ocr_ok = "✓ 达标" if ocr['ok'] else "✗ 未达标"
+        loc_ok = "✓ 达标" if loc['ok'] else "✗ 未达标"
+        line = "=" * 70
+        print(f"\n{line}")
+        print("  性能指标统计报告")
+        print(line)
+        print(f"  OCR 识别准确率：{ocr_rate_str}  "
+              f"(成功 {ocr['success']}/{ocr['total']}，阈值 ≥{self.OCR_THRESHOLD*100:.0f}%)  {ocr_ok}")
+        print(f"  元素定位成功率：{loc_rate_str}  "
+              f"(成功 {loc['success']}/{loc['total']}，阈值 ≥{self.LOCATE_THRESHOLD*100:.0f}%)  {loc_ok}")
+        if report["overall_ok"]:
+            print(f"  综合结论：✓ 全部性能指标达标")
+        else:
+            print(f"  综合结论：✗ 存在未达标指标，请检查")
+        print(line + "\n", flush=True)
+        if not report["overall_ok"]:
+            logger.warning("性能指标未达标：OCR=%s，定位=%s", ocr_rate_str, loc_rate_str)
+
+
 # ============================== 流水线 ==============================
 
 @dataclass
@@ -298,8 +389,11 @@ class DeclarationPipeline:
         self.progress = ProgressTracker()
         self.checkpoint = CheckpointManager(config)
         self.memory = MemoryMonitor(int(config.get("system", {}).get("memory_limit_mb", 500)))
+        self.metrics = PerformanceMetricsTracker()
         self.inputs = PipelineInputs()
         self.consistency_report: Optional[ConsistencyReport] = None
+        self.validation_result: Optional[ValidationResult] = None
+        self._error_id_cards: Set[str] = set()
 
         sys_cfg: Dict[str, Any] = config.get("system", {})
         self.screenshot_dir = sys_cfg.get("screenshot_dir", "./screenshots")
@@ -360,6 +454,8 @@ class DeclarationPipeline:
             elapsed = time.time() - start
             logger.info("==== 流程结束 | 用时 %.1f 分钟 | 内存峰值 %.0fMB ====",
                         elapsed / 60, self.memory.peak_mb)
+            # 输出性能指标统计报告并校验阈值
+            self.metrics.print_report()
         return 0
 
     # ---------------------------- 阶段：解析 ----------------------------
@@ -407,6 +503,24 @@ class DeclarationPipeline:
         logger.info("解析结果：工资表 %d 行，人员变动 %d 行，回单 %d 张",
                     len(self.inputs.wage_rows), len(self.inputs.personnel_rows),
                     len(self.inputs.receipts))
+
+        # 人数上限校验：超过 500 人发出警告并提示用户确认
+        PERSON_LIMIT = 500
+        wage_count = len(self.inputs.wage_rows)
+        personnel_count = len(self.inputs.personnel_rows)
+        if wage_count > PERSON_LIMIT or personnel_count > PERSON_LIMIT:
+            self.progress.error(
+                f"处理人数超过上限：工资表 {wage_count} 人，人员变动 {personnel_count} 人"
+                f"（单批次最大 {PERSON_LIMIT} 人）")
+            try:
+                confirm = input("数据量较大，继续处理可能较慢且占用较多内存。确认继续？(y/N) > ")
+                if confirm.strip().lower() != "y":
+                    logger.warning("用户因人数超限终止流程")
+                    raise InterventionRequired(f"处理人数超过 {PERSON_LIMIT} 人，用户选择终止")
+            except (EOFError, KeyboardInterrupt):
+                raise
+            logger.info("用户确认继续，允许超限处理")
+
         self.memory.check()
         self.checkpoint.mark_done(PHASE_PARSE,
                                   wage_total=len(self.inputs.wage_rows),
@@ -452,6 +566,13 @@ class DeclarationPipeline:
         self.progress.set_step("校验完成")
         print("\n" + summarize_result(overall) + "\n", flush=True)
 
+        # 存储校验结果，供后续阶段按行跳过错误项
+        self.validation_result = overall
+        self._error_id_cards: set = set()
+        for issue in overall.issues:
+            if issue.level == "ERROR" and issue.id_card:
+                self._error_id_cards.add(issue.id_card)
+
         # 校验模式：生成差异报告并退出
         if self.mode == MODE_VALIDATE:
             self._write_validation_report(overall)
@@ -461,7 +582,10 @@ class DeclarationPipeline:
         if overall.error_count > 0:
             self.progress.error(f"校验发现 {overall.error_count} 个错误，请确认后继续")
             try:
-                input("按回车继续（输入 s 跳过错误项继续申报）> ")  # noqa: F841
+                user_input = input("按回车继续（输入 s 跳过错误项继续申报）> ")
+                if user_input.strip().lower() == "s":
+                    logger.info("用户选择跳过错误项，将在后续申报阶段自动跳过含 ERROR 的记录")
+                    self.metrics.skip_errors = True
             except (EOFError, KeyboardInterrupt):
                 raise
         self.checkpoint.mark_done(PHASE_VALIDATE)
@@ -474,7 +598,8 @@ class DeclarationPipeline:
             return
         self.automator = GuiAutomator(
             self.config, screenshot_dir=self.screenshot_dir,
-            template_dir=self.template_dir)
+            template_dir=self.template_dir,
+            metrics_callback=self.metrics.on_metric)
         logger.info("GUI 自动化器已初始化")
 
     def _phase_login(self) -> None:
@@ -528,6 +653,12 @@ class DeclarationPipeline:
         for idx in range(start, len(rows)):
             row = rows[idx]
             self.progress.set_step(f"人员变动 {idx + 1}/{len(rows)}")
+            # 跳过错误项：当用户输入 "s" 且该行身份证含 ERROR 级校验问题时跳过
+            if self.metrics.skip_errors and row.get("id_card") in self._error_id_cards:
+                logger.info("跳过含错误的人员记录 %s (%s)",
+                            row.get("id_card"), row.get("name"))
+                self.progress.advance()
+                continue
             try:
                 with self.error_handler.guard(f"人员变动第{idx + 1}行"):
                     self._declare_one_personnel(row, templates, field_map)
@@ -585,6 +716,12 @@ class DeclarationPipeline:
         for idx in range(start, len(rows)):
             row = rows[idx]
             self.progress.set_step(f"工资基数 {idx + 1}/{len(rows)}")
+            # 跳过错误项：当用户输入 "s" 且该行身份证含 ERROR 级校验问题时跳过
+            if self.metrics.skip_errors and row.get("id_card") in self._error_id_cards:
+                logger.info("跳过含错误的工资记录 %s (%s)",
+                            row.get("id_card"), row.get("name"))
+                self.progress.advance()
+                continue
             try:
                 with self.error_handler.guard(f"工资基数第{idx + 1}行"):
                     self._declare_one_wage(row, templates)

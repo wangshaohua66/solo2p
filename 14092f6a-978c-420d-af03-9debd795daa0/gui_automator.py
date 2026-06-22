@@ -492,10 +492,16 @@ class GuiAutomator:
         if tolerance > 0:
             try:
                 diff = abs(float(echo_clean) - float(expected_clean))
-                return diff <= tolerance
+                match = diff <= tolerance
             except ValueError:
-                return echo_clean == expected_clean
-        match = echo_clean == expected_clean
+                match = echo_clean == expected_clean
+        else:
+            match = echo_clean == expected_clean
+        # 记录 OCR 准确率指标（ground truth = expected_clean, recognition = echo_clean）
+        self._track_metrics("ocr_recognize", match,
+                            {"template": template_name,
+                             "expected": expected_clean,
+                             "actual": echo_clean})
         if not match:
             logger.warning("回显不一致：%s（期望=%r，实际=%r）",
                            template_name, expected_clean, echo_clean)
@@ -599,6 +605,53 @@ class GuiAutomator:
         """通过快捷键粘贴剪贴板内容。"""
         _get_pyautogui().hotkey(_MOD_KEY, "v")
         time.sleep(0.1)
+
+    # ---------------------------- 性能指标统计 ----------------------------
+
+    def _track_metrics(self, metric_type: str, success: bool,
+                       details: Optional[Dict[str, Any]] = None) -> None:
+        """累计性能指标：OCR 识别准确率和界面元素定位成功率。
+
+        Args:
+            metric_type: "ocr_recognize" 或 "element_locate"
+            success: 本次操作是否成功
+            details: 附加详细信息
+        """
+        # 初始化计数器（懒加载，确保只创建一次）
+        if not hasattr(self, "_metrics_total"):
+            self._metrics_total: Dict[str, int] = {}
+            self._metrics_success: Dict[str, int] = {}
+        self._metrics_total[metric_type] = self._metrics_total.get(metric_type, 0) + 1
+        if success:
+            self._metrics_success[metric_type] = self._metrics_success.get(metric_type, 0) + 1
+        # 调用外部回调（如 main.py 的统计聚合器）
+        if self._metrics_callback is not None:
+            try:
+                self._metrics_callback(metric_type, success, details or {})
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("metrics callback 异常：%s", exc)
+
+    def get_metrics(self) -> Dict[str, Any]:
+        """获取当前累计的性能指标统计。
+
+        返回：
+            {
+                "element_locate": {"total": N, "success": M, "rate": 0.98},
+                "ocr_recognize": {"total": N, "success": M, "rate": 0.95},
+            }
+        """
+        if not hasattr(self, "_metrics_total"):
+            return {}
+        result: Dict[str, Any] = {}
+        for metric, total in self._metrics_total.items():
+            success = self._metrics_success.get(metric, 0)
+            rate = success / total if total > 0 else 0.0
+            result[metric] = {
+                "total": total,
+                "success": success,
+                "rate": round(rate, 4),
+            }
+        return result
 
     def _ocr_image(self, img: Image.Image) -> Optional[str]:
         """对图像区域进行 OCR，返回识别文本。"""
