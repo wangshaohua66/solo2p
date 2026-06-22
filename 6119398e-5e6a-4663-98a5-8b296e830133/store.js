@@ -41,11 +41,20 @@ class EventBus {
 }
 
 class IndexedDBAdapter {
-    constructor(dbName = 'jewelry_recycle', version = 2) {
+    constructor(dbName = 'jewelry_recycle', version = 3) {
         this.dbName = dbName;
         this.version = version;
         this.db = null;
         this._ready = this._init();
+        this._storePrefix = '';
+    }
+
+    setStorePrefix(storeId) {
+        this._storePrefix = storeId ? (storeId + ':') : '';
+    }
+
+    _scopedStoreName(baseName) {
+        return this._storePrefix ? `${this._storePrefix}${baseName}` : baseName;
     }
 
     _init() {
@@ -58,22 +67,30 @@ class IndexedDBAdapter {
             };
             req.onupgradeneeded = (e) => {
                 const db = e.target.result;
-                if (!db.objectStoreNames.contains('records')) {
-                    const os = db.createObjectStore('records', { keyPath: 'orderNo' });
-                    os.createIndex('storeId', 'storeId', { unique: false });
-                    os.createIndex('customer', 'customer.name', { unique: false });
-                    os.createIndex('category', 'category', { unique: false });
-                    os.createIndex('createdAt', 'createdAt', { unique: false });
-                    os.createIndex('status', 'status', { unique: false });
-                    os.createIndex('synced', 'synced', { unique: false });
-                }
-                if (!db.objectStoreNames.contains('prices')) {
-                    const p = db.createObjectStore('prices', { keyPath: 'key' });
-                    p.createIndex('fetchedAt', 'fetchedAt', { unique: false });
-                }
-                if (!db.objectStoreNames.contains('drafts')) {
-                    db.createObjectStore('drafts', { keyPath: 'id' });
-                }
+                const createStoresForPrefix = (prefix) => {
+                    const recName = prefix ? `${prefix}records` : 'records';
+                    const prcName = prefix ? `${prefix}prices` : 'prices';
+                    const dftName = prefix ? `${prefix}drafts` : 'drafts';
+                    if (!db.objectStoreNames.contains(recName)) {
+                        const os = db.createObjectStore(recName, { keyPath: 'orderNo' });
+                        os.createIndex('storeId', 'storeId', { unique: false });
+                        os.createIndex('customer', 'customer.name', { unique: false });
+                        os.createIndex('category', 'category', { unique: false });
+                        os.createIndex('createdAt', 'createdAt', { unique: false });
+                        os.createIndex('status', 'status', { unique: false });
+                        os.createIndex('synced', 'synced', { unique: false });
+                    }
+                    if (!db.objectStoreNames.contains(prcName)) {
+                        const p = db.createObjectStore(prcName, { keyPath: 'key' });
+                        p.createIndex('fetchedAt', 'fetchedAt', { unique: false });
+                    }
+                    if (!db.objectStoreNames.contains(dftName)) {
+                        db.createObjectStore(dftName, { keyPath: 'id' });
+                    }
+                };
+                createStoresForPrefix('');
+                const storeIds = ['store001','store002','store003','store004','store005','store006','store007','store008','store009','store010','store011','store012','store013','store014','store015','store016','store017','store018'];
+                storeIds.forEach(sid => createStoresForPrefix(sid + ':'));
             };
         });
     }
@@ -81,7 +98,12 @@ class IndexedDBAdapter {
     async ready() { await this._ready; return this; }
 
     _tx(storeName, mode = 'readonly') {
-        return this.db.transaction(storeName, mode).objectStore(storeName);
+        const scoped = this._scopedStoreName(storeName);
+        if (!this.db.objectStoreNames.contains(scoped)) {
+            console.warn(`[IDB] 对象存储 ${scoped} 不存在, 回退到默认`);
+            return this.db.transaction(storeName, mode).objectStore(storeName);
+        }
+        return this.db.transaction(scoped, mode).objectStore(scoped);
     }
 
     async put(storeName, value) {
@@ -136,19 +158,28 @@ class IndexedDBAdapter {
 }
 
 class LocalStorageAdapter {
-    constructor(prefix = 'jw_') {
-        this.prefix = prefix;
+    constructor(basePrefix = 'jw_') {
+        this.basePrefix = basePrefix;
+        this._storePrefix = '';
+    }
+
+    setStorePrefix(storeId) {
+        this._storePrefix = storeId ? (storeId + '_') : '';
+    }
+
+    _fullKey(key) {
+        return this.basePrefix + this._storePrefix + key;
     }
 
     set(key, value) {
         try {
-            localStorage.setItem(this.prefix + key, JSON.stringify(value));
+            localStorage.setItem(this._fullKey(key), JSON.stringify(value));
             return true;
         } catch (e) {
             if (e.name === 'QuotaExceededError') {
                 console.warn('[LocalStorage] 存储空间已满, 尝试清理...');
                 this._cleanup();
-                try { localStorage.setItem(this.prefix + key, JSON.stringify(value)); return true; }
+                try { localStorage.setItem(this._fullKey(key), JSON.stringify(value)); return true; }
                 catch (_) { return false; }
             }
             return false;
@@ -157,18 +188,19 @@ class LocalStorageAdapter {
 
     get(key, fallback = null) {
         try {
-            const raw = localStorage.getItem(this.prefix + key);
+            const raw = localStorage.getItem(this._fullKey(key));
             return raw ? JSON.parse(raw) : fallback;
         } catch { return fallback; }
     }
 
-    remove(key) { localStorage.removeItem(this.prefix + key); }
+    remove(key) { localStorage.removeItem(this._fullKey(key)); }
 
     _cleanup() {
+        const fullPfx = this.basePrefix + this._storePrefix;
         const keys = [];
         for (let i = 0; i < localStorage.length; i++) {
             const k = localStorage.key(i);
-            if (k.startsWith(this.prefix)) keys.push(k);
+            if (k && k.startsWith(fullPfx)) keys.push(k);
         }
         keys.sort((a, b) => {
             try {
@@ -185,22 +217,32 @@ class LocalStorageAdapter {
 
 export const AppStore = (() => {
     const bus = new EventBus();
+    const GLOBAL_STORE_KEY = '__global_store__';
+
+    const globalLs = (() => {
+        const PFX = 'jw_';
+        return {
+            get(k, fb = null) { try { const r = localStorage.getItem(PFX + GLOBAL_STORE_KEY + '_' + k); return r ? JSON.parse(r) : fb; } catch { return fb; } },
+            set(k, v) { try { localStorage.setItem(PFX + GLOBAL_STORE_KEY + '_' + k, JSON.stringify(v)); return true; } catch { return false; } }
+        };
+    })();
+
     const idb = new IndexedDBAdapter();
     const ls = new LocalStorageAdapter('jw_');
 
-    let _state = {
-        currentStoreId: ls.get('currentStore', 'store001'),
-        currentInspector: ls.get('inspector', { id: 'INS001', name: '张鉴定师' }),
-        goldPrices: ls.get('goldPrices', { au9999: 0, au9995: 0, pt950: 0, pd999: 0, fetchedAt: null }),
-        diamondPriceList: ls.get('diamondPrices', null),
-        adjustCoefficients: ls.get('adjustCoef', { gold: 0.96, platinum: 0.95, diamond: 0.92, jade: 0.85, pearl: 0.8 }),
-        depreciationConfig: ls.get('depreciation', {
+    const defaultState = () => ({
+        currentStoreId: globalLs.get('currentStore', 'store001'),
+        currentInspector: globalLs.get('inspector', { id: 'INS001', name: '张鉴定师' }),
+        goldPrices: { au9999: 0, au9995: 0, pt950: 0, pd999: 0, fetchedAt: null },
+        diamondPriceList: null,
+        adjustCoefficients: { gold: 0.96, platinum: 0.95, diamond: 0.92, jade: 0.85, pearl: 0.8 },
+        depreciationConfig: {
             '9999': 0.98, '9995': 0.97, '990': 0.95, '916': 0.90, '750': 0.80, '585': 0.65,
             PT950: 0.95, PT900: 0.90, PD950: 0.92
-        }),
-        approvalThreshold: ls.get('threshold', 30000),
+        },
+        approvalThreshold: 30000,
         currentRecycle: null,
-        filters: ls.get('historyFilters', {}),
+        filters: {},
         uiState: {
             currentPage: 'recycle',
             showFilter: false,
@@ -211,8 +253,29 @@ export const AppStore = (() => {
             conflicts: [],
             isOnline: navigator.onLine
         },
-        priceAdjustOverride: {}
-    };
+        priceAdjustOverride: {},
+        managerAuthCodes: { MGR001: '臻品汇2024', MGR002: '臻品汇2024', MGR003: '臻品汇2024' }
+    });
+
+    let _state = null;
+
+    function _loadStoreScopedState(storeId) {
+        idb.setStorePrefix(storeId);
+        ls.setStorePrefix(storeId);
+        const base = defaultState();
+        _state = {
+            ...base,
+            currentStoreId: storeId,
+            goldPrices: ls.get('goldPrices', base.goldPrices),
+            diamondPriceList: ls.get('diamondPrices', null),
+            adjustCoefficients: ls.get('adjustCoef', base.adjustCoefficients),
+            depreciationConfig: ls.get('depreciation', base.depreciationConfig),
+            approvalThreshold: ls.get('threshold', 30000),
+            filters: ls.get('historyFilters', {})
+        };
+    }
+
+    _loadStoreScopedState(globalLs.get('currentStore', 'store001'));
 
     function _getState() { return _state; }
 
@@ -326,9 +389,30 @@ export const AppStore = (() => {
     }
 
     function setCurrentStore(storeId) {
-        _setState({ currentStoreId: storeId });
-        ls.set('currentStore', storeId);
+        globalLs.set('currentStore', storeId);
+        _loadStoreScopedState(storeId);
         bus.emit('store:changed', { storeId });
+        bus.emit('state:change', { state: _state, patch: { currentStoreId: storeId } });
+    }
+
+    function verifyManagerAuth(tokenOrCode) {
+        const s = String(tokenOrCode || '').trim();
+        if (!s) return { success: false, reason: 'empty' };
+        const codes = _state.managerAuthCodes || {};
+        for (const [mgrId, expectedCode] of Object.entries(codes)) {
+            if (s === expectedCode || s === mgrId + ':' + expectedCode) {
+                return { success: true, managerId: mgrId, authorizedAt: Date.now() };
+            }
+        }
+        if (/^MGR\d{3,}/.test(s)) {
+            const testCode = s.replace(/^MGR\d+[:#]?/, '');
+            for (const expected of Object.values(codes)) {
+                if (testCode === expected) {
+                    return { success: true, managerId: s.split(/[:#]/)[0], authorizedAt: Date.now() };
+                }
+            }
+        }
+        return { success: false, reason: 'invalid' };
     }
 
     function setCurrentPage(page) {
@@ -398,6 +482,7 @@ export const AppStore = (() => {
         events: bus,
         idb,
         ls,
+        globalLs,
         getState: _getState,
         setState: _setState,
         generateOrderNo,
@@ -410,6 +495,7 @@ export const AppStore = (() => {
         setAdjustCoefficients,
         setDepreciationConfig,
         setCurrentStore,
+        verifyManagerAuth,
         setCurrentPage,
         saveDraft,
         getDrafts,

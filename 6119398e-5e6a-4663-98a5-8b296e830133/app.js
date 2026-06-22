@@ -1,6 +1,6 @@
 import './utils/widget-factory.js';
 import { AppStore } from './store.js';
-import { GoldPriceFetcher, GOLD_FETCH_INTERVAL, formatCurrency, formatDate } from './utils/gold-price.js';
+import { GoldPriceFetcher, GOLD_FETCH_INTERVAL, formatCurrency, formatDate, parseDiamondRapaport } from './utils/gold-price.js';
 import {
     groupRecordsByDate, groupRecordsByCategory, groupByStore,
     groupByInspector, calcKpi, getDateRange, buildQuotePdfData, exportToExcel
@@ -50,6 +50,9 @@ class JewelryRecycleApp {
 
         s.on('toast:show', ({ msg, type = 'info', duration = 3000 }) => this._showToast(msg, type, duration));
         s.on('goldPrices:updated', (p) => this._updatePriceMarquee(p));
+        s.on('diamondPrices:updated', (data) => {
+            this._showToast(`钻石报价表已更新, 共 ${Object.keys(data || {}).length} 条价格`, 'success');
+        });
         s.on('form:categoryChanged', ({ category }) => this._onCategoryChange(category));
         s.on('form:submitted', ({ data }) => this._onFormSubmitted(data));
         s.on('form:jewelryChanged', ({ jewelry }) => this._updateCalc());
@@ -74,6 +77,15 @@ class JewelryRecycleApp {
             this._refreshSyncStats();
             if (conflicts) this._showToast(`同步完成: 成功${successCount}条, 需人工处理${conflicts}条冲突`, 'warning');
             else this._showToast(`同步完成: 成功 ${successCount} 条记录`, 'success');
+        });
+        s.on('store:changed', async ({ storeId }) => {
+            this._showToast(`门店数据分区已切换, 正在加载 ${storeId} 数据...`, 'info');
+            await this._refreshPending();
+            await this._refreshSyncStats();
+            this.$history?.refresh?.();
+            if (this.currentPage === 'report') this._renderReports();
+            const p = this.store.getState().goldPrices;
+            if (p) this._updatePriceMarquee(p);
         });
     }
 
@@ -119,17 +131,28 @@ class JewelryRecycleApp {
         $('#btnExportReport').on('click', () => this._exportReport());
         $('#reportRange').on('change', () => this._renderReports());
 
-        $('#btnApprove').on('click', () => this._handleApproval(true));
+        $('#btnApprove').on('click', () => {
+            this._requestScanAuth('报价审批授权', (auth) => {
+                this._handleApproval(true, auth);
+            });
+        });
         $('#btnReject').on('click', () => this._handleApproval(false));
-        $('#btnPrintQuote').on('click', () => window.print());
+
+        $('#btnPrintQuote').on('click', () => this._printQuoteTemplate());
         $('#btnSyncNow').on('click', () => this._doSync());
 
         $('#storeSelect').val(this.store.getState().currentStoreId).on('change', (e) => {
             this.store.setCurrentStore(e.target.value);
-            this._showToast(`已切换到 ${e.target.options[e.target.selectedIndex].text}`, 'info');
-            if (this.currentPage === 'report') this._renderReports();
-            this.$history?.refresh?.();
+            const label = e.target.options[e.target.selectedIndex].text;
+            this._showToast(`已切换到 ${label}, 数据分区已隔离`, 'info');
         });
+
+        $('#menuRapaport').on('click', (e) => {
+            e.preventDefault();
+            this._openRapaportModal();
+        });
+        this._initRapaportUpload();
+        this._initScanAuth();
     }
 
     _initNav() {
@@ -222,7 +245,7 @@ class JewelryRecycleApp {
         this._switchPage('recycle');
     }
 
-    async _saveRecordWithStatus(status) {
+    async _saveRecordWithStatus(status, extra = {}) {
         const form = this.$recycleForm.recycleForm('getData');
         const ins = this.$inspection.inspectionPanel('getData');
         const price = this.currentPriceResult || this.$priceCalc.priceCalculator('getLastResult');
@@ -236,8 +259,9 @@ class JewelryRecycleApp {
             priceDetail: price,
             finalPrice: price.finalPrice,
             status,
-            approvedAt: status === 'approved' ? Date.now() : null,
-            approvedBy: status === 'approved' ? (this.store.getState().currentInspector.name || '系统') : null,
+            approvedAt: status === 'approved' ? (extra.approvedAt || Date.now()) : null,
+            approvedBy: status === 'approved' ? (extra.approvedBy || this.store.getState().currentInspector.name || '系统') : null,
+            authToken: extra.authToken || null,
             synced: navigator.onLine ? false : false
         };
         const t0 = performance.now();
@@ -368,11 +392,12 @@ class JewelryRecycleApp {
         modal.show();
     }
 
-    async _handleApproval(approved) {
+    async _handleApproval(approved, authInfo = null) {
         const modal = bootstrap.Modal.getInstance(document.getElementById('approvalModal'));
-        modal.hide();
+        if (modal) modal.hide();
         if (approved) {
-            await this._saveRecordWithStatus('approved');
+            const extra = authInfo ? { approvedBy: '店长' + (authInfo.managerId || ''), approvedAt: Date.now(), authToken: authInfo } : {};
+            await this._saveRecordWithStatus('approved', extra);
         } else {
             await this._saveRecordWithStatus('rejected');
             this._showToast('报价单已驳回', 'warning');
@@ -380,6 +405,7 @@ class JewelryRecycleApp {
     }
 
     async _showDetail(record) {
+        this._currentDetail = record;
         $('#detailOrderNo').text(record.orderNo);
         const price = record.priceDetail || {};
         const cat = ({gold:'黄金K金',platinum:'铂金钯金',diamond:'钻石彩宝',jade:'翡翠和田玉',pearl:'珍珠琥珀'})[record.category] || record.category;
@@ -541,9 +567,15 @@ class JewelryRecycleApp {
             this.store.getRecord(orderNo).then(r => r && this._showDetail(r));
         }).on('click', '.btn-approve-quick', async (e) => {
             const orderNo = $(e.currentTarget).data('order');
-            await this.store.updateRecordStatus(orderNo, 'approved', { approvedAt: Date.now(), approvedBy: this.store.getState().currentInspector.name });
-            this._showToast('已批准', 'success');
-            this._refreshPending();
+            this._requestScanAuth('快速审批授权', async (auth) => {
+                await this.store.updateRecordStatus(orderNo, 'approved', {
+                    approvedAt: Date.now(),
+                    approvedBy: '店长' + (auth.managerId || ''),
+                    authToken: auth
+                });
+                this._showToast('已批准 (已扫码授权)', 'success');
+                this._refreshPending();
+            });
         }).on('click', '.btn-reject-quick', async (e) => {
             const orderNo = $(e.currentTarget).data('order');
             await this.store.updateRecordStatus(orderNo, 'rejected');
@@ -978,6 +1010,256 @@ class JewelryRecycleApp {
         if (p) this._updatePriceMarquee(p);
         await this._refreshPending();
         await this._refreshSyncStats();
+    }
+
+    _openRapaportModal() {
+        const cur = this.store.getState().diamondPriceList;
+        $('#rapaportPreview').html(cur && Object.keys(cur).length
+            ? `<div class="text-success small"><i class="bi bi-check-circle me-1"></i>当前已加载 <strong>${Object.keys(cur).length}</strong> 条钻石报价</div>`
+            : `<div class="text-muted small"><i class="bi bi-info-circle me-1"></i>尚未加载任何钻石报价表</div>`);
+        $('#rapaportStatus').addClass('d-none');
+        $('#rapaportFile').val('');
+        $('#btnImportRapaport').prop('disabled', true);
+        this._rapaportParsedData = null;
+        const m = bootstrap.Modal.getOrCreateInstance(document.getElementById('rapaportModal'));
+        m.show();
+    }
+
+    _initRapaportUpload() {
+        $('#rapaportFile').on('change', async (e) => {
+            const file = e.target.files[0];
+            const $status = $('#rapaportStatus');
+            const $btn = $('#btnImportRapaport');
+            $status.removeClass('d-none alert-danger alert-success').addClass('alert alert-info');
+            $status.html('<i class="bi bi-hourglass-split me-1"></i>正在解析文件...');
+            $btn.prop('disabled', true);
+            if (!file) return;
+            if (file.size > 10 * 1024 * 1024) {
+                $status.removeClass('alert-info').addClass('alert-danger').html('<i class="bi bi-x-circle me-1"></i>文件过大, 最大支持10MB');
+                return;
+            }
+            try {
+                const text = await file.text();
+                const data = parseDiamondRapaport(text);
+                const count = Object.keys(data).length;
+                if (!count) throw new Error('未解析到有效数据');
+                this._rapaportParsedData = data;
+                const sample = Object.entries(data).slice(0, 5).map(([k, v]) => {
+                    const [wt, col, cla] = k.split('|');
+                    return `<tr><td>${wt}ct</td><td>${col}</td><td>${cla}</td><td class="text-end">$${v.toLocaleString()}/ct</td></tr>`;
+                }).join('');
+                $status.removeClass('alert-info').addClass('alert-success').html(`<i class="bi bi-check-circle me-1"></i>解析成功, 共 <strong>${count}</strong> 条报价`);
+                $('#rapaportPreview').html(`
+                    <div class="mt-2"><strong>数据预览 (前5条):</strong></div>
+                    <div class="table-responsive mt-1"><table class="table table-sm table-bordered small">
+                        <thead class="table-light"><tr><th>重量</th><th>颜色</th><th>净度</th><th class="text-end">单价</th></tr></thead>
+                        <tbody>${sample}</tbody>
+                    </table></div>
+                `);
+                $btn.prop('disabled', false);
+            } catch (err) {
+                $status.removeClass('alert-info').addClass('alert-danger').html(`<i class="bi bi-x-circle me-1"></i>解析失败: ${err.message}`);
+            }
+        });
+        $('#btnImportRapaport').on('click', async () => {
+            if (!this._rapaportParsedData) return;
+            await this.store.saveDiamondPriceList(this._rapaportParsedData);
+            const m = bootstrap.Modal.getInstance(document.getElementById('rapaportModal'));
+            if (m) m.hide();
+        });
+    }
+
+    _initScanAuth() {
+        this._scanAuthCallback = null;
+        const $input = $('#scanAuthInput');
+        const closeModal = () => {
+            const m = bootstrap.Modal.getInstance(document.getElementById('scanAuthModal'));
+            if (m) m.hide();
+        };
+        $('#btnScanCancel, #btnScanCancel2').on('click', () => {
+            this._scanAuthCallback = null;
+            closeModal();
+        });
+        $input.on('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === 'Tab') {
+                e.preventDefault();
+                const val = $input.val();
+                this._verifyScanInput(String(val || '').trim());
+            }
+        });
+        $('#scanAuthModal').on('shown.bs.modal', () => {
+            setTimeout(() => $input.trigger('focus'), 100);
+        }).on('hidden.bs.modal', () => {
+            $input.val('');
+            $('#scanAuthResult').html('');
+            $('#scanAuthHint').text('等待扫码输入...');
+        });
+    }
+
+    _requestScanAuth(actionLabel, callback) {
+        this._scanAuthCallback = callback;
+        $('#scanAuthHint').text(`请店长扫码完成: ${actionLabel} (扫码枪自动回车确认)`);
+        $('#scanAuthResult').html('');
+        $('#scanAuthInput').val('');
+        const m = bootstrap.Modal.getOrCreateInstance(document.getElementById('scanAuthModal'));
+        m.show();
+    }
+
+    _verifyScanInput(code) {
+        const $result = $('#scanAuthResult');
+        const $hint = $('#scanAuthHint');
+        if (!code) {
+            $result.html(`<div class="alert alert-danger small py-2 mb-0"><i class="bi bi-x-circle me-1"></i>请输入授权码</div>`);
+            return;
+        }
+        $hint.text('正在验证授权...');
+        setTimeout(() => {
+            const auth = this.store.verifyManagerAuth(code);
+            if (auth.success) {
+                $result.html(`<div class="alert alert-success small py-2 mb-0"><i class="bi bi-check-circle me-1"></i>验证通过: 店长 ${auth.managerId}, 即将执行操作...</div>`);
+                $hint.text('授权验证成功');
+                const cb = this._scanAuthCallback;
+                this._scanAuthCallback = null;
+                setTimeout(() => {
+                    const m = bootstrap.Modal.getInstance(document.getElementById('scanAuthModal'));
+                    if (m) m.hide();
+                    if (cb) try { cb(auth); } catch (err) { console.error(err); }
+                }, 600);
+            } else {
+                $result.html(`<div class="alert alert-danger small py-2 mb-0"><i class="bi bi-shield-exclamation me-1"></i>授权失败: ${auth.reason === 'invalid' ? '授权码不正确, 请联系管理员' : '请输入授权码'}</div>`);
+                $hint.text('验证失败, 请重试');
+                $('#scanAuthInput').val('').trigger('focus');
+            }
+        }, 350);
+    }
+
+    _buildQuotePrintTemplate(record) {
+        const cat = ({gold:'黄金K金',platinum:'铂金钯金',diamond:'钻石彩宝',jade:'翡翠和田玉',pearl:'珍珠琥珀'})[record.category] || record.category;
+        const price = record.priceDetail || {};
+        const ins = record.inspection || {};
+        const insRows = [];
+        for (const [stepId, stepData] of Object.entries(ins)) {
+            if (!stepData) continue;
+            for (const [k, v] of Object.entries(stepData)) {
+                if (v === '' || v === null || v === undefined) continue;
+                if (typeof v === 'number' && v === 0 && k !== 'carat' && !k.startsWith('sc_')) continue;
+                const labelMap = {
+                    fireResult: '火烧试金结论', fireNote: '火烧备注',
+                    densityAir: '空气中称重(g)', densityWater: '水中称重(g)', densityResult: '密度结果(g/cm³)', densityPurity: '密度推算纯度',
+                    xrfAu: '金含量(%)', xrfAg: '银含量(%)', xrfCu: '铜含量(%)', xrfZn: '锌含量(%)', xrfOther: '其他(%)', xrfConclusion: 'XRF光谱结论',
+                    markExist: '印记标识', carat: '重量(ct)', color: '颜色(Color)', clarity: '净度(Clarity)', cut: '切工(Cut)',
+                    polish: '抛光', symmetry: '对称', fluorescence: '荧光',
+                    certNo: '证书编号', certIssuer: '发证机构', certMatch: '证物核对', certNote: '证书备注',
+                    thermalConduct: '热导反应', inclusion: '内含物', scopeConclusion: '专业仪器判定',
+                    type: '玉石种类', origin: '产地判断',
+                    sc_kind: '种分(10分)', sc_water: '水头(10分)', sc_color: '色泽(10分)', sc_base: '地子(10分)', sc_work: '雕工(10分)', totalScore: '综合评分',
+                    crack: '裂纹', cotton: '棉絮', blackspot: '黑点', defectNote: '瑕疵描述',
+                    size: '直径(mm)', quantity: '数量(颗)', shape: '形状', weight_g: '总重(g)',
+                    q_luster: '光泽/通透', q_surface: '表皮/纯净', q_color: '颜色/浓度', q_match: '匹配/工艺',
+                    treatment: '优化处理', setting: '配托材质', note: '备注'
+                };
+                insRows.push({ label: labelMap[k] || `${stepId}.${k}`, value: typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(2)) : v });
+            }
+        }
+        const detailRows = (price.detail || []).map(d => `
+            <tr>
+                <td class="py-1" style="${d.highlight ? 'font-weight:bold;color:#B8860B' : ''}">${d.label}</td>
+                <td class="text-end py-1" style="${d.highlight ? 'font-weight:bold;color:#B8860B' : ''}">${d.value}</td>
+            </tr>
+        `).join('');
+        const insTable = insRows.length ? `
+            <table class="table table-bordered table-sm" style="font-size:12px;">
+                <thead><tr style="background:#FFF8E7"><th style="width:40%">检测项目</th><th>检测结果</th></tr></thead>
+                <tbody>${insRows.slice(0, 16).map(r => `<tr><td class="py-1">${r.label}</td><td class="py-1">${r.value}</td></tr>`).join('')}</tbody>
+            </table>
+        ` : '<div class="text-muted small">暂无检测数据</div>';
+        return `
+        <div id="quotePrintArea" style="font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;color:#222;padding:20px;">
+            <div style="text-align:center;border-bottom:3px double #B8860B;padding-bottom:15px;margin-bottom:20px;">
+                <div style="font-size:26px;font-weight:bold;color:#8B6914;letter-spacing:4px;">臻 品 汇 珠 宝</div>
+                <div style="font-size:14px;color:#666;margin-top:4px;letter-spacing:2px;">ZHENPINHUI JEWELRY RECYCLE · 专业回收 · 诚信经营</div>
+                <div style="font-size:12px;color:#888;margin-top:6px;">
+                    门店: ${record.storeId || '001号店'} &nbsp;|&nbsp; 电话: 400-888-6666 &nbsp;|&nbsp; 地址: 上海市黄浦区南京东路88号
+                </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <div>
+                    <div style="font-size:20px;font-weight:bold;color:#8B6914;">珠 宝 回 收 报 价 单</div>
+                    <div style="font-size:12px;color:#666;margin-top:2px;">QUOTATION SHEET</div>
+                </div>
+                <div style="text-align:right;font-size:12px;">
+                    <div>单号: <strong style="font-family:monospace;">${record.orderNo}</strong></div>
+                    <div>日期: ${formatDate(record.createdAt || Date.now())}</div>
+                    <div>鉴定师: ${record.inspector?.name || '--'}</div>
+                </div>
+            </div>
+            <table class="table table-bordered table-sm" style="font-size:13px;">
+                <thead><tr style="background:#FFF8E7"><th style="width:25%">顾客信息</th><th style="width:25%"></th><th style="width:25%">首饰信息</th><th></th></tr></thead>
+                <tbody>
+                    <tr><td class="py-1" style="background:#FAFAFA">姓名</td><td class="py-1">${record.customer?.name || '--'}</td>
+                        <td class="py-1" style="background:#FAFAFA">品类</td><td class="py-1">${cat}</td></tr>
+                    <tr><td class="py-1" style="background:#FAFAFA">联系电话</td><td class="py-1">${record.customer?.phone || '--'}</td>
+                        <td class="py-1" style="background:#FAFAFA">品牌/款式</td><td class="py-1">${record.jewelry?.brand || '--'} / ${record.jewelry?.model || '--'}</td></tr>
+                    <tr><td class="py-1" style="background:#FAFAFA">身份证号</td><td class="py-1">${record.customer?.idNo || '--'}</td>
+                        <td class="py-1" style="background:#FAFAFA">材质纯度</td><td class="py-1">${record.jewelry?.purity || '--'}</td></tr>
+                    <tr><td class="py-1" style="background:#FAFAFA">联系地址</td><td class="py-1">${record.customer?.address || '--'}</td>
+                        <td class="py-1" style="background:#FAFAFA">重量/规格</td><td class="py-1">${record.jewelry?.weight ? record.jewelry.weight + ' g' : '--'}</td></tr>
+                </tbody>
+            </table>
+            <div style="margin-top:4px;margin-bottom:6px;font-size:13px;font-weight:bold;color:#8B6914;"><i class="bi bi-clipboard2-check"></i> 检测明细</div>
+            ${insTable}
+            <div style="margin-top:16px;margin-bottom:6px;font-size:13px;font-weight:bold;color:#8B6914;"><i class="bi bi-cash-coin"></i> 报价明细</div>
+            <table class="table table-bordered table-sm" style="font-size:13px;">
+                <thead><tr style="background:#FFF8E7"><th style="width:70%">项目</th><th class="text-end">金额</th></tr></thead>
+                <tbody>
+                    ${detailRows}
+                    <tr style="background:linear-gradient(135deg,#FFF8E7,#FFE4A3);font-size:15px;">
+                        <td style="font-weight:bold;">最终回收价 (人民币)</td>
+                        <td class="text-end" style="font-weight:bold;color:#8B6914;">${formatCurrency(record.finalPrice || 0)}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div style="margin-top:12px;padding:10px;background:#FFF8E7;border:1px dashed #D4A017;border-radius:6px;font-size:12px;color:#666;">
+                <div><strong>特别说明:</strong></div>
+                <div>1. 本报价单有效期24小时, 价格随国际贵金属/宝石行情波动; 2. 本回收价已包含成色折旧、工艺折旧等全部扣减项; 3. 本单经双方签字确认后生效, 已回收首饰恕不退回; 4. 顾客须保证所售首饰来源合法, 如有纠纷由顾客自行承担。</div>
+            </div>
+            <div style="margin-top:30px;display:flex;justify-content:space-between;font-size:13px;">
+                <div style="text-align:center;width:40%;">
+                    <div style="border-bottom:1px solid #999;height:40px;width:100%;"></div>
+                    <div style="margin-top:6px;">鉴定师签字:</div>
+                </div>
+                <div style="text-align:center;width:40%;">
+                    <div style="border-bottom:1px solid #999;height:40px;width:100%;"></div>
+                    <div style="margin-top:6px;">顾客签字确认:</div>
+                </div>
+            </div>
+            ${record.approvedBy ? `<div style="margin-top:14px;text-align:right;font-size:12px;color:#666;">本单已由 <strong>${record.approvedBy}</strong> 于 ${formatDate(record.approvedAt)} 审批授权</div>` : ''}
+            <div style="margin-top:20px;text-align:center;font-size:11px;color:#999;border-top:1px dashed #ccc;padding-top:8px;">
+                臻品汇珠宝 · 全国连锁 · 本单一式两份 · 公司保留最终解释权
+            </div>
+        </div>`;
+    }
+
+    async _printQuoteTemplate() {
+        const record = this._currentDetail;
+        if (!record) {
+            this._showToast('请先选择要打印的回收单', 'warning');
+            return;
+        }
+        const tpl = this._buildQuotePrintTemplate(record);
+        let $area = $('#quotePrintArea');
+        if (!$area.length) {
+            $('body').append('<div id="quotePrintWrap"></div>');
+            $area = $('#quotePrintWrap');
+        }
+        $area.html(tpl);
+        this._showToast('正在生成报价单...', 'info');
+        await new Promise(r => setTimeout(r, 150));
+        try {
+            window.print();
+        } finally {
+            setTimeout(() => { $('#quotePrintWrap').remove(); }, 500);
+        }
     }
 
     _showToast(msg, type = 'info', duration = 3000) {
