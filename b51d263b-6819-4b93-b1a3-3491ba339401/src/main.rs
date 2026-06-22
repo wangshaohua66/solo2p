@@ -38,6 +38,8 @@ use crate::models::port::{
 };
 use crate::models::ship::{Ship, VesselType, validate_imo};
 use crate::utils::formatter;
+use structopt::StructOpt;
+use structopt::clap::{AppSettings, ErrorKind};
 
 fn get_config_path() -> PathBuf {
     let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
@@ -1483,6 +1485,34 @@ fn print_banner() {
 
 fn main() {
     print_banner();
+
+    let args: Vec<String> = std::env::args().collect();
+    let contains_help = args.iter().any(|a| a == "--help" || a == "-h");
+    let contains_version = args.iter().any(|a| a == "--version" || a == "-V");
+
+    if contains_help || contains_version {
+        let mut app = Cli::clap();
+        app = app.setting(AppSettings::ColoredHelp);
+        let result = app.get_matches_from_safe(&args);
+        if let Err(e) = result {
+            match e.kind {
+                ErrorKind::HelpDisplayed => {
+                    let help_text = e.to_string();
+                    let lines: Vec<String> = help_text.lines().map(|s| s.to_string()).collect();
+                    println!();
+                    paginate_output(&lines, 30);
+                    return;
+                }
+                ErrorKind::VersionDisplayed => {
+                    println!("{}", e.message);
+                    return;
+                }
+                _ => {
+                    e.exit();
+                }
+            }
+        }
+    }
 
     let cli = Cli::from_args();
 
