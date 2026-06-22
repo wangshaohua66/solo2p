@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,6 +25,7 @@ public class TrainingController {
 
     @GetMapping("/plans")
     @Operation(summary = "查询所有培养计划")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ApiResponse<Page<TrainingPlan>> getAllPlans(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -33,6 +35,7 @@ public class TrainingController {
 
     @GetMapping("/plans/inheritor/{inheritorId}")
     @Operation(summary = "查询传承人培养计划")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'INHERITOR')")
     public ApiResponse<Page<TrainingPlan>> getPlansByInheritor(
             @PathVariable String inheritorId,
             @RequestParam(defaultValue = "0") int page,
@@ -49,6 +52,7 @@ public class TrainingController {
 
     @GetMapping("/plans/{id}")
     @Operation(summary = "获取培养计划详情")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'INHERITOR')")
     public ApiResponse<TrainingPlan> getPlanById(@PathVariable String id) {
         TrainingPlan plan = trainingService.getPlanById(id);
         if (plan == null) {
@@ -59,6 +63,7 @@ public class TrainingController {
 
     @GetMapping("/plans/{id}/report")
     @Operation(summary = "生成培养进度报告")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'INHERITOR')")
     public ApiResponse<String> generateProgressReport(@PathVariable String id) {
         try {
             String report = trainingService.generateProgressReport(id);
@@ -70,6 +75,7 @@ public class TrainingController {
 
     @PostMapping("/plans")
     @Operation(summary = "创建培养计划")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ApiResponse<TrainingPlan> createPlan(@RequestBody TrainingPlan plan) {
         TrainingPlan created = trainingService.createPlan(plan);
         return ApiResponse.success("创建成功", created);
@@ -77,6 +83,7 @@ public class TrainingController {
 
     @PutMapping("/plans/{id}")
     @Operation(summary = "更新培养计划")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ApiResponse<TrainingPlan> updatePlan(
             @PathVariable String id,
             @RequestBody TrainingPlan plan) {
@@ -86,6 +93,7 @@ public class TrainingController {
 
     @DeleteMapping("/plans/{id}")
     @Operation(summary = "删除培养计划")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Void> deletePlan(@PathVariable String id) {
         trainingService.deletePlan(id);
         return ApiResponse.success("删除成功", null);
@@ -93,6 +101,7 @@ public class TrainingController {
 
     @PostMapping("/plans/{id}/records")
     @Operation(summary = "添加培训记录")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'INHERITOR')")
     public ApiResponse<TrainingPlan> addTrainingRecord(
             @PathVariable String id,
             @RequestBody TrainingRecord record) {

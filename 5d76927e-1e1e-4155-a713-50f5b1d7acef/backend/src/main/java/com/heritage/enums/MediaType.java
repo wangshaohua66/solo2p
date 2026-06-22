@@ -4,7 +4,8 @@ public enum MediaType {
     IMAGE("图片"),
     VIDEO("视频"),
     AUDIO("音频"),
-    DOCUMENT("文档");
+    DOCUMENT("文档"),
+    INTERVIEW("访谈录");
 
     private final String displayName;
 

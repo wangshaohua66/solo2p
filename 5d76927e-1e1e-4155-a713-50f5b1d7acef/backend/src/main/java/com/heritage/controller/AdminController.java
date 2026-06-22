@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -27,18 +28,21 @@ public class AdminController {
 
     @GetMapping("/dashboard")
     @Operation(summary = "获取首页统计数据", description = "获取非遗项目数、传承人人数、预约数等核心统计指标")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ApiResponse<Map<String, Object>> getDashboardStats() {
         return ApiResponse.success(adminService.getDashboardStats());
     }
 
     @GetMapping("/reports/monthly/{yearMonth}")
     @Operation(summary = "生成月度运营报告", description = "生成指定年月的运营报告，包含预约、访问量等数据")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ApiResponse<Map<String, Object>> generateMonthlyReport(@PathVariable String yearMonth) {
         return ApiResponse.success(adminService.generateMonthlyReport(yearMonth));
     }
 
     @GetMapping("/users")
     @Operation(summary = "查询所有用户")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Page<User>> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -48,6 +52,7 @@ public class AdminController {
 
     @GetMapping("/users/{id}")
     @Operation(summary = "获取用户详情")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ApiResponse<User> getUserById(@PathVariable String id) {
         return userService.findById(id)
                 .map(ApiResponse::success)
@@ -56,6 +61,7 @@ public class AdminController {
 
     @PutMapping("/users/{id}")
     @Operation(summary = "更新用户信息")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<User> updateUser(
             @PathVariable String id,
             @RequestBody User user) {

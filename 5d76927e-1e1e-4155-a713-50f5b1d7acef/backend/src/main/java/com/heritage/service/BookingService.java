@@ -2,9 +2,11 @@ package com.heritage.service;
 
 import com.heritage.entity.Booking;
 import com.heritage.entity.Notification;
+import com.heritage.entity.User;
 import com.heritage.enums.BookingStatus;
 import com.heritage.repository.BookingRepository;
 import com.heritage.repository.NotificationRepository;
+import com.heritage.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,6 +24,12 @@ public class BookingService {
 
     @Autowired
     private NotificationRepository notificationRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private EmailService emailService;
 
     public Page<Booking> getAllBookings(Pageable pageable) {
         return bookingRepository.findAll(pageable);
@@ -71,6 +79,11 @@ public class BookingService {
                 "BOOKING"
         );
 
+        sendBookingEmail(saved, "PENDING",
+                "新的研学预约申请",
+                "您有新的研学预约申请待处理：" + saved.getInstitutionName() +
+                "，时间：" + saved.getStartTime() + " 至 " + saved.getEndTime());
+
         return saved;
     }
 
@@ -93,6 +106,13 @@ public class BookingService {
                 saved.getId(),
                 "BOOKING"
         );
+
+        sendBookingEmail(saved, "APPROVED",
+                "研学预约已批准",
+                "您的研学预约已获批准！" +
+                "，项目：" + saved.getInstitutionName() +
+                "，时间：" + saved.getStartTime() + " 至 " + saved.getEndTime() +
+                (remark != null && !remark.isEmpty() ? "，审批备注：" + remark : ""));
 
         return saved;
     }
@@ -117,6 +137,12 @@ public class BookingService {
                 "BOOKING"
         );
 
+        sendBookingEmail(saved, "REJECTED",
+                "研学预约被拒绝",
+                "您的研学预约已被拒绝。" +
+                "，项目：" + saved.getInstitutionName() +
+                "，拒绝原因：" + remark);
+
         return saved;
     }
 
@@ -126,7 +152,14 @@ public class BookingService {
                 .orElseThrow(() -> new RuntimeException("预约不存在"));
 
         booking.setStatus(BookingStatus.CANCELLED);
-        return bookingRepository.save(booking);
+        Booking saved = bookingRepository.save(booking);
+
+        sendBookingEmail(saved, "CANCELLED",
+                "研学预约已取消",
+                "研学预约已取消：" + saved.getInstitutionName() +
+                "，时间：" + saved.getStartTime() + " 至 " + saved.getEndTime());
+
+        return saved;
     }
 
     private void sendNotification(String userId, String title, String content, String relatedId, String type) {
@@ -140,5 +173,20 @@ public class BookingService {
                 .emailSent(false)
                 .build();
         notificationRepository.save(notification);
+    }
+
+    private void sendBookingEmail(Booking booking, String status, String subject, String content) {
+        String institutionEmail = booking.getContactEmail();
+        if (institutionEmail != null && !institutionEmail.isEmpty()) {
+            String htmlContent = emailService.buildBookingNotificationHtml(subject, content, booking.getId(), status);
+            emailService.sendHtmlEmail(institutionEmail, subject, htmlContent);
+        }
+
+        userRepository.findById(booking.getInheritorId()).ifPresent(inheritor -> {
+            if (inheritor.getEmail() != null && !inheritor.getEmail().isEmpty()) {
+                String htmlContent = emailService.buildBookingNotificationHtml(subject, content, booking.getId(), status);
+                emailService.sendHtmlEmail(inheritor.getEmail(), subject, htmlContent);
+            }
+        });
     }
 }

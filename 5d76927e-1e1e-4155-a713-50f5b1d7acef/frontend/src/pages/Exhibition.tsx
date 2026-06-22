@@ -12,9 +12,10 @@ import {
   Button,
   message,
 } from 'antd'
-import { EyeOutlined, ShareAltOutlined } from '@ant-design/icons'
+import { EyeOutlined, ExpandOutlined } from '@ant-design/icons'
 import { heritageApi } from '@/api/heritage'
 import { Heritage, HeritageCategory, HeritageCategoryMap, HeritageLevelMap } from '@/types'
+import SocialShare from '@/components/SocialShare'
 
 const { Title, Paragraph } = Typography
 const { TabPane } = Tabs
@@ -78,6 +79,16 @@ const Exhibition: React.FC = () => {
         <Paragraph style={{ fontSize: 16, color: '#c8c8c8', maxWidth: 600, margin: '0 auto' }}>
           沉浸式漫游非遗文化世界，领略传统技艺、音乐、舞蹈、戏剧、民俗的独特魅力
         </Paragraph>
+        <Link to="/exhibition/virtual">
+          <Button
+            type="primary"
+            size="large"
+            icon={<ExpandOutlined />}
+            style={{ marginTop: 24, background: '#c8a96e', borderColor: '#c8a96e', height: 48, fontSize: 16, paddingInline: 32 }}
+          >
+            进入虚拟展厅漫游
+          </Button>
+        </Link>
       </div>
 
       <Card style={{ borderRadius: 12, marginBottom: 24 }} styles={{ body: { padding: 0 } }}>
@@ -146,9 +157,7 @@ const Exhibition: React.FC = () => {
                       <EyeOutlined /> 查看详情
                     </Button>
                   </Link>,
-                  <Button type="link" size="small" key="share" onClick={() => handleShare(heritage.name)}>
-                    <ShareAltOutlined /> 分享
-                  </Button>,
+                  <SocialShare type="heritage" targetId={heritage.id} title={heritage.name} key="share" />,
                 ]}
               >
                 <Card.Meta

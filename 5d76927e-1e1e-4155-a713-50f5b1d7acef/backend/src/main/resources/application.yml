@@ -42,6 +42,16 @@ springdoc:
     tags-sorter: alpha
     operations-sorter: alpha
 
+heritage:
+  upload:
+    dir: ${UPLOAD_DIR:./uploads}
+    base-url: /api/files/stream
+  mail:
+    enabled: ${MAIL_ENABLED:false}
+  share:
+    base-url: ${SHARE_BASE_URL:https://heritage.example.com}
+    wechat-app-id: ${WECHAT_APP_ID:}
+
 logging:
   level:
     com.heritage: DEBUG

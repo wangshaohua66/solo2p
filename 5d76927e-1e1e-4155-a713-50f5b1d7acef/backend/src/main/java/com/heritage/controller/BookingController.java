@@ -11,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -29,6 +30,7 @@ public class BookingController {
 
     @GetMapping
     @Operation(summary = "查询所有预约")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ApiResponse<Page<Booking>> getAllBookings(
             @RequestParam(required = false) BookingStatus status,
             @RequestParam(defaultValue = "0") int page,
@@ -43,6 +45,7 @@ public class BookingController {
 
     @GetMapping("/{id}")
     @Operation(summary = "获取预约详情")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'INHERITOR', 'INSTITUTION')")
     public ApiResponse<Booking> getBookingById(@PathVariable String id) {
         Booking booking = bookingService.getBookingById(id);
         if (booking == null) {
@@ -53,6 +56,7 @@ public class BookingController {
 
     @GetMapping("/my")
     @Operation(summary = "查询我的预约", description = "研学机构查询自己发起的预约")
+    @PreAuthorize("hasAnyRole('INSTITUTION', 'INHERITOR')")
     public ApiResponse<Page<Booking>> getMyBookings(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -65,6 +69,7 @@ public class BookingController {
 
     @GetMapping("/inheritor/{inheritorId}")
     @Operation(summary = "查询传承人预约")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'INHERITOR')")
     public ApiResponse<Page<Booking>> getBookingsByInheritor(
             @PathVariable String inheritorId,
             @RequestParam(defaultValue = "0") int page,
@@ -86,6 +91,7 @@ public class BookingController {
 
     @PostMapping("/check-conflict")
     @Operation(summary = "检查时间冲突", description = "检查指定传承人在指定时间段是否已有预约")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'INSTITUTION')")
     public ApiResponse<Map<String, Boolean>> checkConflict(
             @RequestParam String inheritorId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
@@ -97,6 +103,7 @@ public class BookingController {
 
     @PostMapping
     @Operation(summary = "提交预约申请")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'INSTITUTION')")
     public ApiResponse<Booking> createBooking(@RequestBody Booking booking) {
         try {
             Booking created = bookingService.createBooking(booking);
@@ -108,6 +115,7 @@ public class BookingController {
 
     @PutMapping("/{id}/approve")
     @Operation(summary = "批准预约")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ApiResponse<Booking> approveBooking(
             @PathVariable String id,
             @RequestBody(required = false) Map<String, String> body) {
@@ -121,6 +129,7 @@ public class BookingController {
 
     @PutMapping("/{id}/reject")
     @Operation(summary = "拒绝预约")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ApiResponse<Booking> rejectBooking(
             @PathVariable String id,
             @RequestBody(required = false) Map<String, String> body) {
@@ -134,6 +143,7 @@ public class BookingController {
 
     @PutMapping("/{id}/cancel")
     @Operation(summary = "取消预约")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'INSTITUTION')")
     public ApiResponse<Booking> cancelBooking(@PathVariable String id) {
         Booking updated = bookingService.cancelBooking(id);
         return ApiResponse.success("预约已取消", updated);

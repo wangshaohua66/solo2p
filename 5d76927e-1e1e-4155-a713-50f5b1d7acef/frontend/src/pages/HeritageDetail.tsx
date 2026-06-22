@@ -26,6 +26,7 @@ import {
   FileTextOutlined,
   ShareAltOutlined,
   UserOutlined,
+  MessageOutlined,
 } from '@ant-design/icons'
 import { heritageApi } from '@/api/heritage'
 import { inheritorApi } from '@/api/inheritor'
@@ -37,6 +38,8 @@ import {
   MediaFile,
   VersionHistory,
 } from '@/types'
+import InterviewPlayer from '@/components/InterviewPlayer'
+import SocialShare from '@/components/SocialShare'
 
 const { Title, Paragraph } = Typography
 const { TabPane } = Tabs
@@ -96,13 +99,14 @@ const HeritageDetail: React.FC = () => {
     if (media.type === 'VIDEO') {
       return (
         <div key={media.id} style={{ marginBottom: 16 }}>
-          <div
-            className="video-placeholder"
-            style={{ borderRadius: 8, height: 240 }}
-            onClick={() => message.info('视频播放功能')}
+          <video
+            controls
+            preload="metadata"
+            style={{ width: '100%', borderRadius: 8, background: '#000' }}
+            src={media.fileUrl}
           >
-            <PlayCircleOutlined />
-          </div>
+            您的浏览器不支持视频播放
+          </video>
           <div style={{ color: '#a0a0a0', fontSize: 12, marginTop: 8 }}>
             {media.description || media.fileName}
           </div>
@@ -114,8 +118,14 @@ const HeritageDetail: React.FC = () => {
         <Card key={media.id} size="small" style={{ marginBottom: 16 }}>
           <SoundOutlined style={{ color: '#c8a96e', marginRight: 8 }} />
           {media.fileName}
+          <audio controls preload="metadata" style={{ width: '100%', marginTop: 8 }} src={media.fileUrl}>
+            您的浏览器不支持音频播放
+          </audio>
         </Card>
       )
+    }
+    if (media.type === 'INTERVIEW') {
+      return <InterviewPlayer key={media.id} media={media} />
     }
     return (
       <Card key={media.id} size="small" style={{ marginBottom: 16 }}>
@@ -182,9 +192,7 @@ const HeritageDetail: React.FC = () => {
               <span style={{ color: '#a0a0a0' }}>
                 <CalendarOutlined /> 收录于 {new Date(heritage.createdAt).toLocaleDateString()}
               </span>
-              <Button icon={<ShareAltOutlined />} onClick={handleShare}>
-                分享
-              </Button>
+              <SocialShare type="heritage" targetId={heritage.id} title={heritage.name} />
               <Link to="/booking">
                 <Button type="primary">预约研学</Button>
               </Link>

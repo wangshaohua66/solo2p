@@ -23,7 +23,25 @@ export const HeritageLevelMap: Record<HeritageLevel, string> = {
   MUNICIPAL: '市级',
 }
 
-export type MediaType = 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT'
+export type MediaType = 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT' | 'INTERVIEW'
+
+export const MediaTypeMap: Record<MediaType, string> = {
+  IMAGE: '图片',
+  VIDEO: '视频',
+  AUDIO: '音频',
+  DOCUMENT: '文档',
+  INTERVIEW: '访谈录',
+}
+
+export interface InterviewMetadata {
+  interviewer?: string
+  interviewee?: string
+  interviewDate?: string
+  location?: string
+  duration?: string
+  transcript?: string
+  highlights?: string[]
+}
 
 export interface MediaFile {
   id: string

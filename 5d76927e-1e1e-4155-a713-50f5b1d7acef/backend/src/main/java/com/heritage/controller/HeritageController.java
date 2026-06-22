@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -63,6 +64,7 @@ public class HeritageController {
 
     @GetMapping
     @Operation(summary = "管理端查询非遗项目列表", description = "管理端查询所有非遗项目")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ApiResponse<Page<Heritage>> getHeritages(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) HeritageCategory category,
@@ -79,6 +81,7 @@ public class HeritageController {
 
     @GetMapping("/{id}")
     @Operation(summary = "获取非遗项目详情")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'INHERITOR')")
     public ApiResponse<Heritage> getHeritageById(@PathVariable String id) {
         return heritageService.findById(id)
                 .map(ApiResponse::success)
@@ -87,6 +90,7 @@ public class HeritageController {
 
     @PostMapping
     @Operation(summary = "创建非遗项目")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ApiResponse<Heritage> createHeritage(@RequestBody Heritage heritage) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String username = auth.getName();
@@ -96,6 +100,7 @@ public class HeritageController {
 
     @PutMapping("/{id}")
     @Operation(summary = "更新非遗项目")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ApiResponse<Heritage> updateHeritage(
             @PathVariable String id,
             @RequestBody Heritage heritage) {
@@ -107,6 +112,7 @@ public class HeritageController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "删除非遗项目")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Void> deleteHeritage(@PathVariable String id) {
         heritageService.deleteHeritage(id);
         return ApiResponse.success("删除成功", null);
@@ -114,6 +120,7 @@ public class HeritageController {
 
     @PostMapping("/{id}/media")
     @Operation(summary = "添加媒体资料")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'INHERITOR')")
     public ApiResponse<Heritage> addMediaFile(
             @PathVariable String id,
             @RequestBody MediaFile mediaFile) {

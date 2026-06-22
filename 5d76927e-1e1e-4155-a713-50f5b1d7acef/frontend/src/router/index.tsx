@@ -11,6 +11,7 @@ const HeritageDetail = lazy(() => import('@/pages/HeritageDetail'))
 const InheritorProfile = lazy(() => import('@/pages/InheritorProfile'))
 const BookingCalendar = lazy(() => import('@/pages/BookingCalendar'))
 const Exhibition = lazy(() => import('@/pages/Exhibition'))
+const VirtualExhibition = lazy(() => import('@/pages/VirtualExhibition'))
 const Login = lazy(() => import('@/pages/Login'))
 const Register = lazy(() => import('@/pages/Register'))
 const AdminDashboard = lazy(() => import('@/pages/admin/Dashboard'))
@@ -52,6 +53,7 @@ const AppRouter: React.FC = () => {
           <Route path="inheritors/:id" element={<InheritorProfile />} />
           <Route path="booking" element={<BookingCalendar />} />
           <Route path="exhibition" element={<Exhibition />} />
+          <Route path="exhibition/virtual" element={<VirtualExhibition />} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="profile" element={<Profile />} />
         </Route>

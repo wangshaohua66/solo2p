@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -58,6 +59,7 @@ public class InheritorController {
 
     @GetMapping
     @Operation(summary = "管理端查询传承人列表")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ApiResponse<Page<Inheritor>> getInheritors(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String region,
@@ -71,6 +73,7 @@ public class InheritorController {
 
     @GetMapping("/{id}")
     @Operation(summary = "获取传承人详情")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'INHERITOR')")
     public ApiResponse<Inheritor> getInheritorById(@PathVariable String id) {
         return inheritorService.findById(id)
                 .map(ApiResponse::success)
@@ -79,6 +82,7 @@ public class InheritorController {
 
     @PostMapping
     @Operation(summary = "创建传承人档案")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ApiResponse<Inheritor> createInheritor(@RequestBody Inheritor inheritor) {
         Inheritor created = inheritorService.createInheritor(inheritor);
         return ApiResponse.success("创建成功", created);
@@ -86,6 +90,7 @@ public class InheritorController {
 
     @PutMapping("/{id}")
     @Operation(summary = "更新传承人档案")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ApiResponse<Inheritor> updateInheritor(
             @PathVariable String id,
             @RequestBody Inheritor inheritor) {
@@ -95,6 +100,7 @@ public class InheritorController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "删除传承人档案")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Void> deleteInheritor(@PathVariable String id) {
         inheritorService.deleteInheritor(id);
         return ApiResponse.success("删除成功", null);
@@ -102,6 +108,7 @@ public class InheritorController {
 
     @PostMapping("/{id}/apprentice")
     @Operation(summary = "添加收徒记录")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'INHERITOR')")
     public ApiResponse<Inheritor> addApprenticeRecord(
             @PathVariable String id,
             @RequestBody ApprenticeRecord record) {
@@ -111,6 +118,7 @@ public class InheritorController {
 
     @PostMapping("/{id}/schedule")
     @Operation(summary = "添加可预约档期")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'INHERITOR')")
     public ApiResponse<Inheritor> addAvailableSchedule(
             @PathVariable String id,
             @RequestBody TrainingSchedule schedule) {

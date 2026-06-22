@@ -84,7 +84,8 @@ public class SecurityConfig {
                                 "/public/**",
                                 "/heritages/public/**",
                                 "/inheritors/public/**",
-                                "/files/stream/**"
+                                "/files/stream/**",
+                                "/share/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
