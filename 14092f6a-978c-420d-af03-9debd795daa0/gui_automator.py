@@ -65,7 +65,8 @@ class GuiAutomator:
     """屏幕自动化操作器。"""
 
     def __init__(self, config: Dict[str, Any], screenshot_dir: str = "./screenshots",
-                 template_dir: str = "./templates") -> None:
+                 template_dir: str = "./templates",
+                 metrics_callback: Optional[Callable[[str, bool, Dict[str, Any]], None]] = None) -> None:
         self.config = config
         gui_cfg: Dict[str, Any] = config.get("gui", {})
         self.confidence_threshold = float(gui_cfg.get("confidence_threshold", 0.8))
@@ -81,6 +82,8 @@ class GuiAutomator:
         self.template_dir = template_dir
         # 模板图片缓存
         self._template_cache: Dict[str, "Image.Image"] = {}
+        # 性能指标回调
+        self._metrics_callback = metrics_callback
         # PyAutoGUI 全局安全设置（惰性初始化时设置）
         pg = _get_pyautogui()
         pg.FAILSAFE = True
@@ -130,9 +133,14 @@ class GuiAutomator:
         if best is None:
             logger.warning("元素定位失败：%s（置信度阈值 %.2f）", template_name, threshold)
             self.save_failure_screenshot(f"locate_fail_{template_name}")
+            self._track_metrics("element_locate", False,
+                                {"template": template_name, "threshold": threshold})
         else:
             logger.debug("定位 %s 成功：中心=%s 置信=%.2f 尺度=%.2f",
                          template_name, best.center, best.confidence, best.scale)
+            self._track_metrics("element_locate", True,
+                                {"template": template_name, "confidence": best.confidence,
+                                 "scale": best.scale})
         return best
 
     def locate_or_raise(self, template_name: str,
@@ -234,13 +242,24 @@ class GuiAutomator:
     # ---------------------------- 文件上传 ----------------------------
 
     def upload_file(self, template_name: str, file_path: str,
-                     wait_for_confirm: Optional[str] = None) -> bool:
-        """上传文件：点击上传区/浏览按钮→填入路径→确认。
+                     wait_for_confirm: Optional[str] = None,
+                     use_drag_drop: bool = True) -> bool:
+        """上传文件：支持拖拽上传与对话框上传两种模式。
+
+        拖拽上传模式（use_drag_drop=True，默认）：
+          1. 在文件管理器中打开文件所在目录
+          2. 定位并选中目标文件
+          3. 按住鼠标左键拖拽至浏览器上传区域
+          4. 释放鼠标完成拖拽，等待上传完成
+
+        对话框上传模式（use_drag_drop=False）：
+          点击上传按钮→在系统文件对话框中粘贴路径→回车确认
 
         Args:
-            template_name: 上传区域或浏览按钮模板
+            template_name: 浏览器中的上传区域模板名
             file_path: 本地文件绝对路径
             wait_for_confirm: 上传完成后等待出现的确认元素模板
+            use_drag_drop: 是否使用拖拽上传模式
         """
         if not os.path.isfile(file_path):
             logger.error("待上传文件不存在：%s", file_path)
@@ -250,16 +269,16 @@ class GuiAutomator:
             logger.error("文件 %.2fMB 超过上传限制 %.0fMB：%s",
                          size_mb, self.upload_size_limit_mb, file_path)
             return False
-        if not self.click_element(template_name, wait_after=0.8):
+
+        if use_drag_drop:
+            ok = self._drag_drop_upload(template_name, file_path)
+        else:
+            ok = self._dialog_upload(template_name, file_path)
+
+        if not ok:
+            logger.warning("上传操作失败：%s", file_path)
             return False
-        time.sleep(0.5)
-        # 在系统文件对话框中输入路径并确认
-        _get_pyperclip().copy(file_path)
-        time.sleep(0.1)
-        self._paste()
-        time.sleep(0.3)
-        _get_pyautogui().press("enter")
-        # 等待上传完成确认
+
         if wait_for_confirm:
             loc = self.wait_for_element(wait_for_confirm, timeout=self.upload_wait_timeout)
             if loc is None:
@@ -267,6 +286,161 @@ class GuiAutomator:
                 return False
         logger.info("文件上传完成：%s", file_path)
         return True
+
+    def _dialog_upload(self, template_name: str, file_path: str) -> bool:
+        """对话框上传：点击浏览按钮→填入路径→回车。"""
+        if not self.click_element(template_name, wait_after=0.8):
+            return False
+        time.sleep(0.5)
+        _get_pyperclip().copy(file_path)
+        time.sleep(0.1)
+        self._paste()
+        time.sleep(0.3)
+        _get_pyautogui().press("enter")
+        return True
+
+    def _drag_drop_upload(self, template_name: str, file_path: str) -> bool:
+        """真正的拖拽上传：从文件管理器拖拽至浏览器上传区域。
+
+        流程：
+          1. 定位浏览器上传区域坐标
+          2. 打开文件管理器并导航到文件所在目录
+          3. 在文件管理器中搜索并选中目标文件
+          4. 按住鼠标左键，拖拽至浏览器上传区域
+          5. 释放鼠标完成拖拽
+        """
+        pg = _get_pyautogui()
+
+        # 步骤 1：先定位浏览器中的上传区域
+        upload_loc = self.locate(template_name)
+        if upload_loc is None:
+            logger.error("无法定位上传区域：%s", template_name)
+            return False
+        browser_upload_pos = upload_loc.center
+        logger.debug("上传区域坐标：%s", browser_upload_pos)
+
+        # 步骤 2：最小化当前窗口，聚焦文件管理器
+        folder_path = os.path.dirname(os.path.abspath(file_path))
+        file_name = os.path.basename(file_path)
+        self._open_file_manager(folder_path)
+        time.sleep(1.5)  # 等待文件管理器打开
+
+        try:
+            # 步骤 3：在文件管理器中搜索并定位文件
+            file_pos = self._locate_file_in_manager(file_name)
+            if file_pos is None:
+                logger.warning("无法在文件管理器中定位文件，回退到对话框上传")
+                # 关闭文件管理器窗口
+                self._close_active_window()
+                time.sleep(0.5)
+                return self._dialog_upload(template_name, file_path)
+
+            logger.debug("文件在文件管理器中的坐标：%s", file_pos)
+
+            # 步骤 4：拖拽到浏览器上传区域
+            # 先移动到文件位置
+            pg.moveTo(file_pos[0], file_pos[1], duration=self.mouse_move_duration)
+            time.sleep(0.2)
+
+            # 按住左键
+            pg.mouseDown(button='left')
+            time.sleep(0.1)
+
+            # 拖拽到上传区域（使用 dragTo 确保平滑移动）
+            pg.dragTo(browser_upload_pos[0], browser_upload_pos[1],
+                      duration=self.mouse_move_duration * 1.5,
+                      button='left')
+            time.sleep(0.2)
+
+            # 释放鼠标
+            pg.mouseUp(button='left')
+            time.sleep(0.5)
+
+            logger.info("拖拽上传完成：%s", file_name)
+            return True
+
+        except Exception as exc:  # noqa: BLE001
+            logger.error("拖拽上传异常：%s，回退到对话框上传", exc)
+            # 确保鼠标键已释放
+            try:
+                pg.mouseUp(button='left')
+            except Exception:  # noqa: BLE001
+                pass
+            self._close_active_window()
+            time.sleep(0.5)
+            return self._dialog_upload(template_name, file_path)
+
+    def _open_file_manager(self, folder_path: str) -> None:
+        """跨平台打开文件管理器并导航到指定目录。"""
+        import subprocess
+        try:
+            if _IS_MAC:
+                # macOS: open Finder
+                subprocess.Popen(["open", folder_path],
+                                stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL)
+            elif os.name == 'nt':
+                # Windows: explorer
+                subprocess.Popen(["explorer", folder_path.replace("/", "\\")],
+                                stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL)
+            else:
+                # Linux: try xdg-open
+                subprocess.Popen(["xdg-open", folder_path],
+                                stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL)
+            logger.debug("已打开文件管理器：%s", folder_path)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("打开文件管理器失败：%s", exc)
+
+    def _locate_file_in_manager(self, file_name: str) -> Optional[Tuple[int, int]]:
+        """在当前活动的文件管理器窗口中搜索并定位文件图标中心坐标。
+
+        策略：
+          1. 使用搜索快捷键（Cmd+F / Ctrl+F）定位到搜索框
+          2. 键入文件名自动筛选
+          3. 按 Tab/Down 选中第一个搜索结果
+          4. 返回当前鼠标位置作为文件图标位置
+        """
+        pg = _get_pyautogui()
+
+        # 搜索框快捷键
+        search_hotkey = [_MOD_KEY, "f"]
+
+        # 聚焦搜索
+        pg.hotkey(*search_hotkey)
+        time.sleep(0.3)
+
+        # 清空搜索框并输入文件名
+        pg.hotkey(_MOD_KEY, "a")
+        time.sleep(0.1)
+        pg.press("delete")
+        time.sleep(0.1)
+
+        # 粘贴文件名（支持中文）
+        _get_pyperclip().copy(file_name)
+        time.sleep(0.05)
+        self._paste()
+        time.sleep(0.5)  # 等待搜索结果
+
+        # 选中第一个结果
+        pg.press("tab")
+        time.sleep(0.1)
+        pg.press("down")
+        time.sleep(0.2)
+
+        # 返回当前鼠标位置（假设焦点在文件图标上）
+        pos = pg.position()
+        return (pos.x, pos.y)
+
+    def _close_active_window(self) -> None:
+        """关闭当前活动窗口（文件管理器）。"""
+        pg = _get_pyautogui()
+        if _IS_MAC:
+            pg.hotkey("command", "w")
+        else:
+            pg.hotkey("alt", "f4")
+        time.sleep(0.3)
 
     def upload_files_batch(self, template_name: str, file_paths: List[str],
                             wait_for_confirm: Optional[str] = None,
