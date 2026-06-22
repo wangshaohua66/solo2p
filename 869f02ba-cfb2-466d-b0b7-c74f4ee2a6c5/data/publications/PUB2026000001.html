@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试公告</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background-color: #f5f5f5;
+        }
+        .publication-container {
+            background: #fff;
+            padding: 60px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border: 1px solid #e0e0e0;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px double #333;
+            padding-bottom: 30px;
+            margin-bottom: 40px;
+        }
+        .header h1 {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #1a1a1a;
+            letter-spacing: 2px;
+        }
+        .header .subtitle {
+            font-size: 14px;
+            color: #666;
+            letter-spacing: 1px;
+        }
+        .publication-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            padding: 15px 20px;
+            background: #f9f9f9;
+            border-left: 4px solid #0066cc;
+        }
+        .publication-info .info-item {
+            font-size: 14px;
+            color: #555;
+        }
+        .publication-info .info-item span {
+            font-weight: bold;
+            color: #333;
+        }
+        .content {
+            font-size: 16px;
+            line-height: 1.8;
+        }
+        .intro {
+            margin-bottom: 30px;
+            text-indent: 2em;
+            font-size: 15px;
+            color: #444;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px 15px;
+            text-align: left;
+        }
+        th {
+            background-color: #0066cc;
+            color: #fff;
+            font-weight: bold;
+            text-align: center;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f0f7ff;
+        }
+        .seq-no {
+            text-align: center;
+            width: 80px;
+        }
+        .work-type {
+            width: 100px;
+            text-align: center;
+        }
+        .reg-date {
+            width: 120px;
+            text-align: center;
+        }
+        .footer {
+            margin-top: 60px;
+            text-align: right;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+            color: #666;
+            font-size: 13px;
+        }
+        .footer .official {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .work-type-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            color: #fff;
+        }
+        .type-text { background-color: #3498db; }
+        .type-art { background-color: #9b59b6; }
+        .type-music { background-color: #e67e22; }
+        .type-audiovisual { background-color: #27ae60; }
+    </style>
+</head>
+<body>
+    <div class="publication-container">
+        <div class="header">
+            <h1>测试公告</h1>
+            <div class="subtitle">COPYRIGHT REGISTRATION PUBLICATION</div>
+        </div>
+
+        <div class="publication-info">
+            <div class="info-item">
+                <span>公告编号：</span>PUB2026000001
+            </div>
+            <div class="info-item">
+                <span>公告日期：</span>2026-06-23
+            </div>
+            <div class="info-item">
+                <span>登记数量：</span>0 件
+            </div>
+        </div>
+
+        <div class="content">
+            <p class="intro">
+                根据《中华人民共和国著作权法》规定，现将2026-06-15至2026-06-22期间
+                本机关核准登记的著作权予以公告。任何单位或个人对公告内容有异议的，可在公告发布之日起30日内，
+                以书面形式向本机关提出。
+            </p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th class="seq-no">序号</th>
+                        <th>作品名称</th>
+                        <th class="work-type">作品类型</th>
+                        <th>著作权人</th>
+                        <th class="reg-date">登记日期</th>
+                        <th>证书编号</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="footer">
+            <p class="official">省级版权保护中心</p>
+            <p>发布日期：2026-06-23</p>
+            <p style="margin-top: 5px; font-size: 12px;">生成时间：2026-06-22 12:58:02</p>
+        </div>
+    </div>
+</body>
+</html>

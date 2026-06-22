@@ -1,0 +1,136 @@
+2026-06-22 12:51:31 - models - INFO - Database tables created successfully
+2026-06-22 12:51:32 - services.certificate - INFO - Registered font: /System/Library/Fonts/STHeiti Light.ttc
+2026-06-22 12:51:32 - services.registration - INFO - Applicant created: 测试申请人 (ID: 1)
+2026-06-22 12:51:32 - cli - ERROR - System test failed: Instance <Applicant at 0x10be81550> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+Traceback (most recent call last):
+  File "/Users/paul/WorkSpace/TestSoloCoder/869f02ba-cfb2-466d-b0b7-c74f4ee2a6c5/cli.py", line 1040, in run_tests
+    print_success(f'   申请人创建成功: {applicant.name} (ID: {applicant.id})')
+                                        ^^^^^^^^^^^^^^
+  File "/Users/paul/Library/Python/3.14/lib/python/site-packages/sqlalchemy/orm/attributes.py", line 569, in __get__
+    return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/Users/paul/Library/Python/3.14/lib/python/site-packages/sqlalchemy/orm/attributes.py", line 1096, in get
+    value = self._fire_loader_callables(state, key, passive)
+  File "/Users/paul/Library/Python/3.14/lib/python/site-packages/sqlalchemy/orm/attributes.py", line 1126, in _fire_loader_callables
+    return state._load_expired(state, passive)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "/Users/paul/Library/Python/3.14/lib/python/site-packages/sqlalchemy/orm/state.py", line 828, in _load_expired
+    self.manager.expired_attribute_loader(self, toload, passive)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/paul/Library/Python/3.14/lib/python/site-packages/sqlalchemy/orm/loading.py", line 1607, in load_scalar_attributes
+    raise orm_exc.DetachedInstanceError(
+    ...<2 lines>...
+    )
+sqlalchemy.orm.exc.DetachedInstanceError: Instance <Applicant at 0x10be81550> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2026-06-22 12:55:20 - models - INFO - Database tables created successfully
+2026-06-22 12:55:21 - services.certificate - INFO - Registered font: /System/Library/Fonts/STHeiti Light.ttc
+2026-06-22 12:55:21 - services.registration - INFO - Applicant already exists: 测试申请人
+2026-06-22 12:55:21 - services.registration - INFO - Work created: 测试作品-版权保护系统 (ID: 1, 1 features extracted)
+2026-06-22 12:55:21 - services.registration - INFO - Registration submitted: 20260622000001 (similarity: 0.00%, unique: True)
+2026-06-22 12:55:21 - services.payment - INFO - Payment record created: PAY2026062200000001 for registration 1, amount: 300
+2026-06-22 12:55:21 - services.payment - INFO - Payment PAY2026062200000001 status updated: pending -> paid
+2026-06-22 12:56:03 - models - INFO - Database tables created successfully
+2026-06-22 12:56:04 - services.certificate - INFO - Registered font: /System/Library/Fonts/STHeiti Light.ttc
+2026-06-22 12:56:04 - services.registration - INFO - Applicant already exists: 测试申请人
+2026-06-22 12:56:04 - services.registration - INFO - Work created: 测试作品-版权保护系统 (ID: 2, 1 features extracted)
+2026-06-22 12:56:04 - services.registration - INFO - Registration submitted: 20260622000002 (similarity: 100.00%, unique: False)
+2026-06-22 12:56:04 - services.payment - INFO - Payment record created: PAY2026062200000002 for registration 2, amount: 300
+2026-06-22 12:56:04 - services.payment - INFO - Payment PAY2026062200000002 status updated: pending -> paid
+2026-06-22 12:56:04 - cli - ERROR - System test failed: Parent instance <Registration at 0x10c4563c0> is not bound to a Session; lazy load operation of attribute 'work' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+Traceback (most recent call last):
+  File "/Users/paul/WorkSpace/TestSoloCoder/869f02ba-cfb2-466d-b0b7-c74f4ee2a6c5/cli.py", line 1079, in run_tests
+    certificate, cert_path = cert_service.generate_certificate(registration)
+                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/Users/paul/WorkSpace/TestSoloCoder/869f02ba-cfb2-466d-b0b7-c74f4ee2a6c5/services/certificate.py", line 142, in generate_certificate
+    if not registration.work or not registration.applicant:
+           ^^^^^^^^^^^^^^^^^
+  File "/Users/paul/Library/Python/3.14/lib/python/site-packages/sqlalchemy/orm/attributes.py", line 569, in __get__
+    return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/Users/paul/Library/Python/3.14/lib/python/site-packages/sqlalchemy/orm/attributes.py", line 1096, in get
+    value = self._fire_loader_callables(state, key, passive)
+  File "/Users/paul/Library/Python/3.14/lib/python/site-packages/sqlalchemy/orm/attributes.py", line 1131, in _fire_loader_callables
+    return self.callable_(state, passive)
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "/Users/paul/Library/Python/3.14/lib/python/site-packages/sqlalchemy/orm/strategies.py", line 922, in _load_for_state
+    raise orm_exc.DetachedInstanceError(
+    ...<3 lines>...
+    )
+sqlalchemy.orm.exc.DetachedInstanceError: Parent instance <Registration at 0x10c4563c0> is not bound to a Session; lazy load operation of attribute 'work' cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2026-06-22 12:56:48 - models - INFO - Database tables created successfully
+2026-06-22 12:56:48 - services.certificate - INFO - Registered font: /System/Library/Fonts/STHeiti Light.ttc
+2026-06-22 12:56:48 - services.registration - INFO - Applicant created: 测试申请人 (ID: 1)
+2026-06-22 12:56:48 - services.registration - INFO - Work created: 测试作品-版权保护系统 (ID: 1, 1 features extracted)
+2026-06-22 12:56:48 - services.registration - INFO - Registration submitted: 20260622000001 (similarity: 0.00%, unique: True)
+2026-06-22 12:56:48 - services.payment - INFO - Payment record created: PAY2026062200000001 for registration 1, amount: 300
+2026-06-22 12:56:48 - services.payment - INFO - Payment PAY2026062200000001 status updated: pending -> paid
+2026-06-22 12:56:48 - cli - ERROR - System test failed: Instance <Work at 0x10e464cd0> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+Traceback (most recent call last):
+  File "/Users/paul/WorkSpace/TestSoloCoder/869f02ba-cfb2-466d-b0b7-c74f4ee2a6c5/cli.py", line 1079, in run_tests
+    certificate, cert_path = cert_service.generate_certificate(registration)
+                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/Users/paul/WorkSpace/TestSoloCoder/869f02ba-cfb2-466d-b0b7-c74f4ee2a6c5/services/certificate.py", line 148, in generate_certificate
+    certificate_no = self._generate_certificate_no(registration)
+  File "/Users/paul/WorkSpace/TestSoloCoder/869f02ba-cfb2-466d-b0b7-c74f4ee2a6c5/services/certificate.py", line 95, in _generate_certificate_no
+    }.get(registration.work.work_type if registration.work else 'text', '00')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/paul/Library/Python/3.14/lib/python/site-packages/sqlalchemy/orm/attributes.py", line 569, in __get__
+    return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/Users/paul/Library/Python/3.14/lib/python/site-packages/sqlalchemy/orm/attributes.py", line 1096, in get
+    value = self._fire_loader_callables(state, key, passive)
+  File "/Users/paul/Library/Python/3.14/lib/python/site-packages/sqlalchemy/orm/attributes.py", line 1126, in _fire_loader_callables
+    return state._load_expired(state, passive)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "/Users/paul/Library/Python/3.14/lib/python/site-packages/sqlalchemy/orm/state.py", line 828, in _load_expired
+    self.manager.expired_attribute_loader(self, toload, passive)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/paul/Library/Python/3.14/lib/python/site-packages/sqlalchemy/orm/loading.py", line 1607, in load_scalar_attributes
+    raise orm_exc.DetachedInstanceError(
+    ...<2 lines>...
+    )
+sqlalchemy.orm.exc.DetachedInstanceError: Instance <Work at 0x10e464cd0> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2026-06-22 12:58:02 - models - INFO - Database tables created successfully
+2026-06-22 12:58:02 - services.certificate - INFO - Registered font: /System/Library/Fonts/STHeiti Light.ttc
+2026-06-22 12:58:02 - services.registration - INFO - Applicant created: 测试申请人 (ID: 1)
+2026-06-22 12:58:02 - services.registration - INFO - Work created: 测试作品-版权保护系统 (ID: 1, 1 features extracted)
+2026-06-22 12:58:02 - services.registration - INFO - Registration submitted: 20260622000001 (similarity: 0.00%, unique: True)
+2026-06-22 12:58:02 - services.payment - INFO - Payment record created: PAY2026062200000001 for registration 1, amount: 300
+2026-06-22 12:58:02 - services.payment - INFO - Payment PAY2026062200000001 status updated: pending -> paid
+2026-06-22 12:58:02 - services.certificate - INFO - Certificate generated: CR20260100000001 -> data/certificates/CR20260100000001.pdf
+2026-06-22 12:58:02 - services.publication - INFO - Publication created: PUB2026000001, 0 items, HTML: data/publications/PUB2026000001.html, TEXT: data/publications/PUB2026000001.txt
+2026-06-22 12:59:49 - models - INFO - Database tables created successfully
+2026-06-22 12:59:56 - models - INFO - Database tables created successfully
+2026-06-22 13:00:00 - models - INFO - Database tables created successfully
+2026-06-22 13:00:05 - models - INFO - Database tables created successfully
+2026-06-22 13:00:11 - models - INFO - Database tables created successfully
+2026-06-22 13:00:11 - services.certificate - INFO - Registered font: /System/Library/Fonts/STHeiti Light.ttc
+2026-06-22 13:00:11 - services.registration - INFO - Applicant already exists: 测试申请人
+2026-06-22 13:00:11 - services.registration - INFO - Work created: 测试作品-版权保护系统 (ID: 2, 1 features extracted)
+2026-06-22 13:00:11 - services.registration - INFO - Registration submitted: 20260622000002 (similarity: 100.00%, unique: False)
+2026-06-22 13:00:11 - services.payment - INFO - Payment record created: PAY2026062200000002 for registration 2, amount: 300
+2026-06-22 13:00:11 - services.payment - INFO - Payment PAY2026062200000002 status updated: pending -> paid
+2026-06-22 13:00:20 - models - INFO - Database tables created successfully
+2026-06-22 13:00:20 - services.certificate - INFO - Registered font: /System/Library/Fonts/STHeiti Light.ttc
+2026-06-22 13:00:20 - services.registration - INFO - Applicant already exists: 测试申请人
+2026-06-22 13:00:20 - services.registration - INFO - Work created: 测试作品-版权保护系统 (ID: 3, 1 features extracted)
+2026-06-22 13:00:20 - services.registration - INFO - Registration submitted: 20260622000003 (similarity: 100.00%, unique: False)
+2026-06-22 13:00:20 - services.payment - INFO - Payment record created: PAY2026062200000003 for registration 3, amount: 300
+2026-06-22 13:00:20 - services.payment - INFO - Payment PAY2026062200000003 status updated: pending -> paid
+2026-06-22 13:00:21 - services.certificate - INFO - Certificate generated: CR20260100000002 -> data/certificates/CR20260100000002.pdf
+2026-06-22 13:00:21 - services.publication - INFO - Publication created: PUB2026000002, 0 items, HTML: data/publications/PUB2026000002.html, TEXT: data/publications/PUB2026000002.txt
+2026-06-22 13:00:51 - models - INFO - Database tables created successfully
+2026-06-22 13:00:51 - cli - ERROR - Statistics query failed: name 'ALL' is not defined
+Traceback (most recent call last):
+  File "/Users/paul/WorkSpace/TestSoloCoder/869f02ba-cfb2-466d-b0b7-c74f4ee2a6c5/cli.py", line 488, in get_statistics
+    table.hrules = ALL
+                   ^^^
+NameError: name 'ALL' is not defined. Did you mean: 'all'?
+2026-06-22 13:01:09 - models - INFO - Database tables created successfully
+2026-06-22 13:01:10 - cli - ERROR - Publication list failed: name 'ALL' is not defined
+Traceback (most recent call last):
+  File "/Users/paul/WorkSpace/TestSoloCoder/869f02ba-cfb2-466d-b0b7-c74f4ee2a6c5/cli.py", line 746, in list_publications
+    table.hrules = ALL
+                   ^^^
+NameError: name 'ALL' is not defined. Did you mean: 'all'?
+2026-06-22 13:01:16 - models - INFO - Database tables created successfully

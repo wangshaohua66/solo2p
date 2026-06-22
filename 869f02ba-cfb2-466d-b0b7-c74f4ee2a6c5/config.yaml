@@ -1,0 +1,57 @@
+database:
+  path: data/db/copyright.db
+  echo: false
+  pool_size: 5
+
+templates:
+  certificate_dir: data/templates
+  publication_dir: data/templates
+
+api:
+  copyright_center_url: https://api.ccopyright.cn/v1
+  national_library_url: https://api.nlc.cn/v2
+  api_key: "${COPYRIGHT_API_KEY}"
+  api_secret: "${COPYRIGHT_API_SECRET}"
+  timeout: 30
+  max_retries: 3
+  concurrency: 50
+
+similarity:
+  text_threshold: 0.85
+  image_threshold: 0.90
+  audio_threshold: 0.88
+  video_threshold: 0.85
+
+performance:
+  similarity_timeout: 5
+  certificate_rate: 100
+  max_memory_mb: 500
+  db_max_records: 100000
+
+certificate:
+  output_dir: data/certificates
+  watermark_text: "版权保护中心"
+  qr_size: 100
+  anti_counterfeiting_length: 16
+
+publication:
+  output_dir: data/publications
+  weekly_day: 5
+  default_format: html
+
+payment:
+  default_fee: 300
+  bank_receipt_dir: data/receipts
+
+logging:
+  level: INFO
+  file: data/logs/copyright.log
+  max_bytes: 10485760
+  backup_count: 5
+
+cache:
+  feature_dir: data/cache
+  expire_days: 30
+
+verification:
+  qr_base_url: "https://verify.copyright.gov.cn"
