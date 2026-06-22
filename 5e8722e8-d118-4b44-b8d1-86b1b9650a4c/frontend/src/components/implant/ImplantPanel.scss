@@ -1,0 +1,77 @@
+.implant-panel {
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+
+    h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+  }
+
+  .patient-detail {
+    .detail-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+
+      h3 {
+        margin: 0;
+        font-size: 18px;
+      }
+    }
+
+    .info-card {
+      margin-bottom: 16px;
+
+      .info-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+
+        @media (max-width: 768px) {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .info-item {
+          .label {
+            color: #8c8c8c;
+            margin-right: 8px;
+          }
+
+          .value {
+            font-weight: 500;
+          }
+        }
+      }
+    }
+
+    .stages-card {
+      margin-bottom: 16px;
+    }
+
+    .checklist-card {
+      .checklist {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+
+        .checklist-item {
+          padding: 8px 0;
+        }
+      }
+    }
+  }
+
+  .form-row {
+    display: flex;
+    gap: 16px;
+
+    .form-item-half {
+      flex: 1;
+    }
+  }
+}

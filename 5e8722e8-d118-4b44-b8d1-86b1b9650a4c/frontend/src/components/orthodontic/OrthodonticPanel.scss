@@ -1,0 +1,95 @@
+.orthodontic-panel {
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+
+    h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+  }
+
+  .patient-detail {
+    .detail-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+
+      h3 {
+        flex: 1;
+        margin: 0;
+        font-size: 18px;
+      }
+    }
+
+    .detail-content {
+      display: grid;
+      grid-template-columns: 350px 1fr;
+      gap: 16px;
+
+      @media (max-width: 768px) {
+        grid-template-columns: 1fr;
+      }
+
+      .info-section {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+
+        .info-card {
+          .info-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+
+            &:last-child {
+              margin-bottom: 0;
+            }
+
+            .label {
+              color: #8c8c8c;
+              min-width: 80px;
+            }
+          }
+        }
+
+        .chart-card {
+          flex: 1;
+        }
+      }
+
+      .timeline-card {
+        :global(.ant-timeline) {
+          margin: 16px 0;
+        }
+
+        .timeline-item {
+          .timeline-date {
+            font-size: 13px;
+            color: #8c8c8c;
+            margin-bottom: 4px;
+          }
+
+          .timeline-content {
+            .doctor {
+              margin-left: 8px;
+              font-size: 13px;
+              color: #595959;
+            }
+
+            .movement,
+            .adjustment,
+            .notes {
+              margin-top: 6px;
+              font-size: 13px;
+              color: #595959;
+            }
+          }
+        }
+      }
+    }
+  }
+}

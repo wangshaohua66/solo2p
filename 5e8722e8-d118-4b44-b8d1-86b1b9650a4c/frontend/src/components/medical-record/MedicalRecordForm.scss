@@ -1,0 +1,14 @@
+.medical-record-form {
+  .form-section {
+    padding: 16px 0;
+  }
+
+  .form-row {
+    display: flex;
+    gap: 16px;
+
+    .form-item-half {
+      flex: 1;
+    }
+  }
+}

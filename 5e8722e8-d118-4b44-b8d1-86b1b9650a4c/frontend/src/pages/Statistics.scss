@@ -1,0 +1,40 @@
+.statistics-page {
+  .main-card {
+    border-radius: 8px;
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+
+      h3 {
+        margin: 0;
+        font-size: 18px;
+      }
+
+      .time-selector {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        span {
+          color: #595959;
+          font-size: 14px;
+        }
+      }
+    }
+
+    .tab-content {
+      padding-top: 16px;
+
+      .chart-card {
+        border-radius: 8px;
+      }
+
+      .perf-table {
+        border-radius: 8px;
+      }
+    }
+  }
+}
