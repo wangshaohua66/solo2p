@@ -55,3 +55,4 @@ cache:
 
 verification:
   qr_base_url: "https://verify.copyright.gov.cn"
+  report_dir: data/reports/verification

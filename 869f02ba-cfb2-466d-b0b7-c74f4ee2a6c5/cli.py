@@ -485,7 +485,10 @@ def get_statistics(ctx, period, start_date, end_date, group_by):
 
         table = PrettyTable()
         table.field_names = ['指标', '数值']
-        table.hrules = ALL
+        try:
+            table.hrules = HRuleStyle.ALL
+        except NameError:
+            table.hrules = _ALL
 
         table.add_row(['统计周期', stats['period']])
         table.add_row(['日期范围', f"{stats['start_date']} 至 {stats['end_date']}"])
@@ -743,7 +746,10 @@ def list_publications(ctx, published, start_date, end_date, limit):
 
         table = PrettyTable()
         table.field_names = ['公告编号', '标题', '发布日期', '数量', '状态', '发布人']
-        table.hrules = ALL
+        try:
+            table.hrules = HRuleStyle.ALL
+        except NameError:
+            table.hrules = _ALL
 
         for pub in results:
             status = f"{Fore.GREEN}已发布{Style.RESET_ALL}" if pub['is_published'] else f"{Fore.YELLOW}待发布{Style.RESET_ALL}"
@@ -951,7 +957,10 @@ def pending_payments(ctx, overdue_days):
 
         table = PrettyTable()
         table.field_names = ['申请编号', '申请人', '作品名称', '金额', '待缴天数', '状态']
-        table.hrules = ALL
+        try:
+            table.hrules = HRuleStyle.ALL
+        except NameError:
+            table.hrules = _ALL
 
         for p in results:
             status = f"{Fore.RED}已逾期{Style.RESET_ALL}" if p['is_overdue'] else f"{Fore.YELLOW}待缴费{Style.RESET_ALL}"

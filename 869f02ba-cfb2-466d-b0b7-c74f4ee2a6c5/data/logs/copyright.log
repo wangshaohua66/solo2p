@@ -134,3 +134,12 @@ Traceback (most recent call last):
                    ^^^
 NameError: name 'ALL' is not defined. Did you mean: 'all'?
 2026-06-22 13:01:16 - models - INFO - Database tables created successfully
+2026-06-22 13:05:45 - models - INFO - Database tables created successfully
+2026-06-22 13:05:45 - services.certificate - INFO - Registered font: /System/Library/Fonts/STHeiti Light.ttc
+2026-06-22 13:05:45 - services.registration - INFO - Applicant created: 测试申请人 (ID: 1)
+2026-06-22 13:05:45 - services.registration - INFO - Work created: 测试作品-版权保护系统 (ID: 1, 1 features extracted)
+2026-06-22 13:05:45 - services.registration - INFO - Registration submitted: 20260622000001 (similarity: 0.00%, unique: True)
+2026-06-22 13:05:45 - services.payment - INFO - Payment record created: PAY2026062200000001 for registration 1, amount: 300
+2026-06-22 13:05:45 - services.payment - INFO - Payment PAY2026062200000001 status updated: pending -> paid
+2026-06-22 13:05:46 - services.certificate - INFO - Certificate generated: CR20260100000001 -> data/certificates/CR20260100000001.pdf
+2026-06-22 13:05:46 - services.publication - INFO - Publication created: PUB2026000001, 0 items, HTML: data/publications/PUB2026000001.html, TEXT: data/publications/PUB2026000001.txt

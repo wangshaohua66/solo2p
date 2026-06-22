@@ -625,6 +625,7 @@ class RegistrationService:
                 reg_dicts.append(reg)
 
         results = self.external_verifier.batch_verify(reg_dicts)
+        report_path = self._generate_verification_report(results, reg_dicts)
 
         with db_manager.get_session() as session:
             for result in results:
@@ -640,6 +641,7 @@ class RegistrationService:
                     query_result='unique' if cc['unique'] else 'matched',
                     match_count=cc['match_count'],
                     match_details=cc['details'],
+                    report_path=report_path,
                 )
                 session.add(vr_cc)
 
@@ -650,6 +652,7 @@ class RegistrationService:
                     query_result='unique' if nlc['unique'] else 'matched',
                     match_count=nlc['match_count'],
                     match_details=nlc['details'],
+                    report_path=report_path,
                 )
                 session.add(vr_nlc)
 
@@ -660,8 +663,148 @@ class RegistrationService:
                         reg.is_unique = False
                         reg.review_notes = f"外部核验发现潜在冲突：版权中心{cc['match_count']}条，国家图书馆{nlc['match_count']}条"
 
-        logger.info(f"Uniqueness verification completed for {len(results)} registrations")
+        logger.info(f"Uniqueness verification completed for {len(results)} registrations, report: {report_path}")
         return results
+
+    def _generate_verification_report(self, results: List[Dict], registrations: List) -> str:
+        report_dir = Path(config.get('verification.report_dir', 'data/reports/verification'))
+        os.makedirs(report_dir, exist_ok=True)
+
+        batch_no = datetime.now().strftime('VER%Y%m%d%H%M%S')
+        report_file = report_dir / f"{batch_no}.md"
+
+        total_count = len(results)
+        success_count = sum(1 for r in results if 'error' not in r)
+        unique_count = sum(1 for r in results if 'error' not in r and r['copyright_center']['unique'] and r['national_library']['unique'])
+        conflict_count = success_count - unique_count
+
+        reg_map = {r.id: r for r in registrations}
+
+        lines = []
+        lines.append(f"# 著作权唯一性核验报告")
+        lines.append("")
+        lines.append(f"**报告编号:** {batch_no}")
+        lines.append(f"**核验时间:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        lines.append(f"**核验批次:** {total_count} 件申请")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+        lines.append("## 一、核验概况")
+        lines.append("")
+        lines.append(f"| 指标 | 数值 |")
+        lines.append(f"|------|------|")
+        lines.append(f"| 申请总数 | {total_count} |")
+        lines.append(f"| 核验成功 | {success_count} |")
+        lines.append(f"| 核验失败 | {total_count - success_count} |")
+        lines.append(f"| 无冲突作品 | {unique_count} |")
+        lines.append(f"| 疑似冲突 | {conflict_count} |")
+        lines.append(f"| 冲突率 | {conflict_count / success_count * 100:.1f}%" if success_count > 0 else "| 冲突率 | 0.0% |")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+        lines.append("## 二、重复记录详情")
+        lines.append("")
+
+        conflict_results = [r for r in results if 'error' not in r and not (r['copyright_center']['unique'] and r['national_library']['unique'])]
+
+        if conflict_results:
+            for idx, result in enumerate(conflict_results, 1):
+                reg_id = result['registration_id']
+                reg = reg_map.get(reg_id)
+                work_title = reg.work.title if reg and reg.work else '未知'
+                application_no = reg.application_no if reg else '未知'
+                applicant_name = reg.applicant.name if reg and reg.applicant else '未知'
+
+                lines.append(f"### {idx}. 申请编号: {application_no}")
+                lines.append("")
+                lines.append(f"- **作品名称:** {work_title}")
+                lines.append(f"- **申请人:** {applicant_name}")
+                lines.append("")
+
+                cc = result['copyright_center']
+                lines.append(f"**中国版权保护中心核验结果:**")
+                lines.append(f"- 状态: {'✅ 无冲突' if cc['unique'] else '⚠️ 发现冲突'}")
+                lines.append(f"- 匹配条数: {cc['match_count']}")
+                if cc['match_count'] > 0 and cc['details']:
+                    lines.append(f"- 匹配详情:")
+                    try:
+                        details = json.loads(cc['details']) if isinstance(cc['details'], str) else cc['details']
+                        for i, d in enumerate(details[:5], 1):
+                            title = d.get('title', '未知') if isinstance(d, dict) else str(d)
+                            lines.append(f"  {i}. {title}")
+                    except (json.JSONDecodeError, TypeError):
+                        lines.append(f"  {cc['details'][:200]}")
+                lines.append("")
+
+                nlc = result['national_library']
+                lines.append(f"**国家图书馆馆藏目录核验结果:**")
+                lines.append(f"- 状态: {'✅ 无冲突' if nlc['unique'] else '⚠️ 发现冲突'}")
+                lines.append(f"- 匹配条数: {nlc['match_count']}")
+                if nlc['match_count'] > 0 and nlc['details']:
+                    lines.append(f"- 匹配详情:")
+                    try:
+                        details = json.loads(nlc['details']) if isinstance(nlc['details'], str) else nlc['details']
+                        for i, d in enumerate(details[:5], 1):
+                            title = d.get('title', '未知') if isinstance(d, dict) else str(d)
+                            lines.append(f"  {i}. {title}")
+                    except (json.JSONDecodeError, TypeError):
+                        lines.append(f"  {nlc['details'][:200]}")
+                lines.append("")
+                lines.append("---")
+                lines.append("")
+        else:
+            lines.append("> 🎉 本次核验未发现任何冲突记录，所有作品均通过唯一性核验。")
+            lines.append("")
+
+        lines.append("## 三、处理建议")
+        lines.append("")
+
+        if conflict_count > 0:
+            lines.append(f"本次核验共发现 **{conflict_count}** 件疑似冲突作品，建议按以下流程处理：")
+            lines.append("")
+            lines.append("1. **人工复核:** 由资深审查员对疑似冲突作品进行人工比对，确认是否构成实质性相似")
+            lines.append("2. **权利确认:** 如构成冲突，联系申请人补充权利证明材料（如创作底稿、公开发表证明等）")
+            lines.append("3. **比对分析:** 对冲突作品进行逐段比对，分析相似部分的独创性")
+            lines.append("4. **结果反馈:** 将核验结果书面通知申请人，给予陈述申辩机会")
+            lines.append("5. **登记决定:** 根据复核结果作出准予登记或驳回申请的决定")
+            lines.append("")
+            lines.append(f"**重点关注清单（共{conflict_count}件）:**")
+            lines.append("")
+            lines.append("| 序号 | 申请编号 | 作品名称 | 申请人 | 冲突来源 | 处理优先级 |")
+            lines.append("|------|----------|----------|--------|----------|------------|")
+            for idx, result in enumerate(conflict_results, 1):
+                reg_id = result['registration_id']
+                reg = reg_map.get(reg_id)
+                application_no = reg.application_no if reg else '未知'
+                work_title = (reg.work.title[:20] + '...') if reg and reg.work and len(reg.work.title) > 20 else (reg.work.title if reg and reg.work else '未知')
+                applicant_name = reg.applicant.name if reg and reg.applicant else '未知'
+                cc_matches = result['copyright_center']['match_count']
+                nlc_matches = result['national_library']['match_count']
+                sources = []
+                if cc_matches > 0:
+                    sources.append(f"版权中心({cc_matches})")
+                if nlc_matches > 0:
+                    sources.append(f"国图({nlc_matches})")
+                source_str = '、'.join(sources)
+                total_matches = cc_matches + nlc_matches
+                priority = '🔴 高' if total_matches >= 3 else ('🟡 中' if total_matches >= 1 else '🟢 低')
+                lines.append(f"| {idx} | {application_no} | {work_title} | {applicant_name} | {source_str} | {priority} |")
+        else:
+            lines.append("1. **自动通过:** 所有核验通过的作品可直接进入下一审查环节")
+            lines.append("2. **登记公告:** 建议对已核验的作品优先安排公告发布")
+            lines.append("3. **证书生成:** 核验通过且缴费完成的作品可批量生成登记证书")
+            lines.append("")
+
+        lines.append("---")
+        lines.append("")
+        lines.append("*本报告由版权保护中心登记管理系统自动生成，如有疑问请联系系统管理员。*")
+        lines.append(f"*生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
+
+        with open(report_file, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(lines))
+
+        logger.info(f"Verification report generated: {report_file}")
+        return str(report_file)
 
     def get_statistics(self, period: str = 'month', start_date: date = None,
                        end_date: date = None, group_by: str = None) -> Dict:
