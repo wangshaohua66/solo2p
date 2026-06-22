@@ -102,16 +102,19 @@ define(['jquery', 'bootstrap', 'dataStore', 'chart', 'datatables-bs5'], function
             '</div>' +
 
             '<div class="row g-4 mb-4">' +
-            '<div class="col-lg-6"><div class="card shadow-sm h-100">' +
-            '<div class="card-header bg-white">' +
-            '<h5 class="mb-0"><i class="bi bi-thermometer-half me-2"></i>维度异常分布</h5></div>' +
-            '<div class="card-body">' +
-            '<div style="position:relative;height:300px;"><canvas id="heatChart"></canvas></div>' +
-            '<div class="mt-3 small text-muted text-center">' +
-            '颜色越深表示该维度不合格频次越高' +
-            '</div></div></div></div>' +
+            '<div class="col-lg-7"><div class="card shadow-sm h-100">' +
+            '<div class="card-header bg-white d-flex justify-content-between align-items-center">' +
+            '<h5 class="mb-0"><i class="bi bi-thermometer-half me-2"></i>高频问题维度分布热力图</h5>' +
+            '<div class="d-flex gap-2 align-items-center small">' +
+            '<span class="d-inline-block rounded" style="width:18px;height:18px;background:rgba(255,247,236,0.9);border:1px solid #eee;"></span><span class="text-muted">低</span>' +
+            '<span class="d-inline-block rounded" style="width:18px;height:18px;background:rgba(253,157,43,0.75);border:1px solid #eee;"></span>' +
+            '<span class="d-inline-block rounded" style="width:18px;height:18px;background:rgba(220,53,69,0.9);border:1px solid #eee;"></span><span class="text-muted">高</span>' +
+            '</div></div>' +
+            '<div class="card-body p-3 overflow-auto">' +
+            '<div id="heatChart" style="min-height:280px;"></div>' +
+            '</div></div></div>' +
 
-            '<div class="col-lg-6"><div class="card shadow-sm h-100">' +
+            '<div class="col-lg-5"><div class="card shadow-sm h-100">' +
             '<div class="card-header bg-white">' +
             '<h5 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>维度平均得分</h5></div>' +
             '<div class="card-body">' +
@@ -223,18 +226,36 @@ define(['jquery', 'bootstrap', 'dataStore', 'chart', 'datatables-bs5'], function
 
         charts.pie = new Chart(ctx2, {
             type: 'doughnut',
-            data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
+            data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderWidth: 3, borderColor: '#fff', hoverBorderColor: '#0d6efd', hoverBorderWidth: 5, hoverOffset: 10 }] },
             options: {
                 responsive: true, maintainAspectRatio: false,
+                cutout: '55%',
+                animation: { animateScale: true, animateRotate: true },
                 plugins: {
-                    legend: { position: 'right', labels: { boxWidth: 12, padding: 10, font: { size: 11 } } },
-                    tooltip: { callbacks: {
-                        label: function (ctx2) {
-                            var total = ctx2.dataset.data.reduce(function (a, b) { return a + b; }, 0);
-                            var pct = ((ctx2.raw / total) * 100).toFixed(1);
-                            return ctx2.label + ': ' + ctx2.raw + ' (' + pct + '%)';
+                    legend: { position: 'right', labels: { boxWidth: 14, padding: 12, font: { size: 12, weight: '500' }, usePointStyle: true, pointStyle: 'circle' } },
+                    tooltip: {
+                        backgroundColor: 'rgba(33,37,41,0.95)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        borderColor: 'rgba(13,110,253,0.6)',
+                        borderWidth: 1,
+                        padding: 12,
+                        cornerRadius: 10,
+                        displayColors: true,
+                        boxPadding: 6,
+                        boxWidth: 12,
+                        usePointStyle: true,
+                        titleFont: { size: 13, weight: 'bold' },
+                        bodyFont: { size: 12 },
+                        callbacks: {
+                            label: function (ctx2) {
+                                var total = ctx2.dataset.data.reduce(function (a, b) { return a + b; }, 0);
+                                var pct = ((ctx2.raw / total) * 100).toFixed(1);
+                                return '  ' + ctx2.label + ': ' + ctx2.raw + ' 件 (' + pct + '%)';
+                            },
+                            afterLabel: function () { return ''; }
                         }
-                    }}
+                    }
                 }
             }
         });
@@ -283,54 +304,203 @@ define(['jquery', 'bootstrap', 'dataStore', 'chart', 'datatables-bs5'], function
                     borderColor: color,
                     backgroundColor: bgColor,
                     fill: true, tension: 0.35,
-                    pointRadius: 5, pointHoverRadius: 7, pointBackgroundColor: color
+                    borderWidth: 2.5,
+                    pointRadius: 5,
+                    pointHoverRadius: 9,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: color,
+                    pointBorderWidth: 2.5,
+                    pointHoverBackgroundColor: color,
+                    pointHoverBorderColor: '#fff',
+                    pointHoverBorderWidth: 3,
+                    pointStyle: 'circle'
                 }]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
-                plugins: { legend: { display: false } },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(33,37,41,0.96)',
+                        titleColor: '#ffd43b',
+                        bodyColor: '#fff',
+                        borderColor: color,
+                        borderWidth: 1.5,
+                        padding: 14,
+                        cornerRadius: 10,
+                        displayColors: true,
+                        boxPadding: 6,
+                        boxWidth: 12,
+                        usePointStyle: true,
+                        titleFont: { size: 13, weight: 'bold' },
+                        bodyFont: { size: 13, weight: '500' },
+                        callbacks: {
+                            label: function (c) { return '  ' + c.dataset.label + ': <strong>' + c.raw + (type === 'rate' ? '%' : ' 件') + '</strong>'; }
+                        }
+                    }
+                },
                 scales: {
-                    y: { beginAtZero: true, title: { display: true, text: type === 'rate' ? '合格率(%)' : '数量' } },
-                    x: { title: { display: true, text: '月份' } }
-                }
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: type === 'rate' ? '合格率(%)' : '数量', font: { size: 12, weight: '600' } },
+                        grid: { color: 'rgba(0,0,0,0.05)' }
+                    },
+                    x: {
+                        title: { display: true, text: '月份', font: { size: 12, weight: '600' } },
+                        grid: { display: false }
+                    }
+                },
+                hover: { mode: 'index', intersect: false }
             }
         });
     }
 
-    function renderHeatChart(stats) {
-        var ctx2 = document.getElementById('heatChart');
-        if (!ctx2) return;
-        if (charts.heat) { try { charts.heat.destroy(); } catch (e) { } }
-
+    function buildHeatMatrix(filter) {
+        var samples = dataStore.getSamplesByFilter(filter || {});
         var dims = ['color', 'register', 'dot', 'density', 'surface'];
-        var labels = ['色彩准确度', '套印精度', '网点再现', '密度均匀性', '表面质量'];
-        var values = dims.map(function (d) { return stats.dimAlertCount[d] || 0; });
-        var maxVal = Math.max.apply(null, values) || 1;
+        var dimLabels = ['色彩准确度', '套印精度', '网点再现', '密度均匀性', '表面质量'];
+        var rowKeys = [];
+        var rowNames = {};
+        var typeIdx = 0;
 
-        charts.heat = new Chart(ctx2, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: '不合格频次',
-                    data: values,
-                    backgroundColor: values.map(function (v) {
-                        var intensity = 0.3 + (v / maxVal) * 0.7;
-                        return 'rgba(220, 53, 69, ' + intensity.toFixed(2) + ')';
-                    }),
-                    borderRadius: 6, barThickness: 50
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { beginAtZero: true, grid: { display: false } },
-                    y: { grid: { display: false } }
-                }
+        samples.forEach(function (s) {
+            if (!s.judgement) return;
+            if (rowKeys.indexOf(s.productType) === -1) {
+                rowKeys.push(s.productType);
+                rowNames[s.productType] = s.productType;
             }
+        });
+
+        var factories = Object.keys(stats ? (stats.byFactory || {}) : {});
+        if (factories.length >= 3 && factories.length <= 10) {
+            rowKeys = factories;
+            rowNames = {};
+            factories.forEach(function (f) { rowNames[f] = f.length > 8 ? f.substring(0, 8) + '..' : f; });
+        }
+
+        if (rowKeys.length === 0) {
+            rowKeys = ['总览'];
+            rowNames['总览'] = '全部数据';
+        }
+
+        var matrix = {};
+        rowKeys.forEach(function (r) { matrix[r] = {}; dims.forEach(function (d) { matrix[r][d] = 0; }); });
+        var maxVal = 0;
+
+        samples.forEach(function (s) {
+            if (!s.judgement) return;
+            var r = rowKeys.length === 1 ? '总览' : (rowKeys.indexOf(s.productType) !== -1 ? s.productType : s.factory);
+            if (!matrix[r]) return;
+            Object.keys(s.judgement.dimAlerts || {}).forEach(function (d) {
+                if (s.judgement.dimAlerts[d]) { matrix[r][d]++; if (matrix[r][d] > maxVal) maxVal = matrix[r][d]; }
+            });
+        });
+
+        return { rowKeys: rowKeys, rowNames: rowNames, dims: dims, dimLabels: dimLabels, matrix: matrix, maxVal: Math.max(1, maxVal) };
+    }
+
+    function heatColor(val, max) {
+        var ratio = max > 0 ? val / max : 0;
+        if (val === 0) return 'rgba(250,250,250,0.6)';
+        if (ratio <= 0.25) return 'rgba(255,247,236,0.95)';
+        if (ratio <= 0.5) return 'rgba(254,217,166,0.95)';
+        if (ratio <= 0.75) return 'rgba(253,157,43,0.85)';
+        return 'rgba(220,53,69,0.92)';
+    }
+
+    function heatTextColor(val, max) {
+        var ratio = max > 0 ? val / max : 0;
+        return ratio > 0.5 ? '#fff' : '#333';
+    }
+
+    function renderHeatChart(stats) {
+        var wrap = document.getElementById('heatChart');
+        if (!wrap) return;
+
+        var h = buildHeatMatrix(getFilter());
+        if (stats && Object.keys(stats.byFactory || {}).length === 0 && Object.keys(stats.byType || {}).length === 0) {
+            h = buildHeatMatrix(getFilter());
+        }
+
+        var dims = h.dims;
+        var dimLabels = h.dimLabels;
+        var rowKeys = h.rowKeys;
+        var rowNames = h.rowNames;
+        var matrix = h.matrix;
+        var maxVal = h.maxVal;
+
+        var colWidth = (100 / (dims.length + 1)).toFixed(2);
+
+        var html = '<div class="heatmap-wrap" style="width:100%;">';
+
+        html += '<div class="d-flex mb-1" style="gap:2px;">';
+        html += '<div style="width:' + colWidth + '%;padding:10px 6px;font-weight:600;font-size:13px;color:#666;text-align:right;"></div>';
+        dimLabels.forEach(function (lab) {
+            html += '<div style="flex:1;padding:10px 4px;font-weight:600;font-size:12px;color:#495057;text-align:center;background:#f8f9fa;border-radius:4px;">' + lab + '</div>';
+        });
+        html += '</div>';
+
+        rowKeys.forEach(function (r, rIdx) {
+            html += '<div class="d-flex heat-row align-items-stretch" style="gap:2px;margin-bottom:2px;">';
+            html += '<div class="heat-row-label" style="width:' + colWidth + '%;padding:8px 6px;font-size:12px;color:#495057;text-align:right;display:flex;align-items:center;justify-content:flex-end;font-weight:500;" title="' + r + '">' + rowNames[r] + '</div>';
+            dims.forEach(function (d, dIdx) {
+                var v = matrix[r][d] || 0;
+                var bg = heatColor(v, maxVal);
+                var tc = heatTextColor(v, maxVal);
+                html += '<div class="heat-cell" data-row="' + rIdx + '" data-col="' + dIdx + '" data-value="' + v + '" data-dim="' + dimLabels[dIdx] + '" data-type="' + r + '"' +
+                    ' style="flex:1;padding:10px 4px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;' +
+                    'background:' + bg + ';color:' + tc + ';border-radius:6px;cursor:pointer;' +
+                    'transition:all 0.25s ease;border:2px solid transparent;min-height:42px;' +
+                    'box-shadow:inset 0 0 0 0 rgba(13,110,253,0);">' +
+                    '<span>' + (v > 0 ? v : '') + '</span></div>';
+            });
+            html += '</div>';
+        });
+
+        html += '</div>';
+
+        var totalAlerts = 0;
+        rowKeys.forEach(function (r) {
+            dims.forEach(function (d) { totalAlerts += (matrix[r][d] || 0); });
+        });
+        html += '<div class="mt-3 small text-muted text-center">共 <strong class="text-danger">' + totalAlerts + '</strong> 项维度异常 · 行=' + (rowKeys.length === 1 && rowKeys[0] === '总览' ? '全量数据' : (Object.keys(stats.byFactory || {}).length > 0 ? '按厂家分组' : '按类型分组')) + ' · 列=检测维度</div>';
+
+        wrap.innerHTML = html;
+
+        $(wrap).find('.heat-cell').on('mouseenter', function () {
+            var $this = $(this);
+            $this.css({
+                'borderColor': '#0d6efd',
+                'transform': 'scale(1.08)',
+                'z-index': '10',
+                'box-shadow': '0 6px 16px rgba(13,110,253,0.35)'
+            });
+            var tt = $('#heatTooltip');
+            if (tt.length === 0) {
+                tt = $('<div id="heatTooltip" style="position:fixed;z-index:9999;padding:10px 14px;background:#212529e6;color:#fff;' +
+                    'border-radius:8px;font-size:13px;pointer-events:none;max-width:240px;line-height:1.6;' +
+                    'box-shadow:0 6px 24px rgba(0,0,0,0.3);backdrop-filter:blur(4px);"></div>').appendTo('body');
+            }
+            var val = +$this.data('value');
+            var txt = '<strong>' + $this.data('type') + '</strong><br>' +
+                '<span class="text-warning">●</span> ' + $this.data('dim') + '：<strong class="fs-5">' + val + '</strong> 次不合格' +
+                (val > 0 ? '<br><span class="text-muted small">占同维度约 ' + Math.round((val / maxVal) * 100) + '%</span>' : '<br><span class="text-success small">该组合无异常记录</span>');
+            tt.html(txt);
+            var offset = $this.offset();
+            tt.css({ left: (offset.left + $this.outerWidth() / 2 - tt.outerWidth() / 2) + 'px', top: (offset.top - tt.outerHeight() - 10) + 'px' });
+        }).on('mouseleave', function () {
+            var $this = $(this);
+            $this.css({
+                'borderColor': 'transparent',
+                'transform': 'scale(1)',
+                'z-index': '1',
+                'box-shadow': 'inset 0 0 0 0 rgba(13,110,253,0)'
+            });
+            $('#heatTooltip').remove();
+        }).on('mousemove', function (e) {
+            var tt = $('#heatTooltip');
+            if (tt.length) tt.css({ left: (e.clientX + 15) + 'px', top: (e.clientY - 10) + 'px' });
         });
     }
 
@@ -363,16 +533,53 @@ define(['jquery', 'bootstrap', 'dataStore', 'chart', 'datatables-bs5'], function
                     label: '平均得分',
                     data: data,
                     borderColor: '#0d6efd',
-                    backgroundColor: 'rgba(13,110,253,0.25)',
-                    borderWidth: 2,
+                    backgroundColor: 'rgba(13,110,253,0.22)',
+                    borderWidth: 2.5,
                     pointBackgroundColor: colors,
-                    pointRadius: 5
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 8,
+                    pointHoverBackgroundColor: '#0d6efd',
+                    pointHoverBorderColor: '#ffd43b',
+                    pointHoverBorderWidth: 3
                 }]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                scales: { r: { min: 0, max: 100, ticks: { stepSize: 20 } } },
-                plugins: { legend: { display: false } }
+                scales: {
+                    r: {
+                        min: 0, max: 100, ticks: { stepSize: 20, font: { size: 10 }, backdropColor: 'transparent' },
+                        grid: { color: 'rgba(0,0,0,0.08)' },
+                        angleLines: { color: 'rgba(0,0,0,0.08)' },
+                        pointLabels: { font: { size: 12, weight: '500' }, color: '#495057' }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(33,37,41,0.95)',
+                        titleColor: '#ffd43b',
+                        bodyColor: '#fff',
+                        borderColor: '#0d6efd',
+                        borderWidth: 1.5,
+                        padding: 12,
+                        cornerRadius: 10,
+                        displayColors: false,
+                        titleFont: { size: 13, weight: 'bold' },
+                        bodyFont: { size: 13, weight: '500' },
+                        callbacks: {
+                            label: function (c) {
+                                var score = c.raw;
+                                var level = score >= 90 ? '（优秀）' : score >= 75 ? '（良好）' : score >= 60 ? '（合格）' : '（不合格）';
+                                return '  得分：<strong>' + score + '</strong> 分 ' + level;
+                            }
+                        }
+                    }
+                },
+                elements: {
+                    line: { tension: 0.15 }
+                }
             }
         });
     }
@@ -435,14 +642,80 @@ define(['jquery', 'bootstrap', 'dataStore', 'chart', 'datatables-bs5'], function
             data: {
                 labels: labels,
                 datasets: [
-                    { label: sample1.batchNo, data: data1, borderColor: '#0d6efd', backgroundColor: 'rgba(13,110,253,0.15)', borderWidth: 2 },
-                    { label: sample2.batchNo, data: data2, borderColor: '#fd7e14', backgroundColor: 'rgba(253,126,20,0.15)', borderWidth: 2 }
+                    {
+                        label: sample1.batchNo,
+                        data: data1,
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13,110,253,0.15)',
+                        borderWidth: 2.5,
+                        pointBackgroundColor: '#0d6efd',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 7,
+                        pointHoverBackgroundColor: '#0d6efd',
+                        pointHoverBorderColor: '#ffd43b',
+                        pointHoverBorderWidth: 3
+                    },
+                    {
+                        label: sample2.batchNo,
+                        data: data2,
+                        borderColor: '#fd7e14',
+                        backgroundColor: 'rgba(253,126,20,0.15)',
+                        borderWidth: 2.5,
+                        pointBackgroundColor: '#fd7e14',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 7,
+                        pointHoverBackgroundColor: '#fd7e14',
+                        pointHoverBorderColor: '#ffd43b',
+                        pointHoverBorderWidth: 3
+                    }
                 ]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                scales: { r: { min: 0, max: 100 } },
-                plugins: { legend: { position: 'bottom' } }
+                scales: {
+                    r: {
+                        min: 0, max: 100, ticks: { stepSize: 20, font: { size: 10 }, backdropColor: 'transparent' },
+                        grid: { color: 'rgba(0,0,0,0.07)' },
+                        angleLines: { color: 'rgba(0,0,0,0.07)' },
+                        pointLabels: { font: { size: 12, weight: '500' }, color: '#495057' }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 14, padding: 14, font: { size: 12, weight: '500' }, usePointStyle: true, pointStyle: 'circle' }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(33,37,41,0.95)',
+                        titleColor: '#ffd43b',
+                        bodyColor: '#fff',
+                        borderColor: 'rgba(13,110,253,0.6)',
+                        borderWidth: 1.5,
+                        padding: 12,
+                        cornerRadius: 10,
+                        displayColors: true,
+                        boxPadding: 6,
+                        boxWidth: 12,
+                        usePointStyle: true,
+                        titleFont: { size: 13, weight: 'bold' },
+                        bodyFont: { size: 12, weight: '500' },
+                        callbacks: {
+                            label: function (c) {
+                                var diff = c.raw - (c.datasetIndex === 0 ? data2[c.dataIndex] : data1[c.dataIndex]);
+                                var diffTxt = c.datasetIndex === 0 ? '' : '';
+                                if (c.datasetIndex === 0) {
+                                    diffTxt = diff > 0 ? '  <span class="text-success">(+' + diff.toFixed(1) + ')</span>' : diff < 0 ? '  <span class="text-danger">(' + diff.toFixed(1) + ')</span>' : '';
+                                }
+                                return '  ' + c.dataset.label + ': <strong>' + c.raw + '</strong> 分' + diffTxt;
+                            }
+                        }
+                    }
+                },
+                elements: { line: { tension: 0.15 } }
             }
         });
 

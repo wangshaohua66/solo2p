@@ -8,17 +8,88 @@ define(['jquery', 'bootstrap', 'dataStore', 'chart', 'datatables-bs5'], function
     var selectedSample = null;
     var initialBarcode = '';
     var pendingChanges = null;
+    var currentUser = null;
+    var userPerms = null;
 
-    function render() {
+    function renderLogin() {
+        var html = '' +
+            '<div class="row justify-content-center align-items-center" style="min-height:calc(100vh - 140px);">' +
+            '<div class="col-md-6 col-lg-4">' +
+            '<div class="card shadow-lg border-0">' +
+            '<div class="card-header bg-gradient text-white text-center py-4" style="background:linear-gradient(135deg,#0d6efd 0%,#6610f2 100%);">' +
+            '<i class="bi bi-shield-lock display-4 d-block mb-2"></i>' +
+            '<h4 class="mb-1">智能判定中心</h4>' +
+            '<small class="opacity-75">请登录以进行检测判定操作</small>' +
+            '</div>' +
+            '<div class="card-body p-4">' +
+            '<form id="loginForm" autocomplete="off">' +
+            '<div class="mb-3">' +
+            '<label class="form-label fw-semibold"><i class="bi bi-person me-1"></i>用户名</label>' +
+            '<div class="input-group">' +
+            '<span class="input-group-text bg-light"><i class="bi bi-person-fill"></i></span>' +
+            '<input type="text" class="form-control form-control-lg" id="loginUsername" placeholder="请输入账号" autocomplete="username" required>' +
+            '</div></div>' +
+            '<div class="mb-4">' +
+            '<label class="form-label fw-semibold"><i class="bi bi-key me-1"></i>密码</label>' +
+            '<div class="input-group">' +
+            '<span class="input-group-text bg-light"><i class="bi bi-lock-fill"></i></span>' +
+            '<input type="password" class="form-control form-control-lg" id="loginPassword" placeholder="请输入密码" autocomplete="current-password" required>' +
+            '<button type="button" class="btn btn-outline-secondary" id="togglePwd" title="显示/隐藏"><i class="bi bi-eye"></i></button>' +
+            '</div></div>' +
+            '<div class="alert alert-info small py-2 mb-3">' +
+            '<i class="bi bi-info-circle me-1"></i><strong>测试账号：</strong><br>' +
+            '<span class="d-inline-block me-3">检测组：<code>jiance01</code> / <code>JC@202401</code></span><br>' +
+            '<span class="d-inline-block me-3">复核组：<code>fuhe01</code> / <code>FH@202401</code></span><br>' +
+            '<span class="d-inline-block">判定组：<code>panding01</code> / <code>PD@202401</code></span>' +
+            '</div>' +
+            '<div id="loginError" class="alert alert-danger small py-2 mb-3 d-none"><i class="bi bi-exclamation-triangle me-1"></i><span></span></div>' +
+            '<button type="submit" class="btn btn-primary btn-lg w-100 fw-semibold">' +
+            '<i class="bi bi-box-arrow-in-right me-1"></i>登录系统</button>' +
+            '</form>' +
+            '</div>' +
+            '<div class="card-footer bg-light text-center py-3 small text-muted">' +
+            '© 印刷质量控制中心 · 安全认证 v1.0' +
+            '</div></div></div></div>';
+        container.html(html);
+    }
+
+    function renderMain() {
         var thresholds = dataStore.getThresholds();
         var productTypes = dataStore.getProductTypes();
+        var canJudge = dataStore.hasPermission('canJudge');
+        var canReview = dataStore.hasPermission('canReview');
+        var canOverride = dataStore.hasPermission('canOverride');
+
+        var roleBadgeClass = currentUser.role === 'judge' ? 'bg-danger' :
+            currentUser.role === 'review' ? 'bg-warning text-dark' :
+                currentUser.role === 'admin' ? 'bg-success' : 'bg-info';
 
         var html = '' +
             '<div class="row mb-3">' +
             '<div class="col-12">' +
-            '<h3 class="mb-3"><i class="bi bi-check2-circle text-primary me-2"></i>智能判定</h3>' +
+            '<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">' +
+            '<h3 class="mb-0"><i class="bi bi-check2-circle text-primary me-2"></i>智能判定</h3>' +
+            '<div class="d-flex align-items-center gap-3">' +
+            '<div class="d-flex align-items-center gap-2">' +
+            '<div class="rounded-circle d-flex align-items-center justify-content-center fw-bold text-white" style="width:38px;height:38px;background:linear-gradient(135deg,#0d6efd,#6f42c1);">' +
+            (currentUser.name ? currentUser.name.substring(0, 1) : 'U') +
             '</div>' +
+            '<div class="small lh-sm">' +
+            '<div class="fw-semibold">' + currentUser.name + '</div>' +
+            '<span class="badge ' + roleBadgeClass + ' px-2 py-0" style="font-size:10px;">' +
+            currentUser.department + ' · ' + dataStore.getRoleLabel(currentUser.role) +
+            '</span>' +
+            '</div></div>' +
+            '<button class="btn btn-outline-secondary btn-sm" id="logoutBtn">' +
+            '<i class="bi bi-box-arrow-right me-1"></i>退出登录</button>' +
+            '</div></div>' +
+            '<div class="small text-muted">' +
+            '<i class="bi bi-clock me-1"></i>登录时间：' + new Date(currentUser.loginAt).toLocaleString('zh-CN') +
+            (canJudge ? ' · <i class="bi bi-check-circle text-success me-1"></i>可执行判定' : '') +
+            (canReview ? ' · <i class="bi bi-shield-check text-warning me-1"></i>可复核确认' : '') +
+            (canOverride ? ' · <i class="bi bi-arrow-left-right text-primary me-1"></i>可调整等级' : '') +
             '</div>' +
+            '</div></div>' +
 
             '<div class="row mb-4 g-3">' +
             '<div class="col-lg-9">' +
@@ -31,15 +102,16 @@ define(['jquery', 'bootstrap', 'dataStore', 'chart', 'datatables-bs5'], function
             '<option value="已判定待报告">已判定待报告</option>' +
             '<option value="全部">全部状态</option>' +
             '</select>' +
-            '<button class="btn btn-outline-primary btn-sm" id="autoJudgeBtn">' +
-            '<i class="bi bi-lightning me-1"></i>批量自动判定</button>' +
-            '</div>' +
-            '</div>' +
+            (canJudge ?
+                '<button class="btn btn-outline-primary btn-sm" id="autoJudgeBtn">' +
+                '<i class="bi bi-lightning me-1"></i>批量自动判定</button>' :
+                '<button class="btn btn-outline-primary btn-sm" disabled title="无判定权限">' +
+                '<i class="bi bi-lock me-1"></i>批量自动判定</button>') +
+            '</div></div>' +
             '<div class="card-body p-0">' +
             '<div class="table-responsive">' +
             '<table class="table table-hover align-middle mb-0" id="judgeTable">' +
-            '<thead class="table-light">' +
-            '<tr>' +
+            '<thead class="table-light"><tr>' +
             '<th><input type="checkbox" id="checkAll"></th>' +
             '<th>条码</th><th>印刷厂</th><th>印品类型</th>' +
             '<th>批次号</th><th>送检日期</th><th>总分</th><th>状态</th><th>操作</th>' +
@@ -71,8 +143,7 @@ define(['jquery', 'bootstrap', 'dataStore', 'chart', 'datatables-bs5'], function
             '<div class="d-flex gap-2 align-items-center flex-wrap">' +
             '<div id="currentGradeDisplay"></div>' +
             '<button type="button" class="btn btn-outline-secondary btn-sm" id="closeDetailBtn">关闭</button>' +
-            '</div>' +
-            '</div>' +
+            '</div></div>' +
             '<div class="card-body">' +
             '<div class="row g-4">' +
             '<div class="col-lg-6">' +
@@ -80,25 +151,29 @@ define(['jquery', 'bootstrap', 'dataStore', 'chart', 'datatables-bs5'], function
             '<div class="row g-2 mb-3" id="dimScoresBox"></div>' +
             '<h6 class="mb-3 border-bottom pb-2"><i class="bi bi-info-square me-1"></i>规则依据</h6>' +
             '<div class="small lh-lg text-muted" id="ruleBasisBox"></div>' +
-            '<h6 class="mt-4 mb-3 border-bottom pb-2"><i class="bi bi-award me-1"></i>手动调整等级</h6>' +
-            '<div class="row g-3 align-items-center">' +
-            '<div class="col-md-6">' +
-            '<label class="form-label">指定等级 <span class="text-danger">*</span></label>' +
-            '<select class="form-select" id="overrideGrade">' +
-            '<option value="">请选择...</option>' +
-            '<option value="优等品">优等品（绿色）</option>' +
-            '<option value="一等品">一等品（蓝色）</option>' +
-            '<option value="合格品">合格品（黄色）</option>' +
-            '<option value="不合格品">不合格品（红色）</option>' +
-            '</select></div>' +
-            '<div class="col-md-6">' +
-            '<label class="form-label">调整理由 <span class="text-danger">*</span></label>' +
-            '<input type="text" class="form-control" id="overrideReason" placeholder="例：经复核组确认放宽">' +
+            (canOverride ?
+                '<h6 class="mt-4 mb-3 border-bottom pb-2"><i class="bi bi-award me-1"></i>手动调整等级 <span class="badge bg-warning text-dark ms-1">复核组专用</span></h6>' +
+                '<div class="row g-3 align-items-center">' +
+                '<div class="col-md-6">' +
+                '<label class="form-label">指定等级 <span class="text-danger">*</span></label>' +
+                '<select class="form-select" id="overrideGrade">' +
+                '<option value="">请选择...</option>' +
+                '<option value="优等品">优等品（绿色）</option>' +
+                '<option value="一等品">一等品（蓝色）</option>' +
+                '<option value="合格品">合格品（黄色）</option>' +
+                '<option value="不合格品">不合格品（红色）</option>' +
+                '</select></div>' +
+                '<div class="col-md-6">' +
+                '<label class="form-label">调整理由 <span class="text-danger">*</span></label>' +
+                '<input type="text" class="form-control" id="overrideReason" placeholder="例：经复核组集体讨论确认放宽标准">' +
+                '</div>' +
+                '<div class="col-12">' +
+                '<button type="button" class="btn btn-warning" id="submitOverrideBtn" disabled>' +
+                '<i class="bi bi-shield-check me-1"></i>提交复核组确认</button>' +
+                '</div></div>' :
+                '<div class="alert alert-light small mt-4"><i class="bi bi-lock me-1 text-warning"></i>' +
+                '当前账号无等级调整权限，如需调整请联系<strong>复核组</strong>或<strong>判定组</strong>成员</div>') +
             '</div>' +
-            '<div class="col-12">' +
-            '<button type="button" class="btn btn-warning" id="submitOverrideBtn" disabled>' +
-            '<i class="bi bi-shield-check me-1"></i>提交复核组确认</button>' +
-            '</div></div></div>' +
 
             '<div class="col-lg-6">' +
             '<h6 class="mb-3 border-bottom pb-2"><i class="bi bi-diagram-3 me-1"></i>雷达图</h6>' +
@@ -111,14 +186,17 @@ define(['jquery', 'bootstrap', 'dataStore', 'chart', 'datatables-bs5'], function
             '<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">' +
             '<div class="small text-muted">' +
             '<i class="bi bi-person me-1"></i>判定员：' +
-            '<input type="text" id="judgeName" class="form-control d-inline-block" style="width:120px;padding:2px 6px;" value="李工">' +
+            '<input type="text" id="judgeName" class="form-control d-inline-block" style="width:120px;padding:2px 6px;" value="' + currentUser.name + '" readonly>' +
             '&nbsp; <i class="bi bi-calendar3 me-1"></i>判定日期：' + new Date().toISOString().split('T')[0] +
             '</div>' +
             '<div class="d-flex gap-2">' +
             '<button type="button" class="btn btn-outline-secondary" id="backDetectBtn">' +
             '<i class="bi bi-pencil-square me-1"></i>返回修改检测</button>' +
-            '<button type="button" class="btn btn-success px-4" id="confirmJudgeBtn">' +
-            '<i class="bi bi-check2-circle me-1"></i>确认并保存判定</button>' +
+            (canJudge ?
+                '<button type="button" class="btn btn-success px-4" id="confirmJudgeBtn">' +
+                '<i class="bi bi-check2-circle me-1"></i>确认并保存判定</button>' :
+                '<button type="button" class="btn btn-success px-4" disabled title="无判定权限">' +
+                '<i class="bi bi-lock me-1"></i>无判定权限</button>') +
             '</div></div></div>' +
 
             '</div></div></div>';
@@ -217,7 +295,7 @@ define(['jquery', 'bootstrap', 'dataStore', 'chart', 'datatables-bs5'], function
                 '<td>' + previewGrade + '</td>' +
                 '<td>' +
                 '<button type="button" class="btn btn-sm btn-outline-primary view-btn" data-barcode="' + s.barcode + '">' +
-                '<i class="bi bi-eye me-1"></i>判定</button></td>' +
+                '<i class="bi bi-eye me-1"></i>查看</button></td>' +
                 '</tr>'
             );
         });
@@ -264,9 +342,11 @@ define(['jquery', 'bootstrap', 'dataStore', 'chart', 'datatables-bs5'], function
         renderAlerts(judge, s);
         renderRadar(judge);
 
-        $('#overrideGrade').val(judge.grade);
-        $('#overrideReason').val('').off('input').on('input', checkOverride);
-        $('#overrideGrade').off('change').on('change', checkOverride);
+        if ($('#overrideGrade').length) {
+            $('#overrideGrade').val(judge.grade);
+            $('#overrideReason').val('').off('input').on('input', checkOverride);
+            $('#overrideGrade').off('change').on('change', checkOverride);
+        }
     }
 
     function renderCurrentGrade(judge) {
@@ -396,8 +476,12 @@ define(['jquery', 'bootstrap', 'dataStore', 'chart', 'datatables-bs5'], function
                         data: data,
                         borderColor: gradeColor,
                         backgroundColor: gradeColor + '33',
-                        borderWidth: 2,
-                        pointRadius: 5
+                        borderWidth: 2.5,
+                        pointRadius: 5,
+                        pointHoverRadius: 8,
+                        pointBackgroundColor: gradeColor,
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
                     },
                     {
                         label: '及格线',
@@ -412,8 +496,35 @@ define(['jquery', 'bootstrap', 'dataStore', 'chart', 'datatables-bs5'], function
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                scales: { r: { min: 0, max: 100, ticks: { stepSize: 20 } } },
-                plugins: { legend: { position: 'bottom' } }
+                scales: {
+                    r: {
+                        min: 0, max: 100, ticks: { stepSize: 20, font: { size: 10 }, backdropColor: 'transparent' },
+                        grid: { color: 'rgba(0,0,0,0.07)' },
+                        angleLines: { color: 'rgba(0,0,0,0.07)' },
+                        pointLabels: { font: { size: 12, weight: '500' }, color: '#495057' }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 14, padding: 12, font: { size: 11, weight: '500' }, usePointStyle: true, pointStyle: 'circle' }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(33,37,41,0.95)',
+                        titleColor: '#ffd43b',
+                        bodyColor: '#fff',
+                        borderColor: gradeColor,
+                        borderWidth: 1.5,
+                        padding: 12,
+                        cornerRadius: 10,
+                        displayColors: true,
+                        boxPadding: 6,
+                        usePointStyle: true,
+                        titleFont: { size: 13, weight: 'bold' },
+                        bodyFont: { size: 12, weight: '500' }
+                    }
+                },
+                elements: { line: { tension: 0.15 } }
             }
         });
     }
@@ -424,7 +535,48 @@ define(['jquery', 'bootstrap', 'dataStore', 'chart', 'datatables-bs5'], function
         $('#submitOverrideBtn').prop('disabled', !(grade && reason.length >= 2));
     }
 
-    function bindEvents() {
+    function bindLoginEvents() {
+        $('#togglePwd').on('click', function () {
+            var $p = $('#loginPassword');
+            if ($p.attr('type') === 'password') {
+                $p.attr('type', 'text');
+                $(this).find('i').removeClass('bi-eye').addClass('bi-eye-slash');
+            } else {
+                $p.attr('type', 'password');
+                $(this).find('i').removeClass('bi-eye-slash').addClass('bi-eye');
+            }
+        });
+
+        $('#loginForm').on('submit', function (e) {
+            e.preventDefault();
+            var u = $('#loginUsername').val().trim();
+            var p = $('#loginPassword').val();
+            if (!u || !p) return;
+
+            var result = dataStore.login(u, p);
+            if (result.success) {
+                currentUser = result.user;
+                userPerms = result.permissions;
+                ctx.showToast('欢迎回来，' + currentUser.name + '！');
+                initAfterLogin();
+            } else {
+                $('#loginError').removeClass('d-none').find('span').text(result.message);
+                $('#loginPassword').val();
+                setTimeout(function () { $('#loginError').addClass('d-none'); }, 4000);
+            }
+        });
+    }
+
+    function bindMainEvents() {
+        $('#logoutBtn').on('click', function () {
+            if (!confirm('确认退出登录？')) return;
+            dataStore.logout();
+            currentUser = null;
+            userPerms = null;
+            renderLogin();
+            bindLoginEvents();
+        });
+
         $('#statusFilter').on('change', loadList);
         $('#ruleTypeSelect').on('change', renderRuleDisplay);
         renderRuleDisplay();
@@ -451,6 +603,10 @@ define(['jquery', 'bootstrap', 'dataStore', 'chart', 'datatables-bs5'], function
         });
 
         $('#autoJudgeBtn').on('click', function () {
+            if (!dataStore.hasPermission('canJudge')) {
+                ctx.showToast('当前账号无判定权限');
+                return;
+            }
             var checked = $('.row-check:checked');
             var samples;
             if (checked.length > 0) {
@@ -468,8 +624,9 @@ define(['jquery', 'bootstrap', 'dataStore', 'chart', 'datatables-bs5'], function
                 var j = dataStore.calculateJudgement(s);
                 if (!j) { fail++; return; }
                 j.judgeDate = new Date().toISOString().split('T')[0];
-                j.judge = $('#judgeName').val() || '自动判定';
+                j.judge = currentUser.name;
                 j.autoJudged = true;
+                j.judgedBy = currentUser.username;
                 dataStore.updateSample(bc, { judgement: j, status: '已判定待报告' });
                 success++;
             });
@@ -478,25 +635,30 @@ define(['jquery', 'bootstrap', 'dataStore', 'chart', 'datatables-bs5'], function
         });
 
         $('#confirmJudgeBtn').on('click', function () {
+            if (!dataStore.hasPermission('canJudge')) {
+                ctx.showToast('当前账号无判定权限，请联系判定组成员');
+                return;
+            }
             if (!selectedSample) return;
             var j = dataStore.calculateJudgement(selectedSample);
             j.judgeDate = new Date().toISOString().split('T')[0];
-            j.judge = $('#judgeName').val() || '未指定';
+            j.judge = currentUser.name;
+            j.judgedBy = currentUser.username;
             j.autoJudged = false;
 
-            var overrideGrade = $('#overrideGrade').val();
-            var overrideReason = $('#overrideReason').val().trim();
-            if (overrideGrade && overrideReason && overrideGrade !== j.grade) {
-                if (!confirm('将把等级从 "' + j.grade + '" 修改为 "' + overrideGrade + '"，需经复核组二次确认。\n确认提交？')) return;
-                var final = prompt('请输入复核组确认码（演示用：输入"123"表示通过）：');
-                if (final !== '123') { ctx.showToast('复核未通过，保持原等级'); }
-                else {
-                    j.originalGrade = j.grade;
-                    j.grade = overrideGrade;
-                    j.overrideReason = overrideReason;
-                    j.overridden = true;
-                    ctx.showToast('等级已调整为：' + overrideGrade);
-                }
+            var canOverride = dataStore.hasPermission('canOverride');
+            var overrideGrade = canOverride ? $('#overrideGrade').val() : '';
+            var overrideReason = canOverride ? ($('#overrideReason').val() || '').trim() : '';
+
+            if (canOverride && overrideGrade && overrideReason && overrideGrade !== j.grade) {
+                if (!confirm('将把等级从 "' + j.grade + '" 修改为 "' + overrideGrade + '"，是否确认提交？')) return;
+                j.originalGrade = j.grade;
+                j.grade = overrideGrade;
+                j.overrideReason = overrideReason;
+                j.overridden = true;
+                j.overriddenBy = currentUser.username;
+                j.overriddenAt = new Date().toISOString();
+                ctx.showToast('等级已调整为：' + overrideGrade + '（已记录调整人：' + currentUser.name + '）');
             }
 
             dataStore.updateSample(selectedSample.barcode, { judgement: j, status: '已判定待报告' });
@@ -518,16 +680,36 @@ define(['jquery', 'bootstrap', 'dataStore', 'chart', 'datatables-bs5'], function
             pendingChanges = { grade: grade, reason: reason };
             ctx.showToast('等级调整方案已记录，请点击"确认并保存判定"按钮完成');
         });
+
+        $(document).on('click', '#sideApplyFilter', function () {
+            var factory = $('#sideFactoryFilter').val();
+            var grade = $('#sideGradeFilter').val();
+            if (factory) { /* could apply */ }
+            if (grade) { /* grade filter could be added */ }
+        });
+    }
+
+    function initAfterLogin() {
+        renderMain();
+        bindMainEvents();
+        loadList();
+        if (initialBarcode) setTimeout(function () { viewSample(initialBarcode); }, 300);
     }
 
     function init(context) {
         ctx = context;
         container = $(context.container);
         if (context.params && context.params.length > 0) initialBarcode = context.params[0];
-        render();
-        bindEvents();
-        loadList();
-        if (initialBarcode) setTimeout(function () { viewSample(initialBarcode); }, 300);
+
+        var session = dataStore.getCurrentSession();
+        if (session) {
+            currentUser = session;
+            userPerms = dataStore.getCurrentUserPermissions();
+            initAfterLogin();
+        } else {
+            renderLogin();
+            bindLoginEvents();
+        }
     }
 
     function destroy() {

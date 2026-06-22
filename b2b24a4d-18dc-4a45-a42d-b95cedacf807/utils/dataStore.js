@@ -2,8 +2,18 @@ define(['jquery'], function ($) {
     'use strict';
 
     var STORAGE_KEY = 'print_quality_data_v1';
+    var AUTH_KEY = 'print_quality_auth_v1';
+    var SESSION_KEY = 'print_quality_session_v1';
     var MAX_SAMPLES = 50000;
     var cache = null;
+    var USERS = [
+        { username: 'jiance01', password: btoa('JC@202401'), name: '张明', role: 'detect', department: '检测组' },
+        { username: 'jiance02', password: btoa('JC@202402'), name: '李芳', role: 'detect', department: '检测组' },
+        { username: 'fuhe01', password: btoa('FH@202401'), name: '王建国', role: 'review', department: '复核组' },
+        { username: 'fuhe02', password: btoa('FH@202402'), name: '赵雪梅', role: 'review', department: '复核组' },
+        { username: 'panding01', password: btoa('PD@202401'), name: '刘志强', role: 'judge', department: '判定组' },
+        { username: 'admin', password: btoa('Admin@2024'), name: '系统管理员', role: 'admin', department: '质控中心' }
+    ];
 
     var FACTORIES = [
         '北京新华印刷厂', '上海中华印刷有限公司', '广州南方印务', '深圳华图印刷',
@@ -496,6 +506,81 @@ define(['jquery'], function ($) {
         return stats;
     }
 
+    var ROLE_PERMISSIONS = {
+        detect: { label: '检测员', canDetect: true, canJudge: false, canReview: false, canReport: true, canViewHistory: true },
+        review: { label: '复核员', canDetect: true, canJudge: false, canReview: true, canReport: true, canViewHistory: true, canOverride: true },
+        judge: { label: '判定员', canDetect: true, canJudge: true, canReview: true, canReport: true, canViewHistory: true, canOverride: true },
+        admin: { label: '管理员', canDetect: true, canJudge: true, canReview: true, canReport: true, canViewHistory: true, canOverride: true, canManage: true }
+    };
+
+    function login(username, password) {
+        if (!username || !password) return { success: false, message: '用户名和密码不能为空' };
+        var user = null;
+        for (var i = 0; i < USERS.length; i++) {
+            if (USERS[i].username.toLowerCase() === username.toLowerCase()) {
+                user = USERS[i];
+                break;
+            }
+        }
+        if (!user) return { success: false, message: '用户不存在' };
+        if (user.password !== btoa(password)) return { success: false, message: '密码错误' };
+        var session = {
+            username: user.username,
+            name: user.name,
+            role: user.role,
+            department: user.department,
+            loginAt: new Date().toISOString(),
+            token: btoa(user.username + ':' + Date.now())
+        };
+        try {
+            localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+        } catch (e) { }
+        return { success: true, message: '登录成功', user: session, permissions: ROLE_PERMISSIONS[user.role] };
+    }
+
+    function logout() {
+        try { localStorage.removeItem(SESSION_KEY); } catch (e) { }
+        return true;
+    }
+
+    function getCurrentSession() {
+        try {
+            var raw = localStorage.getItem(SESSION_KEY);
+            if (!raw) return null;
+            var s = JSON.parse(raw);
+            var loginAt = new Date(s.loginAt).getTime();
+            var now = Date.now();
+            var expireHours = 8;
+            if (now - loginAt > expireHours * 3600 * 1000) {
+                localStorage.removeItem(SESSION_KEY);
+                return null;
+            }
+            return s;
+        } catch (e) { return null; }
+    }
+
+    function getCurrentUserPermissions() {
+        var s = getCurrentSession();
+        if (!s) return null;
+        return $.extend(true, {}, ROLE_PERMISSIONS[s.role] || {}, { user: s });
+    }
+
+    function hasPermission(action) {
+        var p = getCurrentUserPermissions();
+        if (!p) return false;
+        return !!p[action];
+    }
+
+    function getAllUsers() {
+        return USERS.map(function (u) {
+            return { username: u.username, name: u.name, role: u.role, department: u.department };
+        });
+    }
+
+    function getRoleLabel(role) {
+        return (ROLE_PERMISSIONS[role] || {}).label || role;
+    }
+
     function clearAll() {
         cache = createEmptyData();
         saveData();
@@ -523,6 +608,13 @@ define(['jquery'], function ($) {
         generateReportNo: generateReportNo,
         parseCSV: parseCSV,
         getStatistics: getStatistics,
-        clearAll: clearAll
+        clearAll: clearAll,
+        login: login,
+        logout: logout,
+        getCurrentSession: getCurrentSession,
+        getCurrentUserPermissions: getCurrentUserPermissions,
+        hasPermission: hasPermission,
+        getAllUsers: getAllUsers,
+        getRoleLabel: getRoleLabel
     };
 });

@@ -248,7 +248,31 @@ define(['jquery', 'bootstrap', 'dataStore', 'chart'], function ($, bootstrap, da
             '</div>' +
             '</div>' +
             '</div>' +
-            '</div>';
+            '</div>' +
+
+            '<div class="modal fade" id="csvImportModal" tabindex="-1" aria-hidden="true">' +
+            '<div class="modal-dialog modal-lg modal-dialog-centered">' +
+            '<div class="modal-content">' +
+            '<div class="modal-header bg-primary text-white">' +
+            '<h5 class="modal-title"><i class="bi bi-filetype-csv me-2"></i>CSV批量导入结果</h5>' +
+            '<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>' +
+            '</div>' +
+            '<div class="modal-body">' +
+            '<div class="row mb-3 g-3">' +
+            '<div class="col-md-3"><div class="card border-success text-center p-2"><div class="small text-muted">总解析行数</div><div class="fs-2 fw-bold text-success" id="csvTotalCount">0</div></div></div>' +
+            '<div class="col-md-3"><div class="card border-primary text-center p-2"><div class="small text-muted">匹配成功</div><div class="fs-2 fw-bold text-primary" id="csvMatchCount">0</div></div></div>' +
+            '<div class="col-md-3"><div class="card border-warning text-center p-2"><div class="small text-muted">未找到样本</div><div class="fs-2 fw-bold text-warning" id="csvMissCount">0</div></div></div>' +
+            '<div class="col-md-3"><div class="card border-danger text-center p-2"><div class="small text-muted">导入失败</div><div class="fs-2 fw-bold text-danger" id="csvFailCount">0</div></div></div>' +
+            '</div>' +
+            '<h6 class="mb-2 border-bottom pb-2"><i class="bi bi-list-check me-1"></i>导入明细</h6>' +
+            '<div class="table-responsive" style="max-height:340px;overflow-y:auto;"><table class="table table-sm table-hover mb-0" id="csvResultTable"><thead class="table-light sticky-top"><tr>' +
+            '<th>行号</th><th>条码/批次</th><th>匹配样本</th><th>状态</th><th>说明</th>' +
+            '</tr></thead><tbody></tbody></table></div>' +
+            '</div>' +
+            '<div class="modal-footer">' +
+            '<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">关闭</button>' +
+            '<button type="button" class="btn btn-primary" id="csvLoadFirstBtn" disabled><i class="bi bi-box-arrow-in-up-right me-1"></i>加载第一条成功样本</button>' +
+            '</div></div></div></div>';
 
         container.html(html);
     }
@@ -283,25 +307,178 @@ define(['jquery', 'bootstrap', 'dataStore', 'chart'], function ($, bootstrap, da
         return Math.round(Math.max(0, Math.min(100, score)));
     }
 
+    function polyfit(x, y, degree) {
+        var n = x.length;
+        var m = degree + 1;
+        var X = [];
+        var Y = y.slice();
+
+        for (var i = 0; i < n; i++) {
+            var row = [];
+            for (var j = 0; j < m; j++) {
+                row.push(Math.pow(x[i], j));
+            }
+            X.push(row);
+        }
+
+        function multiply(A, B) {
+            var result = [];
+            for (var i = 0; i < A.length; i++) {
+                result[i] = [];
+                for (var j = 0; j < B[0].length; j++) {
+                    var sum = 0;
+                    for (var k = 0; k < A[0].length; k++) {
+                        sum += A[i][k] * B[k][j];
+                    }
+                    result[i][j] = sum;
+                }
+            }
+            return result;
+        }
+
+        function transpose(A) {
+            var result = [];
+            for (var i = 0; i < A[0].length; i++) {
+                result[i] = [];
+                for (var j = 0; j < A.length; j++) {
+                    result[i][j] = A[j][i];
+                }
+            }
+            return result;
+        }
+
+        function invert(A) {
+            var n = A.length;
+            var aug = [];
+            for (var i = 0; i < n; i++) {
+                aug[i] = A[i].slice();
+                for (var j = 0; j < n; j++) {
+                    aug[i].push(i === j ? 1 : 0);
+                }
+            }
+
+            for (var col = 0; col < n; col++) {
+                var maxRow = col;
+                for (var row = col + 1; row < n; row++) {
+                    if (Math.abs(aug[row][col]) > Math.abs(aug[maxRow][col])) {
+                        maxRow = row;
+                    }
+                }
+                var temp = aug[col];
+                aug[col] = aug[maxRow];
+                aug[maxRow] = temp;
+
+                var pivot = aug[col][col];
+                for (var j = col; j < 2 * n; j++) {
+                    aug[col][j] /= pivot;
+                }
+
+                for (var row = 0; row < n; row++) {
+                    if (row !== col && aug[row][col] !== 0) {
+                        var factor = aug[row][col];
+                        for (var j = col; j < 2 * n; j++) {
+                            aug[row][j] -= factor * aug[col][j];
+                        }
+                    }
+                }
+            }
+
+            var result = [];
+            for (var i = 0; i < n; i++) {
+                result[i] = aug[i].slice(n);
+            }
+            return result;
+        }
+
+        var Xt = transpose(X);
+        var XtX = multiply(Xt, X);
+        var XtX_inv = invert(XtX);
+        var XtY = multiply(Xt, Y.map(function (v) { return [v]; }));
+        var coeffs = multiply(XtX_inv, XtY);
+
+        return coeffs.map(function (v) { return v[0]; });
+    }
+
+    function polyval(coeffs, x) {
+        var y = 0;
+        for (var i = 0; i < coeffs.length; i++) {
+            y += coeffs[i] * Math.pow(x, i);
+        }
+        return y;
+    }
+
     function calcDotScore(rates) {
-        var vals = [+rates.expandRate5, +rates.expandRate50, +rates.expandRate75]
-            .filter(function (v) { return !isNaN(v); });
-        if (vals.length === 0) return null;
-        var weights = [0.2, 0.5, 0.3];
-        var weighted = 0, weightSum = 0;
-        vals.forEach(function (v, i) {
-            var w = weights[i] || 0.33;
-            var s = 100;
-            if (v <= 5) s = 100;
-            else if (v <= 10) s = 95 + (10 - v);
-            else if (v <= 15) s = 80 + (15 - v) * 3;
-            else if (v <= 20) s = 65 + (20 - v) * 3;
-            else if (v <= 25) s = 50 + (25 - v) * 3;
-            else s = Math.max(0, 50 - (v - 25) * 2);
-            weighted += s * w;
-            weightSum += w;
+        var rawVals = [+rates.expandRate5, +rates.expandRate50, +rates.expandRate75];
+        var vals = rawVals.filter(function (v) { return !isNaN(v); });
+        if (vals.length < 2) return null;
+
+        var x = [];
+        var y = [];
+        if (!isNaN(rawVals[0])) { x.push(5); y.push(rawVals[0]); }
+        if (!isNaN(rawVals[1])) { x.push(50); y.push(rawVals[1]); }
+        if (!isNaN(rawVals[2])) { x.push(75); y.push(rawVals[2]); }
+
+        var ideal5 = 4;
+        var ideal50 = 12;
+        var ideal75 = 8;
+
+        var idealCoeffs = polyfit([5, 50, 75], [ideal5, ideal50, ideal75], 2);
+
+        var actualCoeffs = polyfit(x, y, Math.min(2, x.length - 1));
+
+        var samplePoints = [10, 20, 30, 40, 50, 60, 70, 80, 90];
+        var totalDeviation = 0;
+        var maxDeviation = 0;
+        var validPoints = 0;
+
+        samplePoints.forEach(function (xp) {
+            var idealVal = polyval(idealCoeffs, xp);
+            var actualVal = polyval(actualCoeffs, xp);
+            var dev = Math.abs(actualVal - idealVal);
+            totalDeviation += dev;
+            maxDeviation = Math.max(maxDeviation, dev);
+            validPoints++;
         });
-        return Math.round(weighted / weightSum);
+
+        x.forEach(function (xp, idx) {
+            var idealVal = polyval(idealCoeffs, xp);
+            var dev = Math.abs(y[idx] - idealVal);
+            totalDeviation += dev * 2;
+            maxDeviation = Math.max(maxDeviation, dev);
+            validPoints += 2;
+        });
+
+        var avgDeviation = totalDeviation / validPoints;
+
+        var yMean = y.reduce(function (a, b) { return a + b; }, 0) / y.length;
+        var ssTotal = y.reduce(function (s, v) { return s + Math.pow(v - yMean, 2); }, 0);
+        var ssResidual = 0;
+        for (var i = 0; i < x.length; i++) {
+            var predicted = polyval(actualCoeffs, x[i]);
+            ssResidual += Math.pow(y[i] - predicted, 2);
+        }
+        var rSquared = ssTotal > 0 ? 1 - (ssResidual / ssTotal) : 1;
+
+        var devScore = Math.max(0, 100 - avgDeviation * 6 - maxDeviation * 2);
+        var curveScore = Math.max(0, 60 + rSquared * 40);
+
+        var rawScore5 = rawVals[0] >= 0 && rawVals[0] <= 8 ? 100 - rawVals[0] * 3 : Math.max(0, 100 - (rawVals[0] - 8) * 10);
+        var rawScore50 = rawVals[1] >= 0 && rawVals[1] <= 15 ? 100 - Math.abs(rawVals[1] - 12) * 5 : Math.max(0, 100 - (rawVals[1] - 15) * 8);
+        var rawScore75 = rawVals[2] >= 0 && rawVals[2] <= 12 ? 100 - Math.abs(rawVals[2] - 8) * 4 : Math.max(0, 100 - (rawVals[2] - 12) * 8);
+
+        var keyPointScores = [];
+        if (!isNaN(rawVals[0])) keyPointScores.push(rawScore5);
+        if (!isNaN(rawVals[1])) keyPointScores.push(rawScore50);
+        if (!isNaN(rawVals[2])) keyPointScores.push(rawScore75);
+
+        var keyPointAvg = keyPointScores.reduce(function (a, b) { return a + b; }, 0) / keyPointScores.length;
+
+        var finalScore = devScore * 0.35 + curveScore * 0.25 + keyPointAvg * 0.40;
+
+        var dotIndex = 'R²=' + rSquared.toFixed(3) + ', avgΔ=' + avgDeviation.toFixed(2) + '%';
+        $('#dotIndex').val(dotIndex);
+
+        return Math.round(Math.max(0, Math.min(100, finalScore)));
     }
 
     function calcDensityScore(points) {
@@ -603,6 +780,119 @@ define(['jquery', 'bootstrap', 'dataStore', 'chart'], function ($, bootstrap, da
             col.insertBefore($(this).closest('.col-md-4'));
         });
 
+        function findSampleFromRow(row) {
+            if (!row) return null;
+            var keys = Object.keys(row);
+            var barcode = '';
+            var batchNo = '';
+            for (var i = 0; i < keys.length; i++) {
+                var k = keys[i];
+                var kl = k.toLowerCase();
+                if (!barcode && (kl === 'barcode' || kl === '条码' || kl === 'sampleid' || kl === 'sample_id' || kl === 'pycode')) {
+                    barcode = (row[k] || '').toString().trim();
+                }
+                if (!batchNo && (kl === 'batchno' || kl === 'batch_no' || kl === 'batch' || kl === '批次号' || kl === 'lot')) {
+                    batchNo = (row[k] || '').toString().trim();
+                }
+            }
+            if (barcode) {
+                var s = dataStore.getSampleByBarcode(barcode);
+                if (s) return { sample: s, matchedBy: 'barcode', matchKey: barcode };
+            }
+            if (batchNo) {
+                var list = dataStore.getSamplesByBatch(batchNo);
+                if (list && list.length > 0) return { sample: list[0], matchedBy: 'batchNo', matchKey: batchNo };
+            }
+            return null;
+        }
+
+        function parseRowToDetectData(row) {
+            if (!row) return null;
+            var dd = { color: {}, register: {}, dot: {}, density: { points: [] }, surface: { defects: {} } };
+            var anyData = false;
+            var keys = Object.keys(row);
+
+            function getVal(names) {
+                for (var i = 0; i < names.length; i++) {
+                    for (var j = 0; j < keys.length; j++) {
+                        if (keys[j].toLowerCase() === names[i].toLowerCase() && row[keys[j]] !== '' && row[keys[j]] !== undefined) {
+                            return row[keys[j]];
+                        }
+                    }
+                }
+                return undefined;
+            }
+
+            var v;
+            v = getVal(['DeltaE', 'delta_e', 'DE', '色差', 'ΔE']);
+            if (v !== undefined && v !== '') { dd.color.deltaE = v; anyData = true; }
+            v = getVal(['L', 'Lstar', 'L*']); if (v !== undefined && v !== '') { dd.color.labL = v; anyData = true; }
+            v = getVal(['A', 'Astar', 'A*']); if (v !== undefined && v !== '') { dd.color.labA = v; anyData = true; }
+            v = getVal(['B', 'Bstar', 'B*']); if (v !== undefined && v !== '') { dd.color.labB = v; anyData = true; }
+
+            v = getVal(['c_m', 'CM', 'CM误差', 'C-M']); if (v !== undefined && v !== '') { dd.register.c_m = v; anyData = true; }
+            v = getVal(['c_y', 'CY', 'CY误差', 'C-Y']); if (v !== undefined && v !== '') { dd.register.c_y = v; anyData = true; }
+            v = getVal(['c_k', 'CK', 'CK误差', 'C-K']); if (v !== undefined && v !== '') { dd.register.c_k = v; anyData = true; }
+            v = getVal(['m_y', 'MY', 'MY误差', 'M-Y']); if (v !== undefined && v !== '') { dd.register.m_y = v; anyData = true; }
+
+            v = getVal(['D5', 'e5', 'E5', 'expand5', '网点扩大5']); if (v !== undefined && v !== '') { dd.dot.expandRate5 = v; anyData = true; }
+            v = getVal(['D50', 'e50', 'E50', 'expand50', '网点扩大50']); if (v !== undefined && v !== '') { dd.dot.expandRate50 = v; anyData = true; }
+            v = getVal(['D75', 'e75', 'E75', 'expand75', '网点扩大75']); if (v !== undefined && v !== '') { dd.dot.expandRate75 = v; anyData = true; }
+
+            for (var pi = 1; pi <= 12; pi++) {
+                v = getVal(['P' + pi, '密度' + pi, 'Density' + pi, '测点' + pi]);
+                if (v !== undefined && v !== '') { dd.density.points[pi - 1] = v; anyData = true; }
+            }
+
+            v = getVal(['DefectCount', 'defect_count', '瑕疵数', '瑕疵数量']);
+            if (v !== undefined && v !== '') {
+                dd.surface.defectCount = +v || 0;
+                anyData = true;
+            }
+            v = getVal(['Inspector', 'inspector', '检测员', '质检员']);
+            if (v !== undefined && v !== '') dd.inspector = v;
+
+            dd.color.remark = dd.color.remark || '';
+            dd.register.remark = dd.register.remark || '';
+            dd.dot.remark = dd.dot.remark || '';
+            dd.density.remark = dd.density.remark || '';
+            dd.surface.remark = dd.surface.remark || '';
+            dd.detectDate = new Date().toISOString().split('T')[0];
+
+            return anyData ? dd : null;
+        }
+
+        function applyDetectDataToSample(sample, dd, extraRow) {
+            if (!sample || !dd) return false;
+            var fakeEvent = { target: { value: '' } };
+
+            if (dd.color.deltaE) fakeEvent.target.value = dd.color.deltaE;
+            if (dd.color.deltaE) $('[data-field="deltaE"]').val(dd.color.deltaE);
+            if (dd.color.labL) $('[data-field="labL"]').val(dd.color.labL);
+            if (dd.color.labA) $('[data-field="labA"]').val(dd.color.labA);
+            if (dd.color.labB) $('[data-field="labB"]').val(dd.color.labB);
+
+            if (dd.register.c_m) $('[data-field="c_m"]').val(dd.register.c_m);
+            if (dd.register.c_y) $('[data-field="c_y"]').val(dd.register.c_y);
+            if (dd.register.c_k) $('[data-field="c_k"]').val(dd.register.c_k);
+            if (dd.register.m_y) $('[data-field="m_y"]').val(dd.register.m_y);
+
+            if (dd.dot.expandRate5) $('[data-field="expandRate5"]').val(dd.dot.expandRate5);
+            if (dd.dot.expandRate50) $('[data-field="expandRate50"]').val(dd.dot.expandRate50);
+            if (dd.dot.expandRate75) $('[data-field="expandRate75"]').val(dd.dot.expandRate75);
+
+            var dp = dd.density.points || [];
+            for (var i = 0; i < dp.length; i++) {
+                var $inp = $('.density-point[data-idx="' + i + '"]');
+                if ($inp.length && dp[i]) $inp.val(dp[i]);
+            }
+            if (dd.inspector) $('#inspectorName').val(dd.inspector);
+            updateAllScores();
+            return true;
+        }
+
+        var lastCsvImportResults = [];
+
         $('#csvFile').on('change', function (e) {
             var file = e.target.files[0];
             if (!file) return;
@@ -611,35 +901,137 @@ define(['jquery', 'bootstrap', 'dataStore', 'chart'], function ($, bootstrap, da
                 try {
                     var rows = dataStore.parseCSV(ev.target.result);
                     if (rows.length === 0) { ctx.showToast('CSV为空或格式错误'); return; }
-                    var first = rows[0];
-                    if (first['DeltaE'] || first['deltaE']) $('[data-field="deltaE"]').val(first['DeltaE'] || first['deltaE']);
-                    if (first['L']) $('[data-field="labL"]').val(first['L']);
-                    if (first['A']) $('[data-field="labA"]').val(first['A']);
-                    if (first['B']) $('[data-field="labB"]').val(first['B']);
-                    var regFields = ['c_m', 'c_y', 'c_k', 'm_y', 'CM', 'CY', 'CK', 'MY'];
-                    regFields.forEach(function (f) {
-                        if (first[f] !== undefined) {
-                            var map = { c_m: 'c_m', CM: 'c_m', c_y: 'c_y', CY: 'c_y', c_k: 'c_k', CK: 'c_k', m_y: 'm_y', MY: 'm_y' };
-                            $('[data-field="' + map[f] + '"]').val(first[f]);
+
+                    var results = [];
+                    var total = rows.length, matched = 0, missed = 0, failed = 0;
+                    var firstSuccessBarcode = null;
+
+                    rows.forEach(function (row, idx) {
+                        var rowNum = idx + 1;
+                        var findRes = findSampleFromRow(row);
+                        var dd = parseRowToDetectData(row);
+                        var displayKey = '';
+                        var keys = Object.keys(row || {});
+                        for (var ki = 0; ki < keys.length; ki++) {
+                            var kl = keys[ki].toLowerCase();
+                            if (kl === 'barcode' || kl === '条码' || kl === 'batchno' || kl === '批次号' || kl === 'batch') {
+                                displayKey = (row[keys[ki]] || '').toString();
+                                break;
+                            }
                         }
+                        if (!displayKey) displayKey = '第' + rowNum + '行';
+
+                        if (!dd) {
+                            failed++;
+                            results.push({ row: rowNum, key: displayKey, matched: '-', status: 'fail', note: '未检测到有效测量数据' });
+                            return;
+                        }
+                        if (!findRes) {
+                            missed++;
+                            results.push({ row: rowNum, key: displayKey, matched: '-', status: 'miss', note: '未找到对应样本，可手动加载后填充' });
+                            return;
+                        }
+
+                        matched++;
+                        var sample = findRes.sample;
+                        var tmpDetectData = $.extend(true, {}, sample.detectData || {});
+
+                        if (dd.color) tmpDetectData.color = $.extend({}, tmpDetectData.color || {}, dd.color);
+                        if (dd.register) tmpDetectData.register = $.extend({}, tmpDetectData.register || {}, dd.register);
+                        if (dd.dot) tmpDetectData.dot = $.extend({}, tmpDetectData.dot || {}, dd.dot);
+                        if (dd.density && dd.density.points && dd.density.points.length > 0) {
+                            tmpDetectData.density = tmpDetectData.density || {};
+                            var oldPts = tmpDetectData.density.points || [];
+                            var newPts = dd.density.points.slice();
+                            for (var pi = 0; pi < newPts.length; pi++) {
+                                if (newPts[pi]) oldPts[pi] = newPts[pi];
+                            }
+                            tmpDetectData.density.points = oldPts;
+                        }
+                        if (dd.surface) tmpDetectData.surface = $.extend({}, tmpDetectData.surface || {}, dd.surface);
+                        if (dd.inspector) tmpDetectData.inspector = dd.inspector;
+                        if (dd.detectDate) tmpDetectData.detectDate = dd.detectDate;
+
+                        var scores = {
+                            color: calcColorScore(tmpDetectData.color.deltaE),
+                            register: calcRegisterScore(tmpDetectData.register || {}),
+                            dot: calcDotScore(tmpDetectData.dot || {}),
+                            density: null,
+                            surface: null
+                        };
+                        var denResult = calcDensityScore((tmpDetectData.density && tmpDetectData.density.points) || []);
+                        if (denResult) { scores.density = denResult.score; tmpDetectData.density.dispersion = denResult.dispersion; }
+                        scores.surface = calcSurfaceScore(tmpDetectData.surface?.defects || {});
+                        if (scores.color !== null && scores.color !== undefined) tmpDetectData.color.score = scores.color;
+                        if (scores.register !== null && scores.register !== undefined) tmpDetectData.register.score = scores.register;
+                        if (scores.dot !== null && scores.dot !== undefined) tmpDetectData.dot.score = scores.dot;
+                        if (scores.density !== null && scores.density !== undefined) tmpDetectData.density.score = scores.density;
+                        if (scores.surface !== null && scores.surface !== undefined) tmpDetectData.surface.score = scores.surface;
+
+                        var missing = 0;
+                        Object.keys(scores).forEach(function (k) { if (scores[k] === null || scores[k] === undefined) missing++; });
+                        var newStatus = missing > 0 ? '待检测' : '已检测待判定';
+                        tmpDetectData.surface.defectCount = tmpDetectData.surface.defectCount ||
+                            Object.values(tmpDetectData.surface.defects || {}).reduce(function (a, b) { return a + (+b || 0); }, 0);
+
+                        dataStore.updateSample(sample.barcode, { detectData: tmpDetectData, status: newStatus });
+
+                        if (!firstSuccessBarcode) firstSuccessBarcode = sample.barcode;
+                        var matchType = findRes.matchedBy === 'barcode' ? '条码匹配' : '批次匹配';
+                        results.push({
+                            row: rowNum, key: displayKey,
+                            matched: sample.barcode + '<br><small class="text-muted">' + sample.factory.substring(0, 8) + '</small>',
+                            status: 'ok', note: matchType + '，状态更新为：' + newStatus
+                        });
                     });
-                    if (first['D5'] || first['e5']) $('[data-field="expandRate5"]').val(first['D5'] || first['e5']);
-                    if (first['D50'] || first['e50']) $('[data-field="expandRate50"]').val(first['D50'] || first['e50']);
-                    if (first['D75'] || first['e75']) $('[data-field="expandRate75"]').val(first['D75'] || first['e75']);
-                    for (var i = 1; i <= 12; i++) {
-                        if (first['P' + i] !== undefined) {
-                            var $input = $('.density-point[data-idx="' + (i - 1) + '"]');
-                            if ($input.length) $input.val(first['P' + i]);
-                        }
+
+                    lastCsvImportResults = { results: results, firstBarcode: firstSuccessBarcode };
+
+                    $('#csvTotalCount').text(total);
+                    $('#csvMatchCount').text(matched);
+                    $('#csvMissCount').text(missed);
+                    $('#csvFailCount').text(failed);
+                    $('#csvLoadFirstBtn').prop('disabled', !firstSuccessBarcode);
+
+                    var $tbody = $('#csvResultTable tbody').empty();
+                    results.forEach(function (r) {
+                        var statusBadge = '';
+                        if (r.status === 'ok') statusBadge = '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>成功</span>';
+                        else if (r.status === 'miss') statusBadge = '<span class="badge bg-warning text-dark"><i class="bi bi-question-circle me-1"></i>未匹配</span>';
+                        else statusBadge = '<span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>失败</span>';
+                        $tbody.append(
+                            '<tr><td class="text-center fw-bold">' + r.row + '</td>' +
+                            '<td class="small">' + r.key + '</td>' +
+                            '<td class="small">' + r.matched + '</td>' +
+                            '<td>' + statusBadge + '</td>' +
+                            '<td class="small text-muted">' + r.note + '</td></tr>'
+                        );
+                    });
+
+                    try {
+                        var modal = new bootstrap.Modal(document.getElementById('csvImportModal'));
+                        modal.show();
+                    } catch (ex) {
+                        $('#csvImportModal').modal('show');
                     }
-                    updateAllScores();
-                    ctx.showToast('CSV导入成功，已填充' + rows.length + '行数据');
+
+                    ctx.showToast('CSV批量导入完成：成功' + matched + ' / 未匹配' + missed + ' / 失败' + failed);
+
                 } catch (err) {
+                    console.error(err);
                     ctx.showToast('CSV解析失败：' + err.message);
                 }
             };
             reader.readAsText(file, 'UTF-8');
             e.target.value = '';
+        });
+
+        $(document).on('click', '#csvLoadFirstBtn', function () {
+            if (!lastCsvImportResults || !lastCsvImportResults.firstBarcode) return;
+            var bc = lastCsvImportResults.firstBarcode;
+            $('#csvImportModal').modal('hide');
+            $('#barcodeInput').val(bc);
+            setTimeout(function () { $('#loadBtn').click(); }, 200);
         });
 
         $('#saveDetectBtn').on('click', function () {
