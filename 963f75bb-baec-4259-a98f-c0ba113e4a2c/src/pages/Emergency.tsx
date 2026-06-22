@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { 
   CloudRain, 
   Wrench, 
@@ -15,29 +15,109 @@ import {
   FileText,
   ChevronDown,
   ChevronRight,
-  User
+  User,
+  Download,
+  Loader2,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 import { useEmergencyStore } from '@/store/useEmergencyStore';
 import { cn } from '@/utils/helpers';
 import { formatDateTime, formatRelativeTime } from '@/utils/dateUtils';
+import { emergencyApi, type EmergencyReportResponse } from '@/services/api/emergencyApi';
 
 export default function Emergency() {
-  const { plans, activeLog, isEmergencyActive, triggerPlan, resolveEmergency, logs } = useEmergencyStore();
+  const { plans, activeLog, isEmergencyActive, triggerPlan, resolveEmergency: storeResolveEmergency, logs } = useEmergencyStore();
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [showLogs, setShowLogs] = useState(false);
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
+  const [resolveProgress, setResolveProgress] = useState<number | null>(null);
+  const [resolveStatus, setResolveStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [reportData, setReportData] = useState<EmergencyReportResponse | null>(null);
+  const [exportStatus, setExportStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
   const selectedPlan = plans.find(p => p.id === selectedPlanId);
 
   const handleTrigger = (planId: string) => {
     triggerPlan(planId);
     setSelectedPlanId(planId);
+    setReportData(null);
+    setResolveStatus('idle');
   };
 
-  const handleResolve = () => {
-    resolveEmergency();
-    setCompletedSteps(new Set());
-  };
+  const handleResolve = useCallback(async () => {
+    if (!activeLog || resolveStatus === 'loading') return;
+    
+    try {
+      setResolveStatus('loading');
+      setResolveProgress(0);
+      
+      const report = await emergencyApi.resolveEmergency(
+        {
+          logId: activeLog.id,
+          resolvedBy: '当前用户',
+          resolutionNotes: '应急事件已成功处置',
+        },
+        (progress) => setResolveProgress(progress)
+      );
+      
+      storeResolveEmergency();
+      setCompletedSteps(new Set());
+      setReportData(report);
+      setResolveStatus('success');
+    } catch (err) {
+      console.error('Failed to resolve emergency:', err);
+      setResolveStatus('error');
+      setTimeout(() => setResolveStatus('idle'), 3000);
+    } finally {
+      setResolveProgress(null);
+    }
+  }, [activeLog, resolveStatus, storeResolveEmergency]);
+
+  const handleExportLogs = useCallback(async () => {
+    if (exportStatus === 'loading') return;
+    
+    try {
+      setExportStatus('loading');
+      
+      const blob = await emergencyApi.exportLogs({
+        format: 'excel',
+      });
+      
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `应急处置记录_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      setExportStatus('success');
+      setTimeout(() => setExportStatus('idle'), 2000);
+    } catch (err) {
+      console.error('Failed to export logs:', err);
+      setExportStatus('error');
+      setTimeout(() => setExportStatus('idle'), 3000);
+    }
+  }, [exportStatus]);
+
+  const handleDownloadReport = useCallback(async (logId: string) => {
+    try {
+      const blob = await emergencyApi.downloadReport(logId);
+      
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `应急处置报告_${logId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to download report:', err);
+    }
+  }, []);
 
   const planIcons: Record<string, any> = {
     weather: CloudRain,
@@ -67,7 +147,7 @@ export default function Emergency() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <button
             onClick={() => setShowLogs(!showLogs)}
             className={cn(
@@ -80,12 +160,76 @@ export default function Emergency() {
             <FileText className="w-4 h-4" />
             处置记录
           </button>
+
+          {showLogs && (
+            <button
+              onClick={handleExportLogs}
+              disabled={exportStatus === 'loading'}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors',
+                exportStatus === 'loading'
+                  ? 'bg-slate-700 text-slate-400 cursor-wait'
+                  : exportStatus === 'success'
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                  : exportStatus === 'error'
+                  ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                  : 'bg-slate-800/60 text-slate-300 hover:bg-slate-700/50'
+              )}
+            >
+              {exportStatus === 'loading' ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : exportStatus === 'success' ? (
+                <CheckCircle className="w-4 h-4" />
+              ) : exportStatus === 'error' ? (
+                <AlertCircle className="w-4 h-4" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+              {exportStatus === 'loading' ? '导出中...' : exportStatus === 'success' ? '导出成功' : '导出记录'}
+            </button>
+          )}
         </div>
       </div>
+
+      {reportData && resolveStatus === 'success' && (
+        <div className="bg-green-500/10 border border-green-500/30 rounded-2xl p-5">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center">
+              <CheckCircle className="w-6 h-6 text-green-400" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-green-400">应急事件已解除</h3>
+              <p className="text-green-300/70 text-sm mt-1">
+                处置复盘报告已生成，点击下方链接下载
+              </p>
+            </div>
+            <button
+              onClick={() => handleDownloadReport(activeLog?.id || '')}
+              className="flex items-center gap-2 px-4 py-2 bg-green-500/20 text-green-400 border border-green-500/30 rounded-xl font-medium hover:bg-green-500/30 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              下载报告
+            </button>
+          </div>
+          <div className="mt-3 pt-3 border-t border-green-500/20">
+            <div className="flex items-center gap-4 text-sm">
+              <span className="text-green-300/60">报告名称：{reportData.reportName}</span>
+              <span className="text-green-300/60">生成时间：{formatDateTime(reportData.generatedAt)}</span>
+              <span className="text-green-300/60">文件大小：{(reportData.fileSize / 1024).toFixed(1)} KB</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isEmergencyActive && activeLog && (
         <div className="bg-red-500/10 border border-red-500/50 rounded-2xl p-5 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-red-500/5 to-transparent animate-pulse" />
+          {resolveStatus === 'loading' && resolveProgress !== null && (
+            <div 
+              className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-green-500 to-emerald-500 transition-all duration-300"
+              style={{ width: `${resolveProgress}%` }}
+            />
+          )}
           <div className="relative flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center animate-pulse">
@@ -106,9 +250,22 @@ export default function Emergency() {
 
             <button
               onClick={handleResolve}
-              className="px-5 py-2.5 bg-green-500/20 text-green-400 border border-green-500/50 rounded-xl font-medium hover:bg-green-500/30 transition-colors"
+              disabled={resolveStatus === 'loading'}
+              className={cn(
+                'px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2',
+                resolveStatus === 'loading'
+                  ? 'bg-slate-700 text-slate-400 cursor-wait'
+                  : 'bg-green-500/20 text-green-400 border border-green-500/50 hover:bg-green-500/30'
+              )}
             >
-              确认解除
+              {resolveStatus === 'loading' ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  生成报告中 {resolveProgress}%
+                </>
+              ) : (
+                '确认解除'
+              )}
             </button>
           </div>
         </div>

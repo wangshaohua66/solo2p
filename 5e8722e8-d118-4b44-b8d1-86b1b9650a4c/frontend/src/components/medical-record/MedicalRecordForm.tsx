@@ -1,5 +1,8 @@
-import { Form, Input, Select, Tabs } from 'antd'
+import { useState } from 'react'
+import { Form, Input, Select, Tabs, Button, message, Tooltip } from 'antd'
+import { AudioOutlined, AudioMutedOutlined } from '@ant-design/icons'
 import type { FormInstance } from 'antd'
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
 import './MedicalRecordForm.scss'
 
 const { TextArea } = Input
@@ -9,7 +12,79 @@ interface Props {
   form: FormInstance
 }
 
+const speechFields = [
+  { key: 'chiefComplaint', label: '主诉' },
+  { key: 'presentIllness', label: '现病史' },
+  { key: 'pastHistory', label: '既往史' },
+  { key: 'diagnosis', label: '诊断' },
+  { key: 'treatmentPlan', label: '治疗方案' },
+  { key: 'prescription', label: '处方' },
+]
+
 function MedicalRecordForm({ form }: Props) {
+  const [activeField, setActiveField] = useState<string | null>(null)
+
+  const handleSpeechResult = (text: string) => {
+    if (activeField) {
+      const currentValue = form.getFieldValue(activeField) || ''
+      form.setFieldsValue({ [activeField]: currentValue + text })
+    }
+  }
+
+  const {
+    isListening,
+    startListening,
+    stopListening,
+    isSupported,
+    error,
+  } = useSpeechRecognition(handleSpeechResult, {
+    lang: 'zh-CN',
+    continuous: true,
+    interimResults: true,
+  })
+
+  const toggleListening = (fieldKey: string) => {
+    if (!isSupported) {
+      message.warning('您的浏览器不支持语音识别功能')
+      return
+    }
+
+    if (isListening && activeField === fieldKey) {
+      stopListening()
+      setActiveField(null)
+    } else {
+      setActiveField(fieldKey)
+      startListening()
+      message.info(`已开始语音录入：${speechFields.find(f => f.key === fieldKey)?.label}`)
+    }
+  }
+
+  const renderVoiceTextArea = (fieldKey: string, rows = 3, placeholder = '') => {
+    const fieldLabel = speechFields.find(f => f.key === fieldKey)?.label || ''
+    const isActive = isListening && activeField === fieldKey
+
+    return (
+      <div className={`voice-textarea ${isActive ? 'active' : ''}`}>
+        <TextArea rows={rows} placeholder={placeholder} />
+        <Tooltip title={isActive ? '停止录音' : `语音录入${fieldLabel}`}>
+          <Button
+            type={isActive ? 'primary' : 'default'}
+            shape="circle"
+            icon={isActive ? <AudioMutedOutlined /> : <AudioOutlined />}
+            className={`voice-btn ${isActive ? 'recording' : ''}`}
+            onClick={() => toggleListening(fieldKey)}
+          />
+        </Tooltip>
+        {isActive && (
+          <div className="recording-indicator">
+            <span className="pulse-dot" />
+            录音中...
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="medical-record-form">
       <Form form={form} layout="vertical">
@@ -59,13 +134,13 @@ function MedicalRecordForm({ form }: Props) {
               children: (
                 <div className="form-section">
                   <Form.Item name="chiefComplaint" label="主诉" rules={[{ required: true }]}>
-                    <TextArea rows={2} placeholder="患者主要症状和就诊目的" />
+                    {renderVoiceTextArea('chiefComplaint', 2, '患者主要症状和就诊目的')}
                   </Form.Item>
                   <Form.Item name="presentIllness" label="现病史">
-                    <TextArea rows={3} placeholder="疾病的发生、发展、诊治经过" />
+                    {renderVoiceTextArea('presentIllness', 3, '疾病的发生、发展、诊治经过')}
                   </Form.Item>
                   <Form.Item name="pastHistory" label="既往史">
-                    <TextArea rows={2} placeholder="既往健康状况、疾病史、手术史" />
+                    {renderVoiceTextArea('pastHistory', 2, '既往健康状况、疾病史、手术史')}
                   </Form.Item>
                 </div>
               ),
@@ -76,10 +151,10 @@ function MedicalRecordForm({ form }: Props) {
               children: (
                 <div className="form-section">
                   <Form.Item name="diagnosis" label="诊断" rules={[{ required: true }]}>
-                    <TextArea rows={2} placeholder="临床诊断结论" />
+                    {renderVoiceTextArea('diagnosis', 2, '临床诊断结论')}
                   </Form.Item>
                   <Form.Item name="treatmentPlan" label="治疗方案">
-                    <TextArea rows={4} placeholder="详细治疗计划和步骤" />
+                    {renderVoiceTextArea('treatmentPlan', 4, '详细治疗计划和步骤')}
                   </Form.Item>
                   <Form.Item name="nextVisit" label="下次复诊">
                     <Input placeholder="建议复诊时间" />
@@ -93,7 +168,7 @@ function MedicalRecordForm({ form }: Props) {
               children: (
                 <div className="form-section">
                   <Form.Item name="prescription" label="开具处方">
-                    <TextArea rows={6} placeholder="药品名称、剂量、用法、用量" />
+                    {renderVoiceTextArea('prescription', 6, '药品名称、剂量、用法、用量')}
                   </Form.Item>
                   <Form.Item name="prescriptionNote" label="用药说明">
                     <TextArea rows={2} placeholder="用药注意事项" />
@@ -104,6 +179,7 @@ function MedicalRecordForm({ form }: Props) {
           ]}
         />
       </Form>
+      {error && <div className="speech-error">语音识别错误：{error}</div>}
     </div>
   )
 }

@@ -6,9 +6,7 @@ using FireTraining.Services;
 
 namespace FireTraining.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-public class TrainingController : ControllerBase
+public class TrainingController : Controller
 {
     private readonly AppDbContext _context;
     private readonly ISchedulingService _schedulingService;
@@ -19,7 +17,13 @@ public class TrainingController : ControllerBase
         _schedulingService = schedulingService;
     }
 
-    [HttpGet("courses")]
+    public IActionResult Index()
+    {
+        ViewData["Title"] = "培训管理";
+        return View();
+    }
+
+    [HttpGet("api/Training/courses")]
     public async Task<ActionResult<IEnumerable<Course>>> GetCourses(
         int? specialtyId,
         int? levelId,
@@ -58,7 +62,7 @@ public class TrainingController : ControllerBase
         return Ok(new { total, data = courses });
     }
 
-    [HttpGet("courses/{id}")]
+    [HttpGet("api/Training/courses/{id}")]
     public async Task<ActionResult<Course>> GetCourse(int id, CancellationToken cancellationToken)
     {
         var course = await _context.Courses
@@ -72,7 +76,7 @@ public class TrainingController : ControllerBase
         return Ok(course);
     }
 
-    [HttpPost("courses")]
+    [HttpPost("api/Training/courses")]
     public async Task<ActionResult<Course>> CreateCourse(Course course, CancellationToken cancellationToken)
     {
         course.CreatedAt = DateTime.UtcNow;
@@ -84,7 +88,7 @@ public class TrainingController : ControllerBase
         return CreatedAtAction(nameof(GetCourse), new { id = course.Id }, course);
     }
 
-    [HttpPut("courses/{id}")]
+    [HttpPut("api/Training/courses/{id}")]
     public async Task<IActionResult> UpdateCourse(int id, Course course, CancellationToken cancellationToken)
     {
         if (id != course.Id)
@@ -110,7 +114,7 @@ public class TrainingController : ControllerBase
         return NoContent();
     }
 
-    [HttpDelete("courses/{id}")]
+    [HttpDelete("api/Training/courses/{id}")]
     public async Task<IActionResult> DeleteCourse(int id, CancellationToken cancellationToken)
     {
         var course = await _context.Courses.FindAsync(new object[] { id }, cancellationToken);
@@ -124,7 +128,7 @@ public class TrainingController : ControllerBase
         return NoContent();
     }
 
-    [HttpGet("plans")]
+    [HttpGet("api/Training/plans")]
     public async Task<ActionResult<IEnumerable<TrainingPlan>>> GetTrainingPlans(
         int? specialtyId,
         int? levelId,
@@ -157,7 +161,7 @@ public class TrainingController : ControllerBase
         return Ok(new { total, data = plans });
     }
 
-    [HttpGet("plans/{id}")]
+    [HttpGet("api/Training/plans/{id}")]
     public async Task<ActionResult<TrainingPlan>> GetTrainingPlan(int id, CancellationToken cancellationToken)
     {
         var plan = await _context.TrainingPlans
@@ -174,7 +178,7 @@ public class TrainingController : ControllerBase
         return Ok(plan);
     }
 
-    [HttpPost("plans")]
+    [HttpPost("api/Training/plans")]
     public async Task<ActionResult<TrainingPlan>> CreateTrainingPlan(TrainingPlan plan, CancellationToken cancellationToken)
     {
         plan.CreatedAt = DateTime.UtcNow;
@@ -186,7 +190,7 @@ public class TrainingController : ControllerBase
         return CreatedAtAction(nameof(GetTrainingPlan), new { id = plan.Id }, plan);
     }
 
-    [HttpGet("schedules/week")]
+    [HttpGet("api/Training/schedules/week")]
     public async Task<ActionResult<IEnumerable<TrainingSchedule>>> GetWeekSchedules(
         [FromQuery] DateTime weekStart,
         int? roomId,
@@ -207,7 +211,7 @@ public class TrainingController : ControllerBase
         return Ok(schedules);
     }
 
-    [HttpGet("schedules/{id}")]
+    [HttpGet("api/Training/schedules/{id}")]
     public async Task<ActionResult<TrainingSchedule>> GetSchedule(int id, CancellationToken cancellationToken)
     {
         var schedule = await _context.TrainingSchedules
@@ -223,7 +227,7 @@ public class TrainingController : ControllerBase
         return Ok(schedule);
     }
 
-    [HttpPost("schedules")]
+    [HttpPost("api/Training/schedules")]
     public async Task<ActionResult<TrainingSchedule>> CreateSchedule(TrainingSchedule schedule, CancellationToken cancellationToken)
     {
         var conflicts = await _schedulingService.CheckConflictsAsync(schedule, cancellationToken);
@@ -242,7 +246,7 @@ public class TrainingController : ControllerBase
         return CreatedAtAction(nameof(GetSchedule), new { id = schedule.Id }, schedule);
     }
 
-    [HttpPut("schedules/{id}")]
+    [HttpPut("api/Training/schedules/{id}")]
     public async Task<IActionResult> UpdateSchedule(int id, TrainingSchedule schedule, CancellationToken cancellationToken)
     {
         if (id != schedule.Id)
@@ -279,7 +283,7 @@ public class TrainingController : ControllerBase
         return NoContent();
     }
 
-    [HttpDelete("schedules/{id}")]
+    [HttpDelete("api/Training/schedules/{id}")]
     public async Task<IActionResult> DeleteSchedule(int id, CancellationToken cancellationToken)
     {
         var schedule = await _context.TrainingSchedules.FindAsync(new object[] { id }, cancellationToken);
@@ -293,7 +297,7 @@ public class TrainingController : ControllerBase
         return NoContent();
     }
 
-    [HttpGet("schedules/conflicts/check")]
+    [HttpGet("api/Training/schedules/conflicts/check")]
     public async Task<ActionResult<IEnumerable<ConflictResult>>> CheckConflicts(
         int roomId,
         DateTime scheduleDate,
@@ -310,7 +314,7 @@ public class TrainingController : ControllerBase
         return Ok(new { hasConflict });
     }
 
-    [HttpPost("schedules/check-conflict")]
+    [HttpPost("api/Training/schedules/check-conflict")]
     public async Task<ActionResult<object>> CheckConflictPost(
         [FromBody] ConflictCheckRequest request,
         CancellationToken cancellationToken)
@@ -328,7 +332,7 @@ public class TrainingController : ControllerBase
         return Ok(new { hasConflict, conflicts });
     }
 
-    [HttpGet("schedules/conflicts/all")]
+    [HttpGet("api/Training/schedules/conflicts/all")]
     public async Task<ActionResult<IEnumerable<ConflictResult>>> GetAllConflicts(
         [FromQuery] DateTime startDate,
         [FromQuery] DateTime endDate,
@@ -338,7 +342,7 @@ public class TrainingController : ControllerBase
         return Ok(conflicts);
     }
 
-    [HttpGet("schedules/suggestions")]
+    [HttpGet("api/Training/schedules/suggestions")]
     public async Task<ActionResult<IEnumerable<SuggestionSlot>>> GetSuggestedSlots(
         int courseId,
         int roomType,
@@ -349,7 +353,7 @@ public class TrainingController : ControllerBase
         return Ok(suggestions);
     }
 
-    [HttpPost("schedules/batch")]
+    [HttpPost("api/Training/schedules/batch")]
     public async Task<ActionResult<BatchScheduleResult>> BatchSchedule(
         [FromBody] List<BatchScheduleItem> items,
         CancellationToken cancellationToken)
@@ -358,14 +362,14 @@ public class TrainingController : ControllerBase
         return Ok(result);
     }
 
-    [HttpPost("plans/{id}/auto-schedule")]
+    [HttpPost("api/Training/plans/{id}/auto-schedule")]
     public async Task<ActionResult<IEnumerable<TrainingSchedule>>> AutoSchedule(int id, CancellationToken cancellationToken)
     {
         var schedules = await _schedulingService.AutoScheduleAsync(id, cancellationToken);
         return Ok(schedules);
     }
 
-    [HttpGet("rooms")]
+    [HttpGet("api/Training/rooms")]
     public async Task<ActionResult<IEnumerable<Room>>> GetRooms(
         RoomType? type,
         int? capacity,

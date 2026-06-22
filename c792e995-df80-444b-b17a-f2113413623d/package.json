@@ -1,0 +1,25 @@
+{
+  "name": "ksctl",
+  "version": "1.0.0",
+  "description": "Kubernetes Configuration Management CLI Tool",
+  "main": "src/cli.js",
+  "bin": {
+    "ksctl": "./bin/ksctl"
+  },
+  "scripts": {
+    "start": "node bin/ksctl",
+    "test": "node test/run-tests.js"
+  },
+  "dependencies": {
+    "ajv": "^8.12.0",
+    "chalk": "^4.1.2",
+    "cli-table3": "^0.6.3",
+    "commander": "^11.1.0",
+    "diff": "^5.1.0",
+    "fs-extra": "^11.2.0",
+    "js-yaml": "^4.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

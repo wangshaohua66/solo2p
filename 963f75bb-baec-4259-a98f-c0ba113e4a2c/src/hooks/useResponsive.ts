@@ -17,6 +17,10 @@ export function useMediaQuery(query: string): boolean {
   return matches;
 }
 
+export function useIsSmallMobile(): boolean {
+  return useMediaQuery('(max-width: 480px)');
+}
+
 export function useIsMobile(): boolean {
   return useMediaQuery('(max-width: 768px)');
 }

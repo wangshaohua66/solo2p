@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Kubernetes Ingress Schema",
+  "allOf": [
+    { "$ref": "./base.json" },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "Ingress"
+        },
+        "spec": {
+          "type": "object",
+          "properties": {
+            "ingressClassName": {
+              "type": "string"
+            },
+            "tls": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "hosts": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                  },
+                  "secretName": { "type": "string" }
+                }
+              }
+            },
+            "rules": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "host": { "type": "string" },
+                  "http": {
+                    "type": "object",
+                    "properties": {
+                      "paths": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": ["path", "pathType", "backend"],
+                          "properties": {
+                            "path": { "type": "string" },
+                            "pathType": {
+                              "type": "string",
+                              "enum": ["Exact", "Prefix", "ImplementationSpecific"]
+                            },
+                            "backend": {
+                              "type": "object",
+                              "properties": {
+                                "service": {
+                                  "type": "object",
+                                  "properties": {
+                                    "name": { "type": "string" },
+                                    "port": {
+                                      "type": "object",
+                                      "properties": {
+                                        "number": { "type": "integer" },
+                                        "name": { "type": "string" }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

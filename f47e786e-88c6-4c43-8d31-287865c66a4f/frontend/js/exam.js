@@ -13,9 +13,146 @@ const ExamModule = {
     generatedPaper: null,
     currentPracticalExam: null,
     scoringData: {},
+    questions: [],
+    examScores: [],
+
+    levels: [
+        { id: 1, name: '初级消防员', color: 'info' },
+        { id: 2, name: '中级消防员', color: 'success' },
+        { id: 3, name: '高级消防员', color: 'warning' },
+        { id: 4, name: '消防指挥员', color: 'danger' }
+    ],
+
+    specialties: [
+        { id: 1, name: '灭火救援', icon: 'fire', color: 'danger' },
+        { id: 2, name: '危险化学品处置', icon: 'exclamation-triangle', color: 'warning' },
+        { id: 3, name: '高层建筑救援', icon: 'building', color: 'primary' },
+        { id: 4, name: '水域救援', icon: 'water', color: 'info' },
+        { id: 5, name: '地震搜救', icon: 'geo-alt', color: 'success' }
+    ],
+
+    fireStations: [
+        { id: 1, name: '一站', firefighters: 78 },
+        { id: 2, name: '二站', firefighters: 72 },
+        { id: 3, name: '三站', firefighters: 80 },
+        { id: 4, name: '四站', firefighters: 75 },
+        { id: 5, name: '五站', firefighters: 68 },
+        { id: 6, name: '六站', firefighters: 82 },
+        { id: 7, name: '七站', firefighters: 70 },
+        { id: 8, name: '八站', firefighters: 75 }
+    ],
+
+    firefighters: [
+        { id: 1, name: '张三', stationId: 1, levelId: 1 },
+        { id: 2, name: '李四', stationId: 1, levelId: 2 },
+        { id: 3, name: '王五', stationId: 2, levelId: 1 },
+        { id: 4, name: '赵六', stationId: 2, levelId: 3 },
+        { id: 5, name: '钱七', stationId: 3, levelId: 2 },
+        { id: 6, name: '孙八', stationId: 3, levelId: 4 },
+        { id: 7, name: '周九', stationId: 4, levelId: 1 },
+        { id: 8, name: '吴十', stationId: 4, levelId: 2 },
+        { id: 9, name: '郑十一', stationId: 5, levelId: 3 },
+        { id: 10, name: '王十二', stationId: 5, levelId: 1 },
+        { id: 11, name: '冯十三', stationId: 6, levelId: 2 },
+        { id: 12, name: '陈十四', stationId: 6, levelId: 3 },
+        { id: 13, name: '楚十五', stationId: 7, levelId: 4 },
+        { id: 14, name: '魏十六', stationId: 7, levelId: 1 },
+        { id: 15, name: '蒋十七', stationId: 8, levelId: 2 },
+        { id: 16, name: '沈十八', stationId: 8, levelId: 3 },
+        { id: 17, name: '韩十九', stationId: 1, levelId: 2 },
+        { id: 18, name: '杨二十', stationId: 1, levelId: 3 },
+        { id: 19, name: '朱二一', stationId: 2, levelId: 4 },
+        { id: 20, name: '秦二二', stationId: 2, levelId: 1 }
+    ],
+
+    practicalExams: [
+        { id: 1, name: '水带连接实操', specialtyId: 1, duration: 30, scoringItems: [] },
+        { id: 2, name: '灭火器操作', specialtyId: 1, duration: 20, scoringItems: [] },
+        { id: 3, name: '呼吸器佩戴', specialtyId: 2, duration: 25, scoringItems: [] },
+        { id: 4, name: '堵漏操作', specialtyId: 2, duration: 40, scoringItems: [] },
+        { id: 5, name: '绳索救援', specialtyId: 3, duration: 45, scoringItems: [] }
+    ],
+
+    questionBank: {
+        categories: [
+            { id: 1, name: '灭火救援', children: [
+                { id: 11, name: '灭火战术', count: 320 },
+                { id: 12, name: '消防装备', count: 280 },
+                { id: 13, name: '火场供水', count: 180 }
+            ]},
+            { id: 2, name: '危险化学品', children: [
+                { id: 21, name: '化学品识别', count: 150 },
+                { id: 22, name: '防护措施', count: 200 },
+                { id: 23, name: '应急处置', count: 250 }
+            ]},
+            { id: 3, name: '高层建筑救援', children: [
+                { id: 31, name: '登高作业', count: 120 },
+                { id: 32, name: '绳索技术', count: 180 }
+            ]},
+            { id: 4, name: '水域救援', children: [
+                { id: 41, name: '游泳基础', count: 100 },
+                { id: 42, name: '舟艇驾驶', count: 90 }
+            ]},
+            { id: 5, name: '地震搜救', children: [
+                { id: 51, name: '建筑结构', count: 140 },
+                { id: 52, name: '搜救技术', count: 160 }
+            ]}
+        ]
+    },
 
     init() {
         this.render();
+        this.loadQuestions();
+        this.loadExamScores();
+    },
+
+    loadQuestions() {
+        const self = this;
+        $.ajax({
+            url: '/api/Exam/questions',
+            method: 'GET',
+            data: self.questionFilter,
+            success: function(data) {
+                self.questions = data.data || data.questions || data || [];
+                self.renderQuestionList();
+            },
+            error: function() {
+                self.questions = [
+                    { id: 1, title: '燃烧的三要素是什么？', type: 'single', difficulty: 'easy', score: 2, categoryId: 11, options: [] },
+                    { id: 2, title: '灭火器的使用方法包括哪些？', type: 'multiple', difficulty: 'medium', score: 4, categoryId: 12, options: [] },
+                    { id: 3, title: '进入火场必须佩戴呼吸器。', type: 'judge', difficulty: 'easy', score: 2, categoryId: 22, answer: true },
+                    { id: 4, title: '高层建筑火灾的特点是什么？', type: 'scenario', difficulty: 'hard', score: 10, categoryId: 31, options: [] },
+                    { id: 5, title: '消防水带的标准长度是多少？', type: 'single', difficulty: 'easy', score: 2, categoryId: 13, options: [] },
+                    { id: 6, name: '危险化学品泄漏处置步骤', type: 'scenario', difficulty: 'hard', score: 10, categoryId: 23, options: [] },
+                    { id: 7, title: '水域救援的安全注意事项', type: 'multiple', difficulty: 'medium', score: 4, categoryId: 41, options: [] },
+                    { id: 8, title: '地震搜救中生命探测仪的使用', type: 'single', difficulty: 'medium', score: 2, categoryId: 52, options: [] }
+                ];
+                self.renderQuestionList();
+            }
+        });
+    },
+
+    loadExamScores() {
+        const self = this;
+        $.ajax({
+            url: '/api/Exam/scores',
+            method: 'GET',
+            success: function(data) {
+                self.examScores = data.data || data.scores || data || [];
+            },
+            error: function() {
+                self.examScores = [
+                    { id: 1, firefighterId: 1, stationId: 1, examName: '初级消防员理论考核', score: 85, passRate: 85, pass: true, examDate: '2025-01-15' },
+                    { id: 2, firefighterId: 2, stationId: 1, examName: '中级消防员理论考核', score: 72, passRate: 72, pass: true, examDate: '2025-01-15' },
+                    { id: 3, firefighterId: 3, stationId: 2, examName: '初级消防员理论考核', score: 90, passRate: 90, pass: true, examDate: '2025-01-16' },
+                    { id: 4, firefighterId: 4, stationId: 2, examName: '高级消防员理论考核', score: 65, passRate: 65, pass: false, examDate: '2025-01-16' },
+                    { id: 5, firefighterId: 5, stationId: 3, examName: '中级消防员理论考核', score: 78, passRate: 78, pass: true, examDate: '2025-01-17' },
+                    { id: 6, firefighterId: 6, stationId: 3, examName: '消防指挥员考核', score: 88, passRate: 88, pass: true, examDate: '2025-01-17' },
+                    { id: 7, firefighterId: 7, stationId: 4, examName: '初级消防员理论考核', score: 82, passRate: 82, pass: true, examDate: '2025-01-18' },
+                    { id: 8, firefighterId: 8, stationId: 4, examName: '中级消防员理论考核', score: 76, passRate: 76, pass: true, examDate: '2025-01-18' }
+                ];
+            }
+        });
     },
 
     render() {
@@ -132,7 +269,7 @@ const ExamModule = {
                             ${this.renderQuestionList()}
                         </div>
                         <div class="card-footer text-muted small text-center">
-                            共 ${MockData.questionBank.questions.length} 道题目
+                            共 ${this.questions.length} 道题目
                         </div>
                     </div>
                 </div>
@@ -178,7 +315,7 @@ const ExamModule = {
     },
 
     renderCategoryTree() {
-        const categories = MockData.questionBank.categories;
+        const categories = this.questionBank.categories;
         return categories.map(cat => `
             <div class="tree-node" data-category-id="${cat.id}">
                 <span class="tree-toggle"><i class="bi bi-chevron-down"></i></span>
@@ -254,12 +391,12 @@ const ExamModule = {
     },
 
     filterQuestions() {
-        let questions = [...MockData.questionBank.questions];
+        let questions = [...this.questions];
 
         if (this.currentCategory) {
             const catId = this.currentCategory;
             const allChildIds = [];
-            MockData.questionBank.categories.forEach(cat => {
+            this.questionBank.categories.forEach(cat => {
                 if (cat.id === catId) {
                     cat.children.forEach(c => allChildIds.push(c.id));
                 } else if (cat.children.some(c => c.id === catId)) {
@@ -288,7 +425,7 @@ const ExamModule = {
     },
 
     getCategoryName(categoryId) {
-        for (const cat of MockData.questionBank.categories) {
+        for (const cat of this.questionBank.categories) {
             const child = cat.children.find(c => c.id === categoryId);
             if (child) return `${cat.name} - ${child.name}`;
         }
@@ -296,7 +433,7 @@ const ExamModule = {
     },
 
     showQuestionEditor(questionId = null) {
-        const q = questionId ? MockData.questionBank.questions.find(q => q.id === questionId) : null;
+        const q = questionId ? this.questions.find(q => q.id === questionId) : null;
         const isEdit = !!q;
 
         const modalHtml = `
@@ -320,7 +457,7 @@ const ExamModule = {
                             <div class="mb-3">
                                 <label class="form-label fw-medium">知识点分类</label>
                                 <select class="form-select" id="q-category">
-                                    ${MockData.questionBank.categories.flatMap(cat => 
+                                    ${this.questionBank.categories.flatMap(cat => 
                                         cat.children.map(child => 
                                             `<option value="${child.id}" ${q?.categoryId === child.id ? 'selected' : ''}>${cat.name} - ${child.name}</option>`
                                         )
@@ -564,7 +701,7 @@ const ExamModule = {
 
     deleteQuestion(id) {
         AppCommon.showConfirm('删除确认', '确定要删除此题目吗？删除后无法恢复。', () => {
-            MockData.questionBank.questions = MockData.questionBank.questions.filter(q => q.id !== id);
+            this.questions = this.questions.filter(q => q.id !== id);
             this.renderQuestionListInPlace();
             AppCommon.showAlert('题目已删除', 'success');
         });
@@ -580,13 +717,13 @@ const ExamModule = {
                             <div class="mb-3">
                                 <label class="form-label fw-medium">考试等级</label>
                                 <select class="form-select" id="paper-level">
-                                    ${MockData.levels.map(l => `<option value="${l.id}">${l.name}</option>`).join('')}
+                                    ${this.levels.map(l => `<option value="${l.id}">${l.name}</option>`).join('')}
                                 </select>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label fw-medium">专业方向</label>
                                 <select class="form-select" id="paper-specialty">
-                                    ${MockData.specialties.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                                    ${this.specialties.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
                                 </select>
                             </div>
                             <div class="mb-3">
@@ -749,7 +886,7 @@ const ExamModule = {
     },
 
     generatePaper() {
-        const questions = MockData.questionBank.questions;
+        const questions = this.questions;
         const totalCount = parseInt($('#paper-question-count').val());
         const totalScore = parseInt($('#paper-total-score').val());
 
@@ -828,7 +965,7 @@ const ExamModule = {
                         <div class="card-header">实操考核项目</div>
                         <div class="card-body">
                             <div class="list-group list-group-flush" id="exam-list">
-                                ${MockData.practicalExams.map((exam, idx) => `
+                                ${this.practicalExams.map((exam, idx) => `
                                     <div class="list-group-item list-group-item-action ${idx === 0 ? 'active' : ''}" 
                                          data-exam-id="${exam.id}"
                                          style="cursor: pointer;">
@@ -853,7 +990,7 @@ const ExamModule = {
                             <div class="mb-3">
                                 <select class="form-select" id="score-firefighter">
                                     <option value="">选择消防员...</option>
-                                    ${MockData.firefighters.slice(0, 20).map(f => `
+                                    ${this.firefighters.slice(0, 20).map(f => `
                                         <option value="${f.id}">${f.name} - ${f.stationName}</option>
                                     `).join('')}
                                 </select>
@@ -872,7 +1009,7 @@ const ExamModule = {
                             <span class="badge bg-info" id="current-exam-name">空气呼吸器佩戴操作</span>
                         </div>
                         <div class="card-body" id="scoring-items">
-                            ${this.renderScoringItems(MockData.practicalExams[0])}
+                            ${this.renderScoringItems(this.practicalExams[0])}
                         </div>
                         <div class="card-footer">
                             <div class="total-score-card">
@@ -940,7 +1077,7 @@ const ExamModule = {
 
         $('#exam-list .list-group-item').on('click', function() {
             const examId = $(this).data('exam-id');
-            const exam = MockData.practicalExams.find(e => e.id === examId);
+            const exam = this.practicalExams.find(e => e.id === examId);
             
             $('#exam-list .list-group-item').removeClass('active');
             $(this).addClass('active');
@@ -951,7 +1088,7 @@ const ExamModule = {
             self.bindSliderEvents();
         });
 
-        this.currentPracticalExam = MockData.practicalExams[0];
+        this.currentPracticalExam = this.practicalExams[0];
         this.bindSliderEvents();
 
         $('#score-firefighter').on('change', function() {
@@ -960,7 +1097,7 @@ const ExamModule = {
                 $('#firefighter-info').text('请选择被考核人员');
                 return;
             }
-            const f = MockData.firefighters.find(ff => ff.id == id);
+            const f = this.firefighters.find(ff => ff.id == id);
             if (f) {
                 $('#firefighter-info').html(`
                     <div class="d-flex align-items-center">
@@ -1076,7 +1213,8 @@ const ExamModule = {
                 callback(response.deviation || 0);
             },
             error: function() {
-                callback(Math.random() * 20 - 5);
+                AppCommon.showAlert('评分偏差检测失败，请稍后重试', 'warning');
+                callback(0);
             }
         });
     },
@@ -1091,11 +1229,11 @@ const ExamModule = {
                         </div>
                         <select class="form-select form-select-sm" style="width: auto;" id="filter-exam">
                             <option value="">全部考试</option>
-                            ${MockData.practicalExams.map(e => `<option value="${e.id}">${e.name}</option>`).join('')}
+                            ${this.practicalExams.map(e => `<option value="${e.id}">${e.name}</option>`).join('')}
                         </select>
                         <select class="form-select form-select-sm" style="width: auto;" id="filter-station-score">
                             <option value="">全部站点</option>
-                            ${MockData.fireStations.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                            ${this.fireStations.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
                         </select>
                         <select class="form-select form-select-sm" style="width: auto;" id="filter-status">
                             <option value="">全部状态</option>
@@ -1123,12 +1261,12 @@ const ExamModule = {
                             </tr>
                         </thead>
                         <tbody id="score-table-body">
-                            ${this.renderScoreRows(MockData.examScores)}
+                            ${this.renderScoreRows(this.examScores)}
                         </tbody>
                     </table>
                 </div>
                 <div class="card-footer d-flex justify-content-between align-items-center">
-                    <span class="small text-muted">共 ${MockData.examScores.length} 条记录</span>
+                    <span class="small text-muted">共 ${this.examScores.length} 条记录</span>
                     <nav>
                         <ul class="pagination pagination-sm mb-0">
                             <li class="page-item disabled"><a class="page-link" href="#">上一页</a></li>
@@ -1160,7 +1298,7 @@ const ExamModule = {
                         <span class="fw-medium">${s.name}</span>
                     </div>
                 </td>
-                <td>${MockData.fireStations.find(st => st.id === s.stationId)?.name || '-'}</td>
+                <td>${this.fireStations.find(st => st.id === s.stationId)?.name || '-'}</td>
                 <td>${s.examName}</td>
                 <td>${s.theoryScore}</td>
                 <td>${s.practicalScore}</td>

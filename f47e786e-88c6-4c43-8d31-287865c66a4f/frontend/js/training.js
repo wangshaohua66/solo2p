@@ -1,13 +1,126 @@
 const TrainingModule = {
-    schedules: [...MockData.schedules],
+    schedules: [],
+    courses: [],
     selectedCourse: null,
     currentWeekStart: null,
     viewMode: 'classroom',
     conflictCache: {},
 
+    levels: [
+        { id: 1, name: '初级消防员', color: 'info' },
+        { id: 2, name: '中级消防员', color: 'success' },
+        { id: 3, name: '高级消防员', color: 'warning' },
+        { id: 4, name: '消防指挥员', color: 'danger' }
+    ],
+
+    specialties: [
+        { id: 1, name: '灭火救援', icon: 'fire', color: 'danger' },
+        { id: 2, name: '危险化学品处置', icon: 'exclamation-triangle', color: 'warning' },
+        { id: 3, name: '高层建筑救援', icon: 'building', color: 'primary' },
+        { id: 4, name: '水域救援', icon: 'water', color: 'info' },
+        { id: 5, name: '地震搜救', icon: 'geo-alt', color: 'success' }
+    ],
+
+    fireStations: [
+        { id: 1, name: '一站', firefighters: 78 },
+        { id: 2, name: '二站', firefighters: 72 },
+        { id: 3, name: '三站', firefighters: 80 },
+        { id: 4, name: '四站', firefighters: 75 },
+        { id: 5, name: '五站', firefighters: 68 },
+        { id: 6, name: '六站', firefighters: 82 },
+        { id: 7, name: '七站', firefighters: 70 },
+        { id: 8, name: '八站', firefighters: 75 }
+    ],
+
+    classrooms: [
+        { id: 1, name: '教室01', capacity: 45, type: 'classroom', building: 'A栋' },
+        { id: 2, name: '教室02', capacity: 40, type: 'classroom', building: 'A栋' },
+        { id: 3, name: '教室03', capacity: 35, type: 'classroom', building: 'A栋' },
+        { id: 4, name: '教室04', capacity: 50, type: 'classroom', building: 'A栋' },
+        { id: 5, name: '教室05', capacity: 30, type: 'classroom', building: 'A栋' },
+        { id: 6, name: '教室06', capacity: 42, type: 'classroom', building: 'A栋' },
+        { id: 7, name: '教室07', capacity: 38, type: 'classroom', building: 'A栋' },
+        { id: 8, name: '教室08', capacity: 48, type: 'classroom', building: 'A栋' },
+        { id: 9, name: '教室09', capacity: 36, type: 'classroom', building: 'A栋' },
+        { id: 10, name: '教室10', capacity: 44, type: 'classroom', building: 'B栋' },
+        { id: 11, name: '教室11', capacity: 32, type: 'classroom', building: 'B栋' },
+        { id: 12, name: '教室12', capacity: 52, type: 'classroom', building: 'B栋' },
+        { id: 13, name: '教室13', capacity: 38, type: 'classroom', building: 'B栋' },
+        { id: 14, name: '教室14', capacity: 40, type: 'classroom', building: 'B栋' },
+        { id: 15, name: '教室15', capacity: 46, type: 'classroom', building: 'B栋' },
+        { id: 16, name: '教室16', capacity: 34, type: 'classroom', building: 'B栋' },
+        { id: 17, name: '教室17', capacity: 30, type: 'classroom', building: 'B栋' },
+        { id: 18, name: '教室18', capacity: 55, type: 'classroom', building: 'B栋' }
+    ],
+
+    trainingFields: [
+        { id: 101, name: '模拟火场训练场', type: 'field', capacity: 20 },
+        { id: 102, name: '危化品处置场', type: 'field', capacity: 15 },
+        { id: 103, name: '高空训练塔', type: 'field', capacity: 12 },
+        { id: 104, name: '水域救援池', type: 'field', capacity: 16 },
+        { id: 105, name: '地震废墟训练场', type: 'field', capacity: 18 },
+        { id: 106, name: '综合体能训练场', type: 'field', capacity: 50 }
+    ],
+
     init() {
         this.currentWeekStart = this.getMonday(new Date());
         this.render();
+        this.loadCourses();
+        this.loadWeekSchedules();
+    },
+
+    loadCourses() {
+        const self = this;
+        $.ajax({
+            url: '/api/Training/courses',
+            method: 'GET',
+            success: function(data) {
+                self.courses = data.data || data.courses || data || [];
+                $('#course-list').html(self.renderCourseList());
+            },
+            error: function() {
+                self.courses = [
+                    { id: 1, title: '灭火战术基础', specialtyId: 1, levelId: 1, duration: 3, type: 'theory', defaultLocation: 'classroom' },
+                    { id: 2, title: '水带连接实操', specialtyId: 1, levelId: 1, duration: 2, type: 'practical', defaultLocation: 'field' },
+                    { id: 3, title: '危化品识别与防护', specialtyId: 2, levelId: 2, duration: 4, type: 'theory', defaultLocation: 'classroom' },
+                    { id: 4, title: '堵漏技术实操', specialtyId: 2, levelId: 2, duration: 3, type: 'practical', defaultLocation: 'field' },
+                    { id: 5, title: '高层建筑供水', specialtyId: 3, levelId: 2, duration: 3, type: 'theory', defaultLocation: 'classroom' },
+                    { id: 6, title: '绳索救援技术', specialtyId: 3, levelId: 3, duration: 4, type: 'practical', defaultLocation: 'field' },
+                    { id: 7, title: '水域救援基础', specialtyId: 4, levelId: 1, duration: 2, type: 'theory', defaultLocation: 'classroom' },
+                    { id: 8, title: '舟艇驾驶实操', specialtyId: 4, levelId: 2, duration: 3, type: 'practical', defaultLocation: 'field' },
+                    { id: 9, title: '建筑结构与坍塌', specialtyId: 5, levelId: 3, duration: 4, type: 'theory', defaultLocation: 'classroom' },
+                    { id: 10, title: '搜救犬指挥', specialtyId: 5, levelId: 3, duration: 3, type: 'practical', defaultLocation: 'field' },
+                    { id: 11, title: '指挥决策与战术', specialtyId: 1, levelId: 4, duration: 6, type: 'theory', defaultLocation: 'classroom' },
+                    { id: 12, title: '应急通信系统', specialtyId: 1, levelId: 3, duration: 3, type: 'theory', defaultLocation: 'classroom' }
+                ];
+                $('#course-list').html(self.renderCourseList());
+            }
+        });
+    },
+
+    loadWeekSchedules() {
+        const self = this;
+        const weekStart = this.currentWeekStart;
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+
+        $.ajax({
+            url: '/api/Training/schedules',
+            method: 'GET',
+            data: {
+                startDate: weekStart.toISOString(),
+                endDate: weekEnd.toISOString()
+            },
+            success: function(data) {
+                self.schedules = data.data || data.schedules || data || [];
+                self.renderSchedulesOnCalendar();
+                self.checkConflicts();
+            },
+            error: function() {
+                self.schedules = [];
+                self.renderSchedulesOnCalendar();
+            }
+        });
     },
 
     getMonday(d) {
@@ -58,7 +171,7 @@ const TrainingModule = {
                             <span>可排课程</span>
                             <select class="form-select form-select-sm" style="width: auto;" id="course-filter-level">
                                 <option value="">全部等级</option>
-                                ${MockData.levels.map(l => `<option value="${l.id}">${l.name}</option>`).join('')}
+                                ${this.levels.map(l => `<option value="${l.id}">${l.name}</option>`).join('')}
                             </select>
                         </div>
                         <div class="card-body course-list scrollbar-thin" id="course-list">
@@ -73,14 +186,14 @@ const TrainingModule = {
                                 <label class="form-label small fw-medium">专业方向</label>
                                 <select class="form-select form-select-sm" id="filter-specialty">
                                     <option value="">全部专业</option>
-                                    ${MockData.specialties.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                                    ${this.specialties.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
                                 </select>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label small fw-medium">参训站点</label>
                                 <select class="form-select form-select-sm" id="filter-station">
                                     <option value="">全部站点</option>
-                                    ${MockData.fireStations.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                                    ${this.fireStations.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
                                 </select>
                             </div>
                             <div class="mb-0">
@@ -151,14 +264,14 @@ const TrainingModule = {
     },
 
     renderCourseList() {
-        const courses = MockData.trainingCourses;
+        const courses = this.courses;
         if (courses.length === 0) {
             return '<p class="text-muted small mb-0">暂无课程</p>';
         }
 
         return courses.map(course => {
-            const level = MockData.levels.find(l => l.id === course.levelId);
-            const specialty = MockData.specialties.find(s => s.id === course.specialtyId);
+            const level = this.levels.find(l => l.id === course.levelId);
+            const specialty = this.specialties.find(s => s.id === course.specialtyId);
             return `
                 <div class="course-item" draggable="true" data-course-id="${course.id}">
                     <div class="course-title">${course.title}</div>
@@ -180,14 +293,14 @@ const TrainingModule = {
     },
 
     renderWeekCalendar() {
-        const weekDates = AppCommon.getWeekDates(this.currentWeekStart);
+        this.weekDates = AppCommon.getWeekDates(this.currentWeekStart);
         const startHour = 8;
         const endHour = 20;
         const hours = endHour - startHour;
         
         let html = '<div class="calendar-header time-col">时间</div>';
         
-        weekDates.forEach((date, idx) => {
+        this.weekDates.forEach((date, idx) => {
             const isToday = AppCommon.formatDate(date) === AppCommon.formatDate(new Date());
             html += `
                 <div class="calendar-header ${isToday ? 'text-primary' : ''}">
@@ -204,7 +317,7 @@ const TrainingModule = {
             html += `<div class="time-slot">${String(hour).padStart(2, '0')}:00</div>`;
             
             for (let day = 0; day < 7; day++) {
-                const date = weekDates[day];
+                const date = this.weekDates[day];
                 const cellId = `cell-${day}-${hour}`;
                 const isToday = AppCommon.formatDate(date) === AppCommon.formatDate(new Date());
                 
@@ -226,11 +339,11 @@ const TrainingModule = {
         $('.calendar-event').remove();
 
         this.schedules.forEach(schedule => {
-            const course = MockData.trainingCourses.find(c => c.id === schedule.courseId);
+            const course = this.courses.find(c => c.id === schedule.courseId);
             if (!course) return;
 
-            const level = MockData.levels.find(l => l.id === schedule.levelId);
-            const rooms = [...MockData.classrooms, ...MockData.trainingFields];
+            const level = this.levels.find(l => l.id === schedule.levelId);
+            const rooms = [...this.classrooms, ...this.trainingFields];
             const room = rooms.find(r => r.id === schedule.roomId);
 
             const colorClass = level ? `event-level-${level.color}` : 'event-level-primary';
@@ -287,7 +400,7 @@ const TrainingModule = {
             self.checkConflicts();
         });
 
-        $('.course-item').on('dragstart', function(e) {
+        $('#course-list').on('dragstart', '.course-item', function(e) {
             self.selectedCourse = $(this).data('course-id');
             e.originalEvent.dataTransfer.effectAllowed = 'move';
         });
@@ -338,7 +451,7 @@ const TrainingModule = {
     handleDrop(dayIndex, hour) {
         if (!this.selectedCourse) return;
 
-        const course = MockData.trainingCourses.find(c => c.id === this.selectedCourse);
+        const course = this.courses.find(c => c.id === this.selectedCourse);
         if (!course) return;
 
         const endHour = hour + course.duration;
@@ -532,19 +645,19 @@ const TrainingModule = {
     },
 
     checkConflict(scheduleId, dayIndex, startHour, endHour, roomType) {
-        const rooms = roomType === 'classroom' ? MockData.classrooms : MockData.trainingFields;
+        const rooms = roomType === 'classroom' ? this.classrooms : this.trainingFields;
         
         for (const schedule of this.schedules) {
             if (schedule.id === scheduleId) continue;
             if (schedule.dayIndex !== dayIndex) continue;
             
-            const room = [...MockData.classrooms, ...MockData.trainingFields].find(r => r.id === schedule.roomId);
+            const room = [...this.classrooms, ...this.trainingFields].find(r => r.id === schedule.roomId);
             if (!room) continue;
             if (roomType === 'classroom' && room.type !== 'classroom') continue;
             if (roomType === 'field' && room.type !== 'field') continue;
 
             if (schedule.startHour < endHour && schedule.endHour > startHour) {
-                const course = MockData.trainingCourses.find(c => c.id === schedule.courseId);
+                const course = this.courses.find(c => c.id === schedule.courseId);
                 return {
                     hasConflict: true,
                     reason: `与「${course?.title || '未知课程'}」在${room.name}时间重叠`,
@@ -558,7 +671,7 @@ const TrainingModule = {
 
     checkConflicts() {
         const conflicts = [];
-        const rooms = [...MockData.classrooms, ...MockData.trainingFields];
+        const rooms = [...this.classrooms, ...this.trainingFields];
 
         for (let i = 0; i < this.schedules.length; i++) {
             for (let j = i + 1; j < this.schedules.length; j++) {
@@ -575,8 +688,8 @@ const TrainingModule = {
                 const commonStations = s1.stationIds.filter(id => s2.stationIds.includes(id));
                 
                 if (s1.roomId === s2.roomId || commonStations.length > 0) {
-                    const c1 = MockData.trainingCourses.find(c => c.id === s1.courseId);
-                    const c2 = MockData.trainingCourses.find(c => c.id === s2.courseId);
+                    const c1 = this.courses.find(c => c.id === s1.courseId);
+                    const c2 = this.courses.find(c => c.id === s2.courseId);
                     conflicts.push({
                         schedule1: s1,
                         schedule2: s2,
@@ -608,10 +721,10 @@ const TrainingModule = {
         const schedule = this.schedules.find(s => s.id === scheduleId);
         if (!schedule) return;
 
-        const course = MockData.trainingCourses.find(c => c.id === schedule.courseId);
-        const level = MockData.levels.find(l => l.id === schedule.levelId);
-        const room = [...MockData.classrooms, ...MockData.trainingFields].find(r => r.id === schedule.roomId);
-        const stations = schedule.stationIds.map(id => MockData.fireStations.find(s => s.id === id)?.name).filter(Boolean).join('、');
+        const course = this.courses.find(c => c.id === schedule.courseId);
+        const level = this.levels.find(l => l.id === schedule.levelId);
+        const room = [...this.classrooms, ...this.trainingFields].find(r => r.id === schedule.roomId);
+        const stations = schedule.stationIds.map(id => this.fireStations.find(s => s.id === id)?.name).filter(Boolean).join('、');
 
         const html = `
             <div class="mb-3">
@@ -659,7 +772,7 @@ const TrainingModule = {
     },
 
     autoSchedule() {
-        const unscheduled = MockData.trainingCourses.filter(c => 
+        const unscheduled = this.courses.filter(c => 
             !this.schedules.some(s => s.courseId === c.id)
         );
 
@@ -669,7 +782,7 @@ const TrainingModule = {
         }
 
         let scheduledCount = 0;
-        const rooms = [...MockData.classrooms, ...MockData.trainingFields];
+        const rooms = [...this.classrooms, ...this.trainingFields];
 
         for (const course of unscheduled.slice(0, 3)) {
             let scheduled = false;
@@ -725,7 +838,7 @@ const TrainingModule = {
 
         $('.course-item').each(function() {
             const courseId = $(this).data('course-id');
-            const course = MockData.trainingCourses.find(c => c.id === courseId);
+            const course = this.courses.find(c => c.id === courseId);
             
             let visible = true;
             
@@ -739,8 +852,8 @@ const TrainingModule = {
     },
 
     showBatchScheduleModal() {
-        const courses = MockData.trainingCourses;
-        const rooms = this.viewMode === 'classroom' ? MockData.classrooms : MockData.trainingFields;
+        const courses = this.courses;
+        const rooms = this.viewMode === 'classroom' ? this.classrooms : this.trainingFields;
 
         const html = `
             <div class="modal fade" id="batch-schedule-modal" tabindex="-1">
@@ -795,7 +908,7 @@ const TrainingModule = {
                             <div class="mb-3">
                                 <label class="form-label fw-medium">参训站点</label>
                                 <select class="form-select" id="batch-station" multiple size="4">
-                                    ${MockData.fireStations.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                                    ${this.fireStations.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
                                 </select>
                                 <div class="form-text">按住 Ctrl/Cmd 可多选</div>
                             </div>
@@ -830,7 +943,7 @@ const TrainingModule = {
             const mode = $('#batch-mode').val();
 
             const items = selectedCourses.map(courseId => {
-                const course = MockData.trainingCourses.find(c => c.id === courseId);
+                const course = this.courses.find(c => c.id === courseId);
                 return {
                     courseId: courseId,
                     roomId: roomId,
@@ -878,7 +991,7 @@ const TrainingModule = {
 
                 let scheduledCount = 0;
                 items.forEach(item => {
-                    const course = MockData.trainingCourses.find(c => c.id === item.courseId);
+                    const course = this.courses.find(c => c.id === item.courseId);
                     if (!course) return;
 
                     const dayIndex = new Date(item.scheduleDate).getDay();
@@ -951,13 +1064,13 @@ const TrainingModule = {
                                 <div class="col-md-6">
                                     <label class="form-label fw-medium">专业方向 <span class="text-danger">*</span></label>
                                     <select class="form-select" id="plan-specialty">
-                                        ${MockData.specialties.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                                        ${this.specialties.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
                                     </select>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label fw-medium">培训等级 <span class="text-danger">*</span></label>
                                     <select class="form-select" id="plan-level">
-                                        ${MockData.levels.map(l => `<option value="${l.id}">${l.name}</option>`).join('')}
+                                        ${this.levels.map(l => `<option value="${l.id}">${l.name}</option>`).join('')}
                                     </select>
                                 </div>
                             </div>
@@ -974,7 +1087,7 @@ const TrainingModule = {
                             <div class="mb-3">
                                 <label class="form-label fw-medium">参训站点 <span class="text-danger">*</span></label>
                                 <div class="border rounded p-2" style="max-height: 120px; overflow-y: auto;">
-                                    ${MockData.fireStations.map(s => `
+                                    ${this.fireStations.map(s => `
                                         <div class="form-check">
                                             <input class="form-check-input plan-station-check" type="checkbox" value="${s.id}" id="plan-station-${s.id}">
                                             <label class="form-check-label" for="plan-station-${s.id}">${s.name}</label>

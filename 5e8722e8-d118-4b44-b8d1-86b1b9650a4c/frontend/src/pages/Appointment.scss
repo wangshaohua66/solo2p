@@ -80,9 +80,19 @@
             margin-bottom: 4px;
           }
 
-          .doctor-rating {
+          .doctor-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
             font-size: 13px;
-            color: #faad14;
+
+            .doctor-rating {
+              color: #faad14;
+            }
+
+            .doctor-clinic {
+              color: #8c8c8c;
+            }
           }
         }
       }

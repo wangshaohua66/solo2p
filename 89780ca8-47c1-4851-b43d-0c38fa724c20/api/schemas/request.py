@@ -38,6 +38,12 @@ class CollectionReviewRequest(BaseModel):
 class CollectionApproveRequest(BaseModel):
     approved: bool
     review_notes: str = Field(default="")
+    reviewer_id: int = Field(..., gt=0)
+
+
+class ReviewStageSubmitRequest(BaseModel):
+    reviewer_id: int = Field(..., gt=0)
+    review_notes: str = Field(default="", max_length=2000)
 
 
 class CollectionMintRequest(BaseModel):
@@ -64,6 +70,10 @@ class RoyaltySettleRequest(BaseModel):
     trade_ids: list[int] = Field(..., min_length=1)
 
 
+class BatchPayoutRequest(BaseModel):
+    settlement_ids: list[int] = Field(..., min_length=1)
+
+
 class RiskRuleUpdateRequest(BaseModel):
     name: Optional[str] = Field(None, max_length=100)
     threshold: Optional[float] = Field(None, gt=0)
@@ -79,3 +89,9 @@ class CollectionFilterParams(BaseModel):
     max_price: Optional[float] = Field(None, ge=0)
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=20, ge=1, le=100)
+
+
+class APIKeyCreateRequest(BaseModel):
+    key_name: str = Field(..., min_length=1, max_length=100)
+    scopes: str = Field(default="", max_length=500)
+    user_id: int = Field(..., gt=0)

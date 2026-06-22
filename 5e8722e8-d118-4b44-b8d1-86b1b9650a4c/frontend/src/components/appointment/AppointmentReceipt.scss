@@ -1,0 +1,144 @@
+.appointment-receipt {
+  .receipt-container {
+    max-width: 600px;
+    margin: 0 auto;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    padding: 30px;
+    background: #fff;
+  }
+
+  .receipt-header {
+    text-align: center;
+    border-bottom: 2px solid #1890ff;
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+  }
+
+  .receipt-title {
+    font-size: 22px;
+    font-weight: bold;
+    color: #1890ff;
+    margin-bottom: 8px;
+  }
+
+  .receipt-subtitle {
+    font-size: 13px;
+    color: #8c8c8c;
+  }
+
+  .receipt-section {
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #262626;
+    margin-bottom: 10px;
+    padding-left: 8px;
+    border-left: 3px solid #1890ff;
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 20px;
+  }
+
+  .info-item {
+    display: flex;
+    font-size: 13px;
+    line-height: 1.8;
+  }
+
+  .info-label {
+    color: #8c8c8c;
+    min-width: 70px;
+    flex-shrink: 0;
+  }
+
+  .info-value {
+    color: #262626;
+    word-break: break-all;
+  }
+
+  .highlight-box {
+    background: #e6f7ff;
+    border: 1px solid #91d5ff;
+    border-radius: 4px;
+    padding: 12px;
+    text-align: center;
+    margin: 16px 0;
+  }
+
+  .highlight-text {
+    font-size: 18px;
+    font-weight: bold;
+    color: #1890ff;
+  }
+
+  .highlight-sub {
+    font-size: 12px;
+    color: #595959;
+    margin-top: 4px;
+  }
+
+  .receipt-footer {
+    margin-top: 30px;
+    padding-top: 16px;
+    border-top: 1px dashed #d9d9d9;
+    font-size: 12px;
+    color: #8c8c8c;
+    text-align: center;
+    line-height: 1.8;
+  }
+
+  .receipt-id {
+    font-size: 11px;
+    color: #bfbfbf;
+    margin-top: 8px;
+  }
+
+  .receipt-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 20px;
+
+    button {
+      padding: 8px 24px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      border: 1px solid #d9d9d9;
+      background: #fff;
+      transition: all 0.3s;
+
+      &:hover {
+        opacity: 0.8;
+      }
+
+      &.btn-print {
+        color: #595959;
+      }
+
+      &.btn-download {
+        background: #1890ff;
+        color: #fff;
+        border-color: #1890ff;
+      }
+    }
+  }
+}
+
+@media print {
+  .appointment-receipt .receipt-actions {
+    display: none !important;
+  }
+
+  .appointment-receipt .receipt-container {
+    border: none !important;
+    box-shadow: none !important;
+  }
+}

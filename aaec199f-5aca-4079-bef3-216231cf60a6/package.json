@@ -1,0 +1,43 @@
+{
+  "name": "public-resource-crawler",
+  "version": "1.0.0",
+  "description": "公共资源交易平台爬虫系统 - 政府采购、工程建设、土地矿产、产权交易公告抓取",
+  "main": "dist/index.js",
+  "bin": {
+    "crawler": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "playwright": "^1.48.0",
+    "chalk": "^4.1.2",
+    "cli-progress": "^3.12.0",
+    "better-sqlite3": "^11.3.0",
+    "exceljs": "^4.4.0",
+    "string-similarity": "^4.0.4",
+    "winston": "^3.14.2",
+    "winston-daily-rotate-file": "^5.0.0",
+    "commander": "^12.1.0",
+    "p-queue": "^6.6.2",
+    "crypto": "^1.0.1",
+    "dayjs": "^1.11.13",
+    "table": "^6.8.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.11",
+    "@types/cli-progress": "^3.11.6",
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/string-similarity": "^4.0.2",
+    "@types/table": "^6.3.2",
+    "typescript": "^5.6.3",
+    "ts-node": "^10.9.2"
+  }
+}

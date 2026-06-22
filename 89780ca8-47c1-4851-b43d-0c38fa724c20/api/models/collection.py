@@ -32,9 +32,32 @@ class Collection(Base):
     price = Column(Float, nullable=False)
     royalty_rate = Column(Float, default=0.05)
     status = Column(String(20), default="draft")
+    review_stage = Column(String(20), default="")
+    first_reviewer_id = Column(Integer, nullable=True)
+    second_reviewer_id = Column(Integer, nullable=True)
+    final_reviewer_id = Column(Integer, nullable=True)
+    first_reviewed_at = Column(DateTime, nullable=True)
+    second_reviewed_at = Column(DateTime, nullable=True)
+    final_reviewed_at = Column(DateTime, nullable=True)
+    first_review_notes = Column(Text, default="")
+    second_review_notes = Column(Text, default="")
+    final_review_notes = Column(Text, default="")
     tx_hash = Column(String(128), default="")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     creator = relationship("Creator", back_populates="collections")
     assets = relationship("Asset", back_populates="collection")
+
+
+class ReviewHistory(Base):
+    __tablename__ = "review_history"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    collection_id = Column(Integer, ForeignKey("collections.id"), nullable=False)
+    reviewer_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    reviewer_role = Column(String(30), nullable=False)
+    review_stage = Column(String(20), nullable=False)
+    action = Column(String(20), nullable=False)
+    review_notes = Column(Text, default="")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

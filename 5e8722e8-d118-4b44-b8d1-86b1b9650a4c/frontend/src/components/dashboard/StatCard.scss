@@ -1,0 +1,65 @@
+.stat-card {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.3s;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  }
+
+  .stat-icon {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: #fff;
+    opacity: 0.9;
+  }
+
+  :global(.ant-statistic) {
+    .ant-statistic-title {
+      font-size: 14px;
+      color: #8c8c8c;
+      margin-bottom: 8px;
+    }
+
+    .ant-statistic-content {
+      font-size: 28px;
+      font-weight: 600;
+      color: #262626;
+    }
+  }
+
+  .stat-trend {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 8px;
+    font-size: 12px;
+
+    &.up {
+      color: #52c41a;
+    }
+
+    &.down {
+      color: #ff4d4f;
+    }
+
+    .trend-value {
+      font-weight: 500;
+    }
+
+    .trend-text {
+      color: #8c8c8c;
+      margin-left: 4px;
+    }
+  }
+}

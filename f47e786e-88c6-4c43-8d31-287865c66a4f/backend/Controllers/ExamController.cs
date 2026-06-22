@@ -6,9 +6,7 @@ using FireTraining.Services;
 
 namespace FireTraining.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-public class ExamController : ControllerBase
+public class ExamController : Controller
 {
     private readonly AppDbContext _context;
     private readonly IExamService _examService;
@@ -21,7 +19,13 @@ public class ExamController : ControllerBase
         _fileUploadService = fileUploadService;
     }
 
-    [HttpGet("questions")]
+    public IActionResult Index()
+    {
+        ViewData["Title"] = "考试中心";
+        return View();
+    }
+
+    [HttpGet("api/Exam/questions")]
     public async Task<ActionResult<IEnumerable<Question>>> GetQuestions(
         int? categoryId,
         QuestionType? type,
@@ -40,7 +44,7 @@ public class ExamController : ControllerBase
         return Ok(new { total, data = questions });
     }
 
-    [HttpGet("questions/{id}")]
+    [HttpGet("api/Exam/questions/{id}")]
     public async Task<ActionResult<Question>> GetQuestion(int id, CancellationToken cancellationToken)
     {
         var question = await _examService.GetQuestionByIdAsync(id, cancellationToken);
@@ -50,14 +54,14 @@ public class ExamController : ControllerBase
         return Ok(question);
     }
 
-    [HttpPost("questions")]
+    [HttpPost("api/Exam/questions")]
     public async Task<ActionResult<Question>> CreateQuestion(Question question, CancellationToken cancellationToken)
     {
         var created = await _examService.CreateQuestionAsync(question, cancellationToken);
         return CreatedAtAction(nameof(GetQuestion), new { id = created.Id }, created);
     }
 
-    [HttpPut("questions/{id}")]
+    [HttpPut("api/Exam/questions/{id}")]
     public async Task<IActionResult> UpdateQuestion(int id, Question question, CancellationToken cancellationToken)
     {
         if (id != question.Id)
@@ -70,7 +74,7 @@ public class ExamController : ControllerBase
         return NoContent();
     }
 
-    [HttpDelete("questions/{id}")]
+    [HttpDelete("api/Exam/questions/{id}")]
     public async Task<IActionResult> DeleteQuestion(int id, CancellationToken cancellationToken)
     {
         var result = await _examService.DeleteQuestionAsync(id, cancellationToken);
@@ -80,7 +84,7 @@ public class ExamController : ControllerBase
         return NoContent();
     }
 
-    [HttpGet("questions/categories")]
+    [HttpGet("api/Exam/questions/categories")]
     public async Task<ActionResult<IEnumerable<QuestionCategory>>> GetQuestionCategories(
         int? specialtyId,
         CancellationToken cancellationToken = default)
@@ -99,7 +103,7 @@ public class ExamController : ControllerBase
         return Ok(categories);
     }
 
-    [HttpPost("questions/categories")]
+    [HttpPost("api/Exam/questions/categories")]
     public async Task<ActionResult<QuestionCategory>> CreateCategory(
         QuestionCategory category,
         CancellationToken cancellationToken)
@@ -113,7 +117,7 @@ public class ExamController : ControllerBase
         return CreatedAtAction(nameof(GetQuestionCategories), new { id = category.Id }, category);
     }
 
-    [HttpPost("papers/generate")]
+    [HttpPost("api/Exam/papers/generate")]
     public async Task<ActionResult<ExamPaperGenerationResult>> GeneratePaper(
         [FromBody] PaperGenerationConfig config,
         CancellationToken cancellationToken)
@@ -126,7 +130,7 @@ public class ExamController : ControllerBase
         return Ok(result);
     }
 
-    [HttpGet("papers")]
+    [HttpGet("api/Exam/papers")]
     public async Task<ActionResult<IEnumerable<ExamPaper>>> GetPapers(
         int? specialtyId,
         int? levelId,
@@ -139,7 +143,7 @@ public class ExamController : ControllerBase
         return Ok(papers);
     }
 
-    [HttpGet("papers/{id}")]
+    [HttpGet("api/Exam/papers/{id}")]
     public async Task<ActionResult<ExamPaper>> GetPaper(int id, CancellationToken cancellationToken)
     {
         var paper = await _examService.GetPaperByIdAsync(id, cancellationToken);
@@ -149,7 +153,7 @@ public class ExamController : ControllerBase
         return Ok(paper);
     }
 
-    [HttpPost("papers")]
+    [HttpPost("api/Exam/papers")]
     public async Task<ActionResult<ExamPaper>> CreatePaper(ExamPaper paper, CancellationToken cancellationToken)
     {
         paper.CreatedAt = DateTime.UtcNow;
@@ -161,7 +165,7 @@ public class ExamController : ControllerBase
         return CreatedAtAction(nameof(GetPaper), new { id = paper.Id }, paper);
     }
 
-    [HttpPut("papers/{id}/status")]
+    [HttpPut("api/Exam/papers/{id}/status")]
     public async Task<IActionResult> UpdatePaperStatus(
         int id,
         [FromBody] PaperStatus status,
@@ -178,7 +182,7 @@ public class ExamController : ControllerBase
         return NoContent();
     }
 
-    [HttpGet("exams")]
+    [HttpGet("api/Exam/exams")]
     public async Task<ActionResult<IEnumerable<Exam>>> GetExams(
         int? specialtyId,
         int? levelId,
@@ -216,7 +220,7 @@ public class ExamController : ControllerBase
         return Ok(new { total, data = exams });
     }
 
-    [HttpPost("exams")]
+    [HttpPost("api/Exam/exams")]
     public async Task<ActionResult<Exam>> CreateExam(Exam exam, CancellationToken cancellationToken)
     {
         exam.CreatedAt = DateTime.UtcNow;
@@ -228,7 +232,7 @@ public class ExamController : ControllerBase
         return CreatedAtAction(nameof(GetExams), new { id = exam.Id }, exam);
     }
 
-    [HttpGet("scores")]
+    [HttpGet("api/Exam/scores")]
     public async Task<ActionResult<IEnumerable<ExamScore>>> GetScores(
         int? examId,
         int? stationId,
@@ -246,7 +250,7 @@ public class ExamController : ControllerBase
         return Ok(new { total, data = scores });
     }
 
-    [HttpGet("scores/{id}")]
+    [HttpGet("api/Exam/scores/{id}")]
     public async Task<ActionResult<ExamScore>> GetScore(int id, CancellationToken cancellationToken)
     {
         var score = await _context.ExamScores
@@ -262,7 +266,7 @@ public class ExamController : ControllerBase
         return Ok(score);
     }
 
-    [HttpPost("practical/scores")]
+    [HttpPost("api/Exam/practical/scores")]
     public async Task<IActionResult> SubmitPracticalScore(
         int examScoreId,
         [FromBody] List<PracticalScoreSubmission> scores,
@@ -280,7 +284,7 @@ public class ExamController : ControllerBase
         return Ok(new { success = true, hasDeviation, totalScore = score.TotalScore });
     }
 
-    [HttpPost("scores/{id}/reassessment")]
+    [HttpPost("api/Exam/scores/{id}/reassessment")]
     public async Task<IActionResult> TriggerReassessment(
         int id,
         [FromBody] string? reason,
@@ -290,7 +294,7 @@ public class ExamController : ControllerBase
         return NoContent();
     }
 
-    [HttpGet("practical/exams")]
+    [HttpGet("api/Exam/practical/exams")]
     public async Task<ActionResult<IEnumerable<PracticalExam>>> GetPracticalExams(
         int? specialtyId,
         int? levelId,
@@ -314,7 +318,7 @@ public class ExamController : ControllerBase
         return Ok(exams);
     }
 
-    [HttpGet("practical/exams/{id}")]
+    [HttpGet("api/Exam/practical/exams/{id}")]
     public async Task<ActionResult<PracticalExam>> GetPracticalExam(int id, CancellationToken cancellationToken)
     {
         var exam = await _context.PracticalExams
@@ -328,7 +332,7 @@ public class ExamController : ControllerBase
         return Ok(exam);
     }
 
-    [HttpPost("practical/exams")]
+    [HttpPost("api/Exam/practical/exams")]
     public async Task<ActionResult<PracticalExam>> CreatePracticalExam(
         PracticalExam exam,
         CancellationToken cancellationToken)
@@ -342,7 +346,7 @@ public class ExamController : ControllerBase
         return CreatedAtAction(nameof(GetPracticalExam), new { id = exam.Id }, exam);
     }
 
-    [HttpPost("questions/upload-image")]
+    [HttpPost("api/Exam/questions/upload-image")]
     public async Task<IActionResult> UploadQuestionImage(
         IFormFile file,
         CancellationToken cancellationToken = default)
@@ -358,7 +362,7 @@ public class ExamController : ControllerBase
         }
     }
 
-    [HttpPost("scores/check-deviation")]
+    [HttpPost("api/Exam/scores/check-deviation")]
     public async Task<ActionResult<object>> CheckScoreDeviation(
         [FromBody] ScoreDeviationRequest request,
         CancellationToken cancellationToken)

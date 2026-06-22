@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -8,7 +8,12 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
-  X
+  X,
+  Trash2,
+  MapPin,
+  List,
+  LayoutGrid,
+  CalendarDays
 } from 'lucide-react';
 import { useScheduleStore } from '@/store/useScheduleStore';
 import { useVenueStore } from '@/store/useVenueStore';
@@ -27,15 +32,24 @@ import {
   isTodayDate,
   calculateDuration
 } from '@/utils/dateUtils';
+import { useIsMobile } from '@/hooks/useResponsive';
 import type { EventItem } from '@/types';
 
+type ViewMode = 'list' | 'month' | 'week';
+
 export default function ScheduleBoard() {
-  const { events, selectedEventId, selectEvent, conflictResult, checkConflicts } = useScheduleStore();
+  const { events, selectedEventId, selectEvent, conflictResult, checkConflicts, deleteEvent } = useScheduleStore();
   const { venues, selectedVenueId } = useVenueStore();
   const { setWizardOpen } = useEventStore();
+  const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
+  const [viewMode, setViewMode] = useState<ViewMode>(isMobile ? 'list' : 'month');
   const [filterType, setFilterType] = useState<string | null>(null);
+  const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setViewMode(isMobile ? 'list' : 'month');
+  }, [isMobile]);
 
   const days = useMemo(() => getMonthDays(currentDate), [currentDate]);
   
@@ -67,37 +81,103 @@ export default function ScheduleBoard() {
 
   const weekDays = ['一', '二', '三', '四', '五', '六', '日'];
 
+  const sortedEvents = useMemo(() => {
+        return [...filteredEvents].sort((a, b) => 
+          new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+        );
+      }, [filteredEvents]);
+
   return (
     <div className="h-full flex flex-col gap-4">
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-white">档期看板</h1>
+        <div className="flex items-center gap-4 flex-wrap">
+          <h1 className="text-xl sm:text-2xl font-bold text-white">档期看板</h1>
           <div className="flex items-center gap-1 bg-slate-800/60 rounded-xl p-1">
+            <button
+              onClick={() => setViewMode('list')}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1',
+                viewMode === 'list' 
+                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' 
+                  : 'text-slate-400 hover:text-slate-200'
+              )}
+            >
+              <List className="w-4 h-4" />
+              <span className="hidden sm:inline">列表</span>
+            </button>
             <button
               onClick={() => setViewMode('month')}
               className={cn(
-                'px-4 py-1.5 rounded-lg text-sm font-medium transition-all',
+                'px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1',
                 viewMode === 'month' 
                   ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' 
                   : 'text-slate-400 hover:text-slate-200'
               )}
             >
-              月视图
+              <LayoutGrid className="w-4 h-4" />
+              <span className="hidden sm:inline">月</span>
             </button>
             <button
               onClick={() => setViewMode('week')}
               className={cn(
-                'px-4 py-1.5 rounded-lg text-sm font-medium transition-all',
+                'px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1',
                 viewMode === 'week' 
                   ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' 
                   : 'text-slate-400 hover:text-slate-200'
               )}
             >
-              周视图
+              <CalendarDays className="w-4 h-4" />
+              <span className="hidden sm:inline">周</span>
             </button>
           </div>
         </div>
 
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            onClick={() => setWizardOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl font-medium text-sm hover:shadow-lg hover:shadow-cyan-500/30 transition-all hover:scale-105"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">新建赛事</span>
+            <span className="sm:hidden">新建</span>
+          </button>
+        </div>
+      </div>
+
+      {isMobile && (
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+          <button
+            onClick={() => setFilterType(null)}
+            className={cn(
+              'px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap flex-shrink-0 transition-colors',
+              !filterType
+                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                : 'bg-slate-800/60 text-slate-400 hover:bg-slate-700/50 border border-transparent'
+            )}
+          >
+            全部
+          </button>
+          {Object.entries(eventTypeNames).map(([key, name]) => (
+            <button
+              key={key}
+              onClick={() => setFilterType(key)}
+              className={cn(
+                'px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap flex-shrink-0 transition-colors',
+                filterType === key
+                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                  : 'bg-slate-800/60 text-slate-400 hover:bg-slate-700/50 border border-transparent'
+              )}
+              style={{
+                borderColor: filterType === key ? eventTypeColors[key as keyof typeof eventTypeColors] : undefined,
+              }}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {!isMobile && (
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-slate-400" />
@@ -112,18 +192,20 @@ export default function ScheduleBoard() {
               ))}
             </select>
           </div>
-
-          <button
-            onClick={() => setWizardOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl font-medium text-sm hover:shadow-lg hover:shadow-cyan-500/30 transition-all hover:scale-105"
-          >
-            <Plus className="w-4 h-4" />
-            新建赛事
-          </button>
         </div>
-      </div>
+      )}
 
-      <div className="flex-1 bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden flex flex-col">
+      {viewMode === 'list' ? (
+        <ListView
+          events={sortedEvents}
+          venues={venues}
+          expandedEventId={expandedEventId}
+          setExpandedEventId={setExpandedEventId}
+          onSelectEvent={selectEvent}
+          onDeleteEvent={deleteEvent}
+        />
+      ) : (
+        <div className="flex-1 bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden flex flex-col">
         <div className="px-6 py-4 border-b border-slate-700/50 flex items-center justify-between bg-slate-800/60">
           <div className="flex items-center gap-3">
             <button
@@ -239,7 +321,8 @@ export default function ScheduleBoard() {
             );
           })}
         </div>
-      </div>
+        </div>
+      )}
 
       {selectedEvent && (
         <EventDetailModal event={selectedEvent} onClose={() => selectEvent(null)} />
@@ -428,6 +511,206 @@ function ConflictAlert({ conflicts }: { conflicts: any[] }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ListView({
+  events,
+  venues,
+  expandedEventId,
+  setExpandedEventId,
+  onSelectEvent,
+  onDeleteEvent,
+}: {
+  events: EventItem[];
+  venues: ReturnType<typeof useVenueStore.getState>['venues'];
+  expandedEventId: string | null;
+  setExpandedEventId: (id: string | null) => void;
+  onSelectEvent: (id: string | null) => void;
+  onDeleteEvent: (id: string) => void;
+}) {
+  const [swipedEventId, setSwipedEventId] = useState<string | null>(null);
+  const touchStartX = useRef<number | null>(null);
+  const touchCurrentX = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent, eventId: string) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchCurrentX.current = e.touches[0].clientX;
+    setSwipedEventId(eventId);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    touchCurrentX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (eventId: string) => {
+    if (touchStartX.current === null || touchCurrentX.current === null) return;
+    
+    const deltaX = touchCurrentX.current - touchStartX.current;
+    
+    if (deltaX < -80) {
+      setSwipedEventId(eventId);
+    } else if (deltaX > 30) {
+      setSwipedEventId(null);
+    }
+    
+    touchStartX.current = null;
+    touchCurrentX.current = null;
+  };
+
+  if (events.length === 0) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <Calendar className="w-16 h-16 mx-auto mb-4 text-slate-700" />
+          <p className="text-slate-500">暂无赛事安排</p>
+          <p className="text-slate-600 text-sm mt-1">点击右上角按钮创建新赛事</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto space-y-3">
+      {events.map(event => {
+        const venue = venues.find(v => v.id === event.venueId);
+        const isExpanded = expandedEventId === event.id;
+        const isSwiped = swipedEventId === event.id;
+        const color = getEventTypeColor(event.type);
+
+        return (
+          <div key={event.id} className="relative overflow-hidden rounded-xl">
+            {isSwiped && (
+              <div className="absolute inset-y-0 right-0 w-20 bg-red-500 flex items-center justify-center">
+                <button
+                  onClick={() => {
+                    onDeleteEvent(event.id);
+                    setSwipedEventId(null);
+                  }}
+                  className="w-full h-full flex items-center justify-center text-white"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              </div>
+            )}
+            
+            <div
+              className={cn(
+                'relative bg-slate-800/60 border border-slate-700/50 transition-all duration-300',
+                isSwiped && 'transform -translate-x-20'
+              )}
+              onTouchStart={(e) => handleTouchStart(e, event.id)}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={() => handleTouchEnd(event.id)}
+            >
+              <button
+                onClick={() => {
+                  setExpandedEventId(isExpanded ? null : event.id);
+                  onSelectEvent(event.id);
+                }}
+                className="w-full p-4 text-left"
+              >
+                <div className="flex items-start gap-3">
+                  <div 
+                    className="w-1.5 flex-shrink-0 self-stretch rounded-full"
+                    style={{ backgroundColor: color }}
+                  />
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span 
+                            className="px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0"
+                            style={{ backgroundColor: `${color}25`, color }}
+                          >
+                            {eventTypeNames[event.type]}
+                          </span>
+                          <span className={cn(
+                            'px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0',
+                            event.status === 'scheduled' && 'bg-cyan-500/20 text-cyan-400',
+                            event.status === 'pending_approval' && 'bg-amber-500/20 text-amber-400',
+                            event.status === 'approved' && 'bg-green-500/20 text-green-400',
+                            event.status === 'rejected' && 'bg-red-500/20 text-red-400',
+                            event.status === 'completed' && 'bg-slate-500/20 text-slate-400',
+                            event.status === 'cancelled' && 'bg-red-500/20 text-red-400',
+                          )}>
+                            {statusNames[event.status]}
+                          </span>
+                        </div>
+                        <h3 className="text-white font-medium truncate">{event.name}</h3>
+                      </div>
+                      <ChevronRight className={cn(
+                        'w-5 h-5 text-slate-500 flex-shrink-0 transition-transform',
+                        isExpanded && 'rotate-90'
+                      )} />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Clock className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                        <span className="text-slate-300 truncate">
+                          {formatDateTime(event.startDate)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <MapPin className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                        <span className="text-slate-300 truncate">
+                          {venue?.name || '未指定场馆'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="mt-4 pt-4 border-t border-slate-700/50 space-y-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="bg-slate-800/60 rounded-lg p-3">
+                            <div className="text-xs text-slate-500 mb-1">预计时长</div>
+                            <div className="text-sm text-white font-medium">
+                              {calculateDuration(event.startDate, event.endDate)}
+                            </div>
+                          </div>
+                          <div className="bg-slate-800/60 rounded-lg p-3">
+                            <div className="text-xs text-slate-500 mb-1">预计营收</div>
+                            <div className="text-sm text-green-400 font-medium">
+                              {formatMoney(event.expectedRevenue)}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="bg-slate-800/60 rounded-lg p-3">
+                          <div className="text-xs text-slate-500 mb-1">主办单位</div>
+                          <div className="text-sm text-white">{event.organizer}</div>
+                        </div>
+
+                        {event.description && (
+                          <div className="bg-slate-800/60 rounded-lg p-3">
+                            <div className="text-xs text-slate-500 mb-1">赛事介绍</div>
+                            <div className="text-sm text-slate-300 leading-relaxed">
+                              {event.description}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex gap-2">
+                          <button className="flex-1 py-2 bg-slate-700 text-white rounded-lg text-sm hover:bg-slate-600 transition-colors">
+                            编辑
+                          </button>
+                          <button className="flex-1 py-2 bg-cyan-500/20 text-cyan-400 rounded-lg text-sm hover:bg-cyan-500/30 transition-colors border border-cyan-500/30">
+                            查看详情
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

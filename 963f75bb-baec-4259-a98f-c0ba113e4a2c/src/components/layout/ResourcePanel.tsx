@@ -1,10 +1,11 @@
-import { X, Thermometer, Users, Clock, Activity, ChevronLeft, ChevronRight, Layers } from 'lucide-react';
+import { X, Thermometer, Users, Clock, Activity, ChevronLeft, ChevronRight, Layers, BarChart3 } from 'lucide-react';
 import { useVenueStore } from '@/store/useVenueStore';
 import { useScheduleStore } from '@/store/useScheduleStore';
 import { cn, getStatusColor } from '@/utils/helpers';
 import { formatDateTime } from '@/utils/dateUtils';
 import type { Resource } from '@/types';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import HeatmapChart from '@/components/HeatmapChart';
 
 export function ResourcePanel() {
   const { 
@@ -16,6 +17,7 @@ export function ResourcePanel() {
     setSelectedResourceId 
   } = useVenueStore();
   const { events } = useScheduleStore();
+  const [showHeatmap, setShowHeatmap] = useState(true);
 
   const venueResources = useMemo(() => 
     resources.filter(r => r.venueId === selectedVenueId),
@@ -105,7 +107,33 @@ export function ResourcePanel() {
         {selectedResource ? (
           <ResourceDetail resource={selectedResource} onClose={() => setSelectedResourceId(null)} events={events} />
         ) : (
-          <ResourceList categories={resourceCategories} onSelect={setSelectedResourceId} selectedId={selectedResourceId} />
+          <>
+            <div className="border-b border-slate-700/50">
+              <button
+                onClick={() => setShowHeatmap(!showHeatmap)}
+                className="w-full flex items-center justify-between p-4 hover:bg-slate-800/30 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-orange-400" />
+                  <span className="text-sm font-semibold text-white">资源利用率热力图</span>
+                </div>
+                <svg
+                  className={`w-4 h-4 text-slate-400 transition-transform ${showHeatmap ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {showHeatmap && (
+                <div className="px-4 pb-4">
+                  <HeatmapChart resources={venueResources} refreshInterval={30000} />
+                </div>
+              )}
+            </div>
+            <ResourceList categories={resourceCategories} onSelect={setSelectedResourceId} selectedId={selectedResourceId} />
+          </>
         )}
       </div>
 

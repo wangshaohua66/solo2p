@@ -22,6 +22,7 @@ interface VenueState {
   getEquipmentByVenue: (venueId: string) => Equipment[];
   
   updateResourceStatus: (resourceId: string, status: Resource['status']) => void;
+  updateResourcePosition: (resourceId: string, position: { x: number; y: number; z?: number }) => void;
 }
 
 export const useVenueStore = create<VenueState>((set, get) => ({
@@ -55,6 +56,14 @@ export const useVenueStore = create<VenueState>((set, get) => ({
     set((state) => ({
       resources: state.resources.map((r) =>
         r.id === resourceId ? { ...r, status } : r
+      ),
+    }));
+  },
+
+  updateResourcePosition: (resourceId, position) => {
+    set((state) => ({
+      resources: state.resources.map((r) =>
+        r.id === resourceId ? { ...r, position: { ...r.position, ...position } } : r
       ),
     }));
   },

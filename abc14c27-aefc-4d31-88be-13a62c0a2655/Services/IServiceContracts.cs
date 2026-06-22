@@ -91,3 +91,33 @@ public interface IStatisticsService
     Task<ApiResponse<List<DailyStatisticsDto>>> GetDailyTrendAsync(StatisticsQueryDto dto);
     Task<ApiResponse<WeeklyMonthlyReportDto>> GetWeeklyMonthlyReportAsync(StatisticsQueryDto dto, string reportType = "weekly");
 }
+
+public interface IPdfService
+{
+    Task<byte[]> GeneratePdfFromHtmlAsync(string html, string title, CancellationToken cancellationToken);
+    Task<byte[]> GenerateInspectionReportPdfAsync(InspectionOrderDetailDto order, string htmlContent, CancellationToken cancellationToken);
+}
+
+public interface IExternalApiService
+{
+    Task<(bool IsCompliant, string Message, Dictionary<string, object>? Details)> CheckEnvProtectionAsync(string vin, CancellationToken cancellationToken);
+    Task<(bool IsCompliant, string Message, Dictionary<string, object>? Details)> CheckAccidentRecordAsync(string vin, CancellationToken cancellationToken);
+    Task<(bool IsCompliant, string Message, Dictionary<string, object>? Details)> CheckMortgageAsync(string vin, CancellationToken cancellationToken);
+    Task<(bool IsCompliant, string Message, Dictionary<string, object>? Details)> CheckSeizureAsync(string vin, CancellationToken cancellationToken);
+    Task<(bool IsCompliant, string Message, Dictionary<string, object>? Details)> CheckVehicleInfoAsync(string vin, CancellationToken cancellationToken);
+    Task<(bool IsCompliant, string Message, Dictionary<string, object>? Details)> CheckTaxStatusAsync(string vin, CancellationToken cancellationToken);
+}
+
+public interface IOcrService
+{
+    Task<(string OcrText, List<string> Keywords, bool Success)> RecognizeTextAsync(Stream imageStream, string fileName, CancellationToken cancellationToken);
+    Task<(string OcrText, List<string> Keywords, bool Success)> RecognizeTextFromFileAsync(string filePath, CancellationToken cancellationToken);
+}
+
+public interface INotificationService
+{
+    Task<(bool Success, string? Error)> SendEmailAsync(string to, string subject, string body, List<string>? attachments = null);
+    Task<(bool Success, string? Error)> SendSmsAsync(string phoneNumber, string templateCode, Dictionary<string, string> parameters);
+    Task<(bool Success, string? Error)> SendInAppAsync(long userId, string title, string content, NotificationType type);
+    Task<(bool Success, string? Error)> SendTimeoutReminderAsync(string userPhone, string userEmail, long userId, string nodeName, string transactionNo, DateTime deadline);
+}

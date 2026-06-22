@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Card, Table, Button, Modal, Form, Input, Select, Timeline, Progress, Tag, message } from 'antd'
+import { Card, Table, Button, Modal, Form, Input, Select, Timeline, Progress, Tag, message, Row, Col } from 'antd'
 import { PlusOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons'
 import ReactECharts from 'echarts-for-react'
 import './OrthodonticPanel.scss'
@@ -24,24 +24,153 @@ function OrthodonticPanel() {
     { id: 4, date: '2023-12-15', type: '复诊', doctor: '王医生', movement: 3.8, adjustment: '精细调整', notes: '继续保持' },
   ]
 
-  const chartOption = {
-    title: { text: '牙齿移动进度', left: 'center', textStyle: { fontSize: 12 } },
-    tooltip: { trigger: 'axis' },
+  const multiLineChartOption = {
+    title: {
+      text: '牙齿移动多阶段对比',
+      left: 'center',
+      textStyle: { fontSize: 14, fontWeight: 600 },
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'cross' },
+      formatter: (params: any) => {
+        let result = params[0].axisValue + '<br/>'
+        params.forEach((item: any) => {
+          result += `${item.marker} ${item.seriesName}: ${item.value} mm<br/>`
+        })
+        return result
+      },
+    },
+    legend: {
+      data: ['上颌前牙', '下颌前牙', '上颌后牙', '下颌后牙'],
+      bottom: 5,
+      itemWidth: 16,
+      itemHeight: 10,
+      textStyle: { fontSize: 11 },
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '15%',
+      top: '15%',
+      containLabel: true,
+    },
     xAxis: {
       type: 'category',
-      data: ['第1次', '第2次', '第3次', '第4次', '第5次', '第6次'],
+      boundaryGap: false,
+      data: ['治疗前', '第1月', '第3月', '第6月', '第9月', '第12月', '治疗后'],
+      axisLabel: {
+        fontSize: 11,
+        rotate: 0,
+      },
+      axisLine: { lineStyle: { color: '#e8e8e8' } },
     },
-    yAxis: { type: 'value', name: '移动量(mm)' },
+    yAxis: {
+      type: 'value',
+      name: '移动量(mm)',
+      nameTextStyle: { fontSize: 11, color: '#8c8c8c' },
+      axisLabel: { fontSize: 11 },
+      splitLine: { lineStyle: { color: '#f0f0f0', type: 'dashed' } },
+    },
     series: [
       {
-        data: [0, 1.2, 2.5, 3.8, 4.2, 4.8],
+        name: '上颌前牙',
         type: 'line',
         smooth: true,
         symbol: 'circle',
-        symbolSize: 8,
-        lineStyle: { color: '#1890ff', width: 2 },
+        symbolSize: 7,
+        lineStyle: { width: 2.5 },
         itemStyle: { color: '#1890ff' },
-        areaStyle: { color: 'rgba(24, 144, 255, 0.1)' },
+        data: [0, 1.2, 2.8, 4.5, 5.8, 6.5, 7.2],
+        emphasis: { focus: 'series' },
+      },
+      {
+        name: '下颌前牙',
+        type: 'line',
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 7,
+        lineStyle: { width: 2.5 },
+        itemStyle: { color: '#52c41a' },
+        data: [0, 0.8, 1.9, 3.2, 4.5, 5.2, 5.8],
+        emphasis: { focus: 'series' },
+      },
+      {
+        name: '上颌后牙',
+        type: 'line',
+        smooth: true,
+        symbol: 'diamond',
+        symbolSize: 7,
+        lineStyle: { width: 2, type: 'dashed' },
+        itemStyle: { color: '#faad14' },
+        data: [0, 0.5, 1.2, 2.1, 3.0, 3.5, 4.0],
+        emphasis: { focus: 'series' },
+      },
+      {
+        name: '下颌后牙',
+        type: 'line',
+        smooth: true,
+        symbol: 'diamond',
+        symbolSize: 7,
+        lineStyle: { width: 2, type: 'dashed' },
+        itemStyle: { color: '#722ed1' },
+        data: [0, 0.3, 0.9, 1.8, 2.5, 2.9, 3.3],
+        emphasis: { focus: 'series' },
+      },
+    ],
+  }
+
+  const comparisonChartOption = {
+    title: {
+      text: '治疗前后对比',
+      left: 'center',
+      textStyle: { fontSize: 13, fontWeight: 500 },
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+    },
+    legend: {
+      data: ['治疗前', '治疗后'],
+      bottom: 0,
+      textStyle: { fontSize: 11 },
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '18%',
+      top: '20%',
+      containLabel: true,
+    },
+    xAxis: {
+      type: 'category',
+      data: ['前牙覆盖', '前牙覆合', '磨牙关系', '牙列拥挤度', '中线偏移'],
+      axisLabel: {
+        fontSize: 10,
+        interval: 0,
+        rotate: 15,
+      },
+    },
+    yAxis: {
+      type: 'value',
+      name: 'mm',
+      nameTextStyle: { fontSize: 10 },
+      axisLabel: { fontSize: 10 },
+    },
+    series: [
+      {
+        name: '治疗前',
+        type: 'bar',
+        data: [6.5, 4.2, 5.0, 8.0, 2.5],
+        itemStyle: { color: '#ffccc7' },
+        barWidth: '30%',
+      },
+      {
+        name: '治疗后',
+        type: 'bar',
+        data: [2.0, 1.5, 1.0, 1.5, 0.5],
+        itemStyle: { color: '#95de64' },
+        barWidth: '30%',
       },
     ],
   }
@@ -112,29 +241,46 @@ function OrthodonticPanel() {
           </div>
 
           <div className="detail-content">
-            <div className="info-section">
-              <Card title="治疗方案" size="small" className="info-card">
-                <div className="info-row">
-                  <span className="label">托槽类型：</span>
-                  <Tag color="blue">{selectedPatient.bracketType}</Tag>
-                </div>
-                <div className="info-row">
-                  <span className="label">开始日期：</span>
-                  <span>{selectedPatient.startDate}</span>
-                </div>
-                <div className="info-row">
-                  <span className="label">总复诊次数：</span>
-                  <span>{selectedPatient.totalVisits} 次</span>
-                </div>
-                <div className="info-row">
-                  <span className="label">治疗进度：</span>
-                  <Progress percent={selectedPatient.progress} size="small" />
-                </div>
+            <div className="charts-section">
+              <Card title="多折线时间轴对比" className="main-chart-card">
+                <ReactECharts option={multiLineChartOption} style={{ height: 320 }} />
               </Card>
 
-              <Card title="进度对比" size="small" className="chart-card">
-                <ReactECharts option={chartOption} style={{ height: 200 }} />
-              </Card>
+              <Row gutter={16} className="sub-charts-row">
+                <Col xs={24} md={12}>
+                  <Card title="治疗前后对比" size="small" className="sub-chart-card">
+                    <ReactECharts option={comparisonChartOption} style={{ height: 220 }} />
+                  </Card>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Card title="治疗方案" size="small" className="info-card">
+                    <div className="info-row">
+                      <span className="label">托槽类型：</span>
+                      <Tag color="blue">{selectedPatient.bracketType}</Tag>
+                    </div>
+                    <div className="info-row">
+                      <span className="label">开始日期：</span>
+                      <span>{selectedPatient.startDate}</span>
+                    </div>
+                    <div className="info-row">
+                      <span className="label">总复诊次数：</span>
+                      <span>{selectedPatient.totalVisits} 次</span>
+                    </div>
+                    <div className="info-row">
+                      <span className="label">治疗进度：</span>
+                      <Progress percent={selectedPatient.progress} size="small" />
+                    </div>
+                    <div className="info-row">
+                      <span className="label">预计总移动量：</span>
+                      <span>7.2 mm</span>
+                    </div>
+                    <div className="info-row">
+                      <span className="label">当前移动量：</span>
+                      <span className="highlight">4.7 mm</span>
+                    </div>
+                  </Card>
+                </Col>
+              </Row>
             </div>
 
             <Card title="复诊时间轴" size="small" className="timeline-card">

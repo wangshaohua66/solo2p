@@ -3,6 +3,68 @@ const StatisticModule = {
     dateRange: 'year',
     charts: {},
     progressData: null,
+    trainingStats: null,
+    examStats: null,
+    equipmentStats: null,
+    overviewData: null,
+
+    fireStations: [
+        { id: 1, name: '一站' },
+        { id: 2, name: '二站' },
+        { id: 3, name: '三站' },
+        { id: 4, name: '四站' },
+        { id: 5, name: '五站' },
+        { id: 6, name: '六站' },
+        { id: 7, name: '七站' },
+        { id: 8, name: '八站' }
+    ],
+
+    levels: [
+        { id: 1, name: '初级' },
+        { id: 2, name: '中级' },
+        { id: 3, name: '高级' },
+        { id: 4, name: '专家级' }
+    ],
+
+    specialties: [
+        { id: 1, name: '灭火救援' },
+        { id: 2, name: '抢险救援' },
+        { id: 3, name: '水域救援' },
+        { id: 4, name: '化工处置' },
+        { id: 5, name: '火灾调查' }
+    ],
+
+    trainingCourses: [
+        { id: 1, title: '基础灭火战术', specialtyId: 1, levelId: 1, duration: 24 },
+        { id: 2, title: '高层建筑灭火', specialtyId: 1, levelId: 2, duration: 32 },
+        { id: 3, title: '抢险救援基础', specialtyId: 2, levelId: 1, duration: 20 },
+        { id: 4, title: '水域救援技术', specialtyId: 3, levelId: 2, duration: 40 },
+        { id: 5, title: '化工事故处置', specialtyId: 4, levelId: 3, duration: 48 }
+    ],
+
+    practicalExams: [
+        { id: 1, name: '一人三盘水带连接', specialtyId: 1, passScore: 60, fullScore: 100 },
+        { id: 2, name: '百米障碍救助', specialtyId: 2, passScore: 60, fullScore: 100 },
+        { id: 3, name: '救生抛投器操作', specialtyId: 3, passScore: 70, fullScore: 100 }
+    ],
+
+    firefighters: [
+        { id: 1, name: '张三', stationId: 1, levelId: 1, theoryHours: { completed: 80, required: 100 }, practicalCount: { completed: 15, required: 20 }, examPassed: true },
+        { id: 2, name: '李四', stationId: 1, levelId: 2, theoryHours: { completed: 120, required: 150 }, practicalCount: { completed: 25, required: 30 }, examPassed: true },
+        { id: 3, name: '王五', stationId: 2, levelId: 1, theoryHours: { completed: 60, required: 100 }, practicalCount: { completed: 10, required: 20 }, examPassed: false },
+        { id: 4, name: '赵六', stationId: 2, levelId: 3, theoryHours: { completed: 200, required: 200 }, practicalCount: { completed: 40, required: 40 }, examPassed: true }
+    ],
+
+    statistics: {
+        overview: {
+            totalFirefighters: 600,
+            totalCourses: 85,
+            totalExams: 120,
+            totalEquipment: 500,
+            passRate: 78.5,
+            avgScore: 82.3
+        }
+    },
 
     init() {
         this.render();
@@ -121,14 +183,13 @@ const StatisticModule = {
     },
 
     renderOverview() {
-        const stats = MockData.statistics.overview;
-        
+        const self = this;
         const html = `
             <div class="row g-3 mb-3">
                 <div class="col-md-3">
                     <div class="stat-card bg-primary text-white position-relative">
                         <div class="card-body">
-                            <div class="stat-value">${stats.trainingCoverage}%</div>
+                            <div class="stat-value" id="ov-training-coverage">-</div>
                             <div class="stat-label text-white-50">培训覆盖率</div>
                             <i class="bi bi-people stat-icon"></i>
                         </div>
@@ -137,7 +198,7 @@ const StatisticModule = {
                 <div class="col-md-3">
                     <div class="stat-card bg-success text-white position-relative">
                         <div class="card-body">
-                            <div class="stat-value">${stats.examPassRate}%</div>
+                            <div class="stat-value" id="ov-exam-pass-rate">-</div>
                             <div class="stat-label text-white-50">考核通过率</div>
                             <i class="bi bi-award stat-icon"></i>
                         </div>
@@ -146,7 +207,7 @@ const StatisticModule = {
                 <div class="col-md-3">
                     <div class="stat-card bg-warning text-dark position-relative">
                         <div class="card-body">
-                            <div class="stat-value">${stats.equipmentUtilization}%</div>
+                            <div class="stat-value" id="ov-eq-utilization">-</div>
                             <div class="stat-label text-dark-50">器材利用率</div>
                             <i class="bi bi-tools stat-icon"></i>
                         </div>
@@ -155,7 +216,7 @@ const StatisticModule = {
                 <div class="col-md-3">
                     <div class="stat-card bg-info text-white position-relative">
                         <div class="card-body">
-                            <div class="stat-value">${stats.totalFirefighters}</div>
+                            <div class="stat-value" id="ov-total-firefighters">-</div>
                             <div class="stat-label text-white-50">消防员总数</div>
                             <i class="bi bi-person-badge stat-icon"></i>
                         </div>
@@ -214,22 +275,52 @@ const StatisticModule = {
         `;
 
         $('#tab-overview').html(html);
-        this.initOverviewCharts();
+
+        this.loadOverviewData(function(data) {
+            if (data) {
+                self.updateOverviewUI(data);
+                self.initOverviewCharts(data);
+            } else {
+                const stats = this.statistics.overview;
+                $('#ov-training-coverage').text(stats.trainingCoverage + '%');
+                $('#ov-exam-pass-rate').text(stats.examPassRate + '%');
+                $('#ov-eq-utilization').text(stats.equipmentUtilization + '%');
+                $('#ov-total-firefighters').text(stats.totalFirefighters);
+                self.initOverviewCharts(null);
+            }
+        });
     },
 
-    initOverviewCharts() {
-        const trendData = MockData.statistics.monthlyTrend;
-        
+    updateOverviewUI(data) {
+        $('#ov-training-coverage').text((data.trainingCoverage || 0) + '%');
+        $('#ov-exam-pass-rate').text((data.examPassRate || 0) + '%');
+        $('#ov-eq-utilization').text((data.equipmentUtilization || 0) + '%');
+        $('#ov-total-firefighters').text(data.totalFirefighters || 0);
+    },
+
+    initOverviewCharts(data) {
+        let trendLabels = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+        let coverageData = [65, 68, 72, 70, 75, 78, 80, 78, 82, 85, 87, 85];
+        let passRateData = [60, 63, 68, 65, 70, 73, 75, 72, 78, 80, 82, 80];
+        let utilizationData = [55, 58, 62, 60, 65, 68, 70, 68, 72, 75, 78, 76];
+
+        if (data && data.monthlyTrend && data.monthlyTrend.length > 0) {
+            trendLabels = data.monthlyTrend.map(d => d.periodLabel || d.month + '月');
+            coverageData = data.monthlyTrend.map(d => d.trainingCoverage || d.coverage || 0);
+            passRateData = data.monthlyTrend.map(d => d.examPassRate || d.passRate || 0);
+            utilizationData = data.monthlyTrend.map(d => d.equipmentUtilization || d.utilization || 0);
+        }
+
         const trendCtx = document.getElementById('trendChart');
         if (trendCtx) {
             this.charts.trend = new Chart(trendCtx, {
                 type: 'line',
                 data: {
-                    labels: trendData.map(d => d.month),
+                    labels: trendLabels,
                     datasets: [
                         {
                             label: '培训覆盖率',
-                            data: trendData.map(d => d.coverage),
+                            data: coverageData,
                             borderColor: '#0d6efd',
                             backgroundColor: 'rgba(13, 110, 253, 0.1)',
                             fill: true,
@@ -237,7 +328,7 @@ const StatisticModule = {
                         },
                         {
                             label: '考核通过率',
-                            data: trendData.map(d => d.passRate),
+                            data: passRateData,
                             borderColor: '#198754',
                             backgroundColor: 'rgba(25, 135, 84, 0.1)',
                             fill: true,
@@ -245,7 +336,7 @@ const StatisticModule = {
                         },
                         {
                             label: '器材利用率',
-                            data: trendData.map(d => d.utilization),
+                            data: utilizationData,
                             borderColor: '#ffc107',
                             backgroundColor: 'rgba(255, 193, 7, 0.1)',
                             fill: true,
@@ -275,22 +366,31 @@ const StatisticModule = {
             });
         }
 
-        const stationData = MockData.statistics.byStation;
+        let stationLabels = ['第一中队', '第二中队', '第三中队', '第四中队', '第五中队', '第六中队', '第七中队', '第八中队'];
+        let stationCoverage = [85, 78, 82, 90, 75, 88, 80, 72];
+        let stationPassRate = [80, 72, 78, 85, 70, 82, 75, 68];
+
+        if (data && data.byStation && data.byStation.length > 0) {
+            stationLabels = data.byStation.map(d => d.stationName || d.station);
+            stationCoverage = data.byStation.map(d => d.coverageRate || d.coverage || 0);
+            stationPassRate = data.byStation.map(d => d.passRate || 0);
+        }
+
         const stationCtx = document.getElementById('stationChart');
         if (stationCtx) {
             this.charts.station = new Chart(stationCtx, {
                 type: 'bar',
                 data: {
-                    labels: stationData.map(d => d.station),
+                    labels: stationLabels,
                     datasets: [
                         {
                             label: '培训覆盖率',
-                            data: stationData.map(d => d.coverage),
+                            data: stationCoverage,
                             backgroundColor: '#0d6efd'
                         },
                         {
                             label: '考核通过率',
-                            data: stationData.map(d => d.passRate),
+                            data: stationPassRate,
                             backgroundColor: '#198754'
                         }
                     ]
@@ -317,15 +417,22 @@ const StatisticModule = {
             });
         }
 
-        const levelData = MockData.statistics.byLevel;
+        let levelLabels = ['一级', '二级', '三级', '四级'];
+        let levelCounts = [50, 150, 250, 150];
+
+        if (data && data.byLevel && data.byLevel.length > 0) {
+            levelLabels = data.byLevel.map(d => d.levelName || d.level);
+            levelCounts = data.byLevel.map(d => d.firefighterCount || d.count || 0);
+        }
+
         const levelCtx = document.getElementById('levelChart');
         if (levelCtx) {
             this.charts.level = new Chart(levelCtx, {
                 type: 'doughnut',
                 data: {
-                    labels: levelData.map(d => d.level),
+                    labels: levelLabels,
                     datasets: [{
-                        data: levelData.map(d => d.count),
+                        data: levelCounts,
                         backgroundColor: ['#0dcaf0', '#198754', '#ffc107', '#dc3545']
                     }]
                 },
@@ -345,15 +452,22 @@ const StatisticModule = {
             });
         }
 
-        const specialtyData = MockData.statistics.bySpecialty;
+        let specialtyLabels = ['灭火战斗', '抢险救援', '危化品处置', '水域救援', '森林消防'];
+        let specialtyCounts = [200, 150, 100, 80, 70];
+
+        if (data && data.bySpecialty && data.bySpecialty.length > 0) {
+            specialtyLabels = data.bySpecialty.map(d => d.specialtyName || d.specialty || d.name);
+            specialtyCounts = data.bySpecialty.map(d => d.firefighterCount || d.count || 0);
+        }
+
         const specialtyCtx = document.getElementById('specialtyChart');
         if (specialtyCtx) {
             this.charts.specialty = new Chart(specialtyCtx, {
                 type: 'pie',
                 data: {
-                    labels: specialtyData.map(d => d.specialty),
+                    labels: specialtyLabels,
                     datasets: [{
-                        data: specialtyData.map(d => d.count),
+                        data: specialtyCounts,
                         backgroundColor: ['#dc3545', '#ffc107', '#0d6efd', '#0dcaf0', '#198754']
                     }]
                 },
@@ -375,6 +489,7 @@ const StatisticModule = {
     },
 
     renderTrainingStats() {
+        const self = this;
         const html = `
             <div class="row g-3 mb-3">
                 <div class="col-md-3">
@@ -382,7 +497,7 @@ const StatisticModule = {
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <div class="fs-2 fw-bold text-primary">156</div>
+                                    <div class="fs-2 fw-bold text-primary" id="stat-total-courses">-</div>
                                     <div class="small text-muted">本期培训计划</div>
                                 </div>
                                 <i class="bi bi-calendar-check fs-1 text-primary opacity-30"></i>
@@ -395,7 +510,7 @@ const StatisticModule = {
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <div class="fs-2 fw-bold text-success">128</div>
+                                    <div class="fs-2 fw-bold text-success" id="stat-completed-courses">-</div>
                                     <div class="small text-muted">已完成课程</div>
                                 </div>
                                 <i class="bi bi-check2-circle fs-1 text-success opacity-30"></i>
@@ -408,7 +523,7 @@ const StatisticModule = {
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <div class="fs-2 fw-bold text-warning">18,560</div>
+                                    <div class="fs-2 fw-bold text-warning" id="stat-total-hours">-</div>
                                     <div class="small text-muted">累计学时</div>
                                 </div>
                                 <i class="bi bi-clock-history fs-1 text-warning opacity-30"></i>
@@ -421,8 +536,8 @@ const StatisticModule = {
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <div class="fs-2 fw-bold text-info">24</div>
-                                    <div class="small text-muted">进行中课程</div>
+                                    <div class="fs-2 fw-bold text-info" id="stat-training-coverage">-</div>
+                                    <div class="small text-muted">培训覆盖率</div>
                                 </div>
                                 <i class="bi bi-play-circle fs-1 text-info opacity-30"></i>
                             </div>
@@ -444,7 +559,7 @@ const StatisticModule = {
                 </div>
                 <div class="col-md-4">
                     <div class="card">
-                        <div class="card-header">课程类型分布</div>
+                        <div class="card-header">专业方向分布</div>
                         <div class="card-body">
                             <div class="chart-container" style="height: 300px;">
                                 <canvas id="courseTypeChart"></canvas>
@@ -456,7 +571,7 @@ const StatisticModule = {
 
             <div class="card mt-3">
                 <div class="card-header">各站点培训完成情况</div>
-                <div class="card-body">
+                <div class="card-body p-0">
                     <table class="table table-hover mb-0">
                         <thead>
                             <tr>
@@ -464,34 +579,12 @@ const StatisticModule = {
                                 <th>应参训人数</th>
                                 <th>实参训人数</th>
                                 <th>培训覆盖率</th>
-                                <th>完成学时</th>
+                                <th>平均学时</th>
                                 <th>达标率</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            ${MockData.statistics.byStation.map(s => `
-                                <tr>
-                                    <td class="fw-medium">${s.station}</td>
-                                    <td>${s.firefighters}</td>
-                                    <td>${Math.floor(s.firefighters * s.coverage / 100)}</td>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <div class="flex-grow-1 me-2">
-                                                <div class="progress" style="height: 6px;">
-                                                    <div class="progress-bar bg-primary" style="width: ${s.coverage}%"></div>
-                                                </div>
-                                            </div>
-                                            <span class="small fw-medium">${s.coverage}%</span>
-                                        </div>
-                                    </td>
-                                    <td>${Math.floor(1000 + Math.random() * 500)}</td>
-                                    <td>
-                                        <span class="badge ${s.passRate >= 80 ? 'bg-success' : s.passRate >= 70 ? 'bg-warning text-dark' : 'bg-danger'}">
-                                            ${s.passRate}%
-                                        </span>
-                                    </td>
-                                </tr>
-                            `).join('')}
+                        <tbody id="training-station-table-body">
+                            ${self.getLoadingHtml(6)}
                         </tbody>
                     </table>
                 </div>
@@ -499,29 +592,82 @@ const StatisticModule = {
         `;
 
         $('#tab-training').html(html);
-        this.initTrainingCharts();
+
+        this.loadTrainingStats(function(stats) {
+            if (stats) {
+                self.updateTrainingStatsUI(stats);
+                self.initTrainingCharts(stats);
+            } else {
+                $('#stat-total-courses').text(this.trainingCourses.length);
+                $('#stat-completed-courses').text(Math.floor(this.trainingCourses.length * 0.75));
+                $('#stat-total-hours').text('-');
+                $('#stat-training-coverage').text('85%');
+                self.initTrainingCharts(null);
+            }
+        });
     },
 
-    initTrainingCharts() {
+    updateTrainingStatsUI(stats) {
+        $('#stat-total-courses').text(stats.totalCourses || 0);
+        $('#stat-completed-courses').text(stats.completedCourses || 0);
+        $('#stat-total-hours').text(stats.averageHours ? Math.round(stats.averageHours * 10) : 0);
+        $('#stat-training-coverage').text((stats.trainingCoverage || 0) + '%');
+
+        if (stats.byStation && stats.byStation.length > 0) {
+            $('#training-station-table-body').html(stats.byStation.map(s => {
+                const coverage = Math.round(s.coverageRate || 0);
+                const passRate = Math.round(s.passRate || 0);
+                const actualCount = Math.round((s.firefighterCount || 0) * coverage / 100);
+                const badgeClass = passRate >= 80 ? 'bg-success' : passRate >= 70 ? 'bg-warning text-dark' : 'bg-danger';
+                return `
+                    <tr>
+                        <td class="fw-medium">${s.stationName || '-'}</td>
+                        <td>${s.firefighterCount || 0}</td>
+                        <td>${actualCount}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="flex-grow-1 me-2">
+                                    <div class="progress" style="height: 6px;">
+                                        <div class="progress-bar bg-primary" style="width: ${coverage}%"></div>
+                                    </div>
+                                </div>
+                                <span class="small fw-medium">${coverage}%</span>
+                            </div>
+                        </td>
+                        <td>${s.averageHours ? Math.round(s.averageHours) : '-'}</td>
+                        <td><span class="badge ${badgeClass}">${passRate}%</span></td>
+                    </tr>
+                `;
+            }).join(''));
+        }
+    },
+
+    initTrainingCharts(stats) {
         const hoursCtx = document.getElementById('trainingHoursChart');
         if (hoursCtx) {
-            const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
-            const theoryHours = months.map(() => 800 + Math.floor(Math.random() * 400));
-            const practicalHours = months.map(() => 600 + Math.floor(Math.random() * 500));
+            let labels = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+            let theoryData = [800, 850, 900, 870, 920, 950, 890, 910, 940, 960, 980, 1000];
+            let practicalData = [600, 650, 700, 680, 720, 750, 710, 730, 760, 780, 800, 820];
+
+            if (stats && stats.trendData && stats.trendData.length > 0) {
+                labels = stats.trendData.map(d => d.periodLabel || d.month + '月');
+                theoryData = stats.trendData.map(d => d.theoryHours || 0);
+                practicalData = stats.trendData.map(d => d.practicalHours || 0);
+            }
 
             new Chart(hoursCtx, {
                 type: 'bar',
                 data: {
-                    labels: months,
+                    labels: labels,
                     datasets: [
                         {
                             label: '理论学时',
-                            data: theoryHours,
+                            data: theoryData,
                             backgroundColor: '#0d6efd'
                         },
                         {
                             label: '实操学时',
-                            data: practicalHours,
+                            data: practicalData,
                             backgroundColor: '#198754'
                         }
                     ]
@@ -545,13 +691,21 @@ const StatisticModule = {
 
         const typeCtx = document.getElementById('courseTypeChart');
         if (typeCtx) {
+            let specialtyLabels = ['灭火战斗', '抢险救援', '危化品处置', '水域救援', '森林消防'];
+            let specialtyData = [45, 35, 12, 8, 0];
+
+            if (stats && stats.bySpecialty && stats.bySpecialty.length > 0) {
+                specialtyLabels = stats.bySpecialty.map(s => s.specialtyName || s.name);
+                specialtyData = stats.bySpecialty.map(s => s.courseCount || s.count || 0);
+            }
+
             new Chart(typeCtx, {
                 type: 'doughnut',
                 data: {
-                    labels: ['理论课程', '实操课程', '综合演练', '考核评估'],
+                    labels: specialtyLabels,
                     datasets: [{
-                        data: [45, 35, 12, 8],
-                        backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#6f42c1']
+                        data: specialtyData,
+                        backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#6f42c1', '#0dcaf0']
                     }]
                 },
                 options: {
@@ -572,6 +726,7 @@ const StatisticModule = {
     },
 
     renderExamStats() {
+        const self = this;
         const html = `
             <div class="row g-3 mb-3">
                 <div class="col-md-4">
@@ -579,7 +734,7 @@ const StatisticModule = {
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <div class="fs-2 fw-bold text-success">78.3%</div>
+                                    <div class="fs-2 fw-bold text-success" id="stat-exam-pass-rate">-</div>
                                     <div class="small text-muted">总体通过率</div>
                                 </div>
                                 <i class="bi bi-award fs-1 text-success opacity-30"></i>
@@ -592,7 +747,7 @@ const StatisticModule = {
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <div class="fs-2 fw-bold text-primary">42</div>
+                                    <div class="fs-2 fw-bold text-primary" id="stat-exam-count">-</div>
                                     <div class="small text-muted">本期考试场次</div>
                                 </div>
                                 <i class="bi bi-file-earmark-text fs-1 text-primary opacity-30"></i>
@@ -605,7 +760,7 @@ const StatisticModule = {
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <div class="fs-2 fw-bold text-warning">1,256</div>
+                                    <div class="fs-2 fw-bold text-warning" id="stat-exam-takers">-</div>
                                     <div class="small text-muted">参考人次</div>
                                 </div>
                                 <i class="bi bi-people fs-1 text-warning opacity-30"></i>
@@ -641,53 +796,98 @@ const StatisticModule = {
             <div class="card mt-3">
                 <div class="card-header">各专业考核情况</div>
                 <div class="card-body">
-                    <div class="row g-3">
-                        ${MockData.specialties.map(s => {
-                            const passRate = 70 + Math.floor(Math.random() * 20);
-                            const avgScore = 70 + Math.floor(Math.random() * 20);
-                            return `
-                                <div class="col-md-4 col-lg-2">
-                                    <div class="text-center p-3 border rounded">
-                                        <div class="fs-1 text-${s.color} mb-2">
-                                            <i class="bi bi-${s.icon}"></i>
-                                        </div>
-                                        <div class="fw-bold">${s.name}</div>
-                                        <div class="text-muted small mb-2">${100 + Math.floor(Math.random() * 100)}人参考</div>
-                                        <div class="fs-4 fw-bold ${passRate >= 80 ? 'text-success' : passRate >= 70 ? 'text-warning' : 'text-danger'}">
-                                            ${passRate}%
-                                        </div>
-                                        <div class="small text-muted">通过率</div>
-                                        <div class="mt-2">
-                                            <div class="progress" style="height: 4px;">
-                                                <div class="progress-bar bg-${s.color}" style="width: ${passRate}%"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
-                        }).join('')}
+                    <div class="row g-3" id="exam-specialty-cards">
+                        ${self.getExamSpecialtySkeletons()}
                     </div>
                 </div>
             </div>
         `;
 
         $('#tab-exam').html(html);
-        this.initExamCharts();
+
+        this.loadExamStats(function(stats) {
+            if (stats) {
+                self.updateExamStatsUI(stats);
+                self.initExamCharts(stats);
+            } else {
+                $('#stat-exam-pass-rate').text('78.3%');
+                $('#stat-exam-count').text('42');
+                $('#stat-exam-takers').text('1,256');
+                self.initExamCharts(null);
+            }
+        });
     },
 
-    initExamCharts() {
+    getExamSpecialtySkeletons() {
+        let html = '';
+        for (let i = 0; i < 6; i++) {
+            html += `
+                <div class="col-md-4 col-lg-2">
+                    <div class="text-center p-3 border rounded">
+                        <div class="skeleton-icon mb-2"></div>
+                        <div class="skeleton-text fw-bold mb-1"></div>
+                        <div class="skeleton-text small mb-2"></div>
+                        <div class="skeleton-text fs-4 fw-bold"></div>
+                    </div>
+                </div>
+            `;
+        }
+        return html;
+    },
+
+    updateExamStatsUI(stats) {
+        $('#stat-exam-pass-rate').text((stats.passRate || 0) + '%');
+        $('#stat-exam-count').text(stats.totalExams || 0);
+        $('#stat-exam-takers').text(stats.totalTakers || 0);
+
+        if (stats.bySpecialty && stats.bySpecialty.length > 0) {
+            const colors = ['primary', 'success', 'warning', 'info', 'danger', 'purple'];
+            const icons = ['fire', 'shield-exclamation', 'droplet-half', 'water', 'tree', 'gear'];
+            $('#exam-specialty-cards').html(stats.bySpecialty.map((s, i) => {
+                const passRate = Math.round(s.passRate || 0);
+                const passColor = passRate >= 80 ? 'success' : passRate >= 70 ? 'warning' : 'danger';
+                return `
+                    <div class="col-md-4 col-lg-2">
+                        <div class="text-center p-3 border rounded">
+                            <div class="fs-1 text-${colors[i % colors.length]} mb-2">
+                                <i class="bi bi-${icons[i % icons.length]}"></i>
+                            </div>
+                            <div class="fw-bold">${s.specialtyName || '-'}</div>
+                            <div class="text-muted small mb-2">${s.takerCount || 0}人参考</div>
+                            <div class="fs-4 fw-bold text-${passColor}">${passRate}%</div>
+                            <div class="small text-muted">通过率</div>
+                            <div class="mt-2">
+                                <div class="progress" style="height: 4px;">
+                                    <div class="progress-bar bg-${colors[i % colors.length]}" style="width: ${passRate}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join(''));
+        }
+    },
+
+    initExamCharts(stats) {
         const levelPassCtx = document.getElementById('levelPassChart');
         if (levelPassCtx) {
-            const levelData = MockData.statistics.byLevel;
+            let levelLabels = ['一级', '二级', '三级', '四级'];
+            let levelPassRates = [75, 80, 85, 70];
+
+            if (stats && stats.byLevel && stats.byLevel.length > 0) {
+                levelLabels = stats.byLevel.map(d => d.levelName || d.level);
+                levelPassRates = stats.byLevel.map(d => Math.round(d.passRate || 0));
+            }
+
             new Chart(levelPassCtx, {
                 type: 'bar',
                 data: {
-                    labels: levelData.map(d => d.level),
+                    labels: levelLabels,
                     datasets: [
                         {
                             label: '通过率',
-                            data: levelData.map(d => d.passRate),
-                            backgroundColor: levelData.map((_, i) => ['#0dcaf0', '#198754', '#ffc107', '#dc3545'][i])
+                            data: levelPassRates,
+                            backgroundColor: ['#0dcaf0', '#198754', '#ffc107', '#dc3545']
                         }
                     ]
                 },
@@ -714,21 +914,31 @@ const StatisticModule = {
 
         const vsCtx = document.getElementById('theoryVsPracticalChart');
         if (vsCtx) {
+            let specialtyLabels = ['灭火战斗', '抢险救援', '危化品处置', '水域救援', '森林消防'];
+            let theoryData = [80, 75, 85, 70, 78];
+            let practicalData = [75, 82, 72, 85, 70];
+
+            if (stats && stats.bySpecialty && stats.bySpecialty.length > 0) {
+                specialtyLabels = stats.bySpecialty.map(s => s.specialtyName || s.name);
+                theoryData = stats.bySpecialty.map(s => Math.round(s.theoryPassRate || s.passRate || 0));
+                practicalData = stats.bySpecialty.map(s => Math.round(s.practicalPassRate || s.passRate || 0));
+            }
+
             new Chart(vsCtx, {
                 type: 'radar',
                 data: {
-                    labels: MockData.specialties.map(s => s.name),
+                    labels: specialtyLabels,
                     datasets: [
                         {
                             label: '理论通过率',
-                            data: MockData.specialties.map(() => 75 + Math.floor(Math.random() * 20)),
+                            data: theoryData,
                             borderColor: '#0d6efd',
                             backgroundColor: 'rgba(13, 110, 253, 0.2)',
                             fill: true
                         },
                         {
                             label: '实操通过率',
-                            data: MockData.specialties.map(() => 70 + Math.floor(Math.random() * 20)),
+                            data: practicalData,
                             borderColor: '#198754',
                             backgroundColor: 'rgba(25, 135, 84, 0.2)',
                             fill: true
@@ -762,6 +972,7 @@ const StatisticModule = {
     },
 
     renderEquipmentStats() {
+        const self = this;
         const html = `
             <div class="row g-3 mb-3">
                 <div class="col-md-3">
@@ -769,7 +980,7 @@ const StatisticModule = {
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <div class="fs-2 fw-bold text-primary">68.7%</div>
+                                    <div class="fs-2 fw-bold text-primary" id="stat-eq-usage-rate">-</div>
                                     <div class="small text-muted">整体利用率</div>
                                 </div>
                                 <i class="bi bi-graph-up fs-1 text-primary opacity-30"></i>
@@ -782,7 +993,7 @@ const StatisticModule = {
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <div class="fs-2 fw-bold text-success">156</div>
+                                    <div class="fs-2 fw-bold text-success" id="stat-eq-total">-</div>
                                     <div class="small text-muted">总器材数</div>
                                 </div>
                                 <i class="bi bi-boxes fs-1 text-success opacity-30"></i>
@@ -795,7 +1006,7 @@ const StatisticModule = {
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <div class="fs-2 fw-bold text-warning">5</div>
+                                    <div class="fs-2 fw-bold text-warning" id="stat-eq-maintenance">-</div>
                                     <div class="small text-muted">维护中</div>
                                 </div>
                                 <i class="bi bi-wrench fs-1 text-warning opacity-30"></i>
@@ -808,7 +1019,7 @@ const StatisticModule = {
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <div class="fs-2 fw-bold text-info">328</div>
+                                    <div class="fs-2 fw-bold text-info" id="stat-eq-reservations">-</div>
                                     <div class="small text-muted">本月预约次数</div>
                                 </div>
                                 <i class="bi bi-calendar-check fs-1 text-info opacity-30"></i>
@@ -843,7 +1054,7 @@ const StatisticModule = {
 
             <div class="card mt-3">
                 <div class="card-header">器材使用排行</div>
-                <div class="card-body">
+                <div class="card-body p-0">
                     <table class="table table-hover mb-0">
                         <thead>
                             <tr>
@@ -851,43 +1062,13 @@ const StatisticModule = {
                                 <th>器材名称</th>
                                 <th>分类</th>
                                 <th>总数</th>
-                                <th>本月使用次数</th>
+                                <th>使用次数</th>
                                 <th>利用率</th>
                                 <th>状态</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            ${MockData.equipment.map((eq, idx) => {
-                                const usage = 60 + Math.floor(Math.random() * 35);
-                                const useCount = 20 + Math.floor(Math.random() * 80);
-                                return `
-                                    <tr>
-                                        <td>
-                                            <span class="badge ${idx < 3 ? 'bg-warning text-dark' : 'bg-secondary'}">${idx + 1}</span>
-                                        </td>
-                                        <td class="fw-medium">${eq.name}</td>
-                                        <td>${eq.category}</td>
-                                        <td>${eq.totalQty} ${eq.unit}</td>
-                                        <td>${useCount}</td>
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <div class="flex-grow-1 me-2" style="max-width: 120px;">
-                                                    <div class="progress" style="height: 6px;">
-                                                        <div class="progress-bar ${usage >= 80 ? 'bg-danger' : usage >= 60 ? 'bg-warning' : 'bg-success'}" 
-                                                             style="width: ${usage}%"></div>
-                                                    </div>
-                                                </div>
-                                                <span class="small fw-medium">${usage}%</span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <span class="badge ${eq.status === 'maintenance' ? 'bg-warning' : 'bg-success'}">
-                                                ${eq.status === 'maintenance' ? '维护中' : '正常'}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                `;
-                            }).join('')}
+                        <tbody id="equipment-ranking-body">
+                            ${self.getLoadingHtml(7)}
                         </tbody>
                     </table>
                 </div>
@@ -895,60 +1076,101 @@ const StatisticModule = {
         `;
 
         $('#tab-equipment').html(html);
-        this.initEquipmentCharts();
+
+        this.loadEquipmentStats(function(stats) {
+            if (stats) {
+                self.updateEquipmentStatsUI(stats);
+                self.initEquipmentCharts(stats);
+            } else {
+                $('#stat-eq-usage-rate').text('68.7%');
+                $('#stat-eq-total').text('156');
+                $('#stat-eq-maintenance').text('5');
+                $('#stat-eq-reservations').text('328');
+                self.initEquipmentCharts(null);
+            }
+        });
     },
 
-    initEquipmentCharts() {
+    updateEquipmentStatsUI(stats) {
+        $('#stat-eq-usage-rate').text((stats.overallUsageRate || 0) + '%');
+        $('#stat-eq-total').text(stats.totalEquipment || 0);
+        $('#stat-eq-maintenance').text(stats.maintenanceCount || 0);
+        $('#stat-eq-reservations').text(stats.monthlyReservations || 0);
+
+        if (stats.usageRanking && stats.usageRanking.length > 0) {
+            $('#equipment-ranking-body').html(stats.usageRanking.map((eq, idx) => {
+                const usage = Math.round(eq.usageRate || 0);
+                const progressClass = usage >= 80 ? 'bg-danger' : usage >= 60 ? 'bg-warning' : 'bg-success';
+                const statusClass = eq.status === 'maintenance' ? 'bg-warning' : 'bg-success';
+                const statusText = eq.status === 'maintenance' ? '维护中' : '正常';
+                const rankBadge = idx < 3 ? 'bg-warning text-dark' : 'bg-secondary';
+                return `
+                    <tr>
+                        <td><span class="badge ${rankBadge}">${idx + 1}</span></td>
+                        <td class="fw-medium">${eq.equipmentName || eq.name || '-'}</td>
+                        <td>${eq.categoryName || eq.category || '-'}</td>
+                        <td>${eq.totalQty || 0} ${eq.unit || ''}</td>
+                        <td>${eq.useCount || 0}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="flex-grow-1 me-2" style="max-width: 120px;">
+                                    <div class="progress" style="height: 6px;">
+                                        <div class="progress-bar ${progressClass}" style="width: ${usage}%"></div>
+                                    </div>
+                                </div>
+                                <span class="small fw-medium">${usage}%</span>
+                            </div>
+                        </td>
+                        <td><span class="badge ${statusClass}">${statusText}</span></td>
+                    </tr>
+                `;
+            }).join(''));
+        }
+    },
+
+    initEquipmentCharts(stats) {
         const usageCtx = document.getElementById('equipmentUsageChart');
         if (usageCtx) {
-            const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
-            
+            let labels = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+            let datasets = [
+                { label: '呼吸防护类', data: [60, 62, 65, 63, 68, 70, 72, 70, 75, 78, 80, 78], borderColor: '#0d6efd', tension: 0.4, fill: false },
+                { label: '破拆器材类', data: [50, 52, 55, 58, 60, 62, 65, 63, 68, 70, 72, 70], borderColor: '#198754', tension: 0.4, fill: false },
+                { label: '水域救援类', data: [45, 48, 52, 50, 55, 58, 60, 62, 58, 55, 50, 48], borderColor: '#0dcaf0', tension: 0.4, fill: false },
+                { label: '搜救装备类', data: [55, 58, 60, 62, 65, 63, 68, 70, 72, 70, 73, 75], borderColor: '#ffc107', tension: 0.4, fill: false }
+            ];
+
+            if (stats && stats.trendData && stats.trendData.length > 0) {
+                labels = stats.trendData.map(d => d.periodLabel || d.month + '月');
+                const categories = [...new Set(stats.trendData.map(d => d.categoryName || d.category))].filter(Boolean);
+                if (categories.length > 0) {
+                    datasets = categories.map((cat, i) => {
+                        const colors = ['#0d6efd', '#198754', '#0dcaf0', '#ffc107', '#6f42c1', '#dc3545'];
+                        const catData = stats.trendData
+                            .filter(d => (d.categoryName || d.category) === cat)
+                            .map(d => Math.round(d.usageRate || 0));
+                        return {
+                            label: cat,
+                            data: catData,
+                            borderColor: colors[i % colors.length],
+                            tension: 0.4,
+                            fill: false
+                        };
+                    });
+                }
+            }
+
             new Chart(usageCtx, {
                 type: 'line',
-                data: {
-                    labels: months,
-                    datasets: [
-                        {
-                            label: '呼吸防护类',
-                            data: months.map(() => 55 + Math.floor(Math.random() * 25)),
-                            borderColor: '#0d6efd',
-                            tension: 0.4
-                        },
-                        {
-                            label: '破拆器材类',
-                            data: months.map(() => 50 + Math.floor(Math.random() * 30)),
-                            borderColor: '#198754',
-                            tension: 0.4
-                        },
-                        {
-                            label: '水域救援类',
-                            data: months.map(() => 40 + Math.floor(Math.random() * 35)),
-                            borderColor: '#0dcaf0',
-                            tension: 0.4
-                        },
-                        {
-                            label: '搜救装备类',
-                            data: months.map(() => 45 + Math.floor(Math.random() * 25)),
-                            borderColor: '#ffc107',
-                            tension: 0.4
-                        }
-                    ]
-                },
+                data: { labels: labels, datasets: datasets },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom'
-                        }
-                    },
+                    plugins: { legend: { position: 'bottom' } },
                     scales: {
                         y: {
                             beginAtZero: true,
                             max: 100,
-                            ticks: {
-                                callback: value => value + '%'
-                            }
+                            ticks: { callback: value => value + '%' }
                         }
                     }
                 }
@@ -957,20 +1179,29 @@ const StatisticModule = {
 
         const catCtx = document.getElementById('equipmentCategoryChart');
         if (catCtx) {
+            let catLabels = ['呼吸防护', '破拆器材', '水域救援', '搜救装备', '防护装备', '灭火装备'];
+            let catData = [50, 20, 8, 6, 200, 15];
+            let catColors = [
+                'rgba(13, 110, 253, 0.7)',
+                'rgba(25, 135, 84, 0.7)',
+                'rgba(13, 202, 240, 0.7)',
+                'rgba(255, 193, 7, 0.7)',
+                'rgba(13, 202, 240, 0.5)',
+                'rgba(220, 53, 69, 0.7)'
+            ];
+
+            if (stats && stats.byCategory && stats.byCategory.length > 0) {
+                catLabels = stats.byCategory.map(c => c.categoryName || c.name || '-');
+                catData = stats.byCategory.map(c => c.count || c.totalQty || 0);
+            }
+
             new Chart(catCtx, {
                 type: 'polarArea',
                 data: {
-                    labels: ['呼吸防护', '破拆器材', '水域救援', '搜救装备', '防护装备', '灭火装备'],
+                    labels: catLabels,
                     datasets: [{
-                        data: [50, 20, 8, 6, 200, 15],
-                        backgroundColor: [
-                            'rgba(13, 110, 253, 0.7)',
-                            'rgba(25, 135, 84, 0.7)',
-                            'rgba(13, 202, 240, 0.7)',
-                            'rgba(255, 193, 7, 0.7)',
-                            'rgba(13, 202, 240, 0.5)',
-                            'rgba(220, 53, 69, 0.7)'
-                        ]
+                        data: catData,
+                        backgroundColor: catColors
                     }]
                 },
                 options: {
@@ -979,10 +1210,7 @@ const StatisticModule = {
                     plugins: {
                         legend: {
                             position: 'bottom',
-                            labels: {
-                                boxWidth: 12,
-                                font: { size: 11 }
-                            }
+                            labels: { boxWidth: 12, font: { size: 11 } }
                         }
                     }
                 }
@@ -1001,11 +1229,11 @@ const StatisticModule = {
                         </div>
                         <select class="form-select form-select-sm" style="width: auto;" id="progress-filter-station">
                             <option value="">全部站点</option>
-                            ${MockData.fireStations.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                            ${this.fireStations.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
                         </select>
                         <select class="form-select form-select-sm" style="width: auto;" id="progress-filter-level">
                             <option value="">全部等级</option>
-                            ${MockData.levels.map(l => `<option value="${l.id}">${l.name}</option>`).join('')}
+                            ${this.levels.map(l => `<option value="${l.id}">${l.name}</option>`).join('')}
                         </select>
                         <select class="form-select form-select-sm" style="width: auto;" id="progress-filter-status">
                             <option value="">全部状态</option>
@@ -1053,7 +1281,7 @@ const StatisticModule = {
             if (data && Array.isArray(data) && data.length > 0) {
                 self.progressData = data.map(f => self.normalizeProgressData(f));
             } else {
-                self.progressData = MockData.firefighters;
+                self.progressData = this.firefighters;
             }
             $('#progress-table-body').html(self.renderProgressRows(self.progressData));
             $('#progress-total-count').text(`共 ${self.progressData.length} 人`);
@@ -1073,9 +1301,9 @@ const StatisticModule = {
             id: f.id || f.firefighterId,
             name: f.name || f.firefighterName || '未知',
             stationId: f.stationId || f.fireStationId,
-            stationName: f.stationName || f.fireStationName || MockData.fireStations.find(s => s.id === f.stationId)?.name || '',
+            stationName: f.stationName || f.fireStationName || this.fireStations.find(s => s.id === f.stationId)?.name || '',
             levelId: f.levelId || 1,
-            levelName: f.levelName || MockData.levels.find(l => l.id === (f.levelId || 1))?.name || '',
+            levelName: f.levelName || this.levels.find(l => l.id === (f.levelId || 1))?.name || '',
             theoryHours: f.theoryHours || { completed: f.theoryCompletedHours || 0, required: f.theoryRequiredHours || 120 },
             practicalCount: f.practicalCount || { completed: f.practicalCompletedCount || 0, required: f.practicalRequiredCount || 30 },
             examPassed: f.examPassed !== undefined ? f.examPassed : (f.examStatus === 'passed')
@@ -1160,7 +1388,7 @@ const StatisticModule = {
         const level = $('#progress-filter-level').val();
         const status = $('#progress-filter-status').val();
 
-        let firefighters = this.progressData || MockData.firefighters;
+        let firefighters = this.progressData || this.firefighters;
 
         if (keyword) {
             firefighters = firefighters.filter(f => f.name.toLowerCase().includes(keyword));
@@ -1240,18 +1468,20 @@ const StatisticModule = {
         let csv = '';
         if (this.activeTab === 'training') {
             csv = '课程名称,专业方向,等级,学时数,排课次数\n';
-            MockData.trainingCourses.forEach(c => {
-                csv += `${c.title},${MockData.specialties.find(s => s.id === c.specialtyId)?.name || ''},${MockData.levels.find(l => l.id === c.levelId)?.name || ''},${c.duration},${Math.floor(Math.random() * 10 + 1)}\n`;
+            this.trainingCourses.forEach((c, i) => {
+                csv += `${c.title},${this.specialties.find(s => s.id === c.specialtyId)?.name || ''},${this.levels.find(l => l.id === c.levelId)?.name || ''},${c.duration},${(i % 5) + 1}\n`;
             });
         } else if (this.activeTab === 'exam') {
             csv = '考试名称,类型,参考人数,平均分,通过率\n';
-            MockData.practicalExams.forEach(e => {
-                csv += `${e.name},实操,${Math.floor(Math.random() * 50 + 20)},${(Math.random() * 30 + 60).toFixed(1)},${(Math.random() * 30 + 60).toFixed(1)}%\n`;
+            this.practicalExams.forEach((e, i) => {
+                const avgScore = (65 + (i * 3) % 20).toFixed(1);
+                const passRate = (70 + (i * 2) % 25).toFixed(1);
+                csv += `${e.name},实操,${30 + i * 5},${avgScore},${passRate}%\n`;
             });
         } else {
             csv = '姓名,所属站点,等级,理论学时完成,实操次数完成,是否通过考试\n';
-            MockData.firefighters.slice(0, 10).forEach(f => {
-                csv += `${f.name},${MockData.fireStations.find(s => s.id === f.stationId)?.name || ''},${MockData.levels.find(l => l.id === f.levelId)?.name || ''},${f.theoryHours.completed}/${f.theoryHours.required},${f.practicalCount.completed}/${f.practicalCount.required},${f.examPassed ? '是' : '否'}\n`;
+            this.firefighters.slice(0, 10).forEach(f => {
+                csv += `${f.name},${this.fireStations.find(s => s.id === f.stationId)?.name || ''},${this.levels.find(l => l.id === f.levelId)?.name || ''},${f.theoryHours.completed}/${f.theoryHours.required},${f.practicalCount.completed}/${f.practicalCount.required},${f.examPassed ? '是' : '否'}\n`;
             });
         }
         return csv;
@@ -1262,7 +1492,7 @@ const StatisticModule = {
         $.ajax({
             url: '/api/Statistic/progress',
             method: 'GET',
-            data: { dateRange: this.dateRange },
+            data: self.getFilterParams(),
             success: function(data) {
                 var list = data.data || data.firefighters || data;
                 if (!Array.isArray(list)) list = [];
@@ -1272,5 +1502,101 @@ const StatisticModule = {
                 callback(null);
             }
         });
+    },
+
+    getFilterParams() {
+        const params = {};
+        const now = new Date();
+
+        switch (this.dateRange) {
+            case 'month':
+                params.startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+                params.endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
+                break;
+            case 'quarter':
+                const quarter = Math.floor(now.getMonth() / 3);
+                params.startDate = new Date(now.getFullYear(), quarter * 3, 1).toISOString();
+                params.endDate = new Date(now.getFullYear(), quarter * 3 + 3, 0).toISOString();
+                break;
+            case 'year':
+                params.startDate = new Date(now.getFullYear(), 0, 1).toISOString();
+                params.endDate = new Date(now.getFullYear(), 11, 31).toISOString();
+                break;
+        }
+
+        return params;
+    },
+
+    loadTrainingStats(callback) {
+        const self = this;
+        $.ajax({
+            url: '/api/Statistic/training',
+            method: 'GET',
+            data: self.getFilterParams(),
+            success: function(data) {
+                self.trainingStats = data;
+                callback(data);
+            },
+            error: function() {
+                callback(null);
+            }
+        });
+    },
+
+    loadExamStats(callback) {
+        const self = this;
+        $.ajax({
+            url: '/api/Statistic/exam',
+            method: 'GET',
+            data: self.getFilterParams(),
+            success: function(data) {
+                self.examStats = data;
+                callback(data);
+            },
+            error: function() {
+                callback(null);
+            }
+        });
+    },
+
+    loadEquipmentStats(callback) {
+        const self = this;
+        $.ajax({
+            url: '/api/Statistic/equipment',
+            method: 'GET',
+            data: self.getFilterParams(),
+            success: function(data) {
+                self.equipmentStats = data;
+                callback(data);
+            },
+            error: function() {
+                callback(null);
+            }
+        });
+    },
+
+    loadOverviewData(callback) {
+        const self = this;
+        $.ajax({
+            url: '/api/Statistic/overview',
+            method: 'GET',
+            data: self.getFilterParams(),
+            success: function(data) {
+                self.overviewData = data;
+                self.trainingStats = data.trainingStats;
+                self.examStats = data.examStats;
+                self.equipmentStats = data.equipmentStats;
+                callback(data);
+            },
+            error: function() {
+                callback(null);
+            }
+        });
+    },
+
+    getLoadingHtml(cols) {
+        return `<tr><td colspan="${cols}" class="text-center text-muted py-4">
+            <i class="bi bi-hourglass-split me-1"></i>加载中...
+        </td></tr>`;
     }
 };

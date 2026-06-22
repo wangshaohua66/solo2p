@@ -7,8 +7,14 @@ import io
 
 from api.database import get_db
 from api.models.royalty import RoyaltySettlement
-from api.schemas.request import RoyaltySettleRequest
-from api.schemas.response import RoyaltySettlementResponse, CreatorEarningsResponse
+from api.schemas.request import RoyaltySettleRequest, BatchPayoutRequest
+from api.schemas.response import (
+    RoyaltySettlementResponse,
+    CreatorEarningsResponse,
+    PayoutTransactionResponse,
+    BatchPayoutResponse,
+    PayoutBatchDetailResponse,
+)
 from api.services.royalty_service import royalty_service
 
 router = APIRouter(prefix="/royalty", tags=["royalty"])
@@ -34,8 +40,61 @@ async def settle_royalties(
     req: RoyaltySettleRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    settlements = await royalty_service.settle_royalties(db, req.trade_ids)
+    settlements = await royalty_service.process_and_auto_settle(db, req.trade_ids)
     return [RoyaltySettlementResponse.model_validate(s) for s in settlements]
+
+
+@router.post("/batch-payout", response_model=BatchPayoutResponse)
+async def batch_payout(
+    req: BatchPayoutRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await royalty_service.batch_payout(db, req.settlement_ids)
+    return BatchPayoutResponse(
+        batch_id=result["batch_id"],
+        total_count=result["total_count"],
+        total_amount=result["total_amount"],
+        transactions=[PayoutTransactionResponse.model_validate(tx) for tx in result["transactions"]],
+    )
+
+
+@router.post("/auto-settle-all")
+async def auto_settle_all(
+    db: AsyncSession = Depends(get_db),
+):
+    result = await royalty_service.auto_settle_all(db)
+    return {
+        "batch_id": result["batch_id"],
+        "settled_creators": result["settled_creators"],
+        "settled_count": result["settled_count"],
+        "total_amount": result["total_amount"],
+        "transactions": [PayoutTransactionResponse.model_validate(tx) for tx in result["transactions"]],
+    }
+
+
+@router.get("/payouts", response_model=list[PayoutTransactionResponse])
+async def list_payouts(
+    batch_id: Optional[str] = None,
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+):
+    transactions = await royalty_service.get_payouts(db, batch_id=batch_id, limit=limit)
+    return [PayoutTransactionResponse.model_validate(tx) for tx in transactions]
+
+
+@router.get("/payouts/{batch_id}", response_model=PayoutBatchDetailResponse)
+async def get_payout_batch(
+    batch_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    detail = await royalty_service.get_payout_batch_detail(db, batch_id)
+    if not detail["transactions"] and not detail["settlements"]:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    return PayoutBatchDetailResponse(
+        batch_id=detail["batch_id"],
+        transactions=[PayoutTransactionResponse.model_validate(tx) for tx in detail["transactions"]],
+        settlements=[RoyaltySettlementResponse.model_validate(s) for s in detail["settlements"]],
+    )
 
 
 @router.get("/report")

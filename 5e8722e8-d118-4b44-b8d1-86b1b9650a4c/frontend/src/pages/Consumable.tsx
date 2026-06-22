@@ -1,12 +1,11 @@
-import { useState } from 'react'
-import { Card, Table, Button, Input, Select, Tag, Modal, Form, InputNumber, message, Tabs } from 'antd'
-import { PlusOutlined, WarningOutlined, InboxOutlined, FileTextOutlined } from '@ant-design/icons'
+import { useState, useRef, useEffect } from 'react'
+import { Card, Table, Button, Input, Select, Tag, Modal, Form, InputNumber, message, Tabs, Space, Alert, Divider, Row, Col } from 'antd'
+import { PlusOutlined, WarningOutlined, InboxOutlined, FileTextOutlined, ScanOutlined } from '@ant-design/icons'
 import type { TabsProps } from 'antd'
 import './Consumable.scss'
 
 const { Search } = Input
 const { Option } = Select
-const { TabPane } = Tabs
 
 function Consumable() {
   const [activeTab, setActiveTab] = useState('stock')
@@ -14,17 +13,22 @@ function Consumable() {
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
   const [inModalVisible, setInModalVisible] = useState(false)
   const [outModalVisible, setOutModalVisible] = useState(false)
-  const [form] = Form.useForm()
+  const [inForm] = Form.useForm()
+  const [outForm] = Form.useForm()
+  const [scanInput, setScanInput] = useState('')
+  const [scanError, setScanError] = useState('')
+  const [isScanning, setIsScanning] = useState(false)
+  const scanInputRef = useRef<any>(null)
 
   const consumables = [
-    { id: 1, name: '牙科复合树脂', category: '修复材料', spec: 'A2色 4g/支', unit: '支', stock: 25, minStock: 10, price: 280, clinic: '中心门诊' },
-    { id: 2, name: '根管锉', category: '器械耗材', spec: '25mm #15-40', unit: '盒', stock: 8, minStock: 15, price: 450, clinic: '中心门诊' },
-    { id: 3, name: '种植体', category: '种植材料', spec: 'Nobel Active 4.3x10mm', unit: '颗', stock: 12, minStock: 5, price: 5800, clinic: '中心门诊' },
-    { id: 4, name: '牙托槽', category: '正畸材料', spec: '金属托槽 标准型', unit: '副', stock: 30, minStock: 10, price: 1200, clinic: '城东门诊' },
-    { id: 5, name: '一次性手套', category: '防护用品', spec: 'M号 100只/盒', unit: '盒', stock: 5, minStock: 20, price: 45, clinic: '城西门诊' },
-    { id: 6, name: '局部麻醉剂', category: '药品', spec: '阿替卡因 1.7ml/支', unit: '支', stock: 50, minStock: 30, price: 25, clinic: '中心门诊' },
-    { id: 7, name: '牙科印模材料', category: '修复材料', spec: '加聚型硅橡胶', unit: '套', stock: 18, minStock: 8, price: 320, clinic: '城东门诊' },
-    { id: 8, name: '一次性口罩', category: '防护用品', spec: '医用外科 50只/盒', unit: '盒', stock: 3, minStock: 25, price: 35, clinic: '城西门诊' },
+    { id: 1, name: '牙科复合树脂', category: '修复材料', spec: 'A2色 4g/支', unit: '支', stock: 25, minStock: 10, price: 280, clinic: '中心门诊', barcode: '6901234567890' },
+    { id: 2, name: '根管锉', category: '器械耗材', spec: '25mm #15-40', unit: '盒', stock: 8, minStock: 15, price: 450, clinic: '中心门诊', barcode: '6901234567891' },
+    { id: 3, name: '种植体', category: '种植材料', spec: 'Nobel Active 4.3x10mm', unit: '颗', stock: 12, minStock: 5, price: 5800, clinic: '中心门诊', barcode: '6901234567892' },
+    { id: 4, name: '牙托槽', category: '正畸材料', spec: '金属托槽 标准型', unit: '副', stock: 30, minStock: 10, price: 1200, clinic: '城东门诊', barcode: '6901234567893' },
+    { id: 5, name: '一次性手套', category: '防护用品', spec: 'M号 100只/盒', unit: '盒', stock: 5, minStock: 20, price: 45, clinic: '城西门诊', barcode: '6901234567894' },
+    { id: 6, name: '局部麻醉剂', category: '药品', spec: '阿替卡因 1.7ml/支', unit: '支', stock: 50, minStock: 30, price: 25, clinic: '中心门诊', barcode: '6901234567895' },
+    { id: 7, name: '牙科印模材料', category: '修复材料', spec: '加聚型硅橡胶', unit: '套', stock: 18, minStock: 8, price: 320, clinic: '城东门诊', barcode: '6901234567896' },
+    { id: 8, name: '一次性口罩', category: '防护用品', spec: '医用外科 50只/盒', unit: '盒', stock: 3, minStock: 25, price: 35, clinic: '城西门诊', barcode: '6901234567897' },
   ]
 
   const inOutRecords = [
@@ -108,11 +112,78 @@ function Consumable() {
   }
 
   const handleOutSubmit = () => {
-    form.validateFields().then(() => {
+    outForm.validateFields().then(() => {
       message.success('出库成功')
       setOutModalVisible(false)
-      form.resetFields()
+      outForm.resetFields()
     })
+  }
+
+  const handleScanInput = (value: string, formType: 'in' | 'out') => {
+    setScanInput(value)
+    setScanError('')
+
+    if (!value) return
+
+    const consumable = consumables.find(item => item.barcode === value)
+    
+    if (consumable) {
+      const form = formType === 'in' ? inForm : outForm
+      form.setFieldsValue({
+        consumable: consumable.id,
+        consumableName: consumable.name,
+        spec: consumable.spec,
+        unit: consumable.unit,
+        currentStock: consumable.stock,
+      })
+      message.success(`已识别：${consumable.name}`)
+      setScanInput('')
+    }
+  }
+
+  const handleScanSearch = (formType: 'in' | 'out') => {
+    if (!scanInput) {
+      setScanError('请输入或扫描条码')
+      return
+    }
+
+    const consumable = consumables.find(item => item.barcode === scanInput)
+    
+    if (consumable) {
+      const form = formType === 'in' ? inForm : outForm
+      form.setFieldsValue({
+        consumable: consumable.id,
+      })
+      message.success(`已识别：${consumable.name}`)
+      setScanInput('')
+      setScanError('')
+    } else {
+      setScanError('未找到该条码对应的耗材，请检查条码是否正确')
+    }
+  }
+
+  const startScan = () => {
+    setIsScanning(true)
+    setScanError('')
+    setTimeout(() => {
+      if (scanInputRef.current) {
+        scanInputRef.current.focus()
+      }
+    }, 100)
+  }
+
+  const handleInModalOpen = () => {
+    setInModalVisible(true)
+    setScanInput('')
+    setScanError('')
+    inForm.resetFields()
+  }
+
+  const handleOutModalOpen = () => {
+    setOutModalVisible(true)
+    setScanInput('')
+    setScanError('')
+    outForm.resetFields()
   }
 
   const tabItems: TabsProps['items'] = [
@@ -144,10 +215,10 @@ function Consumable() {
               </Select>
             </div>
             <div className="actions">
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => setInModalVisible(true)}>
+              <Button type="primary" icon={<PlusOutlined />} onClick={handleInModalOpen}>
                 入库
               </Button>
-              <Button icon={<InboxOutlined />} onClick={() => setOutModalVisible(true)}>
+              <Button icon={<InboxOutlined />} onClick={handleOutModalOpen}>
                 出库
               </Button>
             </div>
@@ -227,10 +298,34 @@ function Consumable() {
         <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
       </Card>
 
-      <Modal title="耗材入库" open={inModalVisible} onCancel={() => setInModalVisible(false)} onOk={handleInSubmit}>
-        <Form form={form} layout="vertical">
-          <Form.Item name="consumable" label="耗材名称" rules={[{ required: true }]}>
-            <Select placeholder="请选择耗材">
+      <Modal title="耗材入库" open={inModalVisible} onCancel={() => setInModalVisible(false)} onOk={handleInSubmit} width={560}>
+        <div className="scan-section">
+          <div className="scan-label">
+            <ScanOutlined /> 扫码入库
+          </div>
+          <Space.Compact style={{ width: '100%', marginTop: 8 }}>
+            <Input
+              ref={scanInputRef}
+              value={scanInput}
+              placeholder="扫描条码或手动输入条码"
+              onChange={(e) => handleScanInput(e.target.value, 'in')}
+              onPressEnter={() => handleScanSearch('in')}
+              allowClear
+            />
+            <Button icon={<ScanOutlined />} onClick={startScan}>
+              扫码
+            </Button>
+          </Space.Compact>
+          {scanError && (
+            <Alert message={scanError} type="error" showIcon size="small" style={{ marginTop: 8 }} />
+          )}
+        </div>
+
+        <Divider style={{ margin: '16px 0' }} />
+
+        <Form form={inForm} layout="vertical">
+          <Form.Item name="consumable" label="耗材名称" rules={[{ required: true, message: '请选择耗材' }]}>
+            <Select placeholder="请选择耗材" showSearch optionFilterProp="children">
               {consumables.map((item) => (
                 <Option key={item.id} value={item.id}>
                   {item.name} - {item.spec}
@@ -238,19 +333,63 @@ function Consumable() {
               ))}
             </Select>
           </Form.Item>
-          <Form.Item name="quantity" label="入库数量" rules={[{ required: true }]}>
-            <InputNumber min={1} style={{ width: '100%' }} />
-          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="规格">
+                <Input readOnly placeholder="自动填充" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="单位">
+                <Input readOnly placeholder="自动填充" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="当前库存">
+                <Input readOnly placeholder="自动填充" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="quantity" label="入库数量" rules={[{ required: true, message: '请输入数量' }]}>
+                <InputNumber min={1} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
           <Form.Item name="remark" label="备注">
-            <Input.TextArea rows={3} />
+            <Input.TextArea rows={2} />
           </Form.Item>
         </Form>
       </Modal>
 
-      <Modal title="耗材出库" open={outModalVisible} onCancel={() => setOutModalVisible(false)} onOk={handleOutSubmit}>
-        <Form form={form} layout="vertical">
-          <Form.Item name="consumable" label="耗材名称" rules={[{ required: true }]}>
-            <Select placeholder="请选择耗材">
+      <Modal title="耗材出库" open={outModalVisible} onCancel={() => setOutModalVisible(false)} onOk={handleOutSubmit} width={560}>
+        <div className="scan-section">
+          <div className="scan-label">
+            <ScanOutlined /> 扫码出库
+          </div>
+          <Space.Compact style={{ width: '100%', marginTop: 8 }}>
+            <Input
+              value={scanInput}
+              placeholder="扫描条码或手动输入条码"
+              onChange={(e) => handleScanInput(e.target.value, 'out')}
+              onPressEnter={() => handleScanSearch('out')}
+              allowClear
+            />
+            <Button icon={<ScanOutlined />} onClick={startScan}>
+              扫码
+            </Button>
+          </Space.Compact>
+          {scanError && (
+            <Alert message={scanError} type="error" showIcon size="small" style={{ marginTop: 8 }} />
+          )}
+        </div>
+
+        <Divider style={{ margin: '16px 0' }} />
+
+        <Form form={outForm} layout="vertical">
+          <Form.Item name="consumable" label="耗材名称" rules={[{ required: true, message: '请选择耗材' }]}>
+            <Select placeholder="请选择耗材" showSearch optionFilterProp="children">
               {consumables.map((item) => (
                 <Option key={item.id} value={item.id}>
                   {item.name} - {item.spec}
@@ -258,9 +397,30 @@ function Consumable() {
               ))}
             </Select>
           </Form.Item>
-          <Form.Item name="quantity" label="出库数量" rules={[{ required: true }]}>
-            <InputNumber min={1} style={{ width: '100%' }} />
-          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="规格">
+                <Input readOnly placeholder="自动填充" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="单位">
+                <Input readOnly placeholder="自动填充" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="当前库存">
+                <Input readOnly placeholder="自动填充" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="quantity" label="出库数量" rules={[{ required: true, message: '请输入数量' }]}>
+                <InputNumber min={1} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
           <Form.Item name="operator" label="使用医生">
             <Select placeholder="请选择">
               <Option value="1">李医生</Option>
@@ -269,7 +429,7 @@ function Consumable() {
             </Select>
           </Form.Item>
           <Form.Item name="remark" label="用途">
-            <Input.TextArea rows={3} />
+            <Input.TextArea rows={2} />
           </Form.Item>
         </Form>
       </Modal>

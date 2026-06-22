@@ -203,6 +203,58 @@ def create_appointment():
     }), 201
 
 
+@appointment_bp.route('/async', methods=['POST'])
+@jwt_required()
+def create_appointment_async():
+    from flask import current_app
+    from app.utils.appointment_queue import AppointmentQueue
+    
+    data = request.get_json()
+    
+    required_fields = ['patient_id', 'doctor_id', 'date', 'time_slot']
+    for field in required_fields:
+        if not data.get(field):
+            return jsonify({'message': f'{field}不能为空'}), 400
+    
+    if not current_app.config.get('APPOINTMENT_ASYNC_ENABLED', True):
+        return create_appointment()
+    
+    result = AppointmentQueue.enqueue(data)
+    
+    return jsonify({
+        'message': result['message'],
+        'queue_id': result['queue_id'],
+        'position': result['position'],
+        'status': 'pending',
+    }), 202
+
+
+@appointment_bp.route('/result/<queue_id>', methods=['GET'])
+@jwt_required()
+def get_appointment_result(queue_id):
+    from app.utils.appointment_queue import AppointmentQueue
+    
+    result = AppointmentQueue.get_result(queue_id)
+    
+    if not result:
+        return jsonify({'message': '预约结果不存在或已过期'}), 404
+    
+    return jsonify(result)
+
+
+@appointment_bp.route('/queue/status', methods=['GET'])
+@jwt_required()
+def get_queue_status():
+    from app.utils.appointment_queue import AppointmentQueue
+    
+    length = AppointmentQueue.get_queue_length()
+    
+    return jsonify({
+        'queue_length': length,
+        'message': f'当前队列中有 {length} 个预约待处理',
+    })
+
+
 @appointment_bp.route('/<int:appointment_id>', methods=['PUT'])
 @jwt_required()
 def update_appointment(appointment_id):
@@ -255,8 +307,13 @@ def get_doctors():
     clinic_id = request.args.get('clinic_id', type=int)
     department = request.args.get('department', '')
     sort_by = request.args.get('sort_by', 'rating')
+    user_lat = request.args.get('user_lat', type=float)
+    user_lng = request.args.get('user_lng', type=float)
 
     cache_key = f'doctors:{clinic_id}:{department}:{sort_by}'
+    if sort_by == 'distance' and user_lat and user_lng:
+        cache_key = f'doctors:{clinic_id}:{department}:distance:{user_lat}:{user_lng}'
+    
     cached = redis_client.get(cache_key)
 
     if cached:
@@ -269,15 +326,34 @@ def get_doctors():
     if department:
         query = query.filter_by(department=department)
 
-    if sort_by == 'rating':
+    if sort_by == 'distance' and user_lat and user_lng:
+        from app.utils.geo import calculate_distance
+        doctors = query.all()
+        doctor_dicts = []
+        for d in doctors:
+            doctor_dict = d.to_dict()
+            if d.clinic and d.clinic.latitude and d.clinic.longitude:
+                doctor_dict['distance'] = calculate_distance(
+                    user_lat, user_lng, d.clinic.latitude, d.clinic.longitude
+                )
+            else:
+                doctor_dict['distance'] = None
+            doctor_dicts.append(doctor_dict)
+        doctor_dicts.sort(key=lambda x: x['distance'] if x['distance'] is not None else 99999)
+    elif sort_by == 'rating':
         query = query.order_by(Doctor.rating.desc())
+        doctors = query.all()
+        doctor_dicts = [d.to_dict() for d in doctors]
     elif sort_by == 'name':
         query = query.order_by(Doctor.name.asc())
+        doctors = query.all()
+        doctor_dicts = [d.to_dict() for d in doctors]
+    else:
+        doctors = query.all()
+        doctor_dicts = [d.to_dict() for d in doctors]
 
-    doctors = query.all()
-    doctor_dicts = [d.to_dict() for d in doctors]
-
-    redis_client.setex(cache_key, 600, json.dumps(doctor_dicts))
+    if sort_by != 'distance':
+        redis_client.setex(cache_key, 600, json.dumps(doctor_dicts))
 
     return jsonify({'doctors': doctor_dicts})
 

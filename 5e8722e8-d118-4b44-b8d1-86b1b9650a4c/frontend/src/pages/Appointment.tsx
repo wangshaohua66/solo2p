@@ -1,7 +1,8 @@
-import { useState } from 'react'
-import { Row, Col, Card, Select, Radio, Calendar, List, Tag, Button, Modal, Form, Input, message } from 'antd'
-import { ClockCircleOutlined, UserOutlined, StarOutlined } from '@ant-design/icons'
+import { useState, useEffect, useCallback } from 'react'
+import { Row, Col, Card, Select, Radio, Calendar, List, Tag, Button, Modal, Form, Input, message, Space } from 'antd'
+import { ClockCircleOutlined, UserOutlined, StarOutlined, EnvironmentOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import AppointmentReceipt from '../components/appointment/AppointmentReceipt'
 import './Appointment.scss'
 
 const { Option } = Select
@@ -15,16 +16,16 @@ const departments = [
 ]
 
 const clinics = [
-  { id: 1, name: '中心门诊', address: '市中心区88号' },
-  { id: 2, name: '城东门诊', address: '城东区56号' },
-  { id: 3, name: '城西门诊', address: '城西区123号' },
+  { id: 1, name: '中心门诊', address: '市中心区88号', latitude: 39.9042, longitude: 116.4074 },
+  { id: 2, name: '城东门诊', address: '城东区56号', latitude: 39.9200, longitude: 116.4500 },
+  { id: 3, name: '城西门诊', address: '城西区123号', latitude: 39.9100, longitude: 116.3500 },
 ]
 
 const doctors = [
-  { id: 1, name: '李医生', title: '主任医师', department: '口腔内科', rating: 4.9, specialty: ['根管治疗', '牙周病'] },
-  { id: 2, name: '王医生', title: '副主任医师', department: '正畸科', rating: 4.8, specialty: ['隐形矫正', '儿童正畸'] },
-  { id: 3, name: '赵医生', title: '主任医师', department: '种植科', rating: 4.9, specialty: ['种植牙', '骨增量'] },
-  { id: 4, name: '钱医生', title: '主治医师', department: '修复科', rating: 4.7, specialty: ['烤瓷牙', '全瓷冠'] },
+  { id: 1, name: '李医生', title: '主任医师', department: '口腔内科', clinic_id: 1, rating: 4.9, specialty: ['根管治疗', '牙周病'] },
+  { id: 2, name: '王医生', title: '副主任医师', department: '正畸科', clinic_id: 2, rating: 4.8, specialty: ['隐形矫正', '儿童正畸'] },
+  { id: 3, name: '赵医生', title: '主任医师', department: '种植科', clinic_id: 1, rating: 4.9, specialty: ['种植牙', '骨增量'] },
+  { id: 4, name: '钱医生', title: '主治医师', department: '修复科', clinic_id: 3, rating: 4.7, specialty: ['烤瓷牙', '全瓷冠'] },
 ]
 
 const timeSlots = [
@@ -41,15 +42,101 @@ function Appointment() {
   const [selectedDoctor, setSelectedDoctor] = useState<number | null>(null)
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
   const [isModalVisible, setIsModalVisible] = useState(false)
+  const [isReceiptVisible, setIsReceiptVisible] = useState(false)
+  const [receiptData, setReceiptData] = useState<any>(null)
   const [form] = Form.useForm()
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [locationLoading, setLocationLoading] = useState(false)
+  const [locationError, setLocationError] = useState<string | null>(null)
+
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371
+    const dLat = (lat2 - lat1) * Math.PI / 180
+    const dLon = (lon2 - lon1) * Math.PI / 180
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    return R * c
+  }
+
+  const formatDistance = (km: number): string => {
+    if (km < 1) return `${Math.round(km * 1000)}米`
+    if (km < 10) return `${km.toFixed(1)}公里`
+    return `${Math.round(km)}公里`
+  }
+
+  const getDoctorDistance = useCallback((doctor: typeof doctors[0]): number | null => {
+    if (!userLocation) return null
+    const clinic = clinics.find(c => c.id === doctor.clinic_id)
+    if (!clinic || !clinic.latitude || !clinic.longitude) return null
+    return calculateDistance(userLocation.lat, userLocation.lng, clinic.latitude, clinic.longitude)
+  }, [userLocation])
+
+  const requestLocation = useCallback(() => {
+    setLocationLoading(true)
+    setLocationError(null)
+    
+    if (!navigator.geolocation) {
+      setLocationError('浏览器不支持定位功能')
+      setLocationLoading(false)
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        })
+        setLocationLoading(false)
+        message.success('定位成功，已按距离排序')
+      },
+      (error) => {
+        let errorMsg = '定位失败'
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMsg = '您拒绝了定位请求，请在浏览器设置中开启定位权限'
+            break
+          case error.POSITION_UNAVAILABLE:
+            errorMsg = '位置信息不可用'
+            break
+          case error.TIMEOUT:
+            errorMsg = '定位超时，请重试'
+            break
+        }
+        setLocationError(errorMsg)
+        setLocationLoading(false)
+        message.warning(errorMsg)
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+    )
+  }, [])
+
+  const handleSortChange = (e: any) => {
+    const value = e.target.value
+    if (value === 'distance' && !userLocation) {
+      requestLocation()
+    }
+    setSortBy(value)
+  }
 
   const filteredDoctors = doctors.filter(
-    (doc) => !selectedDept || doc.department === selectedDept
+    (doc) => (!selectedDept || doc.department === selectedDept) &&
+             (!selectedClinic || doc.clinic_id === selectedClinic)
   )
 
   const sortedDoctors = [...filteredDoctors].sort((a, b) => {
     if (sortBy === 'rating') return b.rating - a.rating
     if (sortBy === 'specialty') return b.specialty.length - a.specialty.length
+    if (sortBy === 'distance') {
+      const distA = getDoctorDistance(a)
+      const distB = getDoctorDistance(b)
+      if (distA === null && distB === null) return 0
+      if (distA === null) return 1
+      if (distB === null) return -1
+      return distA - distB
+    }
     return 0
   })
 
@@ -63,9 +150,33 @@ function Appointment() {
   }
 
   const handleConfirm = () => {
-    form.validateFields().then(() => {
-      message.success('预约成功！已发送短信通知')
+    form.validateFields().then((values) => {
+      const doctor = doctors.find(d => d.id === selectedDoctor)
+      const clinic = clinics.find(c => c.id === (doctor?.clinic_id || selectedClinic))
+      
+      const newReceiptData = {
+        id: Date.now(),
+        patientName: values.patientName,
+        patientPhone: values.phone,
+        patientIdCard: '',
+        doctorName: doctor?.name || '未选择',
+        doctorTitle: doctor?.title || '',
+        department: doctor?.department || selectedDept || '口腔内科',
+        clinicName: clinic?.name || '中心门诊',
+        clinicAddress: clinic?.address || '',
+        clinicPhone: '400-888-8888',
+        appointmentDate: selectedDate.format('YYYY年MM月DD日'),
+        timeSlot: selectedTime || '',
+        appointmentType: '普通挂号',
+        symptom: values.symptom,
+        queueNumber: Math.floor(Math.random() * 20) + 1,
+        createdAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+      }
+
+      setReceiptData(newReceiptData)
       setIsModalVisible(false)
+      setIsReceiptVisible(true)
+      message.success('预约成功！')
       setSelectedTime(null)
       form.resetFields()
     })
@@ -108,47 +219,73 @@ function Appointment() {
               </div>
               <div className="filter-item">
                 <span className="filter-label">排序方式：</span>
-                <Radio.Group value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                <Radio.Group value={sortBy} onChange={handleSortChange}>
                   <Radio.Button value="rating">评分优先</Radio.Button>
                   <Radio.Button value="specialty">专长</Radio.Button>
+                  <Radio.Button value="distance">距离优先</Radio.Button>
                 </Radio.Group>
+                {sortBy === 'distance' && (
+                  <Button
+                    type="text"
+                    icon={<ReloadOutlined spin={locationLoading} />}
+                    size="small"
+                    onClick={requestLocation}
+                    disabled={locationLoading}
+                  >
+                    {userLocation ? '重新定位' : '获取位置'}
+                  </Button>
+                )}
               </div>
             </div>
 
             <div className="doctor-list">
               <List
                 dataSource={sortedDoctors}
-                renderItem={(doctor) => (
-                  <List.Item
-                    className={`doctor-card ${selectedDoctor === doctor.id ? 'selected' : ''}`}
-                    onClick={() => setSelectedDoctor(doctor.id)}
-                  >
-                    <List.Item.Meta
-                      avatar={
-                        <div className="doctor-avatar">
-                          <UserOutlined />
-                        </div>
-                      }
-                      title={
-                        <div className="doctor-title">
-                          <span className="doctor-name">{doctor.name}</span>
-                          <span className="doctor-title-tag">{doctor.title}</span>
-                          <Tag color="blue">{doctor.department}</Tag>
-                        </div>
-                      }
-                      description={
-                        <div className="doctor-info">
-                          <div className="doctor-specialty">
-                            专长：{doctor.specialty.join('、')}
+                renderItem={(doctor) => {
+                  const distance = getDoctorDistance(doctor)
+                  const clinic = clinics.find(c => c.id === doctor.clinic_id)
+                  return (
+                    <List.Item
+                      className={`doctor-card ${selectedDoctor === doctor.id ? 'selected' : ''}`}
+                      onClick={() => setSelectedDoctor(doctor.id)}
+                    >
+                      <List.Item.Meta
+                        avatar={
+                          <div className="doctor-avatar">
+                            <UserOutlined />
                           </div>
-                          <div className="doctor-rating">
-                            <StarOutlined style={{ color: '#faad14' }} /> {doctor.rating}
+                        }
+                        title={
+                          <div className="doctor-title">
+                            <span className="doctor-name">{doctor.name}</span>
+                            <span className="doctor-title-tag">{doctor.title}</span>
+                            <Tag color="blue">{doctor.department}</Tag>
+                            {sortBy === 'distance' && distance !== null && (
+                              <Tag color="green" icon={<EnvironmentOutlined />}>
+                                {formatDistance(distance)}
+                              </Tag>
+                            )}
                           </div>
-                        </div>
-                      }
-                    />
-                  </List.Item>
-                )}
+                        }
+                        description={
+                          <div className="doctor-info">
+                            <div className="doctor-specialty">
+                              专长：{doctor.specialty.join('、')}
+                            </div>
+                            <div className="doctor-meta">
+                              <span className="doctor-rating">
+                                <StarOutlined style={{ color: '#faad14' }} /> {doctor.rating}
+                              </span>
+                              <span className="doctor-clinic">
+                                <EnvironmentOutlined /> {clinic?.name} - {clinic?.address}
+                              </span>
+                            </div>
+                          </div>
+                        }
+                      />
+                    </List.Item>
+                  )
+                }}
               />
             </div>
 
@@ -221,6 +358,17 @@ function Appointment() {
             <Input.TextArea rows={3} placeholder="请简要描述症状" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title="预约成功"
+        open={isReceiptVisible}
+        onCancel={() => setIsReceiptVisible(false)}
+        footer={null}
+        width={680}
+        destroyOnClose
+      >
+        {receiptData && <AppointmentReceipt data={receiptData} />}
       </Modal>
     </div>
   )

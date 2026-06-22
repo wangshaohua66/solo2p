@@ -2,31 +2,106 @@ package com.heritage.service;
 
 import com.heritage.entity.TrainingPlan;
 import com.heritage.entity.TrainingRecord;
+import com.heritage.entity.User;
+import com.heritage.enums.UserRole;
 import com.heritage.repository.TrainingPlanRepository;
+import com.heritage.repository.UserRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+@Slf4j
 @Service
 public class TrainingService {
 
     @Autowired
     private TrainingPlanRepository trainingPlanRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
     public Page<TrainingPlan> getAllPlans(Pageable pageable) {
         return trainingPlanRepository.findAll(pageable);
     }
 
     public Page<TrainingPlan> getPlansByInheritor(String inheritorId, Pageable pageable) {
-        return trainingPlanRepository.findByInheritorId(inheritorId, pageable);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = auth.getName();
+        log.info("[数据权限校验] getPlansByInheritor 调用中 - 传承人ID: {}, 当前登录用户: {}", inheritorId, currentUsername);
+
+        User currentUser = userRepository.findByUsername(currentUsername).orElse(null);
+        if (currentUser == null) {
+            log.warn("[数据权限校验] 当前用户 {} 未找到，拒绝访问", currentUsername);
+            throw new SecurityException("用户信息不存在，无法进行权限校验");
+        }
+
+        boolean isAdminOrStaff = currentUser.getRoles() != null &&
+                (currentUser.getRoles().contains(UserRole.ADMIN) || currentUser.getRoles().contains(UserRole.STAFF));
+        boolean isInheritorRole = currentUser.getRoles() != null &&
+                currentUser.getRoles().contains(UserRole.INHERITOR);
+
+        if (isAdminOrStaff) {
+            log.info("[数据权限校验] 用户 {} 角色为 ADMIN/STAFF，允许查询传承人 {} 的培养计划", currentUsername, inheritorId);
+            return trainingPlanRepository.findByInheritorId(inheritorId, pageable);
+        }
+
+        if (isInheritorRole) {
+            String userInheritorId = currentUser.getInheritorId();
+            log.info("[数据权限校验] 用户 {} 为 INHERITOR 角色，绑定传承人ID: {}", currentUsername, userInheritorId);
+
+            if (userInheritorId == null || userInheritorId.isEmpty()) {
+                log.warn("[数据权限校验] 用户 {} 为传承人角色但未绑定inheritorId，拒绝访问", currentUsername);
+                throw new SecurityException("当前传承人账户未绑定有效的传承人档案ID，请联系管理员配置");
+            }
+
+            if (!userInheritorId.equals(inheritorId)) {
+                log.warn("[数据权限校验] 越权访问：用户 {} (inheritorId={}) 尝试访问传承人 {} 的培养计划，已拒绝",
+                        currentUsername, userInheritorId, inheritorId);
+                throw new SecurityException("数据访问权限不足：只能查看与本人绑定的传承人培养计划");
+            }
+
+            log.info("[数据权限校验] 用户 {} 确认访问自己 (inheritorId={}) 的培养计划，校验通过", currentUsername, userInheritorId);
+            return trainingPlanRepository.findByInheritorId(inheritorId, pageable);
+        }
+
+        log.warn("[数据权限校验] 用户 {} 的角色 {} 无权访问传承人培养计划", currentUsername, currentUser.getRoles());
+        throw new SecurityException("当前用户角色无权访问传承培养计划数据");
     }
 
     public List<TrainingPlan> getPlansByInheritorAndYear(String inheritorId, String year) {
-        return trainingPlanRepository.findByInheritorIdAndYear(inheritorId, year);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = auth.getName();
+
+        User currentUser = userRepository.findByUsername(currentUsername).orElse(null);
+        if (currentUser == null) {
+            throw new SecurityException("用户信息不存在");
+        }
+
+        boolean isAdminOrStaff = currentUser.getRoles() != null &&
+                (currentUser.getRoles().contains(UserRole.ADMIN) || currentUser.getRoles().contains(UserRole.STAFF));
+        boolean isInheritorRole = currentUser.getRoles() != null &&
+                currentUser.getRoles().contains(UserRole.INHERITOR);
+
+        if (isAdminOrStaff) {
+            return trainingPlanRepository.findByInheritorIdAndYear(inheritorId, year);
+        }
+
+        if (isInheritorRole) {
+            String userInheritorId = currentUser.getInheritorId();
+            if (!inheritorId.equals(userInheritorId)) {
+                throw new SecurityException("只能查看本人的年度培养计划");
+            }
+            return trainingPlanRepository.findByInheritorIdAndYear(inheritorId, year);
+        }
+
+        throw new SecurityException("当前用户角色无权访问年度培养计划");
     }
 
     public List<TrainingPlan> getPlansByYear(String year) {
@@ -34,7 +109,25 @@ public class TrainingService {
     }
 
     public TrainingPlan getPlanById(String id) {
-        return trainingPlanRepository.findById(id).orElse(null);
+        TrainingPlan plan = trainingPlanRepository.findById(id).orElse(null);
+        if (plan == null) return null;
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = auth.getName();
+        User currentUser = userRepository.findByUsername(currentUsername).orElse(null);
+        if (currentUser == null) {
+            throw new SecurityException("用户信息不存在");
+        }
+
+        boolean isAdminOrStaff = currentUser.getRoles() != null &&
+                (currentUser.getRoles().contains(UserRole.ADMIN) || currentUser.getRoles().contains(UserRole.STAFF));
+        boolean isInheritorRole = currentUser.getRoles() != null &&
+                currentUser.getRoles().contains(UserRole.INHERITOR);
+
+        if (isAdminOrStaff) return plan;
+        if (isInheritorRole && plan.getInheritorId().equals(currentUser.getInheritorId())) return plan;
+
+        throw new SecurityException("无权查看该培养计划详情");
     }
 
     @Transactional
@@ -65,6 +158,17 @@ public class TrainingService {
     public TrainingPlan addTrainingRecord(String planId, TrainingRecord record) {
         TrainingPlan plan = trainingPlanRepository.findById(planId)
                 .orElseThrow(() -> new RuntimeException("培养计划不存在"));
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = auth.getName();
+        User currentUser = userRepository.findByUsername(currentUsername).orElse(null);
+        if (currentUser != null && currentUser.getRoles() != null &&
+                currentUser.getRoles().contains(UserRole.INHERITOR)) {
+            String userInheritorId = currentUser.getInheritorId();
+            if (userInheritorId == null || !userInheritorId.equals(plan.getInheritorId())) {
+                throw new SecurityException("只能为本人的培养计划添加培训记录");
+            }
+        }
 
         plan.getTrainingRecords().add(record);
         plan.setCompletedHours(plan.getCompletedHours() + record.getDurationHours());

@@ -1,0 +1,132 @@
+.responsive-calendar {
+  .responsive-calendar-desktop {
+    :global(.ant-picker-calendar) {
+      border-radius: 8px;
+    }
+  }
+
+  .responsive-calendar-mobile {
+    background: #fff;
+    border-radius: 8px;
+    padding: 12px;
+
+    .mobile-calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+
+      .month-title {
+        font-size: 15px;
+        font-weight: 500;
+        color: #262626;
+      }
+    }
+
+    .weekday-row {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      margin-bottom: 8px;
+
+      .weekday-item {
+        text-align: center;
+        font-size: 12px;
+        color: #8c8c8c;
+        padding: 4px 0;
+      }
+    }
+
+    .days-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+
+      .day-cell {
+        aspect-ratio: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        cursor: pointer;
+        position: relative;
+        transition: all 0.2s;
+
+        .day-number {
+          font-size: 14px;
+          color: #262626;
+        }
+
+        .day-dot {
+          width: 5px;
+          height: 5px;
+          border-radius: 50%;
+          background: #1890ff;
+          margin-top: 3px;
+        }
+
+        &:hover:not(.disabled) {
+          background: #e6f7ff;
+        }
+
+        &.selected {
+          background: #1890ff;
+
+          .day-number {
+            color: #fff;
+            font-weight: 500;
+          }
+
+          .day-dot {
+            background: #fff;
+          }
+        }
+
+        &.today:not(.selected) {
+          .day-number {
+            color: #1890ff;
+            font-weight: 500;
+          }
+        }
+
+        &.disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+
+          .day-number {
+            color: #bfbfbf;
+          }
+        }
+      }
+    }
+
+    .selected-info {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid #f0f0f0;
+
+      .selected-date {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #262626;
+        margin-bottom: 12px;
+      }
+
+      .no-items {
+        text-align: center;
+        padding: 20px 0;
+        color: #bfbfbf;
+        font-size: 13px;
+      }
+
+      :global(.ant-list) {
+        .ant-list-item {
+          padding: 8px 0;
+        }
+      }
+    }
+  }
+}

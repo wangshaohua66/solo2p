@@ -1,10 +1,70 @@
 const EquipmentModule = {
-    reservations: [...MockData.equipmentReservations],
+    reservations: [],
+    equipment: [],
     activeTab: 'equipmentList',
     selectedEquipment: null,
 
+    fireStations: [
+        { id: 1, name: '一站', firefighters: 78 },
+        { id: 2, name: '二站', firefighters: 72 },
+        { id: 3, name: '三站', firefighters: 80 },
+        { id: 4, name: '四站', firefighters: 75 },
+        { id: 5, name: '五站', firefighters: 68 },
+        { id: 6, name: '六站', firefighters: 82 },
+        { id: 7, name: '七站', firefighters: 70 },
+        { id: 8, name: '八站', firefighters: 75 }
+    ],
+
     init() {
         this.render();
+        this.loadEquipment();
+        this.loadReservations();
+    },
+
+    loadEquipment() {
+        const self = this;
+        $.ajax({
+            url: '/api/Equipment/equipment',
+            method: 'GET',
+            success: function(data) {
+                self.equipment = data.data || data.equipment || data || [];
+                self.renderEquipmentList();
+            },
+            error: function() {
+                self.equipment = [
+                    { id: 1, name: '正压式空气呼吸器', category: '呼吸防护类', totalQty: 50, availableQty: 42, status: 'normal', unit: '套' },
+                    { id: 2, name: '消防头盔', category: '防护装备类', totalQty: 120, availableQty: 115, status: 'normal', unit: '顶' },
+                    { id: 3, name: '灭火防护服', category: '防护装备类', totalQty: 200, availableQty: 180, status: 'normal', unit: '套' },
+                    { id: 4, name: '破拆工具组', category: '破拆器材类', totalQty: 20, availableQty: 15, status: 'normal', unit: '套' },
+                    { id: 5, name: '液压扩张器', category: '破拆器材类', totalQty: 12, availableQty: 8, status: 'maintenance', unit: '台' },
+                    { id: 6, name: '救生抛投器', category: '水域救援类', totalQty: 10, availableQty: 9, status: 'normal', unit: '套' },
+                    { id: 7, name: '冲锋舟', category: '水域救援类', totalQty: 6, availableQty: 5, status: 'normal', unit: '艘' },
+                    { id: 8, name: '生命探测仪', category: '搜救装备类', totalQty: 8, availableQty: 6, status: 'normal', unit: '台' },
+                    { id: 9, name: '热成像仪', category: '搜救装备类', totalQty: 10, availableQty: 7, status: 'normal', unit: '台' },
+                    { id: 10, name: '无齿锯', category: '破拆器材类', totalQty: 15, availableQty: 10, status: 'maintenance', unit: '台' }
+                ];
+                self.renderEquipmentList();
+            }
+        });
+    },
+
+    loadReservations() {
+        const self = this;
+        $.ajax({
+            url: '/api/Equipment/reservations',
+            method: 'GET',
+            success: function(data) {
+                self.reservations = data.data || data.reservations || data || [];
+            },
+            error: function() {
+                self.reservations = [
+                    { id: 1, equipmentId: 1, equipmentName: '正压式空气呼吸器', stationId: 1, stationName: '一站', quantity: 10, purpose: '日常训练', startTime: '2025-01-15 08:00', endTime: '2025-01-15 12:00', status: 'approved', priority: 'normal' },
+                    { id: 2, equipmentId: 4, equipmentName: '破拆工具组', stationId: 2, stationName: '二站', quantity: 5, purpose: '技能考核', startTime: '2025-01-16 09:00', endTime: '2025-01-16 17:00', status: 'pending', priority: 'high' },
+                    { id: 3, equipmentId: 7, equipmentName: '冲锋舟', stationId: 3, stationName: '三站', quantity: 2, purpose: '水域救援演练', startTime: '2025-01-17 08:00', endTime: '2025-01-18 18:00', status: 'approved', priority: 'normal' },
+                    { id: 4, equipmentId: 8, equipmentName: '生命探测仪', stationId: 4, stationName: '四站', quantity: 3, purpose: '地震救援培训', startTime: '2025-01-19 10:00', endTime: '2025-01-19 16:00', status: 'rejected', priority: 'low' }
+                ];
+            }
+        });
     },
 
     render() {
@@ -65,7 +125,7 @@ const EquipmentModule = {
     },
 
     renderEquipmentList() {
-        const categories = [...new Set(MockData.equipment.map(e => e.category))];
+        const categories = [...new Set(this.equipment.map(e => e.category))];
         
         const html = `
             <div class="row g-3 mb-3">
@@ -92,7 +152,7 @@ const EquipmentModule = {
             </div>
 
             <div class="row g-3" id="equipment-grid">
-                ${this.renderEquipmentCards(MockData.equipment)}
+                ${this.renderEquipmentCards(this.equipment)}
             </div>
         `;
 
@@ -172,7 +232,7 @@ const EquipmentModule = {
         const keyword = $('#eq-search').val().toLowerCase();
         const category = $('#eq-category-filter').val();
         
-        let equipment = MockData.equipment;
+        let equipment = this.equipment;
         
         if (keyword) {
             equipment = equipment.filter(e => e.name.toLowerCase().includes(keyword));
@@ -190,7 +250,7 @@ const EquipmentModule = {
     },
 
     showReservationModal(equipmentId) {
-        const eq = MockData.equipment.find(e => e.id === equipmentId);
+        const eq = this.equipment.find(e => e.id === equipmentId);
         if (!eq) return;
 
         const modalHtml = `
@@ -248,7 +308,7 @@ const EquipmentModule = {
                             <div class="mb-3">
                                 <label class="form-label fw-medium">使用站点</label>
                                 <select class="form-select" id="reserve-station">
-                                    ${MockData.fireStations.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                                    ${this.fireStations.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
                                 </select>
                             </div>
 
@@ -368,10 +428,10 @@ const EquipmentModule = {
                 const newReservation = {
                     id: Date.now(),
                     equipmentId: data.equipmentId,
-                    equipmentName: MockData.equipment.find(e => e.id === data.equipmentId)?.name || '',
+                    equipmentName: this.equipment.find(e => e.id === data.equipmentId)?.name || '',
                     qty: data.qty,
                     stationId: data.stationId,
-                    stationName: MockData.fireStations.find(s => s.id === data.stationId)?.name,
+                    stationName: this.fireStations.find(s => s.id === data.stationId)?.name,
                     firefighter: data.firefighter,
                     purpose: data.purpose,
                     startTime: data.startTime,
@@ -415,7 +475,7 @@ const EquipmentModule = {
     },
 
     showEquipmentDetail(id) {
-        const eq = MockData.equipment.find(e => e.id === id);
+        const eq = this.equipment.find(e => e.id === id);
         if (!eq) return;
 
         AppCommon.showAlert(`器材详情功能开发中：${eq.name}`, 'info');
@@ -609,7 +669,7 @@ const EquipmentModule = {
                             </div>
                             <div class="list-group-item d-flex justify-content-between align-items-center">
                                 <span><i class="bi bi-tools text-info me-2"></i>维护中器材</span>
-                                <span class="badge bg-info rounded-pill">${MockData.equipment.filter(e => e.status === 'maintenance').length}</span>
+                                <span class="badge bg-info rounded-pill">${this.equipment.filter(e => e.status === 'maintenance').length}</span>
                             </div>
                         </div>
                     </div>
@@ -621,7 +681,7 @@ const EquipmentModule = {
     },
 
     renderGanttChart() {
-        const equipment = MockData.equipment.slice(0, 5);
+        const equipment = this.equipment.slice(0, 5);
         const hours = Array.from({ length: 12 }, (_, i) => 8 + i);
         
         let html = '<div class="position-relative" style="height: 350px;">';
@@ -665,7 +725,7 @@ const EquipmentModule = {
     },
 
     renderUsageRanking() {
-        const sorted = [...MockData.equipment].sort((a, b) => {
+        const sorted = [...this.equipment].sort((a, b) => {
             const usageA = (a.totalQty - a.availableQty) / a.totalQty;
             const usageB = (b.totalQty - b.availableQty) / b.totalQty;
             return usageB - usageA;

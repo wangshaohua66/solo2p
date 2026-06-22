@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Card, Tabs, Table, Button, Input, Form, Upload, Modal, Tag, Rate, message, Select } from 'antd'
-import { PlusOutlined, UploadOutlined, SearchOutlined } from '@ant-design/icons'
+import { Card, Tabs, Table, Button, Input, Form, Upload, Modal, Tag, message, Select, Row, Col } from 'antd'
+import { PlusOutlined, UploadOutlined, SearchOutlined, EyeOutlined } from '@ant-design/icons'
 import type { TabsProps } from 'antd'
 import MedicalRecordForm from '../components/medical-record/MedicalRecordForm'
+import DicomViewer from '../components/medical-record/DicomViewer'
 import OrthodonticPanel from '../components/orthodontic/OrthodonticPanel'
 import ImplantPanel from '../components/implant/ImplantPanel'
 import './MedicalCenter.scss'
@@ -15,6 +16,8 @@ function MedicalCenter() {
   const [searchPatient, setSearchPatient] = useState('')
   const [selectedPatient, setSelectedPatient] = useState<any>(null)
   const [recordModalVisible, setRecordModalVisible] = useState(false)
+  const [viewerModalVisible, setViewerModalVisible] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<any>(null)
   const [form] = Form.useForm()
 
   const mockPatients = [
@@ -28,6 +31,15 @@ function MedicalCenter() {
     { id: 1, date: '2024-01-15', doctor: '李医生', department: '口腔内科', diagnosis: '龋齿', treatment: '充填治疗' },
     { id: 2, date: '2024-01-10', doctor: '李医生', department: '口腔内科', diagnosis: '牙髓炎', treatment: '根管治疗' },
     { id: 3, date: '2023-12-20', doctor: '王医生', department: '正畸科', diagnosis: '牙列不齐', treatment: '正畸治疗' },
+  ]
+
+  const mockImages = [
+    { id: 1, name: 'CBCT-2024-01-15', type: 'CBCT', date: '2024-01-15', fileSize: '156MB', slices: 180 },
+    { id: 2, name: '全景片-01', type: '全景片', date: '2024-01-10', fileSize: '12MB', slices: 1 },
+    { id: 3, name: '根尖片-16', type: '根尖片', date: '2024-01-10', fileSize: '5MB', slices: 1 },
+    { id: 4, name: 'CBCT-治疗前', type: 'CBCT', date: '2023-12-20', fileSize: '148MB', slices: 180 },
+    { id: 5, name: '侧位片', type: '头颅侧位', date: '2023-12-15', fileSize: '8MB', slices: 1 },
+    { id: 6, name: 'CBCT-复查', type: 'CBCT', date: '2024-01-05', fileSize: '162MB', slices: 180 },
   ]
 
   const recordColumns = [
@@ -61,6 +73,11 @@ function MedicalCenter() {
     message.success('病历保存成功')
     setRecordModalVisible(false)
     form.resetFields()
+  }
+
+  const handleViewImage = (image: any) => {
+    setSelectedImage(image)
+    setViewerModalVisible(true)
   }
 
   const tabItems: TabsProps['items'] = [
@@ -142,38 +159,77 @@ function MedicalCenter() {
       label: '影像资料',
       children: (
         <div className="image-gallery">
-          <div className="upload-section">
-            <Upload.Dragger
-              multiple
-              showUploadList
-              beforeUpload={() => {
-                message.info('DICOM影像上传中...')
-                return false
-              }}
-            >
-              <p className="ant-upload-drag-icon">
-                <UploadOutlined />
-              </p>
-              <p className="ant-upload-text">点击或拖拽上传DICOM影像文件</p>
-              <p className="ant-upload-hint">支持单文件最大200MB，支持DICOM格式</p>
-            </Upload.Dragger>
-          </div>
-          <div className="image-list">
-            <h3>影像列表</h3>
-            <div className="image-grid">
-              {[1, 2, 3, 4, 5, 6].map((item) => (
-                <Card key={item} hoverable className="image-card">
-                  <div className="image-placeholder">
-                    <span>CBCT影像 #{item}</span>
-                  </div>
-                  <div className="image-info">
-                    <span className="image-name">patient_00{item}.dcm</span>
-                    <span className="image-date">2024-01-{10 + item}</span>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </div>
+          <Row gutter={[16, 16]}>
+            <Col xs={24} lg={14}>
+              <div className="upload-section">
+                <Upload.Dragger
+                  multiple
+                  showUploadList
+                  accept=".dcm,.jpg,.jpeg,.png"
+                  beforeUpload={() => {
+                    message.info('DICOM影像上传中...')
+                    return false
+                  }}
+                >
+                  <p className="ant-upload-drag-icon">
+                    <UploadOutlined />
+                  </p>
+                  <p className="ant-upload-text">点击或拖拽上传DICOM影像文件</p>
+                  <p className="ant-upload-hint">支持单文件最大200MB，支持DICOM、JPG、PNG格式</p>
+                </Upload.Dragger>
+              </div>
+
+              <div className="image-list-section">
+                <div className="section-header">
+                  <h3>影像列表</h3>
+                  <Select defaultValue="all" style={{ width: 120 }} size="small">
+                    <Option value="all">全部类型</Option>
+                    <Option value="CBCT">CBCT</Option>
+                    <Option value="全景片">全景片</Option>
+                    <Option value="根尖片">根尖片</Option>
+                  </Select>
+                </div>
+                <div className="image-grid">
+                  {mockImages.map((image) => (
+                    <Card
+                      key={image.id}
+                      hoverable
+                      className="image-card"
+                      actions={[
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<EyeOutlined />}
+                          onClick={() => handleViewImage(image)}
+                        >
+                          查看
+                        </Button>,
+                      ]}
+                    >
+                      <div className="image-placeholder">
+                        <span className="image-type-tag">{image.type}</span>
+                        <span className="image-title">{image.name}</span>
+                      </div>
+                      <div className="image-meta">
+                        <span>{image.date}</span>
+                        <span>{image.fileSize}</span>
+                        {image.slices > 1 && <span>{image.slices}层</span>}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            </Col>
+
+            <Col xs={24} lg={10}>
+              <div className="viewer-panel">
+                <div className="panel-header">
+                  <h4>DICOM 预览</h4>
+                </div>
+                <DicomViewer />
+              </div>
+            </Col>
+          </Row>
         </div>
       ),
     },
@@ -199,6 +255,16 @@ function MedicalCenter() {
         okText="保存病历"
       >
         <MedicalRecordForm form={form} />
+      </Modal>
+
+      <Modal
+        title={selectedImage ? `影像查看 - ${selectedImage.name}` : '影像查看'}
+        open={viewerModalVisible}
+        onCancel={() => setViewerModalVisible(false)}
+        width={900}
+        footer={null}
+      >
+        <DicomViewer width={700} height={400} />
       </Modal>
     </div>
   )

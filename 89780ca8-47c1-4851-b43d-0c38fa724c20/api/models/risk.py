@@ -11,6 +11,7 @@ class User(Base):
     wallet_address = Column(String(66), unique=True, nullable=False)
     risk_score = Column(Float, default=0.0)
     is_frozen = Column(Integer, default=0)
+    role = Column(String(30), default="user")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
@@ -39,3 +40,15 @@ class RiskRule(Base):
     enabled = Column(Integer, default=1)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
+class RiskNotification(Base):
+    __tablename__ = "risk_notifications"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    alert_id = Column(Integer, ForeignKey("risk_alerts.id"), nullable=False)
+    channel = Column(String(30), nullable=False)
+    recipient = Column(String(200), nullable=False)
+    content = Column(Text, default="")
+    sent_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    status = Column(String(20), default="sent")

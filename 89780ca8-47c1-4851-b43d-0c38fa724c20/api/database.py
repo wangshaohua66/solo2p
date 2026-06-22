@@ -21,6 +21,7 @@ async def init_db():
         from api.models.collection import Creator, Collection
         from api.models.order import Asset, Order, Trade
         from api.models.copyright import CopyrightRecord
-        from api.models.royalty import RoyaltySettlement
-        from api.models.risk import User, RiskAlert, RiskRule
+        from api.models.royalty import RoyaltySettlement, PayoutTransaction
+        from api.models.risk import User, RiskAlert, RiskRule, RiskNotification
+        from api.models.api_key import APIKey
         await conn.run_sync(Base.metadata.create_all)

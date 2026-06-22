@@ -134,10 +134,42 @@ class RoyaltySettlementResponse(BaseModel):
     royalty_amount: float
     status: str
     settled_at: Optional[datetime]
+    payout_tx_hash: str
+    wallet_address: str
+    payout_batch_id: str
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+
+class PayoutTransactionResponse(BaseModel):
+    id: int
+    batch_id: str
+    creator_id: int
+    wallet_address: str
+    total_amount: float
+    tx_hash: str
+    status: str
+    processed_count: int
+    created_at: datetime
+    completed_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class BatchPayoutResponse(BaseModel):
+    batch_id: str
+    total_count: int
+    total_amount: float
+    transactions: list[PayoutTransactionResponse]
+
+
+class PayoutBatchDetailResponse(BaseModel):
+    batch_id: str
+    transactions: list[PayoutTransactionResponse]
+    settlements: list[RoyaltySettlementResponse]
 
 
 class CreatorEarningsResponse(BaseModel):
@@ -194,3 +226,74 @@ class HealthResponse(BaseModel):
     version: str
     database: str
     redis: str
+
+
+class APIKeyResponse(BaseModel):
+    id: int
+    key_name: str
+    user_id: int
+    scopes: str
+    rate_limit_per_min: int
+    is_active: int
+    created_at: datetime
+    last_used_at: Optional[datetime]
+    revoked_at: Optional[datetime]
+    key_prefix: str
+
+    class Config:
+        from_attributes = True
+
+
+class APIKeyCreateResponse(APIKeyResponse):
+    full_key: str
+
+
+class APIKeyListResponse(BaseModel):
+    items: list[APIKeyResponse]
+    total: int
+
+
+class AssetVerifyResponse(BaseModel):
+    token_id: str
+    collection_id: int
+    collection_name: str
+    owner_id: Optional[int]
+    status: str
+    mint_tx_hash: str
+    verified: bool
+    verified_at: datetime
+
+
+class NFTAttribute(BaseModel):
+    trait_type: str
+    value: str | int | float
+
+
+class ERC721MetadataResponse(BaseModel):
+    name: str
+    description: str
+    image: str
+    external_url: str
+    token_id: str
+    attributes: list[NFTAttribute]
+
+
+class NFTProperties(BaseModel):
+    creator: str
+    copyright_hash: str
+    chain_proofs: list[str]
+
+
+class ERC1155MetadataResponse(BaseModel):
+    name: str
+    decimals: int
+    description: str
+    image: str
+    properties: NFTProperties
+    attributes: list[NFTAttribute]
+
+
+class NFTMetadataResponse(BaseModel):
+    standard: str
+    collection_id: int
+    metadata: ERC721MetadataResponse | ERC1155MetadataResponse

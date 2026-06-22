@@ -153,3 +153,18 @@ public enum ReviewResult
     Rejected = 2,
     PendingAdditionalInfo = 3
 }
+
+public enum NotificationType
+{
+    Info = 1,
+    Warning = 2,
+    Urgent = 3,
+    Success = 4
+}
+
+public enum NotificationChannel
+{
+    Email = 1,
+    Sms = 2,
+    InApp = 3
+}

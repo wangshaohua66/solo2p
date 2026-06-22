@@ -8,8 +8,11 @@ from api.models.order import Order, Trade, Asset
 from api.models.copyright import CopyrightRecord
 from api.models.royalty import RoyaltySettlement
 from api.models.risk import User, RiskAlert, RiskRule
+from api.models.api_key import APIKey
 from api.schemas.response import HealthResponse
 from api.routes import collection, trade, copyright, royalty, risk
+from api.routes.open_api import keys_router, open_router
+from api.middleware import ApiKeyAuthMiddleware
 
 
 async def seed_data():
@@ -138,6 +141,10 @@ app.include_router(trade.router, prefix="/api/v1")
 app.include_router(copyright.router, prefix="/api/v1")
 app.include_router(royalty.router, prefix="/api/v1")
 app.include_router(risk.router, prefix="/api/v1")
+app.include_router(keys_router, prefix="/api/v1")
+app.include_router(open_router, prefix="/api/v1")
+
+app.add_middleware(ApiKeyAuthMiddleware)
 
 
 @app.get("/health", response_model=HealthResponse)
