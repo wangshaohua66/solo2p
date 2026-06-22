@@ -111,6 +111,9 @@ fn render_table_report(
     config: &AppConfig,
     verbose: bool,
 ) -> Result<String, ReportError> {
+    let tw = formatter::terminal_width();
+    let narrow_mode = tw < 90;
+
     let mut buf = Vec::new();
     {
         let mut tw = TabWriter::new(&mut buf);
@@ -146,26 +149,51 @@ fn render_table_report(
     let summary = String::from_utf8_lossy(&buf).to_string();
     println!("{}", summary);
 
+    if narrow_mode {
+        formatter::info(&format!("窄终端模式检测 (宽度={}, <90)，省略部分非核心列。使用更宽终端或--verbose查看完整列。", tw));
+    }
+
     formatter::section_title("分组明细");
 
     let mut detail_buf = Vec::new();
     {
         let mut tw = TabWriter::new(&mut detail_buf);
 
-        let header = if verbose {
+        let header = if narrow_mode {
+            "港口\t艘次\t价税合计\t已收\t待收"
+        } else if verbose {
             "港口代码\t港口名称\t艘次\t金额小计\t税额\t价税合计\t已收金额\t待收金额"
         } else {
             "港口代码\t港口名称\t艘次\t价税合计\t已收金额\t待收金额"
         };
         writeln!(tw, "{}", header.white().bold())?;
+        let sep_len = if narrow_mode { 55 } else if verbose { 110 } else { 75 };
         writeln!(
             tw,
             "{}",
-            "─".repeat(if verbose { 110 } else { 75 }).dimmed()
+            "─".repeat(sep_len).dimmed()
         )?;
 
-        for s in &data.summaries {
-            if verbose {
+        let limit = if verbose { usize::MAX } else { 50 };
+        let total_summaries = data.summaries.len();
+        let display_summaries: Vec<&MonthlySummary> = if total_summaries <= limit {
+            data.summaries.iter().collect()
+        } else {
+            data.summaries.iter().take(limit).collect()
+        };
+
+        for s in display_summaries {
+            if narrow_mode {
+                writeln!(
+                    tw,
+                    "{}\t{}\t{}\t{}\t{}",
+                    s.port_code,
+                    s.vessel_count,
+                    formatter::format_currency(s.grand_total, &config.currency_symbol, config.decimals),
+                    formatter::format_currency(s.settled_amount, &config.currency_symbol, config.decimals),
+                    formatter::format_currency(s.unsettled_amount, &config.currency_symbol, config.decimals),
+                )?;
+            } else if verbose {
                 writeln!(
                     tw,
                     "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
@@ -195,14 +223,14 @@ fn render_table_report(
         writeln!(
             tw,
             "{}",
-            "─".repeat(if verbose { 110 } else { 75 }).dimmed()
+            "─".repeat(sep_len).dimmed()
         )?;
         writeln!(
             tw,
-            "{}\t{}\t{}\t{}\t{}\t{}",
-            "合计",
-            "",
-            data.total_vessels,
+            "{}\t{}\t{}\t{}\t{}",
+            if narrow_mode { "合计" } else { "合计" },
+            if narrow_mode { data.total_vessels.to_string() } else { "".to_string() },
+            if !narrow_mode { format!("{}\t", data.total_vessels) } else { "".to_string() },
             formatter::format_currency(data.total_grand_total, &config.currency_symbol, config.decimals),
             formatter::format_currency(data.total_settled, &config.currency_symbol, config.decimals),
             formatter::format_currency(data.total_unsettled, &config.currency_symbol, config.decimals),
@@ -211,6 +239,17 @@ fn render_table_report(
         tw.flush()?;
     }
     println!("{}", String::from_utf8_lossy(&detail_buf));
+
+    if !verbose && data.summaries.len() > 50 {
+        println!();
+        println!(
+            "  {} 已截断: 显示前{}行分组 / 共{}行，使用 {} 显示完整内容",
+            "⚠".yellow().bold(),
+            50,
+            data.summaries.len(),
+            "--verbose".cyan().bold()
+        );
+    }
 
     if data.include_aging {
         render_aging_table(&data.aging, config);
@@ -330,6 +369,9 @@ pub fn generate_fee_detail_table(
     config: &AppConfig,
     verbose: bool,
 ) -> String {
+    let tw = formatter::terminal_width();
+    let narrow_mode = tw < 85;
+
     let mut buf = Vec::new();
     {
         let mut tw = TabWriter::new(&mut buf);
@@ -361,12 +403,14 @@ pub fn generate_fee_detail_table(
             )
         )
         .unwrap();
-        writeln!(
-            tw,
-            "计算时间\t{}",
-            formatter::format_datetime(&fee.compute_time)
-        )
-        .unwrap();
+        if !narrow_mode {
+            writeln!(
+                tw,
+                "计算时间\t{}",
+                formatter::format_datetime(&fee.compute_time)
+            )
+            .unwrap();
+        }
         if fee.has_dispute {
             writeln!(tw, "争议标记\t{}", "⚠ 存在费用调整".yellow()).unwrap();
         }
@@ -386,19 +430,26 @@ pub fn generate_fee_detail_table(
     let header = String::from_utf8_lossy(&buf).to_string();
     println!("{}", header);
 
+    if narrow_mode {
+        formatter::info(&format!("窄终端模式检测 (宽度={}, <85)，省略基础费/费率/备注等列。", tw));
+    }
+
     formatter::section_title("12项费用明细");
 
     let mut detail_buf = Vec::new();
     {
         let mut tw = TabWriter::new(&mut detail_buf);
 
-        let hdr = if verbose {
+        let hdr = if narrow_mode {
+            "序号\t项目\t数量\t金额"
+        } else if verbose {
             "序号\t费用项目\t基础费\t费率\t数量\t单位\t金额\t备注"
         } else {
             "序号\t费用项目\t数量\t单位\t金额"
         };
         writeln!(tw, "{}", hdr.white().bold()).unwrap();
-        writeln!(tw, "{}", "─".repeat(if verbose { 95 } else { 60 }).dimmed()).unwrap();
+        let sep_len = if narrow_mode { 45 } else if verbose { 95 } else { 60 };
+        writeln!(tw, "{}", "─".repeat(sep_len).dimmed()).unwrap();
 
         for (i, d) in fee.details.iter().enumerate() {
             let remarks = if d.remarks.is_empty() {
@@ -407,7 +458,17 @@ pub fn generate_fee_detail_table(
                 d.remarks.clone().yellow().to_string()
             };
 
-            if verbose {
+            if narrow_mode {
+                writeln!(
+                    tw,
+                    "{}\t{}\t{}\t{}",
+                    i + 1,
+                    d.category_name,
+                    formatter::format_number(d.quantity, 1),
+                    formatter::format_currency(d.amount, &config.currency_symbol, config.decimals).bold().to_string()
+                )
+                .unwrap();
+            } else if verbose {
                 writeln!(
                     tw,
                     "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
@@ -435,29 +496,33 @@ pub fn generate_fee_detail_table(
             }
         }
 
-        writeln!(tw, "{}", "─".repeat(if verbose { 95 } else { 60 }).dimmed()).unwrap();
+        writeln!(tw, "{}", "─".repeat(sep_len).dimmed()).unwrap();
+        let pad_count = if narrow_mode { 2 } else if verbose { 6 } else { 3 };
         writeln!(
             tw,
-            "{}\t{}\t\t\t\t\t{}\t",
+            "{}\t{}\t{}\t{}",
             "",
             "金额小计".bold(),
+            &"\t".repeat(pad_count - 1),
             formatter::format_currency(fee.total_amount, &config.currency_symbol, config.decimals)
                 .bold()
         )
         .unwrap();
         writeln!(
             tw,
-            "{}\t{}\t\t\t\t\t{}\t",
+            "{}\t{}\t{}\t{}",
             "",
             "增值税(6%)".dimmed(),
+            &"\t".repeat(pad_count - 1),
             formatter::format_currency(fee.tax_amount, &config.currency_symbol, config.decimals)
         )
         .unwrap();
         writeln!(
             tw,
-            "{}\t{}\t\t\t\t\t{}\t",
+            "{}\t{}\t{}\t{}",
             "",
             "价税合计".magenta().bold(),
+            &"\t".repeat(pad_count - 1),
             formatter::format_currency(fee.grand_total, &config.currency_symbol, config.decimals)
                 .magenta()
                 .bold()
@@ -473,6 +538,10 @@ pub fn generate_history_chart(
     records: &[FeeResult],
     config: &AppConfig,
 ) -> String {
+    let verbose = std::env::args().any(|a| a == "--verbose" || a == "-v");
+    let tw = formatter::terminal_width();
+    let narrow_mode = tw < 65;
+
     let mut monthly: HashMap<String, (f64, usize)> = HashMap::new();
 
     for fee in records {
@@ -497,45 +566,93 @@ pub fn generate_history_chart(
         return String::from("无历史费用数据");
     }
 
-    let chart = formatter::render_ascii_line_chart(&chart_data, 8, "月度费用趋势图");
+    let chart_height = if narrow_mode { 5 } else { 8 };
+    let chart = formatter::render_ascii_line_chart(&chart_data, chart_height, "月度费用趋势图");
+
+    let limit = if verbose { usize::MAX } else { 36 };
+    let total_months = months.len();
 
     let mut buf = Vec::new();
     {
         let mut tw = TabWriter::new(&mut buf);
-        writeln!(tw, "{}", "月份\t艘次\t费用合计".white().bold()).unwrap();
-        writeln!(tw, "{}", "─".repeat(45).dimmed()).unwrap();
+        if narrow_mode {
+            writeln!(tw, "{}", "月份\t金额".white().bold()).unwrap();
+        } else {
+            writeln!(tw, "{}", "月份\t艘次\t费用合计".white().bold()).unwrap();
+        }
+        writeln!(tw, "{}", "─".repeat(if narrow_mode { 40 } else { 45 }).dimmed()).unwrap();
+
+        let display_months: Vec<&String> = if total_months <= limit {
+            months.iter().collect()
+        } else {
+            months.iter().take(limit).collect()
+        };
 
         let mut total = 0.0;
         let mut count = 0;
-        for m in &months {
+        for m in &display_months {
             let (amt, cnt) = monthly.get(m).unwrap();
             total += amt;
             count += cnt;
+            if narrow_mode {
+                writeln!(
+                    tw,
+                    "{}\t{}",
+                    m,
+                    formatter::format_currency(*amt, &config.currency_symbol, config.decimals)
+                )
+                .unwrap();
+            } else {
+                writeln!(
+                    tw,
+                    "{}\t{}\t{}",
+                    m,
+                    cnt,
+                    formatter::format_currency(*amt, &config.currency_symbol, config.decimals)
+                )
+                .unwrap();
+            }
+        }
+
+        writeln!(tw, "{}", "─".repeat(if narrow_mode { 40 } else { 45 }).dimmed()).unwrap();
+        if narrow_mode {
+            writeln!(
+                tw,
+                "{}\t{}",
+                "合计",
+                formatter::format_currency(total, &config.currency_symbol, config.decimals)
+                    .bold()
+            )
+            .unwrap();
+        } else {
             writeln!(
                 tw,
                 "{}\t{}\t{}",
-                m,
-                cnt,
-                formatter::format_currency(*amt, &config.currency_symbol, config.decimals)
+                "合计",
+                count,
+                formatter::format_currency(total, &config.currency_symbol, config.decimals)
+                    .bold()
             )
             .unwrap();
         }
-
-        writeln!(tw, "{}", "─".repeat(45).dimmed()).unwrap();
-        writeln!(
-            tw,
-            "{}\t{}\t{}",
-            "合计",
-            count,
-            formatter::format_currency(total, &config.currency_symbol, config.decimals)
-                .bold()
-        )
-        .unwrap();
         tw.flush().unwrap();
     }
 
     let table = String::from_utf8_lossy(&buf).to_string();
-    format!("{}\n{}", chart, table)
+
+    let truncate_msg = if !verbose && total_months > limit {
+        format!(
+            "\n  {} 已截断: 显示前{}个月 / 共{}个月，使用 {} 显示完整历史",
+            "⚠".yellow().bold(),
+            limit,
+            total_months,
+            "--verbose".cyan().bold()
+        )
+    } else {
+        String::new()
+    };
+
+    format!("{}\n{}{}", chart, table, truncate_msg)
 }
 
 pub fn generate_fee_category_summary(

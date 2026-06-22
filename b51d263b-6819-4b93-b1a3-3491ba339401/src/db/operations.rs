@@ -75,6 +75,49 @@ impl Database {
         Ok(self.conn.last_insert_rowid())
     }
 
+    pub fn find_conflicting_ships(&self, ship: &Ship) -> Result<Vec<Ship>, DbError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT * FROM ships WHERE imo = ?1 AND arrival_time = ?2"
+        )?;
+        let conflicts = stmt
+            .query_map(
+                params![ship.imo, ship.arrival_time.to_rfc3339()],
+                row_to_ship,
+            )?
+            .collect::<SqlResult<Vec<_>>>()?;
+        Ok(conflicts)
+    }
+
+    pub fn update_ship(&self, ship: &Ship) -> Result<(), DbError> {
+        self.conn.execute(
+            "UPDATE ships SET
+                vessel_name = ?2,
+                vessel_type = ?3,
+                net_tonnage = ?4,
+                departure_time = ?5,
+                port_code = ?6,
+                cargo_tonnage = ?7,
+                pilot_hours = ?8,
+                tug_count = ?9,
+                tug_hours = ?10
+             WHERE imo = ?1 AND arrival_time = ?11",
+            params![
+                ship.imo,
+                ship.vessel_name,
+                ship.vessel_type.as_str(),
+                ship.net_tonnage,
+                ship.departure_time.to_rfc3339(),
+                ship.port_code,
+                ship.cargo_tonnage,
+                ship.pilot_hours,
+                ship.tug_count as i64,
+                ship.tug_hours,
+                ship.arrival_time.to_rfc3339(),
+            ],
+        )?;
+        Ok(())
+    }
+
     pub fn get_ship(&self, id: i64) -> Result<Option<Ship>, DbError> {
         self.conn
             .query_row(
@@ -265,14 +308,15 @@ impl Database {
         let record_id = {
             tx.execute(
                 "INSERT INTO fee_records (
-                    ship_id, imo, vessel_name, port_code, arrival_time, departure_time,
+                    ship_id, imo, vessel_name, vessel_type, port_code, arrival_time, departure_time,
                     compute_time, total_amount, tax_amount, grand_total,
                     has_dispute, is_settled, settled_amount
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
                 params![
                     fee.ship_id,
                     fee.imo,
                     fee.vessel_name,
+                    fee.vessel_type,
                     fee.port_code,
                     fee.arrival_time.to_rfc3339(),
                     fee.departure_time.to_rfc3339(),
@@ -600,17 +644,18 @@ fn row_to_fee_result(row: &rusqlite::Row) -> SqlResult<FeeResult> {
         ship_id: row.get(1)?,
         imo: row.get(2)?,
         vessel_name: row.get(3)?,
-        port_code: row.get(4)?,
-        arrival_time: parse_dt(&row.get::<_, String>(5)?),
-        departure_time: parse_dt(&row.get::<_, String>(6)?),
-        compute_time: parse_dt(&row.get::<_, String>(7)?),
+        vessel_type: row.get(4)?,
+        port_code: row.get(5)?,
+        arrival_time: parse_dt(&row.get::<_, String>(6)?),
+        departure_time: parse_dt(&row.get::<_, String>(7)?),
+        compute_time: parse_dt(&row.get::<_, String>(8)?),
         details: Vec::new(),
-        total_amount: row.get(8)?,
-        tax_amount: row.get(9)?,
-        grand_total: row.get(10)?,
-        has_dispute: row.get::<_, i32>(11)? == 1,
-        is_settled: row.get::<_, i32>(12)? == 1,
-        settled_amount: row.get(13)?,
+        total_amount: row.get(9)?,
+        tax_amount: row.get(10)?,
+        grand_total: row.get(11)?,
+        has_dispute: row.get::<_, i32>(12)? == 1,
+        is_settled: row.get::<_, i32>(13)? == 1,
+        settled_amount: row.get(14)?,
     })
 }
 
@@ -706,18 +751,50 @@ pub fn compute_monthly_summary(
 
     let records = db.find_fee_records(None, None, None, Some(start_dt), Some(end_dt), None)?;
 
+    let vessel_type_names: HashMap<&str, &str> = [
+        ("container", "集装箱船"),
+        ("bulk", "散货船"),
+        ("oil", "油轮"),
+        ("lpg", "液化气船"),
+        ("ro-ro", "滚装船"),
+    ].iter().cloned().collect();
+
     let mut map: HashMap<String, MonthlySummary> = HashMap::new();
 
     for fee in &records {
-        let key = if by_port {
+        let key = if by_port && by_vessel_type {
+            format!("{}:{}", fee.port_code, fee.vessel_type)
+        } else if by_port {
             fee.port_code.clone()
+        } else if by_vessel_type {
+            fee.vessel_type.clone()
         } else {
             "ALL".to_string()
         };
 
+        let display_name = if by_port && by_vessel_type {
+            let parts: Vec<&str> = key.split(':').collect();
+            let vt_name = vessel_type_names.get(parts.get(1).unwrap_or(&"")).copied().unwrap_or(parts.get(1).unwrap_or(&""));
+            format!("{} ({})", parts[0], vt_name)
+        } else if by_port {
+            key.clone()
+        } else if by_vessel_type {
+            vessel_type_names.get(key.as_str()).copied().unwrap_or(&key).to_string()
+        } else {
+            "合计".to_string()
+        };
+
+        let code = if by_vessel_type && !by_port {
+            fee.vessel_type.clone()
+        } else if by_port && by_vessel_type {
+            key.clone()
+        } else {
+            key.clone()
+        };
+
         let entry = map.entry(key.clone()).or_insert(MonthlySummary {
-            port_code: key.clone(),
-            port_name: if by_port { key.clone() } else { "合计".to_string() },
+            port_code: code,
+            port_name: display_name,
             vessel_count: 0,
             total_amount: 0.0,
             tax_amount: 0.0,

@@ -15,6 +15,13 @@ pub enum PortError {
     EmptyPortCode,
     #[error("未找到生效的费率规则: 港口={0}, 类别={1}")]
     RateNotFound(String, String),
+    #[error("费率匹配失败: 港口={port_code}, 类别={category}, 净吨位={net_tonnage}\n可用费率列表:\n{available}")]
+    RateMatchFailed {
+        port_code: String,
+        category: String,
+        net_tonnage: f64,
+        available: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -243,16 +250,72 @@ impl PortRateConfig {
             .get(&category)
             .ok_or_else(|| PortError::RateNotFound(self.port_code.clone(), category.as_str().to_string()))?;
 
-        for rule in rules.iter().filter(|r| r.is_effective_on(date)) {
+        let active_rules: Vec<&RateRule> = rules.iter().filter(|r| r.is_effective_on(date)).collect();
+
+        if active_rules.is_empty() {
+            let all_rules = self
+                .rate_rules
+                .get(&category)
+                .cloned()
+                .unwrap_or_default();
+            let mut fallback = String::from("  (无任何已定义费率)");
+            if !all_rules.is_empty() {
+                fallback = String::from("  (存在已停用或未生效费率:\n");
+                for r in &all_rules {
+                    let status = if r.is_active {
+                        if date < r.effective_date {
+                            format!("未生效({}起)", formatter_date(&r.effective_date))
+                        } else {
+                            r.expiry_date
+                                .map(|d| format!("已过期({}止)", formatter_date(&d)))
+                                .unwrap_or_else(|| "状态异常".to_string())
+                        }
+                    } else {
+                        "已停用".to_string()
+                    };
+                    let tier_to = if r.tier.tier_to == 0.0 { "∞".to_string() } else { r.tier.tier_to.to_string() };
+                    fallback.push_str(&format!("    阶梯{}-{} 费率{} 状态: {}\n",
+                        r.tier.tier_from, tier_to, r.tier.unit_rate, status));
+                }
+                fallback.push_str("  )");
+            }
+            return Err(PortError::RateMatchFailed {
+                port_code: self.port_code.clone(),
+                category: category.as_str().to_string(),
+                net_tonnage,
+                available: fallback,
+            });
+        }
+
+        for rule in &active_rules {
             if rule.tier.contains(net_tonnage) {
                 return Ok(rule);
             }
         }
 
-        Err(PortError::RateNotFound(
-            self.port_code.clone(),
-            category.as_str().to_string(),
-        ))
+        let mut available = String::new();
+        for (i, r) in active_rules.iter().enumerate() {
+            let tier_to = if r.tier.tier_to == 0.0 { "∞".to_string() } else { r.tier.tier_to.to_string() };
+            available.push_str(&format!(
+                "  [{}] 净吨位区间 {}-{} : 基础费 {} + 费率 {} /单位{}",
+                i + 1,
+                r.tier.tier_from,
+                tier_to,
+                r.tier.base_fee,
+                r.tier.unit_rate,
+                if let Some(id) = r.id { format!(" (规则ID#{})", id) } else { String::new() }
+            ));
+            if i < active_rules.len() - 1 {
+                available.push('\n');
+            }
+        }
+
+        Err(PortError::RateMatchFailed {
+            port_code: self.port_code.clone(),
+            category: category.display_name().to_string(),
+            net_tonnage,
+            available,
+        })
     }
 
     pub fn add_rule(&mut self, rule: RateRule) {
@@ -261,6 +324,10 @@ impl PortRateConfig {
             .or_insert_with(Vec::new)
             .push(rule);
     }
+}
+
+fn formatter_date(dt: &DateTime<Utc>) -> String {
+    dt.format("%Y-%m-%d").to_string()
 }
 
 pub fn parse_effective_date(s: &str) -> Result<DateTime<Utc>, PortError> {

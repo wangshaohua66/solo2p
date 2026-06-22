@@ -1,4 +1,4 @@
-use structopt::StructOpt;
+use structopt::{StructOpt, clap::Shell};
 use chrono::NaiveDate;
 
 #[derive(StructOpt, Debug, Clone)]
@@ -6,15 +6,44 @@ use chrono::NaiveDate;
     name = "ship-agent",
     about = "船舶代理港口使费管理系统 | Port Agency Fee Management System",
     version = "1.0.0",
-    author = "Ship Agent System"
+    author = "Ship Agent System",
+    long_about = "船舶代理港口使费管理系统，支持船舶申报、费用计算、费率管理、争议处理、结算报表、批量导入、历史追溯、系统配置八大功能。\n\n使用 --man 查看完整手册页\n使用 --examples 查看典型场景命令\n使用 completion <shell> 生成命令行补全脚本"
 )]
-pub enum Cli {
+pub struct Cli {
+    #[structopt(flatten)]
+    pub global_flags: GlobalFlags,
+
+    #[structopt(subcommand)]
+    pub command: Option<Command>,
+}
+
+#[derive(StructOpt, Debug, Clone)]
+pub struct GlobalFlags {
+    #[structopt(long = "man", help = "显示完整手册页")]
+    pub man: bool,
+
+    #[structopt(long = "examples", help = "显示典型场景命令示例")]
+    pub examples: bool,
+
+    #[structopt(long = "no-color", help = "禁用彩色输出")]
+    pub no_color: bool,
+}
+
+#[derive(StructOpt, Debug, Clone)]
+pub enum Command {
     #[structopt(
         name = "add",
         about = "录入船舶申报信息",
         long_about = "船舶申报命令：录入船舶IMO号、船名、船型、净吨位、抵港时间、离港时间、作业港口代码，自动校验IMO号校验位与船舶类型有效性。"
     )]
     Add(AddArgs),
+
+    #[structopt(
+        name = "completion",
+        about = "生成Shell自动补全脚本",
+        long_about = "支持bash/zsh/fish/powershell/elvish五种Shell的自动补全脚本生成。\n用法:\n  ship-agent completion bash > /etc/bash_completion.d/ship-agent\n  ship-agent completion zsh > ~/.zsh/completions/_ship-agent\n  ship-agent completion fish > ~/.config/fish/completions/ship-agent.fish"
+    )]
+    Completion(CompletionArgs),
 
     #[structopt(
         name = "compute",
@@ -64,6 +93,19 @@ pub enum Cli {
         long_about = "配置管理命令：设置默认港口代码、输出格式、小数位数、货币符号等参数，配置持久化至~/.ship_agent/config.toml。"
     )]
     Config(ConfigArgs),
+}
+
+#[derive(StructOpt, Debug, Clone)]
+pub struct CompletionArgs {
+    #[structopt(
+        name = "shell",
+        help = "Shell类型: bash/zsh/fish/powershell/elvish",
+        parse(try_from_str)
+    )]
+    pub shell: Shell,
+
+    #[structopt(short = "o", long = "output", help = "输出到文件（不指定则打印到标准输出）")]
+    pub output: Option<String>,
 }
 
 #[derive(StructOpt, Debug, Clone)]
