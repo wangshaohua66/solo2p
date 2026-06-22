@@ -1,0 +1,48 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+    min-response-size: 1024
+
+spring:
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/heritage_db
+      auto-index-creation: true
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 500MB
+  mail:
+    host: smtp.example.com
+    port: 587
+    username: heritage@example.com
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+jwt:
+  secret: ${JWT_SECRET:heritage-platform-secret-key-for-jwt-token-generation-2024}
+  expiration: 86400000
+  header: Authorization
+  prefix: Bearer
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+
+logging:
+  level:
+    com.heritage: DEBUG
+    org.springframework.security: INFO
